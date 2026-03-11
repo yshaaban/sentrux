@@ -1,0 +1,50 @@
+# Sentrux Architectural Rules
+# These constraints are checked by `sentrux check` and the `check_rules` MCP tool.
+
+[constraints]
+max_cycles = 0           # No circular dependencies allowed
+max_cc = 25              # Max cyclomatic complexity per function
+max_fn_lines = 100       # Max function length
+no_god_files = false     # Allow god files for now
+
+# Layer definitions: higher order depends on lower order only.
+[[layers]]
+name = "core"
+paths = ["src/core/*"]
+order = 0
+
+[[layers]]
+name = "analysis"
+paths = ["src/analysis/*"]
+order = 1
+
+[[layers]]
+name = "metrics"
+paths = ["src/metrics/*"]
+order = 2
+
+[[layers]]
+name = "layout"
+paths = ["src/layout/*"]
+order = 3
+
+[[layers]]
+name = "renderer"
+paths = ["src/renderer/*"]
+order = 4
+
+[[layers]]
+name = "app"
+paths = ["src/app/*"]
+order = 5
+
+# Boundary rules: forbidden cross-layer shortcuts
+[[boundaries]]
+from = "src/renderer/*"
+to = "src/analysis/*"
+reason = "Renderer must not depend on analysis directly"
+
+[[boundaries]]
+from = "src/layout/*"
+to = "src/app/*"
+reason = "Layout must not depend on app layer"

@@ -1,0 +1,32 @@
+# Build
+target/
+*.pyc
+__pycache__/
+node_modules/
+dist/
+
+# OS
+.DS_Store
+
+# Local config (user-specific paths)
+.mcp.json
+
+# Beemem (external tool data)
+.beemem/
+.beemem1/
+beememar/
+
+# License keys
+*.key
+
+# Sentrux runtime data
+.sentrux/baseline.json
+
+# Claude Code (user-specific settings)
+.claude/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

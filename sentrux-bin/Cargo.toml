@@ -1,0 +1,21 @@
+[package]
+name = "sentrux"
+version = "0.1.0"
+edition = "2021"
+description = "Live codebase visualization and structural quality gate for AI-agent-written code"
+license = "MIT"
+repository = "https://github.com/sentrux/sentrux"
+homepage = "https://sentrux.dev"
+
+[[bin]]
+name = "sentrux"
+path = "src/main.rs"
+
+[dependencies]
+sentrux-core = { path = "../sentrux-core" }
+eframe = { version = "0.31", features = ["wgpu", "persistence"] }
+egui = "0.31"
+
+[features]
+default = []
+pro = ["sentrux-core/pro"]  # Pro tools provided by separate private-integration-crate crate
