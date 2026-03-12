@@ -20,7 +20,18 @@ Live architecture visualization + structural quality gate for AI-agent-written c
 
 ![sentrux demo — AI agent builds a FastAPI project while sentrux visualizes architecture in real-time](assets/demo.gif)
 
-<sub>**Demo:** Claude Code builds a FastAPI task management API from a single prompt. sentrux visualizes the architecture growing in real-time — files appear, dependency edges form, health grades update live. **Final result: Health Grade D** (cohesion F, 25% dead code, 2% comments). Even with careful prompting, AI agents accumulate structural debt without a quality gate.</sub>
+<sub>**Demo:** Claude Code builds a FastAPI task management API from a single prompt. sentrux visualizes the architecture growing in real-time — files appear, dependency edges form, health grades update live. **Final result: Health Grade D.** Even with careful prompting, AI agents accumulate structural debt without a quality gate.</sub>
+
+<details>
+<summary>See the final grade report</summary>
+
+<img src="assets/demo-grade-result.png" width="320" alt="sentrux grade report — Health D, Architecture B">
+
+**Health: D** — cohesion F (6%), dead code F (25%), comments D (2%), high params B (4%)
+**Architecture: B** — levelization A, distance A, blast radius B (23 files)
+**Test Coverage: D** (38%) — 89/91 cross-module dependencies
+
+</details>
 
 ## Why
 
