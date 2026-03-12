@@ -18,7 +18,7 @@ Live architecture visualization + structural quality gate for AI-agent-written c
 
 </div>
 
-![sentrux screenshot](assets/screenshot.png)
+![sentrux demo — AI agent builds a FastAPI project while sentrux visualizes architecture in real-time](assets/demo.gif)
 
 ## Why
 
