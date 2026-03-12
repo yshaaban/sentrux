@@ -65,3 +65,57 @@ jobs:
             sentrux-darwin-arm64/sentrux-darwin-arm64
             sentrux-linux-x86_64/sentrux-linux-x86_64
           generate_release_notes: true
+
+      - name: Update Homebrew formula
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          SHA_DARWIN=$(sha256sum sentrux-darwin-arm64/sentrux-darwin-arm64 | cut -d' ' -f1)
+          SHA_LINUX=$(sha256sum sentrux-linux-x86_64/sentrux-linux-x86_64 | cut -d' ' -f1)
+
+          FORMULA=$(cat <<RUBY
+          class Sentrux < Formula
+            desc "Live codebase visualization and structural quality gate"
+            homepage "https://sentrux.dev"
+            version "${VERSION}"
+            license "MIT"
+
+            on_macos do
+              on_arm do
+                url "https://github.com/sentrux/sentrux/releases/download/v${VERSION}/sentrux-darwin-arm64"
+                sha256 "${SHA_DARWIN}"
+              end
+            end
+
+            on_linux do
+              on_intel do
+                url "https://github.com/sentrux/sentrux/releases/download/v${VERSION}/sentrux-linux-x86_64"
+                sha256 "${SHA_LINUX}"
+              end
+            end
+
+            def install
+              if OS.mac? && Hardware::CPU.arm?
+                bin.install "sentrux-darwin-arm64" => "sentrux"
+              elsif OS.linux? && Hardware::CPU.intel?
+                bin.install "sentrux-linux-x86_64" => "sentrux"
+              end
+            end
+
+            test do
+              assert_match "sentrux", shell_output("#{bin}/sentrux --help 2>&1", 1)
+            end
+          end
+          RUBY
+          )
+
+          FILE_SHA=$(gh api repos/sentrux/homebrew-tap/contents/Formula/sentrux.rb --jq '.sha')
+          CONTENT_B64=$(echo "$FORMULA" | base64 -w0)
+
+          gh api repos/sentrux/homebrew-tap/contents/Formula/sentrux.rb -X PUT \
+            -f message="Update sentrux to v${VERSION}" \
+            -f "committer[name]=yjing" \
+            -f "committer[email]=yjing@sentrux.dev" \
+            -f "sha=$FILE_SHA" \
+            -f "content=$CONTENT_B64"

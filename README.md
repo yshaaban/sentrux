@@ -74,6 +74,19 @@ cargo build --release
 
 Or download binaries from [Releases](https://github.com/sentrux/sentrux/releases).
 
+## Upgrade
+
+```bash
+# Homebrew
+brew update && brew upgrade sentrux
+
+# Quick install (re-run — always pulls latest release)
+curl -fsSL https://raw.githubusercontent.com/sentrux/sentrux/main/install.sh | sh
+
+# From source
+git pull && cargo build --release
+```
+
 ## Quick start
 
 ```bash
