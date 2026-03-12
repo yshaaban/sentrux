@@ -167,7 +167,7 @@ fn check_and_notify(current_version: &str) {
     };
 
     let url = format!(
-        "{}?v={}&p={}&new={}&m={}&pl={}&t={}&s={}&mc={}&g={}&gr={}&f={}",
+        "{}?v={}&p={}&new={}&m={}&pl={}&t={}&s={}&mc={}&g={}",
         UPDATE_CHECK_URL,
         current_version,
         platform_id(),
@@ -178,8 +178,6 @@ fn check_and_notify(current_version: &str) {
         scans,         // scans since last ping
         mcp,           // MCP calls since last ping
         gates,         // gate runs since last ping
-        grade_str,     // last health grade
-        files,         // last file count
     );
 
     let output = std::process::Command::new("curl")
