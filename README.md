@@ -24,13 +24,14 @@ Live architecture visualization + structural quality gate for AI-agent-written c
 
 <details>
 <summary>See the final grade report</summary>
-
-<img src="assets/demo-grade-result.png" width="320" alt="sentrux grade report — Health D, Architecture B">
-
-**Health: D** — cohesion F (6%), dead code F (25%), comments D (2%), high params B (4%)
-**Architecture: B** — levelization A, distance A, blast radius B (23 files)
-**Test Coverage: D** (38%) — 89/91 cross-module dependencies
-
+<br>
+<table>
+<tr>
+<td align="center"><img src="assets/grade-health.png" width="240" alt="Health Grade D"><br><b>Health: D</b><br><sub>cohesion F, dead code F (25%)<br>comments D (2%)</sub></td>
+<td align="center"><img src="assets/grade-architecture.png" width="240" alt="Architecture Grade B"><br><b>Architecture: B</b><br><sub>levelization A, distance A<br>blast radius B (23 files)</sub></td>
+<td align="center"><img src="assets/grade-test-coverage.png" width="240" alt="Test Coverage Grade D"><br><b>Test Coverage: D</b><br><sub>38% coverage<br>42 untested files</sub></td>
+</tr>
+</table>
 </details>
 
 ## Why
