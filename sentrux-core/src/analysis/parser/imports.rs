@@ -44,6 +44,7 @@ pub(crate) fn extract_import_modules(text: &str, lang: &str) -> Vec<String> {
         "java" | "csharp" => lang_extractors::extract_java_csharp(text),
         "ruby" => lang_extractors::extract_ruby(text),
         "php" => lang_extractors::extract_php(text),
+        "gdscript" => lang_extractors::extract_gdscript(text),
         "html" => lang_extractors::extract_html(text),
         "css" | "scss" | "sass" => lang_extractors::extract_css(text),
         "scala" | "swift" | "kotlin" => lang_extractors::extract_jvm_like(text),

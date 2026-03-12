@@ -215,6 +215,39 @@ pub(super) fn extract_css(text: &str) -> Vec<String> {
     if s.is_empty() { vec![] } else { vec![s] }
 }
 
+/// GDScript: extract path from preload("res://path") and load("res://path")
+pub(super) fn extract_gdscript(text: &str) -> Vec<String> {
+    let mut results = Vec::new();
+    let search = text;
+    for prefix in &["preload(", "load("] {
+        let mut pos = 0;
+        while let Some(start) = search[pos..].find(prefix) {
+            let abs_start = pos + start + prefix.len();
+            // Find the string argument inside quotes
+            if let Some(quote_start) = search[abs_start..].find('"').or_else(|| search[abs_start..].find('\'')) {
+                let q = abs_start + quote_start + 1;
+                let quote_char = search.as_bytes()[abs_start + quote_start];
+                if let Some(end) = search[q..].find(quote_char as char) {
+                    let path = &search[q..q + end];
+                    // Strip "res://" prefix and convert to relative path
+                    let clean = path
+                        .strip_prefix("res://")
+                        .unwrap_or(path)
+                        .trim_end_matches(".tscn")
+                        .trim_end_matches(".tres");
+                    if !clean.is_empty() {
+                        results.push(clean.to_string());
+                    }
+                    pos = q + end;
+                    continue;
+                }
+            }
+            pos = abs_start;
+        }
+    }
+    results
+}
+
 pub(super) fn extract_jvm_like(text: &str) -> Vec<String> {
     let s = text.trim().trim_start_matches("import ").trim().to_string();
     if s.is_empty() { vec![] } else { vec![s] }
