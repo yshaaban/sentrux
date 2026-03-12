@@ -31,11 +31,13 @@ pub(crate) struct SourceContext<'a> {
 
 /// Shared indexes used for resolution lookups.
 pub(crate) struct ResolutionIndex<'a> {
-    /// Set of all known file paths in the scan
-    pub known_files: &'a HashSet<&'a str>,
     /// Map from file path to its project root
     pub project_map: &'a HashMap<String, String>,
-    /// Module-path suffix index for fuzzy file matching
+    #[allow(dead_code)]
+    /// Set of all known file paths in the scan (reserved for future resolution strategies)
+    pub known_files: &'a HashSet<&'a str>,
+    #[allow(dead_code)]
+    /// Module-path suffix index for fuzzy file matching (reserved for future resolution strategies)
     pub suffix_index: &'a SuffixIndex<'a>,
 }
 

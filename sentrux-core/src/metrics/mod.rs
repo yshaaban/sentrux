@@ -40,7 +40,6 @@ use stability::{
     compute_stable_modules,
 };
 use types::{
-    DuplicateGroup, FileMetrics, ModuleMetrics,
     CC_THRESHOLD_HIGH, FUNC_LENGTH_THRESHOLD, FAN_OUT_THRESHOLD, FAN_IN_THRESHOLD,
     LARGE_FILE_THRESHOLD, COG_THRESHOLD_HIGH, PARAM_THRESHOLD_HIGH,
 };

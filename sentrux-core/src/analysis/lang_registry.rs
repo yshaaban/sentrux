@@ -249,46 +249,6 @@ impl LangRegistry {
         );
     }
 
-    /// Register a language from a tree-sitter 0.20 crate by transmuting to 0.25.
-    ///
-    /// SAFETY: Both tree_sitter 0.20::Language and 0.25::Language are
-    /// #[repr(transparent)] wrappers around *const ffi::TSLanguage (the C struct).
-    /// The C ABI (TSLanguage) is stable across these versions. The transmute only
-    /// reinterprets the Rust wrapper type, not the underlying pointer. We validate
-    /// size, alignment, and grammar ABI version at runtime before using the language.
-    fn register_transmuted_lang<L: Copy>(
-        &mut self,
-        name: &'static str,
-        old_lang: L,
-        query_src: &str,
-        extensions: &'static [&'static str],
-    ) {
-        assert_eq!(
-            std::mem::size_of::<L>(),
-            std::mem::size_of::<Language>(),
-            "tree-sitter Language type size mismatch for {} — unsafe transmute would be UB",
-            name,
-        );
-        assert_eq!(
-            std::mem::align_of::<L>(),
-            std::mem::align_of::<Language>(),
-            "tree-sitter Language type alignment mismatch for {} — unsafe transmute would be UB",
-            name,
-        );
-        let new_lang: Language = unsafe { std::mem::transmute_copy(&old_lang) };
-        // Runtime ABI version check: tree-sitter 0.25 expects version >= 14
-        #[allow(deprecated)]
-        let version = new_lang.version();
-        if version >= 14 {
-            self.register_static(name, new_lang, query_src, extensions);
-        } else {
-            eprintln!(
-                "[lang_registry] WARN: {} grammar ABI version {} too old (need >= 14), skipping",
-                name, version
-            );
-        }
-    }
-
     fn register_static(
         &mut self,
         name: &'static str,

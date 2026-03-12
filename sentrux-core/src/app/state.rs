@@ -169,7 +169,7 @@ pub struct AppState {
     /// Architecture rules check result
     pub rule_check_result: Option<RuleCheckResult>,
     /// Cached what-if simulation result for the selected file
-    pub whatif_cache: Option<super::panels::whatif_display::WhatIfCache>,
+    pub(crate) whatif_cache: Option<super::panels::whatif_display::WhatIfCache>,
     /// Pre-computed impact files for ImpactRadius focus mode (transitive dependents).
     pub impact_files: Option<Arc<HashSet<String>>>,
 

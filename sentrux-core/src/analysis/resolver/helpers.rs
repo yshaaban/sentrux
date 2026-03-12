@@ -21,7 +21,7 @@ pub(crate) const PACKAGE_INDEX_FILES: &[&str] = &[
 ];
 
 /// Result of building the module suffix index.
-pub(super) struct SuffixIndex<'a> {
+pub(crate) struct SuffixIndex<'a> {
     /// Standard suffix index: file-path suffixes -> files
     pub(super) index: HashMap<String, Vec<&'a str>>,
     /// Manifest-derived aliases: project name -> entry point (safe for single-segment lookup)
