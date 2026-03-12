@@ -79,6 +79,8 @@ impl SentruxApp {
         let report = reports.health.unwrap_or_else(|| crate::metrics::compute_health(&snap));
         let arch = reports.arch.unwrap_or_else(|| crate::metrics::arch::compute_arch(&snap));
         self.check_arch_degradation(&arch);
+        // Record scan for telemetry
+        crate::app::update_check::record_scan(snap.total_files, report.grade);
         self.state.health_report = Some(report);
         self.state.arch_report = Some(arch);
         self.state.evolution_report = reports.evolution;

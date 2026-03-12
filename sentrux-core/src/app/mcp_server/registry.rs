@@ -79,6 +79,12 @@ impl ToolRegistry {
             state.cached_evolution = None;
         }
 
+        // Record MCP call for telemetry
+        crate::app::update_check::record_mcp_call();
+        if name == "gate" {
+            crate::app::update_check::record_gate_run();
+        }
+
         // Execute
         (tool.handler)(args, tier, state)
     }
