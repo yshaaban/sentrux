@@ -39,8 +39,23 @@ pub fn rescan_changed(
     let expanded = expand_directory_events(root, changed_rel_paths, max_file_size_bytes);
     let (to_reparse, deleted) = classify_changed_paths(root, &expanded, max_file_size_bytes);
 
-    // Remove deleted files
-    files.retain(|f| !deleted.contains(&f.path));
+    // Remove deleted files — exact match OR prefix match for deleted directories.
+    // When a directory is deleted, macOS FSEvents may only report the directory
+    // itself (not individual files within it), so we must also remove all files
+    // whose path starts with "deleted_dir/".
+    //
+    // Collect directory prefixes once (with trailing '/') to avoid repeated
+    // string building inside the hot retain loop.
+    let deleted_dir_prefixes: Vec<String> = deleted.iter()
+        .map(|d| format!("{}/", d))
+        .collect();
+    files.retain(|f| {
+        if deleted.contains(&f.path) {
+            return false;
+        }
+        // Check if any deleted path is a parent directory of this file
+        deleted_dir_prefixes.iter().all(|prefix| !f.path.starts_with(prefix.as_str()))
+    });
 
     // Batch line counts + structural analysis + git statuses
     let line_counts = batch_line_counts(&to_reparse);
@@ -308,5 +323,92 @@ fn build_snapshot_with_graphs(
             exec_depth: gr.exec_depth,
         },
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::types::FileNode;
+
+    fn make_file(path: &str) -> FileNode {
+        FileNode {
+            path: path.to_string(),
+            name: path.rsplit('/').next().unwrap_or(path).to_string(),
+            is_dir: false, lines: 10, logic: 8, comments: 1, blanks: 1,
+            funcs: 1, mtime: 0.0, gs: String::new(), lang: "rust".into(),
+            sa: None, children: None,
+        }
+    }
+
+    #[test]
+    fn test_directory_deletion_removes_child_files() {
+        // Simulate files under src/foo/
+        let mut files = vec![
+            make_file("src/foo/bar.rs"),
+            make_file("src/foo/baz.rs"),
+            make_file("src/main.rs"),
+        ];
+
+        // Watcher reports "src/foo" as deleted (directory deletion on macOS
+        // may only report the directory, not individual files within it).
+        let deleted: HashSet<String> = ["src/foo".to_string()].into_iter().collect();
+        let deleted_dir_prefixes: Vec<String> = deleted.iter()
+            .map(|d| format!("{}/", d))
+            .collect();
+
+        files.retain(|f| {
+            if deleted.contains(&f.path) {
+                return false;
+            }
+            deleted_dir_prefixes.iter().all(|prefix| !f.path.starts_with(prefix.as_str()))
+        });
+
+        assert_eq!(files.len(), 1, "Only src/main.rs should survive");
+        assert_eq!(files[0].path, "src/main.rs");
+    }
+
+    #[test]
+    fn test_individual_file_deletion() {
+        let mut files = vec![
+            make_file("src/foo.rs"),
+            make_file("src/bar.rs"),
+        ];
+        let deleted: HashSet<String> = ["src/foo.rs".to_string()].into_iter().collect();
+        let deleted_dir_prefixes: Vec<String> = deleted.iter()
+            .map(|d| format!("{}/", d))
+            .collect();
+
+        files.retain(|f| {
+            if deleted.contains(&f.path) {
+                return false;
+            }
+            deleted_dir_prefixes.iter().all(|prefix| !f.path.starts_with(prefix.as_str()))
+        });
+
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].path, "src/bar.rs");
+    }
+
+    #[test]
+    fn test_delete_all_files_produces_empty() {
+        let mut files = vec![
+            make_file("src/main.rs"),
+            make_file("src/lib.rs"),
+        ];
+        // Root-level "src" deleted
+        let deleted: HashSet<String> = ["src".to_string()].into_iter().collect();
+        let deleted_dir_prefixes: Vec<String> = deleted.iter()
+            .map(|d| format!("{}/", d))
+            .collect();
+
+        files.retain(|f| {
+            if deleted.contains(&f.path) {
+                return false;
+            }
+            deleted_dir_prefixes.iter().all(|prefix| !f.path.starts_with(prefix.as_str()))
+        });
+
+        assert!(files.is_empty(), "All files should be removed when parent dir is deleted");
+    }
 }
 
