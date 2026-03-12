@@ -106,6 +106,6 @@ impl ToolRegistry {
 fn upgrade_message(tool: &str, required: Tier) -> String {
     format!(
         "'{tool}' requires sentrux {required}. \
-         Learn more: https://sentrux.dev/pro"
+         Learn more: https://github.com/sentrux/sentrux"
     )
 }

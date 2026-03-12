@@ -145,7 +145,7 @@ fn handle_health(_args: &Value, tier: &Tier, state: &mut McpState) -> Result<Val
         });
     } else {
         result["upgrade"] = json!({
-            "message": "Upgrade to Pro for file-level details: https://sentrux.dev/pro"
+            "message": "Upgrade to Pro for file-level details: https://github.com/sentrux/sentrux"
         });
     }
 
@@ -540,7 +540,7 @@ fn handle_check_rules(_args: &Value, tier: &Tier, state: &mut McpState) -> Resul
         response["truncated"] = json!({
             "total_rules_defined": total_rules,
             "rules_checked": result.rules_checked,
-            "message": "Free tier checks up to 3 rules. Upgrade to Pro for unlimited: https://sentrux.dev/pro"
+            "message": "Free tier checks up to 3 rules. Upgrade to Pro for unlimited: https://github.com/sentrux/sentrux"
         });
     }
     Ok(response)
