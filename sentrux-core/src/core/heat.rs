@@ -140,9 +140,10 @@ impl HeatTracker {
         })
     }
 
-    /// True if any file has an active ripple or significant heat.
+    /// True if any file has visually significant heat (above rendering threshold).
+    /// Prevents infinite repaint loops from near-zero heat values.
     pub fn is_active(&self) -> bool {
-        !self.entries.is_empty()
+        self.entries.values().any(|e| e.heat > 0.02)
     }
 
     /// True if any file has an active (unexpired) ripple animation.
