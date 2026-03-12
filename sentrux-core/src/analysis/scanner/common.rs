@@ -109,10 +109,21 @@ pub(crate) fn should_ignore_file(path: &Path) -> bool {
 /// scan_file's HashMap lookup misses for every file, cascading to expensive
 /// canonicalize() syscalls and fs::read_to_string() fallbacks. [ref:93cf32d4]
 pub(crate) fn count_lines_batch(paths: &[PathBuf]) -> HashMap<PathBuf, (u32, u32, u32, u32)> {
+    if paths.is_empty() {
+        return HashMap::new();
+    }
     let cfg = Config::default();
     let mut langs = Languages::new();
     let path_list: Vec<PathBuf> = paths.to_vec();
-    langs.get_statistics(&path_list, &[], &cfg);
+    // tokei can panic on directories with no recognizable source files.
+    // Catch the panic to avoid crashing the scanner thread.
+    let panicked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        langs.get_statistics(&path_list, &[], &cfg);
+    }));
+    if panicked.is_err() {
+        eprintln!("[scan] tokei panicked on input paths, returning empty line counts");
+        return HashMap::new();
+    }
 
     // Build reverse map: tokei's report.name → original input path.
     // tokei may return canonicalized or normalized paths that differ from
