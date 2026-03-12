@@ -8,25 +8,31 @@
 
 <br><br>
 
-**See your codebase. Govern your AI agents.**
+**Your AI agent writes the code.<br>sentrux tells you what it did to your architecture.**
 
-Live architecture visualization + structural quality gate for AI-agent-written code.
-
-Pure Rust. Single binary. 23 languages. No runtime dependencies.
+<br>
 
 [![CI](https://github.com/sentrux/sentrux/actions/workflows/ci.yml/badge.svg)](https://github.com/sentrux/sentrux/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/sentrux/sentrux)](https://github.com/sentrux/sentrux/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/sentrux/sentrux?style=flat)](https://github.com/sentrux/sentrux/stargazers)
 
+[Install](#install) · [Quick Start](#quick-start) · [MCP Integration](#mcp-server) · [Rules Engine](#rules-engine) · [Releases](https://github.com/sentrux/sentrux/releases)
+
 </div>
+
+<br>
 
 <div align="center">
 
-![sentrux demo — AI agent builds a FastAPI project while sentrux visualizes architecture in real-time](assets/demo.gif)
+![sentrux demo](assets/demo.gif)
 
-<sub>**Demo:** Claude Code builds a FastAPI task management API from a single prompt. sentrux visualizes the architecture growing in real-time — files appear, dependency edges form, health grades update live. **Final result: Health Grade D.** Even with careful prompting, AI agents accumulate structural debt without a quality gate.</sub>
+</div>
 
+<div align="center">
+<sub>One prompt. One AI agent. Five minutes. <b>Health Grade: D.</b></sub>
+<br>
+<sub>Watch Claude Code build a FastAPI project from scratch — while sentrux shows the architecture decaying in real-time.</sub>
 </div>
 
 <details>
@@ -41,23 +47,49 @@ Pure Rust. Single binary. 23 languages. No runtime dependencies.
 </table>
 </details>
 
-## Why
+<br>
 
-**Ever noticed your AI agent getting "dumber" as your project grows?**
+## The problem nobody talks about
 
-You start a project with Claude Code or Cursor. The first few sessions are magic — the agent writes clean code, understands your intent, implements features fast. Then around week two, something shifts. The agent starts hallucinating functions that don't exist. It puts new code in the wrong place. It introduces bugs in files it worked on yesterday. You ask for a simple change and it breaks three other things.
+You start a project with Claude Code or Cursor. Day one is magic. The agent writes clean code, understands your intent, ships features fast.
 
-**It's not the AI losing capability. It's your codebase losing structure.**
+Then something shifts.
 
-As AI agents generate code, the architecture silently decays. Same function names serve different purposes across files. Unrelated code piles into the same folder. Dependencies tangle into spaghetti. When the agent searches your project, dozens of conflicting results come back — and it picks the wrong one. Every session makes the mess worse. Every mess makes the next session harder.
+The agent starts hallucinating functions that don't exist. It puts new code in the wrong place. It introduces bugs in files it touched yesterday. You ask for a simple feature and it breaks three other things. You're spending more time fixing the agent's output than writing it yourself.
 
-You've seen this. You just didn't have a way to measure it.
+Everyone assumes the AI got worse. **It didn't.** Your codebase did.
 
-The conventional answer is *"plan your architecture first, then let AI implement."* But that's not how anyone actually works with AI agents. We prototype fast, iterate through conversation, let inspiration guide development. This naturally produces messy structure — and AI agents fundamentally cannot focus on the big picture and small details at the same time.
+Every AI session silently degrades your architecture. Same function names, different purposes, scattered across files. Unrelated code dumped in the same folder. Dependencies tangling into spaghetti. When the agent searches your project, it finds twenty conflicting matches — and picks the wrong one. Every session makes the mess worse. Every mess makes the next session harder.
 
-**sentrux makes the invisible visible.** It watches your codebase in real-time as the agent writes code, grades structural quality across 14 dimensions (A-F), and shows you exactly when and where architecture degrades — so you catch the rot before it compounds.
+This is the dirty secret of AI-assisted development: **the better the AI generates code, the faster your codebase becomes ungovernable.**
 
-The demo above tells the whole story: a single prompt, a capable AI agent, careful instructions — and the result is still **Health Grade D**. Without structural governance, every AI-generated codebase trends toward unmaintainability. sentrux is the feedback loop that prevents it.
+Nobody planned for this. The traditional answer — *"design your architecture first"* — assumes you know what you're building before you build it. But that's not how anyone actually works with AI agents. You prototype. You iterate. You follow inspiration. You let the conversation drive the code.
+
+That creative flow is exactly what makes AI agents powerful. And it's exactly what destroys codebases.
+
+## The solution
+
+**sentrux is the missing feedback loop.**
+
+It watches your codebase in real-time — not the diffs, not the terminal output — the *actual architecture*. Every file. Every dependency. Every structural relationship. Visualized as a live interactive treemap that updates as the agent writes code.
+
+14 health dimensions. Graded A through F. Computed in milliseconds.
+
+When architecture degrades, you see it immediately — not two weeks later when everything is broken and nobody remembers which session caused it.
+
+<br>
+
+<div align="center">
+<table>
+<tr>
+<td align="center" width="33%"><b>Visualize</b><br><sub>Live treemap with dependency edges,<br>files glow when the agent modifies them</sub></td>
+<td align="center" width="33%"><b>Measure</b><br><sub>14 health dimensions graded A-F:<br>coupling, cycles, cohesion, dead code...</sub></td>
+<td align="center" width="33%"><b>Govern</b><br><sub>Quality gate catches regression.<br>Rules engine enforces constraints.</sub></td>
+</tr>
+</table>
+</div>
+
+<br>
 
 ## Install
 
@@ -65,37 +97,24 @@ The demo above tells the whole story: a single prompt, a capable AI agent, caref
 brew install sentrux/tap/sentrux
 ```
 
-Or quick install on macOS / Linux:
-
 ```bash
+# or: macOS / Linux
 curl -fsSL https://raw.githubusercontent.com/sentrux/sentrux/main/install.sh | sh
 ```
+
+Pure Rust. Single binary. No runtime dependencies. 23 languages via tree-sitter.
 
 <details>
-<summary>More install options</summary>
-
-**From source:**
+<summary>From source / upgrade</summary>
 
 ```bash
+# Build from source
 git clone https://github.com/sentrux/sentrux.git
-cd sentrux
-cargo build --release
-# Binary at target/release/sentrux
-```
+cd sentrux && cargo build --release
 
-**Download binaries** from [Releases](https://github.com/sentrux/sentrux/releases).
-
-**Upgrade:**
-
-```bash
-# Homebrew
+# Upgrade
 brew update && brew upgrade sentrux
-
-# Quick install (re-run — always pulls latest)
-curl -fsSL https://raw.githubusercontent.com/sentrux/sentrux/main/install.sh | sh
-
-# From source
-git pull && cargo build --release
+# or re-run the curl install — it always pulls the latest release
 ```
 
 </details>
@@ -103,40 +122,15 @@ git pull && cargo build --release
 ## Quick start
 
 ```bash
-# Open the GUI — visual treemap of your project
-sentrux
-
-# Check architectural rules (CI-friendly, exits 0 or 1)
-sentrux check /path/to/project
-
-# Structural regression gate
-sentrux gate --save .   # save baseline before agent session
-sentrux gate .          # compare after — catches degradation
+sentrux                    # open the GUI — live treemap of your project
+sentrux check .            # check rules (CI-friendly, exits 0 or 1)
+sentrux gate --save .      # save baseline before agent session
+sentrux gate .             # compare after — catches degradation
 ```
 
-## What it does
+## MCP server
 
-**Visualize** — live interactive map of your entire codebase
-- Treemap + Blueprint DAG layouts — files sized by lines, colored by language/heat/complexity
-- Dependency edges — import, call, and inheritance as animated polylines
-- Real-time file watcher — files glow when modified, incremental rescan
-
-**Measure** — 14 health dimensions, graded A-F
-- Coupling, cycles, cohesion, entropy, complexity, duplication, dead code
-- Architecture metrics — levelization, blast radius, attack surface, distance from main sequence
-- Evolution analysis — git churn, bus factor, temporal hotspots
-- DSM (Design Structure Matrix) + test gap analysis
-
-**Govern** — catch structural regression automatically
-- Rules engine — define constraints in `.sentrux/rules.toml`
-- Baseline gate — `sentrux gate` blocks degradation before it ships
-- MCP server — 15 tools for AI agent integration (Claude Code, Cursor, etc.)
-
-## MCP server (AI agent integration)
-
-sentrux runs as an [MCP](https://modelcontextprotocol.io) server, giving AI agents real-time access to structural health.
-
-Add to your `.mcp.json`:
+sentrux runs as an [MCP](https://modelcontextprotocol.io) server — your AI agent can query structural health mid-session.
 
 ```json
 {
@@ -147,15 +141,14 @@ Add to your `.mcp.json`:
 }
 ```
 
+Works with Claude Code, Cursor, Windsurf, and any MCP-compatible agent.
+
 <details>
-<summary>Example: agent checks health after writing code</summary>
+<summary>See the agent workflow</summary>
 
 ```
 Agent: scan("/Users/me/myproject")
   → { structure_grade: "B", architecture_grade: "B", files: 139 }
-
-Agent: health()
-  → { grade: "B", dimensions: { coupling: "A", cycles: "A", cohesion: "C", ... } }
 
 Agent: session_start()
   → { status: "Baseline saved", grade: "B" }
@@ -167,14 +160,16 @@ Agent: session_end()
       summary: "Architecture degraded during this session" }
 ```
 
-15 tools: `scan`, `health`, `architecture`, `coupling`, `cycles`, `hottest`, `evolution`, `dsm`, `test_gaps`, `check_rules`, `session_start`, `session_end`, `rescan`, `blast_radius`, `level`.
+15 tools: `scan` · `health` · `architecture` · `coupling` · `cycles` · `hottest` · `evolution` · `dsm` · `test_gaps` · `check_rules` · `session_start` · `session_end` · `rescan` · `blast_radius` · `level`
 
 </details>
 
-<details>
-<summary>Rules engine — define architectural constraints</summary>
+## Rules engine
 
-`.sentrux/rules.toml`:
+Define architectural constraints. Enforce them in CI. Let the agent know the boundaries.
+
+<details>
+<summary>Example .sentrux/rules.toml</summary>
 
 ```toml
 [constraints]
@@ -201,16 +196,22 @@ reason = "App must not depend on core internals"
 
 ```bash
 sentrux check .
-# sentrux check — 4 rules checked
-# Structure grade: B  Architecture grade: B
-# ✓ All rules pass
+# ✓ All rules pass — Structure: B  Architecture: B
 ```
 
 </details>
 
 ## Supported languages
 
-Rust, Python, JavaScript, TypeScript, Go, C, C++, Java, Ruby, C#, PHP, Bash, HTML, CSS, SCSS, Swift, Lua, Scala, Elixir, Haskell, Zig, R, OCaml — 23 languages via tree-sitter.
+Rust · Python · JavaScript · TypeScript · Go · C · C++ · Java · Ruby · C# · PHP · Bash · HTML · CSS · SCSS · Swift · Lua · Scala · Elixir · Haskell · Zig · R · OCaml
+
+---
+
+<div align="center">
+
+<sub>AI agents write code at machine speed. Without structural governance, codebases decay at machine speed too.<br><b>sentrux is the governor.</b></sub>
+
+</div>
 
 ## License
 
