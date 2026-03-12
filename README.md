@@ -12,9 +12,12 @@
 
 Live architecture visualization + structural quality gate for AI-agent-written code.
 
+Pure Rust. Single binary. 23 languages. No runtime dependencies.
+
 [![CI](https://github.com/sentrux/sentrux/actions/workflows/ci.yml/badge.svg)](https://github.com/sentrux/sentrux/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/sentrux/sentrux)](https://github.com/sentrux/sentrux/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/sentrux/sentrux?style=flat)](https://github.com/sentrux/sentrux/stargazers)
 
 </div>
 
@@ -40,48 +43,38 @@ Live architecture visualization + structural quality gate for AI-agent-written c
 
 ## Why
 
-In the AI agent era, code is written faster than humans can review. AI agents modify dozens of files per session — you see a stream of "Modified src/foo.rs" but lose the big picture: how files relate, where coupling grows, when architecture degrades.
+**Ever noticed your AI agent getting "dumber" as your project grows?**
 
-**sentrux closes that gap.** It gives you a live visual map of your codebase with real-time health grades, so you can see what the agent is doing to your architecture — not just which files it touched.
+You start a project with Claude Code or Cursor. The first few sessions are magic — the agent writes clean code, understands your intent, implements features fast. Then around week two, something shifts. The agent starts hallucinating functions that don't exist. It puts new code in the wrong place. It introduces bugs in files it worked on yesterday. You ask for a simple change and it breaks three other things.
 
-- **For developers using AI agents** (Claude Code, Cursor, Copilot): watch your architecture in real-time while the agent codes
-- **For tech leads**: enforce structural constraints before code ships
-- **For anyone inheriting a codebase**: understand the structure in seconds, not hours
+**It's not the AI losing capability. It's your codebase losing structure.**
 
-## What it does
+As AI agents generate code, the architecture silently decays. Same function names serve different purposes across files. Unrelated code piles into the same folder. Dependencies tangle into spaghetti. When the agent searches your project, dozens of conflicting results come back — and it picks the wrong one. Every session makes the mess worse. Every mess makes the next session harder.
 
-**Visualize**
-- Treemap + Blueprint DAG layouts — files sized by lines, colored by language/heat/complexity
-- Dependency edges — import, call, and inheritance as animated polylines
-- Real-time file watcher — files glow when modified, incremental rescan
+You've seen this. You just didn't have a way to measure it.
 
-**Measure**
-- 14 health dimensions — coupling, cycles, cohesion, entropy, complexity, duplication, dead code (A-F grades)
-- 4 architecture metrics — levelization, blast radius, attack surface, distance from main sequence
-- Evolution analysis — git churn, bus factor, temporal hotspots
-- DSM (Design Structure Matrix) — NxN dependency matrix with cluster detection
-- Test gap analysis — find high-risk untested files
+The conventional answer is *"plan your architecture first, then let AI implement."* But that's not how anyone actually works with AI agents. We prototype fast, iterate through conversation, let inspiration guide development. This naturally produces messy structure — and AI agents fundamentally cannot focus on the big picture and small details at the same time.
 
-**Govern**
-- Rules engine — define architectural constraints in `.sentrux/rules.toml`
-- Baseline gate — `sentrux gate` catches structural regression before it ships
-- MCP server — 15 tools for AI agent integration
+**sentrux makes the invisible visible.** It watches your codebase in real-time as the agent writes code, grades structural quality across 14 dimensions (A-F), and shows you exactly when and where architecture degrades — so you catch the rot before it compounds.
+
+The demo above tells the whole story: a single prompt, a capable AI agent, careful instructions — and the result is still **Health Grade D**. Without structural governance, every AI-generated codebase trends toward unmaintainability. sentrux is the feedback loop that prevents it.
 
 ## Install
-
-### Homebrew (macOS)
 
 ```bash
 brew install sentrux/tap/sentrux
 ```
 
-### Quick install (macOS / Linux)
+Or quick install on macOS / Linux:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/sentrux/sentrux/main/install.sh | sh
 ```
 
-### From source
+<details>
+<summary>More install options</summary>
+
+**From source:**
 
 ```bash
 git clone https://github.com/sentrux/sentrux.git
@@ -90,20 +83,22 @@ cargo build --release
 # Binary at target/release/sentrux
 ```
 
-Or download binaries from [Releases](https://github.com/sentrux/sentrux/releases).
+**Download binaries** from [Releases](https://github.com/sentrux/sentrux/releases).
 
-## Upgrade
+**Upgrade:**
 
 ```bash
 # Homebrew
 brew update && brew upgrade sentrux
 
-# Quick install (re-run — always pulls latest release)
+# Quick install (re-run — always pulls latest)
 curl -fsSL https://raw.githubusercontent.com/sentrux/sentrux/main/install.sh | sh
 
 # From source
 git pull && cargo build --release
 ```
+
+</details>
 
 ## Quick start
 
@@ -119,15 +114,29 @@ sentrux gate --save .   # save baseline before agent session
 sentrux gate .          # compare after — catches degradation
 ```
 
+## What it does
+
+**Visualize** — live interactive map of your entire codebase
+- Treemap + Blueprint DAG layouts — files sized by lines, colored by language/heat/complexity
+- Dependency edges — import, call, and inheritance as animated polylines
+- Real-time file watcher — files glow when modified, incremental rescan
+
+**Measure** — 14 health dimensions, graded A-F
+- Coupling, cycles, cohesion, entropy, complexity, duplication, dead code
+- Architecture metrics — levelization, blast radius, attack surface, distance from main sequence
+- Evolution analysis — git churn, bus factor, temporal hotspots
+- DSM (Design Structure Matrix) + test gap analysis
+
+**Govern** — catch structural regression automatically
+- Rules engine — define constraints in `.sentrux/rules.toml`
+- Baseline gate — `sentrux gate` blocks degradation before it ships
+- MCP server — 15 tools for AI agent integration (Claude Code, Cursor, etc.)
+
 ## MCP server (AI agent integration)
 
-sentrux runs as a [Model Context Protocol](https://modelcontextprotocol.io) server, giving AI agents real-time access to your codebase's structural health.
+sentrux runs as an [MCP](https://modelcontextprotocol.io) server, giving AI agents real-time access to structural health.
 
-```bash
-sentrux --mcp
-```
-
-Add to your `.mcp.json` (Claude Code, Cursor, etc.):
+Add to your `.mcp.json`:
 
 ```json
 {
@@ -138,7 +147,8 @@ Add to your `.mcp.json` (Claude Code, Cursor, etc.):
 }
 ```
 
-**Example: agent checks health after writing code**
+<details>
+<summary>Example: agent checks health after writing code</summary>
 
 ```
 Agent: scan("/Users/me/myproject")
@@ -157,11 +167,14 @@ Agent: session_end()
       summary: "Architecture degraded during this session" }
 ```
 
-15 tools available: `scan`, `health`, `architecture`, `coupling`, `cycles`, `hottest`, `evolution`, `dsm`, `test_gaps`, `check_rules`, `session_start`, `session_end`, `rescan`, `blast_radius`, `level`.
+15 tools: `scan`, `health`, `architecture`, `coupling`, `cycles`, `hottest`, `evolution`, `dsm`, `test_gaps`, `check_rules`, `session_start`, `session_end`, `rescan`, `blast_radius`, `level`.
 
-## Rules engine
+</details>
 
-Define architectural constraints in `.sentrux/rules.toml`:
+<details>
+<summary>Rules engine — define architectural constraints</summary>
+
+`.sentrux/rules.toml`:
 
 ```toml
 [constraints]
@@ -193,22 +206,11 @@ sentrux check .
 # ✓ All rules pass
 ```
 
+</details>
+
 ## Supported languages
 
 Rust, Python, JavaScript, TypeScript, Go, C, C++, Java, Ruby, C#, PHP, Bash, HTML, CSS, SCSS, Swift, Lua, Scala, Elixir, Haskell, Zig, R, OCaml — 23 languages via tree-sitter.
-
-## Architecture
-
-```
-sentrux/
-├── sentrux-core/    # library crate — analysis engine, metrics, MCP server
-│   ├── analysis/    # scanning, parsing, import resolution, graph construction
-│   ├── metrics/     # health grading, architecture analysis, DSM, evolution
-│   ├── app/         # GUI panels, MCP server, state management
-│   ├── layout/      # treemap, blueprint DAG, edge routing, spatial index
-│   └── renderer/    # egui rendering (rects, edges, badges, minimap, heat)
-└── sentrux-bin/     # binary crate — GUI, CLI, MCP entry points
-```
 
 ## License
 
