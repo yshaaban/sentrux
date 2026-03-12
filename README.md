@@ -81,15 +81,9 @@ That's not how anyone actually works with AI agents anyway. You prototype fast. 
 
 **sentrux is the missing feedback loop.**
 
-In the 1780s, James Watt built the centrifugal governor — a device that sensed a steam engine's speed and adjusted the valve automatically. Before it, a worker stood next to the engine turning the valve by hand. After it, the worker's job changed: from turning the valve to designing the governor.
+Every system that works at scale has one: a sensor that observes reality, a spec that defines "good," and an actuator that corrects drift. Compilers close a feedback loop on syntax. Test suites close a loop on behavior. Linters close a loop on style.
 
-Kubernetes did the same thing for infrastructure. You declare desired state. A controller observes actual state. When they diverge, the controller reconciles. The engineer's job shifted from restarting services to writing the spec.
-
-Now it's happening to code. OpenAI calls it [harness engineering](https://openai.com/index/building-with-agents/): engineers who no longer write code, but instead design feedback loops and codify architectural constraints — then agents write the code. A million lines in five months, zero written by hand.
-
-Same pattern each time. Norbert Wiener named it in 1948: **cybernetics** — from the Greek *κυβερνήτης*, steersman. You stop turning the valve. You steer.
-
-The codebase was the last holdout. Compilers close a feedback loop on syntax. Test suites close a loop on behavior. Linters close a loop on style. But architecture — does this change fit the system? is this abstraction going to cause problems? — had no sensor and no actuator. Only humans could judge that, and humans can't keep up with machine-speed code generation.
+But architecture — does this change fit the system? will this abstraction cause problems as the codebase grows? — had no sensor and no actuator. Only humans could judge that. And humans can't keep up with machine-speed code generation.
 
 **sentrux closes the loop at the architecture level.**
 
@@ -99,7 +93,7 @@ It watches your codebase in real-time — not the diffs, not the terminal output
 
 When architecture degrades, you see it immediately — not two weeks later when everything is broken and nobody remembers which session caused it.
 
-You don't need to out-implement the machine. You need to out-evaluate it. sentrux gives you the sensor. Your rules give you the spec. The agent is the actuator. **The loop closes.**
+sentrux gives you the sensor. Your rules give you the spec. The agent is the actuator. **The loop closes.**
 
 <br>
 
@@ -245,7 +239,7 @@ sentrux is built on three beliefs:
 
 **3. Good systems make good outcomes inevitable.** A well-designed system constrains behavior so that the right thing is the easy thing. A quality gate that blocks degradation before it ships. A rules engine that encodes your architectural decisions. A visual map that makes structural rot impossible to ignore. The practices haven't changed. The penalty for ignoring them has become unbearable.
 
-*The workers who designed Watt's governor didn't go back to turning valves. Not because they couldn't. Because it no longer made sense.*
+*Once you have a feedback loop that works, you don't go back to doing it by hand. Not because you can't. Because it no longer makes sense.*
 
 ---
 

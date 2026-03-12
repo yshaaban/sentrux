@@ -81,15 +81,9 @@ So arbeitet ohnehin niemand wirklich mit AI-Agents. Du prototypisierst schnell. 
 
 **sentrux ist die fehlende Rückkopplungsschleife.**
 
-In den 1780er Jahren baute James Watt den Fliehkraftregler — ein Gerät, das die Drehzahl einer Dampfmaschine erfasste und das Ventil automatisch anpasste. Davor stand ein Arbeiter neben der Maschine und drehte das Ventil von Hand. Danach änderte sich seine Aufgabe: vom Ventildrehen zum Entwerfen des Reglers.
+Jedes System, das im großen Maßstab funktioniert, hat eine: einen Sensor, der die Realität beobachtet, eine Spezifikation, die „gut" definiert, und einen Aktor, der Abweichungen korrigiert. Compiler schließen eine Rückkopplungsschleife bei der Syntax. Testsuiten bei Verhalten. Linter beim Stil.
 
-Kubernetes tat dasselbe für Infrastruktur. Du deklarierst den gewünschten Zustand. Ein Controller beobachtet den tatsächlichen Zustand. Wenn sie divergieren, gleicht der Controller an. Die Aufgabe des Ingenieurs verschob sich vom Neustarten von Diensten zum Schreiben der Spezifikation.
-
-Jetzt passiert es mit Code. OpenAI nennt es [Harness Engineering](https://openai.com/index/building-with-agents/): Ingenieure, die keinen Code mehr schreiben, sondern Feedback-Schleifen entwerfen und Architekturvorgaben kodifizieren — dann schreiben Agents den Code. Eine Million Zeilen in fünf Monaten, null von Hand geschrieben.
-
-Jedes Mal dasselbe Muster. Norbert Wiener benannte es 1948: **Kybernetik** — vom griechischen *κυβερνήτης*, Steuermann. Du drehst nicht mehr das Ventil. Du steuerst.
-
-Die Codebasis war der letzte Holdout. Compiler schließen eine Rückkopplungsschleife bei der Syntax. Testsuiten bei Verhalten. Linter beim Stil. Aber Architektur — passt diese Änderung zum System? Wird diese Abstraktion Probleme verursachen? — hatte keinen Sensor und keinen Aktor. Nur Menschen konnten das beurteilen, und Menschen können mit maschineller Code-Generierung nicht mithalten.
+Aber Architektur — passt diese Änderung zum System? Wird diese Abstraktion Probleme verursachen? — hatte keinen Sensor und keinen Aktor. Nur Menschen konnten das beurteilen, und Menschen können mit maschineller Code-Generierung nicht mithalten.
 
 **sentrux schließt die Schleife auf Architekturebene.**
 
@@ -99,7 +93,7 @@ Es beobachtet deine Codebasis in Echtzeit — nicht die Diffs, nicht die Termina
 
 Wenn die Architektur degradiert, siehst du es sofort — nicht zwei Wochen später, wenn alles kaputt ist und niemand sich erinnert, welche Sitzung es verursacht hat.
 
-Du musst die Maschine nicht im Implementieren übertreffen. Du musst sie im Bewerten übertreffen. sentrux gibt dir den Sensor. Deine Regeln geben die Spezifikation. Der Agent ist der Aktor. **Die Schleife schließt sich.**
+sentrux gibt dir den Sensor. Deine Regeln geben die Spezifikation. Der Agent ist der Aktor. **Die Schleife schließt sich.**
 
 <br>
 
@@ -245,7 +239,7 @@ sentrux basiert auf drei Überzeugungen:
 
 **3. Gute Systeme machen gute Ergebnisse unvermeidlich.** Ein gut entworfenes System schränkt Verhalten so ein, dass das Richtige das Einfache ist. Ein Quality Gate, das Degradation vor der Auslieferung blockiert. Eine Regel-Engine, die deine Architekturentscheidungen kodifiziert. Eine visuelle Karte, die strukturelle Fäulnis unmöglich zu übersehen macht. Die Praktiken haben sich nicht geändert. Die Strafe für ihre Missachtung ist unerträglich geworden.
 
-*Die Arbeiter, die Watts Regler entwarfen, kehrten nicht zum Ventildrehen zurück. Nicht weil sie es nicht konnten. Weil es keinen Sinn mehr ergab.*
+*Wenn du einmal eine funktionierende Rückkopplungsschleife hast, gehst du nicht zurück zum manuellen Arbeiten. Nicht weil du es nicht kannst. Weil es keinen Sinn mehr ergibt.*
 
 ---
 
