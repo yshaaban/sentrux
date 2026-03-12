@@ -10,8 +10,9 @@ use super::handlers;
 use super::handlers_evo;
 use super::registry::ToolRegistry;
 
-/// Build the complete tool registry with all tools registered.
-/// Called once at MCP server startup.
+/// Build the core tool registry with free tools registered.
+/// Called once at MCP server startup. Returns a mutable registry
+/// so callers (e.g., sentrux-bin with pro feature) can register additional tools.
 pub fn build_registry() -> ToolRegistry {
     let mut reg = ToolRegistry::new();
 
@@ -41,10 +42,6 @@ pub fn build_registry() -> ToolRegistry {
     // ── DSM & Test Gaps ──
     reg.register(handlers_evo::dsm_def());
     reg.register(handlers_evo::test_gaps_def());
-
-    // ── Pro tools (registered by private-integration-crate crate via feature flag) ──
-    #[cfg(feature = "pro")]
-    sentrux_pro::register_pro_tools(&mut reg);
 
     reg
 }

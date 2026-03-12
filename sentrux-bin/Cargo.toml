@@ -13,9 +13,10 @@ path = "src/main.rs"
 
 [dependencies]
 sentrux-core = { path = "../sentrux-core" }
+private-integration-crate = { path = "../../private-integration-crate", optional = true }
 eframe = { workspace = true }
 egui = { workspace = true }
 
 [features]
 default = []
-pro = ["sentrux-core/pro"]  # Pro tools provided by separate private-integration-crate crate
+pro = ["sentrux-core/pro", "dep:private-integration-crate"]  # Pro tools provided by separate private-integration-crate crate

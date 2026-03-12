@@ -59,17 +59,17 @@ impl std::fmt::Display for Tier {
 /// Load the current license tier.
 ///
 /// In the open-source build, always returns `Tier::Free`.
-/// The Pro build (separate private repo) overrides this via the `pro` feature
-/// to validate Ed25519-signed license keys from `~/.sentrux/license.key`.
+/// The Pro build overrides this by calling `set_tier()` at startup.
+static TIER: std::sync::OnceLock<Tier> = std::sync::OnceLock::new();
+
+/// Set the tier (called by sentrux-bin with pro feature at startup).
+pub fn set_tier(tier: Tier) {
+    let _ = TIER.set(tier);
+}
+
+/// Get the current tier.
 pub fn current_tier() -> Tier {
-    #[cfg(feature = "pro")]
-    {
-        sentrux_pro::license::load_and_validate().unwrap_or(Tier::Free)
-    }
-    #[cfg(not(feature = "pro"))]
-    {
-        Tier::Free
-    }
+    *TIER.get().unwrap_or(&Tier::Free)
 }
 
 #[cfg(test)]

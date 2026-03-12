@@ -39,7 +39,8 @@ pub struct McpState {
 }
 
 /// Run the MCP server loop. Blocks until stdin is closed.
-pub fn run_mcp_server() {
+/// Accepts an optional callback to register additional tools (e.g., pro tools from private-integration-crate).
+pub fn run_mcp_server(register_extra: Option<&dyn Fn(&mut registry::ToolRegistry)>) {
     let stdin = io::stdin();
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
@@ -48,7 +49,10 @@ pub fn run_mcp_server() {
     let tier = license::current_tier();
 
     // Build tool registry once (all schemas + handlers + tier requirements)
-    let registry = tools::build_registry();
+    let mut registry = tools::build_registry();
+    if let Some(register) = register_extra {
+        register(&mut registry);
+    }
 
     let mut state = McpState {
         tier,
