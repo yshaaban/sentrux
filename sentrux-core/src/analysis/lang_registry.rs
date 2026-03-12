@@ -1,75 +1,36 @@
 //! Language registry — maps file extensions to tree-sitter grammars and queries.
 //!
-//! Singleton initialized once at startup. Each language registration compiles
-//! the tree-sitter query pattern; failures are recorded (not panicked) and
-//! surfaced to the UI so users know which languages have degraded parsing.
+//! All languages are loaded as runtime plugins from ~/.sentrux/plugins/.
+//! No grammars are compiled into the binary. This keeps the binary small (~5MB)
+//! and allows anyone to add language support without recompilation.
 
 use std::collections::HashMap;
 use tree_sitter::{Language, Query};
 
-/// Interface for detecting the programming language of a file.
-/// Enables custom language detection strategies or test mocking.
-pub trait LanguageDetector {
-    /// Detect language from a file extension (e.g., "rs" → "Rust").
-    fn detect_from_ext(&self, ext: &str) -> Option<&str>;
-    /// Detect language from a filename (e.g., "Dockerfile" → "Docker").
-    fn detect_from_filename(&self, name: &str) -> Option<&str>;
-}
-
-/// Configuration for a single language: grammar + compiled query + file extensions.
-pub struct LangConfig {
-    /// Language identifier string (e.g. "python", "rust")
-    pub name: &'static str,
-    /// Compiled tree-sitter grammar for parsing
-    pub grammar: Language,
-    /// Compiled tree-sitter query for structural extraction
-    pub query: Query,
-    /// File extensions mapped to this language (without dots)
-    pub extensions: &'static [&'static str],
-}
-
-/// Runtime-loaded language config (plugin). Owns its strings instead of borrowing 'static.
+/// Configuration for a runtime-loaded language plugin.
 pub struct PluginLangConfig {
     /// Language name (owned)
     pub name: String,
-    /// Compiled tree-sitter grammar
+    /// Compiled tree-sitter grammar (loaded from .so/.dylib)
     pub grammar: Language,
-    /// Compiled tree-sitter query
+    /// Compiled tree-sitter query for structural extraction
     pub query: Query,
     /// File extensions (owned)
     pub extensions: Vec<String>,
 }
 
-/// Central registry mapping language names and file extensions to LangConfig.
+/// Central registry mapping language names and file extensions to loaded plugins.
 pub struct LangRegistry {
-    by_name: HashMap<&'static str, usize>,
-    by_ext: HashMap<&'static str, usize>,
-    configs: Vec<LangConfig>,
-    /// Runtime-loaded plugin languages (separate vec because they own their strings)
-    plugin_by_name: HashMap<String, usize>,
-    plugin_by_ext: HashMap<String, usize>,
-    plugin_configs: Vec<PluginLangConfig>,
-    /// Languages that failed to register (query compilation errors).
-    failed_langs: Vec<LangRegistrationError>,
+    by_name: HashMap<String, usize>,
+    by_ext: HashMap<String, usize>,
+    configs: Vec<PluginLangConfig>,
+    /// Plugins that failed to load (logged, not fatal).
+    failed: Vec<String>,
 }
 
-/// Structured error for a language that failed to register.
-#[derive(Debug, Clone)]
-pub struct LangRegistrationError {
-    /// Language name that failed to register
-    pub lang: &'static str,
-    /// File extensions that would have been mapped
-    pub extensions: &'static [&'static str],
-    /// Query compilation error message
-    pub error: String,
-}
-
-/// Global singleton — initialized once with built-in + runtime plugins, immutable after.
-static REGISTRY: std::sync::LazyLock<LangRegistry> = std::sync::LazyLock::new(|| {
-    let mut registry = LangRegistry::init();
-    registry.load_plugins();
-    registry
-});
+/// Global singleton — loads plugins from ~/.sentrux/plugins/ once at startup.
+static REGISTRY: std::sync::LazyLock<LangRegistry> =
+    std::sync::LazyLock::new(LangRegistry::init);
 
 impl LangRegistry {
     fn init() -> Self {
@@ -77,342 +38,108 @@ impl LangRegistry {
             by_name: HashMap::new(),
             by_ext: HashMap::new(),
             configs: Vec::new(),
-            plugin_by_name: HashMap::new(),
-            plugin_by_ext: HashMap::new(),
-            plugin_configs: Vec::new(),
-            failed_langs: Vec::new(),
+            failed: Vec::new(),
         };
+        registry.load_plugins();
 
-        registry.register_core_languages();
-        registry.register_systems_languages();
-        registry.register_web_languages();
-        registry.register_other_languages();
+        let count = registry.configs.len();
+        if count == 0 {
+            eprintln!(
+                "[lang_registry] No language plugins loaded. \
+                 Run `sentrux plugin add-standard` to install standard languages."
+            );
+        } else {
+            eprintln!("[lang_registry] {} language plugins loaded", count);
+        }
 
         registry
     }
 
-    /// Load runtime plugins from ~/.sentrux/plugins/.
-    /// Plugin languages override built-in languages for the same extension.
+    /// Load all plugins from ~/.sentrux/plugins/.
     fn load_plugins(&mut self) {
         let (plugins, errors) = crate::analysis::plugin::load_all_plugins();
         for err in &errors {
-            eprintln!("[plugin] Error loading {}: {}", err.plugin_dir.display(), err.error);
+            eprintln!("[plugin] Error: {}: {}", err.plugin_dir.display(), err.error);
+            self.failed.push(format!("{}: {}", err.plugin_dir.display(), err.error));
         }
         for plugin in plugins {
             match Query::new(&plugin.grammar, &plugin.query_src) {
                 Ok(query) => {
-                    let idx = self.plugin_configs.len();
+                    let idx = self.configs.len();
                     let name = plugin.name.clone();
                     let extensions = plugin.extensions.clone();
-                    self.plugin_configs.push(PluginLangConfig {
+                    self.configs.push(PluginLangConfig {
                         name: plugin.name,
                         grammar: plugin.grammar,
                         query,
                         extensions: plugin.extensions,
                     });
-                    self.plugin_by_name.insert(name, idx);
+                    self.by_name.insert(name, idx);
                     for ext in extensions {
-                        self.plugin_by_ext.insert(ext, idx);
+                        self.by_ext.insert(ext, idx);
                     }
                 }
                 Err(e) => {
-                    eprintln!("[plugin] Query compilation failed for {}: {:?}", plugin.name, e);
+                    let msg = format!("{}: query failed: {:?}", plugin.name, e);
+                    eprintln!("[plugin] {}", msg);
+                    self.failed.push(msg);
                 }
             }
         }
     }
 
-    /// Core scripting and compiled languages: Python, JS/TS variants, Rust, Go.
-    fn register_core_languages(&mut self) {
-        self.register_static(
-            "python",
-            tree_sitter_python::LANGUAGE.into(),
-            include_str!("../queries/python/tags.scm"),
-            &["py"],
-        );
-        self.register_static(
-            "javascript",
-            tree_sitter_javascript::LANGUAGE.into(),
-            include_str!("../queries/javascript/tags.scm"),
-            &["js", "mjs", "cjs"],
-        );
-        self.register_static(
-            "jsx",
-            tree_sitter_javascript::LANGUAGE.into(),
-            include_str!("../queries/javascript/tags.scm"),
-            &["jsx"],
-        );
-        self.register_static(
-            "typescript",
-            tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
-            include_str!("../queries/typescript/tags.scm"),
-            &["ts", "mts", "cts"],
-        );
-        self.register_static(
-            "tsx",
-            tree_sitter_typescript::LANGUAGE_TSX.into(),
-            include_str!("../queries/typescript/tags.scm"),
-            &["tsx"],
-        );
-        self.register_static(
-            "rust",
-            tree_sitter_rust::LANGUAGE.into(),
-            include_str!("../queries/rust/tags.scm"),
-            &["rs"],
-        );
-        self.register_static(
-            "go",
-            tree_sitter_go::LANGUAGE.into(),
-            include_str!("../queries/go/tags.scm"),
-            &["go"],
-        );
-    }
-
-    /// Systems and enterprise languages: C, C++, Java, Ruby, C#, PHP, Bash.
-    fn register_systems_languages(&mut self) {
-        self.register_static(
-            "c",
-            tree_sitter_c::LANGUAGE.into(),
-            include_str!("../queries/c/tags.scm"),
-            &["c"],
-        );
-        self.register_static(
-            "cpp",
-            tree_sitter_cpp::LANGUAGE.into(),
-            include_str!("../queries/cpp/tags.scm"),
-            // .h is commonly C++ headers (classes, templates, namespaces).
-            // The C++ grammar is a superset of C, so it handles both correctly.
-            &["cpp", "cc", "cxx", "hpp", "h"],
-        );
-        self.register_static(
-            "java",
-            tree_sitter_java::LANGUAGE.into(),
-            include_str!("../queries/java/tags.scm"),
-            &["java"],
-        );
-        self.register_static(
-            "ruby",
-            tree_sitter_ruby::LANGUAGE.into(),
-            include_str!("../queries/ruby/tags.scm"),
-            &["rb"],
-        );
-        self.register_static(
-            "csharp",
-            tree_sitter_c_sharp::LANGUAGE.into(),
-            include_str!("../queries/csharp/tags.scm"),
-            &["cs"],
-        );
-        self.register_static(
-            "php",
-            tree_sitter_php::LANGUAGE_PHP.into(),
-            include_str!("../queries/php/tags.scm"),
-            &["php"],
-        );
-        self.register_static(
-            "bash",
-            tree_sitter_bash::LANGUAGE.into(),
-            include_str!("../queries/bash/tags.scm"),
-            &["sh", "bash"],
-        );
-    }
-
-    /// Frontend, mobile, and design languages: HTML, CSS, SCSS, Kotlin, Swift, Lua, Scala.
-    fn register_web_languages(&mut self) {
-        self.register_static(
-            "html",
-            tree_sitter_html::LANGUAGE.into(),
-            include_str!("../queries/html/tags.scm"),
-            &["html", "htm"],
-        );
-        self.register_static(
-            "css",
-            tree_sitter_css::LANGUAGE.into(),
-            include_str!("../queries/css/tags.scm"),
-            &["css"],
-        );
-        // SASS (.sass) uses indentation-based syntax (no braces/semicolons),
-        // which is fundamentally different from SCSS. Don't map .sass to SCSS grammar.
-        self.register_static(
-            "scss",
-            tree_sitter_scss::language(),
-            include_str!("../queries/scss/tags.scm"),
-            &["scss"],
-        );
-        // kotlin: tree-sitter-kotlin requires tree-sitter 0.20/0.21, incompatible with 0.25
-        // Will re-add when tree-sitter-kotlin supports 0.25+
-        self.register_static(
-            "swift",
-            tree_sitter_swift::LANGUAGE.into(),
-            include_str!("../queries/swift/tags.scm"),
-            &["swift"],
-        );
-        self.register_static(
-            "lua",
-            tree_sitter_lua::LANGUAGE.into(),
-            include_str!("../queries/lua/tags.scm"),
-            &["lua"],
-        );
-        self.register_static(
-            "scala",
-            tree_sitter_scala::LANGUAGE.into(),
-            include_str!("../queries/scala/tags.scm"),
-            &["scala", "sc"],
-        );
-    }
-
-    /// Additional languages (Phase 5): Elixir, Haskell, Zig, R, Dockerfile, OCaml.
-    fn register_other_languages(&mut self) {
-        self.register_static(
-            "elixir",
-            tree_sitter_elixir::LANGUAGE.into(),
-            include_str!("../queries/elixir/tags.scm"),
-            &["ex", "exs"],
-        );
-        self.register_static(
-            "haskell",
-            tree_sitter_haskell::LANGUAGE.into(),
-            include_str!("../queries/haskell/tags.scm"),
-            &["hs"],
-        );
-        self.register_static(
-            "zig",
-            tree_sitter_zig::LANGUAGE.into(),
-            include_str!("../queries/zig/tags.scm"),
-            &["zig"],
-        );
-        self.register_static(
-            "r",
-            tree_sitter_r::LANGUAGE.into(),
-            include_str!("../queries/r/tags.scm"),
-            &["r", "R"],
-        );
-        // dockerfile: tree-sitter-dockerfile requires tree-sitter 0.20, incompatible with 0.25
-        self.register_static(
-            "ocaml",
-            tree_sitter_ocaml::LANGUAGE_OCAML.into(),
-            include_str!("../queries/ocaml/tags.scm"),
-            &["ml"],
-        );
-        self.register_static(
-            "ocaml_interface",
-            tree_sitter_ocaml::LANGUAGE_OCAML_INTERFACE.into(),
-            include_str!("../queries/ocaml/tags.scm"),
-            &["mli"],
-        );
-    }
-
-    fn register_static(
-        &mut self,
-        name: &'static str,
-        grammar: Language,
-        query_src: &str,
-        extensions: &'static [&'static str],
-    ) {
-        match Query::new(&grammar, query_src) {
-            Ok(query) => {
-                let idx = self.configs.len();
-                self.configs.push(LangConfig {
-                    name,
-                    grammar,
-                    query,
-                    extensions,
-                });
-                self.by_name.insert(name, idx);
-                for ext in extensions {
-                    self.by_ext.insert(ext, idx);
-                }
-            }
-            Err(e) => {
-                let err_msg = format!("{:?}", e);
-                eprintln!(
-                    "[lang_registry] ERROR: query compilation failed for lang='{}', extensions={:?}: {}",
-                    name, extensions, err_msg
-                );
-                self.failed_langs.push(LangRegistrationError {
-                    lang: name,
-                    extensions,
-                    error: err_msg,
-                });
-            }
-        }
-    }
-
-    /// Look up by language name (e.g. "python", "rust").
-    /// Checks plugins first (plugins override built-in).
-    pub fn get(&self, name: &str) -> Option<&LangConfig> {
+    /// Look up by language name.
+    pub fn get(&self, name: &str) -> Option<&PluginLangConfig> {
         self.by_name.get(name).map(|&idx| &self.configs[idx])
     }
 
-    /// Look up plugin by language name.
-    pub fn get_plugin(&self, name: &str) -> Option<&PluginLangConfig> {
-        self.plugin_by_name.get(name).map(|&idx| &self.plugin_configs[idx])
-    }
-
-    /// Look up by file extension (without dot, e.g. "py", "rs").
-    /// Checks plugins first (plugins override built-in).
-    pub fn get_by_ext(&self, ext: &str) -> Option<&LangConfig> {
+    /// Look up by file extension (without dot).
+    pub fn get_by_ext(&self, ext: &str) -> Option<&PluginLangConfig> {
         self.by_ext.get(ext).map(|&idx| &self.configs[idx])
     }
 
-    /// Look up plugin by extension.
-    pub fn get_plugin_by_ext(&self, ext: &str) -> Option<&PluginLangConfig> {
-        self.plugin_by_ext.get(ext).map(|&idx| &self.plugin_configs[idx])
-    }
-
-    /// All registered file extensions (built-in + plugins).
+    /// All registered file extensions.
     pub fn all_extensions(&self) -> Vec<&str> {
-        let mut exts: Vec<&str> = self.by_ext.keys().copied().collect();
-        for ext in self.plugin_by_ext.keys() {
-            exts.push(ext.as_str());
-        }
-        exts
+        self.by_ext.keys().map(|s| s.as_str()).collect()
     }
 
-    /// Languages that failed to register due to query compilation errors.
-    pub fn failed(&self) -> &[LangRegistrationError] {
-        &self.failed_langs
+    /// Number of loaded languages.
+    pub fn count(&self) -> usize {
+        self.configs.len()
+    }
+
+    /// Failed plugin descriptions (for UI display).
+    pub fn failed(&self) -> &[String] {
+        &self.failed
     }
 }
 
-// ---- Public free functions delegating to global singleton ----
+// ── Public free functions delegating to global singleton ──
 
-/// Get language config by name (built-in only).
-pub fn get(name: &str) -> Option<&'static LangConfig> {
+/// Get language config by name.
+pub fn get(name: &str) -> Option<&'static PluginLangConfig> {
     REGISTRY.get(name)
 }
 
-/// Get plugin language config by name.
-pub fn get_plugin(name: &str) -> Option<&'static PluginLangConfig> {
-    REGISTRY.get_plugin(name)
-}
-
-/// Get grammar + query for a language name, checking plugins first.
-/// Returns (grammar, query) suitable for parsing.
+/// Get grammar + query for a language name.
 pub fn get_grammar_and_query(name: &str) -> Option<(&'static Language, &'static Query)> {
-    // Plugins override built-in
-    if let Some(pc) = REGISTRY.get_plugin(name) {
-        return Some((&pc.grammar, &pc.query));
-    }
-    if let Some(c) = REGISTRY.get(name) {
-        return Some((&c.grammar, &c.query));
-    }
-    None
+    REGISTRY.get(name).map(|c| (&c.grammar, &c.query))
 }
 
-/// All registered extensions (e.g. ["py", "rs", "js", ...]).
+/// All registered extensions.
 pub fn all_extensions() -> Vec<&'static str> {
     REGISTRY.all_extensions()
 }
 
+/// Number of loaded language plugins.
+pub fn plugin_count() -> usize {
+    REGISTRY.count()
+}
+
 /// Detect language name from file extension string.
-/// Checks plugins first (override built-in), then built-in, then fallback.
 pub fn detect_lang_from_ext(ext: &str) -> String {
-    // Plugin languages take priority
-    if let Some(config) = REGISTRY.get_plugin_by_ext(ext) {
-        return config.name.clone();
-    }
     if let Some(config) = REGISTRY.get_by_ext(ext) {
-        return config.name.to_string();
+        return config.name.clone();
     }
     // Fallback: languages we recognize for display but don't parse structurally
     match ext {
@@ -426,15 +153,13 @@ pub fn detect_lang_from_ext(ext: &str) -> String {
         "vue" => "vue".into(),
         "svelte" => "svelte".into(),
         "pl" | "pm" => "perl".into(),
-        "sass" => "sass".into(), // display-only; SASS syntax differs from SCSS
+        "sass" => "sass".into(),
+        "gd" => "gdscript".into(),
         _ => "unknown".into(),
     }
 }
 
 /// Detect language from the full filename (not just extension).
-/// BUG 18 fix: handle common extensionless files beyond just Dockerfile.
-/// Makefile/Rakefile/Gemfile are recognized for display (not structural
-/// parsing) so they get correct language labels. [ref:93cf32d4]
 pub fn detect_lang_from_filename(filename: &str) -> Option<&'static str> {
     let base = filename.rsplit('/').next().unwrap_or(filename);
     match base {
@@ -448,9 +173,8 @@ pub fn detect_lang_from_filename(filename: &str) -> Option<&'static str> {
     }
 }
 
-/// Languages that failed query compilation. Non-empty means silent degradation
-/// is occurring — the UI should surface these errors. [ref:4f5a9de5]
-pub fn failed_languages() -> &'static [LangRegistrationError] {
+/// Failed plugin descriptions.
+pub fn failed_plugins() -> &'static [String] {
     REGISTRY.failed()
 }
 
@@ -459,79 +183,22 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_registry_init_all_queries_compile() {
-        // Force initialization — will panic if any query fails to compile
-        let _ = &*REGISTRY;
-        // Verify all language registrations (jsx/tsx/ocaml_interface are separate)
-        for lang in &[
-            "python",
-            "javascript",
-            "jsx",
-            "typescript",
-            "tsx",
-            "rust",
-            "go",
-            "c",
-            "cpp",
-            "java",
-            "ruby",
-            "csharp",
-            "php",
-            "bash",
-            "html",
-            "css",
-            "scss",
-            "swift",
-            "lua",
-            "scala",
-            "elixir",
-            "haskell",
-            "zig",
-            "r",
-            "ocaml",
-            "ocaml_interface",
-        ] {
-            assert!(REGISTRY.get(lang).is_some(), "{} missing", lang);
-        }
-    }
-
-    #[test]
-    fn test_ext_lookup() {
-        assert_eq!(REGISTRY.get_by_ext("py").unwrap().name, "python");
-        assert_eq!(REGISTRY.get_by_ext("rs").unwrap().name, "rust");
-        assert_eq!(REGISTRY.get_by_ext("js").unwrap().name, "javascript");
-        assert_eq!(REGISTRY.get_by_ext("ts").unwrap().name, "typescript");
-        assert_eq!(REGISTRY.get_by_ext("go").unwrap().name, "go");
-        assert_eq!(REGISTRY.get_by_ext("tsx").unwrap().name, "tsx");
-        assert_eq!(REGISTRY.get_by_ext("jsx").unwrap().name, "jsx");
-    }
-
-    #[test]
-    fn test_queries_have_expected_captures() {
-        for lang_name in &["python", "javascript", "typescript", "rust", "go"] {
-            let config = REGISTRY.get(lang_name).unwrap();
-            let names: Vec<&str> = config.query.capture_names().to_vec();
-            // Accept either official or custom capture conventions
-            let has_func = names.contains(&"func.def")
-                || names.contains(&"definition.function")
-                || names.contains(&"definition.method");
-            assert!(has_func, "{} missing function definition capture", lang_name);
-            let has_name = names.contains(&"func.name")
-                || names.contains(&"name")
-                || names.contains(&"call.name");
-            assert!(has_name, "{} missing name capture", lang_name);
-            let has_call = names.contains(&"call.name")
-                || names.contains(&"call")
-                || names.contains(&"reference.call");
-            assert!(has_call, "{} missing call capture", lang_name);
-        }
-    }
-
-    #[test]
-    fn test_detect_lang_from_ext() {
-        assert_eq!(detect_lang_from_ext("py"), "python");
-        assert_eq!(detect_lang_from_ext("rs"), "rust");
+    fn test_detect_lang_from_ext_fallbacks() {
         assert_eq!(detect_lang_from_ext("json"), "json");
+        assert_eq!(detect_lang_from_ext("toml"), "toml");
         assert_eq!(detect_lang_from_ext("xyz"), "unknown");
+    }
+
+    #[test]
+    fn test_detect_lang_from_filename() {
+        assert_eq!(detect_lang_from_filename("Dockerfile"), Some("dockerfile"));
+        assert_eq!(detect_lang_from_filename("Makefile"), Some("bash"));
+        assert_eq!(detect_lang_from_filename("random.txt"), None);
+    }
+
+    #[test]
+    fn test_registry_loads() {
+        // Should not panic even if no plugins are installed
+        let _ = &*REGISTRY;
     }
 }

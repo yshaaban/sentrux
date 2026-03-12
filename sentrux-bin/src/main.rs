@@ -312,6 +312,57 @@ capabilities = ["functions", "classes", "imports"]
                 }
                 return Ok(());
             }
+            Some("add-standard") => {
+                let standard = [
+                    "python", "javascript", "typescript", "rust", "go",
+                    "c", "cpp", "java", "ruby", "csharp", "php", "bash",
+                    "html", "css", "scss", "swift", "lua", "scala",
+                    "elixir", "haskell", "zig", "r", "ocaml",
+                ];
+                let dir = sentrux_core::analysis::plugin::plugins_dir()
+                    .unwrap_or_else(|| { eprintln!("Cannot determine home directory"); std::process::exit(1); });
+                std::fs::create_dir_all(&dir).unwrap();
+                let platform = sentrux_core::analysis::plugin::manifest::PluginManifest::grammar_filename();
+                let platform_key = platform.rsplit_once('.').map_or(platform, |(k, _)| k);
+                let mut installed = 0;
+                let mut skipped = 0;
+                for name in &standard {
+                    let plugin_dir = dir.join(name);
+                    if plugin_dir.exists() {
+                        skipped += 1;
+                        continue;
+                    }
+                    let url = format!(
+                        "https://github.com/sentrux/plugins/releases/download/{name}-v0.1.0/{name}-{platform_key}.tar.gz"
+                    );
+                    print!("  Installing {name}...");
+                    let _ = std::io::Write::flush(&mut std::io::stdout());
+                    let ok = std::process::Command::new("curl")
+                        .args(["-fsSL", &url, "-o"])
+                        .arg(dir.join(format!("{name}.tar.gz")))
+                        .status()
+                        .is_ok_and(|s| s.success());
+                    if ok {
+                        let extracted = std::process::Command::new("tar")
+                            .args(["xzf", &format!("{name}.tar.gz")])
+                            .current_dir(&dir)
+                            .status()
+                            .is_ok_and(|s| s.success());
+                        let _ = std::fs::remove_file(dir.join(format!("{name}.tar.gz")));
+                        if extracted {
+                            println!(" ok");
+                            installed += 1;
+                        } else {
+                            println!(" failed (extract)");
+                        }
+                    } else {
+                        let _ = std::fs::remove_file(dir.join(format!("{name}.tar.gz")));
+                        println!(" failed (download)");
+                    }
+                }
+                println!("\nInstalled {installed} languages ({skipped} already installed)");
+                return Ok(());
+            }
             Some("add") => {
                 let name = std::env::args().skip_while(|a| a != "add").nth(1)
                     .unwrap_or_else(|| { eprintln!("Usage: sentrux plugin add <name>"); std::process::exit(1); });
@@ -384,8 +435,9 @@ capabilities = ["functions", "classes", "imports"]
                 return Ok(());
             }
             _ => {
-                println!("Usage: sentrux plugin <add|remove|list|init|validate>");
-                println!("  add <name>          — download and install a plugin");
+                println!("Usage: sentrux plugin <add-standard|add|remove|list|init|validate>");
+                println!("  add-standard         — install all 23 standard languages");
+                println!("  add <name>          — install a single language plugin");
                 println!("  remove <name>        — remove an installed plugin");
                 println!("  list                — show installed plugins");
                 println!("  init <name>          — create a plugin template");

@@ -84,22 +84,22 @@ impl PluginManifest {
     }
 
     /// Validate that required capabilities have matching captures in query source.
+    /// Accepts multiple naming conventions (func.def, definition.function, func.name, etc.)
     pub fn validate_query_captures(&self, query_src: &str) -> Result<(), String> {
-        let required_captures: Vec<&str> = self.queries.capabilities.iter().map(|c| {
-            match c.as_str() {
-                "functions" => "func.def",
-                "classes" => "class.def",
-                "imports" => "import.path",
-                "calls" => "call.name",
-                _ => "",
-            }
-        }).filter(|s| !s.is_empty()).collect();
-
-        for capture in &required_captures {
-            if !query_src.contains(capture) {
+        for cap in &self.queries.capabilities {
+            let patterns: &[&str] = match cap.as_str() {
+                "functions" => &["func.def", "func.name", "definition.function", "definition.method", "function_definition", "name"],
+                "classes" => &["class.def", "class.name", "definition.class", "class_definition"],
+                "imports" => &["import.path", "import.name", "import", "source"],
+                "calls" => &["call.name", "call", "reference.call"],
+                _ => continue,
+            };
+            let found = patterns.iter().any(|p| query_src.contains(p));
+            if !found {
                 return Err(format!(
-                    "Query missing required capture '@{}' for declared capability",
-                    capture
+                    "Query missing capture for '{}' capability (expected one of: {})",
+                    cap,
+                    patterns.iter().map(|p| format!("@{p}")).collect::<Vec<_>>().join(", ")
                 ));
             }
         }

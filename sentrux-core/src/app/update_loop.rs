@@ -61,14 +61,11 @@ impl SentruxApp {
     }
 }
 
-/// BUG 5 fix: surface failed language registrations at startup. [ref:4f5a9de5]
+/// Surface failed plugin loads at startup.
 fn log_failed_languages() {
-    let failed = crate::analysis::lang_registry::failed_languages();
+    let failed = crate::analysis::lang_registry::failed_plugins();
     for err in failed {
-        eprintln!(
-            "[app] WARNING: language '{}' (extensions {:?}) failed to register: {}",
-            err.lang, err.extensions, err.error
-        );
+        eprintln!("[app] WARNING: plugin failed: {}", err);
     }
 }
 
