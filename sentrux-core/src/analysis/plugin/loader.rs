@@ -68,7 +68,7 @@ pub fn load_all_plugins() -> (Vec<LoadedPlugin>, Vec<PluginLoadError>) {
         }
         match load_single_plugin(&path) {
             Ok(plugin) => {
-                eprintln!("[plugin] Loaded: {} v{} ({})", plugin.name, plugin.version, plugin.extensions.join(", "));
+                // Verbose per-plugin logging removed — registry logs the total count
                 loaded.push(plugin);
             }
             Err(e) => {

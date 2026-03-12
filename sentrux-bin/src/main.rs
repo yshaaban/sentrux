@@ -199,12 +199,15 @@ fn auto_install_plugins_if_needed() {
         Some(d) => d,
         None => return,
     };
-    // Check if any plugin actually loads (not just directories exist)
-    // This handles upgrades where old broken plugins remain
+    // Check if any plugin directory with a valid plugin.toml exists
     if dir.is_dir() {
-        let (loaded, _) = sentrux_core::analysis::plugin::load_all_plugins();
-        if !loaded.is_empty() {
-            return; // working plugins found, skip auto-install
+        if let Ok(entries) = std::fs::read_dir(&dir) {
+            let has_valid_plugin = entries
+                .filter_map(|e| e.ok())
+                .any(|e| e.path().is_dir() && e.path().join("plugin.toml").exists());
+            if has_valid_plugin {
+                return; // plugins exist, skip auto-install
+            }
         }
     }
 
