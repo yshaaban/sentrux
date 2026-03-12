@@ -11,10 +11,10 @@
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-/// URL to check for latest version. Currently GitHub releases API.
-/// Change this to a proxy endpoint for usage counting in the future.
+/// URL to check for latest version. Cloudflare Worker endpoint that
+/// serves version info while counting daily active users.
 const UPDATE_CHECK_URL: &str =
-    "https://api.github.com/repos/sentrux/sentrux/releases/latest";
+    "https://sentrux-api.tfcene.workers.dev/version";
 
 /// How often to check (24 hours).
 const CHECK_INTERVAL: Duration = Duration::from_secs(86400);
@@ -98,15 +98,33 @@ pub fn check_for_updates_async(current_version: &str) {
         .ok(); // silently fail if thread spawn fails
 }
 
+/// Detect current platform for the analytics ping.
+fn platform_id() -> &'static str {
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    { "darwin-arm64" }
+    #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
+    { "darwin-x86_64" }
+    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+    { "linux-x86_64" }
+    #[cfg(not(any(
+        all(target_os = "macos", target_arch = "aarch64"),
+        all(target_os = "macos", target_arch = "x86_64"),
+        all(target_os = "linux", target_arch = "x86_64"),
+    )))]
+    { "other" }
+}
+
 /// The actual check — runs in background thread.
 fn check_and_notify(current_version: &str) {
+    // Send version + platform so the endpoint can track usage
+    let url = format!("{}?v={}&p={}", UPDATE_CHECK_URL, current_version, platform_id());
+
     // 3 second timeout to avoid blocking on slow networks
     let output = std::process::Command::new("curl")
         .args([
             "-fsSL",
             "--max-time", "3",
-            "-H", "Accept: application/vnd.github+json",
-            UPDATE_CHECK_URL,
+            &url,
         ])
         .output();
 
@@ -117,19 +135,18 @@ fn check_and_notify(current_version: &str) {
 
     let body = String::from_utf8_lossy(&output.stdout);
 
-    // Parse tag_name from GitHub response
-    // Simple JSON extraction without serde (avoid adding dependency for background check)
+    // Parse "latest" field from JSON response: {"latest": "0.3.2", ...}
     let latest = body
-        .split("\"tag_name\"")
+        .split("\"latest\"")
         .nth(1)
         .and_then(|s| s.split('"').nth(1));
 
-    if let Some(latest_tag) = latest {
+    if let Some(latest_version) = latest {
         save_check_timestamp();
-        if is_newer(current_version, latest_tag) {
+        if is_newer(current_version, latest_version) {
             eprintln!(
                 "\n  New version available: {} → {}\n  Update: brew upgrade sentrux\n",
-                current_version, latest_tag
+                current_version, latest_version
             );
         }
     }
