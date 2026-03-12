@@ -114,7 +114,9 @@ fn load_single_plugin(plugin_dir: &Path) -> Result<LoadedPlugin, String> {
     verify_checksum(&manifest, &grammar_path, grammar_file)?;
 
     // 6. Load the grammar via dynamic library
-    let grammar = load_grammar_dynamic(&grammar_path, &manifest.plugin.name)?;
+    let symbol_name = manifest.grammar.symbol_name.as_deref()
+        .unwrap_or(&manifest.plugin.name);
+    let grammar = load_grammar_dynamic(&grammar_path, symbol_name)?;
 
     // 7. Verify ABI version
     #[allow(deprecated)]

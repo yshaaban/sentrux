@@ -44,6 +44,9 @@ pub struct PluginMetadata {
 pub struct GrammarInfo {
     /// Source repo URL
     pub source: String,
+    /// Exported symbol name override (default: tree_sitter_<plugin_name>)
+    /// Use when the grammar exports a different name (e.g., "php_only" for tree_sitter_php_only)
+    pub symbol_name: Option<String>,
     /// Git ref used to build
     #[serde(rename = "ref")]
     pub git_ref: String,
