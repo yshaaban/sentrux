@@ -3762,7 +3762,6 @@ dependencies = [
  "eframe",
  "egui",
  "sentrux-core",
- "private-integration-crate",
 ]
 
 [[package]]
@@ -3813,15 +3812,6 @@ dependencies = [
  "tree-sitter-swift",
  "tree-sitter-typescript",
  "tree-sitter-zig",
-]
-
-[[package]]
-name = "private-integration-crate"
-version = "0.1.3"
-dependencies = [
- "sentrux-core",
- "serde",
- "serde_json",
 ]
 
 [[package]]

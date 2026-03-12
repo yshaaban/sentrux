@@ -193,32 +193,19 @@ fn cli_scan_limits() -> analysis::scanner::common::ScanLimits {
 }
 
 fn main() -> eframe::Result<()> {
-    // Set license tier at startup (pro build validates key, free build stays Free)
-    #[cfg(feature = "pro")]
-    {
-        let tier = sentrux_pro::license::load_and_validate()
-            .unwrap_or(sentrux_core::license::Tier::Free);
-        sentrux_core::license::set_tier(tier);
-    }
+    // Pro tier + tool registration are injected by the private-integration-crate crate's
+    // binary wrapper. The open-source build always runs as Free with no
+    // pro tools. See private-integration-crate repo for the pro entry point.
 
     // --version: show version + edition (free or pro)
     if std::env::args().any(|a| a == "--version" || a == "-V") {
-        let edition = if cfg!(feature = "pro") { "Pro" } else { "Free" };
+        let edition = if sentrux_core::license::current_tier() >= sentrux_core::license::Tier::Pro { "Pro" } else { "Free" };
         println!("sentrux {} ({})", env!("CARGO_PKG_VERSION"), edition);
         return Ok(());
     }
 
     if std::env::args().any(|a| a == "--mcp") {
-        #[cfg(feature = "pro")]
-        {
-            app::mcp_server::run_mcp_server(Some(&|reg| {
-                sentrux_pro::register_pro_tools(reg);
-            }));
-        }
-        #[cfg(not(feature = "pro"))]
-        {
-            app::mcp_server::run_mcp_server(None);
-        }
+        app::mcp_server::run_mcp_server(None);
         return Ok(());
     }
 
@@ -424,7 +411,7 @@ capabilities = ["functions", "classes", "imports"]
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([1280.0, 800.0])
-            .with_title(if cfg!(feature = "pro") { "Sentrux Pro" } else { "sentrux" }),
+            .with_title(if sentrux_core::license::current_tier() >= sentrux_core::license::Tier::Pro { "Sentrux Pro" } else { "sentrux" }),
         renderer: eframe::Renderer::Wgpu,
         ..Default::default()
     };
