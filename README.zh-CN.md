@@ -8,7 +8,7 @@
 
 <br><br>
 
-**AI Agent 负责写代码。<br>sentrux 告诉你，它对你的架构做了什么。**
+**AI Agent 负责写代码。<br>sentrux 实时展示架构，评估代码质量。**
 
 <br>
 

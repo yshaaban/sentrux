@@ -8,7 +8,7 @@
 
 <br><br>
 
-**Dein AI-Agent schreibt den Code.<br>sentrux zeigt dir, was er mit deiner Architektur gemacht hat.**
+**Dein AI-Agent schreibt den Code.<br>sentrux zeigt dir die Architektur und bewertet die Qualität — live.**
 
 <br>
 
