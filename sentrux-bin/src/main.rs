@@ -326,11 +326,83 @@ capabilities = ["functions", "classes", "imports"]
                 }
                 return Ok(());
             }
+            Some("add") => {
+                let name = std::env::args().skip_while(|a| a != "add").nth(1)
+                    .unwrap_or_else(|| { eprintln!("Usage: sentrux plugin add <name>"); std::process::exit(1); });
+                let dir = sentrux_core::analysis::plugin::plugins_dir()
+                    .unwrap_or_else(|| { eprintln!("Cannot determine home directory"); std::process::exit(1); });
+                let plugin_dir = dir.join(&name);
+                if plugin_dir.exists() {
+                    eprintln!("Plugin '{}' already installed at {}", name, plugin_dir.display());
+                    eprintln!("Remove it first: sentrux plugin remove {}", name);
+                    std::process::exit(1);
+                }
+
+                // Determine platform
+                let platform = sentrux_core::analysis::plugin::manifest::PluginManifest::grammar_filename();
+                let platform_key = platform.rsplit_once('.').map_or(platform, |(k, _)| k);
+
+                // Download from GitHub releases
+                let url = format!(
+                    "https://github.com/sentrux/plugins/releases/download/{name}-v0.1.0/{name}-{platform_key}.tar.gz"
+                );
+                println!("Downloading {name} plugin for {platform_key}...");
+                println!("  {url}");
+
+                let output = std::process::Command::new("curl")
+                    .args(["-fsSL", &url, "-o"])
+                    .arg(dir.join(format!("{name}.tar.gz")))
+                    .status();
+
+                match output {
+                    Ok(s) if s.success() => {
+                        // Extract
+                        std::fs::create_dir_all(&dir).unwrap();
+                        let extract = std::process::Command::new("tar")
+                            .args(["xzf", &format!("{name}.tar.gz")])
+                            .current_dir(&dir)
+                            .status();
+                        let _ = std::fs::remove_file(dir.join(format!("{name}.tar.gz")));
+                        match extract {
+                            Ok(s) if s.success() => {
+                                println!("Installed {name} to {}", plugin_dir.display());
+                            }
+                            _ => {
+                                eprintln!("Failed to extract plugin archive");
+                                std::process::exit(1);
+                            }
+                        }
+                    }
+                    _ => {
+                        let _ = std::fs::remove_file(dir.join(format!("{name}.tar.gz")));
+                        eprintln!("Failed to download plugin '{name}'.");
+                        eprintln!("Check available plugins: https://github.com/sentrux/plugins/releases");
+                        std::process::exit(1);
+                    }
+                }
+                return Ok(());
+            }
+            Some("remove") => {
+                let name = std::env::args().skip_while(|a| a != "remove").nth(1)
+                    .unwrap_or_else(|| { eprintln!("Usage: sentrux plugin remove <name>"); std::process::exit(1); });
+                let dir = sentrux_core::analysis::plugin::plugins_dir()
+                    .unwrap_or_else(|| { eprintln!("Cannot determine home directory"); std::process::exit(1); });
+                let plugin_dir = dir.join(&name);
+                if !plugin_dir.exists() {
+                    eprintln!("Plugin '{}' not installed.", name);
+                    std::process::exit(1);
+                }
+                std::fs::remove_dir_all(&plugin_dir).unwrap();
+                println!("Removed plugin '{}'", name);
+                return Ok(());
+            }
             _ => {
-                println!("Usage: sentrux plugin <list|init|validate>");
-                println!("  list               — show installed plugins");
-                println!("  init <name>         — create a plugin template");
-                println!("  validate <dir>      — validate a plugin directory");
+                println!("Usage: sentrux plugin <add|remove|list|init|validate>");
+                println!("  add <name>          — download and install a plugin");
+                println!("  remove <name>        — remove an installed plugin");
+                println!("  list                — show installed plugins");
+                println!("  init <name>          — create a plugin template");
+                println!("  validate <dir>       — validate a plugin directory");
                 return Ok(());
             }
         }

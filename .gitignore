@@ -20,3 +20,4 @@ target/
 # Local tools
 .beemem*/
 .claude/
+plugins/
