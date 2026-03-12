@@ -17,7 +17,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/sentrux/sentrux?style=flat)](https://github.com/sentrux/sentrux/stargazers)
 
-**English** | [中文](README.zh-CN.md) | [Deutsch](README.de.md)
+**English** | [中文](README.zh-CN.md) | [Deutsch](README.de.md) | [日本語](README.ja.md)
 
 [Install](#install) · [Quick Start](#quick-start) · [MCP Integration](#mcp-server) · [Rules Engine](#rules-engine) · [Releases](https://github.com/sentrux/sentrux/releases)
 
@@ -71,7 +71,11 @@ Every AI session silently degrades your architecture. Same function names, diffe
 
 This is the dirty secret of AI-assisted development: **the better the AI generates code, the faster your codebase becomes ungovernable.**
 
-The traditional answer — *"plan your architecture first, then let AI implement"* — sounds right but misses the point. That's not how anyone actually works with AI agents. You prototype fast. You iterate through conversation. You follow inspiration. You let the creative flow drive the code. That creative flow is exactly what makes AI agents powerful. And it's exactly what destroys codebases.
+The traditional answer — *"plan your architecture first, then let AI implement"* — sounds right but misses the point. Tools like GitHub's [Spec Kit](https://github.com/github/spec-kit) try this approach: generate detailed specs and plans before writing code. But in practice, it [reinvents waterfall](https://blog.scottlogic.com/2025/11/26/putting-spec-kit-through-its-paces-radical-idea-or-reinvented-waterfall.html) — producing seas of markdown documents while having zero visibility into the code that actually gets produced. No feedback loop. No way to detect when the implementation drifts from the spec. No structural analysis of any kind. The spec goes in, the agent writes code, and nobody checks what came out.
+
+That's not how anyone actually works with AI agents anyway. You prototype fast. You iterate through conversation. You follow inspiration. You let the creative flow drive the code. That creative flow is exactly what makes AI agents powerful. And it's exactly what destroys codebases.
+
+**You don't need a better plan. You need a better sensor.**
 
 ## The solution
 

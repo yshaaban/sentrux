@@ -1,0 +1,256 @@
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="assets/logo-light.svg">
+  <img alt="sentrux" src="assets/logo-dark.svg" width="200">
+</picture>
+
+<br><br>
+
+**AIエージェントがコードを書く。<br>sentrux が、アーキテクチャに何をしたかを教える。**
+
+<br>
+
+[![CI](https://github.com/sentrux/sentrux/actions/workflows/ci.yml/badge.svg)](https://github.com/sentrux/sentrux/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/sentrux/sentrux)](https://github.com/sentrux/sentrux/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/sentrux/sentrux?style=flat)](https://github.com/sentrux/sentrux/stargazers)
+
+[English](README.md) | [中文](README.zh-CN.md) | [Deutsch](README.de.md) | **日本語**
+
+[インストール](#インストール) · [クイックスタート](#クイックスタート) · [MCP連携](#mcpサーバー) · [ルールエンジン](#ルールエンジン) · [Releases](https://github.com/sentrux/sentrux/releases)
+
+</div>
+
+<br>
+
+<div align="center">
+
+![sentrux デモ](assets/demo.gif)
+
+</div>
+
+<div align="center">
+<sub>プロンプト1つ。AIエージェント1つ。5分間。<b>Health Grade: D。</b></sub>
+<br>
+<sub>Claude Code が FastAPI プロジェクトをゼロから構築する様子を——sentrux がアーキテクチャの劣化をリアルタイムで可視化しながら——ご覧ください。</sub>
+</div>
+
+<details>
+<summary>このデモプロジェクトの最終評価レポートを見る</summary>
+<br>
+<table>
+<tr>
+<td align="center"><img src="assets/grade-health.png" width="240" alt="Health Grade D"><br><b>コード健全性: D</b><br><sub>凝集度 F、デッドコード F (25%)<br>コメント率 D (2%)</sub></td>
+<td align="center"><img src="assets/grade-architecture.png" width="240" alt="Architecture Grade B"><br><b>アーキテクチャ: B</b><br><sub>レベライゼーション A、距離 A<br>影響半径 B (23ファイル)</sub></td>
+<td align="center"><img src="assets/grade-test-coverage.png" width="240" alt="Test Coverage Grade D"><br><b>テストカバレッジ: D</b><br><sub>38% カバレッジ<br>42個の未テストファイル</sub></td>
+</tr>
+</table>
+</details>
+
+<br>
+
+## 誰も語らない問題
+
+Claude Code や Cursor でプロジェクトを始める。初日は魔法のようだ。エージェントはクリーンなコードを書き、意図を理解し、機能を素早く提供する。
+
+そして、何かが変わり始める。
+
+エージェントは存在しない関数を幻覚し始める。新しいコードを間違った場所に置く。昨日触ったばかりのファイルにバグを入れる。簡単な機能を頼むと、他の3つが壊れる。エージェントの出力を修復する時間の方が、自分で書くより長くなる。
+
+みんなAIが劣化したと思う。**違う。** コードベースが劣化したのだ。
+
+実際に起きていたこと：IDEを使っていた頃、あなたはファイルツリーが見えた。ファイルを開いた。アーキテクチャのメンタルモデルを構築していた——どのモジュールが何をするか、どう接続されているか、何がどこに属するか。あなたがガバナーだった。すべての編集は、全体への理解を通過していた。
+
+そしてAIエージェントが私たちをターミナルに移した。エージェントはセッションごとに数十のファイルを変更する。`Modified src/foo.rs` というストリームが見える——しかし空間認識は失われた。そのファイルが依存グラフのどこにあるか見えない。循環依存が生まれたことも見えない。3つのモジュールが内部用のファイルに依存し始めたことも見えない。多くの開発者がファイルブラウザを一度も開かずにAIエージェントにアプリケーション全体を構築させている。
+
+**あなたはすでにコントロールを失っている。そしてそれにまだ気づいていない。**
+
+すべてのAIセッションがアーキテクチャを静かに劣化させる。同じ関数名、異なる目的、ファイルに散乱。無関係なコードが同じフォルダに投げ込まれる。依存関係がスパゲッティに絡まる。エージェントがプロジェクトを検索すると、矛盾する20件の結果が返り——間違ったものを選ぶ。セッションごとに混乱が深まり、混乱が深まるごとに次のセッションが難しくなる。
+
+これがAI支援開発の汚い秘密だ：**AIがコードを生成するのが上手になるほど、コードベースは速く統治不能になる。**
+
+従来の答え——*「先にアーキテクチャを設計してから、AIに実装させる」*——は正しく聞こえるが的を外している。誰もAIエージェントをそうやって使っていない。素早くプロトタイプを作る。会話で反復する。インスピレーションに従う。創造的な流れにコードを導かせる。その創造的な流れこそがAIエージェントを強力にするものであり、コードベースを破壊するものでもある。
+
+## 解決策
+
+**sentrux は失われたフィードバックループだ。**
+
+1780年代、James Watt は遠心調速機を作った——蒸気機関の回転速度を感知し、バルブを自動調整する装置だ。それ以前は、作業員がエンジンの横に立ってバルブを手で回していた。その後、作業員の仕事は変わった：バルブを回すことから、調速機を設計することへ。
+
+Kubernetes はインフラに同じことをした。望ましい状態を宣言する。コントローラーが実際の状態を観察する。乖離が生じたら、コントローラーが調整する。エンジニアの仕事はサービスの再起動から仕様の記述へと移った。
+
+今、それがコードに起きている。OpenAI はこれを [harness engineering](https://openai.com/index/building-with-agents/) と呼ぶ：もうコードを書かないエンジニアたち。代わりにフィードバックループを設計し、アーキテクチャ制約をコード化する——そしてエージェントがコードを書く。5ヶ月で100万行、手書きゼロ。
+
+毎回同じパターンだ。Norbert Wiener は1948年にそれを名付けた：**サイバネティクス**——ギリシャ語の *κυβερνήτης*（操舵手）から。バルブを回すのをやめる。舵を取る。
+
+コードベースは最後の砦だった。コンパイラは構文のフィードバックループを閉じる。テストスイートは振る舞いのループを閉じる。リンターはスタイルのループを閉じる。しかしアーキテクチャ——この変更はシステムに合っているか？この抽象化は成長とともに問題を起こすか？——にはセンサーもアクチュエータもなかった。人間だけがそれを判断でき、人間は機械速度のコード生成についていけない。
+
+**sentrux はアーキテクチャレベルでループを閉じる。**
+
+コードベースをリアルタイムで監視する——diffではなく、ターミナル出力でもなく——*実際の構造*を。すべてのファイル、すべての依存関係、すべてのアーキテクチャ上の関係。エージェントがコードを書くにつれて更新されるライブインタラクティブtreemapとして可視化。
+
+14の健全性指標。AからFまでの評価。ミリ秒で計算。
+
+アーキテクチャが劣化したとき、すぐにわかる——2週間後にすべてが壊れて、どのセッションが原因だったか誰も覚えていない、ということにはならない。
+
+機械を実装で上回る必要はない。評価で上回ればいい。sentrux がセンサーを提供する。ルールが仕様を定める。エージェントがアクチュエータだ。**ループが閉じる。**
+
+<br>
+
+<div align="center">
+<table>
+<tr>
+<td align="center" width="33%"><b>可視化</b><br><sub>依存関係エッジ付きライブtreemap<br>エージェントが変更するとファイルが光る</sub></td>
+<td align="center" width="33%"><b>計測</b><br><sub>14の健全性指標 A-F評価：<br>結合度、循環、凝集度、デッドコード…</sub></td>
+<td align="center" width="33%"><b>統治</b><br><sub>品質ゲートが退行を検出<br>ルールエンジンが制約を強制</sub></td>
+</tr>
+</table>
+</div>
+
+<br>
+
+## インストール
+
+```bash
+brew install sentrux/tap/sentrux
+```
+
+```bash
+# または：macOS / Linux
+curl -fsSL https://raw.githubusercontent.com/sentrux/sentrux/main/install.sh | sh
+```
+
+Pure Rust。単一バイナリ。ランタイム依存なし。tree-sitterで23言語対応。
+
+<details>
+<summary>ソースからビルド / アップグレード</summary>
+
+```bash
+# ソースからビルド
+git clone https://github.com/sentrux/sentrux.git
+cd sentrux && cargo build --release
+
+# アップグレード
+brew update && brew upgrade sentrux
+# またはcurlインストールを再実行——常に最新版を取得
+```
+
+</details>
+
+## クイックスタート
+
+```bash
+sentrux                    # GUIを開く——プロジェクトのライブtreemap
+sentrux check .            # ルールチェック（CI対応、終了コード0または1）
+sentrux gate --save .      # エージェントセッション前にベースラインを保存
+sentrux gate .             # セッション後に比較——退行を検出
+```
+
+## MCPサーバー
+
+sentrux は [MCP](https://modelcontextprotocol.io) サーバーとして動作し、AIエージェントがセッション中に構造的健全性を照会できる。
+
+```json
+{
+  "sentrux": {
+    "command": "sentrux",
+    "args": ["--mcp"]
+  }
+}
+```
+
+Claude Code、Cursor、Windsurf、およびすべてのMCP互換エージェントに対応。
+
+<details>
+<summary>エージェントワークフローを見る</summary>
+
+```
+Agent: scan("/Users/me/myproject")
+  → { structure_grade: "B", architecture_grade: "B", files: 139 }
+
+Agent: session_start()
+  → { status: "Baseline saved", grade: "B" }
+
+  ... エージェントが500行のコードを書く ...
+
+Agent: session_end()
+  → { pass: false, grade_before: "B", grade_after: "C",
+      summary: "Architecture degraded during this session" }
+```
+
+15ツール：`scan` · `health` · `architecture` · `coupling` · `cycles` · `hottest` · `evolution` · `dsm` · `test_gaps` · `check_rules` · `session_start` · `session_end` · `rescan` · `blast_radius` · `level`
+
+</details>
+
+## ルールエンジン
+
+アーキテクチャ制約を定義。CIで強制。エージェントに境界を伝える。
+
+<details>
+<summary>例：.sentrux/rules.toml</summary>
+
+```toml
+[constraints]
+max_cycles = 0
+max_coupling = "B"
+max_cc = 25
+no_god_files = true
+
+[[layers]]
+name = "core"
+paths = ["src/core/*"]
+order = 0
+
+[[layers]]
+name = "app"
+paths = ["src/app/*"]
+order = 2
+
+[[boundaries]]
+from = "src/app/*"
+to = "src/core/internal/*"
+reason = "App は core の内部に依存してはならない"
+```
+
+```bash
+sentrux check .
+# ✓ すべてのルールに合格 — 構造: B  アーキテクチャ: B
+```
+
+</details>
+
+## 対応言語
+
+Rust · Python · JavaScript · TypeScript · Go · C · C++ · Java · Ruby · C# · PHP · Bash · HTML · CSS · SCSS · Swift · Lua · Scala · Elixir · Haskell · Zig · R · OCaml
+
+---
+
+## 設計思想
+
+**人間の役割は変わりつつある——コードを書くことから、コードを統治することへ。**
+
+AI以前に重要だったすべてのエンジニアリングプラクティス——ドキュメント、テスト、成文化されたアーキテクチャ、高速なフィードバックループ——が今や指数関数的に重要になっている。テストを省けばフィードバックループは閉じられない。アーキテクチャ制約を省けばドリフトが機械速度で複合する。そしてここに罠がある：エージェントが「きれい」とは何かを知らなければ、エージェントを使って混乱を片付けることはできない。
+
+sentrux は3つの信念の上に構築されている：
+
+**1. Human-in-the-loop は譲れない。** AIエージェントは強力だが限界がある。全体像と細部を同時に把握できない。人間はいつでも、エージェントが全体に対して何をしているかを見られなければならない——どのファイルを変更したかだけでなく、そのファイルがアーキテクチャにとって何を意味するかを。sentrux がそれを可能にする。
+
+**2. 検証は生成より価値がある。** 正しい解を生成することは、検証することより難しい（P vs NP の背後にある直感）。機械をコーディングで上回る必要はない。評価で上回ればいい——「正しい」とはどういう状態かを定義し、出力がずれたときに認識し、方向が正しいかを判断する。sentrux はアーキテクチャの判断力を機械可読な評価と制約に変換する。
+
+**3. 良いシステムは良い結果を必然にする。** うまく設計されたシステムは、正しいことが簡単なことになるよう行動を制約する。劣化をリリース前にブロックする品質ゲート。アーキテクチャ決定をコード化するルールエンジン。構造的腐敗を見逃せなくする可視化マップ。プラクティスは変わっていない。それを無視するペナルティが耐えられないものになっただけだ。
+
+*ワットの調速機を設計した作業員は、バルブを回す仕事には戻らなかった。できなかったからではない。もはや意味がなかったからだ。*
+
+---
+
+<div align="center">
+
+<sub>AIエージェントは機械速度でコードを書く。構造的ガバナンスなしには、コードベースも機械速度で腐敗する。<br><b>sentrux がガバナーだ。</b></sub>
+
+</div>
+
+## ライセンス
+
+[MIT](LICENSE)

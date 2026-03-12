@@ -17,7 +17,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/sentrux/sentrux?style=flat)](https://github.com/sentrux/sentrux/stargazers)
 
-[English](README.md) | **中文** | [Deutsch](README.de.md)
+[English](README.md) | **中文** | [Deutsch](README.de.md) | [日本語](README.ja.md)
 
 [安装](#安装) · [快速开始](#快速开始) · [MCP 集成](#mcp-服务器) · [规则引擎](#规则引擎) · [Releases](https://github.com/sentrux/sentrux/releases)
 
