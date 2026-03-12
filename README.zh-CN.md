@@ -1,0 +1,256 @@
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="assets/logo-light.svg">
+  <img alt="sentrux" src="assets/logo-dark.svg" width="200">
+</picture>
+
+<br><br>
+
+**AI Agent 负责写代码。<br>sentrux 告诉你，它对你的架构做了什么。**
+
+<br>
+
+[![CI](https://github.com/sentrux/sentrux/actions/workflows/ci.yml/badge.svg)](https://github.com/sentrux/sentrux/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/sentrux/sentrux)](https://github.com/sentrux/sentrux/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/sentrux/sentrux?style=flat)](https://github.com/sentrux/sentrux/stargazers)
+
+[English](README.md) | **中文** | [Deutsch](README.de.md)
+
+[安装](#安装) · [快速开始](#快速开始) · [MCP 集成](#mcp-服务器) · [规则引擎](#规则引擎) · [Releases](https://github.com/sentrux/sentrux/releases)
+
+</div>
+
+<br>
+
+<div align="center">
+
+![sentrux demo](assets/demo.gif)
+
+</div>
+
+<div align="center">
+<sub>一个 prompt。一个 AI Agent。五分钟。<b>健康评分：D。</b></sub>
+<br>
+<sub>观看 Claude Code 从零构建一个 FastAPI 项目——同时 sentrux 实时展示架构正在腐化。</sub>
+</div>
+
+<details>
+<summary>查看这个 Demo 项目的完整评分报告</summary>
+<br>
+<table>
+<tr>
+<td align="center"><img src="assets/grade-health.png" width="240" alt="Health Grade D"><br><b>代码健康：D</b><br><sub>内聚度 F，死代码 F (25%)<br>注释率 D (2%)</sub></td>
+<td align="center"><img src="assets/grade-architecture.png" width="240" alt="Architecture Grade B"><br><b>架构：B</b><br><sub>层级化 A，距离 A<br>影响半径 B (23 个文件)</sub></td>
+<td align="center"><img src="assets/grade-test-coverage.png" width="240" alt="Test Coverage Grade D"><br><b>测试覆盖：D</b><br><sub>38% 覆盖率<br>42 个未测试文件</sub></td>
+</tr>
+</table>
+</details>
+
+<br>
+
+## 一个没人谈论的问题
+
+你用 Claude Code 或 Cursor 开始一个项目。第一天像魔法一样——Agent 写出干净的代码，理解你的意图，快速交付功能。
+
+然后，某些东西开始变化。
+
+Agent 开始幻想不存在的函数。它把新代码放错了位置。它在昨天刚改过的文件里引入 bug。你要求一个简单的功能，它却搞坏了其他三个地方。你花在修复 Agent 输出上的时间，比自己写还多。
+
+所有人都以为 AI 变笨了。**不是的。** 是你的代码库变烂了。
+
+事情是这样发生的：当你用 IDE 的时候，你能看到文件树，你打开文件，你在脑子里建立了一个架构的心智模型——哪个模块做什么，它们怎么连接，什么东西该放在哪里。你就是那个掌舵者。每一次编辑都经过你对整体的理解。
+
+然后 AI Agent 把我们带到了终端。Agent 每次会话修改几十个文件。你看到的只是一行行 `Modified src/foo.rs`——但你失去了空间感知。你看不到这个文件在依赖图中的位置。你看不到它刚刚创建了一个循环依赖。你看不到三个模块现在都依赖了一个本应是内部的文件。很多开发者让 AI Agent 构建整个应用程序，从头到尾都没有打开过文件浏览器。
+
+**你已经失去了控制。而你甚至还不知道。**
+
+每一次 AI 会话都在悄悄降解你的架构。相同的函数名，不同的功能，散落在不同文件中。不相关的代码堆在同一个文件夹里。依赖关系缠绕成意大利面条。当 Agent 搜索你的项目时，它找到二十个互相矛盾的结果——然后选了错误的那个。每次会话让混乱更严重，每次混乱让下次会话更困难。
+
+这是 AI 辅助开发的一个肮脏秘密：**AI 生成代码越快，你的代码库就越快变得无法治理。**
+
+传统的回答是"先规划好架构，再让 AI 实现"——听起来对，但没抓住重点。没有人真的是这样使用 AI Agent 的。你快速原型，通过对话迭代，跟着灵感走，让创意驱动代码。这种创造性的流程正是 AI Agent 强大的原因，也正是它摧毁代码库的原因。
+
+## 解决方案
+
+**sentrux 是缺失的反馈回路。**
+
+1780年代，James Watt 发明了离心调速器——一个感知蒸汽机转速并自动调节阀门的装置。在它之前，一个工人站在引擎旁边手动转阀门。在它之后，工人的工作变了：从转阀门变成了设计调速器。
+
+Kubernetes 对基础设施做了同样的事。你声明期望状态，控制器观察实际状态，当两者偏离时，控制器自动调和。工程师的工作从重启服务变成了编写规范。
+
+现在同样的事情发生在代码上。OpenAI 称之为 [harness engineering](https://openai.com/index/building-with-agents/)：工程师不再写代码，而是设计反馈回路、编纂架构约束——然后 Agent 来写代码。五个月一百万行代码，零行手写。
+
+每次都是同样的模式。Norbert Wiener 在 1948 年给它命名：**控制论**（cybernetics）——来自希腊语 *κυβερνήτης*，舵手。你不再转阀门，你掌舵。
+
+代码库是最后的阵地。编译器闭合了语法层的反馈回路。测试套件闭合了行为层的反馈回路。代码检查器闭合了风格层的反馈回路。但架构——这个改动是否符合系统设计？这个抽象会不会随着代码增长带来问题？——没有传感器，没有执行器。只有人类能做出这种判断，而人类跟不上机器速度的代码生成。
+
+**sentrux 在架构层闭合了反馈回路。**
+
+它实时监视你的代码库——不是看 diff，不是看终端输出——是*真实的结构*。每一个文件，每一条依赖，每一个架构关系。可视化为一个实时交互式的 treemap，随着 Agent 写代码实时更新。
+
+14 个健康维度。从 A 到 F 评分。毫秒级计算。
+
+当架构退化时，你立刻就能看到——而不是两周后一切崩溃、没人记得是哪次会话导致的。
+
+你不需要在实现上胜过机器。你需要在评估上胜过它。sentrux 给你传感器，你的规则给出规范，Agent 是执行器。**回路闭合了。**
+
+<br>
+
+<div align="center">
+<table>
+<tr>
+<td align="center" width="33%"><b>可视化</b><br><sub>实时 treemap + 依赖边<br>Agent 修改文件时文件会发光</sub></td>
+<td align="center" width="33%"><b>度量</b><br><sub>14 个健康维度 A-F 评分：<br>耦合、循环、内聚、死代码…</sub></td>
+<td align="center" width="33%"><b>治理</b><br><sub>质量门禁拦截退化<br>规则引擎强制约束</sub></td>
+</tr>
+</table>
+</div>
+
+<br>
+
+## 安装
+
+```bash
+brew install sentrux/tap/sentrux
+```
+
+```bash
+# 或者：macOS / Linux 快速安装
+curl -fsSL https://raw.githubusercontent.com/sentrux/sentrux/main/install.sh | sh
+```
+
+纯 Rust 实现。单一二进制文件。无运行时依赖。通过 tree-sitter 支持 23 种语言。
+
+<details>
+<summary>从源码构建 / 升级</summary>
+
+```bash
+# 从源码构建
+git clone https://github.com/sentrux/sentrux.git
+cd sentrux && cargo build --release
+
+# 升级
+brew update && brew upgrade sentrux
+# 或者重新运行 curl 安装——总是拉取最新版本
+```
+
+</details>
+
+## 快速开始
+
+```bash
+sentrux                    # 打开 GUI——项目的实时 treemap
+sentrux check .            # 检查规则（CI 友好，退出码 0 或 1）
+sentrux gate --save .      # Agent 会话前保存基线
+sentrux gate .             # 会话后比较——拦截退化
+```
+
+## MCP 服务器
+
+sentrux 可以作为 [MCP](https://modelcontextprotocol.io) 服务器运行——你的 AI Agent 可以在会话中实时查询结构健康状况。
+
+```json
+{
+  "sentrux": {
+    "command": "sentrux",
+    "args": ["--mcp"]
+  }
+}
+```
+
+支持 Claude Code、Cursor、Windsurf 以及任何兼容 MCP 的 Agent。
+
+<details>
+<summary>查看 Agent 工作流程</summary>
+
+```
+Agent: scan("/Users/me/myproject")
+  → { structure_grade: "B", architecture_grade: "B", files: 139 }
+
+Agent: session_start()
+  → { status: "Baseline saved", grade: "B" }
+
+  ... Agent 写了 500 行代码 ...
+
+Agent: session_end()
+  → { pass: false, grade_before: "B", grade_after: "C",
+      summary: "Architecture degraded during this session" }
+```
+
+15 个工具：`scan` · `health` · `architecture` · `coupling` · `cycles` · `hottest` · `evolution` · `dsm` · `test_gaps` · `check_rules` · `session_start` · `session_end` · `rescan` · `blast_radius` · `level`
+
+</details>
+
+## 规则引擎
+
+定义架构约束。在 CI 中强制执行。让 Agent 知道边界在哪里。
+
+<details>
+<summary>示例 .sentrux/rules.toml</summary>
+
+```toml
+[constraints]
+max_cycles = 0
+max_coupling = "B"
+max_cc = 25
+no_god_files = true
+
+[[layers]]
+name = "core"
+paths = ["src/core/*"]
+order = 0
+
+[[layers]]
+name = "app"
+paths = ["src/app/*"]
+order = 2
+
+[[boundaries]]
+from = "src/app/*"
+to = "src/core/internal/*"
+reason = "App 不应依赖 core 内部实现"
+```
+
+```bash
+sentrux check .
+# ✓ 所有规则通过 — 结构：B  架构：B
+```
+
+</details>
+
+## 支持的语言
+
+Rust · Python · JavaScript · TypeScript · Go · C · C++ · Java · Ruby · C# · PHP · Bash · HTML · CSS · SCSS · Swift · Lua · Scala · Elixir · Haskell · Zig · R · OCaml
+
+---
+
+## 设计哲学
+
+**人的角色正在改变——从写代码到治理代码。**
+
+AI 出现之前就重要的每一个工程实践——文档、测试、编纂的架构决策、快速反馈回路——现在重要性呈指数级增长。跳过测试，反馈回路就无法闭合。跳过架构约束，漂移就以机器速度复合。而这里有一个陷阱：如果 Agent 不知道"干净"长什么样，你就无法用 Agent 来清理混乱。
+
+sentrux 建立在三个信念之上：
+
+**1. 人在回路中不可妥协。** AI Agent 强大但有局限。它们无法同时关注全局和细节。人类必须能在任何时刻看到 Agent 对整体做了什么——不仅仅是它修改了哪个文件，而是这个文件对架构意味着什么。sentrux 让这成为可能。
+
+**2. 验证比生成更有价值。** 生成一个正确的解决方案比验证一个更难（P vs NP 背后的直觉）。你不需要在编码上胜过机器，你需要在评估上胜过它——定义"正确"长什么样，识别输出何时偏离，判断方向是否正确。sentrux 把架构判断力转化为机器可读的评分和约束。
+
+**3. 好的体系让好的结果成为必然。** 一个设计良好的系统约束行为，让正确的事情成为容易的事情。一个质量门禁在退化发布前拦截它。一个规则引擎编纂你的架构决策。一个可视化地图让结构腐化无处遁形。实践没有变。忽视它们的代价已经变得不可承受。
+
+*设计瓦特调速器的工人没有再回去转阀门。不是因为他们不能，是因为那已经没有意义了。*
+
+---
+
+<div align="center">
+
+<sub>AI Agent 以机器速度写代码。没有结构治理，代码库也以机器速度腐化。<br><b>sentrux 就是那个调速器。</b></sub>
+
+</div>
+
+## 许可证
+
+[MIT](LICENSE)
