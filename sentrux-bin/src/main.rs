@@ -192,7 +192,75 @@ fn cli_scan_limits() -> analysis::scanner::common::ScanLimits {
     }
 }
 
+/// Auto-install standard language plugins if none are found.
+/// Runs on first launch — gives users a working tool without manual steps.
+fn auto_install_plugins_if_needed() {
+    let dir = match sentrux_core::analysis::plugin::plugins_dir() {
+        Some(d) => d,
+        None => return,
+    };
+    // If plugins dir exists and has any subdirectories, skip
+    if dir.is_dir() {
+        if let Ok(entries) = std::fs::read_dir(&dir) {
+            if entries.filter_map(|e| e.ok()).any(|e| e.path().is_dir()) {
+                return; // already has plugins installed
+            }
+        }
+    }
+
+    eprintln!("\nFirst run — installing standard language plugins...\n");
+    std::fs::create_dir_all(&dir).ok();
+
+    let platform = sentrux_core::analysis::plugin::manifest::PluginManifest::grammar_filename();
+    let platform_key = platform.rsplit_once('.').map_or(platform, |(k, _)| k);
+
+    let standard = [
+        "python", "javascript", "typescript", "rust", "go",
+        "c", "cpp", "java", "ruby", "csharp", "php", "bash",
+        "html", "css", "scss", "swift", "lua", "scala",
+        "elixir", "haskell", "zig", "r",
+    ];
+
+    let mut installed = 0;
+    for name in &standard {
+        let plugin_dir = dir.join(name);
+        if plugin_dir.exists() { continue; }
+        let url = format!(
+            "https://github.com/sentrux/plugins/releases/download/{name}-v0.1.0/{name}-{platform_key}.tar.gz"
+        );
+        eprint!("  {name}...");
+        let ok = std::process::Command::new("curl")
+            .args(["-fsSL", &url, "-o"])
+            .arg(dir.join(format!("{name}.tar.gz")))
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .is_ok_and(|s| s.success());
+        if ok {
+            let extracted = std::process::Command::new("tar")
+                .args(["xzf", &format!("{name}.tar.gz")])
+                .current_dir(&dir)
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .status()
+                .is_ok_and(|s| s.success());
+            let _ = std::fs::remove_file(dir.join(format!("{name}.tar.gz")));
+            if extracted {
+                eprint!(" ok  ");
+                installed += 1;
+                if installed % 6 == 0 { eprintln!(); }
+            }
+        } else {
+            let _ = std::fs::remove_file(dir.join(format!("{name}.tar.gz")));
+        }
+    }
+    eprintln!("\n\n  Installed {installed} language plugins.\n");
+}
+
 fn main() -> eframe::Result<()> {
+    // Auto-install standard plugins on first run
+    auto_install_plugins_if_needed();
+
     // Non-blocking update check (once per day, background thread)
     app::update_check::check_for_updates_async(env!("CARGO_PKG_VERSION"));
 
