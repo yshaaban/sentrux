@@ -77,10 +77,64 @@ fn process_walk_entry(
     ignore::WalkState::Continue
 }
 
-/// Collect all file paths respecting .gitignore + our ignore list.
-/// Uses parallel walker for concurrent directory traversal on multi-core systems.
-/// Also captures mtime during the walk to avoid a second metadata call.
+/// Collect file paths using `git ls-files` for git repos (the universal, correct source
+/// of "what files belong to this project"), falling back to filesystem walk for non-git dirs.
+///
+/// First-principles reasoning: the user's git index is the single source of truth for
+/// what constitutes "their code." It handles .gitignore, monorepos, workspaces, and
+/// any project structure without heuristics or hardcoded ignore lists.
 fn collect_paths(root: &Path, file_size_limit: u64) -> Vec<CollectedFile> {
+    // Try git ls-files first — the universal correct approach
+    if let Some(files) = collect_paths_git(root, file_size_limit) {
+        if !files.is_empty() {
+            eprintln!("[scan] using git ls-files ({} tracked files)", files.len());
+            return files;
+        }
+    }
+    // Fallback: filesystem walk for non-git directories
+    eprintln!("[scan] not a git repo, falling back to filesystem walk");
+    collect_paths_walk(root, file_size_limit)
+}
+
+/// Collect files via `git ls-files` — returns None if not a git repo or git fails.
+/// This is the primary path: git already knows every tracked file, respects .gitignore,
+/// handles monorepos/workspaces, and requires zero heuristic filtering.
+fn collect_paths_git(root: &Path, file_size_limit: u64) -> Option<Vec<CollectedFile>> {
+    let output = std::process::Command::new("git")
+        .args(["ls-files", "-z"])  // null-delimited for safe path handling
+        .current_dir(root)
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None; // not a git repo or git not available
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let files: Vec<CollectedFile> = stdout
+        .split('\0')
+        .filter(|s| !s.is_empty())
+        .take(MAX_FILES)
+        .filter_map(|rel| {
+            let abs = root.join(rel);
+            if should_ignore_file(&abs) {
+                return None;
+            }
+            let meta = fs::metadata(&abs).ok()?;
+            if !meta.is_file() || meta.len() > file_size_limit {
+                return None;
+            }
+            let mtime = extract_mtime(&meta, &abs);
+            Some(CollectedFile { path: abs, mtime })
+        })
+        .collect();
+
+    Some(files)
+}
+
+/// Fallback: filesystem walk for non-git directories.
+/// Uses `ignore` crate with hardcoded ignore list (only for non-git repos).
+fn collect_paths_walk(root: &Path, file_size_limit: u64) -> Vec<CollectedFile> {
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     let count = Arc::new(AtomicUsize::new(0));

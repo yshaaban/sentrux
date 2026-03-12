@@ -193,8 +193,24 @@ impl SentruxApp {
             .frame(egui::Frame::NONE.fill(self.state.theme_config.canvas_bg))
             .show(ctx, |ui| {
                 let canvas_rect = ui.available_rect_before_wrap();
-                self.state.viewport.canvas_w = canvas_rect.width() as f64;
-                self.state.viewport.canvas_h = canvas_rect.height() as f64;
+                let new_w = canvas_rect.width() as f64;
+                let new_h = canvas_rect.height() as f64;
+
+                // Detect significant canvas resize → re-fit viewport to new dimensions.
+                // Threshold of 2.0 logical pixels avoids jitter from sub-pixel rounding.
+                let resized = (new_w - self.state.viewport.canvas_w).abs() > 2.0
+                    || (new_h - self.state.viewport.canvas_h).abs() > 2.0;
+                self.state.viewport.canvas_w = new_w;
+                self.state.viewport.canvas_h = new_h;
+                if resized {
+                    if let Some(rd) = &self.state.render_data {
+                        self.state.viewport.fit_content(
+                            rd.content_width,
+                            rd.content_height,
+                            self.state.settings.fit_content_padding,
+                        );
+                    }
+                }
 
                 let (show_placeholder, is_empty) = self.should_show_placeholder();
                 if show_placeholder {
