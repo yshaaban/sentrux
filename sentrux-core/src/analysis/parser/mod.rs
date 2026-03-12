@@ -28,7 +28,7 @@ use std::cell::RefCell;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Mutex;
 use streaming_iterator::StreamingIterator;
-use tree_sitter::{Parser, QueryCursor, Tree};
+use tree_sitter::{Parser, Query, QueryCursor, Tree};
 
 const CACHE_CAP: usize = 2000;
 
@@ -210,12 +210,12 @@ impl ExtractionState {
 pub(crate) fn extract_with_queries(
     tree: &Tree,
     content: &[u8],
-    config: &lang_registry::LangConfig,
+    query: &Query,
     lang: &str,
 ) -> StructuralAnalysis {
     let mut cursor = QueryCursor::new();
-    let mut matches = cursor.matches(&config.query, tree.root_node(), content);
-    let capture_names = config.query.capture_names();
+    let mut matches = cursor.matches(query, tree.root_node(), content);
+    let capture_names = query.capture_names();
     let mut state = ExtractionState::new();
     let pctx = ParseContext { content, lang };
 
@@ -326,20 +326,20 @@ pub fn parse_file(path: &str, lang: &str, max_parse_size: usize) -> Option<Struc
         }
     }
 
-    // Look up language config from registry
-    let config = lang_registry::get(lang)?;
+    // Look up language config from registry (plugins override built-in)
+    let (grammar, query) = lang_registry::get_grammar_and_query(lang)?;
 
     // Use thread-local parser
     let tree = TL_PARSER.with(|parser_cell| {
         let mut parser = parser_cell.borrow_mut();
-        if let Err(e) = parser.set_language(&config.grammar) {
+        if let Err(e) = parser.set_language(grammar) {
             eprintln!("[parser] set_language failed for {}: {}", lang, e);
             return None;
         }
         parser.parse(&content, None)
     })?;
 
-    let sa = extract_with_queries(&tree, &content, config, lang);
+    let sa = extract_with_queries(&tree, &content, query, lang);
 
     // Insert under lock — single data structure, no race between map and order.
     // ParseCache::insert handles dedup + eviction atomically.
@@ -399,11 +399,11 @@ pub fn parse_files_batch_with_progress(
 /// Parse raw bytes without file I/O or cache. Used by tests in parser_tests.
 #[cfg(test)]
 pub(crate) fn parse_bytes(content: &[u8], lang: &str) -> Option<StructuralAnalysis> {
-    let config = lang_registry::get(lang)?;
+    let (grammar, query) = lang_registry::get_grammar_and_query(lang)?;
     let tree = TL_PARSER.with(|parser_cell| {
         let mut parser = parser_cell.borrow_mut();
-        parser.set_language(&config.grammar).ok()?;
+        parser.set_language(grammar).ok()?;
         parser.parse(content, None)
     })?;
-    Some(extract_with_queries(&tree, content, config, lang))
+    Some(extract_with_queries(&tree, content, query, lang))
 }

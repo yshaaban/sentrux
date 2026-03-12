@@ -222,6 +222,120 @@ fn main() -> eframe::Result<()> {
         return Ok(());
     }
 
+    // Plugin management commands
+    if std::env::args().any(|a| a == "plugin") {
+        let sub = std::env::args().skip_while(|a| a != "plugin").nth(1);
+        match sub.as_deref() {
+            Some("list") => {
+                let dir = sentrux_core::analysis::plugin::plugins_dir();
+                println!("Plugin directory: {}", dir.as_ref().map_or("(none)".into(), |d| d.display().to_string()));
+                let (loaded, errors) = sentrux_core::analysis::plugin::load_all_plugins();
+                if loaded.is_empty() && errors.is_empty() {
+                    println!("No plugins installed.");
+                    println!("\nInstall a plugin by placing it in ~/.sentrux/plugins/<name>/");
+                } else {
+                    for p in &loaded {
+                        println!("  {} v{} [{}] — {}", p.name, p.version, p.extensions.join(", "), p.display_name);
+                    }
+                    for e in &errors {
+                        println!("  (error) {} — {}", e.plugin_dir.display(), e.error);
+                    }
+                }
+                return Ok(());
+            }
+            Some("init") => {
+                let name = std::env::args().skip_while(|a| a != "init").nth(1)
+                    .unwrap_or_else(|| { eprintln!("Usage: sentrux plugin init <language-name>"); std::process::exit(1); });
+                let dir = sentrux_core::analysis::plugin::plugins_dir()
+                    .unwrap_or_else(|| { eprintln!("Cannot determine home directory"); std::process::exit(1); });
+                let plugin_dir = dir.join(&name);
+                if plugin_dir.exists() {
+                    eprintln!("Plugin directory already exists: {}", plugin_dir.display());
+                    std::process::exit(1);
+                }
+                std::fs::create_dir_all(plugin_dir.join("grammars")).unwrap();
+                std::fs::create_dir_all(plugin_dir.join("queries")).unwrap();
+                std::fs::create_dir_all(plugin_dir.join("tests")).unwrap();
+                std::fs::write(plugin_dir.join("plugin.toml"), format!(r#"[plugin]
+name = "{name}"
+display_name = "{name}"
+version = "0.1.0"
+extensions = ["TODO"]
+min_sentrux_version = "0.1.3"
+
+[plugin.metadata]
+author = ""
+description = ""
+
+[grammar]
+source = "https://github.com/TODO/tree-sitter-{name}"
+ref = "main"
+abi_version = 14
+
+[queries]
+capabilities = ["functions", "classes", "imports"]
+
+[checksums]
+"#)).unwrap();
+                std::fs::write(plugin_dir.join("queries").join("tags.scm"),
+                    ";; TODO: Write tree-sitter queries for this language\n;;\n;; Required captures:\n;;   @func.def / @func.name — function definitions\n;;   @class.def / @class.name — class definitions\n;;   @import.path — import statements\n;;   @call.name — function calls (optional)\n"
+                ).unwrap();
+                println!("Created plugin template at {}", plugin_dir.display());
+                println!("\nNext steps:");
+                println!("  1. Edit plugin.toml — set extensions, grammar source");
+                println!("  2. Build the grammar: tree-sitter generate && cc -shared -o grammars/{} src/parser.c",
+                    sentrux_core::analysis::plugin::manifest::PluginManifest::grammar_filename());
+                println!("  3. Write queries/tags.scm");
+                println!("  4. Test: sentrux plugin validate {}", plugin_dir.display());
+                return Ok(());
+            }
+            Some("validate") => {
+                let path = std::env::args().skip_while(|a| a != "validate").nth(1)
+                    .unwrap_or_else(|| { eprintln!("Usage: sentrux plugin validate <plugin-dir>"); std::process::exit(1); });
+                let plugin_dir = std::path::Path::new(&path);
+                print!("Validating {}... ", plugin_dir.display());
+                match sentrux_core::analysis::plugin::manifest::PluginManifest::load(plugin_dir) {
+                    Ok(manifest) => {
+                        println!("plugin.toml OK");
+                        println!("  name: {}", manifest.plugin.name);
+                        println!("  version: {}", manifest.plugin.version);
+                        println!("  extensions: [{}]", manifest.plugin.extensions.join(", "));
+                        println!("  capabilities: [{}]", manifest.queries.capabilities.join(", "));
+                        let query_path = plugin_dir.join("queries").join("tags.scm");
+                        match std::fs::read_to_string(&query_path) {
+                            Ok(qs) => {
+                                match manifest.validate_query_captures(&qs) {
+                                    Ok(()) => println!("  queries/tags.scm: OK (captures valid)"),
+                                    Err(e) => println!("  queries/tags.scm: FAIL — {}", e),
+                                }
+                            }
+                            Err(e) => println!("  queries/tags.scm: MISSING — {}", e),
+                        }
+                        let gf = sentrux_core::analysis::plugin::manifest::PluginManifest::grammar_filename();
+                        let gp = plugin_dir.join("grammars").join(gf);
+                        if gp.exists() {
+                            println!("  grammars/{}: OK", gf);
+                        } else {
+                            println!("  grammars/{}: MISSING — build the grammar first", gf);
+                        }
+                    }
+                    Err(e) => {
+                        println!("FAIL — {}", e);
+                        std::process::exit(1);
+                    }
+                }
+                return Ok(());
+            }
+            _ => {
+                println!("Usage: sentrux plugin <list|init|validate>");
+                println!("  list               — show installed plugins");
+                println!("  init <name>         — create a plugin template");
+                println!("  validate <dir>      — validate a plugin directory");
+                return Ok(());
+            }
+        }
+    }
+
     if std::env::args().any(|a| a == "check") {
         let path = std::env::args()
             .skip_while(|a| a != "check")

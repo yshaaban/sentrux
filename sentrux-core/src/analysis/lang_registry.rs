@@ -17,7 +17,6 @@ pub trait LanguageDetector {
 }
 
 /// Configuration for a single language: grammar + compiled query + file extensions.
-#[allow(dead_code)] // extensions field used indirectly via by_ext index
 pub struct LangConfig {
     /// Language identifier string (e.g. "python", "rust")
     pub name: &'static str,
@@ -29,13 +28,28 @@ pub struct LangConfig {
     pub extensions: &'static [&'static str],
 }
 
+/// Runtime-loaded language config (plugin). Owns its strings instead of borrowing 'static.
+pub struct PluginLangConfig {
+    /// Language name (owned)
+    pub name: String,
+    /// Compiled tree-sitter grammar
+    pub grammar: Language,
+    /// Compiled tree-sitter query
+    pub query: Query,
+    /// File extensions (owned)
+    pub extensions: Vec<String>,
+}
+
 /// Central registry mapping language names and file extensions to LangConfig.
 pub struct LangRegistry {
     by_name: HashMap<&'static str, usize>,
     by_ext: HashMap<&'static str, usize>,
     configs: Vec<LangConfig>,
+    /// Runtime-loaded plugin languages (separate vec because they own their strings)
+    plugin_by_name: HashMap<String, usize>,
+    plugin_by_ext: HashMap<String, usize>,
+    plugin_configs: Vec<PluginLangConfig>,
     /// Languages that failed to register (query compilation errors).
-    /// Exposed so the UI can surface these instead of silently degrading. [ref:4f5a9de5]
     failed_langs: Vec<LangRegistrationError>,
 }
 
@@ -50,8 +64,12 @@ pub struct LangRegistrationError {
     pub error: String,
 }
 
-/// Global singleton — initialized once, immutable after.
-static REGISTRY: std::sync::LazyLock<LangRegistry> = std::sync::LazyLock::new(LangRegistry::init);
+/// Global singleton — initialized once with built-in + runtime plugins, immutable after.
+static REGISTRY: std::sync::LazyLock<LangRegistry> = std::sync::LazyLock::new(|| {
+    let mut registry = LangRegistry::init();
+    registry.load_plugins();
+    registry
+});
 
 impl LangRegistry {
     fn init() -> Self {
@@ -59,6 +77,9 @@ impl LangRegistry {
             by_name: HashMap::new(),
             by_ext: HashMap::new(),
             configs: Vec::new(),
+            plugin_by_name: HashMap::new(),
+            plugin_by_ext: HashMap::new(),
+            plugin_configs: Vec::new(),
             failed_langs: Vec::new(),
         };
 
@@ -68,6 +89,37 @@ impl LangRegistry {
         registry.register_other_languages();
 
         registry
+    }
+
+    /// Load runtime plugins from ~/.sentrux/plugins/.
+    /// Plugin languages override built-in languages for the same extension.
+    fn load_plugins(&mut self) {
+        let (plugins, errors) = crate::analysis::plugin::load_all_plugins();
+        for err in &errors {
+            eprintln!("[plugin] Error loading {}: {}", err.plugin_dir.display(), err.error);
+        }
+        for plugin in plugins {
+            match Query::new(&plugin.grammar, &plugin.query_src) {
+                Ok(query) => {
+                    let idx = self.plugin_configs.len();
+                    let name = plugin.name.clone();
+                    let extensions = plugin.extensions.clone();
+                    self.plugin_configs.push(PluginLangConfig {
+                        name: plugin.name,
+                        grammar: plugin.grammar,
+                        query,
+                        extensions: plugin.extensions,
+                    });
+                    self.plugin_by_name.insert(name, idx);
+                    for ext in extensions {
+                        self.plugin_by_ext.insert(ext, idx);
+                    }
+                }
+                Err(e) => {
+                    eprintln!("[plugin] Query compilation failed for {}: {:?}", plugin.name, e);
+                }
+            }
+        }
     }
 
     /// Core scripting and compiled languages: Python, JS/TS variants, Rust, Go.
@@ -286,18 +338,34 @@ impl LangRegistry {
     }
 
     /// Look up by language name (e.g. "python", "rust").
+    /// Checks plugins first (plugins override built-in).
     pub fn get(&self, name: &str) -> Option<&LangConfig> {
         self.by_name.get(name).map(|&idx| &self.configs[idx])
     }
 
+    /// Look up plugin by language name.
+    pub fn get_plugin(&self, name: &str) -> Option<&PluginLangConfig> {
+        self.plugin_by_name.get(name).map(|&idx| &self.plugin_configs[idx])
+    }
+
     /// Look up by file extension (without dot, e.g. "py", "rs").
+    /// Checks plugins first (plugins override built-in).
     pub fn get_by_ext(&self, ext: &str) -> Option<&LangConfig> {
         self.by_ext.get(ext).map(|&idx| &self.configs[idx])
     }
 
-    /// All registered file extensions (for graph.rs module-map stripping).
-    pub fn all_extensions(&self) -> Vec<&'static str> {
-        self.by_ext.keys().copied().collect()
+    /// Look up plugin by extension.
+    pub fn get_plugin_by_ext(&self, ext: &str) -> Option<&PluginLangConfig> {
+        self.plugin_by_ext.get(ext).map(|&idx| &self.plugin_configs[idx])
+    }
+
+    /// All registered file extensions (built-in + plugins).
+    pub fn all_extensions(&self) -> Vec<&str> {
+        let mut exts: Vec<&str> = self.by_ext.keys().copied().collect();
+        for ext in self.plugin_by_ext.keys() {
+            exts.push(ext.as_str());
+        }
+        exts
     }
 
     /// Languages that failed to register due to query compilation errors.
@@ -308,9 +376,27 @@ impl LangRegistry {
 
 // ---- Public free functions delegating to global singleton ----
 
-/// Get language config by name.
+/// Get language config by name (built-in only).
 pub fn get(name: &str) -> Option<&'static LangConfig> {
     REGISTRY.get(name)
+}
+
+/// Get plugin language config by name.
+pub fn get_plugin(name: &str) -> Option<&'static PluginLangConfig> {
+    REGISTRY.get_plugin(name)
+}
+
+/// Get grammar + query for a language name, checking plugins first.
+/// Returns (grammar, query) suitable for parsing.
+pub fn get_grammar_and_query(name: &str) -> Option<(&'static Language, &'static Query)> {
+    // Plugins override built-in
+    if let Some(pc) = REGISTRY.get_plugin(name) {
+        return Some((&pc.grammar, &pc.query));
+    }
+    if let Some(c) = REGISTRY.get(name) {
+        return Some((&c.grammar, &c.query));
+    }
+    None
 }
 
 /// All registered extensions (e.g. ["py", "rs", "js", ...]).
@@ -319,9 +405,12 @@ pub fn all_extensions() -> Vec<&'static str> {
 }
 
 /// Detect language name from file extension string.
-/// Returns the registry language name if found, otherwise maps common
-/// non-parseable extensions to their language names for display.
+/// Checks plugins first (override built-in), then built-in, then fallback.
 pub fn detect_lang_from_ext(ext: &str) -> String {
+    // Plugin languages take priority
+    if let Some(config) = REGISTRY.get_plugin_by_ext(ext) {
+        return config.name.clone();
+    }
     if let Some(config) = REGISTRY.get_by_ext(ext) {
         return config.name.to_string();
     }
