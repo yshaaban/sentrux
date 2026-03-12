@@ -19,6 +19,14 @@ Live codebase visualization and structural quality analysis. See your architectu
 
 ## Install
 
+### Homebrew (macOS)
+
+```bash
+brew install sentrux/tap/sentrux
+```
+
+### Quick install (macOS / Linux)
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/sentrux/sentrux/main/install.sh | sh
 ```
