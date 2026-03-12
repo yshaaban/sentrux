@@ -9,8 +9,11 @@ on:
 jobs:
   test:
     strategy:
+      fail-fast: false
       matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
+        os: [macos-latest, ubuntu-latest]
+        # Windows: tree-sitter-scss build script incompatible with MSVC
+        # Will re-enable when upstream fixes -Wno-unused-parameter flag
     runs-on: ${{ matrix.os }}
 
     steps:
