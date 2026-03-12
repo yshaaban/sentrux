@@ -193,9 +193,8 @@ fn cli_scan_limits() -> analysis::scanner::common::ScanLimits {
 }
 
 fn main() -> eframe::Result<()> {
-    // Pro tier + tool registration are injected by the private-integration-crate crate's
-    // binary wrapper. The open-source build always runs as Free with no
-    // pro tools. See private-integration-crate repo for the pro entry point.
+    // Non-blocking update check (once per day, background thread)
+    app::update_check::check_for_updates_async(env!("CARGO_PKG_VERSION"));
 
     // --version: show version + edition (free or pro)
     if std::env::args().any(|a| a == "--version" || a == "-V") {
