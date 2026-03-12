@@ -71,7 +71,11 @@ Jede AI-Sitzung degradiert stillschweigend deine Architektur. Gleiche Funktionsn
 
 Das schmutzige Geheimnis der KI-gestützten Entwicklung: **Je besser die KI Code generiert, desto schneller wird deine Codebasis unregierbar.**
 
-Die traditionelle Antwort — *„plane zuerst deine Architektur, dann lass die KI implementieren"* — klingt richtig, verfehlt aber den Punkt. So arbeitet niemand wirklich mit AI-Agents. Du prototypisierst schnell. Du iterierst im Gespräch. Du folgst der Inspiration. Du lässt den kreativen Fluss den Code treiben. Dieser kreative Fluss ist genau das, was AI-Agents mächtig macht. Und genau das, was Codebasen zerstört.
+Die traditionelle Antwort — *„plane zuerst deine Architektur, dann lass die KI implementieren"* — klingt richtig, verfehlt aber den Punkt. Tools wie GitHubs [Spec Kit](https://github.com/github/spec-kit) versuchen genau das: detaillierte Spezifikationen und Pläne generieren, bevor Code geschrieben wird. Aber in der Praxis [erfindet es den Wasserfall neu](https://blog.scottlogic.com/2025/11/26/putting-spec-kit-through-its-paces-radical-idea-or-reinvented-waterfall.html) — es produziert Berge von Markdown-Dokumenten, hat aber keinerlei Einblick in den tatsächlich erzeugten Code. Keine Rückkopplungsschleife. Keine Möglichkeit zu erkennen, wann die Implementierung von der Spezifikation abweicht. Keinerlei Strukturanalyse. Die Spec geht rein, der Agent schreibt Code, und niemand prüft, was dabei herauskam.
+
+So arbeitet ohnehin niemand wirklich mit AI-Agents. Du prototypisierst schnell. Du iterierst im Gespräch. Du folgst der Inspiration. Du lässt den kreativen Fluss den Code treiben. Dieser kreative Fluss ist genau das, was AI-Agents mächtig macht. Und genau das, was Codebasen zerstört.
+
+**Du brauchst keinen besseren Plan. Du brauchst einen besseren Sensor.**
 
 ## Die Lösung
 
