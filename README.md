@@ -117,8 +117,7 @@ curl -fsSL https://raw.githubusercontent.com/sentrux/sentrux/main/install.sh | s
 
 Pure Rust. Single binary. No runtime dependencies. 23 languages via tree-sitter plugins.
 
-<details>
-<summary>From source / upgrade / troubleshooting</summary>
+**From source / upgrade / troubleshooting**
 
 ```bash
 # Build from source
@@ -136,8 +135,6 @@ brew update && brew upgrade sentrux
 WGPU_BACKEND=vulkan sentrux    # force Vulkan
 WGPU_BACKEND=gl sentrux        # force OpenGL
 ```
-
-</details>
 
 ## Quick start
 
@@ -168,8 +165,7 @@ Add to your Claude Code config (`~/.claude.json`) or Cursor/Windsurf MCP setting
 
 Works with Claude Code, Cursor, Windsurf, and any MCP-compatible agent. Or just tell your agent: *"Add sentrux as an MCP server"* — it knows what to do.
 
-<details>
-<summary>See the agent workflow</summary>
+**Agent workflow**
 
 ```
 Agent: scan("/Users/me/myproject")
@@ -187,14 +183,11 @@ Agent: session_end()
 
 15 tools: `scan` · `health` · `architecture` · `coupling` · `cycles` · `hottest` · `evolution` · `dsm` · `test_gaps` · `check_rules` · `session_start` · `session_end` · `rescan` · `blast_radius` · `level`
 
-</details>
-
 ## Rules engine
 
 Define architectural constraints. Enforce them in CI. Let the agent know the boundaries.
 
-<details>
-<summary>Example .sentrux/rules.toml</summary>
+**Example `.sentrux/rules.toml`**
 
 ```toml
 [constraints]
@@ -223,8 +216,6 @@ reason = "App must not depend on core internals"
 sentrux check .
 # ✓ All rules pass — Structure: B  Architecture: B
 ```
-
-</details>
 
 ## Supported languages
 
