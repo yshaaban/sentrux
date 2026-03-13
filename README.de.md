@@ -32,22 +32,18 @@
 </div>
 
 <div align="center">
-<sub>Ein Prompt. Ein AI-Agent. Fünf Minuten. <b>Health Grade: D.</b></sub>
+<sub>Ein Prompt. Ein AI-Agent. Fünf Minuten. <b>Health: D · Architecture: B · Coverage: B.</b></sub>
 <br>
 <sub>Sieh zu, wie Claude Code ein FastAPI-Projekt von Grund auf erstellt — während sentrux den Architekturverfall in Echtzeit zeigt.</sub>
 </div>
 
-<details>
-<summary>Vollständigen Bewertungsbericht dieses Demo-Projekts anzeigen</summary>
-<br>
 <table>
 <tr>
-<td align="center"><img src="assets/grade-health.png" width="240" alt="Health Grade D"><br><b>Gesundheit: D</b><br><sub>Kohäsion F, toter Code F (25%)<br>Kommentare D (2%)</sub></td>
-<td align="center"><img src="assets/grade-architecture.png" width="240" alt="Architecture Grade B"><br><b>Architektur: B</b><br><sub>Schichtung A, Distanz A<br>Blast-Radius B (23 Dateien)</sub></td>
-<td align="center"><img src="assets/grade-test-coverage.png" width="240" alt="Test Coverage Grade D"><br><b>Testabdeckung: D</b><br><sub>38% Abdeckung<br>42 ungetestete Dateien</sub></td>
+<td align="center"><img src="assets/screenshot-health.png" width="280" alt="Code Health Grade D"><br><b>Gesundheit: D</b><br><sub>toter Code F (29%), Kohäsion D (23%)<br>Duplikation C, Kommentare D (2%)</sub></td>
+<td align="center"><img src="assets/screenshot-architecture.png" width="280" alt="Architecture Grade B"><br><b>Architektur: B</b><br><sub>Schichtung A, Distanz A<br>Blast-Radius B (22 Dateien), Angriffsfläche A</sub></td>
+<td align="center"><img src="assets/screenshot-coverage.png" width="280" alt="Test Coverage Grade B"><br><b>Testabdeckung: B (72%)</b><br><sub>28 getestet, 11 ungetestet<br>6 Testdateien, 39 Quelldateien</sub></td>
 </tr>
 </table>
-</details>
 
 <br>
 
@@ -111,33 +107,21 @@ sentrux gibt dir den Sensor. Deine Regeln geben die Spezifikation. Der Agent ist
 
 ## Installation
 
+**Schritt 1 — Binary installieren**
+
 ```bash
 brew install sentrux/tap/sentrux
 ```
 
+oder
+
 ```bash
-# oder: macOS / Linux
 curl -fsSL https://raw.githubusercontent.com/sentrux/sentrux/main/install.sh | sh
 ```
 
-Pures Rust. Einzelne Binary. Keine Laufzeitabhängigkeiten. 23 Sprachen via tree-sitter.
+Pures Rust. Einzelne Binary. Keine Laufzeitabhängigkeiten. 23 Sprachen via tree-sitter Plugins.
 
-<details>
-<summary>Aus Quellcode bauen / Upgrade</summary>
-
-```bash
-# Aus Quellcode bauen
-git clone https://github.com/sentrux/sentrux.git
-cd sentrux && cargo build --release
-
-# Upgrade
-brew update && brew upgrade sentrux
-# oder curl-Installation erneut ausführen — holt immer die neueste Version
-```
-
-</details>
-
-## Schnellstart
+**Schritt 2 — Ausführen**
 
 ```bash
 sentrux                    # GUI öffnen — Live-Treemap deines Projekts
@@ -147,11 +131,18 @@ sentrux gate --save .      # Baseline vor Agent-Sitzung speichern
 sentrux gate .             # Danach vergleichen — Degradation erkennen
 ```
 
-## MCP-Server
+**Schritt 3 — Mit deinem AI-Agent verbinden (optional)**
 
-sentrux läuft als [MCP](https://modelcontextprotocol.io)-Server — dein AI-Agent kann die strukturelle Gesundheit während der Sitzung abfragen.
+Gib deinem Agent Echtzeitzugriff auf die strukturelle Gesundheit via [MCP](https://modelcontextprotocol.io).
 
-Zur Claude Code Konfiguration (`~/.claude.json`) oder Cursor/Windsurf MCP-Einstellungen hinzufügen:
+Claude Code:
+
+```
+/plugin marketplace add sentrux/sentrux
+/plugin install sentrux
+```
+
+Cursor / Windsurf / OpenCode / OpenClaw / jeder MCP-Client — zu deiner MCP-Konfiguration hinzufügen:
 
 ```json
 {
@@ -164,10 +155,28 @@ Zur Claude Code Konfiguration (`~/.claude.json`) oder Cursor/Windsurf MCP-Einste
 }
 ```
 
-Funktioniert mit Claude Code, Cursor, Windsurf und jedem MCP-kompatiblen Agent. Oder sag deinem Agent einfach: *"Füge sentrux als MCP-Server hinzu"*.
+**Aus Quellcode bauen / Upgrade / Fehlerbehebung**
 
-<details>
-<summary>Agent-Workflow anzeigen</summary>
+```bash
+# Aus Quellcode bauen
+git clone https://github.com/sentrux/sentrux.git
+cd sentrux && cargo build --release
+
+# Upgrade
+brew update && brew upgrade sentrux
+# oder curl-Installation erneut ausführen — holt immer die neueste Version
+```
+
+**Linux GPU-Probleme?** Falls die App nicht startet, probiert sentrux automatisch mehrere GPU-Backends (Vulkan → GL → Fallback). Du kannst auch eines erzwingen:
+
+```bash
+WGPU_BACKEND=vulkan sentrux    # Vulkan erzwingen
+WGPU_BACKEND=gl sentrux        # OpenGL erzwingen
+```
+
+## MCP-Server
+
+**Agent-Workflow**
 
 ```
 Agent: scan("/Users/me/myproject")
@@ -185,14 +194,11 @@ Agent: session_end()
 
 15 Tools: `scan` · `health` · `architecture` · `coupling` · `cycles` · `hottest` · `evolution` · `dsm` · `test_gaps` · `check_rules` · `session_start` · `session_end` · `rescan` · `blast_radius` · `level`
 
-</details>
-
 ## Regel-Engine
 
 Definiere Architekturvorgaben. Erzwinge sie in der CI. Lass den Agent die Grenzen kennen.
 
-<details>
-<summary>Beispiel .sentrux/rules.toml</summary>
+**Beispiel `.sentrux/rules.toml`**
 
 ```toml
 [constraints]
@@ -222,8 +228,6 @@ sentrux check .
 # ✓ Alle Regeln bestanden — Struktur: B  Architektur: B
 ```
 
-</details>
-
 ## Unterstützte Sprachen
 
 23 Sprachen über [tree-sitter](https://tree-sitter.github.io/) Plugins:
@@ -237,6 +241,8 @@ sentrux plugin list              # installierte Plugins anzeigen
 sentrux plugin add <name>        # Community-Plugin installieren
 sentrux plugin init my-lang      # neues Sprach-Plugin erstellen
 ```
+
+Plugins verwenden tree-sitter-Grammatiken mit einer einfachen Query-Datei — der gleiche Ansatz wie bei Neovim/Helix.
 
 Fehlt eine Sprache? [Issue erstellen](https://github.com/sentrux/sentrux/issues) oder ein Plugin-PR einreichen.
 
@@ -266,6 +272,8 @@ sentrux basiert auf drei Überzeugungen:
 
 </div>
 
-## Lizenz
+<div align="center">
 
-[MIT](LICENSE)
+[MIT-Lizenz](LICENSE)
+
+</div>
