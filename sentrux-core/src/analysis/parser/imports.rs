@@ -144,6 +144,7 @@ pub(crate) fn extract_bash_imports(content: &[u8], imports: &mut Vec<String>, im
 /// (since tree-sitter #eq? predicates aren't evaluated by QueryCursor).
 /// Keep only values that look like local file references.
 pub(crate) fn filter_html_imports(imports: &mut Vec<String>) {
+    let before = imports.len();
     imports.retain(|imp| {
         // Must have a file extension
         if !imp.contains('.') { return false; }
@@ -159,6 +160,10 @@ pub(crate) fn filter_html_imports(imports: &mut Vec<String>) {
         { return false; }
         true
     });
+    let filtered = before - imports.len();
+    if filtered > 0 && before > 10 {
+        eprintln!("[html_imports] filtered {}/{} non-file attributes", filtered, before);
+    }
 }
 
 // ── Base class extraction ───────────────────────────────────────────────

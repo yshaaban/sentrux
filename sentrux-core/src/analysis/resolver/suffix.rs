@@ -140,12 +140,17 @@ fn resolve_js_ts_with_boundary(
     project_map: &HashMap<String, String>,
 ) -> Vec<ImportEdge> {
     let mut edges = super::oxc::resolve_js_ts_imports(scan_root, files, known_files);
+    let before = edges.len();
     // Allow imports into the root project (empty string) from any sub-project.
     edges.retain(|e| {
         let from_proj = project_map.get(&e.from_file).map(|s| s.as_str()).unwrap_or("");
         let to_proj = project_map.get(&e.to_file).map(|s| s.as_str()).unwrap_or("");
         from_proj == to_proj || to_proj.is_empty()
     });
+    let filtered = before - edges.len();
+    if filtered > 0 {
+        eprintln!("[resolve_js_ts] {} cross-project edges filtered ({}→{})", filtered, before, edges.len());
+    }
     edges
 }
 
@@ -215,10 +220,11 @@ fn resolve_tier2_imports(
     let unresolved = stats.unresolved_count.load(std::sync::atomic::Ordering::Relaxed);
     let cross_proj = stats.cross_project_count.load(std::sync::atomic::Ordering::Relaxed);
     let resolved = stats.resolved_count.load(std::sync::atomic::Ordering::Relaxed);
-    if unresolved > 0 || cross_proj > 0 {
+    let total_specs = resolved + unresolved + cross_proj;
+    if total_specs > 0 {
         eprintln!(
-            "[resolve_tier2] {} resolved, {} unresolved, {} cross-project filtered",
-            resolved, unresolved, cross_proj
+            "[resolve_tier2] {} resolved, {} unresolved, {} cross-project filtered (of {} total specs)",
+            resolved, unresolved, cross_proj, total_specs
         );
     }
     edges

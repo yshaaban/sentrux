@@ -383,17 +383,27 @@ pub fn parse_files_batch_with_progress(
 ) -> Vec<(String, StructuralAnalysis)> {
     use rayon::prelude::*;
 
-    files
+    let input_count = files.len();
+    let failed = std::sync::atomic::AtomicUsize::new(0);
+    let result: Vec<(String, StructuralAnalysis)> = files
         .par_iter()
         .filter_map(|(abs_path, rel_path, lang)| {
             let result = parse_file(abs_path, lang, max_parse_size)
                 .map(|sa| (rel_path.clone(), sa));
+            if result.is_none() {
+                failed.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            }
             if let Some(p) = progress {
                 p.done.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             }
             result
         })
-        .collect()
+        .collect();
+    let fail_count = failed.load(std::sync::atomic::Ordering::Relaxed);
+    if fail_count > 0 {
+        eprintln!("[parser] {}/{} files failed to parse (too large or binary)", fail_count, input_count);
+    }
+    result
 }
 
 /// Parse raw bytes without file I/O or cache. Used by tests in parser_tests.
