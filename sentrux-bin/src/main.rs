@@ -531,6 +531,26 @@ capabilities = ["functions", "classes", "imports"]
         std::process::exit(run_gate(&args));
     }
 
+    // Extract positional path argument for TUI: `sentrux /path` or `sentrux scan /path`
+    let initial_path: Option<String> = {
+        let args: Vec<String> = std::env::args().skip(1).collect();
+        if args.first().map_or(false, |a| a == "scan") {
+            // `sentrux scan /path` — take path after "scan"
+            args.get(1).cloned()
+        } else {
+            // `sentrux /path` — first arg that doesn't start with '-'
+            args.first().filter(|a| !a.starts_with('-')).cloned()
+        }
+        .map(|p| {
+            // Resolve to absolute path
+            std::path::Path::new(&p)
+                .canonicalize()
+                .map(|c| c.to_string_lossy().to_string())
+                .unwrap_or(p)
+        })
+        .filter(|p| std::path::Path::new(p).is_dir())
+    };
+
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([1600.0, 1000.0])
@@ -561,6 +581,6 @@ capabilities = ["functions", "classes", "imports"]
     eframe::run_native(
         "Sentrux",
         options,
-        Box::new(|cc| Ok(Box::new(app::SentruxApp::new(cc)))),
+        Box::new(move |cc| Ok(Box::new(app::SentruxApp::new(cc, initial_path)))),
     )
 }

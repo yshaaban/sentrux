@@ -111,6 +111,10 @@ fn collect_paths_git(root: &Path, file_size_limit: u64) -> Option<Vec<CollectedF
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
+    let total_git = stdout.split('\0').filter(|s| !s.is_empty()).count();
+    let mut ignored_ext = 0u32;
+    let mut meta_fail = 0u32;
+    let mut too_big = 0u32;
     let files: Vec<CollectedFile> = stdout
         .split('\0')
         .filter(|s| !s.is_empty())
@@ -118,10 +122,15 @@ fn collect_paths_git(root: &Path, file_size_limit: u64) -> Option<Vec<CollectedF
         .filter_map(|rel| {
             let abs = root.join(rel);
             if should_ignore_file(&abs) {
+                ignored_ext += 1;
                 return None;
             }
-            let meta = fs::metadata(&abs).ok()?;
+            let meta = match fs::metadata(&abs) {
+                Ok(m) => m,
+                Err(_) => { meta_fail += 1; return None; }
+            };
             if !meta.is_file() || meta.len() > file_size_limit {
+                if meta.len() > file_size_limit { too_big += 1; }
                 return None;
             }
             let mtime = extract_mtime(&meta, &abs);
@@ -129,6 +138,13 @@ fn collect_paths_git(root: &Path, file_size_limit: u64) -> Option<Vec<CollectedF
         })
         .collect();
 
+    let dropped = total_git - files.len();
+    if dropped > 0 {
+        eprintln!(
+            "[scan] git ls-files: {} total, {} kept, {} dropped (ext:{}, meta:{}, big:{})",
+            total_git, files.len(), dropped, ignored_ext, meta_fail, too_big
+        );
+    }
     Some(files)
 }
 

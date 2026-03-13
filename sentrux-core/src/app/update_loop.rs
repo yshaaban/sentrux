@@ -15,13 +15,17 @@ use super::SentruxApp;
 use super::draw_panels;
 
 impl SentruxApp {
-    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(cc: &eframe::CreationContext<'_>, initial_path: Option<String>) -> Self {
         let ctx = &cc.egui_ctx;
 
         let mut state = AppState::new();
         if let Some(storage) = cc.storage {
             let prefs = crate::app::prefs::UserPrefs::load(storage);
             prefs.apply_to(&mut state);
+        }
+        // CLI path argument overrides saved preference
+        if let Some(path) = initial_path {
+            state.root_path = Some(path);
         }
 
         // Load fonts after prefs so load_cjk_fonts setting is respected.
