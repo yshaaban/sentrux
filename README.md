@@ -37,9 +37,6 @@
 <sub>Watch Claude Code build a FastAPI project from scratch — while sentrux shows the architecture decaying in real-time.</sub>
 </div>
 
-<details>
-<summary>See the final grade report of this demo project</summary>
-<br>
 <table>
 <tr>
 <td align="center"><img src="assets/grade-health.png" width="240" alt="Health Grade D"><br><b>Health: D</b><br><sub>cohesion F, dead code F (25%)<br>comments D (2%)</sub></td>
@@ -47,7 +44,6 @@
 <td align="center"><img src="assets/grade-test-coverage.png" width="240" alt="Test Coverage Grade D"><br><b>Test Coverage: D</b><br><sub>38% coverage<br>42 untested files</sub></td>
 </tr>
 </table>
-</details>
 
 <br>
 
