@@ -32,16 +32,16 @@
 </div>
 
 <div align="center">
-<sub>One prompt. One AI agent. Five minutes. <b>Health Grade: D.</b></sub>
+<sub>One prompt. One AI agent. Five minutes. <b>Health: D · Architecture: B · Coverage: B.</b></sub>
 <br>
 <sub>Watch Claude Code build a FastAPI project from scratch — while sentrux shows the architecture decaying in real-time.</sub>
 </div>
 
 <table>
 <tr>
-<td align="center"><img src="assets/grade-health.png" width="240" alt="Health Grade D"><br><b>Health: D</b><br><sub>cohesion F, dead code F (25%)<br>comments D (2%)</sub></td>
-<td align="center"><img src="assets/grade-architecture.png" width="240" alt="Architecture Grade B"><br><b>Architecture: B</b><br><sub>levelization A, distance A<br>blast radius B (23 files)</sub></td>
-<td align="center"><img src="assets/grade-test-coverage.png" width="240" alt="Test Coverage Grade D"><br><b>Test Coverage: D</b><br><sub>38% coverage<br>42 untested files</sub></td>
+<td align="center"><img src="assets/screenshot-health.png" width="280" alt="Code Health Grade D"><br><b>Health: D</b><br><sub>dead code F (29%), cohesion D (23%)<br>duplication C, comments D (2%)</sub></td>
+<td align="center"><img src="assets/screenshot-architecture.png" width="280" alt="Architecture Grade B"><br><b>Architecture: B</b><br><sub>levelization A, distance A<br>blast radius B (22 files), attack surface A</sub></td>
+<td align="center"><img src="assets/screenshot-coverage.png" width="280" alt="Test Coverage Grade B"><br><b>Test Coverage: B (72%)</b><br><sub>28 tested, 11 untested<br>6 test files, 39 source files</sub></td>
 </tr>
 </table>
 
