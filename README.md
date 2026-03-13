@@ -116,7 +116,6 @@ brew install sentrux/tap/sentrux
 ```
 
 ```bash
-# or: macOS / Linux
 curl -fsSL https://raw.githubusercontent.com/sentrux/sentrux/main/install.sh | sh
 ```
 
