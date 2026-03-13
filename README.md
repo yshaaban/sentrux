@@ -27,7 +27,7 @@
 
 <div align="center">
 
-![sentrux demo](assets/demo.gif)
+<video src="https://github.com/sentrux/sentrux/raw/main/assets/demo.mp4" autoplay loop muted playsinline width="100%"></video>
 
 </div>
 
