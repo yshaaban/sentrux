@@ -141,6 +141,7 @@ brew update && brew upgrade sentrux
 
 ```bash
 sentrux                    # GUI öffnen — Live-Treemap deines Projekts
+sentrux /path/to/project   # GUI öffnen und bestimmtes Verzeichnis scannen
 sentrux check .            # Regeln prüfen (CI-freundlich, Exit-Code 0 oder 1)
 sentrux gate --save .      # Baseline vor Agent-Sitzung speichern
 sentrux gate .             # Danach vergleichen — Degradation erkennen
@@ -150,16 +151,20 @@ sentrux gate .             # Danach vergleichen — Degradation erkennen
 
 sentrux läuft als [MCP](https://modelcontextprotocol.io)-Server — dein AI-Agent kann die strukturelle Gesundheit während der Sitzung abfragen.
 
+Zur Claude Code Konfiguration (`~/.claude.json`) oder Cursor/Windsurf MCP-Einstellungen hinzufügen:
+
 ```json
 {
-  "sentrux": {
-    "command": "sentrux",
-    "args": ["--mcp"]
+  "mcpServers": {
+    "sentrux": {
+      "command": "sentrux",
+      "args": ["--mcp"]
+    }
   }
 }
 ```
 
-Funktioniert mit Claude Code, Cursor, Windsurf und jedem MCP-kompatiblen Agent.
+Funktioniert mit Claude Code, Cursor, Windsurf und jedem MCP-kompatiblen Agent. Oder sag deinem Agent einfach: *"Füge sentrux als MCP-Server hinzu"*.
 
 <details>
 <summary>Agent-Workflow anzeigen</summary>
@@ -221,7 +226,19 @@ sentrux check .
 
 ## Unterstützte Sprachen
 
-Rust · Python · JavaScript · TypeScript · Go · C · C++ · Java · Ruby · C# · PHP · Bash · HTML · CSS · SCSS · Swift · Lua · Scala · Elixir · Haskell · Zig · R · OCaml
+23 Sprachen über [tree-sitter](https://tree-sitter.github.io/) Plugins:
+
+Rust · Python · JavaScript · TypeScript · Go · C · C++ · Java · Ruby · C# · PHP · Bash · HTML · CSS · SCSS · Swift · Lua · Scala · Elixir · Haskell · Zig · R · GDScript
+
+**Plugin-System** — jede von der Community unterstützte Sprache hinzufügen oder eigene erstellen:
+
+```bash
+sentrux plugin list              # installierte Plugins anzeigen
+sentrux plugin add <name>        # Community-Plugin installieren
+sentrux plugin init my-lang      # neues Sprach-Plugin erstellen
+```
+
+Fehlt eine Sprache? [Issue erstellen](https://github.com/sentrux/sentrux/issues) oder ein Plugin-PR einreichen.
 
 ---
 

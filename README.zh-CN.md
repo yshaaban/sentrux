@@ -141,6 +141,7 @@ brew update && brew upgrade sentrux
 
 ```bash
 sentrux                    # 打开 GUI——项目的实时 treemap
+sentrux /path/to/project   # 打开 GUI 扫描指定目录
 sentrux check .            # 检查规则（CI 友好，退出码 0 或 1）
 sentrux gate --save .      # Agent 会话前保存基线
 sentrux gate .             # 会话后比较——拦截退化
@@ -150,16 +151,20 @@ sentrux gate .             # 会话后比较——拦截退化
 
 sentrux 可以作为 [MCP](https://modelcontextprotocol.io) 服务器运行——你的 AI Agent 可以在会话中实时查询结构健康状况。
 
+添加到 Claude Code 配置（`~/.claude.json`）或 Cursor/Windsurf MCP 设置：
+
 ```json
 {
-  "sentrux": {
-    "command": "sentrux",
-    "args": ["--mcp"]
+  "mcpServers": {
+    "sentrux": {
+      "command": "sentrux",
+      "args": ["--mcp"]
+    }
   }
 }
 ```
 
-支持 Claude Code、Cursor、Windsurf 以及任何兼容 MCP 的 Agent。
+支持 Claude Code、Cursor、Windsurf 以及任何兼容 MCP 的 Agent。或者直接告诉你的 Agent：*"帮我添加 sentrux 作为 MCP 服务器"*。
 
 <details>
 <summary>查看 Agent 工作流程</summary>
@@ -221,7 +226,19 @@ sentrux check .
 
 ## 支持的语言
 
-Rust · Python · JavaScript · TypeScript · Go · C · C++ · Java · Ruby · C# · PHP · Bash · HTML · CSS · SCSS · Swift · Lua · Scala · Elixir · Haskell · Zig · R · OCaml
+23 种语言，通过 [tree-sitter](https://tree-sitter.github.io/) 插件支持：
+
+Rust · Python · JavaScript · TypeScript · Go · C · C++ · Java · Ruby · C# · PHP · Bash · HTML · CSS · SCSS · Swift · Lua · Scala · Elixir · Haskell · Zig · R · GDScript
+
+**插件系统** — 添加社区支持的任何语言，或创建自己的：
+
+```bash
+sentrux plugin list              # 查看已安装的插件
+sentrux plugin add <name>        # 安装社区插件
+sentrux plugin init my-lang      # 创建新的语言插件模板
+```
+
+缺少某种语言？[提交 issue](https://github.com/sentrux/sentrux/issues) 或提交插件 PR。
 
 ---
 

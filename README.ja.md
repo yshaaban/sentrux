@@ -141,6 +141,7 @@ brew update && brew upgrade sentrux
 
 ```bash
 sentrux                    # GUIを開く——プロジェクトのライブtreemap
+sentrux /path/to/project   # GUIを開き指定ディレクトリをスキャン
 sentrux check .            # ルールチェック（CI対応、終了コード0または1）
 sentrux gate --save .      # エージェントセッション前にベースラインを保存
 sentrux gate .             # セッション後に比較——退行を検出
@@ -150,16 +151,20 @@ sentrux gate .             # セッション後に比較——退行を検出
 
 sentrux は [MCP](https://modelcontextprotocol.io) サーバーとして動作し、AIエージェントがセッション中に構造的健全性を照会できる。
 
+Claude Code設定（`~/.claude.json`）またはCursor/WindsurfのMCP設定に追加：
+
 ```json
 {
-  "sentrux": {
-    "command": "sentrux",
-    "args": ["--mcp"]
+  "mcpServers": {
+    "sentrux": {
+      "command": "sentrux",
+      "args": ["--mcp"]
+    }
   }
 }
 ```
 
-Claude Code、Cursor、Windsurf、およびすべてのMCP互換エージェントに対応。
+Claude Code、Cursor、Windsurf、およびすべてのMCP互換エージェントに対応。エージェントに直接「*sentruxをMCPサーバーとして追加して*」と伝えるだけでもOK。
 
 <details>
 <summary>エージェントワークフローを見る</summary>
@@ -221,7 +226,19 @@ sentrux check .
 
 ## 対応言語
 
-Rust · Python · JavaScript · TypeScript · Go · C · C++ · Java · Ruby · C# · PHP · Bash · HTML · CSS · SCSS · Swift · Lua · Scala · Elixir · Haskell · Zig · R · OCaml
+[tree-sitter](https://tree-sitter.github.io/) プラグインで23言語対応：
+
+Rust · Python · JavaScript · TypeScript · Go · C · C++ · Java · Ruby · C# · PHP · Bash · HTML · CSS · SCSS · Swift · Lua · Scala · Elixir · Haskell · Zig · R · GDScript
+
+**プラグインシステム** — コミュニティ対応の言語を追加、または独自に作成：
+
+```bash
+sentrux plugin list              # インストール済みプラグインを表示
+sentrux plugin add <name>        # コミュニティプラグインをインストール
+sentrux plugin init my-lang      # 新しい言語プラグインを作成
+```
+
+言語が足りない？[issueを作成](https://github.com/sentrux/sentrux/issues)またはプラグインPRを提出。
 
 ---
 

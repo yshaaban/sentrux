@@ -119,10 +119,10 @@ brew install sentrux/tap/sentrux
 curl -fsSL https://raw.githubusercontent.com/sentrux/sentrux/main/install.sh | sh
 ```
 
-Pure Rust. Single binary. No runtime dependencies. 23 languages via tree-sitter.
+Pure Rust. Single binary. No runtime dependencies. 23 languages via tree-sitter plugins.
 
 <details>
-<summary>From source / upgrade</summary>
+<summary>From source / upgrade / troubleshooting</summary>
 
 ```bash
 # Build from source
@@ -134,12 +134,20 @@ brew update && brew upgrade sentrux
 # or re-run the curl install — it always pulls the latest release
 ```
 
+**Linux GPU issues?** If the app won't start, sentrux automatically tries multiple GPU backends (Vulkan → GL → fallback). You can also force one:
+
+```bash
+WGPU_BACKEND=vulkan sentrux    # force Vulkan
+WGPU_BACKEND=gl sentrux        # force OpenGL
+```
+
 </details>
 
 ## Quick start
 
 ```bash
 sentrux                    # open the GUI — live treemap of your project
+sentrux /path/to/project   # open GUI scanning a specific directory
 sentrux check .            # check rules (CI-friendly, exits 0 or 1)
 sentrux gate --save .      # save baseline before agent session
 sentrux gate .             # compare after — catches degradation
@@ -149,16 +157,20 @@ sentrux gate .             # compare after — catches degradation
 
 sentrux runs as an [MCP](https://modelcontextprotocol.io) server — your AI agent can query structural health mid-session.
 
+Add to your Claude Code config (`~/.claude.json`) or Cursor/Windsurf MCP settings:
+
 ```json
 {
-  "sentrux": {
-    "command": "sentrux",
-    "args": ["--mcp"]
+  "mcpServers": {
+    "sentrux": {
+      "command": "sentrux",
+      "args": ["--mcp"]
+    }
   }
 }
 ```
 
-Works with Claude Code, Cursor, Windsurf, and any MCP-compatible agent.
+Works with Claude Code, Cursor, Windsurf, and any MCP-compatible agent. Or just tell your agent: *"Add sentrux as an MCP server"* — it knows what to do.
 
 <details>
 <summary>See the agent workflow</summary>
@@ -220,7 +232,21 @@ sentrux check .
 
 ## Supported languages
 
-Rust · Python · JavaScript · TypeScript · Go · C · C++ · Java · Ruby · C# · PHP · Bash · HTML · CSS · SCSS · Swift · Lua · Scala · Elixir · Haskell · Zig · R · OCaml
+23 languages built-in via [tree-sitter](https://tree-sitter.github.io/) plugins:
+
+Rust · Python · JavaScript · TypeScript · Go · C · C++ · Java · Ruby · C# · PHP · Bash · HTML · CSS · SCSS · Swift · Lua · Scala · Elixir · Haskell · Zig · R · GDScript
+
+**Plugin system** — add any language the community supports, or create your own:
+
+```bash
+sentrux plugin list              # see installed plugins
+sentrux plugin add <name>        # install a community plugin
+sentrux plugin init my-lang      # scaffold a new language plugin
+```
+
+Plugins use tree-sitter grammars with a simple query file — same approach as Neovim/Helix.
+
+Missing a language? [Open an issue](https://github.com/sentrux/sentrux/issues) or submit a plugin PR.
 
 ---
 
