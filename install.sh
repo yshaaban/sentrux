@@ -2,7 +2,7 @@
 set -e
 
 REPO="sentrux/sentrux"
-VERSION="v0.3.8"
+VERSION="v0.3.9"
 INSTALL_DIR="/usr/local/bin"
 
 # Detect OS and architecture
