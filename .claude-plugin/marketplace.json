@@ -1,0 +1,23 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "sentrux-marketplace",
+  "version": "1.0.0",
+  "description": "Sentrux — live codebase visualization and structural quality gate for AI-agent-written code",
+  "owner": {
+    "name": "yjing",
+    "email": "yjing@sentrux.dev"
+  },
+  "plugins": [
+    {
+      "name": "sentrux",
+      "description": "MCP server for structural health analysis — 14 dimensions graded A-F, dependency cycles, coupling, dead code, test coverage, and quality gates",
+      "version": "0.3.12",
+      "author": {
+        "name": "yjing",
+        "email": "yjing@sentrux.dev"
+      },
+      "source": "./claude-plugin",
+      "category": "development"
+    }
+  ]
+}

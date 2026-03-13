@@ -150,7 +150,14 @@ sentrux gate .             # compare after — catches degradation
 
 sentrux runs as an [MCP](https://modelcontextprotocol.io) server — your AI agent can query structural health mid-session.
 
-Add to your Claude Code config (`~/.claude.json`) or Cursor/Windsurf MCP settings:
+**Claude Code (plugin — recommended):**
+
+```
+/plugin marketplace add sentrux/sentrux
+/plugin install sentrux
+```
+
+**Claude Code / Cursor / Windsurf (manual):**
 
 ```json
 {
@@ -163,7 +170,7 @@ Add to your Claude Code config (`~/.claude.json`) or Cursor/Windsurf MCP setting
 }
 ```
 
-Works with Claude Code, Cursor, Windsurf, and any MCP-compatible agent. Or just tell your agent: *"Add sentrux as an MCP server"* — it knows what to do.
+Works with Claude Code, Cursor, Windsurf, and any MCP-compatible agent.
 
 **Agent workflow**
 

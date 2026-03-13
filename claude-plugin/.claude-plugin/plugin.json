@@ -1,0 +1,24 @@
+{
+  "name": "sentrux",
+  "version": "0.3.12",
+  "description": "Live codebase visualization and structural quality gate — 14 health dimensions graded A-F, dependency analysis, and architecture governance via MCP",
+  "author": {
+    "name": "yjing",
+    "email": "yjing@sentrux.dev"
+  },
+  "homepage": "https://github.com/sentrux/sentrux",
+  "repository": "https://github.com/sentrux/sentrux",
+  "license": "MIT",
+  "keywords": [
+    "architecture",
+    "code-quality",
+    "mcp",
+    "visualization",
+    "treemap",
+    "quality-gate",
+    "health",
+    "coupling",
+    "cycles",
+    "dead-code"
+  ]
+}
