@@ -533,7 +533,8 @@ capabilities = ["functions", "classes", "imports"]
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([1280.0, 800.0])
+            .with_inner_size([1600.0, 1000.0])
+            .with_maximized(true)
             .with_title(if sentrux_core::license::current_tier() >= sentrux_core::license::Tier::Pro { "Sentrux Pro" } else { "sentrux" }),
         renderer: eframe::Renderer::Wgpu,
         wgpu_options: eframe::egui_wgpu::WgpuConfiguration {
