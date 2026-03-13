@@ -261,6 +261,8 @@ sentrux is built on three beliefs:
 
 </div>
 
-## License
+<div align="center">
 
-[MIT](LICENSE)
+[MIT License](LICENSE)
+
+</div>
