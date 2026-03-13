@@ -14,4 +14,4 @@ pub mod profile;
 
 pub use loader::{LoadedPlugin, PluginLoadError, load_all_plugins, plugins_dir};
 pub use manifest::PluginManifest;
-pub use profile::{LanguageProfile, LanguageSemantics, LanguageThresholds, ComplexityKeywords, DEFAULT_PROFILE};
+pub use profile::{LanguageProfile, LanguageSemantics, LanguageThresholds, ComplexityNodes, DEFAULT_PROFILE};

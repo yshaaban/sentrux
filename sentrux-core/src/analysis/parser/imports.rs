@@ -191,10 +191,15 @@ pub(crate) fn extract_base_classes(node: tree_sitter::Node, content: &[u8], lang
 
 // ── Complexity counting ─────────────────────────────────────────────────
 
-/// Get language-specific complexity keywords from the language profile.
-/// Falls back to the profile's compiled defaults when plugin.toml omits [semantics.complexity].
+/// Get language-specific complexity keywords (legacy text-based fallback).
+/// Used when plugin doesn't have AST node-based complexity configured.
 fn complexity_keywords_for(lang: &str) -> Vec<String> {
-    crate::analysis::lang_registry::profile(lang).semantics.complexity.cc.clone()
+    let profile = crate::analysis::lang_registry::profile(lang);
+    if let Some(ref legacy) = profile.semantics.complexity_keywords_legacy {
+        legacy.cc.clone()
+    } else {
+        crate::analysis::plugin::profile::ComplexityKeywordsLegacy::default().cc
+    }
 }
 
 /// Deduplicate and sort keywords longest-first for non-overlapping matching.
@@ -264,14 +269,24 @@ pub(crate) fn count_complexity(body: &str, lang: &str) -> u32 {
     cc
 }
 
-/// Get branch keywords for cognitive complexity from the language profile.
+/// Get branch keywords for cognitive complexity (legacy text-based fallback).
 fn cog_branch_keywords_for(lang: &str) -> Vec<String> {
-    crate::analysis::lang_registry::profile(lang).semantics.complexity.cog_branch.clone()
+    let profile = crate::analysis::lang_registry::profile(lang);
+    if let Some(ref legacy) = profile.semantics.complexity_keywords_legacy {
+        legacy.cog_branch.clone()
+    } else {
+        crate::analysis::plugin::profile::ComplexityKeywordsLegacy::default().cog_branch
+    }
 }
 
-/// Get nesting-increasing keywords for cognitive complexity from the language profile.
+/// Get nesting-increasing keywords for cognitive complexity (legacy text-based fallback).
 fn cog_nesting_keywords_for(lang: &str) -> Vec<String> {
-    crate::analysis::lang_registry::profile(lang).semantics.complexity.cog_nesting.clone()
+    let profile = crate::analysis::lang_registry::profile(lang);
+    if let Some(ref legacy) = profile.semantics.complexity_keywords_legacy {
+        legacy.cog_nesting.clone()
+    } else {
+        crate::analysis::plugin::profile::ComplexityKeywordsLegacy::default().cog_nesting
+    }
 }
 
 /// Check if any branch keyword matches this trimmed line. Returns branch penalty if matched.
@@ -331,6 +346,165 @@ pub(crate) fn count_cognitive_complexity(body: &str, lang: &str) -> u32 {
         nesting = cog_update_nesting(trimmed, nesting, &nesting_kw);
     }
     cog
+}
+
+// ── AST-based complexity counting ─────────────────────────────────────
+// These functions walk the tree-sitter AST directly instead of scanning text.
+// They use node kinds from the language profile (plugin.toml [semantics.complexity]).
+
+use std::collections::HashSet as CxHashSet;
+
+/// Check if a node's operator text matches one of the logic operators.
+fn is_logic_operator(node: tree_sitter::Node, content: &[u8], operators: &[String]) -> bool {
+    if operators.is_empty() {
+        return true; // No filter = count all logic_nodes
+    }
+    // Check the "operator" field first (many grammars have it)
+    if let Some(op_node) = node.child_by_field_name("operator") {
+        if let Ok(op_text) = op_node.utf8_text(content) {
+            return operators.iter().any(|op| op == op_text.trim());
+        }
+    }
+    // Fallback: check if any child is one of the operators
+    for i in 0..node.child_count() {
+        if let Some(child) = node.child(i) {
+            if !child.is_named() {
+                if let Ok(text) = child.utf8_text(content) {
+                    if operators.iter().any(|op| op == text.trim()) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    false
+}
+
+/// Count nesting depth of a node by walking up to the function root.
+/// Only counts ancestors whose kind is in `nesting_set`.
+fn nesting_depth(
+    node: tree_sitter::Node,
+    func_node: tree_sitter::Node,
+    nesting_set: &CxHashSet<&str>,
+) -> u32 {
+    let mut depth = 0u32;
+    let mut current = node.parent();
+    let func_id = func_node.id();
+    while let Some(p) = current {
+        if p.id() == func_id {
+            break; // Don't count beyond the function boundary
+        }
+        if nesting_set.contains(p.kind()) {
+            depth += 1;
+        }
+        current = p.parent();
+    }
+    depth
+}
+
+/// Walk the AST subtree of a function node and compute cyclomatic complexity.
+/// CC = 1 + (number of branch_nodes) + (number of logic_nodes with matching operator).
+pub(crate) fn count_complexity_ast(
+    func_node: tree_sitter::Node,
+    content: &[u8],
+    profile: &crate::analysis::plugin::profile::LanguageProfile,
+) -> u32 {
+    let cx = &profile.semantics.complexity;
+    let branch_set: CxHashSet<&str> = cx.branch_nodes.iter().map(|s| s.as_str()).collect();
+    let logic_set: CxHashSet<&str> = cx.logic_nodes.iter().map(|s| s.as_str()).collect();
+
+    let mut cc = 1u32; // Base path
+    let mut cursor = func_node.walk();
+
+    // DFS walk of the subtree
+    let mut visited_root = false;
+    loop {
+        if !visited_root {
+            visited_root = true;
+        }
+        let node = cursor.node();
+
+        if branch_set.contains(node.kind()) {
+            cc += 1;
+        } else if logic_set.contains(node.kind()) {
+            if is_logic_operator(node, content, &cx.logic_operators) {
+                cc += 1;
+            }
+        }
+
+        // Descend into children
+        if cursor.goto_first_child() {
+            continue;
+        }
+        // Move to next sibling
+        if cursor.goto_next_sibling() {
+            continue;
+        }
+        // Go up and try next sibling
+        loop {
+            if !cursor.goto_parent() {
+                // Back at root — done
+                return cc;
+            }
+            if cursor.node().id() == func_node.id() {
+                return cc;
+            }
+            if cursor.goto_next_sibling() {
+                break;
+            }
+        }
+    }
+}
+
+/// Walk the AST subtree of a function node and compute cognitive complexity.
+/// COG = sum of (1 + nesting_depth) for each branch node + 1 for each logic operator.
+pub(crate) fn count_cognitive_complexity_ast(
+    func_node: tree_sitter::Node,
+    content: &[u8],
+    profile: &crate::analysis::plugin::profile::LanguageProfile,
+) -> u32 {
+    let cx = &profile.semantics.complexity;
+    let branch_set: CxHashSet<&str> = cx.branch_nodes.iter().map(|s| s.as_str()).collect();
+    let logic_set: CxHashSet<&str> = cx.logic_nodes.iter().map(|s| s.as_str()).collect();
+    let nesting_set: CxHashSet<&str> = cx.nesting_nodes.iter().map(|s| s.as_str()).collect();
+
+    let mut cog = 0u32;
+    let mut cursor = func_node.walk();
+
+    let mut visited_root = false;
+    loop {
+        if !visited_root {
+            visited_root = true;
+        }
+        let node = cursor.node();
+
+        if branch_set.contains(node.kind()) {
+            let depth = nesting_depth(node, func_node, &nesting_set);
+            cog += 1 + depth;
+        } else if logic_set.contains(node.kind()) {
+            if is_logic_operator(node, content, &cx.logic_operators) {
+                cog += 1;
+            }
+        }
+
+        if cursor.goto_first_child() {
+            continue;
+        }
+        if cursor.goto_next_sibling() {
+            continue;
+        }
+        loop {
+            if !cursor.goto_parent() {
+                return cog;
+            }
+            if cursor.node().id() == func_node.id() {
+                return cog;
+            }
+            if cursor.goto_next_sibling() {
+                break;
+            }
+        }
+    }
 }
 
 /// Parameter list node kinds recognized across languages.

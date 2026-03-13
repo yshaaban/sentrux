@@ -5,7 +5,9 @@
 //! and per-match-kind processing (func def, class def, import, call).
 
 use super::imports::{
-    count_complexity, count_cognitive_complexity, count_parameters, hash_body,
+    count_complexity, count_cognitive_complexity,
+    count_complexity_ast, count_cognitive_complexity_ast,
+    count_parameters, hash_body,
     extract_base_classes, extract_import_modules,
     lang_uses_dot_separator, normalize_module_path,
 };
@@ -232,8 +234,18 @@ pub(super) fn process_func_def(
         let el = node.end_position().row as u32 + 1;
         let ln = el - sl + 1;
         let body = node.utf8_text(pctx.content).unwrap_or("");
-        let cc = count_complexity(body, pctx.lang);
-        let cog = count_cognitive_complexity(body, pctx.lang);
+        let profile = crate::analysis::lang_registry::profile(pctx.lang);
+        let (cc, cog) = if profile.semantics.complexity.is_configured() {
+            // AST-based: walk tree-sitter nodes directly (no text scanning)
+            let cc = count_complexity_ast(node, pctx.content, profile);
+            let cog = count_cognitive_complexity_ast(node, pctx.content, profile);
+            (cc, cog)
+        } else {
+            // Legacy fallback: text-based keyword scanning
+            let cc = count_complexity(body, pctx.lang);
+            let cog = count_cognitive_complexity(body, pctx.lang);
+            (cc, cog)
+        };
         let pc = count_parameters(node, pctx.content);
         let bh = hash_body(body, pctx.lang);
         functions.push(FuncInfo {

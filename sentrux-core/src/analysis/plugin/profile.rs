@@ -97,30 +97,64 @@ pub struct LanguageSemantics {
     /// Examples: `["test_"]` for Python.
     pub test_prefixes: Vec<String>,
 
-    // ── Complexity keywords ──
+    // ── Complexity (AST-based) ──
 
-    /// Keywords for cyclomatic, cognitive, and nesting complexity counting.
+    /// AST node kinds for complexity counting.
+    /// The platform walks the tree-sitter AST and counts nodes matching these kinds.
+    /// No text scanning — tree-sitter already parsed the structure.
     #[serde(default)]
-    pub complexity: ComplexityKeywords,
+    pub complexity: ComplexityNodes,
+
+    /// Legacy text-based complexity keywords (deprecated, fallback only).
+    /// Used when complexity.branch_nodes is empty (plugin hasn't been updated yet).
+    #[serde(default, rename = "complexity_keywords")]
+    pub complexity_keywords_legacy: Option<ComplexityKeywordsLegacy>,
 }
 
-/// Keywords used by the complexity counting algorithms.
-/// The algorithms themselves are compiled; these are the language-specific inputs.
+/// AST node kinds for complexity counting via tree-sitter AST walk.
+///
+/// The platform walks the function's AST subtree and for each node:
+///   - If node.kind() is in `branch_nodes`: CC += 1, COG += 1 + nesting_depth
+///   - If node.kind() is in `logic_nodes`: CC += 1, COG += 1
+///   - If node.kind() is in `nesting_nodes`: nesting_depth += 1 for children
+///
+/// This replaces text-based keyword scanning with exact AST analysis.
+/// No comment/string stripping needed — tree-sitter handles that.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
-pub struct ComplexityKeywords {
-    /// Cyclomatic complexity branch keywords.
-    /// Each string is a pattern matched against stripped source lines.
-    /// Include surrounding spaces/tabs for word boundary detection.
-    /// Example (Python): `[" if ", "\tif ", "elif ", "for ", "while ", "except ", " and ", " or "]`
+pub struct ComplexityNodes {
+    /// Node kinds that count as branch points for cyclomatic complexity.
+    /// Each occurrence adds +1 to CC. Also adds (1 + nesting) to cognitive complexity.
+    /// Examples: `["if_statement", "for_statement", "while_statement", "except_clause"]`
+    pub branch_nodes: Vec<String>,
+
+    /// Node kinds that count as boolean/logic operators.
+    /// Each occurrence adds +1 to both CC and cognitive complexity (no nesting penalty).
+    /// Examples: `["boolean_operator"]` for Python, `["binary_expression"]` for others
+    /// Note: for languages using `binary_expression` for ALL operators, the platform
+    /// filters to only count `&&`, `||`, `and`, `or` by checking the operator field.
+    pub logic_nodes: Vec<String>,
+
+    /// Operator strings that count as logic operators within logic_nodes.
+    /// Used to filter `binary_expression` nodes to only count boolean operators.
+    /// Examples: `["&&", "||"]` for C-style, `["and", "or"]` for Python.
+    /// If empty, all logic_nodes are counted (e.g., Python's `boolean_operator`
+    /// is already specific enough).
+    #[serde(default)]
+    pub logic_operators: Vec<String>,
+
+    /// Node kinds that increase nesting depth for cognitive complexity.
+    /// Children of these nodes get +1 nesting penalty on their branch score.
+    /// Usually a subset of branch_nodes (e.g., `if` increases nesting but `elif` does not).
+    pub nesting_nodes: Vec<String>,
+}
+
+/// Legacy text-based complexity keywords (for backward compatibility during migration).
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct ComplexityKeywordsLegacy {
     pub cc: Vec<String>,
-
-    /// Cognitive complexity branch keywords (increment B per occurrence).
-    /// Example (Rust): `["if ", "else if", "for ", "while ", "loop ", "match "]`
     pub cog_branch: Vec<String>,
-
-    /// Cognitive complexity nesting keywords (increment nesting depth).
-    /// Example (Rust): `["if ", "for ", "while ", "loop ", "match "]`
     pub cog_nesting: Vec<String>,
 }
 
@@ -186,28 +220,46 @@ pub struct LanguageProfile {
 // Values are chosen to match the current hardcoded behavior exactly,
 // ensuring zero behavior change during migration.
 
-impl Default for ComplexityKeywords {
+impl Default for ComplexityNodes {
     fn default() -> Self {
         Self {
-            // Fallback CC keywords (from imports.rs current fallback match arm)
+            // Empty = no AST-based complexity counting.
+            // The platform falls back to legacy text-based keywords if these are empty.
+            branch_nodes: Vec::new(),
+            logic_nodes: Vec::new(),
+            logic_operators: Vec::new(),
+            nesting_nodes: Vec::new(),
+        }
+    }
+}
+
+impl Default for ComplexityKeywordsLegacy {
+    fn default() -> Self {
+        Self {
             cc: vec![
                 " if ".into(), "\tif ".into(), "if(".into(),
                 "else if".into(), "for ".into(), "for(".into(),
                 "while ".into(), "while(".into(), "switch ".into(),
                 "case ".into(), "catch ".into(), "&&".into(), "||".into(),
             ],
-            // Fallback cognitive branch keywords
             cog_branch: vec![
                 "if ".into(), "if(".into(), "else if".into(),
                 "for ".into(), "for(".into(), "while ".into(), "while(".into(),
                 "switch ".into(), "case ".into(), "catch ".into(),
             ],
-            // Fallback cognitive nesting keywords
             cog_nesting: vec![
                 "if ".into(), "if(".into(), "for ".into(), "for(".into(),
                 "while ".into(), "while(".into(), "switch ".into(),
             ],
         }
+    }
+}
+
+impl ComplexityNodes {
+    /// Whether this profile has AST-based complexity nodes configured.
+    /// If false, the platform should fall back to legacy text-based counting.
+    pub fn is_configured(&self) -> bool {
+        !self.branch_nodes.is_empty()
     }
 }
 
@@ -228,7 +280,8 @@ impl Default for LanguageSemantics {
             test_dir_infixes: Vec::new(),
             test_suffixes: Vec::new(),
             test_prefixes: Vec::new(),
-            complexity: ComplexityKeywords::default(),
+            complexity: ComplexityNodes::default(),
+            complexity_keywords_legacy: None,
         }
     }
 }
