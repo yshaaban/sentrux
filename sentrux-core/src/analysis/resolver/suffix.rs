@@ -496,13 +496,18 @@ fn collect_manifest_path_aliases(
                 _ => name,
             };
 
-            // Map: package_name/ → project_dir/
-            // @company/shared/ → packages/shared/
-            // sentrux_core/ → sentrux-core/
-            let dir_replacement = if project_dir.is_empty() {
+            // Map: package_name/ → project_dir/source_root/
+            // @company/shared/ → packages/shared/src/  (with source_root = "src")
+            // sentrux_core/ → sentrux-core/src/         (with source_root = "src")
+            let base = if project_dir.is_empty() {
                 String::new()
             } else {
                 format!("{}/", project_dir)
+            };
+            let dir_replacement = if resolver.source_root.is_empty() {
+                base
+            } else {
+                format!("{}{}/", base, resolver.source_root)
             };
 
             aliases.push(PathAlias {

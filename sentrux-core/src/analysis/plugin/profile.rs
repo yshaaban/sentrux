@@ -317,6 +317,13 @@ pub struct ResolverConfig {
     /// Empty = use the language's registered extensions.
     pub resolve_extensions: Vec<String>,
 
+    /// Source root subdirectory within each package.
+    /// When resolving subpath imports, this is prepended to the path.
+    /// JS/TS: `"src"` → @company/shared/utils → packages/shared/src/utils.
+    /// Rust: `"src"` → sentrux_core/app → sentrux-core/src/app.
+    /// Empty = source at package root (no subdirectory).
+    pub source_root: String,
+
     // Workspace resolution is handled by the suffix-index + alias system.
     // No workspace-specific fields needed — the resolver accepts ALL edges
     // within the scan root. Cross-project imports are real dependencies.
@@ -335,6 +342,7 @@ impl Default for ResolverConfig {
             path_alias_field: String::new(),
             path_alias_base_url: String::new(),
             resolve_extensions: Vec::new(),
+            source_root: String::new(),
         }
     }
 }
