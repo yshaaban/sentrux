@@ -30,6 +30,9 @@ pub enum ScanCommand {
         limits: crate::app::scan_threads::ScanLimits,
         /// Generation counter for stale-result rejection
         gen: u64,
+        /// Cancellation token — set to true when a newer scan is requested.
+        /// Scanner checks this at each progress step and aborts if set.
+        cancel: Arc<std::sync::atomic::AtomicBool>,
     },
     /// Incremental rescan — re-parses only changed files, patches existing snapshot.
     Rescan {
@@ -43,6 +46,8 @@ pub enum ScanCommand {
         limits: crate::app::scan_threads::ScanLimits,
         /// Generation counter for stale-result rejection
         gen: u64,
+        /// Cancellation token
+        cancel: Arc<std::sync::atomic::AtomicBool>,
     },
 }
 

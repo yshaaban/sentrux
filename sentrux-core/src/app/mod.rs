@@ -53,6 +53,8 @@ pub struct SentruxApp {
     pub(crate) watcher_handle: Option<WatcherHandle>,
     /// Monotonic generation counter to reject stale scan results
     pub(crate) scan_generation: u64,
+    /// Cancellation token for the current scan — set to true to abort
+    pub(crate) scan_cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
     /// Receives watcher handle from background setup thread
     pub(crate) watcher_setup_rx: Option<crossbeam_channel::Receiver<Option<WatcherHandle>>>,
     /// Handle to the scanner thread (for dead-thread detection)

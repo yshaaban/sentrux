@@ -533,6 +533,11 @@ impl SentruxApp {
             Some(r) => r.clone(),
             None => return false,
         };
+        // Cancel any running scan before starting new one
+        self.scan_cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+        // Create fresh cancel token for the new scan
+        self.scan_cancel = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+
         let next_gen = self.scan_generation + 1;
         match self.scan_tx.try_send(ScanCommand::FullScan {
             root,
@@ -542,6 +547,7 @@ impl SentruxApp {
                 max_call_targets: self.state.settings.max_call_targets,
             },
             gen: next_gen,
+            cancel: self.scan_cancel.clone(),
         }) {
             Ok(()) => {
                 self.scan_generation = next_gen;
@@ -587,6 +593,7 @@ impl SentruxApp {
                 max_call_targets: self.state.settings.max_call_targets,
             },
             gen: next_gen,
+            cancel: self.scan_cancel.clone(),
         }) {
             Ok(()) => {
                 self.scan_generation = next_gen;

@@ -57,6 +57,7 @@ impl SentruxApp {
             last_scanned_root: None,
             watcher_handle: None,
             scan_generation: 0,
+            scan_cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
             watcher_setup_rx: None,
             scanner_handle: Some(scanner_handle),
             layout_handle: Some(layout_handle),

@@ -31,11 +31,11 @@ pub(crate) fn scanner_thread(
     while let Ok(cmd) = rx.recv() {
         let cmd = drain_to_latest(cmd, &rx);
         match cmd {
-            ScanCommand::FullScan { ref root, limits, gen } => {
-                handle_full_scan(&tx, root, &limits, gen);
+            ScanCommand::FullScan { ref root, limits, gen, ref cancel } => {
+                handle_full_scan(&tx, root, &limits, gen, cancel);
             }
-            ScanCommand::Rescan { ref root, ref changed, ref old_snap, limits, gen } => {
-                handle_rescan(&tx, root, changed, old_snap, &limits, gen);
+            ScanCommand::Rescan { ref root, ref changed, ref old_snap, limits, gen, ref cancel } => {
+                handle_rescan(&tx, root, changed, old_snap, &limits, gen, cancel);
             }
         }
     }
@@ -46,6 +46,7 @@ fn handle_full_scan(
     root_path: &str,
     limits: &ScanLimits,
     gen: u64,
+    cancel: &std::sync::Arc<std::sync::atomic::AtomicBool>,
 ) {
     crate::analysis::parser::clear_cache();
     crate::analysis::git::clear_cache();
@@ -53,10 +54,15 @@ fn handle_full_scan(
     let tx_progress = tx.clone();
     let tx_tree = tx.clone();
     let gen_for_tree = gen;
+    let cancel_clone = cancel.clone();
 
     let result = crate::analysis::scanner::scan_directory(
         root_path,
         Some(&move |p| {
+            // Check cancellation at every progress step
+            if cancel_clone.load(std::sync::atomic::Ordering::Relaxed) {
+                return; // Scan will complete but result will be discarded (stale gen)
+            }
             if let Err(crossbeam_channel::TrySendError::Disconnected(_)) = tx_progress.try_send(ScanMsg::Progress(p)) {
                 eprintln!("[scanner] progress channel disconnected");
             }
@@ -69,6 +75,11 @@ fn handle_full_scan(
         limits,
     );
 
+    // If cancelled, don't send result — it's stale
+    if cancel.load(std::sync::atomic::Ordering::Relaxed) {
+        eprintln!("[scanner] scan cancelled (gen {}), discarding result", gen);
+        return;
+    }
     send_scan_result(tx, result, gen, root_path);
 }
 
@@ -79,6 +90,7 @@ fn handle_rescan(
     old_snap: &Arc<crate::core::snapshot::Snapshot>,
     limits: &ScanLimits,
     gen: u64,
+    cancel: &std::sync::Arc<std::sync::atomic::AtomicBool>,
 ) {
     let result = crate::analysis::scanner::rescan::rescan_changed(
         root,
@@ -88,6 +100,10 @@ fn handle_rescan(
         limits,
     );
 
+    if cancel.load(std::sync::atomic::Ordering::Relaxed) {
+        eprintln!("[scanner] rescan cancelled (gen {}), discarding result", gen);
+        return;
+    }
     send_scan_result(tx, result, gen, root);
 }
 
