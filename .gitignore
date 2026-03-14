@@ -21,5 +21,5 @@ target/
 # Local tools
 .beemem*/
 .claude/
-plugins/
 .wrangler/
+sentrux-core/src/analysis/plugin/embedded.rs
