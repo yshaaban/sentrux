@@ -232,6 +232,41 @@ end
     }
 
     #[test]
+    fn elixir_single_alias_imports() {
+        let code = br#"
+alias Acme.Shared.V1
+import Ecto.Query
+use GenServer
+require Logger
+"#;
+        let sa = parse_bytes(code, "elixir").expect("elixir parse failed");
+        let imports = sa.imp.as_ref().expect("no imports");
+        let import_strs: Vec<&str> = imports.iter().map(|s| s.as_str()).collect();
+        assert!(import_strs.contains(&"acme/shared/v1"), "missing acme/shared/v1, got {:?}", imports);
+        assert!(import_strs.contains(&"ecto/query"), "missing ecto/query, got {:?}", imports);
+        assert!(import_strs.contains(&"gen_server"), "missing gen_server, got {:?}", imports);
+        assert!(import_strs.contains(&"logger"), "missing logger, got {:?}", imports);
+    }
+
+    #[test]
+    fn elixir_multi_alias_imports() {
+        // PR #14 issue: multi-alias must expand prefix + each name
+        let code = br#"
+alias Acme.Inventory.Domain.{Product, ProductNotFoundError, InsufficientStockError}
+"#;
+        let sa = parse_bytes(code, "elixir").expect("elixir parse failed");
+        let imports = sa.imp.as_ref().expect("no imports");
+        let import_strs: Vec<&str> = imports.iter().map(|s| s.as_str()).collect();
+        // Each must have the FULL path: prefix + name
+        assert!(import_strs.contains(&"acme/inventory/domain/product"),
+            "missing acme/inventory/domain/product, got {:?}", imports);
+        assert!(import_strs.contains(&"acme/inventory/domain/product_not_found_error"),
+            "missing acme/inventory/domain/product_not_found_error, got {:?}", imports);
+        assert!(import_strs.contains(&"acme/inventory/domain/insufficient_stock_error"),
+            "missing acme/inventory/domain/insufficient_stock_error, got {:?}", imports);
+    }
+
+    #[test]
     fn oracle_haskell() {
         let code = br#"
 module Main where

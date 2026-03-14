@@ -10,6 +10,7 @@ mod tests {
     use tree_sitter::Parser;
 
     /// Sample import statements per language.
+    #[allow(unused)]
     const SAMPLES: &[(&str, &str)] = &[
         (
             "python",
@@ -115,6 +116,43 @@ require_relative '../utils/parser'
             let child = node.child(i).unwrap();
             let child_field = node.field_name_for_child(i as u32);
             print_tree(child, source, lang, depth + 1, child_field);
+        }
+    }
+
+    #[test]
+    #[ignore]
+    fn ast_elixir_multi_alias_dump() {
+        let elixir_samples = &[
+            ("elixir", r#"alias Acme.Shared.V1
+alias Acme.Inventory.Domain.{Product, ProductNotFoundError, InsufficientStockError}
+import Ecto.Query
+use GenServer
+require Logger
+"#),
+        ];
+        let mut parser = Parser::new();
+        for &(lang, source) in elixir_samples {
+            println!("\n{}", "=".repeat(72));
+            println!("[{}] Multi-alias AST dump", lang);
+            println!("{}", "=".repeat(72));
+            let config = match lang_registry::get(lang) {
+                Some(c) => c,
+                None => { println!("[{}] SKIPPED — plugin not installed", lang); continue; }
+            };
+            if let Err(e) = parser.set_language(&config.grammar) {
+                println!("[{}] ERROR: {}", lang, e); continue;
+            }
+            let tree = match parser.parse(source.as_bytes(), None) {
+                Some(t) => t,
+                None => { println!("[{}] parse returned None", lang); continue; }
+            };
+            println!("[{}] Source:", lang);
+            for (i, line) in source.lines().enumerate() {
+                println!("  {:3}| {}", i + 1, line);
+            }
+            println!();
+            println!("[{}] Full AST:", lang);
+            print_tree(tree.root_node(), source.as_bytes(), lang, 0, None);
         }
     }
 
