@@ -438,78 +438,11 @@ capabilities = ["functions", "classes", "imports"]
             }
         }
         PluginAction::AddStandard => {
-            // Derive standard language list from embedded plugins — single source of truth
-            let standard: Vec<&str> = sentrux_core::analysis::plugin::embedded::EMBEDDED_PLUGINS
-                .iter()
-                .map(|&(name, _, _)| name)
-                .collect();
-            let dir = sentrux_core::analysis::plugin::plugins_dir()
-                .unwrap_or_else(|| { eprintln!("Cannot determine home directory"); std::process::exit(1); });
-            std::fs::create_dir_all(&dir).unwrap();
-            let platform = sentrux_core::analysis::plugin::manifest::PluginManifest::grammar_filename();
-            let platform_key = platform.rsplit_once('.').map_or(platform, |(k, _)| k);
-            let mut installed = 0;
-            let mut skipped = 0;
-            for name in &standard {
-                let plugin_dir = dir.join(name);
-                // Read the expected version from embedded TOML data
-                let registry_version = match sentrux_core::analysis::plugin::embedded::EMBEDDED_PLUGINS
-                    .iter()
-                    .find(|&&(n, _, _)| n == *name)
-                    .and_then(|&(_, toml, _)| toml.lines()
-                        .find(|l| l.starts_with("version"))
-                        .and_then(|l| l.split('"').nth(1)))
-                {
-                    Some(v) => v,
-                    None => {
-                        eprintln!("  {name}: skipped (no version in embedded data)");
-                        continue;
-                    }
-                };
-                if plugin_dir.exists() {
-                    // Check if installed version matches registry — upgrade if outdated
-                    let installed_ver = std::fs::read_to_string(plugin_dir.join("plugin.toml"))
-                        .ok()
-                        .and_then(|c| c.lines()
-                            .find(|l| l.starts_with("version"))
-                            .and_then(|l| l.split('"').nth(1))
-                            .map(|v| v.to_string()));
-                    if installed_ver.as_deref() == Some(registry_version) {
-                        skipped += 1;
-                        continue;
-                    }
-                    // Outdated — remove and re-download
-                    let _ = std::fs::remove_dir_all(&plugin_dir);
-                }
-                let url = format!(
-                    "https://github.com/sentrux/plugins/releases/download/{name}-v{registry_version}/{name}-{platform_key}.tar.gz"
-                );
-                print!("  Installing {name}...");
-                let _ = std::io::Write::flush(&mut std::io::stdout());
-                let ok = std::process::Command::new("curl")
-                    .args(["-fsSL", &url, "-o"])
-                    .arg(dir.join(format!("{name}.tar.gz")))
-                    .status()
-                    .is_ok_and(|s| s.success());
-                if ok {
-                    let extracted = std::process::Command::new("tar")
-                        .args(["xzf", &format!("{name}.tar.gz")])
-                        .current_dir(&dir)
-                        .status()
-                        .is_ok_and(|s| s.success());
-                    let _ = std::fs::remove_file(dir.join(format!("{name}.tar.gz")));
-                    if extracted {
-                        println!(" ok");
-                        installed += 1;
-                    } else {
-                        println!(" failed (extract)");
-                    }
-                } else {
-                    let _ = std::fs::remove_file(dir.join(format!("{name}.tar.gz")));
-                    println!(" failed (download)");
-                }
-            }
-            println!("\nInstalled {installed} languages ({skipped} already installed)");
+            // Configs are already synced by sync_embedded_plugins() at startup.
+            // Just download any missing grammars.
+            sentrux_core::analysis::plugin::sync_embedded_plugins();
+            ensure_grammars_installed();
+            println!("Done. All plugins synced from embedded data.");
         }
         PluginAction::Add { name } => {
             let dir = sentrux_core::analysis::plugin::plugins_dir()
@@ -713,10 +646,13 @@ fn cli_scan_limits() -> analysis::scanner::common::ScanLimits {
     }
 }
 
-/// Ensure grammar binaries are installed for all standard plugins.
+/// Ensure grammar binaries are installed for all embedded plugins.
 /// Runs EVERY launch — checks which grammars are missing and downloads them.
 /// Shows clear progress so the user knows what's happening.
 /// Handles: first launch, upgrade with new languages, accidental deletion.
+///
+/// Version info comes from EMBEDDED data (compiled into binary) — no disk reads,
+/// no fallbacks, no guessing.
 fn ensure_grammars_installed() {
     let dir = match sentrux_core::analysis::plugin::plugins_dir() {
         Some(d) => d,
@@ -726,22 +662,30 @@ fn ensure_grammars_installed() {
     let platform = sentrux_core::analysis::plugin::manifest::PluginManifest::grammar_filename();
     let platform_key = platform.rsplit_once('.').map_or(platform, |(k, _)| k);
 
-    // Derive from embedded plugins — single source of truth, no hardcoded list
-    let standard: Vec<&str> = sentrux_core::analysis::plugin::embedded::EMBEDDED_PLUGINS
+    // Build list of (name, version) from embedded data — single source of truth
+    let plugins: Vec<(&str, &str)> = sentrux_core::analysis::plugin::embedded::EMBEDDED_PLUGINS
         .iter()
-        .map(|&(name, _, _)| name)
-        .collect();
-
-    // Find which grammars are missing
-    let missing: Vec<&&str> = standard.iter()
-        .filter(|name| {
-            let grammar_path = dir.join(name).join("grammars").join(platform);
-            !grammar_path.exists()
+        .filter_map(|&(name, toml, _)| {
+            // Only plugins with [grammar] section need grammar downloads
+            if !toml.contains("[grammar]") { return None; }
+            let version = toml.lines()
+                .find(|l| l.starts_with("version"))
+                .and_then(|l| l.split('"').nth(1))?;
+            Some((name, version))
         })
         .collect();
 
+    // Find which grammars are missing
+    let missing: Vec<(&str, &str)> = plugins.iter()
+        .filter(|(name, _)| {
+            let grammar_path = dir.join(name).join("grammars").join(platform);
+            !grammar_path.exists()
+        })
+        .copied()
+        .collect();
+
     if missing.is_empty() {
-        return; // All grammars present — nothing to do
+        return;
     }
 
     let total = missing.len();
@@ -752,7 +696,7 @@ fn ensure_grammars_installed() {
 
     let mut downloaded = 0;
     let mut failed = 0;
-    for (i, name) in missing.iter().enumerate() {
+    for (i, (name, version)) in missing.iter().enumerate() {
         let progress_pct = ((i + 1) * 100) / total;
         let bar_width = 30;
         let filled = (bar_width * (i + 1)) / total;
@@ -763,21 +707,6 @@ fn ensure_grammars_installed() {
         let plugin_dir = dir.join(name);
         let _ = std::fs::create_dir_all(plugin_dir.join("grammars"));
 
-        // Read version from plugin.toml (written by embedded sync)
-        let version = match std::fs::read_to_string(plugin_dir.join("plugin.toml"))
-            .ok()
-            .and_then(|c| c.lines()
-                .find(|l| l.starts_with("version"))
-                .and_then(|l| l.split('"').nth(1))
-                .map(|v| v.to_string()))
-        {
-            Some(v) => v,
-            None => {
-                // No plugin.toml or no version — skip this plugin
-                failed += 1;
-                continue;
-            }
-        };
         let url = format!(
             "https://github.com/sentrux/plugins/releases/download/{name}-v{version}/{name}-{platform_key}.tar.gz"
         );
