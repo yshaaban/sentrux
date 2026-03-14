@@ -120,13 +120,11 @@ enum PluginAction {
 // ---------------------------------------------------------------------------
 
 fn main() -> eframe::Result<()> {
-    // Sync embedded plugin configs — always in sync with binary version.
-    // Silently writes/updates plugin.toml + tags.scm, preserves grammar .dylib.
-    // Users never need to think about plugin versions.
+    // Step 1: Sync embedded plugin configs (instant, no network)
     sentrux_core::analysis::plugin::sync_embedded_plugins();
 
-    // Auto-install grammar binaries on first run (needs network, one-time)
-    auto_install_plugins_if_needed();
+    // Step 2: Check and download missing grammar binaries (needs network)
+    ensure_grammars_installed();
 
     // Non-blocking update check (once per day, background thread)
     app::update_check::check_for_updates_async(env!("CARGO_PKG_VERSION"));
@@ -687,70 +685,99 @@ fn cli_scan_limits() -> analysis::scanner::common::ScanLimits {
     }
 }
 
-/// Auto-install standard language plugins if none are found.
-/// Runs on first launch — gives users a working tool without manual steps.
-fn auto_install_plugins_if_needed() {
+/// Ensure grammar binaries are installed for all standard plugins.
+/// Runs EVERY launch — checks which grammars are missing and downloads them.
+/// Shows clear progress so the user knows what's happening.
+/// Handles: first launch, upgrade with new languages, accidental deletion.
+fn ensure_grammars_installed() {
     let dir = match sentrux_core::analysis::plugin::plugins_dir() {
         Some(d) => d,
         None => return,
     };
-    // Check if any plugin directory with a valid plugin.toml exists
-    if dir.is_dir() {
-        if let Ok(entries) = std::fs::read_dir(&dir) {
-            let has_valid_plugin = entries
-                .filter_map(|e| e.ok())
-                .any(|e| e.path().is_dir() && e.path().join("plugin.toml").exists());
-            if has_valid_plugin {
-                return; // plugins exist, skip auto-install
-            }
-        }
-    }
-
-    eprintln!("\nFirst run — installing standard language plugins...\n");
-    std::fs::create_dir_all(&dir).ok();
 
     let platform = sentrux_core::analysis::plugin::manifest::PluginManifest::grammar_filename();
     let platform_key = platform.rsplit_once('.').map_or(platform, |(k, _)| k);
 
+    // Standard languages that have pre-compiled grammars available
     let standard = [
         "python", "javascript", "typescript", "rust", "go",
         "c", "cpp", "java", "ruby", "csharp", "php", "bash",
         "html", "css", "scss", "swift", "lua", "scala",
-        "elixir", "haskell", "zig", "r",
+        "elixir", "haskell", "zig", "r", "gdscript",
     ];
 
-    let mut installed = 0;
-    for name in &standard {
+    // Find which grammars are missing
+    let missing: Vec<&&str> = standard.iter()
+        .filter(|name| {
+            let grammar_path = dir.join(name).join("grammars").join(platform);
+            !grammar_path.exists()
+        })
+        .collect();
+
+    if missing.is_empty() {
+        return; // All grammars present — nothing to do
+    }
+
+    let total = missing.len();
+    eprintln!();
+    eprintln!("  Downloading {} language grammar(s)...", total);
+    eprintln!("  (one-time download, ~500KB each)");
+    eprintln!();
+
+    let mut downloaded = 0;
+    let mut failed = 0;
+    for (i, name) in missing.iter().enumerate() {
+        let progress_pct = ((i + 1) * 100) / total;
+        let bar_width = 30;
+        let filled = (bar_width * (i + 1)) / total;
+        let bar: String = (0..bar_width).map(|j| if j < filled { '█' } else { '░' }).collect();
+        eprint!("\r  [{bar}] {progress_pct:>3}%  {name:<14}");
+        let _ = std::io::Write::flush(&mut std::io::stderr());
+
         let plugin_dir = dir.join(name);
-        if plugin_dir.exists() { continue; }
+        let _ = std::fs::create_dir_all(plugin_dir.join("grammars"));
+
         let url = format!(
             "https://github.com/sentrux/plugins/releases/download/{name}-v0.2.0/{name}-{platform_key}.tar.gz"
         );
-        eprint!("  {name}...");
+        let tarball = dir.join(format!("{name}.tar.gz"));
+
         let ok = std::process::Command::new("curl")
             .args(["-fsSL", &url, "-o"])
-            .arg(dir.join(format!("{name}.tar.gz")))
+            .arg(&tarball)
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
             .status()
             .is_ok_and(|s| s.success());
+
         if ok {
             let extracted = std::process::Command::new("tar")
-                .args(["xzf", &format!("{name}.tar.gz")])
+                .args(["xzf"])
+                .arg(&tarball)
                 .current_dir(&dir)
                 .stdout(std::process::Stdio::null())
                 .stderr(std::process::Stdio::null())
                 .status()
                 .is_ok_and(|s| s.success());
-            let _ = std::fs::remove_file(dir.join(format!("{name}.tar.gz")));
+            let _ = std::fs::remove_file(&tarball);
             if extracted {
-                eprint!(" ok  ");
-                installed += 1;
-                if installed % 6 == 0 { eprintln!(); }
+                downloaded += 1;
+            } else {
+                failed += 1;
             }
         } else {
-            let _ = std::fs::remove_file(dir.join(format!("{name}.tar.gz")));
+            let _ = std::fs::remove_file(&tarball);
+            failed += 1;
         }
     }
-    eprintln!("\n\n  Installed {installed} language plugins.\n");
+
+    // Final status
+    let bar: String = (0..30).map(|_| '█').collect();
+    eprintln!("\r  [{bar}] 100%  done              ");
+    if failed > 0 {
+        eprintln!("  {downloaded} downloaded, {failed} failed (will retry next launch)");
+    } else {
+        eprintln!("  {downloaded} language grammars ready.");
+    }
+    eprintln!();
 }
