@@ -33,24 +33,23 @@ pub fn sync_embedded_plugins() {
         let scm_dir = plugin_dir.join("queries");
         let scm_path = scm_dir.join("tags.scm");
 
-        // Check if config needs update (missing or different version)
+        // Check if config needs update: compare CONTENT, not just version.
+        // This handles: grammar tarballs overwriting with old configs,
+        // user corruption, any mismatch between embedded and installed.
         let needs_update = if toml_path.exists() {
-            // Compare embedded version vs installed version
             let installed = std::fs::read_to_string(&toml_path).unwrap_or_default();
-            let installed_ver = installed.lines()
-                .find(|l| l.starts_with("version"))
-                .and_then(|l| l.split('"').nth(1))
-                .unwrap_or("0.0.0");
-            let embedded_ver = toml_content.lines()
-                .find(|l| l.starts_with("version"))
-                .and_then(|l| l.split('"').nth(1))
-                .unwrap_or("0.0.0");
-            installed_ver != embedded_ver
+            installed.trim() != toml_content.trim()
         } else {
-            true // Missing — needs creation
+            true
+        };
+        let scm_needs_update = if scm_path.exists() && !scm_content.is_empty() {
+            let installed_scm = std::fs::read_to_string(&scm_path).unwrap_or_default();
+            installed_scm.trim() != scm_content.trim()
+        } else {
+            !scm_content.is_empty()
         };
 
-        if !needs_update {
+        if !needs_update && !scm_needs_update {
             continue;
         }
 
@@ -60,8 +59,10 @@ pub fn sync_embedded_plugins() {
         let _ = std::fs::create_dir_all(plugin_dir.join("grammars"));
 
         // Write plugin.toml and tags.scm — preserve grammar .dylib
-        let _ = std::fs::write(&toml_path, toml_content);
-        if !scm_content.is_empty() {
+        if needs_update {
+            let _ = std::fs::write(&toml_path, toml_content);
+        }
+        if scm_needs_update && !scm_content.is_empty() {
             let _ = std::fs::write(&scm_path, scm_content);
         }
     }

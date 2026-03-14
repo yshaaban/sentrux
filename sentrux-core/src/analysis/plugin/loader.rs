@@ -39,14 +39,25 @@ pub struct PluginLoadError {
     pub error: String,
 }
 
-/// Get the plugins directory path.
+/// Get the user's plugins directory path (~/.sentrux/plugins/).
 pub fn plugins_dir() -> Option<PathBuf> {
     dirs::home_dir().map(|h| h.join(".sentrux").join("plugins"))
 }
 
-/// Discover and load all plugins from ~/.sentrux/plugins/.
-/// Returns successfully loaded plugins and any errors encountered.
-/// Errors are non-fatal: each plugin loads independently.
+/// Get the bundled plugins directory (next to the executable).
+/// Used for distribution archives where grammars ship alongside the binary.
+pub fn bundled_plugins_dir() -> Option<PathBuf> {
+    std::env::current_exe().ok()
+        .and_then(|p| p.parent().map(|d| d.join("plugins")))
+        .filter(|d| d.is_dir())
+}
+
+/// Discover and load all plugins from BOTH directories:
+///   1. Bundled: <exe_dir>/plugins/ (grammars shipped with distribution)
+///   2. User:   ~/.sentrux/plugins/ (configs from embedded sync + user plugins)
+///
+/// For each language, the grammar .dylib is searched in both locations.
+/// The user dir's plugin.toml/tags.scm takes priority (embedded sync keeps them current).
 pub fn load_all_plugins() -> (Vec<LoadedPlugin>, Vec<PluginLoadError>) {
     let mut loaded = Vec::new();
     let mut errors = Vec::new();
@@ -55,6 +66,12 @@ pub fn load_all_plugins() -> (Vec<LoadedPlugin>, Vec<PluginLoadError>) {
         Some(d) if d.is_dir() => d,
         _ => return (loaded, errors),
     };
+
+    // If bundled plugins exist, copy any missing grammars to user dir
+    // This handles: fresh install from distribution archive
+    if let Some(bundled) = bundled_plugins_dir() {
+        copy_bundled_grammars(&bundled, &dir);
+    }
 
     let entries = match std::fs::read_dir(&dir) {
         Ok(e) => e,
@@ -199,6 +216,30 @@ fn load_grammar_dynamic(path: &Path, lang_name: &str) -> Result<Language, String
         std::mem::forget(lib);
 
         Ok(language)
+    }
+}
+
+/// Copy grammar .dylib files from bundled distribution to user plugins dir.
+/// Only copies if the user dir doesn't already have the grammar.
+/// This handles: user extracts distribution → first launch → grammars copied.
+fn copy_bundled_grammars(bundled_dir: &Path, user_dir: &Path) {
+    let grammar_file = PluginManifest::grammar_filename();
+    let entries = match std::fs::read_dir(bundled_dir) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_dir() { continue; }
+        let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+        let bundled_grammar = path.join("grammars").join(grammar_file);
+        let user_grammar = user_dir.join(&name).join("grammars").join(grammar_file);
+        if bundled_grammar.exists() && !user_grammar.exists() {
+            let _ = std::fs::create_dir_all(user_dir.join(&name).join("grammars"));
+            if std::fs::copy(&bundled_grammar, &user_grammar).is_ok() {
+                eprintln!("[plugin] Copied bundled grammar: {}", name);
+            }
+        }
     }
 }
 

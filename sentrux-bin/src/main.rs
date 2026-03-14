@@ -120,11 +120,13 @@ enum PluginAction {
 // ---------------------------------------------------------------------------
 
 fn main() -> eframe::Result<()> {
-    // Step 1: Sync embedded plugin configs (instant, no network)
-    sentrux_core::analysis::plugin::sync_embedded_plugins();
-
-    // Step 2: Check and download missing grammar binaries (needs network)
+    // Step 1: Download missing grammar binaries (may overwrite configs with old versions)
     ensure_grammars_installed();
+
+    // Step 2: Sync embedded plugin configs LAST — always wins over downloaded configs.
+    // This ensures configs match the binary version even if the grammar tarball
+    // included old plugin.toml/tags.scm files.
+    sentrux_core::analysis::plugin::sync_embedded_plugins();
 
     // Non-blocking update check (once per day, background thread)
     app::update_check::check_for_updates_async(env!("CARGO_PKG_VERSION"));
