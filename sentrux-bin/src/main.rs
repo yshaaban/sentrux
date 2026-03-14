@@ -446,14 +446,26 @@ capabilities = ["functions", "classes", "imports"]
             let platform_key = platform.rsplit_once('.').map_or(platform, |(k, _)| k);
             let mut installed = 0;
             let mut skipped = 0;
+            let registry_version = "0.2.0"; // Current plugin version
             for name in &standard {
                 let plugin_dir = dir.join(name);
                 if plugin_dir.exists() {
-                    skipped += 1;
-                    continue;
+                    // Check if installed version matches registry — upgrade if outdated
+                    let installed_ver = std::fs::read_to_string(plugin_dir.join("plugin.toml"))
+                        .ok()
+                        .and_then(|c| c.lines()
+                            .find(|l| l.starts_with("version"))
+                            .and_then(|l| l.split('"').nth(1))
+                            .map(|v| v.to_string()));
+                    if installed_ver.as_deref() == Some(registry_version) {
+                        skipped += 1;
+                        continue;
+                    }
+                    // Outdated — remove and re-download
+                    let _ = std::fs::remove_dir_all(&plugin_dir);
                 }
                 let url = format!(
-                    "https://github.com/sentrux/plugins/releases/download/{name}-v0.1.0/{name}-{platform_key}.tar.gz"
+                    "https://github.com/sentrux/plugins/releases/download/{name}-v0.2.0/{name}-{platform_key}.tar.gz"
                 );
                 print!("  Installing {name}...");
                 let _ = std::io::Write::flush(&mut std::io::stdout());
@@ -496,7 +508,7 @@ capabilities = ["functions", "classes", "imports"]
             let platform_key = platform.rsplit_once('.').map_or(platform, |(k, _)| k);
 
             let url = format!(
-                "https://github.com/sentrux/plugins/releases/download/{name}-v0.1.0/{name}-{platform_key}.tar.gz"
+                "https://github.com/sentrux/plugins/releases/download/{name}-v0.2.0/{name}-{platform_key}.tar.gz"
             );
             println!("Downloading {name} plugin for {platform_key}...");
             println!("  {url}");
@@ -707,7 +719,7 @@ fn auto_install_plugins_if_needed() {
         let plugin_dir = dir.join(name);
         if plugin_dir.exists() { continue; }
         let url = format!(
-            "https://github.com/sentrux/plugins/releases/download/{name}-v0.1.0/{name}-{platform_key}.tar.gz"
+            "https://github.com/sentrux/plugins/releases/download/{name}-v0.2.0/{name}-{platform_key}.tar.gz"
         );
         eprint!("  {name}...");
         let ok = std::process::Command::new("curl")
