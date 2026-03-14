@@ -20,41 +20,12 @@ pub fn blast_radius_color(radius: u32, max_radius: u32) -> Color32 {
     Color32::from_rgb(r, g, b)
 }
 
-/// Language → color mapping via O(1) match.
+/// Language → color from plugin profile.
+/// Each plugin declares its color in plugin.toml: `color_rgb = [65, 105, 145]`.
+/// Languages without plugins (json, toml, yaml, etc.) get default gray.
 pub fn language_color(lang: &str) -> Color32 {
-    let (r, g, b) = match lang {
-        "python"     => (65, 105, 145),
-        "javascript" | "jsx" => (175, 165, 85),
-        "typescript" | "tsx" => (60, 110, 168),
-        "rust"       => (175, 135, 110),
-        "go"         => (55, 140, 165),
-        "c"          => (90, 95, 100),
-        "cpp"        => (55, 90, 140),
-        "java"       => (150, 110, 55),
-        "ruby"       => (160, 65, 60),
-        "csharp"     => (105, 60, 120),
-        "php"        => (105, 110, 150),
-        "bash"       => (110, 160, 80),
-        "html"       => (175, 80, 55),
-        "css"        => (85, 70, 120),
-        "scss"       => (155, 95, 125),
-        "swift"      => (180, 80, 60),
-        "kotlin"     => (135, 105, 190),
-        "lua"        => (50, 55, 120),
-        "scala"      => (155, 60, 75),
-        "elixir"     => (100, 75, 120),
-        "haskell"    => (90, 80, 125),
-        "zig"        => (180, 135, 60),
-        "r"          => (50, 120, 175),
-        "dockerfile" => (60, 80, 90),
-        "ocaml"      => (180, 110, 45),
-        "json"       => (60, 65, 70),
-        "toml"       => (130, 75, 50),
-        "yaml"       => (155, 50, 55),
-        "markdown"   => (50, 70, 135),
-        _            => (80, 85, 90),
-    };
-    Color32::from_rgb(r, g, b)
+    let rgb = crate::analysis::lang_registry::profile(lang).color_rgb;
+    Color32::from_rgb(rgb[0], rgb[1], rgb[2])
 }
 
 /// Git status → color

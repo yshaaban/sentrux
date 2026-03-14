@@ -125,20 +125,13 @@ fn is_main_entry_by_name(file: &FileNode) -> bool {
         }
         return false;
     }
-    // app.*/server.*/program.* only near project root (depth <= 2) [ref:daa66d13]
-    // Check language profile for custom main filenames first
+    // Check language profile for main filenames (from plugin.toml)
     let profile = lang_registry::profile(&file.lang);
     if !profile.semantics.main_filenames.is_empty() {
-        return profile.semantics.main_filenames.iter().any(|mf| name_lower == mf.to_lowercase());
+        return path_depth <= 2
+            && profile.semantics.main_filenames.iter().any(|mf| name_lower == mf.to_lowercase());
     }
-    // Universal fallback: common app/server/program entry point patterns
-    path_depth <= 2
-        && matches!(
-            name_lower.as_str(),
-            "app.py" | "app.ts" | "app.js" | "app.rb" | "app.java"
-            | "server.py" | "server.ts" | "server.js" | "server.go" | "server.rb"
-            | "program.cs"
-        )
+    false
 }
 
 /// Check if an entry point with the given func name already exists for this file.

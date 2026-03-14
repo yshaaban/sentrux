@@ -325,6 +325,9 @@ pub struct LanguageProfile {
     pub semantics: LanguageSemantics,
     /// Metric thresholds for this language
     pub thresholds: LanguageThresholds,
+    /// UI color [R, G, B] for this language in the renderer.
+    /// Default: [80, 85, 90] (neutral gray).
+    pub color_rgb: [u8; 3],
 }
 
 // ── Default implementations ──
@@ -429,6 +432,7 @@ impl Default for LanguageProfile {
             name: "unknown".into(),
             semantics: LanguageSemantics::default(),
             thresholds: LanguageThresholds::default(),
+            color_rgb: [80, 85, 90], // Neutral gray for unknown languages
         }
     }
 }

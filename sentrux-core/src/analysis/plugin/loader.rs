@@ -139,6 +139,7 @@ fn load_single_plugin(plugin_dir: &Path) -> Result<LoadedPlugin, String> {
         name: manifest.plugin.name.clone(),
         semantics: manifest.semantics,
         thresholds: manifest.thresholds,
+        color_rgb: manifest.plugin.color_rgb.unwrap_or([80, 85, 90]),
     };
 
     Ok(LoadedPlugin {
