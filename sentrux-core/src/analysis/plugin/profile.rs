@@ -317,28 +317,9 @@ pub struct ResolverConfig {
     /// Empty = use the language's registered extensions.
     pub resolve_extensions: Vec<String>,
 
-    // ── Workspace / cross-project dependency resolution ──
-
-    /// Workspace manifest file that lists local sub-packages.
-    /// JS/TS: `"pnpm-workspace.yaml"` or `"package.json"` (with "workspaces" field).
-    /// Rust: `"Cargo.toml"` (with [workspace] members).
-    /// Go: `"go.work"`.
-    pub workspace_file: String,
-
-    /// Format of the workspace file: "yaml", "json", "toml", or "go_work".
-    pub workspace_format: String,
-
-    /// Field/key in the workspace file that lists member patterns.
-    /// JS: `"workspaces"` in package.json. Rust: `"workspace.members"` in Cargo.toml.
-    pub workspace_members_field: String,
-
-    /// In each member's manifest, the field for the package name.
-    /// JS: `"name"` in package.json. Rust: `"package.name"` in Cargo.toml.
-    pub workspace_package_name_field: String,
-
-    /// Entry point within each member that the package name resolves to.
-    /// JS/TS: `"src/index.ts"`. Rust: `"src/lib.rs"`.
-    pub workspace_entry_point: String,
+    // Workspace resolution is handled by the suffix-index + alias system.
+    // No workspace-specific fields needed — the resolver accepts ALL edges
+    // within the scan root. Cross-project imports are real dependencies.
 }
 
 impl Default for ResolverConfig {
@@ -354,11 +335,6 @@ impl Default for ResolverConfig {
             path_alias_field: String::new(),
             path_alias_base_url: String::new(),
             resolve_extensions: Vec::new(),
-            workspace_file: String::new(),
-            workspace_format: String::new(),
-            workspace_members_field: String::new(),
-            workspace_package_name_field: String::new(),
-            workspace_entry_point: String::new(),
         }
     }
 }

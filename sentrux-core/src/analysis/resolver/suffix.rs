@@ -47,8 +47,6 @@ pub(crate) struct ResolutionStats {
     pub resolved_count: std::sync::atomic::AtomicUsize,
     /// Number of imports that could not be resolved
     pub unresolved_count: std::sync::atomic::AtomicUsize,
-    /// Number of imports filtered out by project boundary
-    pub cross_project_count: std::sync::atomic::AtomicUsize,
 }
 
 impl ResolutionStats {
@@ -57,7 +55,6 @@ impl ResolutionStats {
         Self {
             resolved_count: std::sync::atomic::AtomicUsize::new(0),
             unresolved_count: std::sync::atomic::AtomicUsize::new(0),
-            cross_project_count: std::sync::atomic::AtomicUsize::new(0),
         }
     }
 }
@@ -105,9 +102,7 @@ pub(crate) fn resolve_path_imports_ref(files: &[&FileNode], scan_root: Option<&P
     let path_aliases = load_path_aliases(&project_map, scan_root);
     let t_suffix = t0.elapsed();
 
-    // Detect workspace: if workspace aliases exist, allow cross-project imports between members
-    let is_workspace = !path_aliases.is_empty() && path_aliases.values().any(|aliases| !aliases.is_empty());
-    let edges = resolve_tier2_imports(files, &known_files, &project_map, &suffix_index, &exts, &path_aliases, is_workspace);
+    let edges = resolve_tier2_imports(files, &known_files, &project_map, &suffix_index, &exts, &path_aliases);
     let t_total = t0.elapsed();
 
     eprintln!(
@@ -125,10 +120,9 @@ pub(crate) fn resolve_path_imports_ref(files: &[&FileNode], scan_root: Option<&P
 /// Returns Some(ImportEdge) if resolved within the same project, None otherwise.
 fn resolve_single_specifier(
     src: &SourceContext<'_>,
-    idx: &ResolutionIndex<'_>,
+    _idx: &ResolutionIndex<'_>,
     env: &ResolveEnv<'_>,
     stats: &ResolutionStats,
-    is_workspace: bool,
 ) -> Option<ImportEdge> {
     if src.specifier.starts_with('<') {
         return None;
@@ -136,21 +130,17 @@ fn resolve_single_specifier(
     let resolved = resolve_module_import(src.specifier, src.file_dir, env, &src.file.lang);
     match resolved {
         Some(target) if target != src.file.path => {
-            let dst_project = idx.project_map.get(&target).map(|s| s.as_str()).unwrap_or("");
-            // Allow: same project, root project (empty), or workspace siblings
-            if src.src_project == dst_project || dst_project.is_empty() || is_workspace {
-                stats.resolved_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                Some(ImportEdge { from_file: src.file.path.clone(), to_file: target })
-            } else {
-                stats.cross_project_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                None
-            }
+            // Accept ALL resolved edges. The user chose to scan this directory —
+            // everything in it is their project. Cross-sub-project imports are
+            // real dependencies that the tool should show, not hide.
+            stats.resolved_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            Some(ImportEdge { from_file: src.file.path.clone(), to_file: target })
         }
         None => {
             stats.unresolved_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             None
         }
-        _ => None, // self-import, skip silently
+        _ => None,
     }
 }
 
@@ -162,7 +152,6 @@ fn resolve_tier2_imports(
     suffix_index: &SuffixIndex<'_>,
     exts: &[&str],
     path_aliases: &HashMap<String, Vec<PathAlias>>,
-    is_workspace: bool,
 ) -> Vec<ImportEdge> {
     let stats = ResolutionStats::new();
     let idx = ResolutionIndex { known_files, project_map, suffix_index };
@@ -187,20 +176,19 @@ fn resolve_tier2_imports(
                     let resolved_spec = apply_path_alias(specifier, project_aliases);
                     let spec_ref = resolved_spec.as_deref().unwrap_or(specifier);
                     let src = SourceContext { specifier: spec_ref, file, file_dir, src_project };
-                    resolve_single_specifier(&src, &idx, &env, &stats, is_workspace)
+                    resolve_single_specifier(&src, &idx, &env, &stats)
                 })
                 .collect()
         })
         .collect();
 
     let unresolved = stats.unresolved_count.load(std::sync::atomic::Ordering::Relaxed);
-    let cross_proj = stats.cross_project_count.load(std::sync::atomic::Ordering::Relaxed);
     let resolved = stats.resolved_count.load(std::sync::atomic::Ordering::Relaxed);
-    let total_specs = resolved + unresolved + cross_proj;
+    let total_specs = resolved + unresolved;
     if total_specs > 0 {
         eprintln!(
-            "[resolve_tier2] {} resolved, {} unresolved, {} cross-project filtered (of {} total specs)",
-            resolved, unresolved, cross_proj, total_specs
+            "[resolve] {} resolved, {} unresolved (of {} total specs)",
+            resolved, unresolved, total_specs
         );
     }
     edges
@@ -600,206 +588,8 @@ fn load_path_aliases(
             }
         }
 
-        // Workspace package aliases (pnpm/npm workspaces, Rust workspaces, etc.)
-        if !resolver.workspace_file.is_empty() && !resolver.workspace_members_field.is_empty() {
-            for &project_dir in &unique_roots {
-                let ws_path = if project_dir.is_empty() {
-                    scan_root.join(&resolver.workspace_file)
-                } else {
-                    scan_root.join(project_dir).join(&resolver.workspace_file)
-                };
-                if !ws_path.exists() { continue; }
-                let ws_aliases = load_workspace_aliases(
-                    &ws_path, scan_root, project_dir, resolver,
-                );
-                if !ws_aliases.is_empty() {
-                    result.entry(project_dir.to_string()).or_default().extend(ws_aliases);
-                }
-            }
-        }
     }
     result
-}
-
-/// Load workspace package name → local path aliases from a workspace manifest.
-fn load_workspace_aliases(
-    ws_path: &Path,
-    scan_root: &Path,
-    project_dir: &str,
-    resolver: &crate::analysis::plugin::profile::ResolverConfig,
-) -> Vec<PathAlias> {
-    let content = match std::fs::read_to_string(ws_path) {
-        Ok(c) => c,
-        Err(_) => return Vec::new(),
-    };
-
-    // Get member directory patterns from workspace file
-    let member_patterns = match resolver.workspace_format.as_str() {
-        "json" => extract_workspace_members_json(&content, &resolver.workspace_members_field),
-        "toml" => extract_workspace_members_toml(&content, &resolver.workspace_members_field),
-        _ => return Vec::new(),
-    };
-
-    let project_root = if project_dir.is_empty() {
-        scan_root.to_path_buf()
-    } else {
-        scan_root.join(project_dir)
-    };
-
-    // Expand glob patterns (packages/*, apps/*)
-    let mut aliases = Vec::new();
-    for pattern in &member_patterns {
-        let member_dirs = expand_workspace_glob(&project_root, pattern);
-        for member_dir in member_dirs {
-            if let Some(alias) = build_workspace_member_alias(
-                &member_dir, scan_root, project_dir, resolver,
-            ) {
-                aliases.push(alias);
-            }
-        }
-    }
-
-    aliases.sort_by(|a, b| b.prefix.len().cmp(&a.prefix.len()));
-    aliases
-}
-
-/// Extract workspace member patterns from JSON (package.json "workspaces").
-fn extract_workspace_members_json(content: &str, field: &str) -> Vec<String> {
-    let json: serde_json::Value = match serde_json::from_str(content) {
-        Ok(v) => v,
-        Err(_) => return Vec::new(),
-    };
-    let members = match navigate_json(&json, field) {
-        Some(v) => v,
-        None => return Vec::new(),
-    };
-    match members {
-        serde_json::Value::Array(arr) => {
-            arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect()
-        }
-        _ => Vec::new(),
-    }
-}
-
-/// Extract workspace member patterns from TOML (Cargo.toml [workspace] members).
-fn extract_workspace_members_toml(content: &str, field: &str) -> Vec<String> {
-    let toml_val: toml::Value = match content.parse() {
-        Ok(v) => v,
-        Err(_) => return Vec::new(),
-    };
-    // Navigate dot-separated path: "workspace.members"
-    let mut current = &toml_val;
-    for key in field.split('.') {
-        current = match current.get(key) {
-            Some(v) => v,
-            None => return Vec::new(),
-        };
-    }
-    match current {
-        toml::Value::Array(arr) => {
-            arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect()
-        }
-        _ => Vec::new(),
-    }
-}
-
-/// Expand a workspace glob pattern (e.g., "packages/*") to actual directories.
-fn expand_workspace_glob(root: &Path, pattern: &str) -> Vec<std::path::PathBuf> {
-    if pattern.contains('*') {
-        // Simple glob: "packages/*" → list subdirs of "packages/"
-        let prefix = pattern.trim_end_matches("/*").trim_end_matches("/*");
-        let dir = root.join(prefix);
-        if !dir.is_dir() { return Vec::new(); }
-        match std::fs::read_dir(&dir) {
-            Ok(entries) => entries
-                .filter_map(|e| e.ok())
-                .filter(|e| e.path().is_dir())
-                .map(|e| e.path())
-                .collect(),
-            Err(_) => Vec::new(),
-        }
-    } else {
-        // Exact path: "crates/my-crate"
-        let dir = root.join(pattern);
-        if dir.is_dir() { vec![dir] } else { Vec::new() }
-    }
-}
-
-/// Build a PathAlias for a workspace member: package name → local path.
-fn build_workspace_member_alias(
-    member_dir: &Path,
-    scan_root: &Path,
-    _project_dir: &str,
-    resolver: &crate::analysis::plugin::profile::ResolverConfig,
-) -> Option<PathAlias> {
-    if resolver.workspace_package_name_field.is_empty() {
-        return None;
-    }
-
-    // Find the member's manifest to read its package name
-    // For JS: member_dir/package.json. For Rust: member_dir/Cargo.toml.
-    let manifest_name = if !resolver.alias_file.is_empty() {
-        &resolver.alias_file
-    } else if resolver.workspace_format == "json" {
-        "package.json"
-    } else if resolver.workspace_format == "toml" {
-        "Cargo.toml"
-    } else {
-        return None;
-    };
-
-    let manifest_path = member_dir.join(manifest_name);
-    let content = std::fs::read_to_string(&manifest_path).ok()?;
-
-    // Read package name from manifest
-    let name = match resolver.workspace_format.as_str() {
-        "json" => {
-            let json: serde_json::Value = serde_json::from_str(&content).ok()?;
-            navigate_json(&json, &resolver.workspace_package_name_field)?
-                .as_str()?.to_string()
-        }
-        "toml" => {
-            let toml_val: toml::Value = content.parse().ok()?;
-            let mut current = &toml_val;
-            for key in resolver.workspace_package_name_field.split('.') {
-                current = current.get(key)?;
-            }
-            current.as_str()?.to_string()
-        }
-        _ => return None,
-    };
-
-    if name.is_empty() { return None; }
-
-    // Compute relative path from scan_root to member_dir
-    let rel_member = member_dir.strip_prefix(scan_root).ok()?;
-    let mut replacement = rel_member.to_string_lossy().to_string();
-    if !replacement.is_empty() && !replacement.ends_with('/') {
-        replacement.push('/');
-    }
-
-    // If workspace_entry_point is set, resolve directly to entry file
-    if !resolver.workspace_entry_point.is_empty() {
-        let entry = format!("{}{}", replacement, resolver.workspace_entry_point);
-        // Check if entry point exists
-        if scan_root.join(&entry).exists() {
-            return Some(PathAlias {
-                prefix: format!("{}/", name), // @company/shared/ → packages/shared/src/
-                replacements: vec![format!("{}src/", replacement)], // resolve subpath imports
-            });
-        }
-    }
-
-    // Apply alias transform (Rust: hyphen_to_underscore)
-    let transformed_name = match resolver.alias_transform.as_str() {
-        "hyphen_to_underscore" => name.replace('-', "_"),
-        _ => name.clone(),
-    };
-
-    Some(PathAlias {
-        prefix: format!("{}/", transformed_name),
-        replacements: vec![replacement],
-    })
 }
 
 /// Parse a JSON config file and extract path alias mappings.
