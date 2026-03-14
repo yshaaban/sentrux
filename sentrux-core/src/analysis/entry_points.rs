@@ -52,11 +52,6 @@ pub(crate) fn compute_exec_depth(
 /// Non-executable languages (html, css, scss, markdown, etc.) return false.
 /// Unknown languages are conservatively allowed (may have entry points).
 fn can_have_entry_points(lang: &str) -> bool {
-    // Non-plugin languages (json, toml, yaml, xml, markdown) aren't executable
-    const NON_EXECUTABLE_FALLBACKS: &[&str] = &["json", "toml", "yaml", "xml", "markdown"];
-    if NON_EXECUTABLE_FALLBACKS.contains(&lang) {
-        return false;
-    }
     lang_registry::profile(lang).semantics.is_executable
 }
 
@@ -108,10 +103,11 @@ fn is_non_production_path(path: &str) -> bool {
 fn is_main_entry_by_name(file: &FileNode) -> bool {
     let name_lower = file.name.to_lowercase();
     let path_depth = file.path.matches('/').count();
-    let is_index = matches!(name_lower.as_str(), "index.ts" | "index.js" | "index.php");
-
-    if is_index {
-        return path_depth <= 1;
+    // Check if this is a package index file (index.ts, index.js, __init__.py, etc.)
+    // near the project root — these are entry points at depth <= 1.
+    let profile = lang_registry::profile(&file.lang);
+    if profile.is_package_index_file(&file.path) && path_depth <= 1 {
+        return true;
     }
     if name_lower.starts_with("main.") {
         // Use lang_registry to check if the extension belongs to a recognized

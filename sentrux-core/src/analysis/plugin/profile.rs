@@ -507,7 +507,7 @@ impl Default for LanguageSemantics {
             package_index_files: Vec::new(),
             abstract_base_classes: Vec::new(),
             abstract_keywords: Vec::new(),
-            is_executable: true,
+            is_executable: false, // Must be explicitly set by plugins that can have entry points
             main_filenames: Vec::new(),
             test_dir_prefixes: Vec::new(),
             test_dir_infixes: Vec::new(),
