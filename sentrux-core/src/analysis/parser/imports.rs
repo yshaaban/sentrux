@@ -35,19 +35,13 @@ pub(crate) use super::strings::strip_strings_and_comments;
 ///   Ruby    `require 'json'`                                 → ["json"]
 ///   HTML    `<script src="./app.js">`                        → ["./app.js"]
 pub(crate) fn extract_import_modules(text: &str, lang: &str) -> Vec<String> {
-    // Step 1: Language-specific extraction — get raw module strings
+    // Step 1: Language-specific extraction — get raw module strings.
+    // Most languages now use AST-based extraction (ast_import_walker.rs).
+    // This text-based dispatch is the fallback for languages not yet migrated.
     let raw_modules: Vec<String> = match lang {
-        "python" => lang_extractors::extract_python(text),
-        "rust" => lang_extractors::extract_rust(text),
-        "go" => lang_extractors::extract_go(text),
-        "c" | "cpp" => lang_extractors::extract_c_cpp(text),
-        "java" | "csharp" => lang_extractors::extract_java_csharp(text),
-        "ruby" => lang_extractors::extract_ruby(text),
         "php" => lang_extractors::extract_php(text),
         "gdscript" => lang_extractors::extract_gdscript(text),
-        "html" => lang_extractors::extract_html(text),
-        "css" | "scss" | "sass" => lang_extractors::extract_css(text),
-        "scala" | "swift" | "kotlin" => lang_extractors::extract_jvm_like(text),
+        "swift" | "kotlin" => lang_extractors::extract_jvm_like(text),
         "elixir" => lang_extractors::extract_elixir(text),
         _ => lang_extractors::extract_fallback(text),
     };
@@ -184,12 +178,8 @@ pub(crate) fn extract_base_classes(node: tree_sitter::Node, content: &[u8], lang
         let kinds: Vec<&str> = profile.semantics.base_class_node_kinds.iter().map(|s| s.as_str()).collect();
         lang_extractors::extract_bases_by_kinds(node, content, &kinds, &mut bases);
     } else {
-        // Compiled extractor fallback
-        match profile.semantics.base_class_extractor.as_str() {
-            "python" => lang_extractors::extract_bases_python(node, content, &mut bases),
-            "jvm" => lang_extractors::extract_bases_jvm(node, content, &mut bases),
-            _ => lang_extractors::extract_bases_generic(node, content, &mut bases),
-        }
+        // Generic fallback: pattern-match on node kind substrings
+        lang_extractors::extract_bases_generic(node, content, &mut bases);
     }
 
     if bases.is_empty() { None } else { Some(bases) }
