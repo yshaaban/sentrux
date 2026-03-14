@@ -177,7 +177,7 @@ author = "sentrux"
 license = "MIT"
 
 [grammar]
-source = "https://github.com/tree-sitter-grammars/tree-sitter-clojure"
+source = "https://github.com/sogaiu/tree-sitter-clojure"
 ref = "master"
 abi_version = 14
 
@@ -348,7 +348,7 @@ author = "sentrux"
 license = "MIT"
 
 [grammar]
-source = "https://github.com/tree-sitter-grammars/tree-sitter-crystal"
+source = "https://github.com/crystal-lang-tools/tree-sitter-crystal"
 ref = "main"
 abi_version = 14
 
@@ -560,8 +560,8 @@ author = "sentrux"
 license = "MIT"
 
 [grammar]
-source = "https://github.com/AKushWarrior/tree-sitter-dart"
-ref = "main"
+source = "https://github.com/UserNobody14/tree-sitter-dart"
+ref = "master"
 abi_version = 14
 
 [queries]
@@ -813,7 +813,7 @@ author = "sentrux"
 license = "MIT"
 
 [grammar]
-source = "https://github.com/tree-sitter-grammars/tree-sitter-fsharp"
+source = "https://github.com/ionide/tree-sitter-fsharp"
 ref = "main"
 abi_version = 14
 
@@ -1069,7 +1069,7 @@ author = "sentrux"
 license = "MIT"
 
 [grammar]
-source = "https://github.com/tree-sitter-grammars/tree-sitter-groovy"
+source = "https://github.com/murtaza64/tree-sitter-groovy"
 ref = "main"
 abi_version = 14
 
@@ -1814,7 +1814,7 @@ author = "sentrux"
 license = "MIT"
 
 [grammar]
-source = "https://github.com/tree-sitter-grammars/tree-sitter-nim"
+source = "https://github.com/aMOPel/tree-sitter-nim"
 ref = "main"
 abi_version = 14
 
@@ -2227,8 +2227,8 @@ author = "sentrux"
 license = "MIT"
 
 [grammar]
-source = "https://github.com/tree-sitter-grammars/tree-sitter-powershell"
-ref = "master"
+source = "https://github.com/airbus-cert/tree-sitter-powershell"
+ref = "main"
 abi_version = 14
 
 [queries]
@@ -2276,7 +2276,7 @@ author = "sentrux"
 license = "MIT"
 
 [grammar]
-source = "https://github.com/tree-sitter-grammars/tree-sitter-protobuf"
+source = "https://github.com/90-008/tree-sitter-protobuf"
 ref = "main"
 abi_version = 14
 
