@@ -120,7 +120,12 @@ enum PluginAction {
 // ---------------------------------------------------------------------------
 
 fn main() -> eframe::Result<()> {
-    // Auto-install standard plugins on first run
+    // Sync embedded plugin configs — always in sync with binary version.
+    // Silently writes/updates plugin.toml + tags.scm, preserves grammar .dylib.
+    // Users never need to think about plugin versions.
+    sentrux_core::analysis::plugin::sync_embedded_plugins();
+
+    // Auto-install grammar binaries on first run (needs network, one-time)
     auto_install_plugins_if_needed();
 
     // Non-blocking update check (once per day, background thread)
