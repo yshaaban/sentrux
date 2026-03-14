@@ -176,12 +176,28 @@ fn resolve_tier2_imports(
             // Get path aliases for this file's project
             let project_aliases = path_aliases.get(src_project).map(|v| v.as_slice()).unwrap_or(&[]);
 
+            // Also try root-level aliases (from manifest name discovery)
+            let root_aliases = path_aliases.get("").map(|v| v.as_slice()).unwrap_or(&[]);
+
             imports.iter()
                 .filter_map(|specifier| {
-                    // Apply path alias substitution before resolving
-                    let resolved_spec = apply_path_alias(specifier, project_aliases);
-                    let spec_ref = resolved_spec.as_deref().unwrap_or(specifier);
-                    let src = SourceContext { specifier: spec_ref, file, file_dir, src_project };
+                    // Try alias-substituted specifier first, fall back to original.
+                    // Aliases are hints, not absolute — if the substituted path
+                    // doesn't exist (source not in src/), the original may still resolve.
+                    let alias_specs = [
+                        apply_path_alias(specifier, project_aliases),
+                        apply_path_alias(specifier, root_aliases),
+                    ];
+                    for aliased in &alias_specs {
+                        if let Some(ref spec) = aliased {
+                            let src = SourceContext { specifier: spec, file, file_dir, src_project };
+                            if let Some(edge) = resolve_single_specifier(&src, &idx, &env, &stats) {
+                                return Some(edge);
+                            }
+                        }
+                    }
+                    // Fall back to original specifier
+                    let src = SourceContext { specifier, file, file_dir, src_project };
                     resolve_single_specifier(&src, &idx, &env, &stats)
                 })
                 .collect()
