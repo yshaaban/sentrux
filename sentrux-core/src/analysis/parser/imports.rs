@@ -35,13 +35,11 @@ pub(crate) use super::strings::strip_strings_and_comments;
 ///   Ruby    `require 'json'`                                 → ["json"]
 ///   HTML    `<script src="./app.js">`                        → ["./app.js"]
 pub(crate) fn extract_import_modules(text: &str, lang: &str) -> Vec<String> {
-    // Step 1: Language-specific extraction — get raw module strings.
-    // Most languages now use AST-based extraction (ast_import_walker.rs).
-    // This text-based dispatch is the fallback for languages not yet migrated.
+    // All languages now use either:
+    // 1. @import.module query captures (branch 1 of process_import)
+    // 2. AST walker via [semantics.import_ast] (branch 3 of process_import)
+    // This text-based fallback handles edge cases where neither path works.
     let raw_modules: Vec<String> = match lang {
-        "php" => lang_extractors::extract_php(text),
-        "gdscript" => lang_extractors::extract_gdscript(text),
-        "swift" | "kotlin" => lang_extractors::extract_jvm_like(text),
         "elixir" => lang_extractors::extract_elixir(text),
         _ => lang_extractors::extract_fallback(text),
     };

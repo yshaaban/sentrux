@@ -19,7 +19,9 @@
 ; Init declarations
 (init_declaration) @func.def
 
-(import_declaration) @import
+; import Foundation / import UIKit.NSView
+(import_declaration
+  (identifier) @import.module) @import
 
 ; Calls — direct function call
 (call_expression

@@ -1,84 +1,20 @@
-//! Per-language import extraction helpers (legacy fallback).
+//! Import extraction helpers and base-class extraction.
 //!
-//! Most languages now use AST-based import extraction via `ast_import_walker.rs`.
-//! These remaining extractors serve languages whose tree-sitter queries don't yet
-//! capture import paths with enough structure for the AST walker.
+//! Import extraction: most languages use AST-based extraction (ast_import_walker.rs)
+//! or @import.module query captures. Only Elixir still needs a text extractor
+//! for multi-alias expansion (alias Collect.{Listing, Offer}).
 //!
-//! Still active:
-//!   - extract_php: PHP has multiple import keywords (use/require/include/require_once)
-//!   - extract_gdscript: preload/load with res:// prefix stripping
-//!   - extract_elixir: PascalCase→snake_case + multi-alias expansion
-//!   - extract_jvm_like: simple keyword strip (Swift, Kotlin)
-//!   - extract_fallback: generic "from" keyword detection
-//!
-//! Base class extraction helpers are shared across all languages.
+//! Base class extraction: data-driven via base_class_node_kinds in plugin.toml.
+//! Generic fallback for languages without configured node kinds.
 
-// ── Remaining import extractors (languages not yet on AST walker) ────
-
-pub(super) fn extract_php(text: &str) -> Vec<String> {
-    let trimmed = text.trim().trim_end_matches(';').trim();
-    let s = if let Some(rest) = trimmed.strip_prefix("use ") {
-        rest.trim().to_string()
-    } else {
-        trimmed
-            .trim_start_matches("require_once ")
-            .trim_start_matches("include_once ")
-            .trim_start_matches("require ")
-            .trim_start_matches("include ")
-            .trim()
-            .trim_matches(|c: char| c == '\'' || c == '"' || c == '(' || c == ')')
-            .to_string()
-    };
-    if s.is_empty() { vec![] } else { vec![s] }
-}
-
-/// GDScript: extract path from preload("res://path") and load("res://path")
-pub(super) fn extract_gdscript(text: &str) -> Vec<String> {
-    let mut results = Vec::new();
-    let search = text;
-    for prefix in &["preload(", "load("] {
-        let mut pos = 0;
-        while let Some(start) = search[pos..].find(prefix) {
-            let abs_start = pos + start + prefix.len();
-            if let Some(quote_start) = search[abs_start..].find('"').or_else(|| search[abs_start..].find('\'')) {
-                let q = abs_start + quote_start + 1;
-                let quote_char = search.as_bytes()[abs_start + quote_start];
-                if let Some(end) = search[q..].find(quote_char as char) {
-                    let path = &search[q..q + end];
-                    let clean = path
-                        .strip_prefix("res://")
-                        .unwrap_or(path)
-                        .trim_end_matches(".tscn")
-                        .trim_end_matches(".tres");
-                    if !clean.is_empty() {
-                        results.push(clean.to_string());
-                    }
-                    pos = q + end;
-                    continue;
-                }
-            }
-            pos = abs_start;
-        }
-    }
-    results
-}
-
-pub(super) fn extract_jvm_like(text: &str) -> Vec<String> {
-    let s = text.trim().trim_start_matches("import ").trim().to_string();
-    if s.is_empty() { vec![] } else { vec![s] }
-}
+// ── Import extractors ────────────────────────────────────────────────
 
 /// Convert a dot-separated PascalCase module path to snake_case file path.
 /// "Collect.Listing" → "collect/listing", "GenServer" → "gen_server"
 pub(super) fn pascal_to_snake_path(module: &str) -> String {
-    module
-        .split('.')
-        .map(pascal_to_snake)
-        .collect::<Vec<_>>()
-        .join("/")
+    module.split('.').map(pascal_to_snake).collect::<Vec<_>>().join("/")
 }
 
-/// Convert a PascalCase string to snake_case.
 fn pascal_to_snake(s: &str) -> String {
     let mut result = String::with_capacity(s.len() + 4);
     let chars: Vec<char> = s.chars().collect();
@@ -120,6 +56,8 @@ fn expand_elixir_multi_alias(text: &str) -> Vec<String> {
         .collect()
 }
 
+/// Elixir: extract module paths from alias/import/use/require calls.
+/// Handles PascalCase→snake_case conversion and multi-alias {A, B} expansion.
 pub(super) fn extract_elixir(text: &str) -> Vec<String> {
     let trimmed = text.trim();
     let rest = if let Some(r) = trimmed.strip_prefix("alias ") { r }
@@ -137,6 +75,7 @@ pub(super) fn extract_elixir(text: &str) -> Vec<String> {
     if path.is_empty() { vec![] } else { vec![path] }
 }
 
+/// Generic fallback: search for standalone "from" keyword with word boundaries.
 pub(super) fn extract_fallback(text: &str) -> Vec<String> {
     let bytes = text.as_bytes();
     let mut end = text.len();
@@ -154,24 +93,7 @@ pub(super) fn extract_fallback(text: &str) -> Vec<String> {
     vec![]
 }
 
-// ── Base-class extraction helpers (shared across all languages) ──────
-
-fn try_extract_base_name(arg: tree_sitter::Node, content: &[u8]) -> Option<String> {
-    let kind = arg.kind();
-    if kind != "identifier" && kind != "attribute" { return None; }
-    let text = arg.utf8_text(content).ok()?;
-    let name = text.trim().to_string();
-    if name.is_empty() { None } else { Some(name) }
-}
-
-fn collect_bases_from_list(list_node: tree_sitter::Node, content: &[u8], bases: &mut Vec<String>) {
-    for j in 0..list_node.child_count() {
-        let arg = list_node.child(j).unwrap();
-        if let Some(name) = try_extract_base_name(arg, content) {
-            bases.push(name);
-        }
-    }
-}
+// ── Base-class extraction helpers ────────────────────────────────────
 
 /// Collect base classes by matching child node kinds against a set of patterns.
 /// Used by the data-driven `base_class_node_kinds` profile field.

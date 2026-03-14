@@ -43,6 +43,11 @@
 
 ; ---- Import appendix (custom) ----
 
-(namespace_use_declaration) @import
+; use App\Models\User;
+(namespace_use_declaration
+  (namespace_use_clause
+    [(qualified_name) (name)] @import.module)) @import
 
-(include_expression) @import
+; require_once 'file.php' / include 'file.php'
+(include_expression
+  (string (string_content) @import.module)) @import
