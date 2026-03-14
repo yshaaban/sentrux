@@ -242,11 +242,21 @@ pub(crate) struct ModuleMetrics {
     pub(crate) circular_dep_count: usize,
 }
 
-/// Is this edge a Rust `mod xxx;` declaration (structural, not a real dependency)?
+/// Mod declaration files aggregated from all plugins. Cached at first access.
+static MOD_DECL_FILES: std::sync::LazyLock<std::collections::HashSet<String>> =
+    std::sync::LazyLock::new(|| {
+        crate::analysis::lang_registry::all_mod_declaration_files()
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect()
+    });
+
+/// Is this edge a module declaration (structural containment, not a real dependency)?
+/// Examples: Rust `mod xxx;`, Python `__init__.py` re-exports.
 /// Kept for coupling/cohesion but excluded from cycle/god_file/depth metrics.
 pub(crate) fn is_mod_declaration_edge(edge: &crate::core::types::ImportEdge) -> bool {
     let from_name = edge.from_file.rsplit('/').next().unwrap_or(&edge.from_file);
-    if from_name != "mod.rs" && from_name != "lib.rs" && from_name != "main.rs" {
+    if !MOD_DECL_FILES.contains(from_name) {
         return false;
     }
     let from_dir = edge.from_file.rfind('/').map(|i| &edge.from_file[..i]).unwrap_or("");

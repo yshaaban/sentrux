@@ -117,6 +117,49 @@ impl LangRegistry {
         self.configs.len()
     }
 
+    /// All manifest files across all loaded plugins (for project boundary detection).
+    pub fn all_manifest_files(&self) -> Vec<&str> {
+        let mut files: Vec<&str> = self.configs.iter()
+            .flat_map(|c| c.profile.semantics.project.manifest_files.iter().map(|s| s.as_str()))
+            .collect();
+        files.sort_unstable();
+        files.dedup();
+        files
+    }
+
+    /// All ignored directories across all loaded plugins (merged set).
+    pub fn all_ignored_dirs(&self) -> std::collections::HashSet<&str> {
+        self.configs.iter()
+            .flat_map(|c| c.profile.semantics.project.ignored_dirs.iter().map(|s| s.as_str()))
+            .collect()
+    }
+
+    /// All source dirs across all loaded plugins (merged set for module boundary detection).
+    pub fn all_source_dirs(&self) -> std::collections::HashSet<&str> {
+        self.configs.iter()
+            .flat_map(|c| c.profile.semantics.project.source_dirs.iter().map(|s| s.as_str()))
+            .collect()
+    }
+
+    /// All mod_declaration_files across all loaded plugins (merged set).
+    pub fn all_mod_declaration_files(&self) -> std::collections::HashSet<&str> {
+        self.configs.iter()
+            .flat_map(|c| c.profile.semantics.project.mod_declaration_files.iter().map(|s| s.as_str()))
+            .collect()
+    }
+
+    /// All package_index_files across all loaded plugins (merged set).
+    pub fn all_package_index_files(&self) -> std::collections::HashSet<&str> {
+        self.configs.iter()
+            .flat_map(|c| c.profile.semantics.package_index_files.iter().map(|s| s.as_str()))
+            .collect()
+    }
+
+    /// Iterate over all loaded profiles.
+    pub fn all_profiles(&self) -> impl Iterator<Item = &LanguageProfile> {
+        self.configs.iter().map(|c| &c.profile)
+    }
+
     /// Failed plugin descriptions (for UI display).
     pub fn failed(&self) -> &[String] {
         &self.failed
@@ -148,6 +191,31 @@ pub fn all_extensions() -> Vec<&'static str> {
 /// Number of loaded language plugins.
 pub fn plugin_count() -> usize {
     REGISTRY.count()
+}
+
+/// All manifest files across all loaded plugins.
+pub fn all_manifest_files() -> Vec<&'static str> {
+    REGISTRY.all_manifest_files()
+}
+
+/// All ignored dirs across all loaded plugins (merged).
+pub fn all_ignored_dirs() -> std::collections::HashSet<&'static str> {
+    REGISTRY.all_ignored_dirs()
+}
+
+/// All source dirs across all loaded plugins (merged).
+pub fn all_source_dirs() -> std::collections::HashSet<&'static str> {
+    REGISTRY.all_source_dirs()
+}
+
+/// All mod_declaration_files across all loaded plugins (merged).
+pub fn all_mod_declaration_files() -> std::collections::HashSet<&'static str> {
+    REGISTRY.all_mod_declaration_files()
+}
+
+/// All package_index_files across all loaded plugins (merged).
+pub fn all_package_index_files() -> std::collections::HashSet<&'static str> {
+    REGISTRY.all_package_index_files()
 }
 
 /// Detect language name from file extension string.

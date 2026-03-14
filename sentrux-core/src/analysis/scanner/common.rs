@@ -48,33 +48,23 @@ pub(crate) fn detect_lang(path: &Path) -> String {
     }
 }
 
-/// Directories to always ignore
-const IGNORED_DIRS: &[&str] = &[
-    ".git",
-    "__pycache__",
-    "node_modules",
-    ".DS_Store",
-    "target",
-    ".mypy_cache",
-    ".pytest_cache",
-    "venv",
-    ".venv",
-    ".claude",
-    ".cognitive",
-    ".beemem",
-    "site-packages",
-    "lib64",
-    "include",
-    "dist",
-    "build",
-    ".next",
-    ".nuxt",
-    "coverage",
-    ".tox",
-    ".eggs",
-    ".cargo",
-    ".rustup",
+/// Global ignored dirs (OS/tool artifacts, not language-specific).
+/// Language-specific ignored dirs come from plugin.toml [semantics.project].
+const GLOBAL_IGNORED_DIRS: &[&str] = &[
+    ".git", ".DS_Store", ".claude", ".cognitive", ".beemem",
+    "lib64", "include",
 ];
+
+/// Merged ignored dirs: global + all plugins. Cached at first access.
+static ALL_IGNORED_DIRS: std::sync::LazyLock<std::collections::HashSet<String>> =
+    std::sync::LazyLock::new(|| {
+        let mut set: std::collections::HashSet<String> = GLOBAL_IGNORED_DIRS.iter()
+            .map(|s| s.to_string()).collect();
+        for dir in crate::analysis::lang_registry::all_ignored_dirs() {
+            set.insert(dir.to_string());
+        }
+        set
+    });
 
 /// Extensions to ignore
 const IGNORED_EXTENSIONS: &[&str] = &[
@@ -86,8 +76,9 @@ const IGNORED_EXTENSIONS: &[&str] = &[
 ];
 
 /// Check if a directory name should be ignored during scanning.
+/// Checks both global ignored dirs and per-language ignored dirs from plugins.
 pub(crate) fn should_ignore_dir(name: &str) -> bool {
-    IGNORED_DIRS.contains(&name)
+    ALL_IGNORED_DIRS.contains(name)
 }
 
 /// Check if a file should be ignored based on its extension.

@@ -59,9 +59,23 @@ fn module_of_deep(path: &str, _first_slash: usize, depth2_end: usize) -> &str {
     }
 }
 
+/// Source dirs aggregated from all plugins. Cached at first access.
+static SOURCE_DIRS: std::sync::LazyLock<std::collections::HashSet<String>> =
+    std::sync::LazyLock::new(|| {
+        let mut set: std::collections::HashSet<String> =
+            crate::analysis::lang_registry::all_source_dirs()
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect();
+        // Universal fallback: "packages" is a monorepo convention used across ecosystems
+        set.insert("packages".into());
+        set
+    });
+
 /// Directories that are "dominant" — flat files underneath get per-file modules.
+/// Reads from plugin.toml [semantics.project] source_dirs across all plugins.
 fn is_dominant_dir(parent: &str) -> bool {
-    matches!(parent, "src" | "lib" | "packages" | "cmd" | "pkg" | "internal")
+    SOURCE_DIRS.contains(parent)
 }
 
 /// Handle files directly under one directory level.

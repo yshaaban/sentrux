@@ -69,18 +69,14 @@ impl ResolutionStats {
 /// CMakeLists.txt are excluded: they routinely appear at multiple directory
 /// levels within a single project (CMake per-directory, recursive Make),
 /// causing the boundary gate to silently drop valid cross-directory imports.
-const MANIFEST_FILES: &[&str] = &[
-    "Cargo.toml",
-    "package.json",
-    "go.mod",
-    "pyproject.toml",
-    "setup.py",
-    "pom.xml",
-    "build.gradle",
-    "build.gradle.kts",
-    "Gemfile",
-    "mix.exs",
-];
+/// Manifest files aggregated from all loaded plugins. Cached at first access.
+static MANIFEST_FILES: std::sync::LazyLock<Vec<String>> =
+    std::sync::LazyLock::new(|| {
+        crate::analysis::lang_registry::all_manifest_files()
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect()
+    });
 
 /// Tier 1 + Tier 2 synchronous import resolution (zero-copy: accepts &[&FileNode]).
 /// Tier 1: oxc_resolver for JS/TS/JSX/TSX -- accurate module resolution.

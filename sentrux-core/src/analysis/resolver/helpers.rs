@@ -7,18 +7,15 @@
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
-/// All known package-index filenames across all languages.
-/// When a module name maps to a directory, these files represent that module.
-pub(crate) const PACKAGE_INDEX_FILES: &[&str] = &[
-    "__init__.py",
-    "mod.rs",
-    "index.js",
-    "index.ts",
-    "index.jsx",
-    "index.tsx",
-    "index.mjs",
-    "index.cjs",
-];
+/// All known package-index filenames — aggregated from all loaded plugins.
+/// Cached at first access via LazyLock.
+static PACKAGE_INDEX_SET: std::sync::LazyLock<std::collections::HashSet<String>> =
+    std::sync::LazyLock::new(|| {
+        crate::analysis::lang_registry::all_package_index_files()
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect()
+    });
 
 /// Result of building the module suffix index.
 pub(crate) struct SuffixIndex<'a> {
@@ -35,7 +32,7 @@ pub(crate) struct SuffixIndex<'a> {
 /// Package index files -> parent dir. Everything else -> strip extension.
 pub(super) fn file_to_module_path(file_path: &str) -> &str {
     let filename = file_path.rsplit('/').next().unwrap_or(file_path);
-    let is_package_index = PACKAGE_INDEX_FILES.contains(&filename);
+    let is_package_index = PACKAGE_INDEX_SET.contains(filename);
     if is_package_index {
         file_path.rsplit_once('/').map(|(dir, _)| dir).unwrap_or("")
     } else {
@@ -150,7 +147,7 @@ pub(super) fn try_resolve_name(name: &str, base_dir: &Path, known_files: &HashSe
     }
 
     // C. Package index files
-    for index_file in PACKAGE_INDEX_FILES {
+    for index_file in PACKAGE_INDEX_SET.iter() {
         let candidate = normalize_path(&joined.join(index_file));
         if known_files.contains(candidate.as_str()) {
             return Some(candidate);
@@ -172,7 +169,7 @@ pub(super) fn resolve_relative(specifier: &str, file_dir: &Path, known_files: &H
         }
     }
     if remainder.is_empty() {
-        for index_file in PACKAGE_INDEX_FILES {
+        for index_file in PACKAGE_INDEX_SET.iter() {
             let candidate = normalize_path(&base.join(index_file));
             if known_files.contains(candidate.as_str()) {
                 return Some(candidate);

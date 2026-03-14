@@ -110,10 +110,20 @@ pub struct LanguageSemantics {
     // ── Import extraction (AST-based) ──
 
     /// AST-based import path extraction configuration.
-    /// When configured, the platform reads module paths directly from tree-sitter
-    /// AST nodes instead of re-parsing text with compiled extractors.
     #[serde(default)]
     pub import_ast: ImportAstConfig,
+
+    // ── Project structure ──
+
+    /// Project structure configuration — manifest files, ignored dirs, source dirs.
+    #[serde(default)]
+    pub project: ProjectConfig,
+
+    // ── Import resolution ──
+
+    /// Import resolver configuration — path aliases, module prefixes, crate aliases.
+    #[serde(default)]
+    pub resolver: ResolverConfig,
 
     // ── Complexity (AST-based) ──
 
@@ -220,6 +230,110 @@ impl ImportAstConfig {
     /// Whether this profile has AST-based import extraction configured.
     pub fn is_configured(&self) -> bool {
         !self.strategy.is_empty()
+    }
+}
+
+/// Project structure configuration — how this language's ecosystem organizes projects.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct ProjectConfig {
+    /// Project manifest files for boundary detection in monorepos.
+    /// Examples: `["Cargo.toml"]` for Rust, `["package.json"]` for JS/TS.
+    /// Multiple allowed: Python has both `pyproject.toml` and `setup.py`.
+    pub manifest_files: Vec<String>,
+
+    /// Directories to ignore during scanning (language build artifacts).
+    /// Merged across all loaded plugins at runtime.
+    /// Examples: `["target", ".cargo"]` for Rust, `["node_modules"]` for JS.
+    pub ignored_dirs: Vec<String>,
+
+    /// Source root directories for module boundary detection.
+    /// Files under these dirs get per-file module granularity.
+    /// Examples: `["src"]` for Rust, `["cmd", "pkg", "internal"]` for Go.
+    pub source_dirs: Vec<String>,
+
+    /// Files that represent module declarations (structural containment).
+    /// Import edges FROM these to children are excluded from dependency metrics.
+    /// Examples: `["mod.rs", "lib.rs", "main.rs"]` for Rust, `["__init__.py"]` for Python.
+    pub mod_declaration_files: Vec<String>,
+
+    /// Whether directories act as implicit packages (no index file needed).
+    /// True for Go (any .go file in a dir is part of the package).
+    pub directory_is_package: bool,
+}
+
+impl Default for ProjectConfig {
+    fn default() -> Self {
+        Self {
+            manifest_files: Vec::new(),
+            ignored_dirs: Vec::new(),
+            source_dirs: Vec::new(),
+            mod_declaration_files: Vec::new(),
+            directory_is_package: false,
+        }
+    }
+}
+
+/// Import resolver configuration — how to resolve import specifiers to files.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct ResolverConfig {
+    /// File containing module/package prefix for stripping from import specifiers.
+    /// Go: `"go.mod"`. Platform reads this file and strips the module path prefix.
+    pub module_prefix_file: String,
+
+    /// Directive keyword in module_prefix_file that holds the module path.
+    /// Go: `"module"` (parses `module github.com/user/repo`).
+    pub module_prefix_directive: String,
+
+    /// Manifest file containing project-name alias for suffix-index.
+    /// Rust: `"Cargo.toml"`.
+    pub alias_file: String,
+
+    /// Dotted field path in alias_file for the project name.
+    /// Rust: `"package.name"`.
+    pub alias_field: String,
+
+    /// Transform applied to alias name.
+    /// `"hyphen_to_underscore"` for Rust crate names (my-crate → my_crate).
+    pub alias_transform: String,
+
+    /// Entry point file that the alias resolves to (relative to project root).
+    /// Rust: `"src/lib.rs"`.
+    pub alias_entry_point: String,
+
+    /// File containing path alias mappings (replaces oxc_resolver).
+    /// JS/TS: `"tsconfig.json"`.
+    pub path_alias_file: String,
+
+    /// JSON field path to the alias map.
+    /// JS/TS: `"compilerOptions.paths"`.
+    pub path_alias_field: String,
+
+    /// JSON field for the base URL.
+    /// JS/TS: `"compilerOptions.baseUrl"`.
+    pub path_alias_base_url: String,
+
+    /// Extensions to try when resolving imports (in order).
+    /// JS/TS: `[".ts", ".tsx", ".js", ".jsx", ".mjs", ".mts"]`.
+    /// Empty = use the language's registered extensions.
+    pub resolve_extensions: Vec<String>,
+}
+
+impl Default for ResolverConfig {
+    fn default() -> Self {
+        Self {
+            module_prefix_file: String::new(),
+            module_prefix_directive: String::new(),
+            alias_file: String::new(),
+            alias_field: String::new(),
+            alias_transform: String::new(),
+            alias_entry_point: String::new(),
+            path_alias_file: String::new(),
+            path_alias_field: String::new(),
+            path_alias_base_url: String::new(),
+            resolve_extensions: Vec::new(),
+        }
     }
 }
 
@@ -386,6 +500,8 @@ impl Default for LanguageSemantics {
             base_class_extractor: "generic".into(),
             base_class_node_kinds: Vec::new(),
             import_ast: ImportAstConfig::default(),
+            project: ProjectConfig::default(),
+            resolver: ResolverConfig::default(),
             hash_is_comment: false,
             has_triple_quote_strings: false,
             package_index_files: Vec::new(),
