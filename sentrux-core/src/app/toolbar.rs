@@ -61,7 +61,7 @@ pub fn draw_toolbar(ui: &mut egui::Ui, state: &mut AppState) -> (bool, bool) {
 
 /// Primary actions: Open Folder + Rescan.
 fn draw_open_folder(ui: &mut egui::Ui, state: &mut AppState) {
-    if ui.button("Open Folder").clicked() {
+    if ui.button("Open Folder").on_hover_text("Open a project folder to scan").clicked() {
         state.folder_picker_requested = true;
     }
     // Rescan button — manual trigger for re-scanning current project
@@ -338,6 +338,39 @@ fn draw_toggle_buttons(ui: &mut egui::Ui, state: &mut AppState) {
     draw_edge_toggle(ui, state);
     draw_dsm_toggle(ui, state);
     draw_activity_toggle(ui, state);
+
+    // Export button — saves health summary as JSON
+    if state.health_report.is_some() {
+        if ui.button("\u{2913}").on_hover_text("Export report as JSON").clicked() {
+            if let Some(report) = &state.health_report {
+                let d = &report.dimensions;
+                let summary = serde_json::json!({
+                    "grade": report.grade.to_string(),
+                    "files": state.snapshot.as_ref().map(|s| s.total_files).unwrap_or(0),
+                    "lines": state.snapshot.as_ref().map(|s| s.total_lines).unwrap_or(0),
+                    "dimensions": {
+                        "cycles": { "value": report.circular_dep_count, "grade": d.cycles.to_string() },
+                        "coupling": { "value": format!("{:.2}", report.coupling_score), "grade": d.coupling.to_string() },
+                        "entropy": { "value": format!("{:.2}", report.entropy), "grade": d.entropy.to_string() },
+                        "cohesion": { "value": report.avg_cohesion.map(|c| format!("{:.2}", c)).unwrap_or("n/a".into()), "grade": d.cohesion.map(|c| c.to_string()).unwrap_or("-".into()) },
+                        "depth": { "value": report.max_depth, "grade": d.depth.to_string() },
+                        "complex_fn": { "count": report.complex_functions.len(), "ratio": format!("{:.2}", report.complex_fn_ratio), "grade": d.complex_fn.to_string() },
+                        "dead_code": { "count": report.dead_functions.len(), "ratio": format!("{:.2}", report.dead_code_ratio), "grade": d.dead_code.to_string() },
+                    },
+                    "import_edges": report.total_import_edges,
+                    "cross_module_edges": report.cross_module_edges,
+                });
+                let json = serde_json::to_string_pretty(&summary).unwrap_or_default();
+                if let Some(path) = rfd::FileDialog::new()
+                    .set_file_name("sentrux-report.json")
+                    .add_filter("JSON", &["json"])
+                    .save_file()
+                {
+                    let _ = std::fs::write(&path, &json);
+                }
+            }
+        }
+    }
 }
 
 /// Scan progress spinner and percentage indicator.

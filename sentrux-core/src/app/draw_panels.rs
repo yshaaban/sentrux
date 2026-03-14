@@ -77,7 +77,8 @@ pub(crate) fn draw_all_panels(app: &mut SentruxApp, ctx: &egui::Context) -> Pane
         crate::app::status_bar::draw_status_bar(ui, &app.state);
     });
 
-    if !app.state.drill_stack.is_empty() {
+    // Breadcrumb: always visible when a project is loaded
+    if app.state.root_path.is_some() {
         egui::TopBottomPanel::top("breadcrumb").show(ctx, |ui| {
             result.breadcrumb_changed = crate::app::breadcrumb::draw_breadcrumb(ui, &mut app.state);
         });
