@@ -10,11 +10,6 @@ use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
-/// Manifest-derived path aliases collected during suffix index build.
-/// Used to support subpath imports: @company/shared/utils → packages/shared/src/utils
-static PATH_ALIAS_FROM_MANIFESTS: std::sync::Mutex<Vec<(String, String)>> =
-    std::sync::Mutex::new(Vec::new());
-
 use super::helpers::{
     resolve_relative, try_resolve_name,
     try_suffix_resolve, file_to_module_path, SuffixIndex, ResolveEnv,
@@ -101,26 +96,15 @@ pub(crate) fn resolve_path_imports_ref(files: &[&FileNode], scan_root: Option<&P
     let project_map = build_project_map(files, scan_root);
     let t_project_map = t0.elapsed();
 
-    // Reset manifest path aliases from previous scan
-    PATH_ALIAS_FROM_MANIFESTS.lock().unwrap_or_else(|p| p.into_inner()).clear();
-
     let suffix_index = build_module_suffix_index(&known_files, scan_root, &project_map);
 
-    // Load path aliases from plugin-declared config files (tsconfig.json, etc.)
+    // Load path aliases from two sources:
+    // 1. Config files (tsconfig.json paths) — declared in plugin.toml
+    // 2. Manifest names (package.json "name", Cargo.toml "package.name") — auto-discovered
     let mut path_aliases = load_path_aliases(&project_map, scan_root);
-
-    // Merge manifest-derived package aliases (collected during suffix index build)
-    let manifest_aliases = PATH_ALIAS_FROM_MANIFESTS.lock()
-        .unwrap_or_else(|p| p.into_inner()).clone();
+    let manifest_aliases = collect_manifest_path_aliases(&project_map, scan_root);
     if !manifest_aliases.is_empty() {
-        let root_aliases = path_aliases.entry(String::new()).or_default();
-        for (prefix, replacement) in manifest_aliases {
-            root_aliases.push(PathAlias { prefix, replacements: vec![replacement] });
-        }
-        // Sort longest prefix first
-        if let Some(aliases) = path_aliases.get_mut("") {
-            aliases.sort_by(|a, b| b.prefix.len().cmp(&a.prefix.len()));
-        }
+        path_aliases.entry(String::new()).or_default().extend(manifest_aliases);
     }
     let t_suffix = t0.elapsed();
 
@@ -348,14 +332,14 @@ fn build_module_suffix_index<'a>(known_files: &HashSet<&'a str>, scan_root: &Pat
         }
     }
 
-    // Manifest-derived aliases: project name -> entry point file.
-    let mut manifest_aliases: HashMap<String, Vec<&'a str>> = HashMap::new();
-    inject_manifest_aliases(&mut manifest_aliases, known_files, scan_root);
-
     // Go module prefixes: parse go.mod files to map module paths to project dirs.
     let go_module_prefixes = collect_go_module_prefixes(project_map, scan_root);
 
-    SuffixIndex { index, manifest_aliases, go_module_prefixes }
+    // Manifest name → entry point (separate map for safe single-segment lookup)
+    let mut manifest_name_aliases: HashMap<String, Vec<&'a str>> = HashMap::new();
+    inject_manifest_name_aliases(&mut manifest_name_aliases, known_files, scan_root);
+
+    SuffixIndex { index, manifest_name_aliases, go_module_prefixes }
 }
 
 /// Extract the module path from a go.mod file content.
@@ -398,39 +382,34 @@ fn collect_go_module_prefixes(project_map: &HashMap<String, String>, scan_root: 
     prefixes
 }
 
-/// Read manifest files and add project-name → entry-point aliases to the suffix index.
-/// Data-driven from plugin.toml [semantics.resolver] alias_file/alias_field/alias_entry_point.
-/// Works for ANY language: Rust (Cargo.toml → crate name), JS/TS (package.json → package name).
-fn inject_manifest_aliases<'a>(
+/// Add exact package name → entry file to the manifest_name_aliases map.
+/// For exact imports: `use sentrux_core` → `src/lib.rs`, `import '@company/shared'` → `src/index.ts`.
+/// Uses alias_entry_point from plugin profile to find entry files, then reads manifest for name.
+fn inject_manifest_name_aliases<'a>(
     index: &mut HashMap<String, Vec<&'a str>>,
     known_files: &HashSet<&'a str>,
     scan_root: &Path,
 ) {
-    // For each language profile that declares alias resolution
     for profile in crate::analysis::lang_registry::all_profiles() {
         let resolver = &profile.semantics.resolver;
-        if resolver.alias_file.is_empty() || resolver.alias_field.is_empty() {
+        if resolver.alias_file.is_empty() || resolver.alias_field.is_empty()
+            || resolver.alias_entry_point.is_empty()
+        {
             continue;
         }
-        let entry_filename = if resolver.alias_entry_point.is_empty() {
-            continue; // No entry point → can't build alias
-        } else {
-            resolver.alias_entry_point.rsplit('/').next().unwrap_or(&resolver.alias_entry_point)
-        };
 
-        // Find files matching the entry point pattern
+        let entry_filename = resolver.alias_entry_point.rsplit('/').next()
+            .unwrap_or(&resolver.alias_entry_point);
+
         for &file_path in known_files {
             let filename = file_path.rsplit('/').next().unwrap_or(file_path);
             if filename != entry_filename {
                 continue;
             }
-            // Check the file path ends with the full entry point path
             if !file_path.ends_with(&resolver.alias_entry_point) {
                 continue;
             }
 
-            // Derive project directory from entry point path
-            // e.g., "sentrux-core/src/lib.rs" with entry_point="src/lib.rs" → "sentrux-core"
             let project_dir = file_path
                 .strip_suffix(&resolver.alias_entry_point)
                 .unwrap_or("")
@@ -450,22 +429,93 @@ fn inject_manifest_aliases<'a>(
                         "hyphen_to_underscore" => name.replace('-', "_"),
                         _ => name,
                     };
-                    // Suffix alias: exact name → entry point file
-                    index.entry(transformed.clone()).or_default().push(file_path);
-
-                    // Also add to path_aliases for subpath imports:
-                    // @company/shared/utils → packages/shared/src/utils
-                    let src_dir = file_path
-                        .strip_suffix(entry_filename)
-                        .unwrap_or(file_path);
-                    if !src_dir.is_empty() {
-                        PATH_ALIAS_FROM_MANIFESTS.lock().unwrap_or_else(|p| p.into_inner())
-                            .push((format!("{}/", transformed), src_dir.to_string()));
+                    if !transformed.is_empty() {
+                        index.entry(transformed).or_default().push(file_path);
                     }
                 }
             }
         }
     }
+}
+
+/// Scan all manifest files and build package name → directory path aliases.
+///
+/// First-principle approach: the manifest's DIRECTORY is the package.
+/// When @company/shared is imported, it means "files in the directory
+/// containing a package.json with name: @company/shared".
+///
+/// No entry point guessing. No src/ assumptions. The directory IS the truth.
+/// Normal resolution (package_index_files, extension probing) handles the rest.
+///
+/// Data-driven from plugin.toml [semantics.resolver] alias_file + alias_field.
+fn collect_manifest_path_aliases(
+    project_map: &HashMap<String, String>,
+    scan_root: &Path,
+) -> Vec<PathAlias> {
+    let mut aliases = Vec::new();
+    let mut seen_dirs: HashSet<String> = HashSet::new();
+
+    // Find all unique project directories (each has a manifest)
+    let unique_roots: HashSet<&str> = project_map.values().map(|s| s.as_str()).collect();
+
+    for profile in crate::analysis::lang_registry::all_profiles() {
+        let resolver = &profile.semantics.resolver;
+        if resolver.alias_file.is_empty() || resolver.alias_field.is_empty() {
+            continue;
+        }
+
+        for &project_dir in &unique_roots {
+            if seen_dirs.contains(project_dir) {
+                continue;
+            }
+
+            let manifest_path = if project_dir.is_empty() {
+                scan_root.join(&resolver.alias_file)
+            } else {
+                scan_root.join(project_dir).join(&resolver.alias_file)
+            };
+
+            if !manifest_path.exists() {
+                continue;
+            }
+
+            let content = match std::fs::read_to_string(&manifest_path) {
+                Ok(c) => c,
+                Err(_) => continue,
+            };
+
+            let name = match extract_name_from_manifest(
+                &content, &resolver.alias_field, &resolver.alias_file,
+            ) {
+                Some(n) if !n.is_empty() => n,
+                _ => continue,
+            };
+
+            let transformed = match resolver.alias_transform.as_str() {
+                "hyphen_to_underscore" => name.replace('-', "_"),
+                _ => name,
+            };
+
+            // Map: package_name/ → project_dir/
+            // @company/shared/ → packages/shared/
+            // sentrux_core/ → sentrux-core/
+            let dir_replacement = if project_dir.is_empty() {
+                String::new()
+            } else {
+                format!("{}/", project_dir)
+            };
+
+            aliases.push(PathAlias {
+                prefix: format!("{}/", transformed),
+                replacements: vec![dir_replacement],
+            });
+
+            seen_dirs.insert(project_dir.to_string());
+        }
+    }
+
+    aliases.sort_by(|a, b| b.prefix.len().cmp(&a.prefix.len()));
+    aliases
 }
 
 /// Extract a name field from a manifest file (TOML or JSON).
@@ -550,8 +600,9 @@ fn resolve_module_import(
     if let Some(found) = try_resolve_name(specifier, Path::new(""), env.known_files, env.exts) {
         return Some(found);
     }
-    // Finally, manifest-derived aliases
-    if let Some(candidates) = env.suffix_index.manifest_aliases.get(specifier) {
+    // Finally: manifest name aliases (crate names, package names)
+    // These are high-confidence (from actual manifest files), safe for single-segment lookup.
+    if let Some(candidates) = env.suffix_index.manifest_name_aliases.get(specifier) {
         if candidates.len() == 1 {
             return Some(candidates[0].to_string());
         }
@@ -570,10 +621,25 @@ pub(crate) struct PathAlias {
 /// Apply path alias substitution to a specifier.
 fn apply_path_alias(specifier: &str, aliases: &[PathAlias]) -> Option<String> {
     for alias in aliases {
+        // Prefix match: @company/shared/utils → packages/shared/utils
         if specifier.starts_with(&alias.prefix) {
             let remainder = &specifier[alias.prefix.len()..];
             if let Some(replacement) = alias.replacements.first() {
                 return Some(format!("{}{}", replacement, remainder));
+            }
+        }
+        // Exact match: @company/shared → packages/shared (directory)
+        // The caller's normal resolution will find index files via package_index_files
+        let exact = alias.prefix.trim_end_matches('/');
+        if specifier == exact {
+            if let Some(replacement) = alias.replacements.first() {
+                let dir = replacement.trim_end_matches('/');
+                if dir.is_empty() {
+                    // Root project: exact import of own package name
+                    // Can't return empty — return None, let suffix-index handle it
+                    continue;
+                }
+                return Some(dir.to_string());
             }
         }
     }

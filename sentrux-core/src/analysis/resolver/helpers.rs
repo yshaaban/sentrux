@@ -21,8 +21,9 @@ static PACKAGE_INDEX_SET: std::sync::LazyLock<std::collections::HashSet<String>>
 pub(crate) struct SuffixIndex<'a> {
     /// Standard suffix index: file-path suffixes -> files
     pub(super) index: HashMap<String, Vec<&'a str>>,
-    /// Manifest-derived aliases: project name -> entry point (safe for single-segment lookup)
-    pub(super) manifest_aliases: HashMap<String, Vec<&'a str>>,
+    /// Manifest-derived name aliases: package/crate name → entry point file.
+    /// Separate from general index to allow safe single-segment lookup.
+    pub(super) manifest_name_aliases: HashMap<String, Vec<&'a str>>,
     /// Go module prefix map: module path (from go.mod) -> project dir relative to scan root.
     /// e.g. "github.com/user/repo" -> "server" when server/go.mod declares that module.
     pub(super) go_module_prefixes: Vec<(String, String)>,
