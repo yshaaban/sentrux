@@ -209,10 +209,20 @@ r#"; Clojure tags.scm
   value: (sym_lit) @class.name) @definition.class
 
 ; ---- Import appendix ----
-; ns form with :require
+; UNTESTED: @import.module captures are best-effort without grammar validation
+
+; ns form: (ns my.namespace (:require ...))
+; The second sym_lit child after "ns" is the namespace (module path)
 (list_lit
-  value: (sym_lit) @name
-  (#eq? @name "ns")) @import
+  value: (sym_lit) @_ns_kw
+  (#eq? @_ns_kw "ns")
+  value: (sym_lit) @import.module) @import
+
+; require form: (require '[clojure.string :as str])
+; Fallback: capture the whole require/use/import form
+(list_lit
+  value: (sym_lit) @_req_kw
+  (#match? @_req_kw "^(require|use|import)$")) @import
 "#),
     ("cpp",
 r#"[plugin]
@@ -769,7 +779,22 @@ r#"; Erlang tags.scm
   (#eq? @attr_name "module")) @definition.module
 
 ; ---- Import appendix ----
+; UNTESTED: @import.module captures are best-effort without grammar validation
 
+; -import(lists, [...]). — the first argument after the attribute name is the module atom
+; In WhatsApp/tree-sitter-erlang, attribute arguments are (arguments (atom) ...)
+(attribute
+  name: (atom) @_attr_name
+  (arguments (atom) @import.module)
+  (#eq? @_attr_name "import")) @import
+
+; -include("file.hrl") / -include_lib("file.hrl") — string argument
+(attribute
+  name: (atom) @_attr_name2
+  (arguments (string) @import.module)
+  (#match? @_attr_name2 "^(include|include_lib)$")) @import
+
+; Fallback for any import/include/include_lib without specific module capture
 (attribute
   name: (atom) @attr_name
   (#match? @attr_name "^(import|include|include_lib)$")) @import
@@ -1587,7 +1612,26 @@ r#"; Julia tags.scm
   (identifier) @name) @reference.call
 
 ; ---- Import appendix ----
+; UNTESTED: @import.module captures are best-effort without grammar validation
 
+; import Foo / import Foo: bar — capture the module identifier
+; In tree-sitter-julia, import_statement contains (identifier) or (selected_import (identifier) ...)
+(import_statement
+  (identifier) @import.module) @import
+
+(import_statement
+  (selected_import
+    (identifier) @import.module)) @import
+
+; using Foo / using Foo: bar
+(using_statement
+  (identifier) @import.module) @import
+
+(using_statement
+  (selected_import
+    (identifier) @import.module)) @import
+
+; Fallback: whole statement
 (import_statement) @import
 
 (using_statement) @import
@@ -1811,7 +1855,23 @@ r#"; Nim tags.scm
       name: (identifier) @name))) @definition.class
 
 ; ---- Import appendix ----
+; UNTESTED: @import.module captures are best-effort without grammar validation
 
+; import strutils / import os, strutils — capture module identifiers
+; In tree-sitter-nim, import_statement has (expression_list (identifier) ...) or direct (identifier)
+(import_statement
+  (expression_list
+    (identifier) @import.module)) @import
+
+(import_statement
+  (identifier) @import.module) @import
+
+; from os import joinPath — capture the source module
+; from_statement has a module identifier followed by import list
+(from_statement
+  (identifier) @import.module) @import
+
+; Fallback: whole statement
 (import_statement) @import
 
 (from_statement) @import
@@ -1835,7 +1895,7 @@ ref = "master"
 abi_version = 14
 
 [queries]
-capabilities = ["functions"]
+capabilities = ["functions", "imports"]
 
 [checksums]
 
@@ -1850,6 +1910,17 @@ r#"; Nix tags.scm
   attrpath: (attrpath
     (identifier) @name)) @definition.function
 
+; ---- Import appendix ----
+; UNTESTED: @import.module captures are best-effort without grammar validation
+
+; import ./path.nix — parsed as (apply_expression function: (identifier) argument: (path_expression))
+; In tree-sitter-nix, `import <nixpkgs>` is also apply_expression
+(apply_expression
+  function: (identifier) @_fn
+  argument: (_) @import.module
+  (#eq? @_fn "import")) @import
+
+; with expression (brings names into scope)
 (with_expression) @import
 
 (inherit
@@ -2233,7 +2304,13 @@ r#"; Protocol Buffers tags.scm
   (rpc_name) @name) @definition.function
 
 ; ---- Import appendix ----
+; UNTESTED: @import.module captures are best-effort without grammar validation
 
+; import "other.proto" — the string literal is the module path
+(import
+  (string) @import.module) @import
+
+; Fallback
 (import) @import
 "#),
     ("python",
