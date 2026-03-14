@@ -8,6 +8,7 @@ use crate::app::state::AppState;
 use crate::license;
 use super::activity_panel::draw_sep;
 use super::health_display::draw_health_section;
+use super::language_summary::draw_language_summary;
 use super::arch_display::draw_arch_section;
 use super::evolution_display::draw_evolution_section;
 use super::testgap_display::draw_testgap_section;
@@ -50,6 +51,12 @@ pub fn draw_metrics_panel(ctx: &egui::Context, state: &mut AppState) {
 /// Render all metric sections inside the scroll area.
 fn draw_metrics_sections(ui: &mut egui::Ui, state: &mut AppState, tc: &ThemeConfig) {
     let tier = license::current_tier();
+
+    // Language summary: always visible when snapshot exists
+    if let Some(snap) = &state.snapshot {
+        draw_language_summary(ui, snap, tc);
+        draw_sep(ui, tc, 4.0);
+    }
 
     // Health + Architecture: always free
     if let Some(report) = &state.health_report {

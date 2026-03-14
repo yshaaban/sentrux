@@ -10,6 +10,7 @@ pub(crate) mod arch_display;
 pub(crate) mod dsm_panel;
 pub(crate) mod evolution_display;
 pub(crate) mod health_display;
+pub(crate) mod language_summary;
 pub(crate) mod metrics_panel;
 pub(crate) mod rules_display;
 pub(crate) mod testgap_display;
