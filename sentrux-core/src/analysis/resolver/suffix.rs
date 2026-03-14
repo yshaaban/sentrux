@@ -376,97 +376,85 @@ fn collect_go_module_prefixes(project_map: &HashMap<String, String>, scan_root: 
     prefixes
 }
 
-/// Derive the project directory from a lib.rs file path.
-/// Returns None if the path doesn't end with /lib.rs or isn't exactly "lib.rs".
-fn lib_rs_project_dir(file_path: &str) -> Option<&str> {
-    if file_path == "lib.rs" {
-        return Some("");
-    }
-    let src_dir = file_path.strip_suffix("/lib.rs")?;
-    if src_dir == "src" {
-        Some("")
-    } else {
-        Some(src_dir.strip_suffix("/src").unwrap_or(src_dir))
-    }
-}
-
-/// Try to read a crate name from Cargo.toml and insert it as an alias.
-fn try_insert_cargo_alias<'a>(
-    index: &mut HashMap<String, Vec<&'a str>>,
-    file_path: &'a str,
-    cargo_toml: &Path,
-) {
-    match std::fs::read_to_string(cargo_toml) {
-        Ok(content) => {
-            if let Some(name) = extract_cargo_name(&content) {
-                let crate_name = name.replace('-', "_");
-                index.entry(crate_name).or_default().push(file_path);
-            }
-        }
-        Err(e) => {
-            if cargo_toml.exists() {
-                eprintln!("[graph] failed to read {}: {} (crate alias skipped)", cargo_toml.display(), e);
-            }
-        }
-    }
-}
-
-/// Read manifest files and add project-name -> entry-point aliases to the suffix index.
+/// Read manifest files and add project-name → entry-point aliases to the suffix index.
+/// Data-driven from plugin.toml [semantics.resolver] alias_file/alias_field/alias_entry_point.
+/// Works for ANY language: Rust (Cargo.toml → crate name), JS/TS (package.json → package name).
 fn inject_manifest_aliases<'a>(
     index: &mut HashMap<String, Vec<&'a str>>,
     known_files: &HashSet<&'a str>,
     scan_root: &Path,
 ) {
-    for &file_path in known_files {
-        let filename = file_path.rsplit('/').next().unwrap_or(file_path);
-        if filename != "lib.rs" {
+    // For each language profile that declares alias resolution
+    for profile in crate::analysis::lang_registry::all_profiles() {
+        let resolver = &profile.semantics.resolver;
+        if resolver.alias_file.is_empty() || resolver.alias_field.is_empty() {
             continue;
         }
-        let project_dir = match lib_rs_project_dir(file_path) {
-            Some(d) => d,
-            None => continue,
+        let entry_filename = if resolver.alias_entry_point.is_empty() {
+            continue; // No entry point → can't build alias
+        } else {
+            resolver.alias_entry_point.rsplit('/').next().unwrap_or(&resolver.alias_entry_point)
         };
-        let cargo_toml = scan_root.join(project_dir).join("Cargo.toml");
-        try_insert_cargo_alias(index, file_path, &cargo_toml);
-    }
-}
 
-/// Parse a TOML string value: handles double-quoted, single-quoted, and bare values.
-fn parse_toml_string_value(rest: &str) -> Option<&str> {
-    if let Some(inner) = rest.strip_prefix('"') {
-        inner.find('"').map(|i| &inner[..i])
-    } else if let Some(inner) = rest.strip_prefix('\'') {
-        inner.find('\'').map(|i| &inner[..i])
-    } else {
-        Some(rest.split_whitespace().next().unwrap_or(""))
-    }
-}
+        // Find files matching the entry point pattern
+        for &file_path in known_files {
+            let filename = file_path.rsplit('/').next().unwrap_or(file_path);
+            if filename != entry_filename {
+                continue;
+            }
+            // Check the file path ends with the full entry point path
+            if !file_path.ends_with(&resolver.alias_entry_point) {
+                continue;
+            }
 
-/// Extract `name = "..."` from Cargo.toml [package] section.
-fn extract_cargo_name(content: &str) -> Option<String> {
-    let mut in_package = false;
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed.starts_with('[') {
-            in_package = trimmed == "[package]";
-            continue;
-        }
-        if !in_package { continue; }
-        let rest = match trimmed.strip_prefix("name") {
-            Some(r) => r,
-            None => continue,
-        };
-        let rest = match rest.trim_start().strip_prefix('=') {
-            Some(r) => r.trim(),
-            None => continue,
-        };
-        if let Some(n) = parse_toml_string_value(rest) {
-            if !n.is_empty() {
-                return Some(n.to_string());
+            // Derive project directory from entry point path
+            // e.g., "sentrux-core/src/lib.rs" with entry_point="src/lib.rs" → "sentrux-core"
+            let project_dir = file_path
+                .strip_suffix(&resolver.alias_entry_point)
+                .unwrap_or("")
+                .trim_end_matches('/');
+
+            let manifest_path = if project_dir.is_empty() {
+                scan_root.join(&resolver.alias_file)
+            } else {
+                scan_root.join(project_dir).join(&resolver.alias_file)
+            };
+
+            if let Ok(content) = std::fs::read_to_string(&manifest_path) {
+                if let Some(name) = extract_name_from_manifest(
+                    &content, &resolver.alias_field, &resolver.alias_file,
+                ) {
+                    let transformed = match resolver.alias_transform.as_str() {
+                        "hyphen_to_underscore" => name.replace('-', "_"),
+                        _ => name,
+                    };
+                    index.entry(transformed).or_default().push(file_path);
+                }
             }
         }
     }
-    None
+}
+
+/// Extract a name field from a manifest file (TOML or JSON).
+fn extract_name_from_manifest(content: &str, field: &str, filename: &str) -> Option<String> {
+    if filename.ends_with(".toml") {
+        extract_toml_field(content, field)
+    } else if filename.ends_with(".json") {
+        let json: serde_json::Value = serde_json::from_str(content).ok()?;
+        navigate_json(&json, field)?.as_str().map(|s| s.to_string())
+    } else {
+        None
+    }
+}
+
+/// Extract a dotted field path from TOML content (e.g., "package.name").
+fn extract_toml_field(content: &str, field: &str) -> Option<String> {
+    let val: toml::Value = content.parse().ok()?;
+    let mut current = &val;
+    for key in field.split('.') {
+        current = current.get(key)?;
+    }
+    current.as_str().map(|s| s.to_string())
 }
 
 /// Language-agnostic module resolver.
