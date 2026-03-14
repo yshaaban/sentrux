@@ -58,8 +58,24 @@ pub(crate) fn draw_file_detail(
 
     ui.add_space(6.0);
 
-    // Metrics from file_index
-    if let Some(entry) = state.file_index.get(selected.as_str()) {
+    // Pro gate: detailed metrics, imports, functions require Pro tier
+    let is_pro = crate::license::current_tier().is_pro();
+
+    if !is_pro {
+        ui.add_space(4.0);
+        ui.label(
+            egui::RichText::new("Upgrade to Pro for file-level details:")
+                .monospace().size(8.0).color(tc.text_secondary),
+        );
+        ui.label(
+            egui::RichText::new("  imports, importers, functions, blast radius")
+                .monospace().size(8.0).color(egui::Color32::from_rgb(100, 100, 110)),
+        );
+        return;
+    }
+
+    // ── PRO ONLY: detailed metrics ──
+    if let Some(_entry) = state.file_index.get(selected.as_str()) {
         draw_section_header(ui, "METRICS", tc);
 
         let fan_out = snap.import_graph.iter()
@@ -69,8 +85,6 @@ pub(crate) fn draw_file_detail(
 
         draw_metric_row(ui, "fan-out", &format!("{} imports", fan_out), tc, row_h, &font);
         draw_metric_row(ui, "fan-in", &format!("{} importers", fan_in), tc, row_h, &font);
-        draw_metric_row(ui, "lines", &format!("{}", entry.lines), tc, row_h, &font);
-        draw_metric_row(ui, "functions", &format!("{}", entry.funcs), tc, row_h, &font);
 
         // Blast radius
         if let Some(arch) = &state.arch_report {
