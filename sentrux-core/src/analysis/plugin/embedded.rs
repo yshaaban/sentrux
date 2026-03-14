@@ -624,6 +624,11 @@ color_rgb = [60, 80, 90]
 author = "sentrux"
 license = "MIT"
 
+[grammar]
+source = "https://github.com/camdencheek/tree-sitter-dockerfile"
+ref = "main"
+abi_version = 14
+
 [semantics]
 is_executable = false
 "#,
@@ -1543,6 +1548,11 @@ version = "0.1.0"
 extensions = ["json", "jsonc"]
 color_rgb = [60, 65, 70]
 
+[grammar]
+source = "https://github.com/tree-sitter/tree-sitter-json"
+ref = "master"
+abi_version = 14
+
 [semantics]
 is_executable = false
 "#,
@@ -1794,6 +1804,11 @@ color_rgb = [50, 70, 135]
 [plugin.metadata]
 author = "sentrux"
 license = "MIT"
+
+[grammar]
+source = "https://github.com/tree-sitter-grammars/tree-sitter-markdown"
+ref = "split_parser"
+abi_version = 14
 
 [semantics]
 is_executable = false
@@ -2969,6 +2984,11 @@ color_rgb = [220, 140, 60]
 author = "sentrux"
 license = "MIT"
 
+[grammar]
+source = "https://github.com/DerekStride/tree-sitter-sql"
+ref = "main"
+abi_version = 14
+
 [semantics]
 is_executable = false
 "#,
@@ -3109,6 +3129,11 @@ display_name = "TOML"
 version = "0.1.0"
 extensions = ["toml"]
 color_rgb = [130, 75, 50]
+
+[grammar]
+source = "https://github.com/tree-sitter-grammars/tree-sitter-toml"
+ref = "master"
+abi_version = 14
 
 [semantics]
 is_executable = false
@@ -3407,6 +3432,11 @@ color_rgb = [155, 50, 55]
 [plugin.metadata]
 author = "sentrux"
 license = "MIT"
+
+[grammar]
+source = "https://github.com/tree-sitter-grammars/tree-sitter-yaml"
+ref = "master"
+abi_version = 14
 
 [semantics]
 is_executable = false
