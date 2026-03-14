@@ -267,11 +267,8 @@ mod tests {
     #[ignore]
     fn dump_failing_grammar_nodes() {
         let dir = plugins_dir().unwrap();
-        let failing = [
-            "nim", "perl", "erlang", "fsharp", "kotlin", "solidity",
-            "powershell", "julia", "groovy", "protobuf", "ocaml",
-            "nix", "dart", "svelte", "vue", "objective-c",
-        ];
+        // Only dump languages that are NOT currently loaded (to avoid test pollution)
+        let failing: [&str; 0] = [];
         for name in &failing {
             let plugin_dir = dir.join(name);
             let grammar_file = PluginManifest::grammar_filename();

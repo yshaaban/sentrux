@@ -160,6 +160,12 @@ require Logger
     #[ignore]
     fn ast_all_langs_dump() {
         let samples: &[(&str, &str)] = &[
+            ("bash", "#!/bin/bash\nmy_func() {\n  echo hello\n}\nsource ./utils.sh\n. ./helper.sh\n"),
+            ("gdscript", "func greet(name):\n  print(name)\nclass_name Cat\n"),
+            ("haskell", "module Main where\nimport Data.List\ngreet :: String -> String\ngreet name = name\n"),
+            ("scala", "package com.example\nimport scala.collection.mutable\ndef greet(name: String): Unit = println(name)\nclass Cat\n"),
+            ("zig", "const std = @import(\"std\");\nfn hello(name: []const u8) void {\n  _ = name;\n}\n"),
+            ("html", "<html><head><link rel=\"stylesheet\" href=\"style.css\"></head><body></body></html>\n"),
             ("nim", "proc hello(name: string) =\n  echo name\ntype Cat = object\n  name: string\nimport strutils\nfrom os import joinPath\n"),
             ("julia", "function greet(name)\n  println(name)\nend\nstruct Point\n  x::Float64\nend\nimport LinearAlgebra\nusing Base: push!\n"),
             ("groovy", "def hello(name) {\n  println name\n}\nclass Cat {\n  String name\n}\nimport groovy.json.JsonSlurper\n"),
