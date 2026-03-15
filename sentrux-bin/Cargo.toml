@@ -7,6 +7,10 @@ license = "MIT"
 repository = "https://github.com/sentrux/sentrux"
 homepage = "https://github.com/sentrux/sentrux"
 
+[lib]
+name = "sentrux_bin"
+path = "src/lib.rs"
+
 [[bin]]
 name = "sentrux"
 path = "src/main.rs"
