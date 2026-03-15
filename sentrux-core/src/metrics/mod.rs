@@ -55,16 +55,24 @@ pub(crate) fn is_package_index_for_path(path: &str) -> bool {
     crate::analysis::lang_registry::profile(&lang).is_package_index_file(path)
 }
 
-/// Compute per-file fan-out and fan-in counts from import edges.
-/// Excludes mod declarations (Rust `mod foo;`) which are structural, not coupling.
-fn compute_fan_maps(import_edges: &[ImportEdge]) -> (HashMap<String, usize>, HashMap<String, usize>) {
+/// Compute per-file fan-out and fan-in counts from import + call edges.
+/// Both represent real dependencies — import is explicit, call is implicit.
+/// Deduplicated: A→B via import AND call counts as 1 edge.
+fn compute_fan_maps(import_edges: &[ImportEdge], call_edges: &[crate::core::types::CallEdge]) -> (HashMap<String, usize>, HashMap<String, usize>) {
+    let mut seen: HashSet<(String, String)> = HashSet::new();
     let mut fan_out: HashMap<String, usize> = HashMap::new();
     let mut fan_in: HashMap<String, usize> = HashMap::new();
     for edge in import_edges {
-        // Note: callers already filter mod-declaration edges before passing
-        // import_edges, so this check is a no-op safety net.
-        *fan_out.entry(edge.from_file.clone()).or_default() += 1;
-        *fan_in.entry(edge.to_file.clone()).or_default() += 1;
+        if seen.insert((edge.from_file.clone(), edge.to_file.clone())) {
+            *fan_out.entry(edge.from_file.clone()).or_default() += 1;
+            *fan_in.entry(edge.to_file.clone()).or_default() += 1;
+        }
+    }
+    for edge in call_edges {
+        if seen.insert((edge.from_file.clone(), edge.to_file.clone())) {
+            *fan_out.entry(edge.from_file.clone()).or_default() += 1;
+            *fan_in.entry(edge.to_file.clone()).or_default() += 1;
+        }
     }
     (fan_out, fan_in)
 }
@@ -476,9 +484,10 @@ fn count_total_funcs(files: &[&FileNode]) -> usize {
 fn compute_file_metrics(
     files: &[&FileNode],
     import_edges: &[ImportEdge],
+    call_edges: &[crate::core::types::CallEdge],
     entry_points: &[EntryPoint],
 ) -> FileMetrics {
-    let (fan_out, fan_in) = compute_fan_maps(import_edges);
+    let (fan_out, fan_in) = compute_fan_maps(import_edges, call_edges);
     let god_files = detect_god_files(&fan_out, entry_points);
     let hotspot_files = detect_hotspot_files(&fan_in, &fan_out);
     let most_unstable = compute_instability(import_edges, &fan_out, &fan_in);
@@ -555,7 +564,7 @@ pub fn compute_health(snapshot: &Snapshot) -> HealthReport {
         .cloned()
         .collect();
 
-    let fm = compute_file_metrics(&files, &dep_edges, &snapshot.entry_points);
+    let fm = compute_file_metrics(&files, &dep_edges, &snapshot.call_graph, &snapshot.entry_points);
     let mm = compute_module_metrics(&files, &dep_edges, &snapshot.call_graph, &snapshot.entry_points);
 
     // Raw unfiltered data for rules engine (user thresholds may be stricter than hardcoded ones)
