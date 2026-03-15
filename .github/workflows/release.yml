@@ -45,13 +45,15 @@ jobs:
         with:
           repository: sentrux/private-integration-crate
           token: ${{ secrets.PRO_REPO_TOKEN }}
-          path: ../private-integration-crate
+          path: private-integration-crate-checkout
 
       - name: Link Pro crate paths
         shell: bash
         run: |
-          # private-integration-crate references sentrux-core via path in its Cargo.toml.
-          # Create symlink so ../sentrux-fresh/sentrux-core resolves in CI.
+          # sentrux-bin references private-integration-crate at ../../private-integration-crate (relative to sentrux-bin/)
+          # private-integration-crate references sentrux-core at ../sentrux-fresh/sentrux-core
+          # Create symlinks so both resolve in CI:
+          ln -sf "$(pwd)/private-integration-crate-checkout" ../private-integration-crate
           ln -sf "$(pwd)" ../sentrux-fresh
 
       - name: Build release binary (with Pro)
