@@ -2,7 +2,7 @@
 set -e
 
 REPO="sentrux/sentrux"
-VERSION="v0.3.9"
+VERSION="v0.4.9"
 INSTALL_DIR="/usr/local/bin"
 
 # Detect OS and architecture
@@ -24,6 +24,7 @@ case "${OS}" in
     Linux)
         case "${ARCH}" in
             x86_64) ARTIFACT="sentrux-linux-x86_64" ;;
+            aarch64|arm64) ARTIFACT="sentrux-linux-aarch64" ;;
             *) echo "Error: unsupported architecture: ${ARCH}"; exit 1 ;;
         esac
         ;;
