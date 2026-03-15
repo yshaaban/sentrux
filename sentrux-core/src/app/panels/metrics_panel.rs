@@ -33,7 +33,7 @@ pub fn draw_metrics_panel(ctx: &egui::Context, state: &mut AppState) {
         )
         .show(ctx, |ui| {
             ui.label(
-                egui::RichText::new("┌ METRICS")
+                egui::RichText::new(format!("┌ Sentrux v{}", env!("CARGO_PKG_VERSION")))
                     .monospace()
                     .size(10.0)
                     .color(tc.section_label),

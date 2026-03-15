@@ -637,7 +637,13 @@ fn run_gui(path: Option<String>) -> eframe::Result<()> {
         probed
     };
 
-    let title = if sentrux_core::license::current_tier() >= sentrux_core::license::Tier::Pro { "Sentrux Pro" } else { "sentrux" };
+    let version = env!("CARGO_PKG_VERSION");
+    let title = if sentrux_core::license::current_tier() >= sentrux_core::license::Tier::Pro {
+        format!("Sentrux Pro v{}", version)
+    } else {
+        format!("Sentrux v{}", version)
+    };
+    let title = title.as_str();
 
     for (i, backends) in backend_attempts.iter().enumerate() {
         sentrux_core::debug_log!("[gpu] attempt {}/{}: backends {:?}", i + 1, backend_attempts.len(), backends);
@@ -694,7 +700,13 @@ fn run_gui(path: Option<String>) -> eframe::Result<()> {
 /// hardware GPU (VMs, RDP, headless servers with software OpenGL).
 fn run_gui_glow(initial_path: Option<String>) -> eframe::Result<()> {
     sentrux_core::debug_log!("[gpu] falling back to glow (software OpenGL)");
-    let title = if sentrux_core::license::current_tier() >= sentrux_core::license::Tier::Pro { "Sentrux Pro" } else { "sentrux" };
+    let version = env!("CARGO_PKG_VERSION");
+    let title = if sentrux_core::license::current_tier() >= sentrux_core::license::Tier::Pro {
+        format!("Sentrux Pro v{}", version)
+    } else {
+        format!("Sentrux v{}", version)
+    };
+    let title = title.as_str();
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([1600.0, 1000.0])
