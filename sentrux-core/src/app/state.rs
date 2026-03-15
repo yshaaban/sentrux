@@ -203,6 +203,10 @@ pub struct ActivityEntry {
     pub kind: String,
     /// When the event occurred (monotonic clock)
     pub time: Instant,
+    /// Line count delta (positive = added, negative = removed)
+    pub lines_delta: i32,
+    /// Function count delta
+    pub funcs_delta: i32,
 }
 
 /// Target of a right-click context menu.
@@ -301,19 +305,20 @@ impl AppState {
     /// Record a file event in the activity panel (newest first, capped at 50).
     /// Deduplicates: if the same path already exists, removes old entry first.
     pub fn record_activity(&mut self, path: String, kind: String) {
+        self.record_activity_with_delta(path, kind, 0, 0);
+    }
+
+    pub fn record_activity_with_delta(&mut self, path: String, kind: String, lines_delta: i32, funcs_delta: i32) {
         const MAX_ACTIVITY: usize = 50;
-        // Dedup: find and remove existing entry for this path
         if let Some(pos) = self.recent_activity.iter().position(|e| e.path == path) {
-            // Use remove() not swap_remove() to preserve newest-first ordering. [H7 fix]
             self.recent_activity.remove(pos);
         }
-        // Insert at front (newest first)
         self.recent_activity.insert(0, ActivityEntry {
-            path,
-            kind,
+            path, kind,
             time: Instant::now(),
+            lines_delta,
+            funcs_delta,
         });
-        // Cap size
         self.recent_activity.truncate(MAX_ACTIVITY);
     }
 
@@ -353,7 +358,33 @@ impl AppState {
 
     /// Build file_index from snapshot for O(1) lookup.
     /// Also rebuilds derived data: top_dirs, languages, entry_point_files.
+    /// Update activity entries with line/function deltas by comparing
+    /// old file_index (current) against new snapshot (about to be applied).
+    fn update_activity_deltas(&mut self) {
+        let snap = match &self.snapshot {
+            Some(s) => s,
+            None => return,
+        };
+        let new_files = crate::core::snapshot::flatten_files_ref(&snap.root);
+        for entry in &mut self.recent_activity {
+            if entry.lines_delta != 0 || entry.funcs_delta != 0 {
+                continue; // Already has delta
+            }
+            // Find old data from current file_index
+            let old = self.file_index.get(&entry.path);
+            // Find new data from new snapshot
+            let new = new_files.iter().find(|f| f.path == entry.path);
+            if let (Some(old), Some(new)) = (old, new) {
+                entry.lines_delta = new.lines as i32 - old.lines as i32;
+                entry.funcs_delta = new.funcs as i32 - old.funcs as i32;
+            }
+        }
+    }
+
     pub fn rebuild_file_index(&mut self) {
+        // Compute deltas for recent activity entries before clearing old index
+        self.update_activity_deltas();
+
         self.file_index.clear();
         self.top_dirs.clear();
         self.languages.clear();

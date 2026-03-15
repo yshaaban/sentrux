@@ -233,6 +233,30 @@ fn draw_activity_row(
     ui.painter().text(egui::pos2(left, cy), egui::Align2::LEFT_CENTER, kind_char, adctx.font10.clone(), kind_color);
     let nc = if is_selected { tc.selected_stroke } else { tc.file_label };
     ui.painter().text(egui::pos2(left + 14.0, cy), egui::Align2::LEFT_CENTER, filename, adctx.font10.clone(), nc);
+
+    // Delta info: +12 -3  or  +2fn
+    let mut delta_parts: Vec<(String, egui::Color32)> = Vec::new();
+    if entry.lines_delta > 0 {
+        delta_parts.push((format!("+{}", entry.lines_delta), egui::Color32::from_rgb(115, 201, 145)));
+    } else if entry.lines_delta < 0 {
+        delta_parts.push((format!("{}", entry.lines_delta), egui::Color32::from_rgb(224, 108, 117)));
+    }
+    if entry.funcs_delta > 0 {
+        delta_parts.push((format!("+{}fn", entry.funcs_delta), egui::Color32::from_rgb(115, 201, 145)));
+    } else if entry.funcs_delta < 0 {
+        delta_parts.push((format!("{}fn", entry.funcs_delta), egui::Color32::from_rgb(224, 108, 117)));
+    }
+
+    // Draw delta info before age
+    let age_width = 24.0;
+    let mut dx = rr.right() - 4.0 - age_width;
+    for (text, color) in delta_parts.iter().rev() {
+        let galley = ui.painter().layout_no_wrap(text.clone(), adctx.font9.clone(), *color);
+        let w = galley.size().x + 4.0;
+        dx -= w;
+        ui.painter().galley(egui::pos2(dx, cy - galley.size().y / 2.0), galley, *color);
+    }
+
     ui.painter().text(egui::pos2(rr.right() - 4.0, cy), egui::Align2::RIGHT_CENTER, &age_str, adctx.font9.clone(), tc.text_secondary);
     result
 }
