@@ -872,3 +872,29 @@ fn compute_max_depth(edges: &[ImportEdge], entry_points: &[EntryPoint]) -> u32 {
         .max()
         .unwrap_or(0)
 }
+
+// ── Pro metrics extension point ──
+
+/// Trait for injecting additional metrics from Pro crate.
+/// Pro implements this to add Type Coupling, LCOM, etc.
+pub trait MetricsExtension: Send + Sync {
+    /// Compute additional metrics and return as JSON value.
+    /// Called after the standard health report is computed.
+    fn compute(&self, snapshot: &crate::core::snapshot::Snapshot) -> serde_json::Value;
+    
+    /// Name of the metric (for display in health panel).
+    fn name(&self) -> &str;
+}
+
+/// Global registry of Pro metrics extensions.
+static METRICS_EXTENSIONS: std::sync::OnceLock<Vec<Box<dyn MetricsExtension>>> = std::sync::OnceLock::new();
+
+/// Register Pro metrics extensions (called by private-integration-crate at startup).
+pub fn register_extensions(extensions: Vec<Box<dyn MetricsExtension>>) {
+    let _ = METRICS_EXTENSIONS.set(extensions);
+}
+
+/// Get registered extensions (returns empty slice if no Pro).
+pub fn extensions() -> &'static [Box<dyn MetricsExtension>] {
+    METRICS_EXTENSIONS.get().map(|v| v.as_slice()).unwrap_or(&[])
+}

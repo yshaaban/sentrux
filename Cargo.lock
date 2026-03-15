@@ -3416,10 +3416,11 @@ dependencies = [
 
 [[package]]
 name = "private-integration-crate"
-version = "0.4.5"
+version = "0.4.10"
 dependencies = [
  "dirs",
  "sentrux-core",
+ "serde_json",
 ]
 
 [[package]]
