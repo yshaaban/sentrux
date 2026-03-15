@@ -240,14 +240,14 @@ sentrux check .
 | | | | | | |
 |---|---|---|---|---|---|
 | Bash | C | C++ | C# | Clojure | COBOL |
-| Crystal | CSS | Dart | Elixir | Erlang | F# |
-| GDScript | GLSL | Go | Groovy | Haskell | HCL |
-| HTML | Java | JavaScript | JSON | Julia | Kotlin |
-| Lua | Markdown | Nim | Nix | Objective-C | OCaml |
-| Perl | PHP | PowerShell | Protobuf | Python | R |
-| Ruby | Rust | Scala | SCSS | Solidity | SQL |
-| Svelte | Swift | TOML | TypeScript | Vue | YAML |
-| Zig | | | | | |
+| Crystal | CSS | Dart | Dockerfile | Elixir | Erlang |
+| F# | GDScript | GLSL | Go | Groovy | Haskell |
+| HCL | HTML | Java | JavaScript | JSON | Julia |
+| Kotlin | Lua | Markdown | Nim | Nix | Objective-C |
+| OCaml | Perl | PHP | PowerShell | Protobuf | Python |
+| R | Ruby | Rust | Scala | SCSS | Solidity |
+| SQL | Svelte | Swift | TOML | TypeScript | V |
+| Vue | YAML | Zig | | | |
 
 **Plugin system** — add any language, or create your own:
 
