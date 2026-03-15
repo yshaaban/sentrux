@@ -457,6 +457,7 @@ class Bar:
             ("objective-c", b"#import \"MyClass.h\"\nvoid hello() {}\n", "hello", "MyClass"),
 
             // --- Svelte/Vue: functions only (no imports — grammar limitation) ---
+            ("cobol", b"       IDENTIFICATION DIVISION.\n       PROGRAM-ID. HELLO-WORLD.\n       PROCEDURE DIVISION.\n           DISPLAY \"Hello\".\n           STOP RUN.\n       COPY \"UTILS.CPY\".\n", "HELLO-WORLD", "UTILS"),
             ("ruby", b"require 'json'\ndef hello; end\nclass Cat; end\n", "hello", "json"),
             ("php", b"<?php\nuse App\\Models\\User;\nfunction hello() {}\nclass Cat {}\n", "hello", ""),
             ("lua", b"local json = require('json')\nfunction hello() end\n", "hello", "json"),
