@@ -56,15 +56,15 @@ fn should_skip_path_hardcoded(rel: &str) -> bool {
 fn build_gitignore(root: &Path) -> ignore::gitignore::Gitignore {
     let mut builder = ignore::gitignore::GitignoreBuilder::new(root);
     if let Some(err) = builder.add(root.join(".gitignore")) {
-        eprintln!("[watcher] .gitignore parse warning: {}", err);
+        crate::debug_log!("[watcher] .gitignore parse warning: {}", err);
     }
     if let Some(err) = builder.add(root.join(".git/info/exclude")) {
-        eprintln!("[watcher] .git/info/exclude parse warning: {}", err);
+        crate::debug_log!("[watcher] .git/info/exclude parse warning: {}", err);
     }
     match builder.build() {
         Ok(gi) => gi,
         Err(e) => {
-            eprintln!("[watcher] gitignore build error: {}, using empty matcher", e);
+            crate::debug_log!("[watcher] gitignore build error: {}, using empty matcher", e);
             ignore::gitignore::GitignoreBuilder::new(root).build().unwrap()
         }
     }
@@ -103,7 +103,7 @@ fn insert_pending(
             map.insert(rel_str, (Instant::now(), is_dir, kind_str));
         }
         Err(poisoned) => {
-            eprintln!("[watcher] mutex poisoned in callback, recovering");
+            crate::debug_log!("[watcher] mutex poisoned in callback, recovering");
             poisoned
                 .into_inner()
                 .insert(rel_str, (Instant::now(), is_dir, kind_str));
@@ -143,7 +143,7 @@ fn build_file_event(rel: &str, is_dir: bool, event_kind: &str) -> FileEvent {
         ts: SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_else(|e| {
-                eprintln!("[watcher] system clock before epoch: {}", e);
+                crate::debug_log!("[watcher] system clock before epoch: {}", e);
                 std::time::Duration::ZERO
             })
             .as_secs_f64(),
@@ -211,7 +211,7 @@ pub fn start_watcher(
             let event = match res {
                 Ok(e) => e,
                 Err(e) => {
-                    eprintln!("[watcher] notify error: {}", e);
+                    crate::debug_log!("[watcher] notify error: {}", e);
                     return;
                 }
             };

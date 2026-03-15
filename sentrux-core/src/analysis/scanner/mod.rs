@@ -37,7 +37,7 @@ pub(crate) fn extract_mtime(meta: &fs::Metadata, path: &Path) -> f64 {
         .map(|t| {
             t.duration_since(UNIX_EPOCH)
                 .unwrap_or_else(|e| {
-                    eprintln!("[scanner] mtime before epoch for {:?}: {}", path, e);
+                    crate::debug_log!("[scanner] mtime before epoch for {:?}: {}", path, e);
                     std::time::Duration::ZERO
                 })
                 .as_secs_f64()
@@ -87,12 +87,12 @@ fn collect_paths(root: &Path, file_size_limit: u64) -> Vec<CollectedFile> {
     // Try git ls-files first — the universal correct approach
     if let Some(files) = collect_paths_git(root, file_size_limit) {
         if !files.is_empty() {
-            eprintln!("[scan] using git ls-files ({} tracked files)", files.len());
+            crate::debug_log!("[scan] using git ls-files ({} tracked files)", files.len());
             return files;
         }
     }
     // Fallback: filesystem walk for non-git directories
-    eprintln!("[scan] not a git repo, falling back to filesystem walk");
+    crate::debug_log!("[scan] not a git repo, falling back to filesystem walk");
     collect_paths_walk(root, file_size_limit)
 }
 
@@ -264,7 +264,7 @@ fn walk_and_scan_files(
     emit("Collecting files\u{2026}", 5);
     let collected = collect_paths(root, max_file_size * 1024);
     let total_files = collected.len();
-    eprintln!("[scan] collect_paths: {:.1}ms ({} files)", scan_t0.elapsed().as_secs_f64() * 1000.0, total_files);
+    crate::debug_log!("[scan] collect_paths: {:.1}ms ({} files)", scan_t0.elapsed().as_secs_f64() * 1000.0, total_files);
 
     emit(&format!("Scanning & parsing ({total_files} files)"), 15);
 
@@ -283,7 +283,7 @@ fn walk_and_scan_files(
         })
         .collect();
 
-    eprintln!("[scan] scan_and_parse: {:.1}ms ({} files)", scan_t0.elapsed().as_secs_f64() * 1000.0, files.len());
+    crate::debug_log!("[scan] scan_and_parse: {:.1}ms ({} files)", scan_t0.elapsed().as_secs_f64() * 1000.0, files.len());
     emit(&format!("Scanned {total_files} files"), 50);
     files
 }
@@ -298,7 +298,7 @@ fn apply_git_statuses(files: &mut [FileNode], root_path: &str, scan_t0: std::tim
             file.gs = gs.clone();
         }
     }
-    eprintln!("[scan] git_status: {:.1}ms", scan_t0.elapsed().as_secs_f64() * 1000.0);
+    crate::debug_log!("[scan] git_status: {:.1}ms", scan_t0.elapsed().as_secs_f64() * 1000.0);
 }
 
 /// Poll parse progress until completion, emitting progress updates.
@@ -343,12 +343,12 @@ fn build_tree_and_graphs(
         });
     }
 
-    eprintln!("[scan] tree_ready sent at: {:.1}ms", bctx.scan_t0.elapsed().as_secs_f64() * 1000.0);
+    crate::debug_log!("[scan] tree_ready sent at: {:.1}ms", bctx.scan_t0.elapsed().as_secs_f64() * 1000.0);
     (bctx.emit)(&format!("Building graphs ({total_files} files, {total_dirs} dirs)"), 85);
     let flat_files = crate::core::snapshot::flatten_files_ref(&tree);
     let gr = crate::analysis::graph::build_graphs(&flat_files, Some(bctx.root), bctx.max_call_targets);
 
-    eprintln!("[scan] build_graphs done at: {:.1}ms | {} import, {} call, {} inherit edges",
+    crate::debug_log!("[scan] build_graphs done at: {:.1}ms | {} import, {} call, {} inherit edges",
         bctx.scan_t0.elapsed().as_secs_f64() * 1000.0, gr.import_edges.len(), gr.call_edges.len(), gr.inherit_edges.len());
     (bctx.emit)("Done", 100);
 

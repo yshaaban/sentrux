@@ -100,7 +100,7 @@ fn fetch_statuses(root: &str) -> HashMap<String, String> {
     let repo = match Repository::discover(root) {
         Ok(r) => r,
         Err(e) => {
-            eprintln!("[sentrux:git] fetch_statuses discover failed: {}", e);
+            crate::debug_log!("[sentrux:git] fetch_statuses discover failed: {}", e);
             return result;
         }
     };
@@ -113,7 +113,7 @@ fn fetch_statuses(root: &str) -> HashMap<String, String> {
     let statuses = match repo.statuses(Some(&mut opts)) {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("[sentrux:git] fetch_statuses statuses failed: {}", e);
+            crate::debug_log!("[sentrux:git] fetch_statuses statuses failed: {}", e);
             return result;
         }
     };

@@ -285,7 +285,7 @@ impl SentruxApp {
             }
             Err(panic_payload) => {
                 let msg = format_panic("scanner", &panic_payload);
-                eprintln!("[app] {}", msg);
+                crate::debug_log!("[app] {}", msg);
                 self.state.scan_step = msg;
             }
         }
@@ -300,7 +300,7 @@ impl SentruxApp {
         let was_panic = match handle.join() {
             Err(panic_payload) => {
                 let msg = format_panic("layout", &panic_payload);
-                eprintln!("[app] {}", msg);
+                crate::debug_log!("[app] {}", msg);
                 self.state.scan_step = msg;
                 ctx.request_repaint();
                 true
@@ -314,7 +314,7 @@ impl SentruxApp {
             self.request_layout();
         }
         if !was_panic {
-            eprintln!("[app] layout thread exited normally (channel disconnected) — respawned");
+            crate::debug_log!("[app] layout thread exited normally (channel disconnected) — respawned");
         }
     }
 
@@ -332,7 +332,7 @@ impl SentruxApp {
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_else(|e| {
-                eprintln!("[app] system clock before epoch: {}", e);
+                crate::debug_log!("[app] system clock before epoch: {}", e);
                 if self.state.scan_step.is_empty() || !self.state.scan_step.starts_with("Warning:") {
                     self.state.scan_step = "Warning: system clock error — Age/Heat colors unreliable".into();
                 }
@@ -406,7 +406,7 @@ impl SentruxApp {
                 self.state.layout_request_dropped = true;
             }
             Err(crossbeam_channel::TrySendError::Disconnected(_)) => {
-                eprintln!("[app] layout channel disconnected — respawning layout thread");
+                crate::debug_log!("[app] layout channel disconnected — respawning layout thread");
                 self.state.scan_step = "Warning: layout thread restarted".into();
                 self.respawn_layout_thread();
                 self.state.layout_pending = true;
@@ -445,7 +445,7 @@ impl SentruxApp {
                 self.state.layout_request_dropped = false;
             }
             Err(e) => {
-                eprintln!("[app] CRITICAL: failed to respawn layout thread: {}", e);
+                crate::debug_log!("[app] CRITICAL: failed to respawn layout thread: {}", e);
                 self.state.scan_step = format!("Error: layout thread spawn failed: {}", e);
                 // Keep old channels — layout is dead but app won't panic
             }
@@ -477,10 +477,10 @@ impl SentruxApp {
                 self.scan_tx = scan_cmd_tx;
                 self.scan_rx = scan_msg_rx;
                 self.scanner_handle = Some(handle);
-                eprintln!("[app] scanner thread respawned");
+                crate::debug_log!("[app] scanner thread respawned");
             }
             Err(e) => {
-                eprintln!("[app] CRITICAL: failed to respawn scanner thread: {}", e);
+                crate::debug_log!("[app] CRITICAL: failed to respawn scanner thread: {}", e);
                 self.state.scan_step = format!("Error: scanner thread spawn failed: {}", e);
                 // Keep old channels — scanner is dead but app won't panic
             }

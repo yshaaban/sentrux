@@ -142,7 +142,7 @@ fn expand_single_dir(
         .build()
     {
         if out.len() >= MAX_FILES {
-            eprintln!("[rescan] expanded_paths hit MAX_FILES limit ({}), truncating", MAX_FILES);
+            crate::debug_log!("[rescan] expanded_paths hit MAX_FILES limit ({}), truncating", MAX_FILES);
             break;
         }
         if let Ok(e) = entry {

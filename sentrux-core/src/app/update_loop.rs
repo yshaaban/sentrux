@@ -70,7 +70,7 @@ impl SentruxApp {
 fn log_failed_languages() {
     let failed = crate::analysis::lang_registry::failed_plugins();
     for err in failed {
-        eprintln!("[app] WARNING: plugin failed: {}", err);
+        crate::debug_log!("[app] WARNING: plugin failed: {}", err);
     }
 }
 
@@ -193,7 +193,7 @@ impl SentruxApp {
                 self.folder_picker_rx = Some(rx);
             }
             Err(e) => {
-                eprintln!("[app] failed to spawn folder picker thread: {}", e);
+                crate::debug_log!("[app] failed to spawn folder picker thread: {}", e);
                 self.state.scan_step = format!("Error: folder picker failed: {}", e);
             }
         }
@@ -333,10 +333,10 @@ fn setup_fonts(ctx: &egui::Context, load_cjk: bool) {
             }
         }
         if !cjk_loaded {
-            eprintln!("[app] WARNING: no CJK font found — CJK characters will render as missing glyphs");
+            crate::debug_log!("[app] WARNING: no CJK font found — CJK characters will render as missing glyphs");
         }
     } else {
-        eprintln!("[app] CJK font loading disabled — saving 10-30MB memory");
+        crate::debug_log!("[app] CJK font loading disabled — saving 10-30MB memory");
     }
 
     ctx.set_fonts(fonts);

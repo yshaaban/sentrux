@@ -64,7 +64,7 @@ impl LangRegistry {
                  Run `sentrux plugin add-standard` to install standard languages."
             );
         } else {
-            eprintln!("[lang_registry] {} language plugins loaded", count);
+            crate::debug_log!("[lang_registry] {} language plugins loaded", count);
         }
 
         registry
@@ -119,7 +119,7 @@ impl LangRegistry {
     fn load_plugins(&mut self) {
         let (plugins, errors) = crate::analysis::plugin::load_all_plugins();
         for err in &errors {
-            eprintln!("[plugin] Error: {}: {}", err.plugin_dir.display(), err.error);
+            crate::debug_log!("[plugin] Error: {}: {}", err.plugin_dir.display(), err.error);
             self.failed.push(format!("{}: {}", err.plugin_dir.display(), err.error));
         }
         for plugin in plugins {
@@ -142,7 +142,7 @@ impl LangRegistry {
                 }
                 Err(e) => {
                     let msg = format!("{}: query failed: {:?}", plugin.name, e);
-                    eprintln!("[plugin] {}", msg);
+                    crate::debug_log!("[plugin] {}", msg);
                     self.failed.push(msg);
                 }
             }

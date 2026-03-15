@@ -141,12 +141,12 @@ pub(crate) fn build_tree(files: Vec<FileNode>, root_name: &str) -> (FileNode, u3
     // Safety check: all files must be consumed into the tree.
     let orphaned: usize = file_children.values().map(|v| v.len()).sum();
     if orphaned > 0 {
-        eprintln!("[tree] BUG: {} of {} files orphaned (not reachable from root)", orphaned, file_count);
+        crate::debug_log!("[tree] BUG: {} of {} files orphaned (not reachable from root)", orphaned, file_count);
         let sample: Vec<&str> = file_children.values()
             .flat_map(|v| v.iter().map(|f| f.path.as_str()))
             .take(5)
             .collect();
-        eprintln!("[tree] orphaned sample: {:?}", sample);
+        crate::debug_log!("[tree] orphaned sample: {:?}", sample);
     }
 
     (root, total_dirs)

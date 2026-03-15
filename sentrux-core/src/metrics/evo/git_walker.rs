@@ -132,7 +132,7 @@ fn parse_commit(
     let tree = match commit.tree() {
         Ok(t) => t,
         Err(e) => {
-            eprintln!("[evolution] commit {}: tree() failed: {}", commit.id(), e);
+            crate::debug_log!("[evolution] commit {}: tree() failed: {}", commit.id(), e);
             return None;
         }
     };
@@ -140,13 +140,13 @@ fn parse_commit(
     let diff = match repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&tree), None) {
         Ok(d) => d,
         Err(e) => {
-            eprintln!("[evolution] commit {}: diff failed: {}", commit.id(), e);
+            crate::debug_log!("[evolution] commit {}: diff failed: {}", commit.id(), e);
             return None;
         }
     };
 
     if let Err(e) = diff.stats() {
-        eprintln!("[evolution] commit {}: diff.stats() failed: {}", commit.id(), e);
+        crate::debug_log!("[evolution] commit {}: diff.stats() failed: {}", commit.id(), e);
         return None;
     }
 

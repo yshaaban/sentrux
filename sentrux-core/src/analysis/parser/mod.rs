@@ -401,7 +401,7 @@ pub fn parse_file(path: &str, lang: &str, max_parse_size: usize) -> Option<Struc
     let tree = TL_PARSER.with(|parser_cell| {
         let mut parser = parser_cell.borrow_mut();
         if let Err(e) = parser.set_language(grammar) {
-            eprintln!("[parser] set_language failed for {}: {}", lang, e);
+            crate::debug_log!("[parser] set_language failed for {}: {}", lang, e);
             return None;
         }
         parser.parse(&content, None)
@@ -415,7 +415,7 @@ pub fn parse_file(path: &str, lang: &str, max_parse_size: usize) -> Option<Struc
         let mut cache = match CACHE.lock() {
             Ok(c) => c,
             Err(p) => {
-                eprintln!("[parser] cache mutex poisoned, recovering");
+                crate::debug_log!("[parser] cache mutex poisoned, recovering");
                 p.into_inner()
             }
         };
@@ -469,7 +469,7 @@ pub fn parse_files_batch_with_progress(
         .collect();
     let fail_count = failed.load(std::sync::atomic::Ordering::Relaxed);
     if fail_count > 0 {
-        eprintln!("[parser] {}/{} files failed to parse (too large or binary)", fail_count, input_count);
+        crate::debug_log!("[parser] {}/{} files failed to parse (too large or binary)", fail_count, input_count);
     }
     result
 }

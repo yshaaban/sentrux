@@ -76,7 +76,7 @@ pub fn load_all_plugins() -> (Vec<LoadedPlugin>, Vec<PluginLoadError>) {
     let entries = match std::fs::read_dir(&dir) {
         Ok(e) => e,
         Err(e) => {
-            eprintln!("[plugin] Failed to read plugins dir: {}", e);
+            crate::debug_log!("[plugin] Failed to read plugins dir: {}", e);
             return (loaded, errors);
         }
     };
@@ -92,7 +92,7 @@ pub fn load_all_plugins() -> (Vec<LoadedPlugin>, Vec<PluginLoadError>) {
                 loaded.push(plugin);
             }
             Err(e) => {
-                eprintln!("[plugin] Failed to load {}: {}", path.display(), e);
+                crate::debug_log!("[plugin] Failed to load {}: {}", path.display(), e);
                 errors.push(PluginLoadError {
                     plugin_dir: path,
                     error: e,
@@ -237,7 +237,7 @@ fn copy_bundled_grammars(bundled_dir: &Path, user_dir: &Path) {
         if bundled_grammar.exists() && !user_grammar.exists() {
             let _ = std::fs::create_dir_all(user_dir.join(&name).join("grammars"));
             if std::fs::copy(&bundled_grammar, &user_grammar).is_ok() {
-                eprintln!("[plugin] Copied bundled grammar: {}", name);
+                crate::debug_log!("[plugin] Copied bundled grammar: {}", name);
             }
         }
     }

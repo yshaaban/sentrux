@@ -221,7 +221,7 @@ fn now_epoch_secs() -> f64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_else(|e| {
-            eprintln!("[state] system clock before epoch: {}", e);
+            crate::debug_log!("[state] system clock before epoch: {}", e);
             std::time::Duration::ZERO
         })
         .as_secs_f64()

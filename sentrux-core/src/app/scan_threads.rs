@@ -64,12 +64,12 @@ fn handle_full_scan(
                 return; // Scan will complete but result will be discarded (stale gen)
             }
             if let Err(crossbeam_channel::TrySendError::Disconnected(_)) = tx_progress.try_send(ScanMsg::Progress(p)) {
-                eprintln!("[scanner] progress channel disconnected");
+                crate::debug_log!("[scanner] progress channel disconnected");
             }
         }),
         Some(&move |snap| {
             if let Err(e) = tx_tree.send(ScanMsg::TreeReady(Arc::new(snap), gen_for_tree)) {
-                eprintln!("[scanner] failed to send TreeReady: {}", e);
+                crate::debug_log!("[scanner] failed to send TreeReady: {}", e);
             }
         }),
         limits,
@@ -78,7 +78,7 @@ fn handle_full_scan(
 
     // If cancelled, don't send result — it's stale
     if cancel.load(std::sync::atomic::Ordering::Relaxed) {
-        eprintln!("[scanner] scan cancelled (gen {}), discarding result", gen);
+        crate::debug_log!("[scanner] scan cancelled (gen {}), discarding result", gen);
         return;
     }
     send_scan_result(tx, result, gen, root_path);
@@ -102,7 +102,7 @@ fn handle_rescan(
     );
 
     if cancel.load(std::sync::atomic::Ordering::Relaxed) {
-        eprintln!("[scanner] rescan cancelled (gen {}), discarding result", gen);
+        crate::debug_log!("[scanner] rescan cancelled (gen {}), discarding result", gen);
         return;
     }
     send_scan_result(tx, result, gen, root);
@@ -142,12 +142,12 @@ fn send_scan_result(
             };
 
             if tx.send(ScanMsg::Complete(Arc::clone(&snap), gen, Box::new(reports))).is_err() {
-                eprintln!("[scanner] failed to send Complete — receiver dropped");
+                crate::debug_log!("[scanner] failed to send Complete — receiver dropped");
             }
         }
         Err(e) => {
             if tx.send(ScanMsg::Error(e.to_string(), gen)).is_err() {
-                eprintln!("[scanner] failed to send Error — receiver dropped");
+                crate::debug_log!("[scanner] failed to send Error — receiver dropped");
             }
         }
     }
@@ -169,7 +169,7 @@ fn compute_evolution_report_with_map(
     match crate::metrics::evo::compute_evolution(root_path, &known_files, complexity_map, None) {
         Ok(report) => Some(report),
         Err(e) => {
-            eprintln!("[scanner] evolution metrics skipped: {}", e);
+            crate::debug_log!("[scanner] evolution metrics skipped: {}", e);
             None
         }
     }
