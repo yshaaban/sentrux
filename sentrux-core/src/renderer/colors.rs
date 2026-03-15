@@ -28,16 +28,16 @@ pub fn language_color(lang: &str) -> Color32 {
     Color32::from_rgb(rgb[0], rgb[1], rgb[2])
 }
 
-/// Git status → color
+/// Git status → color (VS Code dark theme palette — muted, professional)
 pub fn git_color(gs: &str) -> Color32 {
     match gs {
-        "A" => Color32::from_rgb(72, 191, 145),
-        "M" => Color32::from_rgb(255, 193, 7),
-        "MM" => Color32::from_rgb(255, 152, 0),
-        "D" => Color32::from_rgb(244, 67, 54),
-        "R" => Color32::from_rgb(156, 39, 176),
-        "?" => Color32::from_rgb(120, 120, 120),
-        _ => Color32::from_rgb(70, 70, 70),
+        "A"  => Color32::from_rgb(115, 201, 145), // muted green — new/added
+        "M"  => Color32::from_rgb(103, 150, 230), // muted blue — modified
+        "MM" => Color32::from_rgb(130, 160, 240), // slightly brighter blue — staged+working
+        "D"  => Color32::from_rgb(224, 108, 117), // muted red — deleted
+        "R"  => Color32::from_rgb(209, 154, 102), // muted amber — renamed
+        "?"  => Color32::from_rgb(115, 201, 145), // same green — untracked (new to git)
+        _    => Color32::from_rgb(70, 70, 70),
     }
 }
 

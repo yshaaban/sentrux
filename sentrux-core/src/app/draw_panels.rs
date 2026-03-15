@@ -50,7 +50,9 @@ fn draw_side_panels(app: &mut SentruxApp, ctx: &egui::Context, result: &mut Pane
         crate::app::panels::metrics_panel::draw_metrics_panel(ctx, &mut app.state);
     }
 
-    if app.state.activity_panel_open && app.state.snapshot.is_some()
+    // Right panel: always visible when project loaded (context-sensitive)
+    // Shows file detail when a file is selected, activity otherwise
+    if app.state.snapshot.is_some()
         && crate::app::panels::activity_panel::draw_activity_panel(ctx, &mut app.state) {
             result.visual_changed = true;
         }

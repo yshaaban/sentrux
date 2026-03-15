@@ -19,33 +19,40 @@ pub(crate) fn draw_sep(ui: &mut egui::Ui, tc: &ThemeConfig, top: f32) {
     ui.add_space(3.0);
 }
 
-/// Draw the panel header with title, close button, and optional clear button.
+/// Draw the panel header — context-sensitive title, no close button (always visible).
 fn draw_panel_header(ui: &mut egui::Ui, state: &mut AppState, tc: &ThemeConfig) {
+    let title = if state.selected_path.is_some() {
+        "┌ FILE DETAIL"
+    } else {
+        "┌ ACTIVITY"
+    };
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = 4.0;
         ui.label(
-            egui::RichText::new("┌ ACTIVITY")
+            egui::RichText::new(title)
                 .monospace()
                 .size(10.0)
                 .color(tc.section_label),
         );
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            let close = ui.add(
-                egui::Button::new(
-                    egui::RichText::new("×")
-                        .monospace()
-                        .size(11.0)
-                        .color(tc.text_secondary)
-                )
-                .fill(egui::Color32::TRANSPARENT)
-                .stroke(egui::Stroke::NONE)
-            );
-            if close.clicked() {
-                state.activity_panel_open = false;
-            }
-            close.on_hover_cursor(CursorIcon::PointingHand);
-
-            if !state.recent_activity.is_empty() {
+            // Clear button for activity mode, deselect button for file detail mode
+            if state.selected_path.is_some() {
+                let deselect = ui.add(
+                    egui::Button::new(
+                        egui::RichText::new("×")
+                            .monospace()
+                            .size(11.0)
+                            .color(tc.text_secondary)
+                    )
+                    .fill(egui::Color32::TRANSPARENT)
+                    .stroke(egui::Stroke::NONE)
+                );
+                if deselect.clicked() {
+                    state.selected_path = None;
+                }
+                deselect.on_hover_cursor(CursorIcon::PointingHand)
+                    .on_hover_text("Deselect file");
+            } else if !state.recent_activity.is_empty() {
                 let clr = ui.add(
                     egui::Button::new(
                         egui::RichText::new("CLR")
@@ -201,9 +208,9 @@ fn draw_activity_row(
         else if age < 3600 { format!("{}m", age / 60) }
         else { format!("{}h", age / 3600) };
     let (kind_char, kind_color) = match entry.kind.as_str() {
-        "create" => ("+", egui::Color32::from_rgb(120, 200, 120)),
-        "remove" => ("-", egui::Color32::from_rgb(200, 100, 100)),
-        "modify" => ("~", egui::Color32::from_rgb(200, 170, 80)),
+        "create" => ("+", egui::Color32::from_rgb(115, 201, 145)), // muted green
+        "remove" => ("-", egui::Color32::from_rgb(224, 108, 117)), // muted red
+        "modify" => ("~", egui::Color32::from_rgb(103, 150, 230)), // muted blue
         _ => ("?", tc.text_secondary),
     };
     let filename = entry.path.rsplit('/').next().unwrap_or(&entry.path);

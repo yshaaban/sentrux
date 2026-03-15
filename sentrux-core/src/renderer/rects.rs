@@ -336,10 +336,15 @@ fn draw_file_borders(
     r: &LayoutRectSlim,
     ctx: &RenderContext,
 ) {
+    // Git status border: muted colored border for changed files
+    let border_color = ctx.file_index.get(r.path.as_str())
+        .filter(|entry| !entry.gs.is_empty())
+        .map(|entry| super::colors::git_color(&entry.gs))
+        .unwrap_or(dctx.tc.file_border);
     dctx.painter.rect_stroke(
         inset_rect,
         CornerRadius::ZERO,
-        Stroke::new(1.0, dctx.tc.file_border),
+        Stroke::new(if border_color != dctx.tc.file_border { 1.5 } else { 1.0 }, border_color),
         StrokeKind::Middle,
     );
 
