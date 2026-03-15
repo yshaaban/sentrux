@@ -1,0 +1,24 @@
+[plugin]
+name = "markdown"
+display_name = "Markdown"
+version = "0.2.0"
+extensions = ["md", "mdx"]
+min_sentrux_version = "0.4.0"
+color_rgb = [50, 70, 135]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/tree-sitter-grammars/tree-sitter-markdown"
+ref = "split_parser"
+abi_version = 14
+
+[queries]
+capabilities = []
+
+[checksums]
+
+[semantics]
+is_executable = false

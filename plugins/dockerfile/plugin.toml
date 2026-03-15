@@ -1,0 +1,25 @@
+[plugin]
+name = "dockerfile"
+display_name = "Dockerfile"
+version = "0.2.0"
+extensions = ["dockerfile"]
+filenames = ["Dockerfile", "Dockerfile.*"]
+min_sentrux_version = "0.4.0"
+color_rgb = [60, 80, 90]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/camdencheek/tree-sitter-dockerfile"
+ref = "main"
+abi_version = 14
+
+[queries]
+capabilities = []
+
+[checksums]
+
+[semantics]
+is_executable = false

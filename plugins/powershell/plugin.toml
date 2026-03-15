@@ -1,0 +1,36 @@
+[plugin]
+name = "powershell"
+display_name = "PowerShell"
+version = "0.2.0"
+extensions = ["ps1", "psm1", "psd1"]
+min_sentrux_version = "0.4.0"
+color_rgb = [1, 36, 86]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/airbus-cert/tree-sitter-powershell"
+ref = "main"
+abi_version = 14
+
+[queries]
+capabilities = ["functions", "classes"]
+
+[checksums]
+
+[semantics]
+hash_is_comment = true
+is_executable = true
+import_extractor = ""
+
+[semantics.project]
+manifest_files = ["*.psd1"]
+ignored_dirs = ["bin", "obj"]
+
+[semantics.complexity]
+branch_nodes = ["if_statement", "elseif_clause", "for_statement", "foreach_statement", "while_statement", "switch_statement", "catch_clause"]
+logic_nodes = ["binary_expression"]
+logic_operators = ["-and", "-or"]
+nesting_nodes = ["if_statement", "for_statement", "foreach_statement", "while_statement", "switch_statement"]

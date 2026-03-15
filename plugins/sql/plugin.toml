@@ -1,0 +1,24 @@
+[plugin]
+name = "sql"
+display_name = "SQL"
+version = "0.2.0"
+extensions = ["sql"]
+min_sentrux_version = "0.4.0"
+color_rgb = [220, 140, 60]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/DerekStride/tree-sitter-sql"
+ref = "main"
+abi_version = 14
+
+[queries]
+capabilities = []
+
+[checksums]
+
+[semantics]
+is_executable = false

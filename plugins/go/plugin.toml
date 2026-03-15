@@ -1,0 +1,58 @@
+[plugin]
+name = "go"
+display_name = "Go"
+version = "0.1.0"
+extensions = ["go"]
+min_sentrux_version = "0.3.0"
+color_rgb = [55, 140, 165]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/tree-sitter/tree-sitter-go"
+ref = "master"
+abi_version = 14
+
+[queries]
+capabilities = ["functions", "imports"]
+
+[checksums]
+
+[semantics]
+import_extractor = ""
+base_class_extractor = "generic"
+is_executable = true
+main_filenames = ["server.go", "app.go"]
+
+[semantics.project]
+manifest_files = ["go.mod"]
+source_dirs = ["cmd", "pkg", "internal"]
+directory_is_package = true
+
+[semantics.resolver]
+module_prefix_file = "go.mod"
+module_prefix_directive = "module"
+workspace_file = "go.work"
+workspace_format = "go_work"
+workspace_members_field = "use"
+workspace_package_name_field = ""
+workspace_entry_point = ""
+
+[semantics.import_ast]
+strategy = "field_read"
+module_path_field = "path"
+module_path_node_kinds = ["interpreted_string_literal"]
+string_content_kind = "interpreted_string_literal_content"
+child_import_kind = "import_spec"
+
+[semantics.complexity]
+branch_nodes = ["if_statement", "for_statement", "expression_switch_statement", "type_switch_statement", "select_statement"]
+logic_nodes = ["binary_expression"]
+logic_operators = ["&&", "||"]
+nesting_nodes = ["if_statement", "for_statement", "expression_switch_statement", "type_switch_statement", "select_statement"]
+
+[semantics.complexity_keywords]
+cc = [" if ", "\tif ", "else if", "for ", "switch ", "select ", "case ", "&&", "||"]
+cog_branch = ["if ", "else if", "for ", "switch ", "select ", "case "]

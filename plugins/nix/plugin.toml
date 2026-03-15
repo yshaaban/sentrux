@@ -1,0 +1,26 @@
+[plugin]
+name = "nix"
+display_name = "Nix"
+version = "0.2.0"
+extensions = ["nix"]
+min_sentrux_version = "0.4.0"
+color_rgb = [126, 186, 228]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/nix-community/tree-sitter-nix"
+ref = "master"
+abi_version = 14
+
+[queries]
+capabilities = ["functions", "imports"]
+
+[checksums]
+
+[semantics]
+is_executable = false
+hash_is_comment = true
+import_extractor = ""

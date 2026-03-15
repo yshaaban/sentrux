@@ -1,0 +1,28 @@
+[plugin]
+name = "hcl"
+display_name = "HCL"
+version = "0.2.0"
+extensions = ["tf", "hcl"]
+min_sentrux_version = "0.4.0"
+color_rgb = [100, 70, 180]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/tree-sitter-grammars/tree-sitter-hcl"
+ref = "main"
+abi_version = 14
+
+[queries]
+capabilities = ["functions"]
+
+[checksums]
+
+[semantics]
+is_executable = false
+import_extractor = ""
+
+[semantics.project]
+ignored_dirs = [".terraform"]

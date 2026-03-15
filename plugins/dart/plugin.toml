@@ -1,0 +1,42 @@
+[plugin]
+name = "dart"
+display_name = "Dart"
+version = "0.2.0"
+extensions = ["dart"]
+min_sentrux_version = "0.4.0"
+color_rgb = [100, 180, 220]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/UserNobody14/tree-sitter-dart"
+ref = "master"
+abi_version = 14
+
+[queries]
+capabilities = ["functions", "classes", "imports"]
+
+[checksums]
+
+[semantics]
+is_executable = true
+import_extractor = ""
+base_class_extractor = "generic"
+
+[semantics.project]
+manifest_files = ["pubspec.yaml"]
+ignored_dirs = [".dart_tool", "build", ".pub-cache"]
+source_dirs = ["lib"]
+
+[semantics.resolver]
+alias_file = "pubspec.yaml"
+alias_field = "name"
+source_root = "lib"
+
+[semantics.complexity]
+branch_nodes = ["if_statement", "for_statement", "while_statement", "do_statement", "switch_statement", "catch_clause"]
+logic_nodes = ["binary_expression"]
+logic_operators = ["&&", "||"]
+nesting_nodes = ["if_statement", "for_statement", "while_statement", "do_statement", "switch_statement"]

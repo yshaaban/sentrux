@@ -1,0 +1,49 @@
+[plugin]
+name = "elixir"
+display_name = "Elixir"
+version = "0.1.0"
+extensions = ["ex", "exs"]
+min_sentrux_version = "0.3.0"
+color_rgb = [100, 75, 120]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/elixir-lang/tree-sitter-elixir"
+ref = "main"
+abi_version = 14
+
+[queries]
+capabilities = ["functions", "imports"]
+
+[checksums]
+
+[semantics]
+base_class_extractor = "generic"
+is_executable = true
+test_suffixes = ["_test.exs"]
+test_dir_prefixes = ["test/"]
+test_dir_infixes = ["/test/"]
+
+
+[semantics.resolver]
+alias_file = "mix.exs"
+alias_field = "app:"
+source_root = "lib"
+[semantics.project]
+manifest_files = ["mix.exs"]
+source_dirs = ["lib"]
+
+[semantics.import_ast]
+strategy = "field_read"
+module_path_field = ""
+module_path_node_kinds = ["alias"]
+module_name_transform = "pascal_to_snake"
+recursive_search = true
+
+[semantics.complexity]
+branch_nodes = []
+logic_nodes = []
+nesting_nodes = []

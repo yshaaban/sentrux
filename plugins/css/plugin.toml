@@ -1,0 +1,28 @@
+[plugin]
+name = "css"
+display_name = "CSS"
+version = "0.1.0"
+extensions = ["css"]
+min_sentrux_version = "0.3.0"
+color_rgb = [85, 70, 120]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/tree-sitter/tree-sitter-css"
+ref = "master"
+abi_version = 14
+
+[queries]
+capabilities = ["imports"]
+
+[checksums]
+
+[semantics]
+import_extractor = ""
+base_class_extractor = "generic"
+is_executable = false
+
+[semantics.project]

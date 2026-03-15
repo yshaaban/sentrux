@@ -1,0 +1,28 @@
+[plugin]
+name = "scss"
+display_name = "SCSS"
+version = "0.1.0"
+extensions = ["scss"]
+min_sentrux_version = "0.3.0"
+color_rgb = [155, 95, 125]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/serenadeai/tree-sitter-scss"
+ref = "master"
+abi_version = 14
+
+[queries]
+capabilities = ["imports"]
+
+[checksums]
+
+[semantics]
+import_extractor = ""
+base_class_extractor = "generic"
+is_executable = false
+
+[semantics.project]

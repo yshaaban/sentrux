@@ -1,0 +1,24 @@
+[plugin]
+name = "yaml"
+display_name = "YAML"
+version = "0.2.0"
+extensions = ["yaml", "yml"]
+min_sentrux_version = "0.4.0"
+color_rgb = [155, 50, 55]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/tree-sitter-grammars/tree-sitter-yaml"
+ref = "master"
+abi_version = 14
+
+[queries]
+capabilities = []
+
+[checksums]
+
+[semantics]
+is_executable = false

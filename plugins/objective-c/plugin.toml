@@ -1,0 +1,37 @@
+[plugin]
+name = "objective-c"
+display_name = "Objective-C"
+version = "0.2.0"
+extensions = ["m", "h"]
+min_sentrux_version = "0.4.0"
+color_rgb = [65, 105, 225]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/tree-sitter-grammars/tree-sitter-objc"
+ref = "master"
+abi_version = 14
+symbol_name = "objc"
+
+[queries]
+capabilities = ["functions", "classes", "imports"]
+
+[checksums]
+
+[semantics]
+is_executable = true
+import_extractor = ""
+base_class_extractor = "generic"
+
+[semantics.project]
+source_dirs = ["src"]
+ignored_dirs = ["build", "DerivedData"]
+implicit_module = true
+[semantics.complexity]
+branch_nodes = ["if_statement", "for_statement", "while_statement", "do_statement", "switch_statement", "catch_clause"]
+logic_nodes = ["binary_expression"]
+logic_operators = ["&&", "||"]
+nesting_nodes = ["if_statement", "for_statement", "while_statement", "do_statement", "switch_statement"]

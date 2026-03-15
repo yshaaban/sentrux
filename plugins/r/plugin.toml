@@ -1,0 +1,35 @@
+[plugin]
+name = "r"
+display_name = "R"
+version = "0.1.0"
+extensions = ["r", "R"]
+min_sentrux_version = "0.3.0"
+color_rgb = [50, 120, 175]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/r-lib/tree-sitter-r"
+ref = "main"
+abi_version = 14
+
+[queries]
+capabilities = ["functions"]
+
+[checksums]
+
+[semantics]
+import_extractor = ""
+base_class_extractor = "generic"
+hash_is_comment = true
+is_executable = true
+
+[semantics.project]
+
+[semantics.complexity]
+branch_nodes = ["if_statement", "for_statement", "while_statement", "repeat_statement"]
+logic_nodes = ["binary_expression"]
+logic_operators = ["&&", "||", "&", "|"]
+nesting_nodes = ["if_statement", "for_statement", "while_statement", "repeat_statement"]

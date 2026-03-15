@@ -1,0 +1,54 @@
+[plugin]
+name = "ruby"
+display_name = "Ruby"
+version = "0.1.0"
+extensions = ["rb"]
+filenames = ["Rakefile", "Gemfile", "Guardfile", "Vagrantfile"]
+min_sentrux_version = "0.3.0"
+color_rgb = [160, 65, 60]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/tree-sitter/tree-sitter-ruby"
+ref = "master"
+abi_version = 14
+
+[queries]
+capabilities = ["functions", "classes", "imports"]
+
+[checksums]
+
+[semantics]
+dot_is_module_separator = true
+import_extractor = ""
+base_class_extractor = "generic"
+base_class_node_kinds = ["superclass"]
+hash_is_comment = true
+is_executable = true
+test_suffixes = ["_spec.rb", "_test.rb"]
+test_prefixes = ["test_"]
+test_dir_prefixes = ["spec/", "test/"]
+test_dir_infixes = ["/spec/", "/test/"]
+main_filenames = ["app.rb", "server.rb"]
+
+
+[semantics.resolver]
+alias_file = "*.gemspec"
+alias_field = "spec.name"
+source_root = "lib"
+[semantics.project]
+manifest_files = ["Gemfile"]
+source_dirs = ["lib"]
+
+[semantics.complexity]
+branch_nodes = ["if", "unless", "elsif", "while", "until", "for", "case", "when", "rescue"]
+logic_nodes = ["binary"]
+logic_operators = ["&&", "||", "and", "or"]
+nesting_nodes = ["if", "unless", "while", "until", "for", "case", "begin"]
+
+[semantics.complexity_keywords]
+cc = [" if ", "\tif ", "elsif ", "unless ", "while ", "until ", "for ", "case ", "when ", "&&", "||"]
+cog_branch = ["if ", "elsif ", "unless ", "while ", "until ", "for ", "case ", "when "]

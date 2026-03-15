@@ -1,0 +1,34 @@
+[plugin]
+name = "lua"
+display_name = "Lua"
+version = "0.1.0"
+extensions = ["lua"]
+min_sentrux_version = "0.3.0"
+color_rgb = [50, 55, 120]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/tree-sitter-grammars/tree-sitter-lua"
+ref = "main"
+abi_version = 14
+
+[queries]
+capabilities = ["functions"]
+
+[checksums]
+
+[semantics]
+import_extractor = ""
+base_class_extractor = "generic"
+is_executable = true
+
+[semantics.project]
+
+[semantics.complexity]
+branch_nodes = ["if_statement", "while_statement", "repeat_statement", "for_statement"]
+logic_nodes = ["binary_expression"]
+logic_operators = ["and", "or"]
+nesting_nodes = ["if_statement", "while_statement", "repeat_statement", "for_statement"]

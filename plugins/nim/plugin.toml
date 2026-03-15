@@ -1,0 +1,36 @@
+[plugin]
+name = "nim"
+display_name = "Nim"
+version = "0.2.0"
+extensions = ["nim", "nims"]
+min_sentrux_version = "0.4.0"
+color_rgb = [255, 225, 95]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/aMOPel/tree-sitter-nim"
+ref = "main"
+abi_version = 14
+
+[queries]
+capabilities = ["functions", "classes", "imports"]
+
+[checksums]
+
+[semantics]
+is_executable = true
+hash_is_comment = true
+import_extractor = ""
+
+[semantics.project]
+manifest_files = ["*.nimble"]
+ignored_dirs = ["nimcache"]
+
+[semantics.complexity]
+branch_nodes = ["if_statement", "elif_branch", "for_statement", "while_statement", "case_statement", "try_statement", "except_branch"]
+logic_nodes = ["infix_expression"]
+logic_operators = ["and", "or"]
+nesting_nodes = ["if_statement", "for_statement", "while_statement", "case_statement", "try_statement"]

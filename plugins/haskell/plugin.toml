@@ -1,0 +1,34 @@
+[plugin]
+name = "haskell"
+display_name = "Haskell"
+version = "0.1.0"
+extensions = ["hs"]
+min_sentrux_version = "0.3.0"
+color_rgb = [90, 80, 125]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/tree-sitter/tree-sitter-haskell"
+ref = "master"
+abi_version = 14
+
+[queries]
+capabilities = ["functions", "classes", "imports"]
+
+[checksums]
+
+[semantics]
+import_extractor = ""
+base_class_extractor = "generic"
+is_executable = true
+
+[semantics.project]
+
+[semantics.complexity]
+branch_nodes = ["case", "lambda", "list_comprehension"]
+logic_nodes = []
+logic_operators = []
+nesting_nodes = ["case", "lambda", "do", "list_comprehension"]

@@ -1,0 +1,75 @@
+[plugin]
+name = "rust"
+display_name = "Rust"
+version = "0.2.0"
+extensions = ["rs"]
+min_sentrux_version = "0.4.0"
+color_rgb = [175, 135, 110]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/tree-sitter/tree-sitter-rust"
+ref = "master"
+abi_version = 14
+
+[queries]
+capabilities = ["functions", "classes", "imports"]
+
+[checksums]
+
+[semantics]
+import_extractor = ""
+base_class_extractor = "generic"
+package_index_files = ["mod.rs"]
+is_executable = true
+test_suffixes = ["_test.rs", "_tests.rs"]
+test_dir_prefixes = ["tests/"]
+test_dir_infixes = ["/tests/"]
+test_module_kind = "mod_item"
+test_attribute_kind = "attribute_item"
+test_attribute_patterns = ["cfg", "test"]
+entry_point_patterns = ["@main", "tokio::main", "actix_web::main", "#[main]"]
+test_function_prefixes = ["test_", "bench_"]
+implicit_entry_points = ["from", "into", "try_from", "try_into", "drop", "fmt", "clone", "eq", "hash", "cmp", "partial_cmp", "as_ref", "deref", "index"]
+qualified_name_separator = "::"
+
+[semantics.project]
+manifest_files = ["Cargo.toml"]
+ignored_dirs = ["target", ".cargo", ".rustup"]
+source_dirs = ["src"]
+mod_declaration_files = ["mod.rs", "lib.rs", "main.rs"]
+
+[semantics.resolver]
+alias_file = "Cargo.toml"
+alias_field = "package.name"
+alias_transform = "hyphen_to_underscore"
+alias_entry_point = "src/lib.rs"
+source_root = "src"
+workspace_file = "Cargo.toml"
+workspace_format = "toml"
+workspace_members_field = "workspace.members"
+workspace_package_name_field = "package.name"
+workspace_entry_point = "src/lib.rs"
+
+[semantics.import_ast]
+strategy = "scoped_path"
+path_separator = "::"
+use_list_kind = "use_list"
+scoped_path_kinds = ["scoped_identifier", "scoped_use_list"]
+mod_declaration_kind = "mod_item"
+leaf_identifier_kinds = ["identifier", "crate", "self"]
+skip_type_imports_in_use_list = true
+
+[semantics.complexity]
+branch_nodes = ["if_expression", "else_clause", "for_expression", "while_expression", "loop_expression", "match_arm"]
+logic_nodes = ["binary_expression"]
+logic_operators = ["&&", "||"]
+nesting_nodes = ["if_expression", "for_expression", "while_expression", "loop_expression", "match_expression"]
+
+[semantics.complexity_keywords]
+cc = [" if ", "\tif ", "else if", "for ", "while ", "loop ", "&&", "||", "=> ", "=>{"]
+cog_branch = ["if ", "else if", "for ", "while ", "loop ", "match "]
+cog_nesting = ["if ", "for ", "while ", "loop ", "match "]

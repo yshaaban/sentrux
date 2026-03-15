@@ -1,0 +1,30 @@
+[plugin]
+name = "clojure"
+display_name = "Clojure"
+version = "0.2.0"
+extensions = ["clj", "cljs", "cljc"]
+min_sentrux_version = "0.4.0"
+color_rgb = [80, 145, 55]
+
+[plugin.metadata]
+author = "sentrux"
+license = "MIT"
+
+[grammar]
+source = "https://github.com/sogaiu/tree-sitter-clojure"
+ref = "master"
+abi_version = 14
+
+[queries]
+capabilities = ["functions", "imports"]
+
+[checksums]
+
+[semantics]
+is_executable = true
+import_extractor = ""
+
+[semantics.project]
+manifest_files = ["deps.edn", "project.clj"]
+ignored_dirs = ["target", ".cpcache", ".clj-kondo"]
+source_dirs = ["src"]
