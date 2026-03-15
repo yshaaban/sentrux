@@ -221,8 +221,24 @@ impl SentruxApp {
         if let Some(path) = &self.state.hovered_path {
             if let Some(pos) = path.rfind('/') {
                 let dir = path[..pos].to_string();
-                self.state.drill_stack.push(dir);
-                return true;
+                // Only drill deeper — don't push if already at or below this directory
+                let already_at = self.state.drill_stack.last()
+                    .map_or(false, |current| dir == *current || dir.starts_with(&format!("{}/", current)));
+                if already_at {
+                    // We're already in this dir — try to drill into a subdirectory
+                    // by finding the next level down from the current drill point
+                    if let Some(current) = self.state.drill_stack.last() {
+                        let rest = path.strip_prefix(&format!("{}/", current)).unwrap_or(path);
+                        if let Some(next_slash) = rest.find('/') {
+                            let next_dir = format!("{}/{}", current, &rest[..next_slash]);
+                            self.state.drill_stack.push(next_dir);
+                            return true;
+                        }
+                    }
+                } else {
+                    self.state.drill_stack.push(dir);
+                    return true;
+                }
             }
         }
         false
