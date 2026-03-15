@@ -43,7 +43,7 @@ fn draw_left_info(ui: &mut egui::Ui, state: &AppState) {
         let total = imports + calls + inherits;
         ui.label(egui::RichText::new(abs(path)).strong().monospace());
         ui.label(egui::RichText::new(format!(
-            "{} edges  ({} imp {} call {} inh)",
+            "{} edges  ({} import {} call {} inherit)",
             total, imports, calls, inherits
         )).weak().monospace());
     } else if let Some(root) = &state.root_path {

@@ -181,9 +181,9 @@ pub(crate) fn draw_language_summary(
         );
         let cy = rect.center().y;
         let detail = if stat.import_edges > 0 {
-            format!("{}fn  {}ln  {}imp", stat.funcs, stat.lines, stat.import_edges)
+            format!("{} functions  {} lines  {} imports", stat.funcs, stat.lines, stat.import_edges)
         } else {
-            format!("{}fn  {}ln", stat.funcs, stat.lines)
+            format!("{} functions  {} lines", stat.funcs, stat.lines)
         };
         ui.painter().text(
             egui::pos2(rect.left() + 14.0, cy), egui::Align2::LEFT_CENTER,

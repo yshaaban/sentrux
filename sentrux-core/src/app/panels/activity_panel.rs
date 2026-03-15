@@ -189,9 +189,9 @@ fn draw_activity_row(
         delta_parts.push((format!("{}", entry.lines_delta), egui::Color32::from_rgb(224, 108, 117)));
     }
     if entry.funcs_delta > 0 {
-        delta_parts.push((format!("+{}fn", entry.funcs_delta), egui::Color32::from_rgb(115, 201, 145)));
+        delta_parts.push((format!("+{} functions", entry.funcs_delta), egui::Color32::from_rgb(115, 201, 145)));
     } else if entry.funcs_delta < 0 {
-        delta_parts.push((format!("{}fn", entry.funcs_delta), egui::Color32::from_rgb(224, 108, 117)));
+        delta_parts.push((format!("{}  functions", entry.funcs_delta), egui::Color32::from_rgb(224, 108, 117)));
     }
 
     // Draw delta info before age

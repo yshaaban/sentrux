@@ -43,7 +43,7 @@ pub(crate) fn draw_file_detail(
 
     // Language + line count from file_index
     if let Some(entry) = state.file_index.get(selected.as_str()) {
-        let lang_text = format!("{} \u{00b7} {} lines \u{00b7} {} fn",
+        let lang_text = format!("{} \u{00b7} {} lines \u{00b7} {} functions",
             entry.lang, entry.lines, entry.funcs);
         let profile = crate::analysis::lang_registry::profile(&entry.lang);
         let color = egui::Color32::from_rgb(

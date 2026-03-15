@@ -352,7 +352,7 @@ impl AppState {
             lang: f.lang.clone(),
             gs: f.gs.clone(),
             mtime: f.mtime,
-            stats_line: format!("{}ln {}fn {}cd", f.lines, f.funcs, f.logic),
+            stats_line: format!("{} lines  {} functions", f.lines, f.funcs),
         }
     }
 
