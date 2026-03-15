@@ -86,6 +86,9 @@ enum Command {
         #[command(subcommand)]
         action: Option<AnalyticsAction>,
     },
+
+    /// Upgrade to Sentrux Pro
+    Login,
 }
 
 #[derive(Subcommand)]
@@ -176,6 +179,10 @@ pub fn run() -> eframe::Result<()> {
             run_analytics(action);
             Ok(())
         }
+        Some(Command::Login) => {
+            run_login();
+            Ok(())
+        }
         Some(Command::Scan { path }) => {
             run_gui(path)
         }
@@ -196,6 +203,33 @@ pub fn run() -> eframe::Result<()> {
 fn analytics_opt_out_path() -> Option<std::path::PathBuf> {
     sentrux_core::analysis::plugin::plugins_dir()
         .map(|d| d.parent().unwrap().join("telemetry_opt_out"))
+}
+
+fn run_login() {
+    // Check if this binary has Pro code compiled in
+    #[cfg(feature = "pro")]
+    {
+        // Pro binary: do actual login flow
+        // TODO: open browser → OAuth → save license key
+        println!("Opening browser for Sentrux Pro login...");
+        println!("(Not yet implemented — coming soon)");
+        return;
+    }
+
+    #[cfg(not(feature = "pro"))]
+    {
+        // Free source build: tell user to get pre-built binary
+        println!();
+        println!("  Sentrux Pro requires the official binary.");
+        println!();
+        println!("  Install the official binary:");
+        println!("    macOS:   brew install sentrux/tap/sentrux");
+        println!("    Linux:   curl -fsSL https://raw.githubusercontent.com/sentrux/sentrux/main/install.sh | sh");
+        println!("    Windows: curl -L -o sentrux.exe https://github.com/sentrux/sentrux/releases/latest/download/sentrux-windows-x86_64.exe");
+        println!();
+        println!("  Then run `sentrux login` to activate Pro.");
+        println!();
+    }
 }
 
 fn run_analytics(action: Option<AnalyticsAction>) {
