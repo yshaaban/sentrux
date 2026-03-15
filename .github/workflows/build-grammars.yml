@@ -1,0 +1,163 @@
+name: Build Grammars Bundle
+
+on:
+  push:
+    tags: ['v*']  # Only on binary release tags
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            platform: darwin-arm64
+            ext: dylib
+            cc_flags: "-arch arm64"
+          - os: ubuntu-latest
+            platform: linux-x86_64
+            ext: so
+            cc_flags: ""
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tree-sitter CLI
+        run: npm install -g tree-sitter-cli
+
+      - name: Build all grammars
+        run: |
+          mkdir -p grammars-out
+
+          for plugin_dir in plugins/*/; do
+            name=$(basename "$plugin_dir")
+            toml="$plugin_dir/plugin.toml"
+
+            # Skip plugins without [grammar] section
+            if ! grep -q '\[grammar\]' "$toml" 2>/dev/null; then
+              echo "::notice::Skipping $name — no grammar"
+              continue
+            fi
+
+            source=$(grep 'source = ' "$toml" | head -1 | sed 's/.*"\(.*\)".*/\1/')
+            ref=$(grep 'ref = ' "$toml" | head -1 | sed 's/.*"\(.*\)".*/\1/')
+
+            echo "Building $name from $source ($ref)..."
+
+            # Clone grammar source
+            if ! git clone --depth 1 --branch "$ref" "$source" "grammar-src-$name" 2>/dev/null; then
+              if ! git clone --depth 1 "$source" "grammar-src-$name" 2>/dev/null; then
+                echo "::warning::Failed to clone $name"
+                continue
+              fi
+            fi
+
+            cd "grammar-src-$name"
+
+            # Auto-detect grammar subdirectory
+            GRAMMAR_DIR="."
+            if [ ! -f grammar.js ]; then
+              if [ -f "$name/grammar.js" ]; then
+                GRAMMAR_DIR="$name"
+              elif [ -f "grammars/$name/grammar.js" ]; then
+                GRAMMAR_DIR="grammars/$name"
+              else
+                FOUND=$(find . -name grammar.js -maxdepth 3 | head -1)
+                [ -n "$FOUND" ] && GRAMMAR_DIR=$(dirname "$FOUND")
+              fi
+            fi
+
+            cd "$GRAMMAR_DIR"
+            tree-sitter generate || true
+
+            # Find src directory
+            SRC_DIR="src"
+            if [ ! -f "$SRC_DIR/parser.c" ]; then
+              for sub in */src; do
+                [ -f "$sub/parser.c" ] && SRC_DIR="$sub" && break
+              done
+            fi
+
+            if [ ! -f "$SRC_DIR/parser.c" ]; then
+              echo "::warning::$name: parser.c not found"
+              cd "$OLDPWD"
+              continue
+            fi
+
+            # Compile parser.c (auto-generated, suppress warnings)
+            cc -c -fPIC -O2 -w ${{ matrix.cc_flags }} -I "$SRC_DIR" "$SRC_DIR/parser.c" -o parser.o
+
+            OBJECTS="parser.o"
+            [ -f "$SRC_DIR/scanner.c" ] && {
+              cc -c -fPIC -O2 -Wall ${{ matrix.cc_flags }} -I "$SRC_DIR" "$SRC_DIR/scanner.c" -o scanner.o
+              OBJECTS="$OBJECTS scanner.o"
+            }
+
+            if [ -f "$SRC_DIR/scanner.cc" ]; then
+              c++ -c -fPIC -O2 -Wall ${{ matrix.cc_flags }} -I "$SRC_DIR" "$SRC_DIR/scanner.cc" -o scanner_cc.o
+              OBJECTS="$OBJECTS scanner_cc.o"
+              c++ -shared ${{ matrix.cc_flags }} $OBJECTS -o "$OLDPWD/grammars-out/$name.${{ matrix.ext }}"
+            else
+              cc -shared ${{ matrix.cc_flags }} $OBJECTS -o "$OLDPWD/grammars-out/$name.${{ matrix.ext }}"
+            fi
+
+            cd "$OLDPWD"
+            rm -rf "grammar-src-$name"
+
+            if [ -f "grammars-out/$name.${{ matrix.ext }}" ]; then
+              echo "  ✓ $name"
+            else
+              echo "  ✗ $name (build failed)"
+            fi
+          done
+
+      - name: Package grammars bundle
+        run: |
+          # Create directory structure matching what ensure_grammars_installed expects:
+          # <lang>/grammars/<platform>.<ext>
+          mkdir -p bundle
+          for grammar in grammars-out/*.${{ matrix.ext }}; do
+            name=$(basename "$grammar" .${{ matrix.ext }})
+            mkdir -p "bundle/$name/grammars"
+            cp "$grammar" "bundle/$name/grammars/${{ matrix.platform }}.${{ matrix.ext }}"
+          done
+
+          cd bundle
+          tar czf "../grammars-${{ matrix.platform }}.tar.gz" */
+          cd ..
+
+          echo "Bundle contents:"
+          tar tzf "grammars-${{ matrix.platform }}.tar.gz" | head -20
+          echo "..."
+          ls -lh "grammars-${{ matrix.platform }}.tar.gz"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: grammars-${{ matrix.platform }}
+          path: grammars-${{ matrix.platform }}.tar.gz
+
+  attach-to-release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Download all platform bundles
+        uses: actions/download-artifact@v4
+
+      - name: Attach to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            grammars-darwin-arm64/grammars-darwin-arm64.tar.gz
+            grammars-linux-x86_64/grammars-linux-x86_64.tar.gz
+          body: |
+            Grammar bundles are automatically attached to this release.
+            The sentrux binary downloads these on first launch.
