@@ -23,4 +23,8 @@ egui = { workspace = true }
 
 [features]
 default = []
-pro = ["sentrux-core/pro"]  # Pro tools provided by separate private-integration-crate crate
+pro = ["sentrux-core/pro", "dep:private-integration-crate"]
+
+[dependencies.private-integration-crate]
+path = "../../private-integration-crate"
+optional = true

@@ -3385,6 +3385,7 @@ dependencies = [
  "eframe",
  "egui",
  "sentrux-core",
+ "private-integration-crate",
 ]
 
 [[package]]
@@ -3411,6 +3412,13 @@ dependencies = [
  "thiserror 2.0.18",
  "toml",
  "tree-sitter",
+]
+
+[[package]]
+name = "private-integration-crate"
+version = "0.4.5"
+dependencies = [
+ "sentrux-core",
 ]
 
 [[package]]
