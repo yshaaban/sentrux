@@ -449,8 +449,9 @@ fn collect_dead_functions(files: &[&FileNode]) -> Vec<FuncMetric> {
             None => continue,
         };
         for f in funcs {
-            // Public/exported functions are NOT dead code — they're API surface
-            if f.is_public { continue; }
+            // Public/exported functions are NOT dead code — they're API surface.
+            // Methods (self/this) are called via object dispatch — can't trace statically.
+            if f.is_public || f.is_method { continue; }
             if is_excluded_function(&f.n, &implicit, &file.lang) { continue; }
             if !is_called(&f.n, &all_calls) {
                 result.push(FuncMetric {

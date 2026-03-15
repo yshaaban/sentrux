@@ -300,6 +300,17 @@ pub(super) fn process_func_def(
         } else {
             false
         };
+        // Method detection: check if function text contains self/this params.
+        // Methods are called via object dispatch → hard to trace statically.
+        let is_method = {
+            let self_texts = &profile.semantics.self_param_texts;
+            if self_texts.is_empty() {
+                // Fallback: check for common self/this patterns
+                body.contains("self") || body.contains("this") || body.contains("cls")
+            } else {
+                self_texts.iter().any(|s| body.contains(s.as_str()))
+            }
+        };
         functions.push(FuncInfo {
             n: name, sl, el, ln,
             cc: Some(cc),
@@ -307,7 +318,8 @@ pub(super) fn process_func_def(
             pc: Some(pc),
             bh: if bh != 0 { Some(bh) } else { None },
             d: None, co: None,
-            is_public: is_public || is_test, // test functions treated as "reachable"
+            is_public: is_public || is_test,
+            is_method,
         });
     }
 }

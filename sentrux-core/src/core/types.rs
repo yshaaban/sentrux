@@ -100,6 +100,10 @@ pub struct FuncInfo {
     /// Used by dead code detection: public functions are NOT dead code.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub is_public: bool,
+    /// Whether this function is a method (has self/this parameter).
+    /// Methods are called via object dispatch — static analysis can't trace all callers.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub is_method: bool,
 }
 
 /// Information about a class, interface, or type definition.
