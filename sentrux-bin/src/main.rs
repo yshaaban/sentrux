@@ -631,21 +631,8 @@ fn run_gui(path: Option<String>) -> eframe::Result<()> {
     } else {
         let probed = probe_available_backends();
         if probed.is_empty() {
-            eprintln!();
-            eprintln!("  sentrux GUI requires a GPU (Vulkan, Metal, or OpenGL).");
-            eprintln!("  No GPU adapters found on this system.");
-            eprintln!();
-            eprintln!("  CLI commands work without GPU:");
-            eprintln!("    sentrux check .          # code health check");
-            eprintln!("    sentrux gate --save .    # save baseline");
-            eprintln!("    sentrux mcp              # start MCP server");
-            eprintln!();
-            #[cfg(windows)]
-            {
-                eprintln!("  Press Enter to exit...");
-                let _ = std::io::stdin().read_line(&mut String::new());
-            }
-            std::process::exit(1);
+            // No hardware GPU — try software rendering via glow (OpenGL)
+            return run_gui_glow(initial_path);
         }
         probed
     };
@@ -696,29 +683,31 @@ fn run_gui(path: Option<String>) -> eframe::Result<()> {
         }
 
         if i + 1 == backend_attempts.len() {
-            eprintln!();
-            eprintln!("  sentrux GUI requires a GPU (Vulkan, Metal, or OpenGL).");
-            eprintln!("  This system has no compatible GPU backend.");
-            eprintln!();
-            eprintln!("  CLI commands work without GPU:");
-            eprintln!("    sentrux check .          # code health check");
-            eprintln!("    sentrux gate --save .    # save baseline");
-            eprintln!("    sentrux gate .           # compare against baseline");
-            eprintln!("    sentrux mcp              # start MCP server");
-            eprintln!();
-            eprintln!("  To use the GUI, connect from a machine with a GPU,");
-            eprintln!("  or set WGPU_BACKEND=gl for software rendering.");
-            eprintln!();
-            // On Windows, keep console open so user can read the message
-            #[cfg(windows)]
-            {
-                eprintln!("  Press Enter to exit...");
-                let _ = std::io::stdin().read_line(&mut String::new());
-            }
-            std::process::exit(1);
+            // All wgpu backends failed — fall back to glow (software OpenGL)
+            return run_gui_glow(initial_path);
         }
     }
     Ok(())
+}
+
+/// Fallback GUI using glow (OpenGL) renderer — works on systems without
+/// hardware GPU (VMs, RDP, headless servers with software OpenGL).
+fn run_gui_glow(initial_path: Option<String>) -> eframe::Result<()> {
+    sentrux_core::debug_log!("[gpu] falling back to glow (software OpenGL)");
+    let title = if sentrux_core::license::current_tier() >= sentrux_core::license::Tier::Pro { "Sentrux Pro" } else { "sentrux" };
+    let options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default()
+            .with_inner_size([1600.0, 1000.0])
+            .with_maximized(true)
+            .with_title(title),
+        renderer: eframe::Renderer::Glow,
+        ..Default::default()
+    };
+    eframe::run_native(
+        "Sentrux",
+        options,
+        Box::new(move |cc| Ok(Box::new(app::SentruxApp::new(cc, initial_path)))),
+    )
 }
 
 // ---------------------------------------------------------------------------
