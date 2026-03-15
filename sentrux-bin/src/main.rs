@@ -80,6 +80,20 @@ enum Command {
         #[command(subcommand)]
         action: PluginAction,
     },
+
+    /// Control anonymous aggregate usage analytics
+    Analytics {
+        #[command(subcommand)]
+        action: Option<AnalyticsAction>,
+    },
+}
+
+#[derive(Subcommand)]
+enum AnalyticsAction {
+    /// Turn analytics on
+    On,
+    /// Turn analytics off
+    Off,
 }
 
 #[derive(Subcommand)]
@@ -154,11 +168,56 @@ fn main() -> eframe::Result<()> {
             run_plugin(action);
             Ok(())
         }
+        Some(Command::Analytics { action }) => {
+            run_analytics(action);
+            Ok(())
+        }
         Some(Command::Scan { path }) => {
             run_gui(path)
         }
         None => {
             run_gui(cli.path)
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Check
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Analytics
+// ---------------------------------------------------------------------------
+
+fn analytics_opt_out_path() -> Option<std::path::PathBuf> {
+    sentrux_core::analysis::plugin::plugins_dir()
+        .map(|d| d.parent().unwrap().join("telemetry_opt_out"))
+}
+
+fn run_analytics(action: Option<AnalyticsAction>) {
+    let path = analytics_opt_out_path();
+    match action {
+        None => {
+            // No subcommand = show state (like `brew analytics`)
+            let opted_out = path.as_ref().map_or(false, |p| p.exists());
+            if opted_out {
+                println!("Analytics are disabled.");
+            } else {
+                println!("Analytics are enabled.");
+            }
+        }
+        Some(AnalyticsAction::On) => {
+            if let Some(p) = &path {
+                let _ = std::fs::remove_file(p);
+            }
+            println!("Analytics are enabled.");
+        }
+        Some(AnalyticsAction::Off) => {
+            if let Some(p) = &path {
+                let _ = std::fs::create_dir_all(p.parent().unwrap());
+                let _ = std::fs::write(p, "1");
+            }
+            println!("Analytics are disabled.");
         }
     }
 }

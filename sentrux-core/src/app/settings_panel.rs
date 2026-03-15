@@ -49,6 +49,8 @@ pub fn draw_settings_panel(
                 let (lc, vc) = draw_misc_sections(ui, settings);
                 layout_changed |= lc;
                 visual_changed |= vc;
+
+                draw_privacy_section(ui);
             });
         });
 
@@ -154,6 +156,39 @@ fn draw_misc_sections(ui: &mut egui::Ui, settings: &mut Settings) -> (bool, bool
         vc |= slider_u64(ui, "Heat Repaint (ms)", &mut settings.heat_repaint_ms, 16..=200);
     });
     (lc, vc)
+}
+
+/// Privacy section — telemetry opt-out toggle.
+/// Reads/writes SENTRUX_NO_UPDATE_CHECK preference to ~/.sentrux/telemetry_opt_out.
+fn draw_privacy_section(ui: &mut egui::Ui) {
+    ui.collapsing("Privacy", |ui| {
+        let opt_out_path = dirs::home_dir()
+            .map(|h| h.join(".sentrux").join("telemetry_opt_out"));
+
+        let mut opted_out = opt_out_path.as_ref()
+            .map_or(false, |p| p.exists());
+
+        ui.label("Anonymous usage statistics help improve sentrux.");
+        ui.label("No code, file paths, or project data is ever sent.");
+        ui.add_space(4.0);
+
+        if ui.checkbox(&mut opted_out, "Disable anonymous usage stats").changed() {
+            if let Some(path) = &opt_out_path {
+                if opted_out {
+                    let _ = std::fs::create_dir_all(path.parent().unwrap());
+                    let _ = std::fs::write(path, "1");
+                } else {
+                    let _ = std::fs::remove_file(path);
+                }
+            }
+        }
+
+        ui.add_space(2.0);
+        ui.label(egui::RichText::new("What's collected: version, platform, scan count, grade")
+            .weak().small());
+        ui.label(egui::RichText::new("What's NOT collected: code, file paths, project names")
+            .weak().small());
+    });
 }
 
 fn slider_f64(ui: &mut egui::Ui, label: &str, val: &mut f64, range: std::ops::RangeInclusive<f64>) -> bool {

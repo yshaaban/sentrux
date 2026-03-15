@@ -24,7 +24,7 @@
 //! The lock is held only during file I/O (microseconds), NEVER during
 //! the network call (~3 seconds), so there is zero user-visible contention.
 //!
-//! Respects SENTRUX_NO_UPDATE_CHECK=1 to disable entirely.
+//! Respects `sentrux analytics off` (writes ~/.sentrux/telemetry_opt_out).
 //! Respects SENTRUX_DEV=1 to tag pings as internal/dev traffic.
 
 use std::path::PathBuf;
@@ -191,8 +191,11 @@ fn cache_path() -> Option<PathBuf> {
 }
 
 fn should_check() -> bool {
-    if std::env::var("SENTRUX_NO_UPDATE_CHECK").is_ok() {
-        return false;
+    // Respect opt-out file (set by `sentrux analytics off`)
+    if let Some(opt_out) = dirs::home_dir().map(|h| h.join(".sentrux").join("telemetry_opt_out")) {
+        if opt_out.exists() {
+            return false;
+        }
     }
     let path = match cache_path() {
         Some(p) => p,
