@@ -25,7 +25,7 @@ dot_is_module_separator = true
 is_executable = true
 public_keywords = ["public"]
 test_decorators = ["@Test"]
-trait_impl_parent_kinds = []
+method_parent_kinds = ["class_body"]
 import_extractor = ""
 base_class_extractor = "generic"
 

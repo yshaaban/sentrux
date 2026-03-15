@@ -268,12 +268,13 @@ pub(super) fn process_func_def(
                 keywords.iter().any(|kw| text.starts_with(kw.as_str()))
             }
         };
-        // Trait/interface impl: walk parent nodes looking for trait_impl_parent_kinds.
-        // Functions inside trait impls are callable via dispatch → not dead code.
-        if !is_public && !profile.semantics.trait_impl_parent_kinds.is_empty() {
+        // Method/trait impl detection: walk parent nodes looking for method_parent_kinds.
+        // Functions inside class bodies, impl blocks, extensions are methods —
+        // called via object dispatch which static analysis can't trace.
+        if !is_public && !profile.semantics.method_parent_kinds.is_empty() {
             let mut ancestor = node.parent();
             while let Some(parent) = ancestor {
-                if profile.semantics.trait_impl_parent_kinds.iter()
+                if profile.semantics.method_parent_kinds.iter()
                     .any(|k| k == parent.kind()) {
                     is_public = true;
                     break;
@@ -282,7 +283,6 @@ pub(super) fn process_func_def(
             }
         }
         // Test decorator detection: check wider text (includes preceding attributes).
-        // Also check the previous sibling for attribute nodes (Rust #[test]).
         let is_test = if !profile.semantics.test_decorators.is_empty() {
             let text = body;
             let mut found = profile.semantics.test_decorators.iter()
@@ -300,17 +300,6 @@ pub(super) fn process_func_def(
         } else {
             false
         };
-        // Method detection: check if function text contains self/this params.
-        // Methods are called via object dispatch → hard to trace statically.
-        let is_method = {
-            let self_texts = &profile.semantics.self_param_texts;
-            if self_texts.is_empty() {
-                // Fallback: check for common self/this patterns
-                body.contains("self") || body.contains("this") || body.contains("cls")
-            } else {
-                self_texts.iter().any(|s| body.contains(s.as_str()))
-            }
-        };
         functions.push(FuncInfo {
             n: name, sl, el, ln,
             cc: Some(cc),
@@ -319,7 +308,7 @@ pub(super) fn process_func_def(
             bh: if bh != 0 { Some(bh) } else { None },
             d: None, co: None,
             is_public: is_public || is_test,
-            is_method,
+            is_method: false, // Deprecated — method detection via method_parent_kinds
         });
     }
 }
