@@ -50,11 +50,10 @@ jobs:
       - name: Link Pro crate paths
         shell: bash
         run: |
-          # sentrux-bin references private-integration-crate at ../../private-integration-crate (relative to sentrux-bin/)
-          # private-integration-crate references sentrux-core at ../sentrux-fresh/sentrux-core
-          # Create symlinks so both resolve in CI:
-          ln -sf "$(pwd)/private-integration-crate-checkout" ../private-integration-crate
-          ln -sf "$(pwd)" ../sentrux-fresh
+          # Move pro checkout to where sentrux-bin expects it (../../private-integration-crate from sentrux-bin/)
+          mv private-integration-crate-checkout ../private-integration-crate
+          # Patch private-integration-crate Cargo.toml: replace local dev path with CI path
+          sed -i.bak 's|../sentrux-fresh/sentrux-core|../sentrux/sentrux-core|' ../private-integration-crate/Cargo.toml
 
       - name: Build release binary (with Pro)
         run: cargo build --release --features pro --target ${{ matrix.target }}
