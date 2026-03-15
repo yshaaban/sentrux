@@ -33,6 +33,8 @@ jobs:
 
       - name: Build all grammars
         run: |
+          set +e  # Don't exit on individual grammar build failures
+          WORKSPACE="$(pwd)"
           mkdir -p grammars-out
 
           for plugin_dir in plugins/*/; do
@@ -86,7 +88,7 @@ jobs:
 
             if [ ! -f "$SRC_DIR/parser.c" ]; then
               echo "::warning::$name: parser.c not found"
-              cd "$OLDPWD"
+              cd "$WORKSPACE"
               continue
             fi
 
@@ -102,12 +104,12 @@ jobs:
             if [ -f "$SRC_DIR/scanner.cc" ]; then
               c++ -c -fPIC -O2 -Wall ${{ matrix.cc_flags }} -I "$SRC_DIR" "$SRC_DIR/scanner.cc" -o scanner_cc.o
               OBJECTS="$OBJECTS scanner_cc.o"
-              c++ -shared ${{ matrix.cc_flags }} $OBJECTS -o "$OLDPWD/grammars-out/$name.${{ matrix.ext }}"
+              c++ -shared ${{ matrix.cc_flags }} $OBJECTS -o "$WORKSPACE/grammars-out/$name.${{ matrix.ext }}"
             else
-              cc -shared ${{ matrix.cc_flags }} $OBJECTS -o "$OLDPWD/grammars-out/$name.${{ matrix.ext }}"
+              cc -shared ${{ matrix.cc_flags }} $OBJECTS -o "$WORKSPACE/grammars-out/$name.${{ matrix.ext }}"
             fi
 
-            cd "$OLDPWD"
+            cd "$WORKSPACE"
             rm -rf "grammar-src-$name"
 
             if [ -f "grammars-out/$name.${{ matrix.ext }}" ]; then
