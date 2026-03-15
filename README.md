@@ -119,7 +119,7 @@ or
 curl -fsSL https://raw.githubusercontent.com/sentrux/sentrux/main/install.sh | sh
 ```
 
-Pure Rust. Single binary. No runtime dependencies. 23 languages via tree-sitter plugins.
+Pure Rust. Single binary. No runtime dependencies. **50 languages** via tree-sitter plugins.
 
 **Step 2 — Run it**
 
@@ -230,21 +230,33 @@ sentrux check .
 
 ## Supported languages
 
-23 languages built-in via [tree-sitter](https://tree-sitter.github.io/) plugins:
+**50 languages** built-in via [tree-sitter](https://tree-sitter.github.io/) plugins — zero language knowledge in the binary:
 
-Rust · Python · JavaScript · TypeScript · Go · C · C++ · Java · Ruby · C# · PHP · Bash · HTML · CSS · SCSS · Swift · Lua · Scala · Elixir · Haskell · Zig · R · GDScript
+| | | | | |
+|---|---|---|---|---|
+| Bash | C | C++ | C# | Clojure |
+| Crystal | CSS | Dart | Elixir | Erlang |
+| F# | GDScript | GLSL | Go | Groovy |
+| Haskell | HCL | HTML | Java | JavaScript |
+| JSON | Julia | Kotlin | Lua | Markdown |
+| Nim | Nix | Objective-C | OCaml | Perl |
+| PHP | PowerShell | Protobuf | Python | R |
+| Ruby | Rust | Scala | SCSS | Solidity |
+| SQL | Svelte | Swift | TOML | TypeScript |
+| Vue | YAML | Zig | | |
 
-**Plugin system** — add any language the community supports, or create your own:
+**Plugin system** — add any language, or create your own:
 
 ```bash
 sentrux plugin list              # see installed plugins
-sentrux plugin add <name>        # install a community plugin
+sentrux plugin add <name>        # install from registry
+sentrux plugin add-standard      # install all 50 languages
 sentrux plugin init my-lang      # scaffold a new language plugin
 ```
 
-Plugins use tree-sitter grammars with a simple query file — same approach as Neovim/Helix.
+Architecture: the binary is a **generic platform** — all language knowledge lives in `plugin.toml` + `tags.scm` query files (same approach as [Helix](https://helix-editor.com/)). Adding a new language requires zero Rust code.
 
-Missing a language? [Open an issue](https://github.com/sentrux/sentrux/issues) or submit a plugin PR.
+Missing a language? [Open an issue](https://github.com/sentrux/sentrux/issues) or add a plugin to [`plugins/`](plugins/).
 
 ---
 
