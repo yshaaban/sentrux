@@ -52,19 +52,21 @@ pub fn draw_metrics_panel(ctx: &egui::Context, state: &mut AppState) {
 fn draw_metrics_sections(ui: &mut egui::Ui, state: &mut AppState, tc: &ThemeConfig) {
     let tier = license::current_tier();
 
-    // Language summary: always visible when snapshot exists
-    if let Some(snap) = &state.snapshot {
-        draw_language_summary(ui, snap, &state.lang_stats, tc);
-        draw_sep(ui, tc, 4.0);
-    }
-
-    // Health + Architecture: always free
+    // Health grade FIRST — the most important thing users want to see
     if let Some(report) = &state.health_report {
         draw_health_section(ui, report, tc);
         draw_sep(ui, tc, 4.0);
     }
+
+    // Architecture grade second
     if let Some(arch) = &state.arch_report {
         draw_arch_section(ui, arch, tc);
+        draw_sep(ui, tc, 4.0);
+    }
+
+    // Language summary last in the overview section
+    if let Some(snap) = &state.snapshot {
+        draw_language_summary(ui, snap, &state.lang_stats, tc);
         draw_sep(ui, tc, 4.0);
     }
 
