@@ -107,19 +107,27 @@ sentrux がセンサーを提供する。ルールが仕様を定める。エー
 
 ## インストール
 
-**ステップ 1 — バイナリのインストール**
+**ステップ 1 — インストール**（macOS · Linux · Windows）
 
+**macOS**
 ```bash
 brew install sentrux/tap/sentrux
 ```
 
-または
-
+**Linux**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/sentrux/sentrux/main/install.sh | sh
 ```
 
-Pure Rust。単一バイナリ。ランタイム依存なし。tree-sitterプラグインで51言語対応。
+**Windows**
+```powershell
+# GitHub Releasesからダウンロード
+Invoke-WebRequest -Uri "https://github.com/sentrux/sentrux/releases/latest/download/sentrux-windows-x86_64.exe" -OutFile sentrux.exe
+```
+
+または[Releases](https://github.com/sentrux/sentrux/releases)から直接ダウンロード。
+
+Pure Rust。単一バイナリ。ランタイム依存なし。**macOS**、**Linux**、**Windows**対応。tree-sitterプラグインで51言語対応。
 
 **ステップ 2 — 実行する**
 

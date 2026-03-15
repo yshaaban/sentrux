@@ -107,19 +107,27 @@ sentrux gibt dir den Sensor. Deine Regeln geben die Spezifikation. Der Agent ist
 
 ## Installation
 
-**Schritt 1 — Binary installieren**
+**Schritt 1 — Installieren** (macOS · Linux · Windows)
 
+**macOS**
 ```bash
 brew install sentrux/tap/sentrux
 ```
 
-oder
-
+**Linux**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/sentrux/sentrux/main/install.sh | sh
 ```
 
-Pures Rust. Einzelne Binary. Keine Laufzeitabhängigkeiten. 51 Sprachen via tree-sitter Plugins.
+**Windows**
+```powershell
+# Von GitHub Releases herunterladen
+Invoke-WebRequest -Uri "https://github.com/sentrux/sentrux/releases/latest/download/sentrux-windows-x86_64.exe" -OutFile sentrux.exe
+```
+
+Oder direkt von [Releases](https://github.com/sentrux/sentrux/releases) herunterladen.
+
+Pures Rust. Einzelne Binary. Keine Laufzeitabhängigkeiten. Läuft auf **macOS**, **Linux** und **Windows**. 51 Sprachen via tree-sitter Plugins.
 
 **Schritt 2 — Ausführen**
 
