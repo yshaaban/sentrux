@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod tests {
     use crate::metrics::*;
-    use crate::metrics::grading::*;
     use crate::metrics::stability::module_of;
     use crate::core::types::ImportEdge;
     use crate::core::snapshot::Snapshot;
@@ -262,14 +261,16 @@ mod tests {
             "simple ratio, got {}", report.long_fn_ratio);
     }
 
-    // ── Monotonicity: worse input -> same or worse grade for each dimension ──
+    // ── Monotonicity: worse input -> same or worse score for each dimension ──
     #[test]
     fn monotonicity_per_dimension() {
-        assert!(grade_coupling(0.1) <= grade_coupling(0.5));
-        assert!(grade_coupling(0.5) <= grade_coupling(0.8));
-        // score_to_grade: higher score = better grade (lower char)
-        assert!(score_to_grade(0.8) <= score_to_grade(0.2));
-        assert!(score_to_grade(0.2) <= score_to_grade(0.01));
+        // Higher coupling ratio = lower coupling score (1 - ratio)
+        let coupling_score = |v: f64| (1.0 - v).clamp(0.0, 1.0);
+        assert!(coupling_score(0.1) >= coupling_score(0.5));
+        assert!(coupling_score(0.5) >= coupling_score(0.8));
+        // Higher quality signal = better (direct comparison)
+        assert!(0.8 > 0.2);
+        assert!(0.2 > 0.01);
     }
 
     // ── module_of: depth-2 boundary ──

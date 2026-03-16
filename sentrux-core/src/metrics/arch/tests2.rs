@@ -13,7 +13,6 @@ fn baseline_stable_no_degradation() {
     let baseline = ArchBaseline {
         timestamp: 0.0,
         quality_signal: 0.70,
-        structure_grade: 'B',
         coupling_score: 0.30,
         cycle_count: 1,
         god_file_count: 1,
@@ -295,6 +294,6 @@ fn blast_grade_real_repo() {
     // Blast grade should not be F — no catastrophic blast concentration.
     // Grade varies as architecture refactoring changes what counts as
     // mod_declaration_files and package_index_files.
-    assert!(arch.blast_grade <= 'D',
-        "blast_grade={} expected A, B, C, or D", arch.blast_grade);
+    assert!(arch.blast_score >= 0.2,
+        "blast_score={:.2} expected >= 0.2", arch.blast_score);
 }

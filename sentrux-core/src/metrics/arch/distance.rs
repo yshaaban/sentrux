@@ -21,11 +21,7 @@ use std::collections::{HashMap, HashSet};
 /// Minimum types in a module to compute distance.
 const MIN_TYPES_FOR_DISTANCE: usize = 1;
 
-/// Grade thresholds for average distance from main sequence.
-const DISTANCE_THRESHOLD_A: f64 = 0.15;
-const DISTANCE_THRESHOLD_B: f64 = 0.25;
-const DISTANCE_THRESHOLD_C: f64 = 0.40;
-const DISTANCE_THRESHOLD_D: f64 = 0.55;
+// Distance thresholds removed — continuous [0,1] score replaces letter grades.
 
 // ── Public types ──
 
@@ -254,15 +250,10 @@ fn build_module_distances(
         .collect()
 }
 
-// ── Grading ──
+// ── Scoring ──
 
-/// Grade distance from main sequence: average distance across modules.
-/// Lower average distance = better (modules are on the main sequence).
+/// Distance score [0,1]: 1.0 = all modules on main sequence, 0.0 = maximally off.
 /// [ref:736ae249]
-pub fn grade_distance(avg_distance: f64) -> char {
-    if avg_distance <= DISTANCE_THRESHOLD_A { 'A' }
-    else if avg_distance <= DISTANCE_THRESHOLD_B { 'B' }
-    else if avg_distance <= DISTANCE_THRESHOLD_C { 'C' }
-    else if avg_distance <= DISTANCE_THRESHOLD_D { 'D' }
-    else { 'F' }
+pub fn score_distance(avg_distance: f64) -> f64 {
+    (1.0 - avg_distance).clamp(0.0, 1.0)
 }

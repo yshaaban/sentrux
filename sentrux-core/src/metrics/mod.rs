@@ -2,7 +2,7 @@
 //!
 //! Top-level module that orchestrates all metric computations: structural
 //! coupling, cyclic dependencies, god-file detection, cyclomatic complexity,
-//! and overall letter-grade health scoring. Sub-modules provide architecture
+//! and overall quality signal scoring. Sub-modules provide architecture
 //! analysis, DSM construction, evolutionary metrics, rule enforcement,
 //! test-gap analysis, and what-if scenario simulation.
 //! Key function: `compute_health` produces a `HealthReport` from a `Snapshot`.
@@ -15,7 +15,6 @@ pub mod rules;    // rules/mod.rs + checks.rs
 // ── Flat modules (remain at metrics root) ──
 pub mod cross_validation; // FREE: compression-based quality cross-check
 pub mod dsm;
-pub mod grading;
 pub mod root_causes;
 pub mod stability;
 pub mod testgap;

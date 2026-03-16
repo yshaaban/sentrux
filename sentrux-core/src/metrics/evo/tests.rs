@@ -12,34 +12,33 @@ mod tests {
     use crate::metrics::evo::git_walker::{CommitFile, CommitRecord};
     use std::collections::{HashMap, HashSet};
 
-    // ── Unit tests for grading functions ──
+    // ── Unit tests for scoring functions ──
 
     #[test]
-    fn grade_bus_factor_all_single_author() {
-        assert_eq!(grade_bus_factor(1.0), 'F');
+    fn score_bus_factor_all_single_author() {
+        assert!((score_bus_factor(1.0) - 0.0).abs() < f64::EPSILON);
     }
 
     #[test]
-    fn grade_bus_factor_no_single_author() {
-        assert_eq!(grade_bus_factor(0.0), 'A');
+    fn score_bus_factor_no_single_author() {
+        assert!((score_bus_factor(0.0) - 1.0).abs() < f64::EPSILON);
     }
 
     #[test]
-    fn grade_bus_factor_boundary() {
-        assert_eq!(grade_bus_factor(0.10), 'A');
-        assert_eq!(grade_bus_factor(0.11), 'B');
-        assert_eq!(grade_bus_factor(0.25), 'B');
-        assert_eq!(grade_bus_factor(0.26), 'C');
+    fn score_bus_factor_monotonic() {
+        assert!(score_bus_factor(0.0) > score_bus_factor(0.25));
+        assert!(score_bus_factor(0.25) > score_bus_factor(0.50));
+        assert!(score_bus_factor(0.50) > score_bus_factor(1.0));
     }
 
     #[test]
-    fn grade_churn_empty() {
+    fn score_churn_empty() {
         let churn = HashMap::new();
-        assert_eq!(grade_churn_concentration(&churn), 'A');
+        assert!((score_churn_concentration(&churn) - 1.0).abs() < f64::EPSILON);
     }
 
     #[test]
-    fn grade_churn_uniform() {
+    fn score_churn_uniform() {
         let mut churn = HashMap::new();
         for i in 0..20 {
             churn.insert(
@@ -52,11 +51,11 @@ mod tests {
                 },
             );
         }
-        assert_eq!(grade_churn_concentration(&churn), 'A');
+        assert!(score_churn_concentration(&churn) > 0.5, "uniform churn should score high");
     }
 
     #[test]
-    fn grade_churn_concentrated() {
+    fn score_churn_concentrated() {
         let mut churn = HashMap::new();
         churn.insert(
             "god.rs".to_string(),
@@ -78,16 +77,16 @@ mod tests {
                 },
             );
         }
-        assert_eq!(grade_churn_concentration(&churn), 'F');
+        assert!(score_churn_concentration(&churn) < 0.2, "concentrated churn should score low");
     }
 
-    // ── Unit tests for floor_grade ──
+    // ── Min score test ──
 
     #[test]
-    fn floor_grade_takes_worst() {
-        assert_eq!(floor_grade('A', 'C'), 'C');
-        assert_eq!(floor_grade('F', 'A'), 'F');
-        assert_eq!(floor_grade('B', 'B'), 'B');
+    fn min_score_takes_worst() {
+        assert!((f64::min(0.9, 0.3) - 0.3).abs() < f64::EPSILON);
+        assert!((f64::min(0.1, 0.9) - 0.1).abs() < f64::EPSILON);
+        assert!((f64::min(0.5, 0.5) - 0.5).abs() < f64::EPSILON);
     }
 
     // ── Unit tests for compute functions (with synthetic data) ──

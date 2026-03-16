@@ -86,7 +86,9 @@ to = "src/scanner.rs"
 reason = "Renderer must not know about scanning"
 "#;
         let config: RulesConfig = toml::from_str(toml).unwrap();
-        assert_eq!(config.constraints.max_grade, Some('C'));
+        // max_grade was removed — min_quality is now used instead
+        // but this TOML still uses old format, so it will parse as None
+        assert!(config.constraints.min_quality.is_none());
         assert_eq!(config.layers.len(), 3);
         assert_eq!(config.layers[0].name, "presentation");
         assert_eq!(config.boundaries.len(), 1);

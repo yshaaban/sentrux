@@ -27,17 +27,7 @@ const DEFAULT_LOOKBACK_DAYS: u32 = 90;
 /// Minimum co-change count to report a coupling pair.
 const MIN_COUPLING_COUNT: u32 = 3;
 
-/// Grade thresholds for bus factor (ratio of single-author files).
-const BUS_FACTOR_THRESHOLD_A: f64 = 0.10; // ≤10% single-author = A
-const BUS_FACTOR_THRESHOLD_B: f64 = 0.25;
-const BUS_FACTOR_THRESHOLD_C: f64 = 0.50;
-const BUS_FACTOR_THRESHOLD_D: f64 = 0.75;
-
-/// Grade thresholds for churn concentration (top-10% files' share of total churn).
-const CHURN_CONCENTRATION_THRESHOLD_A: f64 = 0.30;
-const CHURN_CONCENTRATION_THRESHOLD_B: f64 = 0.50;
-const CHURN_CONCENTRATION_THRESHOLD_C: f64 = 0.70;
-const CHURN_CONCENTRATION_THRESHOLD_D: f64 = 0.85;
+// Thresholds removed — continuous [0,1] scores replace letter grades.
 
 // ── Trait: EvolutionProvider ──
 
@@ -134,14 +124,14 @@ pub struct EvolutionReport {
     /// Ratio of files with only 1 author.
     pub single_author_ratio: f64,
 
-    /// Bus factor grade (A-F).
-    pub bus_factor_grade: char,
+    /// Bus factor score [0,1]: 1.0 = no single-author files, 0.0 = all single-author.
+    pub bus_factor_score: f64,
 
-    /// Churn concentration grade (A-F).
-    pub churn_grade: char,
+    /// Churn concentration score [0,1]: 1.0 = uniform churn, 0.0 = all churn in top 10%.
+    pub churn_score: f64,
 
-    /// Overall evolution grade (floor of sub-grades).
-    pub evolution_grade: char,
+    /// Overall evolution score [0,1]: min of sub-scores.
+    pub evolution_score: f64,
 
     /// Analysis window in days.
     pub lookback_days: u32,
@@ -242,10 +232,10 @@ pub fn compute_evolution(
     // Step 6: Compute temporal hotspots (churn × complexity)
     let hotspots = compute_hotspots(&churn, complexity_map);
 
-    // Step 7: Grade
-    let bus_factor_grade = grade_bus_factor(single_author_ratio);
-    let churn_grade = grade_churn_concentration(&churn);
-    let evolution_grade = floor_grade(bus_factor_grade, churn_grade);
+    // Step 7: Score
+    let bus_factor_score = score_bus_factor(single_author_ratio);
+    let churn_score = score_churn_concentration(&churn);
+    let evolution_score = bus_factor_score.min(churn_score);
 
     Ok(EvolutionReport {
         churn,
@@ -254,9 +244,9 @@ pub fn compute_evolution(
         code_age,
         authors,
         single_author_ratio,
-        bus_factor_grade,
-        churn_grade,
-        evolution_grade,
+        bus_factor_score,
+        churn_score,
+        evolution_score,
         lookback_days: days,
         commits_analyzed,
     })
@@ -508,25 +498,17 @@ pub(crate) fn compute_hotspots(
     hotspots
 }
 
-// ── Grading ──
+// ── Scoring ──
 
-pub(crate) fn grade_bus_factor(single_author_ratio: f64) -> char {
-    if single_author_ratio <= BUS_FACTOR_THRESHOLD_A {
-        'A'
-    } else if single_author_ratio <= BUS_FACTOR_THRESHOLD_B {
-        'B'
-    } else if single_author_ratio <= BUS_FACTOR_THRESHOLD_C {
-        'C'
-    } else if single_author_ratio <= BUS_FACTOR_THRESHOLD_D {
-        'D'
-    } else {
-        'F'
-    }
+/// Continuous bus factor score [0,1]. 1.0 = no single-author files, 0.0 = all single-author.
+pub(crate) fn score_bus_factor(single_author_ratio: f64) -> f64 {
+    (1.0 - single_author_ratio).clamp(0.0, 1.0)
 }
 
-pub(crate) fn grade_churn_concentration(churn: &HashMap<String, FileChurn>) -> char {
+/// Continuous churn concentration score [0,1]. 1.0 = uniform, 0.0 = all churn in top 10%.
+pub(crate) fn score_churn_concentration(churn: &HashMap<String, FileChurn>) -> f64 {
     if churn.is_empty() {
-        return 'A';
+        return 1.0;
     }
 
     let mut churns: Vec<u32> = churn.values().map(|c| c.total_churn).collect();
@@ -534,29 +516,14 @@ pub(crate) fn grade_churn_concentration(churn: &HashMap<String, FileChurn>) -> c
 
     let total: u64 = churns.iter().map(|c| *c as u64).sum();
     if total == 0 {
-        return 'A';
+        return 1.0;
     }
 
     let top_n = (churns.len() / 10).max(1);
     let top_churn: u64 = churns.iter().take(top_n).map(|c| *c as u64).sum();
     let concentration = top_churn as f64 / total as f64;
 
-    if concentration <= CHURN_CONCENTRATION_THRESHOLD_A {
-        'A'
-    } else if concentration <= CHURN_CONCENTRATION_THRESHOLD_B {
-        'B'
-    } else if concentration <= CHURN_CONCENTRATION_THRESHOLD_C {
-        'C'
-    } else if concentration <= CHURN_CONCENTRATION_THRESHOLD_D {
-        'D'
-    } else {
-        'F'
-    }
-}
-
-pub(crate) fn floor_grade(a: char, b: char) -> char {
-    
-    a.max(b)
+    (1.0 - concentration).clamp(0.0, 1.0)
 }
 
 fn empty_report(days: u32) -> EvolutionReport {
@@ -567,9 +534,9 @@ fn empty_report(days: u32) -> EvolutionReport {
         code_age: HashMap::new(),
         authors: HashMap::new(),
         single_author_ratio: 0.0,
-        bus_factor_grade: 'A',
-        churn_grade: 'A',
-        evolution_grade: 'A',
+        bus_factor_score: 1.0,
+        churn_score: 1.0,
+        evolution_score: 1.0,
         lookback_days: days,
         commits_analyzed: 0,
     }

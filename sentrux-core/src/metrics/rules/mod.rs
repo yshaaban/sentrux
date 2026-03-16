@@ -146,8 +146,8 @@ pub fn check_rules(
 
     // ── Constraint checks (each helper returns Option<RuleViolation>) ──
     let checks: [(&dyn Fn() -> Option<RuleViolation>, bool); 8] = [
-        (&|| check_max_grade(c, health), c.max_grade.is_some()),
-        (&|| check_max_coupling(c, health), c.max_coupling.is_some()),
+        (&|| check_min_quality(c, health), c.min_quality.is_some()),
+        (&|| check_max_coupling(c, health), c.max_coupling_score.is_some()),
         (&|| check_max_cycles(c, health), c.max_cycles.is_some()),
         (&|| check_max_cc(c, health), c.max_cc.is_some()),
         (&|| check_max_file_lines(c, health), c.max_file_lines.is_some()),

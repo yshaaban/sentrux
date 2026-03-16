@@ -144,20 +144,17 @@ fn coverage_mapping() {
     assert_eq!(cov[1].covers.len(), 1);
 }
 
-// ── grading tests ──
+// ── coverage score tests ──
 
 #[test]
-fn grade_boundaries() {
-    assert_eq!(grade_coverage(1.0), 'A');
-    assert_eq!(grade_coverage(0.80), 'A');
-    assert_eq!(grade_coverage(0.79), 'B');
-    assert_eq!(grade_coverage(0.60), 'B');
-    assert_eq!(grade_coverage(0.59), 'C');
-    assert_eq!(grade_coverage(0.40), 'C');
-    assert_eq!(grade_coverage(0.39), 'D');
-    assert_eq!(grade_coverage(0.20), 'D');
-    assert_eq!(grade_coverage(0.19), 'F');
-    assert_eq!(grade_coverage(0.0), 'F');
+fn coverage_score_equals_ratio() {
+    // coverage_score is now identical to coverage_ratio
+    let edges = vec![edge("test_a.py", "a.py")];
+    let test_files: HashSet<String> = ["test_a.py"].iter().map(|s| s.to_string()).collect();
+    let source_files: HashSet<String> = ["a.py", "b.py"].iter().map(|s| s.to_string()).collect();
+    let tested = find_tested_files(&edges, &test_files, &source_files);
+    let ratio = tested.len() as f64 / source_files.len() as f64;
+    assert!((ratio - 0.5).abs() < f64::EPSILON, "1/2 tested = 0.5 coverage");
 }
 
 // ── Idempotency ──

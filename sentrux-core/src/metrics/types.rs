@@ -1,8 +1,8 @@
 //! Types and constants for code health metrics.
 //!
 //! Defines thresholds (cyclomatic complexity, function length, fan-out),
-//! report structures (`HealthReport`, `GodFile`, `HotspotFile`), and grade
-//! boundaries used throughout the metrics layer. All magic numbers are named
+//! report structures (`HealthReport`, `GodFile`, `HotspotFile`), and score
+//! thresholds used throughout the metrics layer. All magic numbers are named
 //! constants with literature references (McCabe 1976, Myers 1977, Martin).
 //! Key types: `HealthReport`, `GodFile`, `HotspotFile`, `ComplexFuncInfo`.
 
@@ -14,7 +14,7 @@ use std::collections::HashMap;
 // Project-level overrides come from .sentrux/rules.toml.
 
 /// Complete health report for a codebase snapshot.
-/// Aggregates all 15 health dimensions into a single A-F grade.
+/// Aggregates all health dimensions into a single quality signal [0,1].
 #[derive(Debug, Clone)]
 pub struct HealthReport {
     // ── Graph-level metrics ──

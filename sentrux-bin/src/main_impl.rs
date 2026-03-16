@@ -326,8 +326,8 @@ fn print_check_results(
     arch_report: &metrics::arch::ArchReport,
 ) -> i32 {
     println!("sentrux check — {} rules checked\n", check.rules_checked);
-    println!("Structure grade: {}  Architecture grade: {}\n",
-        metrics::grading::score_to_grade(health.quality_signal), arch_report.arch_grade);
+    println!("Quality: {:.0}%  Architecture: {:.0}%\n",
+        health.quality_signal * 100.0, arch_report.arch_score * 100.0);
 
     if check.violations.is_empty() {
         println!("✓ All rules pass");
@@ -400,8 +400,8 @@ fn gate_save(
     match baseline.save(baseline_path) {
         Ok(()) => {
             println!("Baseline saved to {}", baseline_path.display());
-            println!("Structure grade: {}  Architecture grade: {}",
-                metrics::grading::score_to_grade(health.quality_signal), arch_report.arch_grade);
+            println!("Quality: {:.0}%  Architecture: {:.0}%",
+                health.quality_signal * 100.0, arch_report.arch_score * 100.0);
             println!("\nRun `sentrux gate` after making changes to compare.");
             0
         }
@@ -429,16 +429,16 @@ fn gate_compare(
     let diff = baseline.diff(health);
 
     println!("sentrux gate — structural regression check\n");
-    println!("Structure:    {} → {}  Architecture: {}",
-        diff.structure_grade_before, diff.structure_grade_after,
-        arch_report.arch_grade);
+    println!("Quality:      {:.0}% -> {:.0}%  Architecture: {:.0}%",
+        diff.signal_before * 100.0, diff.signal_after * 100.0,
+        arch_report.arch_score * 100.0);
     println!("Coupling:     {:.2} → {:.2}", diff.coupling_before, diff.coupling_after);
     println!("Cycles:       {} → {}", diff.cycles_before, diff.cycles_after);
     println!("God files:    {} → {}", diff.god_files_before, diff.god_files_after);
 
     if !arch_report.distance_metrics.is_empty() {
-        println!("\nDistance from Main Sequence: {:.2} (grade {})",
-            arch_report.avg_distance, arch_report.distance_grade);
+        println!("\nDistance from Main Sequence: {:.2} (score {:.0}%)",
+            arch_report.avg_distance, arch_report.distance_score * 100.0);
     }
 
     if diff.degraded {

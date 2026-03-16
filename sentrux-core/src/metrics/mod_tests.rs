@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod tests {
     use crate::metrics::*;
-    use crate::metrics::grading::*;
     use crate::metrics::stability::module_of;
     use crate::core::types::{EntryPoint, ImportEdge};
     use crate::core::snapshot::Snapshot;
@@ -16,7 +15,7 @@ mod tests {
     fn empty_graph_is_healthy() {
         let snap = snap_with_edges(Vec::new(), Vec::new());
         let report = compute_health(&snap);
-        assert_eq!(score_to_grade(report.quality_signal), 'A');
+        assert!(report.quality_signal > 0.8, "empty graph should have high quality signal");
         assert_eq!(report.coupling_score, 0.0);
         assert_eq!(report.circular_dep_count, 0);
         assert!(report.god_files.is_empty());
@@ -199,14 +198,14 @@ mod tests {
         let snap = snap_with_edges(edges, vec![file("src/a.rs"), file("lib/b.rs")]);
         let r1 = compute_health(&snap);
         let r2 = compute_health(&snap);
-        assert_eq!(score_to_grade(r1.quality_signal), score_to_grade(r2.quality_signal));
+        assert!((r1.quality_signal - r2.quality_signal).abs() < f64::EPSILON);
         assert_eq!(r1.coupling_score, r2.coupling_score);
         assert_eq!(r1.circular_dep_count, r2.circular_dep_count);
     }
 
     // ── Monotonicity test: more cycles = worse grade ──
     #[test]
-    fn more_cycles_worse_grade() {
+    fn more_cycles_worse_score() {
         // 0 cycles
         let snap0 = snap_with_edges(
             vec![edge("src/a.rs", "src/b.rs")],
@@ -224,7 +223,7 @@ mod tests {
         );
         let r1 = compute_health(&snap1);
 
-        assert!(score_to_grade(r0.quality_signal) <= score_to_grade(r1.quality_signal)); // A < B < C < D < F
+        assert!(r0.quality_signal >= r1.quality_signal, "more cycles should lower quality signal");
     }
 
     // ── Three-node cycle detection ──

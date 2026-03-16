@@ -11,10 +11,10 @@ use serde::Deserialize;
 /// Each field is optional — only set constraints are checked.
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct Constraints {
-    /// Required minimum overall health grade (e.g., 'B')
-    pub max_grade: Option<char>,
-    /// Required maximum coupling grade
-    pub max_coupling: Option<char>,
+    /// Required minimum quality signal (e.g., 0.6)
+    pub min_quality: Option<f64>,
+    /// Required maximum coupling score (e.g., 0.35)
+    pub max_coupling_score: Option<f64>,
     /// Maximum allowed circular dependency cycles
     pub max_cycles: Option<usize>,
     /// Maximum cyclomatic complexity per function
@@ -34,8 +34,8 @@ impl Constraints {
     /// Count how many constraint thresholds are actively set.
     pub fn count_active(&self) -> usize {
         let mut n = 0;
-        if self.max_grade.is_some() { n += 1; }
-        if self.max_coupling.is_some() { n += 1; }
+        if self.min_quality.is_some() { n += 1; }
+        if self.max_coupling_score.is_some() { n += 1; }
         if self.max_cycles.is_some() { n += 1; }
         if self.max_cc.is_some() { n += 1; }
         if self.max_file_lines.is_some() { n += 1; }
@@ -49,8 +49,8 @@ impl Constraints {
     /// For each field, the override takes precedence if set.
     pub fn merge(&self, override_with: &Constraints) -> Constraints {
         Constraints {
-            max_grade: override_with.max_grade.or(self.max_grade),
-            max_coupling: override_with.max_coupling.or(self.max_coupling),
+            min_quality: override_with.min_quality.or(self.min_quality),
+            max_coupling_score: override_with.max_coupling_score.or(self.max_coupling_score),
             max_cycles: override_with.max_cycles.or(self.max_cycles),
             max_cc: override_with.max_cc.or(self.max_cc),
             max_file_lines: override_with.max_file_lines.or(self.max_file_lines),
@@ -94,15 +94,14 @@ pub enum Severity {
     Warning,
 }
 
-/// Check overall structure grade.
-pub fn check_max_grade(c: &Constraints, health: &HealthReport) -> Option<RuleViolation> {
-    let max_grade = c.max_grade?;
-    let grade = crate::metrics::grading::score_to_grade(health.quality_signal);
-    if grade > max_grade {
+/// Check minimum quality signal.
+pub fn check_min_quality(c: &Constraints, health: &HealthReport) -> Option<RuleViolation> {
+    let min_quality = c.min_quality?;
+    if health.quality_signal < min_quality {
         Some(RuleViolation {
-            rule: "max_grade".into(),
+            rule: "min_quality".into(),
             severity: Severity::Error,
-            message: format!("Structure grade {} exceeds maximum allowed {}", grade, max_grade),
+            message: format!("Quality signal {:.2} below minimum required {:.2}", health.quality_signal, min_quality),
             files: vec![],
         })
     } else {
@@ -110,15 +109,14 @@ pub fn check_max_grade(c: &Constraints, health: &HealthReport) -> Option<RuleVio
     }
 }
 
-/// Check coupling grade.
+/// Check maximum coupling score.
 pub fn check_max_coupling(c: &Constraints, health: &HealthReport) -> Option<RuleViolation> {
-    let max_coupling = c.max_coupling?;
-    let coupling_grade = crate::metrics::grading::grade_coupling(health.coupling_score);
-    if coupling_grade > max_coupling {
+    let max_coupling = c.max_coupling_score?;
+    if health.coupling_score > max_coupling {
         Some(RuleViolation {
-            rule: "max_coupling".into(),
+            rule: "max_coupling_score".into(),
             severity: Severity::Error,
-            message: format!("Coupling grade {} exceeds maximum allowed {}", coupling_grade, max_coupling),
+            message: format!("Coupling score {:.2} exceeds maximum allowed {:.2}", health.coupling_score, max_coupling),
             files: vec![],
         })
     } else {

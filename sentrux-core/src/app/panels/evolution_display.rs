@@ -1,15 +1,11 @@
 //! Evolution metrics display — churn, bus factor, hotspots, change coupling.
 //!
 //! Renders the EvolutionReport data in the metrics panel.
-//! Covers 4 of the 6 missing UI capabilities:
-//! 1. Evolution metrics (churn grade, hotspots)
-//! 2. Bus factor (single-author risk)
-//! 3. Change coupling (co-change pairs)
-//! 4. Hottest files (temporal hotspots)
+//! Uses continuous [0,1] scores with smooth color gradient.
 
 use crate::metrics::evo::EvolutionReport;
 use crate::core::settings::ThemeConfig;
-use super::ui_helpers::dim_grade_color;
+use super::ui_helpers::score_color;
 
 /// Draw the evolution section in the metrics panel.
 pub(crate) fn draw_evolution_section(ui: &mut egui::Ui, report: &EvolutionReport, tc: &ThemeConfig) {
@@ -25,30 +21,30 @@ pub(crate) fn draw_evolution_section(ui: &mut egui::Ui, report: &EvolutionReport
     );
     ui.add_space(2.0);
 
-    // Overall grade
-    let grade_color = dim_grade_color(report.evolution_grade, tc);
+    // Overall score
+    let sc = score_color(report.evolution_score);
     let (grade_rect, _) = ui.allocate_exact_size(egui::vec2(ui.available_width(), 18.0), egui::Sense::hover());
     ui.painter().text(
         egui::pos2(grade_rect.left() + 4.0, grade_rect.center().y),
         egui::Align2::LEFT_CENTER,
-        format!("Grade: {}", report.evolution_grade),
+        format!("Score: {:.0}%", report.evolution_score * 100.0),
         egui::FontId::monospace(11.0),
-        grade_color,
+        sc,
     );
     ui.add_space(2.0);
 
-    // Metrics rows: (label, value, grade, tooltip)
+    // Metrics rows: (label, value, score, tooltip)
     let commits_tooltip = format!("Total commits analyzed (last {} days)", report.lookback_days);
-    let metrics: Vec<(&str, String, char, &str)> = vec![
-        ("churn", format!("{} files", report.churn.len()), report.churn_grade,
+    let metrics: Vec<(&str, String, f64, &str)> = vec![
+        ("churn", format!("{} files", report.churn.len()), report.churn_score,
          "Top-10% files' share of total churn | lower=better"),
-        ("bus factor", format!("{:.0}% solo", report.single_author_ratio * 100.0), report.bus_factor_grade,
+        ("bus factor", format!("{:.0}% solo", report.single_author_ratio * 100.0), report.bus_factor_score,
          "Ricca 2011 | ratio of single-author files | lower=better"),
-        ("commits", format!("{}", report.commits_analyzed), '-',
+        ("commits", format!("{}", report.commits_analyzed), -1.0,
          commits_tooltip.as_str()),
     ];
 
-    for (label, value, grade, tooltip) in &metrics {
+    for (label, value, score, tooltip) in &metrics {
         let (rect, resp) = ui.allocate_exact_size(egui::vec2(ui.available_width(), row_h), egui::Sense::hover());
         let cy = rect.center().y;
         ui.painter().text(
@@ -58,17 +54,17 @@ pub(crate) fn draw_evolution_section(ui: &mut egui::Ui, report: &EvolutionReport
             font.clone(),
             tc.text_secondary,
         );
-        if *grade != '-' {
-            let g_color = dim_grade_color(*grade, tc);
+        if *score >= 0.0 {
+            let c = score_color(*score);
             ui.painter().text(
                 egui::pos2(rect.right() - 4.0, cy),
                 egui::Align2::RIGHT_CENTER,
-                format!("{}", grade),
+                format!("{:.0}%", score * 100.0),
                 font.clone(),
-                g_color,
+                c,
             );
             ui.painter().text(
-                egui::pos2(rect.right() - 24.0, cy),
+                egui::pos2(rect.right() - 36.0, cy),
                 egui::Align2::RIGHT_CENTER,
                 value,
                 font.clone(),
@@ -156,12 +152,10 @@ fn draw_coupling(ui: &mut egui::Ui, report: &EvolutionReport, _tc: &ThemeConfig,
 }
 
 fn draw_bus_factor(ui: &mut egui::Ui, report: &EvolutionReport, _tc: &ThemeConfig, row_h: f32) {
-    // Show files with only 1 author (highest bus factor risk)
     let mut single_author_files: Vec<(&str, &str)> = report.authors.iter()
         .filter(|(_, info)| info.author_count == 1)
         .map(|(path, info)| (path.as_str(), info.primary_author.as_str()))
         .collect();
-    // Sort by path for deterministic display order (HashMap iteration is non-deterministic)
     single_author_files.sort_unstable_by_key(|(path, _)| *path);
     single_author_files.truncate(5);
 

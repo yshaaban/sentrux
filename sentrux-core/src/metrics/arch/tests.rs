@@ -161,7 +161,6 @@ fn baseline_detects_degradation() {
     let baseline = ArchBaseline {
         timestamp: 0.0,
         quality_signal: 0.90,
-        structure_grade: 'A',
         coupling_score: 0.10,
         cycle_count: 0,
         god_file_count: 0,

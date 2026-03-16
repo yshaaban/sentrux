@@ -91,9 +91,9 @@ fn draw_metrics_sections(ui: &mut egui::Ui, state: &mut AppState, tc: &ThemeConf
     }
 }
 
-/// Draw evolution summary for free tier — grades only, no file-level details.
+/// Draw evolution summary for free tier — scores only, no file-level details.
 fn draw_evolution_summary(ui: &mut egui::Ui, report: &crate::metrics::evo::EvolutionReport, tc: &ThemeConfig) {
-    use super::ui_helpers::dim_grade_color;
+    use super::ui_helpers::score_color;
     let font = egui::FontId::monospace(9.0);
     let row_h = 13.0;
 
@@ -105,29 +105,29 @@ fn draw_evolution_summary(ui: &mut egui::Ui, report: &crate::metrics::evo::Evolu
     );
     ui.add_space(2.0);
 
-    let grade_color = dim_grade_color(report.evolution_grade, tc);
+    let sc = score_color(report.evolution_score);
     let (grade_rect, _) = ui.allocate_exact_size(egui::vec2(ui.available_width(), 18.0), egui::Sense::hover());
     ui.painter().text(
         egui::pos2(grade_rect.left() + 4.0, grade_rect.center().y),
         egui::Align2::LEFT_CENTER,
-        format!("Grade: {}", report.evolution_grade),
+        format!("Score: {:.0}%", report.evolution_score * 100.0),
         egui::FontId::monospace(11.0),
-        grade_color,
+        sc,
     );
 
-    let metrics: Vec<(&str, String, char)> = vec![
-        ("churn", format!("{} files", report.churn.len()), report.churn_grade),
-        ("bus factor", format!("{:.0}% solo", report.single_author_ratio * 100.0), report.bus_factor_grade),
-        ("commits", format!("{}", report.commits_analyzed), '-'),
+    let metrics: Vec<(&str, String, f64)> = vec![
+        ("churn", format!("{} files", report.churn.len()), report.churn_score),
+        ("bus factor", format!("{:.0}% solo", report.single_author_ratio * 100.0), report.bus_factor_score),
+        ("commits", format!("{}", report.commits_analyzed), -1.0),
     ];
-    for (label, value, grade) in &metrics {
+    for (label, value, score) in &metrics {
         let (rect, _) = ui.allocate_exact_size(egui::vec2(ui.available_width(), row_h), egui::Sense::hover());
         let cy = rect.center().y;
         ui.painter().text(egui::pos2(rect.left() + 4.0, cy), egui::Align2::LEFT_CENTER, label, font.clone(), tc.text_secondary);
-        if *grade != '-' {
-            let g_color = dim_grade_color(*grade, tc);
-            ui.painter().text(egui::pos2(rect.right() - 4.0, cy), egui::Align2::RIGHT_CENTER, format!("{}", grade), font.clone(), g_color);
-            ui.painter().text(egui::pos2(rect.right() - 24.0, cy), egui::Align2::RIGHT_CENTER, value, font.clone(), tc.text_secondary);
+        if *score >= 0.0 {
+            let c = score_color(*score);
+            ui.painter().text(egui::pos2(rect.right() - 4.0, cy), egui::Align2::RIGHT_CENTER, format!("{:.0}%", score * 100.0), font.clone(), c);
+            ui.painter().text(egui::pos2(rect.right() - 36.0, cy), egui::Align2::RIGHT_CENTER, value, font.clone(), tc.text_secondary);
         } else {
             ui.painter().text(egui::pos2(rect.right() - 4.0, cy), egui::Align2::RIGHT_CENTER, value, font.clone(), tc.text_secondary);
         }

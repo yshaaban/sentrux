@@ -13,11 +13,7 @@ use std::collections::{HashMap, HashSet};
 
 // ── Named constants ──
 
-/// Grade thresholds for test coverage ratio (tested_files / total_source_files).
-const COVERAGE_THRESHOLD_A: f64 = 0.80;
-const COVERAGE_THRESHOLD_B: f64 = 0.60;
-const COVERAGE_THRESHOLD_C: f64 = 0.40;
-const COVERAGE_THRESHOLD_D: f64 = 0.20;
+// Grade thresholds removed — coverage_score is continuous [0,1].
 
 // ── Trait: TestGapAnalyzer ──
 
@@ -76,8 +72,8 @@ pub struct TestGapReport {
     /// Coverage ratio: tested / total source.
     pub coverage_ratio: f64,
 
-    /// Coverage grade (A-F).
-    pub coverage_grade: char,
+    /// Coverage score [0,1]: same as coverage_ratio.
+    pub coverage_score: f64,
 
     /// Untested files ranked by risk (complexity × fan-in).
     pub gaps: Vec<TestGap>,
@@ -156,7 +152,7 @@ pub fn compute_test_gaps(
         tested_source_files: tested_count,
         untested_source_files: untested.len(),
         coverage_ratio,
-        coverage_grade: grade_coverage(coverage_ratio),
+        coverage_score: coverage_ratio,
         gaps,
         test_coverage,
     }
@@ -388,19 +384,7 @@ fn build_test_coverage(
     result
 }
 
-fn grade_coverage(ratio: f64) -> char {
-    if ratio >= COVERAGE_THRESHOLD_A {
-        'A'
-    } else if ratio >= COVERAGE_THRESHOLD_B {
-        'B'
-    } else if ratio >= COVERAGE_THRESHOLD_C {
-        'C'
-    } else if ratio >= COVERAGE_THRESHOLD_D {
-        'D'
-    } else {
-        'F'
-    }
-}
+// grade_coverage removed — coverage_score is continuous [0,1].
 
 #[cfg(test)]
 mod tests;

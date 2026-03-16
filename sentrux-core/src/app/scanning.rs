@@ -80,8 +80,7 @@ impl SentruxApp {
         let arch = reports.arch.unwrap_or_else(|| crate::metrics::arch::compute_arch(&snap));
         self.check_arch_degradation(&arch);
         // Record scan for telemetry
-        let grade = crate::metrics::grading::score_to_grade(report.quality_signal);
-        crate::app::update_check::record_scan(snap.total_files, grade);
+        crate::app::update_check::record_scan(snap.total_files, report.quality_signal);
         self.state.health_report = Some(report);
         self.state.arch_report = Some(arch);
         self.state.evolution_report = reports.evolution;
@@ -146,9 +145,9 @@ impl SentruxApp {
             None => return,
         };
         Self::log_arch_regressions(prev_arch, arch);
-        if arch.arch_grade > prev_arch.arch_grade {
+        if arch.arch_score < prev_arch.arch_score - 0.05 {
             self.state.record_activity(
-                format!("Architecture degraded: {} -> {}", prev_arch.arch_grade, arch.arch_grade),
+                format!("Architecture degraded: {:.0}% -> {:.0}%", prev_arch.arch_score * 100.0, arch.arch_score * 100.0),
                 "arch_degraded".to_string(),
             );
         }

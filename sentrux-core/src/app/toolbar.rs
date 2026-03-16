@@ -333,20 +333,17 @@ fn draw_toggle_buttons(ui: &mut egui::Ui, state: &mut AppState) {
 
     // Update indicator moved to metrics panel header
 
-    // Export button — Free: grades only, Pro: full detail
+    // Export button — Free: score only, Pro: full detail
     if state.health_report.is_some() {
         let is_pro = crate::license::current_tier().is_pro();
-        let tip = if is_pro { "Export full report" } else { "Export grade summary" };
+        let tip = if is_pro { "Export full report" } else { "Export quality summary" };
         if ui.button("\u{2913}").on_hover_text(tip).clicked() {
             if let Some(report) = &state.health_report {
-                use crate::metrics::grading::score_to_grade;
-                let grade = score_to_grade(report.quality_signal);
                 let rc = &report.root_cause_scores;
                 let summary = if is_pro {
                     // Pro: include root cause scores and raw data
                     serde_json::json!({
                         "quality_signal": report.quality_signal,
-                        "grade": grade.to_string(),
                         "files": state.snapshot.as_ref().map(|s| s.total_files).unwrap_or(0),
                         "lines": state.snapshot.as_ref().map(|s| s.total_lines).unwrap_or(0),
                         "root_causes": {
@@ -360,10 +357,9 @@ fn draw_toggle_buttons(ui: &mut egui::Ui, state: &mut AppState) {
                         "cross_module_edges": report.cross_module_edges,
                     })
                 } else {
-                    // Free: quality signal and grade only
+                    // Free: quality signal only
                     serde_json::json!({
                         "quality_signal": report.quality_signal,
-                        "grade": grade.to_string(),
                     })
                 };
                 let json = serde_json::to_string_pretty(&summary).unwrap_or_default();

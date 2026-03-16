@@ -43,8 +43,8 @@ pub struct WhatIfResult {
     pub action_description: String,
 
     // ── Before state ──
-    /// Architecture grade before the simulated change
-    pub grade_before: char,
+    /// Architecture score before the simulated change
+    pub score_before: f64,
     /// Maximum dependency depth before
     pub max_level_before: u32,
     /// Upward dependency violation count before
@@ -53,8 +53,8 @@ pub struct WhatIfResult {
     pub max_blast_before: u32,
 
     // ── After state ──
-    /// Architecture grade after the simulated change
-    pub grade_after: char,
+    /// Architecture score after the simulated change
+    pub score_after: f64,
     /// Maximum dependency depth after
     pub max_level_after: u32,
     /// Upward dependency violation count after
@@ -63,7 +63,7 @@ pub struct WhatIfResult {
     pub max_blast_after: u32,
 
     // ── Delta ──
-    /// Whether the change improved the architecture grade
+    /// Whether the change improved the architecture score
     pub improved: bool,
     /// Human-readable change descriptions
     pub changes: Vec<String>,
@@ -129,11 +129,11 @@ fn build_noop_result(edges: &[ImportEdge]) -> WhatIfResult {
     let snap = compute_arch_snapshot(edges);
     WhatIfResult {
         action_description: "(no changes)".to_string(),
-        grade_before: snap.grade,
+        score_before: snap.score,
         max_level_before: snap.max_level,
         upward_violations_before: snap.violation_count,
         max_blast_before: snap.max_blast,
-        grade_after: snap.grade,
+        score_after: snap.score,
         max_level_after: snap.max_level,
         upward_violations_after: snap.violation_count,
         max_blast_after: snap.max_blast,
@@ -149,7 +149,7 @@ struct ArchMetricSnapshot {
     max_level: u32,
     violation_count: usize,
     max_blast: u32,
-    grade: char,
+    score: f64,
 }
 
 /// Compute all architecture metrics for a set of edges.
@@ -159,8 +159,8 @@ fn compute_arch_snapshot(edges: &[ImportEdge]) -> ArchMetricSnapshot {
     let blast = arch::compute_blast_radius(edges);
     let max_blast = blast.values().copied().max().unwrap_or(0);
     let ratio = if edges.is_empty() { 0.0 } else { violations.len() as f64 / edges.len() as f64 };
-    let grade = grade_from_ratio(ratio);
-    ArchMetricSnapshot { levels, max_level, violation_count: violations.len(), max_blast, grade }
+    let score = score_from_ratio(ratio);
+    ArchMetricSnapshot { levels, max_level, violation_count: violations.len(), max_blast, score }
 }
 
 /// Build a WhatIfResult from before/after snapshots and edge counts.
@@ -179,10 +179,10 @@ fn build_whatif_result(
 
     let level_changes = compute_level_changes(&before.levels, &after.levels);
 
-    let not_worse = after.grade <= before.grade
+    let not_worse = after.score >= before.score - f64::EPSILON
         && after.violation_count <= before.violation_count
         && after.max_blast <= before.max_blast;
-    let strictly_better = after.grade < before.grade
+    let strictly_better = after.score > before.score + f64::EPSILON
         || after.violation_count < before.violation_count
         || after.max_blast < before.max_blast
         || after.max_level < before.max_level
@@ -191,11 +191,11 @@ fn build_whatif_result(
 
     WhatIfResult {
         action_description: description,
-        grade_before: before.grade,
+        score_before: before.score,
         max_level_before: before.max_level,
         upward_violations_before: before.violation_count,
         max_blast_before: before.max_blast,
-        grade_after: after.grade,
+        score_after: after.score,
         max_level_after: after.max_level,
         upward_violations_after: after.violation_count,
         max_blast_after: after.max_blast,
@@ -344,9 +344,9 @@ fn compute_level_changes(
     changes
 }
 
-/// Delegate to arch::grade_levelization to keep thresholds in a single place.
-fn grade_from_ratio(upward_ratio: f64) -> char {
-    crate::metrics::arch::grade_levelization(upward_ratio)
+/// Delegate to arch::score_levelization to keep thresholds in a single place.
+fn score_from_ratio(upward_ratio: f64) -> f64 {
+    crate::metrics::arch::score_levelization(upward_ratio)
 }
 
 #[cfg(test)]

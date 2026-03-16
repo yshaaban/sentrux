@@ -7,7 +7,7 @@
 
 use crate::metrics::testgap::TestGapReport;
 use crate::core::settings::ThemeConfig;
-use super::ui_helpers::dim_grade_color;
+use super::ui_helpers::score_color;
 
 /// Draw the test gap section in the metrics panel.
 pub(crate) fn draw_testgap_section(ui: &mut egui::Ui, report: &TestGapReport, tc: &ThemeConfig) {
@@ -23,15 +23,15 @@ pub(crate) fn draw_testgap_section(ui: &mut egui::Ui, report: &TestGapReport, tc
     );
     ui.add_space(2.0);
 
-    // Overall grade
-    let grade_color = dim_grade_color(report.coverage_grade, tc);
+    // Overall score
+    let sc = score_color(report.coverage_score);
     let (grade_rect, _) = ui.allocate_exact_size(egui::vec2(ui.available_width(), 18.0), egui::Sense::hover());
     ui.painter().text(
         egui::pos2(grade_rect.left() + 4.0, grade_rect.center().y),
         egui::Align2::LEFT_CENTER,
-        format!("Grade: {} ({:.0}%)", report.coverage_grade, report.coverage_ratio * 100.0),
+        format!("Coverage: {:.0}%", report.coverage_ratio * 100.0),
         egui::FontId::monospace(11.0),
-        grade_color,
+        sc,
     );
     ui.add_space(2.0);
 

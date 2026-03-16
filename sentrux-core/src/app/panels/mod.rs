@@ -3,7 +3,7 @@
 //!
 //! All files in this module were extracted from `src/app/` to improve
 //! module cohesion. They form a natural cluster: `metrics_panel.rs`
-//! orchestrates the others, and most use `ui_helpers::dim_grade_color`.
+//! orchestrates the others, and most use `ui_helpers::score_color`.
 
 pub(crate) mod activity_panel;
 pub(crate) mod arch_display;

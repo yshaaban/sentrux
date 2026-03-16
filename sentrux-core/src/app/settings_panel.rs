@@ -184,7 +184,7 @@ fn draw_privacy_section(ui: &mut egui::Ui) {
         }
 
         ui.add_space(2.0);
-        ui.label(egui::RichText::new("What's collected: version, platform, scan count, grade")
+        ui.label(egui::RichText::new("What's collected: version, platform, scan count, quality score")
             .weak().small());
         ui.label(egui::RichText::new("What's NOT collected: code, file paths, project names")
             .weak().small());

@@ -204,10 +204,9 @@ fn load_pending_from_disk() -> TelemetrySnapshot {
 // ── Public recording API ──
 
 /// Record a scan event (called from scanner).
-pub fn record_scan(file_count: u32, grade: char) {
-    let g = match grade {
-        'A' => 1, 'B' => 2, 'C' => 3, 'D' => 4, 'E' => 5, 'F' => 6, _ => 0,
-    };
+pub fn record_scan(file_count: u32, quality_signal: f64) {
+    // Encode quality signal as integer 0-100 for telemetry compactness.
+    let g = (quality_signal * 100.0).round() as u32;
     if let Ok(mut state) = TELEMETRY_LOCK.lock() {
         state.scans += 1;
         state.files = file_count;
@@ -373,7 +372,7 @@ fn check_and_notify(current_version: &str) {
         snapshot.mcp_calls,  // MCP calls since last ping
         snapshot.gate_runs,  // gate runs since last ping
         snapshot.files,      // last scanned file count
-        snapshot.grade,      // last health grade (1=A..6=F, 0=none)
+        snapshot.grade,      // last quality score (0-100 integer, 0=none)
         dev,                 // 1 = internal/dev traffic
     );
 
@@ -442,7 +441,7 @@ mod tests {
     #[test]
     fn test_record_scan_increments() {
         // record_scan must increment scans and set files/grade
-        record_scan(100, 'B');
+        record_scan(100, 0.7);
         let state = TELEMETRY_LOCK.lock().unwrap();
         assert!(state.scans >= 1);
         // Can't assert exact value since tests share state,
@@ -527,10 +526,10 @@ mod tests {
     fn test_no_deadlock_concurrent_record() {
         // Verify that multiple record_* calls don't deadlock.
         // Each acquires and releases the lock independently.
-        record_scan(50, 'A');
+        record_scan(50, 0.9);
         record_mcp_call();
         record_gate_run();
-        record_scan(60, 'C');
+        record_scan(60, 0.4);
         // If we get here, no deadlock occurred.
     }
 }

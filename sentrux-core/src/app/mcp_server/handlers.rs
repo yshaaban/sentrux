@@ -46,7 +46,7 @@ pub(crate) fn do_scan(root: &Path) -> Result<(Snapshot, metrics::HealthReport, a
 pub fn scan_def() -> ToolDef {
     ToolDef {
         name: "scan",
-        description: "Scan a directory and compute all metrics. Must be called before other tools. Returns structure grade.",
+        description: "Scan a directory and compute all metrics. Must be called before other tools. Returns quality_signal.",
         input_schema: json!({
             "type": "object",
             "properties": {
@@ -94,7 +94,7 @@ fn handle_scan(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<Value
 pub fn health_def() -> ToolDef {
     ToolDef {
         name: "health",
-        description: "Get quality signal (0-1) with 3-category breakdown (blast_radius, cognitive_load, hidden_debt) and 20-dimension A-F grades. Quality signal = geometric mean of categories — maximize this ONE number.",
+        description: "Get quality signal (0-1) with root cause breakdown (modularity, acyclicity, depth, equality, redundancy). Quality signal = geometric mean — maximize this ONE number.",
         input_schema: json!({ "type": "object", "properties": {} }),
         min_tier: Tier::Free,
         handler: handle_health,
@@ -185,10 +185,8 @@ pub fn coupling_def() -> ToolDef {
 
 fn handle_coupling(_args: &Value, tier: &Tier, state: &mut McpState) -> Result<Value, String> {
     let h = state.cached_health.as_ref().ok_or("No scan data. Call 'scan' first.")?;
-    let coupling_grade = crate::metrics::grading::grade_coupling(h.coupling_score);
     let mut result = json!({
         "coupling_score": h.coupling_score,
-        "grade": coupling_grade.to_string(),
         "cross_module_edges": h.cross_module_edges,
         "total_edges": h.total_import_edges,
         "god_files_count": h.god_files.len(),
@@ -218,10 +216,9 @@ pub fn cycles_def() -> ToolDef {
 
 fn handle_cycles(_args: &Value, tier: &Tier, state: &mut McpState) -> Result<Value, String> {
     let h = state.cached_health.as_ref().ok_or("No scan data. Call 'scan' first.")?;
-    let cycle_grade = crate::metrics::grading::score_to_grade(1.0 / (1.0 + h.circular_dep_count as f64));
     let mut result = json!({
         "cycle_count": h.circular_dep_count,
-        "grade": cycle_grade.to_string()
+        "acyclicity_score": h.root_cause_scores.acyclicity
     });
     if tier.is_pro() {
         result["cycles"] = json!(h.circular_dep_files);
@@ -247,11 +244,11 @@ pub fn architecture_def() -> ToolDef {
 fn handle_architecture(_args: &Value, tier: &Tier, state: &mut McpState) -> Result<Value, String> {
     let a = state.cached_arch.as_ref().ok_or("No scan data. Call 'scan' first.")?;
     let mut result = json!({
-        "arch_grade": a.arch_grade.to_string(),
-        "levelization_grade": a.levelization_grade.to_string(),
-        "blast_grade": a.blast_grade.to_string(),
-        "surface_grade": a.surface_grade.to_string(),
-        "distance_grade": a.distance_grade.to_string(),
+        "arch_score": a.arch_score,
+        "levelization_score": a.levelization_score,
+        "blast_score": a.blast_score,
+        "surface_score": a.surface_score,
+        "distance_score": a.distance_score,
         "avg_distance_from_main_seq": format!("{:.3}", a.avg_distance),
         "max_level": a.max_level,
         "upward_violations_count": a.upward_violations.len(),

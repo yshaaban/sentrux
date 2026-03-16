@@ -87,9 +87,9 @@ fn handle_evolution(args: &Value, tier: &Tier, state: &mut McpState) -> Result<V
         .map_err(|e| format!("Evolution analysis failed: {e}"))?;
 
     let mut result = json!({
-        "evolution_grade": report.evolution_grade.to_string(),
-        "bus_factor_grade": report.bus_factor_grade.to_string(),
-        "churn_grade": report.churn_grade.to_string(),
+        "evolution_score": report.evolution_score,
+        "bus_factor_score": report.bus_factor_score,
+        "churn_score": report.churn_score,
         "lookback_days": report.lookback_days,
         "commits_analyzed": report.commits_analyzed,
         "files_with_churn": report.churn.len(),
@@ -203,7 +203,7 @@ fn handle_test_gaps(args: &Value, tier: &Tier, state: &mut McpState) -> Result<V
     let report = crate::metrics::testgap::compute_test_gaps(snap, &complexity);
 
     let mut result = json!({
-        "coverage_grade": report.coverage_grade.to_string(),
+        "coverage_score": report.coverage_score,
         "source_files": report.source_files,
         "test_files": report.test_files,
         "tested": report.tested_source_files,

@@ -1,26 +1,23 @@
 //! Architecture report display — renders levelization, distance, blast radius.
 //!
-//! Shows the architecture grade and per-dimension metrics (upward violations,
-//! distance from main sequence, blast radius, attack surface) with grades.
+//! Shows architecture score and per-dimension metrics with continuous scores.
 
 use crate::metrics::arch::ArchReport;
 use crate::core::settings::ThemeConfig;
-use super::ui_helpers::dim_grade_color;
+use super::ui_helpers::score_color;
 
 /// Draw the architecture report section in the activity panel.
-/// Shows arch grade, levelization, distance from main sequence, blast radius,
-/// attack surface, and top upward violations.
 pub(crate) fn draw_arch_section(ui: &mut egui::Ui, arch: &ArchReport, tc: &ThemeConfig) {
     let row_h = 13.0;
     let font = egui::FontId::monospace(9.0);
 
-    // Section header + overall grade
+    // Section header + overall score
     draw_arch_header(ui, arch, tc);
 
-    // Dimension rows: label  value  [grade]
+    // Dimension rows: label  value  [score%]
     draw_arch_dimension_rows(ui, arch, tc, row_h, &font);
 
-    // Info rows (no grade): max level + violations count
+    // Info rows (no score): max level + violations count
     draw_arch_info_rows(ui, arch, tc, row_h, &font);
 
     // Detailed sub-sections
@@ -29,7 +26,7 @@ pub(crate) fn draw_arch_section(ui: &mut egui::Ui, arch: &ArchReport, tc: &Theme
     draw_arch_distance(ui, arch, row_h);
 }
 
-/// Draw section header and overall architecture grade.
+/// Draw section header and overall architecture score.
 fn draw_arch_header(ui: &mut egui::Ui, arch: &ArchReport, tc: &ThemeConfig) {
     ui.label(
         egui::RichText::new("ARCHITECTURE")
@@ -37,28 +34,28 @@ fn draw_arch_header(ui: &mut egui::Ui, arch: &ArchReport, tc: &ThemeConfig) {
     );
     ui.add_space(2.0);
 
-    let grade_color = dim_grade_color(arch.arch_grade, tc);
+    let sc = score_color(arch.arch_score);
     let (grade_rect, _) = ui.allocate_exact_size(
         egui::vec2(ui.available_width(), 18.0), egui::Sense::hover(),
     );
     ui.painter().text(
         egui::pos2(grade_rect.left() + 4.0, grade_rect.center().y),
         egui::Align2::LEFT_CENTER,
-        format!("Grade: {}", arch.arch_grade),
-        egui::FontId::monospace(11.0), grade_color,
+        format!("Score: {:.0}%", arch.arch_score * 100.0),
+        egui::FontId::monospace(11.0), sc,
     );
     ui.add_space(2.0);
 }
 
-/// Draw the four architecture dimension rows with grades.
+/// Draw the four architecture dimension rows with scores.
 fn draw_arch_dimension_rows(ui: &mut egui::Ui, arch: &ArchReport, tc: &ThemeConfig, row_h: f32, font: &egui::FontId) {
-    let arch_metrics: Vec<(&str, String, char)> = vec![
-        ("levelization", format!("{:.0}% upward", arch.upward_ratio * 100.0), arch.levelization_grade),
-        ("distance", format!("{:.2} avg", arch.avg_distance), arch.distance_grade),
-        ("blast radius", format!("{} max", arch.max_blast_radius), arch.blast_grade),
-        ("attack surface", format!("{:.0}%", arch.attack_surface_ratio * 100.0), arch.surface_grade),
+    let arch_metrics: Vec<(&str, String, f64)> = vec![
+        ("levelization", format!("{:.0}% upward", arch.upward_ratio * 100.0), arch.levelization_score),
+        ("distance", format!("{:.2} avg", arch.avg_distance), arch.distance_score),
+        ("blast radius", format!("{} max", arch.max_blast_radius), arch.blast_score),
+        ("attack surface", format!("{:.0}%", arch.attack_surface_ratio * 100.0), arch.surface_score),
     ];
-    for (label, value, grade) in &arch_metrics {
+    for (label, value, score) in &arch_metrics {
         let (rect, _) = ui.allocate_exact_size(
             egui::vec2(ui.available_width(), row_h), egui::Sense::hover(),
         );
@@ -67,20 +64,20 @@ fn draw_arch_dimension_rows(ui: &mut egui::Ui, arch: &ArchReport, tc: &ThemeConf
             egui::pos2(rect.left() + 4.0, cy), egui::Align2::LEFT_CENTER,
             label, font.clone(), tc.text_secondary,
         );
+        let c = score_color(*score);
         ui.painter().text(
             egui::pos2(rect.right() - 4.0, cy), egui::Align2::RIGHT_CENTER,
-            format!("{}", grade), font.clone(), dim_grade_color(*grade, tc),
+            format!("{:.0}%", score * 100.0), font.clone(), c,
         );
         ui.painter().text(
-            egui::pos2(rect.right() - 24.0, cy), egui::Align2::RIGHT_CENTER,
+            egui::pos2(rect.right() - 36.0, cy), egui::Align2::RIGHT_CENTER,
             value, font.clone(), tc.text_secondary,
         );
     }
 }
 
-/// Draw info-only rows: max level and violations count (no grade letter).
+/// Draw info-only rows: max level and violations count (no score).
 fn draw_arch_info_rows(ui: &mut egui::Ui, arch: &ArchReport, tc: &ThemeConfig, row_h: f32, font: &egui::FontId) {
-    // Max level row
     let (rect, _) = ui.allocate_exact_size(
         egui::vec2(ui.available_width(), row_h), egui::Sense::hover(),
     );
@@ -93,7 +90,6 @@ fn draw_arch_info_rows(ui: &mut egui::Ui, arch: &ArchReport, tc: &ThemeConfig, r
         format!("{}", arch.max_level), font.clone(), tc.text_secondary,
     );
 
-    // Violations count row
     let (rect, _) = ui.allocate_exact_size(
         egui::vec2(ui.available_width(), row_h), egui::Sense::hover(),
     );
@@ -113,7 +109,6 @@ fn draw_arch_info_rows(ui: &mut egui::Ui, arch: &ArchReport, tc: &ThemeConfig, r
     );
 }
 
-/// Draw the top upward violations list (max 3 shown).
 fn draw_arch_violations(ui: &mut egui::Ui, arch: &ArchReport, tc: &ThemeConfig, row_h: f32) {
     if arch.upward_violations.is_empty() { return; }
     ui.add_space(3.0);
@@ -154,7 +149,6 @@ fn draw_arch_violations(ui: &mut egui::Ui, arch: &ArchReport, tc: &ThemeConfig, 
     }
 }
 
-/// Draw the highest blast radius file.
 fn draw_arch_blast_radius(ui: &mut egui::Ui, arch: &ArchReport, row_h: f32) {
     if arch.max_blast_file.is_empty() { return; }
     ui.add_space(3.0);
@@ -180,7 +174,6 @@ fn draw_arch_blast_radius(ui: &mut egui::Ui, arch: &ArchReport, row_h: f32) {
     );
 }
 
-/// Draw modules furthest from the main sequence (distance > 0.3, max 3).
 fn draw_arch_distance(ui: &mut egui::Ui, arch: &ArchReport, row_h: f32) {
     let worst: Vec<_> = arch.distance_metrics.iter()
         .filter(|m| m.distance > 0.3)

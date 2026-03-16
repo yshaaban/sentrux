@@ -1,22 +1,8 @@
 //! Shared UI drawing helpers to eliminate duplication across display panels.
 //!
 //! Provides core primitives:
-//! - `dim_grade_color`: color for grade letters
+//! - `score_color`: continuous color from [0,1] score
 //! - `draw_flagged_list`: titled item list with hover tooltips and "+N more" overflow
-
-use crate::core::settings::ThemeConfig;
-
-/// Color for a per-dimension grade letter (legacy — used by evolution display).
-pub(crate) fn dim_grade_color(g: char, tc: &ThemeConfig) -> egui::Color32 {
-    match g {
-        'A' => egui::Color32::from_rgb(100, 200, 100),
-        'B' => egui::Color32::from_rgb(160, 200, 100),
-        'C' => egui::Color32::from_rgb(200, 180, 80),
-        'D' => egui::Color32::from_rgb(200, 120, 60),
-        'F' => egui::Color32::from_rgb(200, 80, 80),
-        _ => tc.text_secondary,
-    }
-}
 
 /// Continuous color from score ∈ [0, 1]. No grade boundaries.
 /// 0.0 = red, 0.5 = yellow, 1.0 = green. Smooth gradient.

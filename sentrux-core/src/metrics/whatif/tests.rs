@@ -59,7 +59,7 @@ fn add_edge_increases_count() {
 }
 
 #[test]
-fn add_edge_can_worsen_grade() {
+fn add_edge_can_worsen_score() {
     let edges = vec![edge("a.rs", "b.rs"), edge("b.rs", "c.rs")];
     let result = simulate(&edges, &[], &WhatIfAction::AddEdge {
         from: "c.rs".into(),
@@ -153,7 +153,7 @@ fn simulate_reports_improvement() {
         to: "a.rs".into(),
     });
     assert!(result.improved, "removing cycle edge should improve architecture");
-    assert_eq!(result.grade_after, 'A');
+    assert!(result.score_after > 0.8, "score should be high after removing violations");
 }
 
 // ── Sequence simulation ──
@@ -171,7 +171,7 @@ fn simulate_sequence_applies_all() {
     ];
     let result = simulate_sequence(&edges, &[], &actions);
     assert!(result.action_description.contains("→"));
-    assert_eq!(result.grade_after, 'A');
+    assert!(result.score_after > 0.8, "score should be high after removing violations");
 }
 
 // ── Idempotency: simulating no-op returns same state ──
@@ -183,7 +183,7 @@ fn simulate_noop_idempotent() {
         from: "a.rs".into(),
         to: "b.rs".into(),
     });
-    assert!(result.grade_after <= 'F');
+    assert!(result.score_after >= 0.0 && result.score_after <= 1.0);
 }
 
 // ── Symmetry: move then move back = original ──
