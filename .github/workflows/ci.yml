@@ -40,19 +40,26 @@ jobs:
 
       - name: Create Pro stub (optional dep needs path to exist)
         run: |
-          mkdir -p ../private-integration-crate/src
-          echo '[package]
+          mkdir -p ../../private-integration-crate/src
+          cat > ../../private-integration-crate/Cargo.toml << 'STUBEOF'
+          [package]
           name = "private-integration-crate"
-          version = "0.5.0"
+          version = "0.5.2"
           edition = "2021"
           [lib]
           path = "src/lib.rs"
           [dependencies]
-          sentrux-core = { path = "../sentrux-fresh/sentrux-core" }
           serde_json = "1"
-          dirs = "6"' > ../private-integration-crate/Cargo.toml
+          dirs = "6"
+          STUBEOF
+          # Find the actual checkout path for sentrux-core and add it
+          CORE_PATH=$(cd .. && pwd)/$(basename $(pwd))/sentrux-core
+          echo "[dependencies.sentrux-core]" >> ../../private-integration-crate/Cargo.toml
+          echo "path = \"$CORE_PATH\"" >> ../../private-integration-crate/Cargo.toml
           echo 'pub mod metrics { pub fn register_all() {} }
-          pub fn init() {}' > ../private-integration-crate/src/lib.rs
+          pub fn init() {}' > ../../private-integration-crate/src/lib.rs
+          echo "Pro stub created. sentrux-core path: $CORE_PATH"
+          cat ../../private-integration-crate/Cargo.toml
 
       - name: Build
         run: cargo build
