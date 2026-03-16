@@ -34,26 +34,7 @@ pub(crate) fn do_scan(root: &Path) -> Result<(Snapshot, metrics::HealthReport, a
         None, // MCP scans are not cancellable
     ).map_err(|e| format!("Scan failed: {e}"))?;
     let arch_report = arch::compute_arch(&result.snapshot);
-    // Compute testgap for unified quality signal
-    let complexity_map: std::collections::HashMap<String, u32> = {
-        let files = crate::core::snapshot::flatten_files_ref(&result.snapshot.root);
-        files.iter().filter_map(|f| {
-            f.sa.as_ref()?.functions.as_ref().map(|fns| {
-                (f.path.clone(), fns.iter().filter_map(|func| func.cc).max().unwrap_or(0))
-            })
-        }).collect()
-    };
-    let test_gaps = metrics::testgap::compute_test_gaps(&result.snapshot, &complexity_map);
-    let ext = metrics::ExternalMetrics {
-        levelization_upward_ratio: arch_report.upward_ratio,
-        blast_radius_ratio: if arch_report.total_graph_files > 0 {
-            arch_report.max_blast_radius as f64 / arch_report.total_graph_files as f64
-        } else { 0.0 },
-        distance: arch_report.avg_distance,
-        attack_surface_ratio: arch_report.attack_surface_ratio,
-        test_coverage_ratio: test_gaps.coverage_ratio,
-    };
-    let health = metrics::compute_health_with_externals(&result.snapshot, &ext);
+    let health = metrics::compute_health(&result.snapshot);
     Ok((result.snapshot, health, arch_report))
 }
 
@@ -93,11 +74,6 @@ fn handle_scan(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<Value
     let result = json!({
         "scanned": path,
         "quality_signal": health.quality_signal,
-        "categories": {
-            "blast_radius": health.category_scores.blast_radius,
-            "cognitive_load": health.category_scores.cognitive_load,
-            "hidden_debt": health.category_scores.hidden_debt
-        },
         "files": snapshot.total_files,
         "lines": snapshot.total_lines,
         "import_edges": snapshot.import_graph.len()
@@ -195,9 +171,10 @@ pub fn coupling_def() -> ToolDef {
 
 fn handle_coupling(_args: &Value, tier: &Tier, state: &mut McpState) -> Result<Value, String> {
     let h = state.cached_health.as_ref().ok_or("No scan data. Call 'scan' first.")?;
+    let coupling_grade = crate::metrics::grading::grade_coupling(h.coupling_score);
     let mut result = json!({
         "coupling_score": h.coupling_score,
-        "grade": h.dimensions.coupling.to_string(),
+        "grade": coupling_grade.to_string(),
         "cross_module_edges": h.cross_module_edges,
         "total_edges": h.total_import_edges,
         "god_files_count": h.god_files.len(),
@@ -227,9 +204,10 @@ pub fn cycles_def() -> ToolDef {
 
 fn handle_cycles(_args: &Value, tier: &Tier, state: &mut McpState) -> Result<Value, String> {
     let h = state.cached_health.as_ref().ok_or("No scan data. Call 'scan' first.")?;
+    let cycle_grade = crate::metrics::grading::score_to_grade(1.0 / (1.0 + h.circular_dep_count as f64));
     let mut result = json!({
         "cycle_count": h.circular_dep_count,
-        "grade": h.dimensions.cycles.to_string()
+        "grade": cycle_grade.to_string()
     });
     if tier.is_pro() {
         result["cycles"] = json!(h.circular_dep_files);

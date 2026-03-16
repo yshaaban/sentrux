@@ -13,77 +13,6 @@ use std::collections::HashMap;
 // Per-language overrides come from plugin.toml [thresholds].
 // Project-level overrides come from .sentrux/rules.toml.
 
-/// Per-dimension [0,1] scores. 1.0 = best.
-/// These are the continuous values from which grades are derived.
-#[derive(Debug, Clone)]
-pub struct DimensionScores {
-    // Blast Radius category
-    pub coupling: f64,
-    pub cycles: f64,
-    pub god_files: f64,
-    pub hotspots: f64,
-    pub levelization: f64,
-    pub blast_radius: f64,
-    pub depth: f64,
-    pub entropy: f64,
-    // Cognitive Load category
-    pub complex_fn: f64,
-    pub cog_complex: f64,
-    pub long_fn: f64,
-    pub large_files: f64,
-    pub high_params: f64,
-    pub cohesion: Option<f64>,
-    pub distance: f64,
-    pub comments: Option<f64>,
-    // Hidden Debt category
-    pub dead_code: f64,
-    pub duplication: f64,
-    pub test_coverage: f64,
-    pub attack_surface: f64,
-}
-
-/// Three orthogonal category scores. Each ∈ [0, 1], 1 = best.
-///
-/// Categories derived from exhaustive failure-mode analysis:
-///   Blast Radius:   "Change one thing → how much else breaks?"
-///   Cognitive Load:  "How hard is each unit to understand?"
-///   Hidden Debt:     "How much invisible junk is accumulating?"
-#[derive(Debug, Clone)]
-pub struct CategoryScores {
-    pub blast_radius: f64,
-    pub cognitive_load: f64,
-    pub hidden_debt: f64,
-}
-
-/// Per-dimension letter grades (A-F), derived from scores.
-/// Organized by category for the unified panel UI.
-#[derive(Debug, Clone, PartialEq)]
-pub struct DimensionGrades {
-    // ── Blast Radius ──
-    pub coupling: char,
-    pub cycles: char,
-    pub god_files: char,
-    pub hotspots: char,
-    pub levelization: char,
-    pub blast_radius: char,
-    pub depth: char,
-    pub entropy: char,
-    // ── Cognitive Load ──
-    pub complex_fn: char,
-    pub cog_complex: char,
-    pub long_fn: char,
-    pub file_size: char,
-    pub high_params: char,
-    pub cohesion: Option<char>,
-    pub distance: char,
-    pub comment: Option<char>,
-    // ── Hidden Debt ──
-    pub dead_code: char,
-    pub duplication: char,
-    pub test_coverage: char,
-    pub attack_surface: char,
-}
-
 /// Complete health report for a codebase snapshot.
 /// Aggregates all 15 health dimensions into a single A-F grade.
 #[derive(Debug, Clone)]
@@ -178,15 +107,6 @@ pub struct HealthReport {
     /// Normalized root cause scores ∈ [0,1] (for signal computation)
     pub root_cause_scores: super::root_causes::RootCauseScores,
 
-    // ── Legacy fields kept for Pro diagnostics + backward compat ──
-    /// Three orthogonal category scores (from 20-proxy system)
-    pub category_scores: CategoryScores,
-    /// Per-dimension continuous scores ∈ [0,1]
-    pub dimension_scores: DimensionScores,
-    /// Per-dimension letter grades (A-F), derived from scores
-    pub dimensions: DimensionGrades,
-    /// Overall grade derived from quality_signal
-    pub grade: char,
 }
 
 /// A file-level metric: path + numeric value (e.g., fan-out count, line count).

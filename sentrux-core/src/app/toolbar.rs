@@ -346,38 +346,31 @@ fn draw_toggle_buttons(ui: &mut egui::Ui, state: &mut AppState) {
         let tip = if is_pro { "Export full report" } else { "Export grade summary" };
         if ui.button("\u{2913}").on_hover_text(tip).clicked() {
             if let Some(report) = &state.health_report {
-                let d = &report.dimensions;
+                use crate::metrics::grading::score_to_grade;
+                let grade = score_to_grade(report.quality_signal);
+                let rc = &report.root_cause_scores;
                 let summary = if is_pro {
-                    // Pro: include counts, ratios, edge counts
+                    // Pro: include root cause scores and raw data
                     serde_json::json!({
-                        "grade": report.grade.to_string(),
+                        "quality_signal": report.quality_signal,
+                        "grade": grade.to_string(),
                         "files": state.snapshot.as_ref().map(|s| s.total_files).unwrap_or(0),
                         "lines": state.snapshot.as_ref().map(|s| s.total_lines).unwrap_or(0),
-                        "dimensions": {
-                            "cycles": { "value": report.circular_dep_count, "grade": d.cycles.to_string() },
-                            "coupling": { "value": format!("{:.2}", report.coupling_score), "grade": d.coupling.to_string() },
-                            "entropy": { "value": format!("{:.2}", report.entropy), "grade": d.entropy.to_string() },
-                            "cohesion": { "value": report.avg_cohesion.map(|c| format!("{:.2}", c)).unwrap_or("n/a".into()), "grade": d.cohesion.map(|c| c.to_string()).unwrap_or("-".into()) },
-                            "depth": { "value": report.max_depth, "grade": d.depth.to_string() },
-                            "complex_fn": { "count": report.complex_functions.len(), "ratio": format!("{:.2}", report.complex_fn_ratio), "grade": d.complex_fn.to_string() },
-                            "dead_code": { "count": report.dead_functions.len(), "ratio": format!("{:.2}", report.dead_code_ratio), "grade": d.dead_code.to_string() },
+                        "root_causes": {
+                            "modularity": rc.modularity,
+                            "acyclicity": rc.acyclicity,
+                            "depth": rc.depth,
+                            "equality": rc.equality,
+                            "redundancy": rc.redundancy,
                         },
                         "import_edges": report.total_import_edges,
                         "cross_module_edges": report.cross_module_edges,
                     })
                 } else {
-                    // Free: grades only, no counts or ratios
+                    // Free: quality signal and grade only
                     serde_json::json!({
-                        "grade": report.grade.to_string(),
-                        "dimensions": {
-                            "cycles": d.cycles.to_string(),
-                            "coupling": d.coupling.to_string(),
-                            "entropy": d.entropy.to_string(),
-                            "cohesion": d.cohesion.map(|c| c.to_string()).unwrap_or("-".into()),
-                            "depth": d.depth.to_string(),
-                            "complex_fn": d.complex_fn.to_string(),
-                            "dead_code": d.dead_code.to_string(),
-                        },
+                        "quality_signal": report.quality_signal,
+                        "grade": grade.to_string(),
                     })
                 };
                 let json = serde_json::to_string_pretty(&summary).unwrap_or_default();

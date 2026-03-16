@@ -220,24 +220,6 @@ fn baseline_detects_degradation() {
             modularity: 0.53, acyclicity: 0.33, depth: 0.62,
             equality: 0.7, redundancy: 0.9,
         },
-        category_scores: crate::metrics::CategoryScores {
-            blast_radius: 0.6, cognitive_load: 0.7, hidden_debt: 0.8,
-        },
-        dimension_scores: crate::metrics::DimensionScores {
-            coupling: 0.5, cycles: 0.5, god_files: 0.5, hotspots: 1.0,
-            levelization: 1.0, blast_radius: 1.0, depth: 0.7, entropy: 0.6,
-            complex_fn: 0.6, cog_complex: 1.0, long_fn: 1.0, large_files: 1.0,
-            high_params: 1.0, cohesion: Some(0.3), distance: 1.0, comments: Some(0.5),
-            dead_code: 1.0, duplication: 1.0, test_coverage: 0.5, attack_surface: 1.0,
-        },
-        dimensions: crate::metrics::DimensionGrades {
-            coupling: 'D', cycles: 'D', god_files: 'C', hotspots: 'A',
-            levelization: 'A', blast_radius: 'A', depth: 'B', entropy: 'C',
-            complex_fn: 'C', cog_complex: 'A', long_fn: 'A', file_size: 'A',
-            high_params: 'A', cohesion: Some('C'), distance: 'A', comment: Some('B'),
-            dead_code: 'A', duplication: 'A', test_coverage: 'C', attack_surface: 'A',
-        },
-        grade: 'C',
     };
 
     let diff = baseline.diff(&current);

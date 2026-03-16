@@ -57,9 +57,9 @@ pub(crate) fn compute_coupling_score(edges: &[ImportEdge], stable_modules: &Hash
         }
     }
 
-    // Bayesian coupling: Beta(1,1) uniform prior, zero-defect guard.
+    // Simple ratio: cross-unstable edges / total edges.
     let score = if cross_unstable == 0 { 0.0 } else {
-        (1.0 + cross_unstable as f64) / (2.0 + edges.len() as f64)
+        cross_unstable as f64 / edges.len() as f64
     };
     (score, cross, cross_unstable)
 }

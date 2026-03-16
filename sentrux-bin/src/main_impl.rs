@@ -327,7 +327,7 @@ fn print_check_results(
 ) -> i32 {
     println!("sentrux check — {} rules checked\n", check.rules_checked);
     println!("Structure grade: {}  Architecture grade: {}\n",
-        health.grade, arch_report.arch_grade);
+        metrics::grading::score_to_grade(health.quality_signal), arch_report.arch_grade);
 
     if check.violations.is_empty() {
         println!("✓ All rules pass");
@@ -401,7 +401,7 @@ fn gate_save(
         Ok(()) => {
             println!("Baseline saved to {}", baseline_path.display());
             println!("Structure grade: {}  Architecture grade: {}",
-                health.grade, arch_report.arch_grade);
+                metrics::grading::score_to_grade(health.quality_signal), arch_report.arch_grade);
             println!("\nRun `sentrux gate` after making changes to compare.");
             0
         }

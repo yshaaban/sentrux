@@ -197,7 +197,7 @@ impl ArchBaseline {
                 .unwrap_or_default()
                 .as_secs_f64(),
             quality_signal: report.quality_signal,
-            structure_grade: report.grade,
+            structure_grade: crate::metrics::grading::score_to_grade(report.quality_signal),
             coupling_score: report.coupling_score,
             cycle_count: report.circular_dep_count,
             god_file_count: report.god_files.len(),
@@ -274,7 +274,7 @@ impl ArchBaseline {
             signal_before: self.quality_signal,
             signal_after: current.quality_signal,
             structure_grade_before: self.structure_grade,
-            structure_grade_after: current.grade,
+            structure_grade_after: crate::metrics::grading::score_to_grade(current.quality_signal),
             coupling_before: self.coupling_score,
             coupling_after: current.coupling_score,
             cycles_before: self.cycle_count,

@@ -97,11 +97,12 @@ pub enum Severity {
 /// Check overall structure grade.
 pub fn check_max_grade(c: &Constraints, health: &HealthReport) -> Option<RuleViolation> {
     let max_grade = c.max_grade?;
-    if health.grade > max_grade {
+    let grade = crate::metrics::grading::score_to_grade(health.quality_signal);
+    if grade > max_grade {
         Some(RuleViolation {
             rule: "max_grade".into(),
             severity: Severity::Error,
-            message: format!("Structure grade {} exceeds maximum allowed {}", health.grade, max_grade),
+            message: format!("Structure grade {} exceeds maximum allowed {}", grade, max_grade),
             files: vec![],
         })
     } else {
@@ -112,11 +113,12 @@ pub fn check_max_grade(c: &Constraints, health: &HealthReport) -> Option<RuleVio
 /// Check coupling grade.
 pub fn check_max_coupling(c: &Constraints, health: &HealthReport) -> Option<RuleViolation> {
     let max_coupling = c.max_coupling?;
-    if health.dimensions.coupling > max_coupling {
+    let coupling_grade = crate::metrics::grading::grade_coupling(health.coupling_score);
+    if coupling_grade > max_coupling {
         Some(RuleViolation {
             rule: "max_coupling".into(),
             severity: Severity::Error,
-            message: format!("Coupling grade {} exceeds maximum allowed {}", health.dimensions.coupling, max_coupling),
+            message: format!("Coupling grade {} exceeds maximum allowed {}", coupling_grade, max_coupling),
             files: vec![],
         })
     } else {
