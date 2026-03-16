@@ -57,8 +57,46 @@ fn process_scoped_path(
     }
 }
 
-/// Process a single capture, updating the result accordingly.
-fn process_single_capture<'a>(
+/// Handle definition and reference captures (func/class/call/name).
+fn handle_definition_capture<'a>(
+    cname: &str,
+    cap: &tree_sitter::QueryCapture<'a>,
+    content: &[u8],
+    r: &mut CaptureResult<'a>,
+) -> bool {
+    match cname {
+        "definition.function" | "definition.method" | "func.def" => {
+            r.match_type = Some(MatchKind::FuncDef);
+            r.match_node = Some(cap.node);
+            true
+        }
+        "definition.class" => { set_class_def(r, cap.node, "class"); true }
+        "definition.interface" => { set_class_def(r, cap.node, "interface"); true }
+        "definition.adt" => { set_class_def(r, cap.node, "adt"); true }
+        "definition.type" => { set_class_def(r, cap.node, "type"); true }
+        "class.def" => {
+            r.match_type = Some(MatchKind::ClassDef);
+            r.match_node = Some(cap.node);
+            if r.class_kind.is_none() { r.class_kind = Some("class"); }
+            true
+        }
+        "reference.call" | "reference.class" | "reference.send" | "call" => {
+            if r.match_type.is_none() {
+                r.match_type = Some(MatchKind::Call);
+                r.call_line = cap.node.start_position().row as u32 + 1;
+            }
+            true
+        }
+        "name" | "func.name" | "class.name" | "call.name" | "mod.name" => {
+            r.name_text = cap.node.utf8_text(content).ok().map(|s| s.to_string());
+            true
+        }
+        _ => false,
+    }
+}
+
+/// Handle import, scoped path, and entry-point captures.
+fn handle_import_capture<'a>(
     cname: &str,
     cap: &tree_sitter::QueryCapture<'a>,
     content: &[u8],
@@ -70,30 +108,6 @@ fn process_single_capture<'a>(
     tag_set: &mut HashSet<String>,
 ) {
     match cname {
-        "definition.function" | "definition.method" | "func.def" => {
-            r.match_type = Some(MatchKind::FuncDef);
-            r.match_node = Some(cap.node);
-        }
-        "definition.class" => set_class_def(r, cap.node, "class"),
-        "definition.interface" => set_class_def(r, cap.node, "interface"),
-        "definition.adt" => set_class_def(r, cap.node, "adt"),
-        "definition.type" => set_class_def(r, cap.node, "type"),
-        "class.def" => {
-            r.match_type = Some(MatchKind::ClassDef);
-            r.match_node = Some(cap.node);
-            if r.class_kind.is_none() {
-                r.class_kind = Some("class");
-            }
-        }
-        "reference.call" | "reference.class" | "reference.send" | "call" => {
-            if r.match_type.is_none() {
-                r.match_type = Some(MatchKind::Call);
-                r.call_line = cap.node.start_position().row as u32 + 1;
-            }
-        }
-        "name" | "func.name" | "class.name" | "call.name" | "mod.name" => {
-            r.name_text = cap.node.utf8_text(content).ok().map(|s| s.to_string());
-        }
         "import" => {
             if !is_test_mod(cap.node, content, lang) {
                 r.match_type = Some(MatchKind::Import);
@@ -111,13 +125,26 @@ fn process_single_capture<'a>(
         "entry" | "entry.point" => {
             classify_entry_tag(cap.node, content, lang, tags, tag_set);
         }
-        // Ignored capture names
-        "definition.module" | "definition.macro" | "definition.constant"
-        | "definition.field" | "definition.property"
-        | "reference.implementation" | "reference.type" | "reference.interface"
-        | "doc" | "ignore" | "local.scope" | "module" => {}
         _ => {}
     }
+}
+
+/// Process a single capture, updating the result accordingly.
+fn process_single_capture<'a>(
+    cname: &str,
+    cap: &tree_sitter::QueryCapture<'a>,
+    content: &[u8],
+    lang: &str,
+    r: &mut CaptureResult<'a>,
+    imports: &mut Vec<String>,
+    import_set: &mut HashSet<String>,
+    tags: &mut Vec<String>,
+    tag_set: &mut HashSet<String>,
+) {
+    if handle_definition_capture(cname, cap, content, r) {
+        return;
+    }
+    handle_import_capture(cname, cap, content, lang, r, imports, import_set, tags, tag_set);
 }
 
 pub(super) fn classify_captures<'a>(
