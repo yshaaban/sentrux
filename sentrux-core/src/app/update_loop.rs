@@ -304,6 +304,30 @@ impl SentruxApp {
 fn setup_fonts(ctx: &egui::Context, load_cjk: bool) {
     let mut fonts = egui::FontDefinitions::default();
 
+    // Embed Terminus — the classic bitmap terminal font (1981 aesthetic).
+    // Hand-tuned pixel-by-pixel for maximum readability at small sizes.
+    let terminus_data = include_bytes!("../../assets/fonts/terminus.ttf");
+    let terminus_bold_data = include_bytes!("../../assets/fonts/terminus-bold.ttf");
+
+    fonts.font_data.insert(
+        "terminus".to_string(),
+        egui::FontData::from_static(terminus_data).into(),
+    );
+    fonts.font_data.insert(
+        "terminus_bold".to_string(),
+        egui::FontData::from_static(terminus_bold_data).into(),
+    );
+
+    // Terminus as PRIMARY monospace font (before egui defaults)
+    fonts.families.entry(egui::FontFamily::Monospace)
+        .or_default()
+        .insert(0, "terminus".to_string());
+
+    // Also use for proportional (everything should be monospace in our app)
+    fonts.families.entry(egui::FontFamily::Proportional)
+        .or_default()
+        .insert(0, "terminus".to_string());
+
     if load_cjk {
         let cjk_paths = [
             "/System/Library/Fonts/PingFang.ttc",
