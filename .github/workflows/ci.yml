@@ -38,6 +38,22 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
 
+      - name: Create Pro stub (optional dep needs path to exist)
+        run: |
+          mkdir -p ../private-integration-crate/src
+          echo '[package]
+          name = "private-integration-crate"
+          version = "0.5.0"
+          edition = "2021"
+          [lib]
+          path = "src/lib.rs"
+          [dependencies]
+          sentrux-core = { path = "../sentrux-fresh/sentrux-core" }
+          serde_json = "1"
+          dirs = "6"' > ../private-integration-crate/Cargo.toml
+          echo 'pub mod metrics { pub fn register_all() {} }
+          pub fn init() {}' > ../private-integration-crate/src/lib.rs
+
       - name: Build
         run: cargo build
 
