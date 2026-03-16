@@ -159,68 +159,77 @@ fn emit_row<F>(
 /// Squarify a list of weighted items into a rectangle.
 /// Calls `callback(item_index, x, y, w, h)` for each placed item.
 /// Items must be sorted by weight descending for best aspect ratios.
+/// Filter and sort items, returning None if nothing valid remains.
+fn prepare_items(items: &[WeightedItem]) -> Option<Vec<WeightedItem>> {
+    let mut clean: Vec<WeightedItem> = items
+        .iter()
+        .filter(|i| i.weight.is_finite() && i.weight >= 0.0)
+        .map(|i| WeightedItem { weight: i.weight, index: i.index })
+        .collect();
+    clean.sort_by(|a, b| b.weight.total_cmp(&a.weight));
+    let total: f64 = clean.iter().map(|i| i.weight).sum();
+    if clean.is_empty() || total <= 0.0 { None } else { Some(clean) }
+}
+
+/// Process one row of the squarify layout, returning consumed extent.
+fn process_row<F>(
+    items: &[WeightedItem],
+    start_idx: usize,
+    rem_weight: f64,
+    vp: &Viewport,
+    sc: &SquarifyConfig,
+    callback: &mut F,
+) -> Option<(usize, f64, bool)>
+where F: FnMut(usize, f64, f64, f64, f64) {
+    let is_wide = vp.cw >= vp.ch;
+    let side = if is_wide { vp.ch } else { vp.cw };
+    let row = build_row(items, start_idx, rem_weight, vp.cw, vp.ch, side);
+    if row.count == 0 { return None; }
+    let row_frac = row.weight / rem_weight;
+    let row_extent = if is_wide { vp.cw * row_frac } else { vp.ch * row_frac };
+    emit_row(items, start_idx, &row, vp, is_wide, row_extent, sc, callback);
+    Some((row.count, row_extent, is_wide))
+}
+
 pub fn squarify<F>(
     items: &[WeightedItem],
     sc: &SquarifyConfig,
     mut callback: F,
 ) where F: FnMut(usize, f64, f64, f64, f64) {
     let (x, y, w, h) = (sc.x, sc.y, sc.w, sc.h);
-
-    if items.is_empty() || w < sc.min_rect || h < sc.min_rect { return; }
-
-    let mut clean: Vec<WeightedItem> = items
-        .iter()
-        .filter(|i| i.weight.is_finite() && i.weight >= 0.0)
-        .map(|i| WeightedItem { weight: i.weight, index: i.index })
-        .collect();
-    // Re-sort by weight descending after filtering to ensure the squarify
-    // sort invariant holds (filtering may have removed items that broke ordering).
-    clean.sort_by(|a, b| b.weight.total_cmp(&a.weight));
-    let items = &clean[..];
-    if items.is_empty() { return; }
+    if w < sc.min_rect || h < sc.min_rect { return; }
+    let items = match prepare_items(items) {
+        Some(v) => v,
+        None => return,
+    };
 
     let mut rem_weight: f64 = items.iter().map(|i| i.weight).sum();
-    if rem_weight <= 0.0 { return; }
-
     let mut start_idx = 0usize;
-    // Track total consumed extent to avoid floating-point accumulation error.
-    // Computing remaining dimensions as (original - total_consumed) instead of
-    // repeated subtraction prevents drift over hundreds of rows.
     let mut total_x_consumed = 0.0_f64;
     let mut total_y_consumed = 0.0_f64;
 
     while start_idx < items.len() {
         let vp = Viewport {
-            cx: x + total_x_consumed,
-            cy: y + total_y_consumed,
-            cw: w - total_x_consumed,
-            ch: h - total_y_consumed,
+            cx: x + total_x_consumed, cy: y + total_y_consumed,
+            cw: w - total_x_consumed, ch: h - total_y_consumed,
         };
         if vp.cw < sc.min_rect || vp.ch < sc.min_rect || rem_weight <= 0.0 { break; }
 
-        let is_wide = vp.cw >= vp.ch;
-        let side = if is_wide { vp.ch } else { vp.cw };
-        let row = build_row(items, start_idx, rem_weight, vp.cw, vp.ch, side);
-        if row.count == 0 { break; }
-
-        let row_frac = row.weight / rem_weight;
-        let row_extent = if is_wide { vp.cw * row_frac } else { vp.ch * row_frac };
-        emit_row(items, start_idx, &row, &vp, is_wide, row_extent, sc, &mut callback);
-
-        if is_wide { total_x_consumed += row_extent; }
-        else { total_y_consumed += row_extent; }
-
-        rem_weight = items[start_idx + row.count..].iter().map(|i| i.weight).sum();
-        start_idx += row.count;
+        match process_row(&items, start_idx, rem_weight, &vp, sc, &mut callback) {
+            Some((count, extent, is_wide)) => {
+                if is_wide { total_x_consumed += extent; } else { total_y_consumed += extent; }
+                rem_weight = items[start_idx + count..].iter().map(|i| i.weight).sum();
+                start_idx += count;
+            }
+            None => break,
+        }
     }
 
     let tail_vp = Viewport {
-        cx: x + total_x_consumed,
-        cy: y + total_y_consumed,
-        cw: w - total_x_consumed,
-        ch: h - total_y_consumed,
+        cx: x + total_x_consumed, cy: y + total_y_consumed,
+        cw: w - total_x_consumed, ch: h - total_y_consumed,
     };
-    emit_tail(items, start_idx, &tail_vp, sc, &mut callback);
+    emit_tail(&items, start_idx, &tail_vp, sc, &mut callback);
 }
 
 #[cfg(test)]

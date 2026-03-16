@@ -148,8 +148,47 @@ pub fn compute_edge_path(
     }
 }
 
+/// Clamp a bend coordinate outside the source rect to prevent edges passing through it.
+fn clamp_bend_outside(raw: f64, rect_min: f64, rect_size: f64, positive: bool) -> f64 {
+    if raw > rect_min && raw < rect_min + rect_size {
+        if positive { rect_min + rect_size } else { rect_min }
+    } else {
+        raw
+    }
+}
+
+/// Compute the bend offset for an L-path, clamped outside the source rect.
+fn compute_bend_offset(
+    lane_offset: f64, lane_t: f64,
+    center: f64, start_pos: f64,
+    rect_min: f64, rect_size: f64,
+) -> f64 {
+    if lane_offset.abs() < lane_t {
+        center
+    } else {
+        clamp_bend_outside(
+            start_pos + lane_offset, rect_min, rect_size, lane_offset > 0.0,
+        )
+    }
+}
+
+/// Build the final path points given bend, target intersection check, and border padding.
+fn finalize_lpath(
+    start: Point, bend: Point, bend_is_degenerate: bool,
+    inside_target: bool,
+    direct_border: Point,
+    pre_target: Point,
+    to: &Anchor, border_pad: f64,
+) -> Vec<Point> {
+    if inside_target {
+        build_pts_opt_bend(start, bend, direct_border, bend_is_degenerate)
+    } else {
+        let end = clip_ortho_to_border(&pre_target, to, border_pad);
+        build_pts_with_pre(start, bend, pre_target, end, bend_is_degenerate)
+    }
+}
+
 /// Route an L-path when horizontal distance dominates (adx >= ady).
-/// The first segment exits source horizontally, bends vertically to reach target.
 fn route_horizontal_dominant(
     from: &Anchor, to: &Anchor,
     lane_offset: f64, lane_t: f64, border_pad: f64,
@@ -160,32 +199,21 @@ fn route_horizontal_dominant(
     } else {
         clip_source_to_border(from, 0.0, lane_offset, border_pad)
     };
-    let bend_y = if lane_offset.abs() < lane_t {
-        from.cy
-    } else {
-        let raw = start.y + lane_offset;
-        // Clamp bend outside source rect to prevent edge passing through it
-        if raw > from.by && raw < from.by + from.bh {
-            if lane_offset > 0.0 { from.by + from.bh } else { from.by }
-        } else { raw }
-    };
+    let bend_y = compute_bend_offset(lane_offset, lane_t, from.cy, start.y, from.by, from.bh);
     let bend = Point { x: start.x, y: bend_y };
-    let bend_is_degenerate = (bend.x - start.x).abs() < 0.01 && (bend.y - start.y).abs() < 0.01;
-
-    let inside_y = bend_y >= to.by + border_pad && bend_y <= to.by + to.bh - border_pad;
-    if inside_y {
-        let border_x = if from.cx < to.cx { to.bx + border_pad } else { to.bx + to.bw - border_pad };
-        let end = Point { x: border_x, y: bend_y };
-        Some((build_pts_opt_bend(start, bend, end, bend_is_degenerate), side))
-    } else {
-        let pre = Point { x: to.cx, y: bend_y };
-        let end = clip_ortho_to_border(&pre, to, border_pad);
-        Some((build_pts_with_pre(start, bend, pre, end, bend_is_degenerate), side))
-    }
+    let bend_degen = (bend.x - start.x).abs() < 0.01 && (bend.y - start.y).abs() < 0.01;
+    let inside = bend_y >= to.by + border_pad && bend_y <= to.by + to.bh - border_pad;
+    let border_x = if from.cx < to.cx { to.bx + border_pad } else { to.bx + to.bw - border_pad };
+    let pts = finalize_lpath(
+        start, bend, bend_degen, inside,
+        Point { x: border_x, y: bend_y },
+        Point { x: to.cx, y: bend_y },
+        to, border_pad,
+    );
+    Some((pts, side))
 }
 
 /// Route an L-path when vertical distance dominates (ady > adx).
-/// The first segment exits source vertically, bends horizontally to reach target.
 fn route_vertical_dominant(
     from: &Anchor, to: &Anchor,
     lane_offset: f64, lane_t: f64, border_pad: f64,
@@ -196,28 +224,18 @@ fn route_vertical_dominant(
     } else {
         clip_source_to_border(from, lane_offset, 0.0, border_pad)
     };
-    let bend_x = if lane_offset.abs() < lane_t {
-        from.cx
-    } else {
-        let raw = start.x + lane_offset;
-        // Clamp bend outside source rect to prevent edge passing through it
-        if raw > from.bx && raw < from.bx + from.bw {
-            if lane_offset > 0.0 { from.bx + from.bw } else { from.bx }
-        } else { raw }
-    };
+    let bend_x = compute_bend_offset(lane_offset, lane_t, from.cx, start.x, from.bx, from.bw);
     let bend = Point { x: bend_x, y: start.y };
-    let bend_is_degenerate = (bend.x - start.x).abs() < 0.01 && (bend.y - start.y).abs() < 0.01;
-
-    let inside_x = bend_x >= to.bx + border_pad && bend_x <= to.bx + to.bw - border_pad;
-    if inside_x {
-        let border_y = if from.cy < to.cy { to.by + border_pad } else { to.by + to.bh - border_pad };
-        let end = Point { x: bend_x, y: border_y };
-        Some((build_pts_opt_bend(start, bend, end, bend_is_degenerate), side))
-    } else {
-        let pre = Point { x: bend_x, y: to.cy };
-        let end = clip_ortho_to_border(&pre, to, border_pad);
-        Some((build_pts_with_pre(start, bend, pre, end, bend_is_degenerate), side))
-    }
+    let bend_degen = (bend.x - start.x).abs() < 0.01 && (bend.y - start.y).abs() < 0.01;
+    let inside = bend_x >= to.bx + border_pad && bend_x <= to.bx + to.bw - border_pad;
+    let border_y = if from.cy < to.cy { to.by + border_pad } else { to.by + to.bh - border_pad };
+    let pts = finalize_lpath(
+        start, bend, bend_degen, inside,
+        Point { x: bend_x, y: border_y },
+        Point { x: bend_x, y: to.cy },
+        to, border_pad,
+    );
+    Some((pts, side))
 }
 
 /// Build point list: [start, end] or [start, bend, end] depending on degeneracy.

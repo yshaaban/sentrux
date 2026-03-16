@@ -465,54 +465,61 @@ fn draw_matrix(
             .collect()
     };
 
-    // Draw rows: labels + cells
-    for row in 0..display_size {
-        draw_row_label(&painter, origin, row, &matrix.files[row], &dctx);
+    draw_rows_and_cells(&painter, origin, matrix, &row_levels, &row_has_edges, &dctx);
+    let click_result = handle_matrix_interaction(response, matrix, &dctx);
+    if display_size < matrix.size {
+        ui.label(
+            egui::RichText::new(format!("({} more files not shown)", matrix.size - display_size))
+                .monospace().size(8.0).color(tc.text_secondary),
+        );
+    }
+    click_result
+}
 
-        // Skip rows with no edges and no crosshair interaction
-        if !row_has_edges[row] {
-            continue;
-        }
-
-        let y = origin.y + cell_size + (row as f32 * cell_size);
-        for col in 0..display_size {
-            if let Some(color) = cell_color(row, col, &row_levels, matrix, &dctx) {
-                let x = origin.x + label_width + (col as f32 * cell_size);
+/// Draw row labels and filled cells for the matrix.
+fn draw_rows_and_cells(
+    painter: &egui::Painter,
+    origin: egui::Pos2,
+    matrix: &DesignStructureMatrix,
+    row_levels: &[u32],
+    row_has_edges: &[bool],
+    dctx: &DsmDrawCtx,
+) {
+    for row in 0..dctx.display_size {
+        draw_row_label(painter, origin, row, &matrix.files[row], dctx);
+        if !row_has_edges[row] { continue; }
+        let y = origin.y + dctx.cell_size + (row as f32 * dctx.cell_size);
+        for col in 0..dctx.display_size {
+            if let Some(color) = cell_color(row, col, row_levels, matrix, dctx) {
+                let x = origin.x + dctx.label_width + (col as f32 * dctx.cell_size);
                 let rect = egui::Rect::from_min_size(
                     egui::pos2(x, y),
-                    egui::vec2(cell_size - 0.5, cell_size - 0.5),
+                    egui::vec2(dctx.cell_size - 0.5, dctx.cell_size - 0.5),
                 );
                 painter.rect_filled(rect, 0.0, color);
             }
         }
     }
+}
 
-    // Handle click -> return clicked file path
-    let mut click_result: Option<String> = None;
+/// Handle click and hover tooltip on the matrix.
+fn handle_matrix_interaction(
+    response: egui::Response,
+    matrix: &DesignStructureMatrix,
+    dctx: &DsmDrawCtx,
+) -> Option<String> {
+    let mut click_result = None;
     if response.clicked() {
-        if let Some(row) = hover_row {
+        if let Some(row) = dctx.hover_row {
             if row < matrix.files.len() {
                 click_result = Some(matrix.files[row].clone());
             }
         }
     }
-
-    // Tooltip on hover
-    if let (Some(row), Some(col)) = (hover_row, hover_col) {
+    if let (Some(row), Some(col)) = (dctx.hover_row, dctx.hover_col) {
         if row < matrix.files.len() && col < matrix.files.len() {
-            let tip = hover_tooltip(matrix, row, col);
-            response.on_hover_text(tip);
+            response.on_hover_text(hover_tooltip(matrix, row, col));
         }
     }
-
-    if display_size < matrix.size {
-        ui.label(
-            egui::RichText::new(format!("({} more files not shown)", matrix.size - display_size))
-                .monospace()
-                .size(8.0)
-                .color(tc.text_secondary),
-        );
-    }
-
     click_result
 }
