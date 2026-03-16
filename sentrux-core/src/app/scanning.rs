@@ -28,6 +28,13 @@ impl SentruxApp {
         self.poll_dead_scanner(ctx);
         self.poll_dead_layout(ctx);
         self.tick_heat_and_animation(ctx);
+
+        // Poll for filesystem events every 200ms even when idle.
+        // Without this, watcher events queue up and heat animations
+        // don't start until the user moves the mouse.
+        if self.state.snapshot.is_some() {
+            ctx.request_repaint_after(std::time::Duration::from_millis(200));
+        }
     }
 
     fn poll_scan_messages(&mut self, ctx: &egui::Context) {
