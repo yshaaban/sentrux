@@ -328,15 +328,13 @@ fn draw_file_borders(
     r: &LayoutRectSlim,
     ctx: &RenderContext,
 ) {
-    // Git status border: muted colored border for changed files
-    let border_color = ctx.file_index.get(r.path.as_str())
-        .filter(|entry| !entry.gs.is_empty())
-        .map(|entry| super::colors::git_color(&entry.gs))
-        .unwrap_or(dctx.tc.file_border);
+    // Simple 1px border for all files. No persistent git status borders —
+    // they accumulate during AI editing and clutter the treemap.
+    // Git status is shown via block COLOR (in Git color mode), not borders.
     dctx.painter.rect_stroke(
         inset_rect,
         CornerRadius::ZERO,
-        Stroke::new(if border_color != dctx.tc.file_border { 1.5 } else { 1.0 }, border_color),
+        Stroke::new(1.0, dctx.tc.file_border),
         StrokeKind::Middle,
     );
 
