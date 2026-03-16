@@ -181,7 +181,7 @@ MCP returns raw float for AI agent: `"quality_signal": 0.73`
 
 ## For AI Agents (MCP Interface)
 
-### Free tier response
+### MCP Response
 
 ```json
 {
@@ -192,16 +192,7 @@ MCP returns raw float for AI agent: `"quality_signal": 0.73`
     "depth":       {"score": 0.67, "raw": 4},
     "equality":    {"score": 0.65, "raw": 0.35},
     "redundancy":  {"score": 0.88, "raw": 0.12}
-  }
-}
-```
-
-The AI agent maximizes `quality_signal`. Each root cause score tells it WHERE the biggest improvement opportunity is (lowest score = biggest drag on geometric mean).
-
-### Pro tier adds diagnostics
-
-```json
-{
+  },
   "diagnostics": {
     "modularity": {
       "god_files": [{"path": "...", "fan_out": 18}],
@@ -220,7 +211,7 @@ The AI agent maximizes `quality_signal`. Each root cause score tells it WHERE th
 }
 ```
 
-Diagnostics tell the AI agent exactly WHICH files/functions to fix for each root cause. Organized by root cause, not by proxy metric.
+The AI agent maximizes `quality_signal`. Each root cause score tells it WHERE the biggest improvement opportunity is (lowest score = biggest drag on geometric mean). Diagnostics tell the AI agent exactly WHICH files/functions to fix for each root cause.
 
 ## Convergence Behavior
 
