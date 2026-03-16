@@ -205,12 +205,11 @@ fn load_pending_from_disk() -> TelemetrySnapshot {
 
 /// Record a scan event (called from scanner).
 pub fn record_scan(file_count: u32, quality_signal: f64) {
-    // Encode quality signal as integer 0-100 for telemetry compactness.
-    let g = (quality_signal * 100.0).round() as u32;
+    let q = (quality_signal * 10000.0).round() as u32;
     if let Ok(mut state) = TELEMETRY_LOCK.lock() {
         state.scans += 1;
         state.files = file_count;
-        state.grade = g;
+        state.grade = q;
         state.persist();
     }
 }
