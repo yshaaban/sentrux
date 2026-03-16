@@ -32,3 +32,17 @@
   (navigation_expression
     (navigation_suffix
       (simple_identifier) @call.name))) @call
+
+; Type references — captures type names used in annotations, inits, generics.
+; This is critical for Swift because same-target files don't import each other.
+; Without this, sentrux is blind to intra-module dependencies.
+; e.g., let x = FEMScaffold() → captures "FEMScaffold"
+;       var map: DisplacementMap → captures "DisplacementMap"
+;       class Foo: BarProtocol → captures "BarProtocol"
+(user_type
+  (type_identifier) @reference.type)
+
+; Inheritance — captures base class/protocol names
+(inheritance_specifier
+  (user_type
+    (type_identifier) @reference.type))

@@ -80,10 +80,14 @@ fn handle_definition_capture<'a>(
             if r.class_kind.is_none() { r.class_kind = Some("class"); }
             true
         }
-        "reference.call" | "reference.class" | "reference.send" | "call" => {
+        "reference.call" | "reference.class" | "reference.send" | "reference.type" | "call" => {
             if r.match_type.is_none() {
                 r.match_type = Some(MatchKind::Call);
                 r.call_line = cap.node.start_position().row as u32 + 1;
+            }
+            // For reference.type, the captured node IS the name (e.g., "FEMScaffold")
+            if cname == "reference.type" {
+                r.name_text = cap.node.utf8_text(content).ok().map(|s| s.to_string());
             }
             true
         }
