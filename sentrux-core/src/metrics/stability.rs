@@ -57,9 +57,11 @@ pub(crate) fn compute_coupling_score(edges: &[ImportEdge], stable_modules: &Hash
         }
     }
 
-    // Score based on cross-module edges to unstable targets only.
-    // Total denominator is still all edges (not just cross-module).
-    let score = cross_unstable as f64 / edges.len() as f64;
+    // Bayesian coupling: Beta(1,4) prior, with zero-defect guard.
+    // Zero cross-module edges = zero coupling (not the prior floor).
+    let score = if cross_unstable == 0 { 0.0 } else {
+        (1.0 + cross_unstable as f64) / (1.0 + 4.0 + edges.len() as f64)
+    };
     (score, cross, cross_unstable)
 }
 
@@ -294,10 +296,12 @@ pub(crate) fn compute_avg_cohesion(edges: &[ImportEdge], call_edges: &[crate::co
         if n < 2 {
             continue;
         }
-        // n-1 = spanning tree (minimum edges for a connected graph)
+        // Bayesian cohesion: Beta(1,1) prior + observed edges / expected.
+        // Small modules (n=2): 0 edges → 1/3 ≈ 33% (C) instead of 0% (F).
+        // Large modules: converges to true ratio.
         let expected_edges = n - 1;
         let actual = *mod_edge_count.get(m).unwrap_or(&0);
-        let cohesion = (actual as f64 / expected_edges as f64).min(1.0);
+        let cohesion = ((1.0 + actual as f64) / (2.0 + expected_edges as f64)).min(1.0);
         total_cohesion += cohesion;
         module_count += 1;
     }

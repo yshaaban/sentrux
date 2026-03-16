@@ -158,7 +158,8 @@ fn compute_instability(
             let ce = *fan_out.get(path).unwrap_or(&0);
             let ca = *fan_in.get(path).unwrap_or(&0);
             let total = ca + ce;
-            let instability = if total == 0 { 0.5 } else { ce as f64 / total as f64 };
+            // Bayesian instability: Beta(1,1) prior → 0.5 when no data (neutral).
+            let instability = (1.0 + ce as f64) / (2.0 + total as f64);
             InstabilityMetric {
                 path: path.to_string(),
                 instability,
@@ -240,7 +241,9 @@ fn compute_comment_ratio(files: &[&FileNode]) -> Option<f64> {
         .filter(|f| !f.lang.is_empty() && f.lang != "unknown")
         .fold((0u64, 0u64), |(c, l), f| (c + f.comments as u64, l + f.lines as u64));
     if total_lines > 0 {
-        Some(total_comments as f64 / total_lines as f64)
+        // Bayesian: Beta(2,8) prior → expects ~20% comment ratio as baseline.
+        // Small files: regularized. Large files: converges to true ratio.
+        Some((2.0 + total_comments as f64) / (10.0 + total_lines as f64))
     } else { None }
 }
 
@@ -259,9 +262,9 @@ fn compute_large_file_stats(
         .collect();
     let large_file_count = long_files.len();
     let code_file_count = files.iter().filter(|f| !f.lang.is_empty() && f.lang != "unknown").count();
-    let large_file_ratio = if code_file_count > 0 {
-        large_file_count as f64 / code_file_count as f64
-    } else { 0.0 };
+    let large_file_ratio = if code_file_count == 0 { 0.0 } else {
+        bayesian_ratio(large_file_count, code_file_count, 1.0, 9.0)
+    };
     (long_files, large_file_count, large_file_ratio)
 }
 
@@ -466,9 +469,29 @@ fn collect_dead_functions(files: &[&FileNode]) -> Vec<FuncMetric> {
     result
 }
 
-/// Compute a ratio: count / total, or 0.0 if total is 0.
+/// Bayesian ratio estimate with Beta prior.
+///
+/// Instead of naive `count / total` (which is 0/0=undefined, 1/1=100%),
+/// uses Beta-Binomial conjugate: posterior mean = (α + count) / (α + β + total).
+///
+/// Properties:
+///   - Small samples → regularized toward prior mean α/(α+β)
+///   - Large samples → converges to true ratio count/total
+///   - Division by zero impossible (denominator ≥ α+β > 0)
+///   - ONE formula, zero special cases
+///
+/// `alpha`: prior successes (higher = expect more "bad" items as normal)
+/// `beta`: prior failures (higher = expect more "good" items as normal)
+fn bayesian_ratio(count: usize, total: usize, alpha: f64, beta: f64) -> f64 {
+    (alpha + count as f64) / (alpha + beta + total as f64)
+}
+
+/// Bayesian ratio for "defect" metrics, with zero-data guard.
+/// Returns 0.0 when total = 0 (no data = no defects to report).
+/// Otherwise uses Beta(1,9) prior for regularization.
 fn ratio_or_zero(count: usize, total: usize) -> f64 {
-    if total > 0 { count as f64 / total as f64 } else { 0.0 }
+    if total == 0 { return 0.0; }
+    bayesian_ratio(count, total, 1.0, 9.0)
 }
 
 /// Count total functions across all files.
