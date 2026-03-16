@@ -57,10 +57,9 @@ pub(crate) fn compute_coupling_score(edges: &[ImportEdge], stable_modules: &Hash
         }
     }
 
-    // Bayesian coupling: Beta(1,4) prior, with zero-defect guard.
-    // Zero cross-module edges = zero coupling (not the prior floor).
+    // Bayesian coupling: Beta(1,1) uniform prior, zero-defect guard.
     let score = if cross_unstable == 0 { 0.0 } else {
-        (1.0 + cross_unstable as f64) / (1.0 + 4.0 + edges.len() as f64)
+        (1.0 + cross_unstable as f64) / (2.0 + edges.len() as f64)
     };
     (score, cross, cross_unstable)
 }
@@ -296,12 +295,14 @@ pub(crate) fn compute_avg_cohesion(edges: &[ImportEdge], call_edges: &[crate::co
         if n < 2 {
             continue;
         }
-        // Bayesian cohesion: Beta(1,1) prior + observed edges / expected.
-        // Small modules (n=2): 0 edges → 1/3 ≈ 33% (C) instead of 0% (F).
-        // Large modules: converges to true ratio.
+        // Raw ratio: actual / expected. No Bayesian prior needed here —
+        // the normalization layer (score_bounded_higher) handles [0,1] mapping,
+        // and geometric mean handles the "one bad score" case properly.
+        // 0 edges out of 1 expected → 0.0 (honest: no connectivity).
+        // Bayesian was causing cohesion to never reach 0, breaking the [0,1] range.
         let expected_edges = n - 1;
         let actual = *mod_edge_count.get(m).unwrap_or(&0);
-        let cohesion = ((1.0 + actual as f64) / (2.0 + expected_edges as f64)).min(1.0);
+        let cohesion = (actual as f64 / expected_edges as f64).min(1.0);
         total_cohesion += cohesion;
         module_count += 1;
     }

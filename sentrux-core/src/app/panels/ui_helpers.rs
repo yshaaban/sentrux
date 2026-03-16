@@ -6,7 +6,7 @@
 
 use crate::core::settings::ThemeConfig;
 
-/// Color for a per-dimension grade letter.
+/// Color for a per-dimension grade letter (legacy — used by evolution display).
 pub(crate) fn dim_grade_color(g: char, tc: &ThemeConfig) -> egui::Color32 {
     match g {
         'A' => egui::Color32::from_rgb(100, 200, 100),
@@ -15,6 +15,29 @@ pub(crate) fn dim_grade_color(g: char, tc: &ThemeConfig) -> egui::Color32 {
         'D' => egui::Color32::from_rgb(200, 120, 60),
         'F' => egui::Color32::from_rgb(200, 80, 80),
         _ => tc.text_secondary,
+    }
+}
+
+/// Continuous color from score ∈ [0, 1]. No grade boundaries.
+/// 0.0 = red, 0.5 = yellow, 1.0 = green. Smooth gradient.
+pub(crate) fn score_color(score: f64) -> egui::Color32 {
+    let s = score.clamp(0.0, 1.0) as f32;
+    if s < 0.5 {
+        // Red → Yellow (0.0 → 0.5)
+        let t = s * 2.0;
+        egui::Color32::from_rgb(
+            200,
+            (80.0 + t * 120.0) as u8, // 80 → 200
+            (80.0 - t * 20.0) as u8,  // 80 → 60
+        )
+    } else {
+        // Yellow → Green (0.5 → 1.0)
+        let t = (s - 0.5) * 2.0;
+        egui::Color32::from_rgb(
+            (200.0 - t * 100.0) as u8, // 200 → 100
+            200,
+            (60.0 + t * 40.0) as u8,   // 60 → 100
+        )
     }
 }
 

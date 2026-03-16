@@ -59,14 +59,10 @@ fn draw_right_stats(ui: &mut egui::Ui, state: &AppState) {
     let vp = &state.viewport;
     ui.label(egui::RichText::new(format!("{:.0}%", vp.scale * 100.0)).weak().monospace());
 
-    // Compact grade display — just the overall letter, no dimension breakdown
-    if let Some(arch) = &state.arch_report {
-        let c = grade_color(arch.arch_grade);
-        ui.label(egui::RichText::new(format!("Arch:{}", arch.arch_grade)).monospace().color(c));
-    }
+    // Unified quality signal display — continuous score, no grade letter
     if let Some(report) = &state.health_report {
-        let c = grade_color(report.grade);
-        ui.label(egui::RichText::new(format!("Health:{}", report.grade)).monospace().color(c));
+        let c = crate::app::panels::ui_helpers::score_color(report.quality_signal);
+        ui.label(egui::RichText::new(format!("Q:{:.0}%", report.quality_signal * 100.0)).monospace().color(c));
     }
 
     draw_edge_file_counts(ui, state);

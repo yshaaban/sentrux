@@ -13,52 +13,75 @@ use std::collections::HashMap;
 // Per-language overrides come from plugin.toml [thresholds].
 // Project-level overrides come from .sentrux/rules.toml.
 
-/// Per-dimension grades and raw values.
+/// Per-dimension [0,1] scores. 1.0 = best.
+/// These are the continuous values from which grades are derived.
+#[derive(Debug, Clone)]
+pub struct DimensionScores {
+    // Blast Radius category
+    pub coupling: f64,
+    pub cycles: f64,
+    pub god_files: f64,
+    pub hotspots: f64,
+    pub levelization: f64,
+    pub blast_radius: f64,
+    pub depth: f64,
+    pub entropy: f64,
+    // Cognitive Load category
+    pub complex_fn: f64,
+    pub cog_complex: f64,
+    pub long_fn: f64,
+    pub large_files: f64,
+    pub high_params: f64,
+    pub cohesion: Option<f64>,
+    pub distance: f64,
+    pub comments: Option<f64>,
+    // Hidden Debt category
+    pub dead_code: f64,
+    pub duplication: f64,
+    pub test_coverage: f64,
+    pub attack_surface: f64,
+}
+
+/// Three orthogonal category scores. Each ∈ [0, 1], 1 = best.
 ///
-/// ALL dimensions contribute to the overall health grade. Thresholds are
-/// based on industry literature and practical calibration:
-///   - cycles: Martin 2003 ADP (0 = correct)
-///   - complex_fn: McCabe 1976 / Myers 1977, NIST 500-235
-///   - coupling: Constantine & Yourdon 1979
-///   - entropy: Shannon 1948, normalized
-///   - cohesion: Constantine & Yourdon 1979
-///   - depth: Lakos 1996, layering metric
-///   - god_files, hotspots: Martin fan-out/fan-in thresholds
-///   - long_fn: industry consensus (>50 lines)
-///   - comment: language-aware (Rust/Go idiom adjusted)
-///   - file_size: industry consensus (>500 lines)
+/// Categories derived from exhaustive failure-mode analysis:
+///   Blast Radius:   "Change one thing → how much else breaks?"
+///   Cognitive Load:  "How hard is each unit to understand?"
+///   Hidden Debt:     "How much invisible junk is accumulating?"
+#[derive(Debug, Clone)]
+pub struct CategoryScores {
+    pub blast_radius: f64,
+    pub cognitive_load: f64,
+    pub hidden_debt: f64,
+}
+
+/// Per-dimension letter grades (A-F), derived from scores.
+/// Organized by category for the unified panel UI.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DimensionGrades {
-    /// Circular dependency grade (Martin 2003 ADP: 0 cycles = A)
-    pub cycles: char,
-    /// Function complexity grade (McCabe 1976 / NIST: CC > 10 = high risk)
-    pub complex_fn: char,
-    /// Module coupling grade (Constantine & Yourdon 1979)
+    // ── Blast Radius ──
     pub coupling: char,
-    /// Cross-module edge distribution entropy (Shannon 1948, normalized)
-    pub entropy: char,
-    /// Intra-module cohesion grade (None if unmeasurable)
-    pub cohesion: Option<char>,
-    /// Maximum dependency depth grade (Lakos 1996)
-    pub depth: char,
-    /// God file grade (Martin: fan-out > 15)
+    pub cycles: char,
     pub god_files: char,
-    /// Hotspot file grade (Martin: fan-in > 20 and unstable)
     pub hotspots: char,
-    /// Long function grade (industry: > 50 lines)
-    pub long_fn: char,
-    /// Comment ratio grade (language-aware; None if no code files)
-    pub comment: Option<char>,
-    /// Large file grade (industry: > 500 lines)
-    pub file_size: char,
-    /// Function body duplication grade (SonarSource)
-    pub duplication: char,
-    /// Dead code grade (unreferenced functions)
-    pub dead_code: char,
-    /// High parameter count grade (functions with >4 params)
-    pub high_params: char,
-    /// Cognitive complexity grade (SonarSource 2016: >15)
+    pub levelization: char,
+    pub blast_radius: char,
+    pub depth: char,
+    pub entropy: char,
+    // ── Cognitive Load ──
+    pub complex_fn: char,
     pub cog_complex: char,
+    pub long_fn: char,
+    pub file_size: char,
+    pub high_params: char,
+    pub cohesion: Option<char>,
+    pub distance: char,
+    pub comment: Option<char>,
+    // ── Hidden Debt ──
+    pub dead_code: char,
+    pub duplication: char,
+    pub test_coverage: char,
+    pub attack_surface: char,
 }
 
 /// Complete health report for a codebase snapshot.
@@ -146,10 +169,23 @@ pub struct HealthReport {
     /// Cognitively complex functions / total functions
     pub cog_complex_ratio: f64,
 
-    // ── Grades ──
-    /// Per-dimension letter grades (A-F)
+    // ── Root Cause Scores (6 fundamental metrics) ──
+    /// Quality signal ∈ [0,1]: geometric mean of 6 root cause scores.
+    /// THE one number AI agents maximize. Higher = better architecture.
+    pub quality_signal: f64,
+    /// Raw root cause values (un-normalized, for display)
+    pub root_cause_raw: super::root_causes::RootCauseRaw,
+    /// Normalized root cause scores ∈ [0,1] (for signal computation)
+    pub root_cause_scores: super::root_causes::RootCauseScores,
+
+    // ── Legacy fields kept for Pro diagnostics + backward compat ──
+    /// Three orthogonal category scores (from 20-proxy system)
+    pub category_scores: CategoryScores,
+    /// Per-dimension continuous scores ∈ [0,1]
+    pub dimension_scores: DimensionScores,
+    /// Per-dimension letter grades (A-F), derived from scores
     pub dimensions: DimensionGrades,
-    /// Overall health grade: min(floor_mean, worst_dimension + 1)
+    /// Overall grade derived from quality_signal
     pub grade: char,
 }
 

@@ -33,8 +33,27 @@ pub(crate) fn do_scan(root: &Path) -> Result<(Snapshot, metrics::HealthReport, a
         },
         None, // MCP scans are not cancellable
     ).map_err(|e| format!("Scan failed: {e}"))?;
-    let health = metrics::compute_health(&result.snapshot);
     let arch_report = arch::compute_arch(&result.snapshot);
+    // Compute testgap for unified quality signal
+    let complexity_map: std::collections::HashMap<String, u32> = {
+        let files = crate::core::snapshot::flatten_files_ref(&result.snapshot.root);
+        files.iter().filter_map(|f| {
+            f.sa.as_ref()?.functions.as_ref().map(|fns| {
+                (f.path.clone(), fns.iter().filter_map(|func| func.cc).max().unwrap_or(0))
+            })
+        }).collect()
+    };
+    let test_gaps = metrics::testgap::compute_test_gaps(&result.snapshot, &complexity_map);
+    let ext = metrics::ExternalMetrics {
+        levelization_upward_ratio: arch_report.upward_ratio,
+        blast_radius_ratio: if arch_report.total_graph_files > 0 {
+            arch_report.max_blast_radius as f64 / arch_report.total_graph_files as f64
+        } else { 0.0 },
+        distance: arch_report.avg_distance,
+        attack_surface_ratio: arch_report.attack_surface_ratio,
+        test_coverage_ratio: test_gaps.coverage_ratio,
+    };
+    let health = metrics::compute_health_with_externals(&result.snapshot, &ext);
     Ok((result.snapshot, health, arch_report))
 }
 
@@ -73,8 +92,12 @@ fn handle_scan(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<Value
 
     let result = json!({
         "scanned": path,
-        "structure_grade": health.grade.to_string(),
-        "architecture_grade": arch_report.arch_grade.to_string(),
+        "quality_signal": health.quality_signal,
+        "categories": {
+            "blast_radius": health.category_scores.blast_radius,
+            "cognitive_load": health.category_scores.cognitive_load,
+            "hidden_debt": health.category_scores.hidden_debt
+        },
         "files": snapshot.total_files,
         "lines": snapshot.total_lines,
         "import_edges": snapshot.import_graph.len()
@@ -95,7 +118,7 @@ fn handle_scan(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<Value
 pub fn health_def() -> ToolDef {
     ToolDef {
         name: "health",
-        description: "Get full health report with 11-dimension A-F grades for coupling, cycles, complexity, cohesion, entropy, god files, hotspots, function length, comment ratio, and file size.",
+        description: "Get quality signal (0-1) with 3-category breakdown (blast_radius, cognitive_load, hidden_debt) and 20-dimension A-F grades. Quality signal = geometric mean of categories — maximize this ONE number.",
         input_schema: json!({ "type": "object", "properties": {} }),
         min_tier: Tier::Free,
         handler: handle_health,
@@ -105,48 +128,50 @@ pub fn health_def() -> ToolDef {
 
 fn handle_health(_args: &Value, tier: &Tier, state: &mut McpState) -> Result<Value, String> {
     let h = state.cached_health.as_ref().ok_or("No scan data. Call 'scan' first.")?;
-    let d = &h.dimensions;
-
+    let rc = &h.root_cause_scores;
+    let raw = &h.root_cause_raw;
     let mut result = json!({
-        "grade": h.grade.to_string(),
-        "dimensions": {
-            "cycles":      {"grade": d.cycles.to_string(),      "value": h.circular_dep_count},
-            "complex_fn":  {"grade": d.complex_fn.to_string(),  "value": format!("{:.1}%", h.complex_fn_ratio * 100.0)},
-            "coupling":    {"grade": d.coupling.to_string(),    "value": format!("{:.2}", h.coupling_score)},
-            "entropy":     {"grade": d.entropy.to_string(),     "value": format!("{:.2}", h.entropy)},
-            "cohesion":    {"grade": d.cohesion.map(|g| g.to_string()).unwrap_or("-".into()), "value": h.avg_cohesion.map(|c| format!("{:.2}", c)).unwrap_or("n/a".into())},
-            "depth":       {"grade": d.depth.to_string(),       "value": h.max_depth},
-            "god_files":   {"grade": d.god_files.to_string(),   "value": format!("{} ({:.1}%)", h.god_files.len(), h.god_file_ratio * 100.0)},
-            "hotspots":    {"grade": d.hotspots.to_string(),    "value": format!("{} ({:.1}%)", h.hotspot_files.len(), h.hotspot_ratio * 100.0)},
-            "long_fn":     {"grade": d.long_fn.to_string(),     "value": format!("{} ({:.1}%)", h.long_functions.len(), h.long_fn_ratio * 100.0)},
-            "comment":     {"grade": d.comment.map(|g| g.to_string()).unwrap_or("-".into()), "value": h.comment_ratio.map(|c| format!("{:.1}%", c * 100.0)).unwrap_or("n/a".into())},
-            "file_size":   {"grade": d.file_size.to_string(),   "value": format!("{} ({:.1}%)", h.large_file_count, h.large_file_ratio * 100.0)},
-            "cog_complex": {"grade": d.cog_complex.to_string(), "value": format!("{} ({:.1}%)", h.cog_complex_functions.len(), h.cog_complex_ratio * 100.0)},
-            "duplication":  {"grade": d.duplication.to_string(),  "value": format!("{} groups ({:.1}%)", h.duplicate_groups.len(), h.duplication_ratio * 100.0)},
-            "dead_code":   {"grade": d.dead_code.to_string(),   "value": format!("{} ({:.1}%)", h.dead_functions.len(), h.dead_code_ratio * 100.0)},
-            "high_params": {"grade": d.high_params.to_string(), "value": format!("{} ({:.1}%)", h.high_param_functions.len(), h.high_param_ratio * 100.0)}
+        "quality_signal": h.quality_signal,
+        "root_causes": {
+            "modularity":  {"score": rc.modularity,  "raw": raw.modularity_q},
+            "acyclicity":  {"score": rc.acyclicity,  "raw": raw.cycle_count},
+            "depth":       {"score": rc.depth,       "raw": raw.max_depth},
+            "equality":    {"score": rc.equality,    "raw": raw.complexity_gini},
+            "redundancy":  {"score": rc.redundancy,  "raw": raw.redundancy_ratio}
         },
         "total_import_edges": h.total_import_edges,
         "cross_module_edges": h.cross_module_edges
     });
 
-    // Pro: full file-level detail lists. Free: grades + counts only, no file paths.
+    // Pro: root-cause-organized diagnostics. Tells AI WHERE to focus for each root cause.
     if tier.is_pro() {
-        result["details"] = json!({
-            "complex_functions": h.complex_functions.iter().take(100).map(|f| json!({"file": f.file, "func": f.func, "cc": f.value})).collect::<Vec<_>>(),
-            "long_functions": h.long_functions.iter().take(100).map(|f| json!({"file": f.file, "func": f.func, "lines": f.value})).collect::<Vec<_>>(),
-            "cog_complex_functions": h.cog_complex_functions.iter().take(100).map(|f| json!({"file": f.file, "func": f.func, "cog": f.value})).collect::<Vec<_>>(),
-            "high_param_functions": h.high_param_functions.iter().take(100).map(|f| json!({"file": f.file, "func": f.func, "params": f.value})).collect::<Vec<_>>(),
-            "duplicate_groups": h.duplicate_groups.iter().take(100).map(|g| json!({"instances": g.instances.iter().map(|(file, func, lines)| json!({"file": file, "func": func, "lines": lines})).collect::<Vec<_>>()})).collect::<Vec<_>>(),
-            "dead_functions": h.dead_functions.iter().take(100).map(|f| json!({"file": f.file, "func": f.func, "lines": f.value})).collect::<Vec<_>>(),
-            "god_files": h.god_files.iter().map(|f| json!({"path": f.path, "fan_out": f.value})).collect::<Vec<_>>(),
-            "hotspot_files": h.hotspot_files.iter().map(|f| json!({"path": f.path, "fan_in": f.value})).collect::<Vec<_>>(),
-            "long_files": h.long_files.iter().take(10).map(|f| json!({"path": f.path, "lines": f.value})).collect::<Vec<_>>(),
-            "cycles": h.circular_dep_files.iter().collect::<Vec<_>>()
+        result["diagnostics"] = json!({
+            "modularity": {
+                "god_files": h.god_files.iter().map(|f| json!({"path": f.path, "fan_out": f.value})).collect::<Vec<_>>(),
+                "hotspot_files": h.hotspot_files.iter().map(|f| json!({"path": f.path, "fan_in": f.value})).collect::<Vec<_>>(),
+                "most_unstable": h.most_unstable.iter().take(10).map(|m| json!({"path": m.path, "instability": m.instability, "fan_in": m.fan_in, "fan_out": m.fan_out})).collect::<Vec<_>>(),
+            },
+            "acyclicity": {
+                "cycles": h.circular_dep_files.iter().collect::<Vec<_>>(),
+            },
+            "depth": {
+                "max_depth": h.max_depth,
+            },
+            "equality": {
+                "complex_functions": h.complex_functions.iter().take(20).map(|f| json!({"file": f.file, "func": f.func, "cc": f.value})).collect::<Vec<_>>(),
+                "cog_complex_functions": h.cog_complex_functions.iter().take(20).map(|f| json!({"file": f.file, "func": f.func, "cog": f.value})).collect::<Vec<_>>(),
+                "long_functions": h.long_functions.iter().take(20).map(|f| json!({"file": f.file, "func": f.func, "lines": f.value})).collect::<Vec<_>>(),
+                "large_files": h.long_files.iter().take(10).map(|f| json!({"path": f.path, "lines": f.value})).collect::<Vec<_>>(),
+                "high_param_functions": h.high_param_functions.iter().take(20).map(|f| json!({"file": f.file, "func": f.func, "params": f.value})).collect::<Vec<_>>(),
+            },
+            "redundancy": {
+                "dead_functions": h.dead_functions.iter().take(50).map(|f| json!({"file": f.file, "func": f.func, "lines": f.value})).collect::<Vec<_>>(),
+                "duplicate_groups": h.duplicate_groups.iter().take(20).map(|g| json!({"instances": g.instances.iter().map(|(file, func, lines)| json!({"file": file, "func": func, "lines": lines})).collect::<Vec<_>>()})).collect::<Vec<_>>(),
+            },
         });
     } else {
         result["upgrade"] = json!({
-            "message": "Upgrade to Pro for file-level details: https://github.com/sentrux/sentrux"
+            "message": "Upgrade to Pro for root-cause diagnostics: https://github.com/sentrux/sentrux"
         });
     }
 
@@ -394,11 +419,11 @@ pub fn session_start_def() -> ToolDef {
 fn handle_session_start(_args: &Value, _tier: &Tier, state: &mut McpState) -> Result<Value, String> {
     let h = state.cached_health.as_ref().ok_or("No scan data. Call 'scan' first.")?;
     let b = arch::ArchBaseline::from_health(h);
-    let grade = b.structure_grade;
+    let signal = b.quality_signal;
     state.baseline = Some(b);
     Ok(json!({
         "status": "Baseline saved",
-        "grade": grade.to_string(),
+        "quality_signal": signal,
         "message": "Call 'session_end' after making changes to see the diff"
     }))
 }
@@ -428,14 +453,13 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
 
     let result = json!({
         "pass": !diff.degraded,
-        "grade_before": diff.structure_grade_before.to_string(),
-        "grade_after": diff.structure_grade_after.to_string(),
-        "coupling_change": format!("{:.2} → {:.2}", diff.coupling_before, diff.coupling_after),
-        "cycles_change": format!("{} → {}", diff.cycles_before, diff.cycles_after),
-        "god_files_change": format!("{} → {}", diff.god_files_before, diff.god_files_after),
+        "signal_before": diff.signal_before,
+        "signal_after": diff.signal_after,
+        "signal_delta": diff.signal_after - diff.signal_before,
+        "coupling_change": [diff.coupling_before, diff.coupling_after],
+        "cycles_change": [diff.cycles_before, diff.cycles_after],
         "violations": diff.violations,
-        "summary": if diff.degraded { "⚠ Architecture degraded during this session" }
-            else { "✓ Architecture stable or improved" }
+        "summary": if diff.degraded { "Quality degraded" } else { "Quality stable or improved" }
     });
 
     state.cached_snapshot = Some(Arc::new(snapshot));
@@ -467,8 +491,7 @@ fn handle_rescan(_args: &Value, _tier: &Tier, state: &mut McpState) -> Result<Va
 
     let result = json!({
         "status": "Rescanned",
-        "structure_grade": health.grade.to_string(),
-        "architecture_grade": arch_report.arch_grade.to_string(),
+        "quality_signal": health.quality_signal,
         "files": snapshot.total_files
     });
 

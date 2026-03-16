@@ -100,7 +100,8 @@ mod tests {
             vec![file("src/mod1/a.rs"), file("src/mod1/b.rs"), file("lib/c.rs")],
         );
         let report = compute_health(&snap);
-        assert!(report.coupling_score > 0.2 && report.coupling_score < 0.35);
+        // Beta(1,1): 1 cross-unstable out of 2 total → (1+1)/(2+2) = 0.5
+        assert!(report.coupling_score > 0.3 && report.coupling_score < 0.6);
         assert_eq!(report.cross_module_edges, 1);
     }
 
@@ -146,8 +147,9 @@ mod tests {
             ],
         );
         let report = compute_health(&snap);
-        assert!(report.coupling_score > 0.2 && report.coupling_score < 0.35,
-            "1 cross-module out of 2 edges = 50% coupling");
+        // Beta(1,1): 1 cross-unstable out of 2 → (1+1)/(2+2) = 0.5
+        assert!(report.coupling_score > 0.3 && report.coupling_score < 0.6,
+            "1 cross-module out of 2 edges, got {}", report.coupling_score);
     }
 
     // ── Root-level files in dominant dir ARE cross-module with subdirs ──

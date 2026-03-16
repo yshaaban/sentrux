@@ -130,12 +130,14 @@ pub struct ArchReport {
 
 /// Baseline snapshot for session diff / structural regression gate.
 /// Captured at session start; subsequent scans compare against this
-/// to detect regressions (e.g., new cycles, grade drops).
+/// to detect regressions (e.g., quality_signal drop, new cycles).
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ArchBaseline {
     /// When the baseline was captured (Unix epoch seconds)
     pub timestamp: f64,
-    /// Overall structure grade at baseline
+    /// Quality signal at baseline (geometric mean of 3 category scores)
+    pub quality_signal: f64,
+    /// Overall grade at baseline
     pub structure_grade: char,
     /// Coupling score at baseline
     pub coupling_score: f64,
@@ -158,9 +160,13 @@ pub struct ArchBaseline {
 /// Diff between two snapshots (baseline vs current).
 #[derive(Debug, Clone)]
 pub struct ArchDiff {
-    /// Structure grade from the baseline snapshot
+    /// Quality signal from the baseline
+    pub signal_before: f64,
+    /// Quality signal from the current snapshot
+    pub signal_after: f64,
+    /// Grade before
     pub structure_grade_before: char,
-    /// Structure grade from the current snapshot
+    /// Grade after
     pub structure_grade_after: char,
     /// Coupling score from the baseline
     pub coupling_before: f64,
@@ -174,7 +180,7 @@ pub struct ArchDiff {
     pub god_files_before: usize,
     /// God file count from the current snapshot
     pub god_files_after: usize,
-    /// True if any metric degraded beyond tolerance
+    /// True if quality_signal dropped or any metric degraded
     pub degraded: bool,
     /// Human-readable violation descriptions
     pub violations: Vec<String>,
@@ -190,6 +196,7 @@ impl ArchBaseline {
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_secs_f64(),
+            quality_signal: report.quality_signal,
             structure_grade: report.grade,
             coupling_score: report.coupling_score,
             cycle_count: report.circular_dep_count,
@@ -220,8 +227,18 @@ impl ArchBaseline {
     }
 
     /// Compare current health report against this baseline.
+    /// Degradation = quality_signal dropped OR any specific metric worsened.
     pub fn diff(&self, current: &crate::metrics::HealthReport) -> ArchDiff {
         let mut violations = Vec::new();
+
+        // Quality signal is the primary indicator
+        let signal_delta = current.quality_signal - self.quality_signal;
+        if signal_delta < -0.02 {
+            violations.push(format!(
+                "Quality signal dropped: {:.2} → {:.2} ({:+.2})",
+                self.quality_signal, current.quality_signal, signal_delta
+            ));
+        }
 
         if current.coupling_score > self.coupling_score + 0.05 {
             violations.push(format!(
@@ -250,9 +267,12 @@ impl ArchBaseline {
             ));
         }
 
-        let degraded = current.grade > self.structure_grade || !violations.is_empty();
+        let degraded = current.quality_signal < self.quality_signal - 0.02
+            || !violations.is_empty();
 
         ArchDiff {
+            signal_before: self.quality_signal,
+            signal_after: current.quality_signal,
             structure_grade_before: self.structure_grade,
             structure_grade_after: current.grade,
             coupling_before: self.coupling_score,

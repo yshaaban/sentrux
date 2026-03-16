@@ -117,11 +117,12 @@ fn send_scan_result(
     match result {
         Ok(scan_result) => {
             let snap = Arc::new(scan_result.snapshot);
-            let report = crate::metrics::compute_health(&snap);
+
+            // Compute arch + testgap FIRST so we can feed their metrics into
+            // the unified quality signal via ExternalMetrics.
             let arch = crate::metrics::arch::compute_arch(&snap);
 
             // Build complexity map once and share between evolution and test gap analysis.
-            // Previously computed twice — O(N) duplicated work.
             let complexity_map = build_complexity_map(&snap);
 
             // Compute evolution metrics (git log walking) — may take a few seconds
@@ -129,6 +130,19 @@ fn send_scan_result(
 
             // Compute test gap analysis (fast — graph traversal only)
             let test_gaps = compute_test_gap_report_with_map(&snap, &complexity_map);
+
+            // Build ExternalMetrics from arch + testgap for unified quality signal
+            let ext = crate::metrics::ExternalMetrics {
+                levelization_upward_ratio: arch.upward_ratio,
+                blast_radius_ratio: if arch.total_graph_files > 0 {
+                    arch.max_blast_radius as f64 / arch.total_graph_files as f64
+                } else { 0.0 },
+                distance: arch.avg_distance,
+                attack_surface_ratio: arch.attack_surface_ratio,
+                test_coverage_ratio: test_gaps.coverage_ratio,
+            };
+
+            let report = crate::metrics::compute_health_with_externals(&snap, &ext);
 
             // Compute rules check if .sentrux/rules.toml exists
             let rules = compute_rules_check(root_path, &snap, &report, &arch);

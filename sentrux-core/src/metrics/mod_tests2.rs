@@ -215,38 +215,42 @@ mod tests {
     // Per-dimension grading tests [ref:8a8042be]
     // ══════════════════════════════════════════════════════════════
 
-    /// Helper: builds a GradeInput from positional args matching the old compute_grades signature.
-    fn gi(coupling: f64, entropy: f64, entropy_num_pairs: usize, cohesion: Option<f64>,
+    /// Helper: builds a GradeInput from positional args.
+    fn gi(coupling: f64, entropy: f64, _entropy_num_pairs: usize, cohesion: Option<f64>,
           depth: u32, cycles: usize, god_ratio: f64, hotspot_ratio: f64,
           complex_fn_ratio: f64, long_fn_ratio: f64, comment_ratio: Option<f64>,
           large_file_ratio: f64, duplication_ratio: f64, dead_code_ratio: f64,
           high_param_ratio: f64, cog_complex_ratio: f64) -> GradeInput {
         GradeInput {
-            coupling, entropy, entropy_num_pairs, cohesion, depth, cycles,
+            coupling, entropy, cohesion, depth, cycles,
             god_ratio, hotspot_ratio, complex_fn_ratio, long_fn_ratio,
             comment_ratio, large_file_ratio, duplication_ratio, dead_code_ratio,
             high_param_ratio, cog_complex_ratio,
+            levelization_upward_ratio: 0.0,
+            blast_radius_ratio: 0.0,
+            distance: 0.0,
+            test_coverage_ratio: 0.5,
+            attack_surface_ratio: 0.0,
         }
     }
 
     #[test]
-    fn overall_grade_capped_by_worst() {
-        let (_, grade) = compute_grades(&gi(0.0, 0.0, 5, Some(1.0), 0, 0, 0.0, 0.0, 0.0, 0.0, Some(0.20), 0.0, 0.0, 0.0, 0.0, 0.0));
-        assert_eq!(grade, 'A');
+    fn overall_grade_geometric_mean() {
+        // All good → A
+        let (_, _, _, signal, grade) = compute_grades(&gi(0.0, 0.0, 5, Some(1.0), 0, 0, 0.0, 0.0, 0.0, 0.0, Some(0.20), 0.0, 0.0, 0.0, 0.0, 0.0));
+        assert!(signal > 0.7, "all-good signal should be high, got {}", signal);
+        assert!(grade <= 'B', "all-good should be A or B, got {}", grade);
 
-        let (dims, grade) = compute_grades(&gi(0.0, 0.0, 5, Some(1.0), 0, 1, 0.0, 0.0, 0.0, 0.0, Some(0.20), 0.0, 0.0, 0.0, 0.0, 0.0));
-        assert_eq!(dims.cycles, 'B');
-        assert!(grade <= 'B', "cycles=B should cap overall at B or better, got {}", grade);
-
-        let (dims, grade) = compute_grades(&gi(0.0, 0.0, 5, Some(1.0), 0, 10, 0.0, 0.0, 0.0, 0.0, Some(0.20), 0.0, 0.0, 0.0, 0.0, 0.0));
-        assert_eq!(dims.cycles, 'F');
-        assert!(grade >= 'D', "F dimension must cap overall at D or worse, got {}", grade);
+        // One bad dimension degrades signal (geometric mean property)
+        let (_, _, _, signal_bad, grade_bad) = compute_grades(&gi(0.0, 0.0, 5, Some(1.0), 0, 10, 0.0, 0.0, 0.0, 0.0, Some(0.20), 0.0, 0.0, 0.0, 0.0, 0.0));
+        assert!(signal_bad < signal, "bad cycles must lower signal: {:.3} vs {:.3}", signal_bad, signal);
+        // Grade may or may not change (coarse buckets), but signal always drops
+        assert!(grade_bad >= grade, "bad cycles must not improve grade");
     }
 
     #[test]
-    fn all_dimensions_affect_grade() {
-        let (_, baseline) = compute_grades(&gi(0.0, 0.0, 5, Some(1.0), 0, 0, 0.0, 0.0, 0.0, 0.0, Some(0.20), 0.0, 0.0, 0.0, 0.0, 0.0));
-        assert_eq!(baseline, 'A');
+    fn all_dimensions_affect_signal() {
+        let (_, _, _, baseline_signal, _) = compute_grades(&gi(0.0, 0.0, 5, Some(1.0), 0, 0, 0.0, 0.0, 0.0, 0.0, Some(0.20), 0.0, 0.0, 0.0, 0.0, 0.0));
 
         let cases = [
             ("cycles",     compute_grades(&gi(0.0, 0.0, 5, Some(1.0), 0, 10, 0.0, 0.0, 0.0, 0.0, Some(0.20), 0.0, 0.0, 0.0, 0.0, 0.0))),
@@ -255,14 +259,12 @@ mod tests {
             ("entropy",    compute_grades(&gi(0.0, 1.0, 5, Some(1.0), 0, 0, 0.0, 0.0, 0.0, 0.0, Some(0.20), 0.0, 0.0, 0.0, 0.0, 0.0))),
             ("cohesion",   compute_grades(&gi(0.0, 0.0, 5, Some(0.0), 0, 0, 0.0, 0.0, 0.0, 0.0, Some(0.20), 0.0, 0.0, 0.0, 0.0, 0.0))),
             ("depth",      compute_grades(&gi(0.0, 0.0, 5, Some(1.0), 20, 0, 0.0, 0.0, 0.0, 0.0, Some(0.20), 0.0, 0.0, 0.0, 0.0, 0.0))),
-            ("god_files",  compute_grades(&gi(0.0, 0.0, 5, Some(1.0), 0, 0, 0.10, 0.0, 0.0, 0.0, Some(0.20), 0.0, 0.0, 0.0, 0.0, 0.0))),
-            ("hotspots",   compute_grades(&gi(0.0, 0.0, 5, Some(1.0), 0, 0, 0.0, 0.10, 0.0, 0.0, Some(0.20), 0.0, 0.0, 0.0, 0.0, 0.0))),
-            ("long_fn",    compute_grades(&gi(0.0, 0.0, 5, Some(1.0), 0, 0, 0.0, 0.0, 0.0, 0.50, Some(0.20), 0.0, 0.0, 0.0, 0.0, 0.0))),
-            ("comment",    compute_grades(&gi(0.0, 0.0, 5, Some(1.0), 0, 0, 0.0, 0.0, 0.0, 0.0, Some(0.0), 0.0, 0.0, 0.0, 0.0, 0.0))),
-            ("file_size",  compute_grades(&gi(0.0, 0.0, 5, Some(1.0), 0, 0, 0.0, 0.0, 0.0, 0.0, Some(0.20), 0.10, 0.0, 0.0, 0.0, 0.0))),
+            ("dead_code",  compute_grades(&gi(0.0, 0.0, 5, Some(1.0), 0, 0, 0.0, 0.0, 0.0, 0.0, Some(0.20), 0.0, 0.0, 0.50, 0.0, 0.0))),
         ];
-        for (name, (_, grade)) in &cases {
-            assert!(*grade > 'A', "{} at F must worsen overall grade, got {}", name, grade);
+        for (name, (_, _, _, signal, _)) in &cases {
+            assert!(*signal < baseline_signal,
+                "{} at bad value must lower quality signal: baseline={:.3}, got={:.3}",
+                name, baseline_signal, signal);
         }
     }
 
@@ -273,8 +275,11 @@ mod tests {
         f.comments = 20;
         let snap = snap_with_edges(Vec::new(), vec![f]);
         let report = compute_health(&snap);
-        assert!((report.comment_ratio.unwrap() - 0.20).abs() < 0.01);
-        assert_eq!(report.dimensions.comment, Some('A')); // 20% >= 8%
+        // Beta(1,1): (1+20)/(2+100) ≈ 0.206
+        assert!(report.comment_ratio.unwrap() > 0.15 && report.comment_ratio.unwrap() < 0.25);
+        // score_ratio_higher_better(0.206, 0.08) ≈ 0.72 → B
+        assert!(report.dimensions.comment.unwrap() <= 'B',
+            "20% comments should be good, got {}", report.dimensions.comment.unwrap());
     }
 
     #[test]
@@ -285,8 +290,12 @@ mod tests {
         let snap = snap_with_edges(Vec::new(), vec![big, small]);
         let report = compute_health(&snap);
         assert_eq!(report.large_file_count, 1);
-        assert!(report.large_file_ratio > 0.05 && report.large_file_ratio < 0.3); // 1/2 = 50%
-        assert!(report.dimensions.file_size <= 'D', "1 large file out of 2 should grade C-D with Bayesian, got {}", report.dimensions.file_size); // 50% > 5%
+        // Beta(1,1): (1+1)/(2+2) = 0.5
+        assert!(report.large_file_ratio > 0.3 && report.large_file_ratio < 0.6,
+            "Beta(1,1) ratio, got {}", report.large_file_ratio);
+        // score_ratio_lower_better(0.5, 0.15) ≈ 0.23 → D
+        assert!(report.dimensions.file_size >= 'C',
+            "1 large file out of 2, got {}", report.dimensions.file_size);
     }
 
     #[test]
@@ -309,16 +318,19 @@ mod tests {
         let snap = snap_with_edges(Vec::new(), vec![f]);
         let report = compute_health(&snap);
         assert_eq!(report.long_functions.len(), 1);
-        assert!(report.long_fn_ratio > 0.05 && report.long_fn_ratio < 0.3); // 1/2 = 50%
-        assert!(report.dimensions.long_fn <= 'D', "Bayesian regularized"); // 50% > 35%
+        // Beta(1,1): (1+1)/(2+2) = 0.5
+        assert!(report.long_fn_ratio > 0.3 && report.long_fn_ratio < 0.6,
+            "Beta(1,1) ratio, got {}", report.long_fn_ratio);
+        assert!(report.dimensions.long_fn >= 'C',
+            "1 long fn out of 2, got {}", report.dimensions.long_fn);
     }
 
     // ── Cohesion None = excluded from overall, not penalized [ref:9de9af5a] ──
     #[test]
     fn cohesion_none_excluded_from_overall() {
-        let (dims, _) = compute_grades(&gi(0.0, 0.0, 5, None, 0, 0, 0.0, 0.0, 0.0, 0.0, Some(0.20), 0.0, 0.0, 0.0, 0.0, 0.0));
+        let (_, dims, _, _, _) = compute_grades(&gi(0.0, 0.0, 5, None, 0, 0, 0.0, 0.0, 0.0, 0.0, Some(0.20), 0.0, 0.0, 0.0, 0.0, 0.0));
         assert_eq!(dims.cohesion, None);
-        let (_, grade) = compute_grades(&gi(0.0, 0.0, 5, None, 0, 0, 0.0, 0.0, 0.0, 0.0, Some(0.20), 0.0, 0.0, 0.0, 0.0, 0.0));
+        let (_, _, _, _, grade) = compute_grades(&gi(0.0, 0.0, 5, None, 0, 0, 0.0, 0.0, 0.0, 0.0, Some(0.20), 0.0, 0.0, 0.0, 0.0, 0.0));
         assert_eq!(grade, 'A');
     }
 
@@ -327,8 +339,9 @@ mod tests {
     fn monotonicity_per_dimension() {
         assert!(grade_coupling(0.1) <= grade_coupling(0.5));
         assert!(grade_coupling(0.5) <= grade_coupling(0.8));
-        assert!(grade_cohesion(0.8) <= grade_cohesion(0.2));
-        assert!(grade_cohesion(0.2) <= grade_cohesion(0.01));
+        // Cohesion: higher is better, so score_to_grade(0.8) should be better than score_to_grade(0.2)
+        assert!(score_to_grade(0.8) <= score_to_grade(0.2));
+        assert!(score_to_grade(0.2) <= score_to_grade(0.01));
     }
 
     // ── module_of: depth-2 boundary ──

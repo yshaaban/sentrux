@@ -15,6 +15,7 @@ pub mod rules;    // rules/mod.rs + checks.rs
 // ── Flat modules (remain at metrics root) ──
 pub mod dsm;
 pub mod grading;
+pub mod root_causes;
 pub mod stability;
 pub mod testgap;
 pub mod types;
@@ -241,9 +242,8 @@ fn compute_comment_ratio(files: &[&FileNode]) -> Option<f64> {
         .filter(|f| !f.lang.is_empty() && f.lang != "unknown")
         .fold((0u64, 0u64), |(c, l), f| (c + f.comments as u64, l + f.lines as u64));
     if total_lines > 0 {
-        // Bayesian: Beta(2,8) prior → expects ~20% comment ratio as baseline.
-        // Small files: regularized. Large files: converges to true ratio.
-        Some((2.0 + total_comments as f64) / (10.0 + total_lines as f64))
+        // Bayesian: Beta(1,1) uniform prior — no assumption about "correct" ratio.
+        Some((1.0 + total_comments as f64) / (2.0 + total_lines as f64))
     } else { None }
 }
 
@@ -262,8 +262,8 @@ fn compute_large_file_stats(
         .collect();
     let large_file_count = long_files.len();
     let code_file_count = files.iter().filter(|f| !f.lang.is_empty() && f.lang != "unknown").count();
-    let large_file_ratio = if code_file_count == 0 { 0.0 } else {
-        bayesian_ratio(large_file_count, code_file_count, 1.0, 9.0)
+    let large_file_ratio = if code_file_count == 0 || large_file_count == 0 { 0.0 } else {
+        bayesian_ratio(large_file_count, code_file_count, 1.0, 1.0)
     };
     (long_files, large_file_count, large_file_ratio)
 }
@@ -486,12 +486,12 @@ fn bayesian_ratio(count: usize, total: usize, alpha: f64, beta: f64) -> f64 {
     (alpha + count as f64) / (alpha + beta + total as f64)
 }
 
-/// Bayesian ratio for "defect" metrics, with zero-data guard.
-/// Returns 0.0 when total = 0 (no data = no defects to report).
-/// Otherwise uses Beta(1,9) prior for regularization.
+/// Bayesian ratio for "defect" metrics, with zero guards.
+/// Returns 0.0 when total = 0 OR count = 0 (no defects = no defects).
+/// Uses Beta(1,1) UNIFORM prior when there ARE defects.
 fn ratio_or_zero(count: usize, total: usize) -> f64 {
-    if total == 0 { return 0.0; }
-    bayesian_ratio(count, total, 1.0, 9.0)
+    if total == 0 || count == 0 { return 0.0; }
+    bayesian_ratio(count, total, 1.0, 1.0)
 }
 
 /// Count total functions across all files.
@@ -577,9 +577,43 @@ fn compute_module_metrics(
     }
 }
 
+/// Optional arch/testgap inputs for unified quality signal computation.
+/// When not available, sensible defaults (0.5 = neutral) are used.
+pub struct ExternalMetrics {
+    /// Upward violation ratio from architecture analysis (0.0 = no violations)
+    pub levelization_upward_ratio: f64,
+    /// Max blast radius / total files ratio
+    pub blast_radius_ratio: f64,
+    /// Average distance from main sequence
+    pub distance: f64,
+    /// Attack surface ratio (reachable from entry points / total)
+    pub attack_surface_ratio: f64,
+    /// Test coverage ratio (tested / total source)
+    pub test_coverage_ratio: f64,
+}
+
+impl Default for ExternalMetrics {
+    fn default() -> Self {
+        Self {
+            levelization_upward_ratio: 0.0,
+            blast_radius_ratio: 0.0,
+            distance: 0.0,
+            attack_surface_ratio: 0.0,
+            test_coverage_ratio: 0.5, // neutral when unknown
+        }
+    }
+}
+
 /// Compute a comprehensive code health report from a scan snapshot.
 /// Evaluates coupling, complexity, dead code, duplication, and more.
+/// Use `compute_health_with_externals` to include arch + testgap data
+/// in the quality signal.
 pub fn compute_health(snapshot: &Snapshot) -> HealthReport {
+    compute_health_with_externals(snapshot, &ExternalMetrics::default())
+}
+
+/// Compute health report with arch + testgap metrics included in quality signal.
+pub fn compute_health_with_externals(snapshot: &Snapshot, ext: &ExternalMetrics) -> HealthReport {
     let files = crate::core::snapshot::flatten_files_ref(&snapshot.root);
     // Filter mod-declaration edges once at the top. `pub mod foo;` is structural
     // containment, not a functional dependency — consistent across ALL metrics.
@@ -596,23 +630,50 @@ pub fn compute_health(snapshot: &Snapshot) -> HealthReport {
     let all_function_lines = collect_all_function_lines(&files);
     let all_file_lines = collect_all_file_lines(&files);
 
-    let (dimensions, grade) = compute_grades(&GradeInput {
+    // ── Root cause metrics (6 fundamental structural properties) ──
+    let modularity_q = root_causes::compute_modularity_q(&dep_edges, &snapshot.call_graph, &files);
+    let complexity_gini = root_causes::compute_complexity_gini(&files);
+    let dup_func_count: usize = fm.duplicate_groups.iter().map(|g| g.instances.len()).sum();
+    let total_funcs = count_total_funcs(&files);
+    let redundancy_ratio = root_causes::compute_redundancy_ratio(
+        fm.dead_functions.len(), dup_func_count, total_funcs,
+    );
+
+    let root_cause_raw = root_causes::RootCauseRaw {
+        modularity_q,
+        cycle_count: mm.circular_dep_count,
+        max_depth: mm.max_depth,
+        complexity_gini,
+        redundancy_ratio,
+    };
+    let (root_cause_scores, quality_signal) = root_causes::compute_root_cause_scores(&root_cause_raw);
+    let grade = grading::score_to_grade(quality_signal);
+
+    // ── Legacy 20-proxy scoring (kept for Pro diagnostics) ──
+    let (dimension_scores, dimensions, category_scores, _legacy_signal, _legacy_grade) = compute_grades(&GradeInput {
+        // Blast Radius inputs
         coupling: mm.coupling_score,
         entropy: mm.entropy,
-        entropy_num_pairs: mm.entropy_num_pairs,
-        cohesion: mm.avg_cohesion,
         depth: mm.max_depth,
         cycles: mm.circular_dep_count,
         god_ratio: fm.god_ratio,
         hotspot_ratio: fm.hotspot_ratio,
+        levelization_upward_ratio: ext.levelization_upward_ratio,
+        blast_radius_ratio: ext.blast_radius_ratio,
+        // Cognitive Load inputs
         complex_fn_ratio: fm.complex_fn_ratio,
-        long_fn_ratio: fm.long_fn_ratio,
-        comment_ratio: fm.comment_ratio,
-        large_file_ratio: fm.large_file_ratio,
-        duplication_ratio: fm.duplication_ratio,
-        dead_code_ratio: fm.dead_code_ratio,
-        high_param_ratio: fm.high_param_ratio,
         cog_complex_ratio: fm.cog_complex_ratio,
+        long_fn_ratio: fm.long_fn_ratio,
+        large_file_ratio: fm.large_file_ratio,
+        high_param_ratio: fm.high_param_ratio,
+        cohesion: mm.avg_cohesion,
+        distance: ext.distance,
+        comment_ratio: fm.comment_ratio,
+        // Hidden Debt inputs
+        dead_code_ratio: fm.dead_code_ratio,
+        duplication_ratio: fm.duplication_ratio,
+        test_coverage_ratio: ext.test_coverage_ratio,
+        attack_surface_ratio: ext.attack_surface_ratio,
     });
 
     HealthReport {
@@ -649,6 +710,11 @@ pub fn compute_health(snapshot: &Snapshot) -> HealthReport {
         dead_code_ratio: fm.dead_code_ratio,
         high_param_ratio: fm.high_param_ratio,
         cog_complex_ratio: fm.cog_complex_ratio,
+        quality_signal,
+        root_cause_raw,
+        root_cause_scores,
+        category_scores,
+        dimension_scores,
         dimensions,
         grade,
     }

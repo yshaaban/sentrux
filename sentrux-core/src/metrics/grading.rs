@@ -1,225 +1,251 @@
-//! Grading functions for health dimensions and composite grade logic.
+//! Score-based grading with geometric mean quality signal.
 //!
-//! Each dimension is graded A–F independently using thresholds from published
-//! literature. The composite grade uses floor-mean capped by (worst + 1).
+//! Design principles (from first-principle analysis):
+//!   - 3 orthogonal categories: Blast Radius, Cognitive Load, Hidden Debt
+//!   - Each raw metric normalized to [0,1] score (1 = best)
+//!   - Category score = arithmetic mean of member scores (correlated within)
+//!   - Quality signal = geometric mean of 3 categories (Nash Social Welfare optimal)
+//!   - Grades derived FROM scores, not from raw ratios
+//!   - Beta(1,1) uniform Bayesian prior everywhere (no assumptions)
+//!
+//! Normalization rules:
+//!   - Bounded [0,1] "lower is better": score = 1 - ratio   (0%→1.0, 100%→0.0)
+//!   - Bounded [0,1] "higher is better": score = ratio       (0%→0.0, 100%→1.0)
+//!   - Unbounded [0,∞) counts:           score = 1/(1+count/m) (sigmoid)
+//!   - Semi-bounded (comments):          score = v/(v+m)       (sigmoid, 100% is not the goal)
 
-use super::types::DimensionGrades;
+use super::types::{CategoryScores, DimensionGrades, DimensionScores};
 
-// ── Per-dimension grade thresholds ──
-// Each dimension graded A-F independently. Thresholds from published literature.
-// No arbitrary weights — overall = floor(mean). [ref:736ae249]
+// ══════════════════════════════════════════════════════════════════
+//  LAYER 3: Normalize raw metrics to [0, 1] scores
+// ══════════════════════════════════════════════════════════════════
 
-/// Grade a coupling score (Constantine & Yourdon). 0=perfect, 1=spaghetti.
-pub(crate) fn grade_coupling(v: f64) -> char {
-    if v <= 0.20 { 'A' } else if v <= 0.35 { 'B' } else if v <= 0.50 { 'C' }
-    else if v <= 0.70 { 'D' } else { 'F' }
+/// Bounded [0,1] ratio, lower is better → score = 1 - ratio.
+/// ratio=0.0 (perfect) → score=1.0.  ratio=1.0 (worst) → score=0.0.
+/// No midpoints, no arbitrary parameters. Pure math.
+fn score_bounded_lower(ratio: f64) -> f64 {
+    (1.0 - ratio).clamp(0.0, 1.0)
 }
 
-/// Grade normalized Shannon entropy of cross-module edge distribution.
+/// Bounded [0,1] ratio, higher is better → score = ratio.
+/// ratio=1.0 (perfect) → score=1.0.  ratio=0.0 (worst) → score=0.0.
+fn score_bounded_higher(ratio: f64) -> f64 {
+    ratio.clamp(0.0, 1.0)
+}
+
+/// Unbounded [0,∞) count, lower is better → sigmoid.
+/// count=0 → score=1.0.  count=midpoint → score=0.5.  count→∞ → score→0.
+/// Only used for truly unbounded metrics (cycles, depth).
+fn score_unbounded_lower(count: f64, midpoint: f64) -> f64 {
+    1.0 / (1.0 + count / midpoint)
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  LAYER 4: Category scores (3 orthogonal groups)
+// ══════════════════════════════════════════════════════════════════
+
+/// Compute [0,1] scores for all individual dimensions and 3 category scores.
 ///
-/// H/log2(N), normalized to [0,1]. Lower = concentrated, higher = spread.
-///
-/// Problem: normalized entropy approaches 1.0 as number of module pairs (N)
-/// grows, even for well-structured codebases. With N=5 pairs, achieving 0.80
-/// requires moderate concentration. With N=18 pairs, even a non-uniform
-/// distribution (7,7,6,5,4,3,3,3,3,2,2,1,1,1,1,1,1,1) produces 0.92.
-///
-/// Fix: apply a pair-count correction. The expected entropy of a "reasonable"
-/// distribution increases with N. We subtract a correction term that accounts
-/// for this: correction = 0.02 * ln(N/5), clamped to [0, 0.15].
-/// At N=5: correction=0, thresholds unchanged.
-/// At N=18: correction≈0.05, effective F threshold becomes 0.95.
-///
-/// This is NOT threshold cheating — it's adjusting for a known mathematical
-/// property of normalized entropy (it's not scale-invariant w.r.t. N).
-pub(crate) fn grade_entropy_adjusted(v: f64, num_pairs: usize) -> char {
-    // Pair-count correction: normalized entropy naturally approaches 1.0
-    // as N grows, even for well-structured codebases.
-    let correction = if num_pairs > 5 {
-        (0.04 * (num_pairs as f64 / 5.0).ln()).min(0.15)
-    } else {
-        0.0
+/// Categories (from exhaustive failure-mode analysis):
+///   Blast Radius:   "Change one thing → how much else breaks?"
+///   Cognitive Load:  "How hard is each unit to understand?"
+///   Hidden Debt:     "How much invisible junk is accumulating?"
+pub(crate) fn compute_scores(input: &GradeInput) -> (DimensionScores, CategoryScores) {
+    // ── Blast Radius: all bounded [0,1] lower-is-better, except cycles/depth ──
+    let coupling = score_bounded_lower(input.coupling);
+    let cycles = score_unbounded_lower(input.cycles as f64, 1.0);     // unbounded count
+    let god_files = score_bounded_lower(input.god_ratio);
+    let hotspots = score_bounded_lower(input.hotspot_ratio);
+    let levelization = score_bounded_lower(input.levelization_upward_ratio);
+    let blast_radius = score_bounded_lower(input.blast_radius_ratio);
+    let depth = score_unbounded_lower(input.depth as f64, 8.0);       // unbounded count
+    let entropy = score_bounded_lower(input.entropy);
+
+    // ── Cognitive Load: mix of lower-is-better and higher-is-better ──
+    let complex_fn = score_bounded_lower(input.complex_fn_ratio);
+    let cog_complex = score_bounded_lower(input.cog_complex_ratio);
+    let long_fn = score_bounded_lower(input.long_fn_ratio);
+    let large_files = score_bounded_lower(input.large_file_ratio);
+    let high_params = score_bounded_lower(input.high_param_ratio);
+    let cohesion = input.cohesion.map(score_bounded_higher);           // higher = better
+    let distance = score_bounded_lower(input.distance);
+    // Comments: NOT truly bounded — 100% comments is absurd.
+    // Meaningful range is [0, ~0.30]. Use sigmoid: 8% → score 0.5, 20% → 0.71.
+    let comments = input.comment_ratio.map(|v| v / (v + 0.08));       // sigmoid, midpoint 8%
+
+    // ── Hidden Debt: mix ──
+    let dead_code = score_bounded_lower(input.dead_code_ratio);
+    let duplication = score_bounded_lower(input.duplication_ratio);
+    let test_coverage = score_bounded_higher(input.test_coverage_ratio); // higher = better
+    let attack_surface = score_bounded_lower(input.attack_surface_ratio);
+
+    let dim_scores = DimensionScores {
+        coupling, cycles, god_files, hotspots, levelization,
+        blast_radius, depth, entropy,
+        complex_fn, cog_complex, long_fn, large_files, high_params,
+        cohesion, distance, comments,
+        dead_code, duplication, test_coverage, attack_surface,
     };
-    // Note: magnitude dampening (coupling × shape) is already applied to
-    // the entropy VALUE in compute_module_metrics, so we only correct for
-    // pair count here.
-    let adjusted = (v - correction).max(0.0);
-    if adjusted <= 0.40 { 'A' } else if adjusted <= 0.60 { 'B' } else if adjusted <= 0.80 { 'C' }
-    else if adjusted <= 0.90 { 'D' } else { 'F' }
+
+    // ── Category scores (arithmetic mean within each) ──
+    let blast_radius_cat = arithmetic_mean(&[
+        coupling, cycles, god_files, hotspots,
+        levelization, blast_radius, depth, entropy,
+    ]);
+
+    // Cognitive Load: include optional dimensions only if measured
+    let mut cog_members = vec![complex_fn, cog_complex, long_fn, large_files, high_params, distance];
+    if let Some(c) = cohesion { cog_members.push(c); }
+    if let Some(c) = comments { cog_members.push(c); }
+    let cognitive_load_cat = arithmetic_mean(&cog_members);
+
+    let hidden_debt_cat = arithmetic_mean(&[
+        dead_code, duplication, test_coverage, attack_surface,
+    ]);
+
+    let cats = CategoryScores {
+        blast_radius: blast_radius_cat,
+        cognitive_load: cognitive_load_cat,
+        hidden_debt: hidden_debt_cat,
+    };
+
+    (dim_scores, cats)
 }
 
-/// Legacy: grade entropy without pair-count adjustment.
-#[allow(dead_code)] // Used by tests and legacy callers
-pub(crate) fn grade_entropy(v: f64) -> char {
-    grade_entropy_adjusted(v, 5) // N=5 → zero correction
-}
+// ══════════════════════════════════════════════════════════════════
+//  LAYER 5: Quality Signal = geometric mean of 3 categories
+// ══════════════════════════════════════════════════════════════════
 
-/// Grade cohesion (Constantine & Yourdon). Baseline: n-1 (spanning tree).
-/// 1.0 = at least spanning-tree connectivity (all files reachable).
-/// 0.5 = half the minimum edges present (some files disconnected).
-/// 0.0 = no internal edges (files are unrelated).
+/// Compute quality signal as geometric mean of 3 category scores.
 ///
-/// Thresholds calibrated to the n-1 baseline:
-///   A >= 0.70: most files are connected (≥70% of spanning tree)
-///   B >= 0.45: reasonable connectivity, some gaps
-///   C >= 0.25: many files disconnected
-///   D >= 0.10: sparse internal connections
-///   F <  0.10: essentially no internal connectivity
-pub(crate) fn grade_cohesion(v: f64) -> char {
-    if v >= 0.70 { 'A' } else if v >= 0.45 { 'B' } else if v >= 0.25 { 'C' }
-    else if v >= 0.10 { 'D' } else { 'F' }
+/// Mathematical properties (Nash Social Welfare theorem):
+///   - Gaming one category while tanking another → signal stays flat or drops
+///   - Genuine improvement across all categories → signal rises
+///   - Uniquely satisfies Pareto optimality + symmetry + independence axioms
+///
+/// For AI agent feedback loop: this is the ONE number to maximize.
+pub(crate) fn compute_quality_signal(cats: &CategoryScores) -> f64 {
+    // Geometric mean: (a × b × c)^(1/3)
+    // Clamp inputs to avoid log(0) — minimum score 0.01
+    let a = cats.blast_radius.max(0.01);
+    let b = cats.cognitive_load.max(0.01);
+    let c = cats.hidden_debt.max(0.01);
+    (a * b * c).powf(1.0 / 3.0)
 }
 
-/// Grade max dependency depth (layering metric).
-pub(crate) fn grade_depth(v: u32) -> char {
-    if v <= 5 { 'A' } else if v <= 8 { 'B' } else if v <= 10 { 'C' }
-    else if v <= 15 { 'D' } else { 'F' }
+// ══════════════════════════════════════════════════════════════════
+//  LAYER 6: Grades derived from scores
+// ══════════════════════════════════════════════════════════════════
+
+/// Convert a [0,1] score to a letter grade.
+///   A > 0.80, B > 0.60, C > 0.40, D > 0.20, F ≤ 0.20
+pub fn score_to_grade(score: f64) -> char {
+    if score > 0.80 { 'A' }
+    else if score > 0.60 { 'B' }
+    else if score > 0.40 { 'C' }
+    else if score > 0.20 { 'D' }
+    else { 'F' }
 }
 
-/// Grade cycle count (Martin's Acyclic Dependencies Principle).
-pub(crate) fn grade_cycles(v: usize) -> char {
-    match v {
-        0 => 'A',
-        1 => 'B',
-        2..=3 => 'C',
-        4..=6 => 'D',
-        _ => 'F',
-    }
-}
-
-/// Grade a ratio metric for rare anomalies (god files, hotspots). 0=perfect.
-pub(crate) fn grade_ratio_strict(v: f64) -> char {
-    debug_assert!(v >= 0.0, "ratio metric must be non-negative, got {}", v);
-    if v <= f64::EPSILON { 'A' } else if v <= 0.01 { 'B' } else if v <= 0.03 { 'C' }
-    else if v <= 0.05 { 'D' } else { 'F' }
-}
-
-/// Grade large file ratio. Separate from grade_ratio_strict because large files
-/// (>500 lines) and rare anomalies (god files with fan-out>15) are fundamentally
-/// different phenomena — a 600-line Rust file with impl blocks is common,
-/// a god file importing 20+ modules is a genuine smell. Same thresholds as
-/// long_fn ratio since they measure the same kind of thing (prevalence).
-pub(crate) fn grade_large_file(v: f64) -> char {
-    debug_assert!(v >= 0.0, "ratio metric must be non-negative, got {}", v);
-    if v <= 0.05 { 'A' } else if v <= 0.10 { 'B' } else if v <= 0.20 { 'C' }
-    else if v <= 0.35 { 'D' } else { 'F' }
-}
-
-/// Grade complex function ratio (McCabe). 0=no complex functions.
-pub(crate) fn grade_complex_fn(v: f64) -> char {
-    if v <= 0.02 { 'A' } else if v <= 0.05 { 'B' } else if v <= 0.10 { 'C' }
-    else if v <= 0.20 { 'D' } else { 'F' }
-}
-
-/// Grade long function ratio. 0=no long functions.
-pub(crate) fn grade_long_fn(v: f64) -> char {
-    if v <= 0.05 { 'A' } else if v <= 0.10 { 'B' } else if v <= 0.20 { 'C' }
-    else if v <= 0.35 { 'D' } else { 'F' }
-}
-
-/// Grade comment ratio (comments / total lines).
-/// Thresholds accommodate language idioms: Rust/Go 5-10%, Java/C++ 15-25%.
-pub(crate) fn grade_comment(v: f64) -> char {
-    if v >= 0.08 { 'A' } else if v >= 0.05 { 'B' } else if v >= 0.03 { 'C' }
-    else if v >= 0.01 { 'D' } else { 'F' }
-}
-
-/// Grade function duplication ratio (SonarSource). 0=no duplicates.
-pub(crate) fn grade_duplication(v: f64) -> char {
-    if v <= 0.01 { 'A' } else if v <= 0.03 { 'B' } else if v <= 0.07 { 'C' }
-    else if v <= 0.15 { 'D' } else { 'F' }
-}
-/// Grade dead code ratio (unreferenced functions). 0=no dead code.
-pub(crate) fn grade_dead_code(v: f64) -> char {
-    if v <= 0.03 { 'A' } else if v <= 0.08 { 'B' } else if v <= 0.15 { 'C' }
-    else if v <= 0.25 { 'D' } else { 'F' }
-}
-/// Grade high-parameter function ratio. 0=no functions with >4 params.
-pub(crate) fn grade_high_params(v: f64) -> char {
-    if v <= 0.03 { 'A' } else if v <= 0.08 { 'B' } else if v <= 0.15 { 'C' }
-    else if v <= 0.25 { 'D' } else { 'F' }
-}
-/// Grade cognitive complexity ratio (SonarSource 2016). 0=no complex functions.
-pub(crate) fn grade_cog_complex(v: f64) -> char {
-    if v <= 0.02 { 'A' } else if v <= 0.05 { 'B' } else if v <= 0.10 { 'C' }
-    else if v <= 0.20 { 'D' } else { 'F' }
-}
-
-/// Map letter grade to numeric value for averaging. A=4, B=3, C=2, D=1, F=0.
+/// Map letter grade to numeric value for backward compatibility.
 pub(crate) fn grade_value(g: char) -> u32 {
     match g { 'A' => 4, 'B' => 3, 'C' => 2, 'D' => 1, _ => 0 }
 }
 
-/// Map numeric value back to letter grade (floor).
+/// Map numeric value back to letter grade.
 pub(crate) fn value_grade(v: u32) -> char {
     match v { 4 => 'A', 3 => 'B', 2 => 'C', 1 => 'D', _ => 'F' }
 }
 
-/// Input parameters for [`compute_grades`]. Groups the 16 raw metric values
-/// that feed into the per-dimension grading logic.
-pub(crate) struct GradeInput {
-    pub coupling: f64,
-    pub entropy: f64,
-    pub entropy_num_pairs: usize,
-    pub cohesion: Option<f64>,
-    pub depth: u32,
-    pub cycles: usize,
-    pub god_ratio: f64,
-    pub hotspot_ratio: f64,
-    pub complex_fn_ratio: f64,
-    pub long_fn_ratio: f64,
-    pub comment_ratio: Option<f64>,
-    pub large_file_ratio: f64,
-    pub duplication_ratio: f64,
-    pub dead_code_ratio: f64,
-    pub high_param_ratio: f64,
-    pub cog_complex_ratio: f64,
+fn arithmetic_mean(values: &[f64]) -> f64 {
+    if values.is_empty() { return 0.5; }
+    values.iter().sum::<f64>() / values.len() as f64
 }
 
-/// Compute per-dimension grades and overall health grade.
-///
-/// ALL dimensions contribute to the overall grade. The composite formula
-/// uses floor-mean capped by (worst + 1): overall can never be more than
-/// one grade above the worst dimension. This ensures outliers matter.
-///
-/// Optional dimensions (cohesion, comment) are excluded when unmeasurable
-/// (no modules with ≥2 files, or no code files respectively).
-pub(crate) fn compute_grades(input: &GradeInput) -> (DimensionGrades, char) {
+// ══════════════════════════════════════════════════════════════════
+//  UNIFIED GRADING: produces everything from one input
+// ══════════════════════════════════════════════════════════════════
+
+/// All raw metric values needed for grading. Includes health + arch + testgap.
+pub(crate) struct GradeInput {
+    // Blast Radius inputs (all bounded [0,1] except cycles/depth)
+    pub coupling: f64,
+    pub entropy: f64,
+    pub depth: u32,                      // unbounded count
+    pub cycles: usize,                   // unbounded count
+    pub god_ratio: f64,
+    pub hotspot_ratio: f64,
+    pub levelization_upward_ratio: f64,
+    pub blast_radius_ratio: f64,
+
+    // Cognitive Load inputs
+    pub complex_fn_ratio: f64,
+    pub cog_complex_ratio: f64,
+    pub long_fn_ratio: f64,
+    pub large_file_ratio: f64,
+    pub high_param_ratio: f64,
+    pub cohesion: Option<f64>,           // higher is better
+    pub distance: f64,
+    pub comment_ratio: Option<f64>,      // higher is better
+
+    // Hidden Debt inputs
+    pub dead_code_ratio: f64,
+    pub duplication_ratio: f64,
+    pub test_coverage_ratio: f64,        // higher is better
+    pub attack_surface_ratio: f64,
+}
+
+/// Compute everything: dimension scores, category scores, quality signal, grades.
+pub(crate) fn compute_grades(input: &GradeInput) -> (DimensionScores, DimensionGrades, CategoryScores, f64, char) {
+    let (dim_scores, cat_scores) = compute_scores(input);
+    let quality_signal = compute_quality_signal(&cat_scores);
+    let overall_grade = score_to_grade(quality_signal);
+
+    // Per-dimension grades derived from scores
     let dims = DimensionGrades {
-        cycles: grade_cycles(input.cycles),
-        complex_fn: grade_complex_fn(input.complex_fn_ratio),
-        coupling: grade_coupling(input.coupling),
-        entropy: grade_entropy_adjusted(input.entropy, input.entropy_num_pairs),
-        cohesion: input.cohesion.map(grade_cohesion),
-        depth: grade_depth(input.depth),
-        god_files: grade_ratio_strict(input.god_ratio),
-        hotspots: grade_ratio_strict(input.hotspot_ratio),
-        long_fn: grade_long_fn(input.long_fn_ratio),
-        comment: input.comment_ratio.map(grade_comment),
-        file_size: grade_large_file(input.large_file_ratio),
-        duplication: grade_duplication(input.duplication_ratio),
-        dead_code: grade_dead_code(input.dead_code_ratio),
-        high_params: grade_high_params(input.high_param_ratio),
-        cog_complex: grade_cog_complex(input.cog_complex_ratio),
+        // Blast Radius
+        coupling: score_to_grade(dim_scores.coupling),
+        cycles: score_to_grade(dim_scores.cycles),
+        god_files: score_to_grade(dim_scores.god_files),
+        hotspots: score_to_grade(dim_scores.hotspots),
+        levelization: score_to_grade(dim_scores.levelization),
+        blast_radius: score_to_grade(dim_scores.blast_radius),
+        depth: score_to_grade(dim_scores.depth),
+        entropy: score_to_grade(dim_scores.entropy),
+        // Cognitive Load
+        complex_fn: score_to_grade(dim_scores.complex_fn),
+        cog_complex: score_to_grade(dim_scores.cog_complex),
+        long_fn: score_to_grade(dim_scores.long_fn),
+        file_size: score_to_grade(dim_scores.large_files),
+        high_params: score_to_grade(dim_scores.high_params),
+        cohesion: dim_scores.cohesion.map(score_to_grade),
+        distance: score_to_grade(dim_scores.distance),
+        comment: dim_scores.comments.map(score_to_grade),
+        // Hidden Debt
+        dead_code: score_to_grade(dim_scores.dead_code),
+        duplication: score_to_grade(dim_scores.duplication),
+        test_coverage: score_to_grade(dim_scores.test_coverage),
+        attack_surface: score_to_grade(dim_scores.attack_surface),
     };
 
-    let mut all_grades = vec![
-        dims.cycles, dims.complex_fn, dims.coupling, dims.entropy,
-        dims.depth, dims.god_files, dims.hotspots, dims.long_fn, dims.file_size,
-        dims.duplication, dims.dead_code, dims.high_params, dims.cog_complex,
-    ];
-    if let Some(g) = dims.cohesion { all_grades.push(g); }
-    if let Some(g) = dims.comment { all_grades.push(g); }
+    (dim_scores, dims, cat_scores, quality_signal, overall_grade)
+}
 
-    let overall = {
-        let sum: u32 = all_grades.iter().map(|&g| grade_value(g)).sum();
-        let floor_mean = value_grade(sum / all_grades.len() as u32);
-        let worst = *all_grades.iter().max().unwrap();
-        let worst_val = grade_value(worst);
-        // worst + 1: overall can't be more than one grade above worst dimension
-        let cap = value_grade(if worst_val < 4 { worst_val + 1 } else { 4 });
-        if floor_mean > cap { floor_mean } else { cap }
-    };
+// ══════════════════════════════════════════════════════════════════
+//  LEGACY COMPAT: individual grade functions kept for rules engine
+// ══════════════════════════════════════════════════════════════════
 
-    (dims, overall)
+/// Grade coupling score directly (used by rules/checks.rs).
+pub(crate) fn grade_coupling(v: f64) -> char {
+    score_to_grade(score_bounded_lower(v))
+}
+
+/// Grade entropy directly.
+pub(crate) fn grade_entropy_adjusted(v: f64, _num_pairs: usize) -> char {
+    score_to_grade(score_bounded_lower(v))
+}
+
+#[allow(dead_code)]
+pub(crate) fn grade_entropy(v: f64) -> char {
+    grade_entropy_adjusted(v, 5)
 }

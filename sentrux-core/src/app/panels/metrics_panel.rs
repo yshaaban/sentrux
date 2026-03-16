@@ -8,10 +8,7 @@ use crate::app::state::AppState;
 use crate::license;
 use super::activity_panel::draw_sep;
 use super::health_display::draw_health_section;
-use super::language_summary::draw_language_summary;
-use super::arch_display::draw_arch_section;
 use super::evolution_display::draw_evolution_section;
-use super::testgap_display::draw_testgap_section;
 use super::rules_display::draw_rules_section;
 use super::whatif_display::draw_whatif_section;
 use crate::core::settings::ThemeConfig;
@@ -52,33 +49,19 @@ pub fn draw_metrics_panel(ctx: &egui::Context, state: &mut AppState) {
 fn draw_metrics_sections(ui: &mut egui::Ui, state: &mut AppState, tc: &ThemeConfig) {
     let tier = license::current_tier();
 
-    // Health grade FIRST — the most important thing users want to see
+    // Unified quality panel — ONE panel with 3 categories
     if let Some(report) = &state.health_report {
         draw_health_section(ui, report, tc);
         draw_sep(ui, tc, 4.0);
     }
 
-    // Architecture grade second
-    if let Some(arch) = &state.arch_report {
-        draw_arch_section(ui, arch, tc);
-        draw_sep(ui, tc, 4.0);
-    }
-
-    // Language summary moved to right panel
-
-    // Evolution: free shows grades only, pro shows full details (hotspots, coupling, bus factor)
+    // Evolution: free shows grades only, pro shows full details
     if let Some(evo) = &state.evolution_report {
         if tier.is_pro() {
             draw_evolution_section(ui, evo, tc);
         } else {
             draw_evolution_summary(ui, evo, tc);
         }
-        draw_sep(ui, tc, 4.0);
-    }
-
-    // Test gaps: free shows grade + counts, pro shows file list
-    if let Some(tg) = &state.test_gap_report {
-        draw_testgap_section(ui, tg, tc);
         draw_sep(ui, tc, 4.0);
     }
 
