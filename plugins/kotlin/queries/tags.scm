@@ -41,3 +41,9 @@
 (delegation_specifier
   (user_type
     (type_identifier) @reference.type))
+
+; ── Property declarations ──
+
+(property_declaration
+  (variable_declaration
+    (simple_identifier) @name)) @definition.constant

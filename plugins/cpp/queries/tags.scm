@@ -54,3 +54,20 @@
 ; Calls — new constructor  new Foo()
 (new_expression
   type: (type_identifier) @call.name) @call
+
+; Namespace definitions
+(namespace_definition
+  name: (namespace_identifier) @name) @definition.module
+
+; Template declarations wrapping class/function
+(template_declaration
+  (class_specifier
+    name: (type_identifier) @name)) @definition.class
+
+(template_declaration
+  (function_definition
+    declarator: (function_declarator
+      declarator: (identifier) @name))) @definition.function
+
+; Type references
+(type_identifier) @reference.type

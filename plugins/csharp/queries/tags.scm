@@ -42,3 +42,21 @@
 ; Calls — direct
 (invocation_expression
   function: (identifier) @call.name) @call
+
+; Property declarations
+(property_declaration
+  name: (identifier) @name) @definition.constant
+
+; Record declarations
+(record_declaration
+  name: (identifier) @name) @definition.class
+
+; Event declarations
+(event_declaration
+  (variable_declaration
+    (variable_declarator
+      (identifier) @name))) @definition.constant
+
+; Delegate declarations
+(delegate_declaration
+  name: (identifier) @name) @definition.type

@@ -24,4 +24,13 @@
 (import_from_statement
   module_name: (dotted_name) @import.module) @import
 
-(import_statement) @import
+(import_statement
+  (dotted_name) @import.module) @import
+
+; ---- Type references (custom) ----
+
+; Function parameter type annotations: def foo(x: int)
+(type (identifier) @reference.type)
+
+; Function parameter type annotations via attribute: x.y
+(type (attribute attribute: (identifier) @reference.type))

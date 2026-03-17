@@ -69,3 +69,17 @@
   arguments: (argument_list
     (string) @import.module)
   (#match? @_method "^(require|require_relative)$")) @import
+
+; load 'file.rb'
+(call
+  method: (identifier) @_load_method
+  arguments: (argument_list
+    (string) @import.module)
+  (#eq? @_load_method "load")) @import
+
+; include ModuleName / extend ModuleName
+(call
+  method: (identifier) @_mixin_method
+  arguments: (argument_list
+    (constant) @import.module)
+  (#match? @_mixin_method "^(include|extend)$")) @import

@@ -34,3 +34,8 @@
 (apply
   function: (qualified
     id: (variable) @name)) @reference.call
+
+; Type class instance declarations: instance Show Color where ...
+(declarations
+  (instance
+    name: (_) @name) @definition.class)

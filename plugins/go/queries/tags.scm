@@ -32,3 +32,19 @@
 ; ---- Import appendix (custom) ----
 
 (import_declaration) @import
+
+; ---- Goroutine & defer calls (custom) ----
+
+; go func()
+(go_statement
+  (call_expression
+    function: (identifier) @call.name)) @call
+
+; defer func()
+(defer_statement
+  (call_expression
+    function: (identifier) @call.name)) @call
+
+; ---- Type references (custom) ----
+
+(type_identifier) @reference.type

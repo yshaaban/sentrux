@@ -33,3 +33,14 @@
 (call_expression
   function: (field_expression
     field: (field_identifier) @call.name)) @call
+
+; Macro function definitions: #define FOO(x) ...
+(preproc_function_def
+  name: (identifier) @name) @definition.function
+
+; Macro constant definitions: #define MAX 100
+(preproc_def
+  name: (identifier) @name) @definition.constant
+
+; Type references
+(type_identifier) @reference.type

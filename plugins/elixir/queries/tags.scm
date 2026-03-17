@@ -19,6 +19,23 @@
     ])
   (#any-of? @_kw "def" "defp" "defdelegate" "defguard" "defguardp" "defmacro" "defmacrop" "defn" "defnp")) @definition.function
 
+; defimpl — protocol implementation
+(call
+  target: (identifier) @_kw_impl
+  (arguments (alias) @name)
+  (#eq? @_kw_impl "defimpl")) @definition.class
+
+; defstruct — struct definition
+(call
+  target: (identifier) @_kw_struct
+  (#eq? @_kw_struct "defstruct")) @definition.class
+
+; defexception — exception definition
+(call
+  target: (identifier) @_kw_exc
+  (arguments (alias) @name)
+  (#eq? @_kw_exc "defexception")) @definition.class
+
 ; ignore kernel/special-forms
 (call
   target: (identifier) @_kw

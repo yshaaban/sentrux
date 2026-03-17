@@ -67,6 +67,9 @@
 (mod_item
   !body) @import
 
+; Type references — struct fields, function params, return types
+(type_identifier) @reference.type
+
 ; Scoped path calls: crate::module::func() or std::thread::spawn()
 ; The full scoped_identifier is captured as @call.scoped_path for implicit import extraction.
 (call_expression

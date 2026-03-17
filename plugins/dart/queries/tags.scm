@@ -24,13 +24,42 @@
 
 ; ── Calls ──
 
-; Function call: identifier followed by selector with argument_part
-(selector
-  (argument_part)) @reference.call
+; Function call: identifier(args)
+(call_expression
+  function: (identifier) @call.name) @call
+
+; Method call: obj.method(args)
+(call_expression
+  function: (selector
+    (identifier) @call.name)) @call
 
 ; Constructor: new ClassName(args)
 (new_expression
   (type_identifier) @call.name) @call
+
+; ── Method definitions inside classes ──
+
+(method_signature
+  name: (identifier) @name) @definition.method
+
+; ── Extension declarations ──
+
+(extension_declaration
+  name: (identifier) @name) @definition.class
+
+; ── Additional imports ──
+
+; part 'file.dart'
+(part_directive
+  (uri) @import.module) @import
+
+; part of 'library'
+(part_of_directive
+  (uri) @import.module) @import
+
+; export 'file.dart'
+(export_directive
+  (configurable_uri) @import.module) @import
 
 ; ── Type references ──
 
