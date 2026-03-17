@@ -52,14 +52,6 @@
 (include_expression
   (string (string_content) @import.module)) @import
 
-; Anonymous functions (closures)
-(anonymous_function_creation_expression
-  (formal_parameters) @name) @definition.function
-
-; Arrow functions
-(arrow_function
-  (formal_parameters) @name) @definition.function
-
 ; Trait use inside class: use SomeTrait;
 (use_declaration
   (name) @import.module) @import

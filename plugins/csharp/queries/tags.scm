@@ -47,16 +47,9 @@
 (property_declaration
   name: (identifier) @name) @definition.constant
 
-; Record declarations
-(record_declaration
-  name: (identifier) @name) @definition.class
-
-; Event declarations
-(event_declaration
-  (variable_declaration
-    (variable_declarator
-      (identifier) @name))) @definition.constant
+; Record declarations (C# 9+) — may not exist in older grammars, safe to keep
+; (record_declaration name: (identifier) @name) @definition.class
 
 ; Delegate declarations
 (delegate_declaration
-  name: (identifier) @name) @definition.type
+  name: (identifier) @name) @definition.class
