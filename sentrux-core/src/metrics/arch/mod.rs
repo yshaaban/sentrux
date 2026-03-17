@@ -86,8 +86,7 @@ pub struct ArchReport {
     pub upward_violations: Vec<UpwardViolation>,
     /// Ratio of upward violations to total edges
     pub upward_ratio: f64,
-    /// Levelization score [0,1]: 1.0 = no upward violations.
-    pub levelization_score: f64,
+    // (levelization_score removed — proxy metric, captured by root cause acyclicity+depth)
 
     // ── Blast radius (transitive reach from each file) ──
     /// Per-file transitive dependent count
@@ -110,18 +109,8 @@ pub struct ArchReport {
     pub distance_metrics: Vec<ModuleDistance>,
     /// Average distance across all modules
     pub avg_distance: f64,
-    /// Distance score [0,1]: 1.0 = all modules on main sequence.
-    pub distance_score: f64,
-
-    // ── Sub-scores (pre-computed for UI display) ──
-    /// Blast radius score [0,1]: 1.0 = no concentrated blast.
-    pub blast_score: f64,
-    /// Attack surface score [0,1]: 1.0 = minimal exposure.
-    pub surface_score: f64,
-
-    // ── Overall architecture score ──
-    /// Composite score [0,1] from all architecture dimensions.
-    pub arch_score: f64,
+    // (distance_score, blast_score, surface_score, arch_score removed
+    //  — proxy metrics, all captured by root cause modularity Q)
 }
 
 /// Baseline snapshot for session diff / structural regression gate.
@@ -416,8 +405,6 @@ pub fn compute_arch(snapshot: &Snapshot) -> ArchReport {
     } else {
         upward_violations.len() as f64 / dep_edges.len() as f64
     };
-    let levelization_score = score_levelization(upward_ratio);
-
     // Blast radius (already filters mod-declaration edges internally)
     let blast_radius = compute_blast_radius(edges);
     let (max_blast_file, max_blast_radius) = blast_radius
@@ -426,18 +413,16 @@ pub fn compute_arch(snapshot: &Snapshot) -> ArchReport {
         .map(|(k, &v)| (k.clone(), v))
         .unwrap_or_default();
 
-    // Attack surface + distance + scoring — pass pre-filtered dep_edges to avoid redundant filtering
+    // Attack surface + distance — diagnostic data only, no scoring
     let (attack_surface_files, total_graph_files, attack_surface_ratio,
-         distance_metrics, avg_distance, distance_score,
-         blast_score, surface_score, arch_score) =
-        compute_arch_secondary(snapshot, edges, &dep_edges, &blast_radius, levelization_score);
+         distance_metrics, avg_distance) =
+        compute_arch_diagnostics(snapshot, &dep_edges);
 
     ArchReport {
         levels,
         max_level,
         upward_violations,
         upward_ratio,
-        levelization_score,
         blast_radius,
         max_blast_radius,
         max_blast_file,
@@ -446,22 +431,15 @@ pub fn compute_arch(snapshot: &Snapshot) -> ArchReport {
         total_graph_files,
         distance_metrics,
         avg_distance,
-        distance_score,
-        blast_score,
-        surface_score,
-        arch_score,
     }
 }
 
-/// Compute attack surface, distance metrics, and final scoring for compute_arch.
-/// Takes pre-filtered `dep_edges` (mod-declaration edges removed) to avoid redundant O(E) filtering.
-fn compute_arch_secondary(
+/// Compute attack surface and distance diagnostics for compute_arch.
+/// No scoring — diagnostic data only. The one true score is quality_signal.
+fn compute_arch_diagnostics(
     snapshot: &Snapshot,
-    edges: &[ImportEdge],
     dep_edges: &[ImportEdge],
-    blast_radius: &HashMap<String, u32>,
-    levelization_score: f64,
-) -> (u32, u32, f64, Vec<ModuleDistance>, f64, f64, f64, f64, f64) {
+) -> (u32, u32, f64, Vec<ModuleDistance>, f64) {
     let (attack_surface_files, total_graph_files) =
         compute_attack_surface(dep_edges, &snapshot.entry_points);
     let attack_surface_ratio = if total_graph_files > 0 {
@@ -470,59 +448,19 @@ fn compute_arch_secondary(
         0.0
     };
 
-    // Distance from Main Sequence (Martin 2003)
-    let distance_metrics = distance_mod::compute_distance_from_main_seq(snapshot, edges);
-    let (avg_distance, distance_score) = compute_distance_score(&distance_metrics);
-
-    // Overall architecture score — composite conformance score.
-    let (blast_score, surface_score, arch_score) =
-        compute_arch_scores(snapshot, edges, blast_radius, levelization_score,
-                            attack_surface_ratio, distance_score);
+    // Distance from Main Sequence (Martin 2003) — diagnostic only
+    let distance_metrics = distance_mod::compute_distance_from_main_seq(snapshot, &snapshot.import_graph);
+    let avg_distance = {
+        let non_foundation: Vec<&ModuleDistance> = distance_metrics.iter()
+            .filter(|m| !m.is_foundation)
+            .collect();
+        if non_foundation.is_empty() {
+            0.0
+        } else {
+            non_foundation.iter().map(|m| m.distance).sum::<f64>() / non_foundation.len() as f64
+        }
+    };
 
     (attack_surface_files, total_graph_files, attack_surface_ratio,
-     distance_metrics, avg_distance, distance_score, blast_score, surface_score, arch_score)
-}
-
-/// Compute average distance and score from module distance metrics.
-/// Excludes foundation modules (I <= threshold) — their high D is expected.
-fn compute_distance_score(distance_metrics: &[ModuleDistance]) -> (f64, f64) {
-    let non_foundation: Vec<&ModuleDistance> = distance_metrics.iter()
-        .filter(|m| !m.is_foundation)
-        .collect();
-    let avg_distance = if non_foundation.is_empty() {
-        0.0
-    } else {
-        non_foundation.iter().map(|m| m.distance).sum::<f64>() / non_foundation.len() as f64
-    };
-    // Only score distance if non-foundation modules have abstract types.
-    // With A=0, D always equals 1-I regardless of architecture quality.
-    let has_graded_abstract = non_foundation.iter().any(|m| m.abstract_count > 0);
-    let distance_score = if has_graded_abstract {
-        distance_mod::score_distance(avg_distance)
-    } else {
-        1.0 // Unmeasurable — no abstract types in graded modules
-    };
-    (avg_distance, distance_score)
-}
-
-/// Compute blast, surface, and composite architecture scores.
-fn compute_arch_scores(
-    snapshot: &Snapshot,
-    edges: &[ImportEdge],
-    blast_radius: &HashMap<String, u32>,
-    levelization_score: f64,
-    attack_surface_ratio: f64,
-    distance_score: f64,
-) -> (f64, f64, f64) {
-    let blast_score = score_blast_concentration(blast_radius, edges);
-    // Applications (with main()) naturally have ~100% reachable code.
-    // Scoring attack surface for apps penalizes correct architecture.
-    let surface_score = if is_application(snapshot) {
-        1.0
-    } else {
-        score_attack_surface(attack_surface_ratio)
-    };
-    // Composite: geometric mean of 4 sub-scores (handles "one bad score" properly).
-    let arch_score = (levelization_score * blast_score * surface_score * distance_score).powf(0.25);
-    (blast_score, surface_score, arch_score)
+     distance_metrics, avg_distance)
 }

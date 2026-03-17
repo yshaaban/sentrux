@@ -224,16 +224,8 @@ pub fn build_registry() -> registry::ToolRegistry {
     reg.register(handlers::session_start_def());
     reg.register(handlers::session_end_def());
 
-    // Health & structure diagnostics
+    // Health — one true score + root-cause-organized diagnostics
     reg.register(handlers::health_def());
-    reg.register(handlers::coupling_def());
-    reg.register(handlers::cycles_def());
-
-    // Architecture diagnostics
-    reg.register(handlers::architecture_def());
-    reg.register(handlers::blast_radius_def());
-    reg.register(handlers::hottest_def());
-    reg.register(handlers::level_def());
 
     // Rules
     reg.register(handlers::check_rules_def());

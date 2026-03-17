@@ -32,18 +32,16 @@
 </div>
 
 <div align="center">
-<sub>Ein Prompt. Ein AI-Agent. Fünf Minuten. <b>Health: D · Architecture: B · Coverage: B.</b></sub>
+<sub>Ein Prompt. Ein AI-Agent. Fünf Minuten. <b>Quality: 6772</b></sub>
 <br>
 <sub>Sieh zu, wie Claude Code ein FastAPI-Projekt von Grund auf erstellt — während sentrux den Architekturverfall in Echtzeit zeigt.</sub>
 </div>
 
-<table>
-<tr>
-<td align="center"><img src="assets/screenshot-health.png" width="280" alt="Code Health Grade D"><br><b>Gesundheit: D</b><br><sub>toter Code F (29%), Kohäsion D (23%)<br>Duplikation C, Kommentare D (2%)</sub></td>
-<td align="center"><img src="assets/screenshot-architecture.png" width="280" alt="Architecture Grade B"><br><b>Architektur: B</b><br><sub>Schichtung A, Distanz A<br>Blast-Radius B (22 Dateien), Angriffsfläche A</sub></td>
-<td align="center"><img src="assets/screenshot-coverage.png" width="280" alt="Test Coverage Grade B"><br><b>Testabdeckung: B (72%)</b><br><sub>28 getestet, 11 ungetestet<br>6 Testdateien, 39 Quelldateien</sub></td>
-</tr>
-</table>
+<div align="center">
+<img src="assets/screenshot-health.png" width="360" alt="Quality Signal 6772">
+<br>
+<sub><b>Quality: 6772</b> — 5 Grundursachen-Metriken: modularity 3711, acyclicity 10000, depth 6154, equality 7172, redundancy 8696</sub>
+</div>
 
 <br>
 
@@ -97,7 +95,7 @@ sentrux gibt dir den Sensor. Deine Regeln geben die Spezifikation. Der Agent ist
 <table>
 <tr>
 <td align="center" width="33%"><b>Visualisieren</b><br><sub>Live-Treemap mit Abhängigkeitskanten,<br>Dateien leuchten bei Änderungen</sub></td>
-<td align="center" width="33%"><b>Messen</b><br><sub>14 Gesundheitsdimensionen A-F:<br>Kopplung, Zyklen, Kohäsion, toter Code…</sub></td>
+<td align="center" width="33%"><b>Messen</b><br><sub>5 Grundursachen-Metriken, 0–10000 Score:<br>Modularität, Azyklizität, Tiefe, Gleichheit, Redundanz</sub></td>
 <td align="center" width="33%"><b>Steuern</b><br><sub>Quality Gate fängt Regression ab.<br>Regel-Engine erzwingt Vorgaben.</sub></td>
 </tr>
 </table>

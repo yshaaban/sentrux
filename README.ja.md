@@ -32,18 +32,16 @@
 </div>
 
 <div align="center">
-<sub>プロンプト1つ。AIエージェント1つ。5分間。<b>Health: D · Architecture: B · Coverage: B。</b></sub>
+<sub>プロンプト1つ。AIエージェント1つ。5分間。<b>Quality: 6772</b></sub>
 <br>
-<sub>Claude Code が FastAPI プロジェクトをゼロから構築する様子を——sentrux がアーキテクチャの劣化をリアルタイムで可視化しながら——ご覧ください。</sub>
+<sub>Claude Code が FastAPI プロジェクトをゼロから構築 — sentrux がアーキテクチャの劣化をリアルタイム表示。</sub>
 </div>
 
-<table>
-<tr>
-<td align="center"><img src="assets/screenshot-health.png" width="280" alt="Code Health Grade D"><br><b>コード健全性: D</b><br><sub>デッドコード F (29%)、凝集度 D (23%)<br>重複 C、コメント率 D (2%)</sub></td>
-<td align="center"><img src="assets/screenshot-architecture.png" width="280" alt="Architecture Grade B"><br><b>アーキテクチャ: B</b><br><sub>レベライゼーション A、距離 A<br>影響半径 B (22ファイル)、攻撃面 A</sub></td>
-<td align="center"><img src="assets/screenshot-coverage.png" width="280" alt="Test Coverage Grade B"><br><b>テストカバレッジ: B (72%)</b><br><sub>テスト済み 28、未テスト 11<br>テストファイル 6、ソースファイル 39</sub></td>
-</tr>
-</table>
+<div align="center">
+<img src="assets/screenshot-health.png" width="360" alt="Quality Signal 6772">
+<br>
+<sub><b>Quality: 6772</b> — 5つの根本原因指標：modularity 3711、acyclicity 10000、depth 6154、equality 7172、redundancy 8696</sub>
+</div>
 
 <br>
 
@@ -97,7 +95,7 @@ sentrux がセンサーを提供する。ルールが仕様を定める。エー
 <table>
 <tr>
 <td align="center" width="33%"><b>可視化</b><br><sub>依存関係エッジ付きライブtreemap<br>エージェントが変更するとファイルが光る</sub></td>
-<td align="center" width="33%"><b>計測</b><br><sub>14の健全性指標 A-F評価：<br>結合度、循環、凝集度、デッドコード…</sub></td>
+<td align="center" width="33%"><b>計測</b><br><sub>5つの根本原因指標、0–10000 連続スコア：<br>モジュール性、非循環性、深度、均等性、冗長性</sub></td>
 <td align="center" width="33%"><b>統治</b><br><sub>品質ゲートが退行を検出<br>ルールエンジンが制約を強制</sub></td>
 </tr>
 </table>

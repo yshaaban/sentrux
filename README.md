@@ -32,18 +32,16 @@
 </div>
 
 <div align="center">
-<sub>One prompt. One AI agent. Five minutes. <b>Health: D · Architecture: B · Coverage: B.</b></sub>
+<sub>One prompt. One AI agent. Five minutes. <b>Quality: 6772</b></sub>
 <br>
 <sub>Watch Claude Code build a FastAPI project from scratch — while sentrux shows the architecture decaying in real-time.</sub>
 </div>
 
-<table>
-<tr>
-<td align="center"><img src="assets/screenshot-health.png" width="280" alt="Code Health Grade D"><br><b>Health: D</b><br><sub>dead code F (29%), cohesion D (23%)<br>duplication C, comments D (2%)</sub></td>
-<td align="center"><img src="assets/screenshot-architecture.png" width="280" alt="Architecture Grade B"><br><b>Architecture: B</b><br><sub>levelization A, distance A<br>blast radius B (22 files), attack surface A</sub></td>
-<td align="center"><img src="assets/screenshot-coverage.png" width="280" alt="Test Coverage Grade B"><br><b>Test Coverage: B (72%)</b><br><sub>28 tested, 11 untested<br>6 test files, 39 source files</sub></td>
-</tr>
-</table>
+<div align="center">
+<img src="assets/screenshot-health.png" width="360" alt="Quality Signal 6772">
+<br>
+<sub><b>Quality: 6772</b> — 5 root causes: modularity 3711, acyclicity 10000, depth 6154, equality 7172, redundancy 8696</sub>
+</div>
 
 <br>
 
@@ -85,7 +83,7 @@ But architecture — does this change fit the system? will this abstraction caus
 
 It watches your codebase in real-time — not the diffs, not the terminal output — the *actual structure*. Every file. Every dependency. Every architectural relationship. Visualized as a live interactive treemap that updates as the agent writes code.
 
-14 health dimensions. Graded A through F. Computed in milliseconds.
+5 root cause metrics. One continuous score. Computed in milliseconds.
 
 When architecture degrades, you see it immediately — not two weeks later when everything is broken and nobody remembers which session caused it.
 
@@ -97,7 +95,7 @@ sentrux gives you the sensor. Your rules give you the spec. The agent is the act
 <table>
 <tr>
 <td align="center" width="33%"><b>Visualize</b><br><sub>Live treemap with dependency edges,<br>files glow when the agent modifies them</sub></td>
-<td align="center" width="33%"><b>Measure</b><br><sub>14 health dimensions graded A-F:<br>coupling, cycles, cohesion, dead code...</sub></td>
+<td align="center" width="33%"><b>Measure</b><br><sub>5 root cause metrics, one score 0–10000:<br>modularity, acyclicity, depth, equality, redundancy</sub></td>
 <td align="center" width="33%"><b>Govern</b><br><sub>Quality gate catches regression.<br>Rules engine enforces constraints.</sub></td>
 </tr>
 </table>

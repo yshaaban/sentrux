@@ -152,12 +152,6 @@ impl SentruxApp {
             None => return,
         };
         Self::log_arch_regressions(prev_arch, arch);
-        if arch.arch_score < prev_arch.arch_score - 0.05 {
-            self.state.record_activity(
-                format!("Architecture degraded: {} -> {}", (prev_arch.arch_score * 10000.0).round() as u32, (arch.arch_score * 10000.0).round() as u32),
-                "arch_degraded".to_string(),
-            );
-        }
     }
 
     /// Process a single layout-ready message: build spatial index, fit viewport, update state.
