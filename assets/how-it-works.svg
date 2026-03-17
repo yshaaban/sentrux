@@ -26,10 +26,9 @@
   <!-- Arrow 2→3 -->
   <line x1="300" y1="130" x2="300" y2="155" stroke="#00d4aa" stroke-width="1.5" marker-end="url(#arrow)"/>
 
-  <!-- Step 3: bottleneck -->
+  <!-- Step 3: agent sees score -->
   <rect x="160" y="160" width="280" height="40" fill="none" stroke="#30363d" stroke-width="1"/>
-  <text x="230" y="185" text-anchor="middle" font-family="'SF Mono','Cascadia Code','JetBrains Mono',ui-monospace,monospace" font-size="13" fill="#8b949e">bottleneck:</text>
-  <text x="380" y="185" text-anchor="middle" font-family="'SF Mono','Cascadia Code','JetBrains Mono',ui-monospace,monospace" font-size="13" font-weight="700" fill="#f0c040">modularity</text>
+  <text x="300" y="185" text-anchor="middle" font-family="'SF Mono','Cascadia Code','JetBrains Mono',ui-monospace,monospace" font-size="14" fill="#c9d1d9">AI agent sees the score</text>
 
   <!-- Arrow 3→4 -->
   <line x1="300" y1="200" x2="300" y2="225" stroke="#00d4aa" stroke-width="1.5" marker-end="url(#arrow)"/>
