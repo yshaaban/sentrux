@@ -18,7 +18,7 @@
 
 **English** | [中文](README.zh-CN.md) | [Deutsch](README.de.md) | [日本語](README.ja.md)
 
-[Install](#install) · [Quick Start](#quick-start) · [MCP Integration](#mcp-server) · [Rules Engine](#rules-engine) · [Releases](https://github.com/sentrux/sentrux/releases)
+[How it Works](#how-it-works) · [Quick Start](#quick-start) · [MCP Integration](#mcp-server) · [Rules Engine](#rules-engine) · [Releases](https://github.com/sentrux/sentrux/releases)
 
 </div>
 
@@ -41,6 +41,106 @@
 <br>
 <sub><b>Quality: 6772</b> — 5 root causes: modularity 3711, acyclicity 10000, depth 6154, equality 7172, redundancy 8696</sub>
 </div>
+
+## How it works
+
+```
+You code with AI  →  sentrux watches the structure  →  scores quality in real-time
+                                    ↓
+              Agent sees the score + bottleneck  →  fixes the weakest root cause
+                                    ↓
+                        Rescan  →  score improves  →  repeat
+                                    ↓
+                    Each iteration better than the last = recursive self-improvement
+```
+
+**5 root cause metrics → 1 score (0–10000):**
+
+| Metric | What it measures | Best = 10000 |
+|--------|-----------------|--------------|
+| **Modularity** | Do files cluster into independent modules? | High Newman's Q |
+| **Acyclicity** | Are there circular dependencies? | Zero cycles |
+| **Depth** | How deep are dependency chains? | Shallow |
+| **Equality** | Is complexity evenly distributed? | No god files |
+| **Redundancy** | How much dead/duplicate code? | No waste |
+
+One score. Geometric mean. The only way to raise it is to genuinely improve the architecture.
+
+<br>
+
+## Quick Start
+
+**Install** (macOS · Linux · Windows)
+
+**macOS**
+```bash
+brew install sentrux/tap/sentrux
+```
+
+**Linux**
+```bash
+curl -fsSL https://raw.githubusercontent.com/sentrux/sentrux/main/install.sh | sh
+```
+
+**Windows** — download from [Releases](https://github.com/sentrux/sentrux/releases), or:
+```
+curl -L -o sentrux.exe https://github.com/sentrux/sentrux/releases/latest/download/sentrux-windows-x86_64.exe
+```
+
+Pure Rust. Single binary. No runtime dependencies. **52 languages** via tree-sitter plugins. Runs on **macOS**, **Linux**, and **Windows**.
+
+**Run it**
+
+```bash
+sentrux                    # open the GUI — live treemap of your project
+sentrux /path/to/project   # open GUI scanning a specific directory
+sentrux check .            # check rules (CI-friendly, exits 0 or 1)
+sentrux gate --save .      # save baseline before agent session
+sentrux gate .             # compare after — catches degradation
+```
+
+**Connect to your AI agent (optional)**
+
+Give your agent real-time access to structural health via [MCP](https://modelcontextprotocol.io).
+
+Claude Code:
+
+```
+/plugin marketplace add sentrux/sentrux
+/plugin install sentrux
+```
+
+Cursor / Windsurf / OpenCode / OpenClaw / any MCP client — add to your MCP config:
+
+```json
+{
+  "mcpServers": {
+    "sentrux": {
+      "command": "sentrux",
+      "args": ["--mcp"]
+    }
+  }
+}
+```
+
+**From source / upgrade / troubleshooting**
+
+```bash
+# Build from source
+git clone https://github.com/sentrux/sentrux.git
+cd sentrux && cargo build --release
+
+# Upgrade
+brew update && brew upgrade sentrux
+# or re-run the curl install — it always pulls the latest release
+```
+
+**Linux GPU issues?** If the app won't start, sentrux automatically tries multiple GPU backends (Vulkan → GL → fallback). You can also force one:
+
+```bash
+WGPU_BACKEND=vulkan sentrux    # force Vulkan
+WGPU_BACKEND=gl sentrux        # force OpenGL
+```
 
 <br>
 
@@ -102,99 +202,25 @@ sentrux gives you the sensor. Your rules give you the spec. The agent is the act
 
 <br>
 
-## Install
-
-**Step 1 — Install** (macOS · Linux · Windows)
-
-**macOS**
-```bash
-brew install sentrux/tap/sentrux
-```
-
-**Linux**
-```bash
-curl -fsSL https://raw.githubusercontent.com/sentrux/sentrux/main/install.sh | sh
-```
-
-**Windows** — download from [Releases](https://github.com/sentrux/sentrux/releases), or:
-```
-curl -L -o sentrux.exe https://github.com/sentrux/sentrux/releases/latest/download/sentrux-windows-x86_64.exe
-```
-
-Pure Rust. Single binary. No runtime dependencies. **52 languages** via tree-sitter plugins. Runs on **macOS**, **Linux**, and **Windows**.
-
-**Step 2 — Run it**
-
-```bash
-sentrux                    # open the GUI — live treemap of your project
-sentrux /path/to/project   # open GUI scanning a specific directory
-sentrux check .            # check rules (CI-friendly, exits 0 or 1)
-sentrux gate --save .      # save baseline before agent session
-sentrux gate .             # compare after — catches degradation
-```
-
-**Step 3 — Connect to your AI agent (optional)**
-
-Give your agent real-time access to structural health via [MCP](https://modelcontextprotocol.io).
-
-Claude Code:
-
-```
-/plugin marketplace add sentrux/sentrux
-/plugin install sentrux
-```
-
-Cursor / Windsurf / OpenCode / OpenClaw / any MCP client — add to your MCP config:
-
-```json
-{
-  "mcpServers": {
-    "sentrux": {
-      "command": "sentrux",
-      "args": ["--mcp"]
-    }
-  }
-}
-```
-
-**From source / upgrade / troubleshooting**
-
-```bash
-# Build from source
-git clone https://github.com/sentrux/sentrux.git
-cd sentrux && cargo build --release
-
-# Upgrade
-brew update && brew upgrade sentrux
-# or re-run the curl install — it always pulls the latest release
-```
-
-**Linux GPU issues?** If the app won't start, sentrux automatically tries multiple GPU backends (Vulkan → GL → fallback). You can also force one:
-
-```bash
-WGPU_BACKEND=vulkan sentrux    # force Vulkan
-WGPU_BACKEND=gl sentrux        # force OpenGL
-```
-
 ## MCP server
 
 **Agent workflow**
 
 ```
 Agent: scan("/Users/me/myproject")
-  → { structure_grade: "B", architecture_grade: "B", files: 139 }
+  → { quality_signal: 7342, files: 139, bottleneck: "modularity" }
 
 Agent: session_start()
-  → { status: "Baseline saved", grade: "B" }
+  → { status: "Baseline saved", quality_signal: 7342 }
 
   ... agent writes 500 lines of code ...
 
 Agent: session_end()
-  → { pass: false, grade_before: "B", grade_after: "C",
-      summary: "Architecture degraded during this session" }
+  → { pass: false, signal_before: 7342, signal_after: 6891,
+      summary: "Quality degraded during this session" }
 ```
 
-15 tools: `scan` · `health` · `architecture` · `coupling` · `cycles` · `hottest` · `evolution` · `dsm` · `test_gaps` · `check_rules` · `session_start` · `session_end` · `rescan` · `blast_radius` · `level`
+9 tools: `scan` · `health` · `session_start` · `session_end` · `rescan` · `check_rules` · `evolution` · `dsm` · `test_gaps`
 
 ## Rules engine
 
@@ -227,7 +253,7 @@ reason = "App must not depend on core internals"
 
 ```bash
 sentrux check .
-# ✓ All rules pass — Structure: B  Architecture: B
+# ✓ All rules pass — Quality: 7342
 ```
 
 ## Supported languages
