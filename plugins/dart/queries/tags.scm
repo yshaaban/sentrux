@@ -11,8 +11,9 @@
 (enum_declaration
   name: (identifier) @name) @definition.class
 
+; mixin_declaration has identifier as positional child, not named field
 (mixin_declaration
-  name: (identifier) @name) @definition.class
+  (identifier) @name) @definition.class
 
 ; ── Imports ──
 

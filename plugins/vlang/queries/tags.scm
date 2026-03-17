@@ -28,7 +28,8 @@
 (type_reference_expression
   (identifier) @name) @reference.type
 
-; ---- Import appendix ----
-
+; ---- Imports ----
+; import_declaration → import_spec → import_path (grandchild, not direct child)
 (import_declaration
-  (import_path) @import.module) @import
+  (import_spec
+    (import_path) @import.module)) @import
