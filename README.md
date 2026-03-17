@@ -122,7 +122,7 @@ curl -fsSL https://raw.githubusercontent.com/sentrux/sentrux/main/install.sh | s
 curl -L -o sentrux.exe https://github.com/sentrux/sentrux/releases/latest/download/sentrux-windows-x86_64.exe
 ```
 
-Pure Rust. Single binary. No runtime dependencies. **51 languages** via tree-sitter plugins. Runs on **macOS**, **Linux**, and **Windows**.
+Pure Rust. Single binary. No runtime dependencies. **52 languages** via tree-sitter plugins. Runs on **macOS**, **Linux**, and **Windows**.
 
 **Step 2 — Run it**
 
@@ -233,7 +233,7 @@ sentrux check .
 
 ## Supported languages
 
-**51 languages** built-in via [tree-sitter](https://tree-sitter.github.io/) plugins — zero language knowledge in the binary:
+**52 languages** built-in via [tree-sitter](https://tree-sitter.github.io/) plugins — zero language knowledge in the binary:
 
 | | | | | | |
 |---|---|---|---|---|---|
@@ -242,17 +242,17 @@ sentrux check .
 | F# | GDScript | GLSL | Go | Groovy | Haskell |
 | HCL | HTML | Java | JavaScript | JSON | Julia |
 | Kotlin | Lua | Markdown | Nim | Nix | Objective-C |
-| OCaml | Perl | PHP | PowerShell | Protobuf | Python |
-| R | Ruby | Rust | Scala | SCSS | Solidity |
-| SQL | Svelte | Swift | TOML | TypeScript | V |
-| Vue | YAML | Zig | | | |
+| Object Pascal | OCaml | Perl | PHP | PowerShell | Protobuf |
+| Python | R | Ruby | Rust | Scala | SCSS |
+| Solidity | SQL | Svelte | Swift | TOML | TypeScript |
+| V | Vue | YAML | Zig | | |
 
 **Plugin system** — add any language, or create your own:
 
 ```bash
 sentrux plugin list              # see installed plugins
 sentrux plugin add <name>        # install from registry
-sentrux plugin add-standard      # install all 51 languages
+sentrux plugin add-standard      # install all 52 languages
 sentrux plugin init my-lang      # scaffold a new language plugin
 ```
 

@@ -125,7 +125,7 @@ curl -L -o sentrux.exe https://github.com/sentrux/sentrux/releases/latest/downlo
 
 または[Releases](https://github.com/sentrux/sentrux/releases)から直接ダウンロード。
 
-Pure Rust。単一バイナリ。ランタイム依存なし。**macOS**、**Linux**、**Windows**対応。tree-sitterプラグインで51言語対応。
+Pure Rust。単一バイナリ。ランタイム依存なし。**macOS**、**Linux**、**Windows**対応。tree-sitterプラグインで52言語対応。
 
 **ステップ 2 — 実行する**
 
@@ -236,9 +236,9 @@ sentrux check .
 
 ## 対応言語
 
-[tree-sitter](https://tree-sitter.github.io/) プラグインで51言語対応：
+[tree-sitter](https://tree-sitter.github.io/) プラグインで52言語対応：
 
-Bash · C · C++ · C# · Clojure · COBOL · Crystal · CSS · Dart · Dockerfile · Elixir · Erlang · F# · GDScript · GLSL · Go · Groovy · Haskell · HCL · HTML · Java · JavaScript · JSON · Julia · Kotlin · Lua · Markdown · Nim · Nix · Objective-C · OCaml · Perl · PHP · PowerShell · Protobuf · Python · R · Ruby · Rust · Scala · SCSS · Solidity · SQL · Svelte · Swift · TOML · TypeScript · V · Vue · YAML · Zig
+Bash · C · C++ · C# · Clojure · COBOL · Crystal · CSS · Dart · Dockerfile · Elixir · Erlang · F# · GDScript · GLSL · Go · Groovy · Haskell · HCL · HTML · Java · JavaScript · JSON · Julia · Kotlin · Lua · Markdown · Nim · Nix · Object Pascal · Objective-C · OCaml · Perl · PHP · PowerShell · Protobuf · Python · R · Ruby · Rust · Scala · SCSS · Solidity · SQL · Svelte · Swift · TOML · TypeScript · V · Vue · YAML · Zig
 
 **プラグインシステム** — コミュニティ対応の言語を追加、または独自に作成：
 

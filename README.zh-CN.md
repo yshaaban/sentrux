@@ -125,7 +125,7 @@ curl -L -o sentrux.exe https://github.com/sentrux/sentrux/releases/latest/downlo
 
 或直接从 [Releases](https://github.com/sentrux/sentrux/releases) 下载。
 
-纯 Rust 实现。单一二进制文件。无运行时依赖。支持 **macOS**、**Linux** 和 **Windows**。通过 tree-sitter 支持 51 种语言。
+纯 Rust 实现。单一二进制文件。无运行时依赖。支持 **macOS**、**Linux** 和 **Windows**。通过 tree-sitter 支持 52 种语言。
 
 **第 2 步 — 运行**
 
@@ -236,9 +236,9 @@ sentrux check .
 
 ## 支持的语言
 
-51 种语言，通过 [tree-sitter](https://tree-sitter.github.io/) 插件支持：
+52 种语言，通过 [tree-sitter](https://tree-sitter.github.io/) 插件支持：
 
-Bash · C · C++ · C# · Clojure · COBOL · Crystal · CSS · Dart · Dockerfile · Elixir · Erlang · F# · GDScript · GLSL · Go · Groovy · Haskell · HCL · HTML · Java · JavaScript · JSON · Julia · Kotlin · Lua · Markdown · Nim · Nix · Objective-C · OCaml · Perl · PHP · PowerShell · Protobuf · Python · R · Ruby · Rust · Scala · SCSS · Solidity · SQL · Svelte · Swift · TOML · TypeScript · V · Vue · YAML · Zig
+Bash · C · C++ · C# · Clojure · COBOL · Crystal · CSS · Dart · Dockerfile · Elixir · Erlang · F# · GDScript · GLSL · Go · Groovy · Haskell · HCL · HTML · Java · JavaScript · JSON · Julia · Kotlin · Lua · Markdown · Nim · Nix · Object Pascal · Objective-C · OCaml · Perl · PHP · PowerShell · Protobuf · Python · R · Ruby · Rust · Scala · SCSS · Solidity · SQL · Svelte · Swift · TOML · TypeScript · V · Vue · YAML · Zig
 
 **插件系统** — 添加社区支持的任何语言，或创建自己的：
 

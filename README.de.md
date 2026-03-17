@@ -125,7 +125,7 @@ curl -L -o sentrux.exe https://github.com/sentrux/sentrux/releases/latest/downlo
 
 Oder direkt von [Releases](https://github.com/sentrux/sentrux/releases) herunterladen.
 
-Pures Rust. Einzelne Binary. Keine Laufzeitabhängigkeiten. Läuft auf **macOS**, **Linux** und **Windows**. 51 Sprachen via tree-sitter Plugins.
+Pures Rust. Einzelne Binary. Keine Laufzeitabhängigkeiten. Läuft auf **macOS**, **Linux** und **Windows**. 52 Sprachen via tree-sitter Plugins.
 
 **Schritt 2 — Ausführen**
 
@@ -236,9 +236,9 @@ sentrux check .
 
 ## Unterstützte Sprachen
 
-51 Sprachen über [tree-sitter](https://tree-sitter.github.io/) Plugins:
+52 Sprachen über [tree-sitter](https://tree-sitter.github.io/) Plugins:
 
-Bash · C · C++ · C# · Clojure · COBOL · Crystal · CSS · Dart · Dockerfile · Elixir · Erlang · F# · GDScript · GLSL · Go · Groovy · Haskell · HCL · HTML · Java · JavaScript · JSON · Julia · Kotlin · Lua · Markdown · Nim · Nix · Objective-C · OCaml · Perl · PHP · PowerShell · Protobuf · Python · R · Ruby · Rust · Scala · SCSS · Solidity · SQL · Svelte · Swift · TOML · TypeScript · V · Vue · YAML · Zig
+Bash · C · C++ · C# · Clojure · COBOL · Crystal · CSS · Dart · Dockerfile · Elixir · Erlang · F# · GDScript · GLSL · Go · Groovy · Haskell · HCL · HTML · Java · JavaScript · JSON · Julia · Kotlin · Lua · Markdown · Nim · Nix · Object Pascal · Objective-C · OCaml · Perl · PHP · PowerShell · Protobuf · Python · R · Ruby · Rust · Scala · SCSS · Solidity · SQL · Svelte · Swift · TOML · TypeScript · V · Vue · YAML · Zig
 
 **Plugin-System** — jede von der Community unterstützte Sprache hinzufügen oder eigene erstellen:
 
