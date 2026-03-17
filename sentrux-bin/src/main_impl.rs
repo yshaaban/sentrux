@@ -820,7 +820,7 @@ fn cli_scan_limits() -> analysis::scanner::common::ScanLimits {
 /// Downloads ONE tarball with ALL grammars — not 49 individual downloads.
 ///
 /// Architecture:
-///   Binary release v0.3.12 on GitHub includes asset:
+///   Each binary release on GitHub includes asset:
 ///     grammars-darwin-arm64.tar.gz (all grammars in one archive)
 ///   This function downloads that ONE file and extracts all grammars at once.
 ///

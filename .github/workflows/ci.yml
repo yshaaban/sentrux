@@ -47,7 +47,7 @@ jobs:
           cat > ../private-integration-crate/Cargo.toml << STUBEOF
           [package]
           name = "private-integration-crate"
-          version = "0.5.3"
+          version = "0.5.4"
           edition = "2021"
           [lib]
           path = "src/lib.rs"
