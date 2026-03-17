@@ -2,7 +2,13 @@
 set -e
 
 REPO="sentrux/sentrux"
-VERSION="v0.4.9"
+
+# Auto-detect latest version from GitHub releases API
+VERSION=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name"' | sed 's/.*"tag_name": "//;s/".*//')
+if [ -z "$VERSION" ]; then
+    echo "Error: could not detect latest version"
+    exit 1
+fi
 INSTALL_DIR="/usr/local/bin"
 
 # Detect OS and architecture
