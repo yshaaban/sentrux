@@ -54,19 +54,6 @@ You code with AI  →  sentrux watches the structure  →  scores quality in rea
                     Each iteration better than the last = recursive self-improvement
 ```
 
-**5 root cause metrics → 1 score (0–10000):**
-
-| Metric | What it measures | Best = 10000 |
-|--------|-----------------|--------------|
-| **Modularity** | Do files cluster into independent modules? | High Newman's Q |
-| **Acyclicity** | Are there circular dependencies? | Zero cycles |
-| **Depth** | How deep are dependency chains? | Shallow |
-| **Equality** | Is complexity evenly distributed? | No god files |
-| **Redundancy** | How much dead/duplicate code? | No waste |
-
-One score. Geometric mean. The only way to raise it is to genuinely improve the architecture.
-
-<br>
 
 ## Quick Start
 
