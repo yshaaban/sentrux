@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 420" width="600" height="420">
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#00d4aa"/>
+    </marker>
+    <marker id="arrow-dim" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#00d4aa" opacity="0.5"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="600" height="420" fill="#0d1117"/>
+
+  <!-- Step 1: sentrux scans code -->
+  <rect x="160" y="20" width="280" height="40" fill="none" stroke="#00d4aa" stroke-width="1.5"/>
+  <text x="300" y="45" text-anchor="middle" font-family="'SF Mono','Cascadia Code','JetBrains Mono',ui-monospace,monospace" font-size="14" font-weight="700" fill="#c9d1d9">sentrux scans code</text>
+
+  <!-- Arrow 1→2 -->
+  <line x1="300" y1="60" x2="300" y2="85" stroke="#00d4aa" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Step 2: quality score -->
+  <rect x="160" y="90" width="280" height="40" fill="none" stroke="#30363d" stroke-width="1"/>
+  <text x="220" y="115" text-anchor="middle" font-family="'SF Mono','Cascadia Code','JetBrains Mono',ui-monospace,monospace" font-size="13" fill="#8b949e">quality score:</text>
+  <text x="370" y="115" text-anchor="middle" font-family="'SF Mono','Cascadia Code','JetBrains Mono',ui-monospace,monospace" font-size="16" font-weight="700" fill="#00d4aa">6772</text>
+
+  <!-- Arrow 2→3 -->
+  <line x1="300" y1="130" x2="300" y2="155" stroke="#00d4aa" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Step 3: bottleneck -->
+  <rect x="160" y="160" width="280" height="40" fill="none" stroke="#30363d" stroke-width="1"/>
+  <text x="230" y="185" text-anchor="middle" font-family="'SF Mono','Cascadia Code','JetBrains Mono',ui-monospace,monospace" font-size="13" fill="#8b949e">bottleneck:</text>
+  <text x="380" y="185" text-anchor="middle" font-family="'SF Mono','Cascadia Code','JetBrains Mono',ui-monospace,monospace" font-size="13" font-weight="700" fill="#f0c040">modularity</text>
+
+  <!-- Arrow 3→4 -->
+  <line x1="300" y1="200" x2="300" y2="225" stroke="#00d4aa" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Step 4: agent improves -->
+  <rect x="160" y="230" width="280" height="40" fill="none" stroke="#30363d" stroke-width="1"/>
+  <text x="300" y="255" text-anchor="middle" font-family="'SF Mono','Cascadia Code','JetBrains Mono',ui-monospace,monospace" font-size="14" fill="#c9d1d9">AI agent improves the code</text>
+
+  <!-- Arrow 4→5 -->
+  <line x1="300" y1="270" x2="300" y2="295" stroke="#00d4aa" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Step 5: improved score -->
+  <rect x="160" y="300" width="280" height="40" fill="none" stroke="#00d4aa" stroke-width="1.5" opacity="0.6"/>
+  <text x="220" y="325" text-anchor="middle" font-family="'SF Mono','Cascadia Code','JetBrains Mono',ui-monospace,monospace" font-size="13" fill="#8b949e">quality score:</text>
+  <text x="350" y="325" text-anchor="middle" font-family="'SF Mono','Cascadia Code','JetBrains Mono',ui-monospace,monospace" font-size="16" font-weight="700" fill="#00d4aa">7891</text>
+  <text x="415" y="325" text-anchor="middle" font-family="'SF Mono','Cascadia Code','JetBrains Mono',ui-monospace,monospace" font-size="11" fill="#3fb950">▲ better</text>
+
+  <!-- Loop arrow: from bottom, right side, back up to top -->
+  <!-- Down from step 5 -->
+  <line x1="300" y1="340" x2="300" y2="370" stroke="#00d4aa" stroke-width="1.5" opacity="0.5"/>
+  <!-- Right along bottom -->
+  <line x1="300" y1="370" x2="500" y2="370" stroke="#00d4aa" stroke-width="1.5" opacity="0.5"/>
+  <!-- Up on right side -->
+  <line x1="500" y1="370" x2="500" y2="40" stroke="#00d4aa" stroke-width="1.5" opacity="0.5"/>
+  <!-- Left back to top, with arrow -->
+  <line x1="500" y1="40" x2="445" y2="40" stroke="#00d4aa" stroke-width="1.5" opacity="0.5" marker-end="url(#arrow-dim)"/>
+
+  <!-- "rescan" label on the loop -->
+  <text x="510" y="210" text-anchor="start" font-family="'SF Mono','Cascadia Code','JetBrains Mono',ui-monospace,monospace" font-size="11" fill="#00d4aa" opacity="0.6" transform="rotate(90, 510, 210)">rescan</text>
+
+  <!-- Iteration label -->
+  <text x="300" y="405" text-anchor="middle" font-family="'SF Mono','Cascadia Code','JetBrains Mono',ui-monospace,monospace" font-size="11" fill="#484f58">each iteration → recursive self-improvement</text>
+</svg>

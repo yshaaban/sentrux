@@ -42,19 +42,9 @@
 
 ## How it works
 
-```
-┌───────────────────────────────────────────────────────┐
-│                                                       │
-│   sentrux scans code ──→ quality score: 6772          │
-│          ↑                       ↓                    │
-│          │              "modularity is lowest"         │
-│          │                       ↓                    │
-│          │              agent improves code            │
-│          │                       ↓                    │
-│          └──── rescan ← quality score: 7891 (better)  │
-│                                                       │
-└───────────────────────────────────────────────────────┘
-```
+<div align="center">
+<img src="assets/how-it-works.svg" width="600" alt="How sentrux works: scan → score → agent improves → rescan → better score → repeat">
+</div>
 
 
 ## Quick Start
