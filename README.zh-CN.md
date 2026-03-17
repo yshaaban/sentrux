@@ -19,7 +19,7 @@
 
 [English](README.md) | **中文** | [Deutsch](README.de.md) | [日本語](README.ja.md)
 
-[安装](#安装) · [快速开始](#快速开始) · [MCP 集成](#mcp-服务器) · [规则引擎](#规则引擎) · [Releases](https://github.com/sentrux/sentrux/releases)
+[工作原理](#工作原理) · [快速开始](#快速开始) · [MCP 集成](#mcp-服务器) · [规则引擎](#规则引擎) · [Releases](https://github.com/sentrux/sentrux/releases)
 
 </div>
 
@@ -38,74 +38,19 @@
 </div>
 
 <div align="center">
-<img src="assets/screenshot-health.gif" width="360" alt="Quality Signal 6772">
-<br>
-<sub><b>Quality: 6772</b> — 5 个根因指标：modularity 3711、acyclicity 10000、depth 6154、equality 7172、redundancy 8696</sub>
+<img src="assets/screenshot-health.gif" width="360" alt="Quality Signal">
 </div>
 
-<br>
-
-## 一个没人谈论的问题
-
-你用 Claude Code 或 Cursor 开始一个项目。第一天像魔法一样——Agent 写出干净的代码，理解你的意图，快速交付功能。
-
-然后，某些东西开始变化。
-
-Agent 开始幻想不存在的函数。它把新代码放错了位置。它在昨天刚改过的文件里引入 bug。你要求一个简单的功能，它却搞坏了其他三个地方。你花在修复 Agent 输出上的时间，比自己写还多。
-
-所有人都以为 AI 变笨了。**不是的。** 是你的代码库变烂了。
-
-事情是这样发生的：当你用 IDE 的时候，你能看到文件树，你打开文件，你在脑子里建立了一个架构的心智模型——哪个模块做什么，它们怎么连接，什么东西该放在哪里。你就是那个掌舵者。每一次编辑都经过你对整体的理解。
-
-然后 AI Agent 把我们带到了终端。Agent 每次会话修改几十个文件。你看到的只是一行行 `Modified src/foo.rs`——但你失去了空间感知。你看不到这个文件在依赖图中的位置。你看不到它刚刚创建了一个循环依赖。你看不到三个模块现在都依赖了一个本应是内部的文件。很多开发者让 AI Agent 构建整个应用程序，从头到尾都没有打开过文件浏览器。
-
-**你已经失去了控制。而你甚至还不知道。**
-
-每一次 AI 会话都在悄悄降解你的架构。相同的函数名，不同的功能，散落在不同文件中。不相关的代码堆在同一个文件夹里。依赖关系缠绕成意大利面条。当 Agent 搜索你的项目时，它找到二十个互相矛盾的结果——然后选了错误的那个。每次会话让混乱更严重，每次混乱让下次会话更困难。
-
-这是 AI 辅助开发的一个肮脏秘密：**AI 生成代码越快，你的代码库就越快变得无法治理。**
-
-传统的回答是"先规划好架构，再让 AI 实现"——听起来对，但没抓住重点。像 GitHub 的 [Spec Kit](https://github.com/github/spec-kit) 就试图走这条路：在写代码之前生成详细的规范和计划。但实际使用中，它[重新发明了瀑布流](https://blog.scottlogic.com/2025/11/26/putting-spec-kit-through-its-paces-radical-idea-or-reinvented-waterfall.html)——产出大量 markdown 文档，却对实际生成的代码完全没有可见性。没有反馈回路。无法检测实现何时偏离了规范。没有任何结构分析。规范进去了，Agent 写了代码，没有人检查产出了什么。
-
-而且这也不是任何人实际使用 AI Agent 的方式。你快速原型，通过对话迭代，跟着灵感走，让创意驱动代码。这种创造性的流程正是 AI Agent 强大的原因，也正是它摧毁代码库的原因。
-
-**你不需要更好的计划。你需要更好的传感器。**
-
-## 解决方案
-
-**sentrux 是缺失的反馈回路。**
-
-每一个能规模化运行的系统都有一个：传感器观察现实，规范定义"好"，执行器纠正偏差。编译器闭合了语法层的反馈回路。测试套件闭合了行为层的反馈回路。代码检查器闭合了风格层的反馈回路。
-
-但架构——这个改动是否符合系统设计？这个抽象会不会随着代码增长带来问题？——没有传感器，没有执行器。只有人类能做出这种判断，而人类跟不上机器速度的代码生成。
-
-**sentrux 在架构层闭合了反馈回路。**
-
-它实时监视你的代码库——不是看 diff，不是看终端输出——是*真实的结构*。每一个文件，每一条依赖，每一个架构关系。可视化为一个实时交互式的 treemap，随着 Agent 写代码实时更新。
-
-14 个健康维度。从 A 到 F 评分。毫秒级计算。
-
-当架构退化时，你立刻就能看到——而不是两周后一切崩溃、没人记得是哪次会话导致的。
-
-sentrux 给你传感器，你的规则给出规范，Agent 是执行器。**回路闭合了。**
-
-<br>
+## 工作原理
 
 <div align="center">
-<table>
-<tr>
-<td align="center" width="33%"><b>可视化</b><br><sub>实时 treemap + 依赖边<br>Agent 修改文件时文件会发光</sub></td>
-<td align="center" width="33%"><b>度量</b><br><sub>5 个根因指标，0–10000 连续评分：<br>模块化、无环性、深度、均衡性、冗余度</sub></td>
-<td align="center" width="33%"><b>治理</b><br><sub>质量门禁拦截退化<br>规则引擎强制约束</sub></td>
-</tr>
-</table>
+<img src="assets/how-it-works.svg" width="600" alt="How sentrux works">
 </div>
 
-<br>
 
-## 安装
+## 快速开始
 
-**第 1 步 — 安装**（macOS · Linux · Windows）
+**安装**（macOS · Linux · Windows）
 
 **macOS**
 ```bash
@@ -117,17 +62,14 @@ brew install sentrux/tap/sentrux
 curl -fsSL https://raw.githubusercontent.com/sentrux/sentrux/main/install.sh | sh
 ```
 
-**Windows**
+**Windows** — 从 [Releases](https://github.com/sentrux/sentrux/releases) 下载，或：
 ```
-# cmd.exe 和 PowerShell 均可
 curl -L -o sentrux.exe https://github.com/sentrux/sentrux/releases/latest/download/sentrux-windows-x86_64.exe
 ```
 
-或直接从 [Releases](https://github.com/sentrux/sentrux/releases) 下载。
+纯 Rust 实现。单一二进制文件。无运行时依赖。通过 tree-sitter 支持 **52 种语言**。支持 **macOS**、**Linux** 和 **Windows**。
 
-纯 Rust 实现。单一二进制文件。无运行时依赖。支持 **macOS**、**Linux** 和 **Windows**。通过 tree-sitter 支持 52 种语言。
-
-**第 2 步 — 运行**
+**运行**
 
 ```bash
 sentrux                    # 打开 GUI——项目的实时 treemap
@@ -137,7 +79,7 @@ sentrux gate --save .      # Agent 会话前保存基线
 sentrux gate .             # 会话后比较——拦截退化
 ```
 
-**第 3 步 — 连接到你的 AI Agent（可选）**
+**连接到你的 AI Agent（可选）**
 
 通过 [MCP](https://modelcontextprotocol.io) 让你的 Agent 实时访问结构健康状况。
 
@@ -180,25 +122,85 @@ WGPU_BACKEND=vulkan sentrux    # 强制使用 Vulkan
 WGPU_BACKEND=gl sentrux        # 强制使用 OpenGL
 ```
 
+<br>
+
+## 一个没人谈论的问题
+
+你用 Claude Code 或 Cursor 开始一个项目。第一天像魔法一样——Agent 写出干净的代码，理解你的意图，快速交付功能。
+
+然后，某些东西开始变化。
+
+Agent 开始幻想不存在的函数。它把新代码放错了位置。它在昨天刚改过的文件里引入 bug。你要求一个简单的功能，它却搞坏了其他三个地方。你花在修复 Agent 输出上的时间，比自己写还多。
+
+所有人都以为 AI 变笨了。**不是的。** 是你的代码库变烂了。
+
+事情是这样发生的：当你用 IDE 的时候，你能看到文件树，你打开文件，你在脑子里建立了一个架构的心智模型——哪个模块做什么，它们怎么连接，什么东西该放在哪里。你就是那个掌舵者。每一次编辑都经过你对整体的理解。
+
+然后 AI Agent 把我们带到了终端。Agent 每次会话修改几十个文件。你看到的只是一行行 `Modified src/foo.rs`——但你失去了空间感知。你看不到这个文件在依赖图中的位置。你看不到它刚刚创建了一个循环依赖。你看不到三个模块现在都依赖了一个本应是内部的文件。很多开发者让 AI Agent 构建整个应用程序，从头到尾都没有打开过文件浏览器。
+
+**你已经失去了控制。而你甚至还不知道。**
+
+每一次 AI 会话都在悄悄降解你的架构。相同的函数名，不同的功能，散落在不同文件中。不相关的代码堆在同一个文件夹里。依赖关系缠绕成意大利面条。当 Agent 搜索你的项目时，它找到二十个互相矛盾的结果——然后选了错误的那个。每次会话让混乱更严重，每次混乱让下次会话更困难。
+
+这是 AI 辅助开发的一个肮脏秘密：**AI 生成代码越快，你的代码库就越快变得无法治理。**
+
+传统的回答是"先规划好架构，再让 AI 实现"——听起来对，但没抓住重点。像 GitHub 的 [Spec Kit](https://github.com/github/spec-kit) 就试图走这条路：在写代码之前生成详细的规范和计划。但实际使用中，它[重新发明了瀑布流](https://blog.scottlogic.com/2025/11/26/putting-spec-kit-through-its-paces-radical-idea-or-reinvented-waterfall.html)——产出大量 markdown 文档，却对实际生成的代码完全没有可见性。没有反馈回路。无法检测实现何时偏离了规范。没有任何结构分析。规范进去了，Agent 写了代码，没有人检查产出了什么。
+
+而且这也不是任何人实际使用 AI Agent 的方式。你快速原型，通过对话迭代，跟着灵感走，让创意驱动代码。这种创造性的流程正是 AI Agent 强大的原因，也正是它摧毁代码库的原因。
+
+**你不需要更好的计划。你需要更好的传感器。**
+
+## 解决方案
+
+**sentrux 是缺失的反馈回路。**
+
+每一个能规模化运行的系统都有一个：传感器观察现实，规范定义"好"，执行器纠正偏差。编译器闭合了语法层的反馈回路。测试套件闭合了行为层的反馈回路。代码检查器闭合了风格层的反馈回路。
+
+但架构——这个改动是否符合系统设计？这个抽象会不会随着代码增长带来问题？——没有传感器，没有执行器。只有人类能做出这种判断，而人类跟不上机器速度的代码生成。
+
+**sentrux 在架构层闭合了反馈回路。**
+
+它实时监视你的代码库——不是看 diff，不是看终端输出——是*真实的结构*。每一个文件，每一条依赖，每一个架构关系。可视化为一个实时交互式的 treemap，随着 Agent 写代码实时更新。
+
+5 个根因指标。一个连续评分。毫秒级计算。
+
+当架构退化时，你立刻就能看到——而不是两周后一切崩溃、没人记得是哪次会话导致的。
+
+sentrux 给你传感器，你的规则给出规范，Agent 是执行器。**回路闭合了。**
+
+<br>
+
+<div align="center">
+<table>
+<tr>
+<td align="center" width="33%"><b>可视化</b><br><sub>实时 treemap + 依赖边<br>Agent 修改文件时文件会发光</sub></td>
+<td align="center" width="33%"><b>度量</b><br><sub>5 个根因指标，0–10000 连续评分：<br>模块化、无环性、深度、均衡性、冗余度</sub></td>
+<td align="center" width="33%"><b>治理</b><br><sub>质量门禁拦截退化<br>规则引擎强制约束</sub></td>
+</tr>
+</table>
+</div>
+
+<br>
+
 ## MCP 服务器
 
 **Agent 工作流程**
 
 ```
 Agent: scan("/Users/me/myproject")
-  → { structure_grade: "B", architecture_grade: "B", files: 139 }
+  → { quality_signal: 7342, files: 139, bottleneck: "modularity" }
 
 Agent: session_start()
-  → { status: "Baseline saved", grade: "B" }
+  → { status: "Baseline saved", quality_signal: 7342 }
 
   ... Agent 写了 500 行代码 ...
 
 Agent: session_end()
-  → { pass: false, grade_before: "B", grade_after: "C",
-      summary: "Architecture degraded during this session" }
+  → { pass: false, signal_before: 7342, signal_after: 6891,
+      summary: "Quality degraded during this session" }
 ```
 
-15 个工具：`scan` · `health` · `architecture` · `coupling` · `cycles` · `hottest` · `evolution` · `dsm` · `test_gaps` · `check_rules` · `session_start` · `session_end` · `rescan` · `blast_radius` · `level`
+9 个工具：`scan` · `health` · `session_start` · `session_end` · `rescan` · `check_rules` · `evolution` · `dsm` · `test_gaps`
 
 ## 规则引擎
 
@@ -231,7 +233,7 @@ reason = "App 不应依赖 core 内部实现"
 
 ```bash
 sentrux check .
-# ✓ 所有规则通过 — 结构：B  架构：B
+# ✓ 所有规则通过 — Quality: 7342
 ```
 
 ## 支持的语言
