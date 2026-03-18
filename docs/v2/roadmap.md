@@ -357,7 +357,7 @@ Status: partial
 - [-] add bridge contract tests for the persistent Node subprocess
 - [-] capture initial `parallel-code` benchmark artifact
 - [-] add performance regression benchmarks
-- [ ] add false-positive review process for new heuristics
+- [x] add false-positive review process for new heuristics
 - [-] add confidence-report regression tests
 - [-] add v1/v2 baseline migration tests
 - [x] verify case-study examples against the current target repo before docs or demos cite them

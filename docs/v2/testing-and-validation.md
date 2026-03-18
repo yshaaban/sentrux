@@ -126,6 +126,10 @@ Process:
 3. classify true positive, acceptable warning, or false positive
 4. block promotion of the analyzer if false positives are too high
 
+Reference workflow:
+
+- [False-Positive Review](./false-positive-review.md)
+
 ## Layer 6: Baseline And Migration Tests
 
 Scope:
@@ -208,7 +212,7 @@ it should have:
 - [x] create initial scoped golden outputs for `parallel-code`
 - [-] expand `parallel-code` goldens to include `session_end` and gate-oriented regression cases
 - [-] add synthetic gate/session regression scenarios for closed-domain changes
-- [ ] add analyzer false-positive review checklist
+- [x] add analyzer false-positive review checklist
 - [-] capture initial `parallel-code` benchmark artifact
 - [-] add performance regression benchmarks
 - [-] add baseline migration tests

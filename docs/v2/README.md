@@ -49,6 +49,7 @@ The next version should answer questions like:
 - [Analyzer Pipeline](./analyzer-pipeline.md)
 - [TypeScript Bridge](./typescript-bridge.md)
 - [Testing And Validation](./testing-and-validation.md)
+- [False-Positive Review](./false-positive-review.md)
 - [Baseline Migration](./baseline-migration.md)
 - [Rules V2](./rules-v2.md)
 - [MCP And CLI](./mcp-and-cli.md)

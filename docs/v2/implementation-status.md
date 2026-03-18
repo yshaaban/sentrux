@@ -282,10 +282,10 @@ Delivered:
 - initial scoped golden outputs for `parallel-code`
 - initial cold/warm benchmark artifact for `parallel-code`
 - versioned benchmark comparison flow with separate warm patch-safety timings
+- false-positive review workflow and promotion checklist
 
 Still missing:
 
-- false-positive review process
 - confidence-report regression tests
 - full v1/v2 migration suite, including schema/version mismatch cases
 - release-grade `parallel-code` goldens for `session_end` and gate flows

@@ -244,7 +244,7 @@ Tasks:
 - [-] add touched-concept gate golden scenarios
 - [-] add synthetic patch fixtures for closed-domain propagation
 - [-] turn one-off benchmark script into a comparable regression benchmark flow
-- [ ] add false-positive review checklist and sample set
+- [x] add false-positive review checklist and sample set
 - [-] add baseline migration coexistence tests
 
 Acceptance criteria:
