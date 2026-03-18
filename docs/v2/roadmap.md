@@ -311,7 +311,7 @@ Exit criteria:
 
 Open gap:
 
-- the example rules file now works on the real repo, but the proof loop is not closed until goldens, benchmarks, and follow-up analyzer fixes land
+- the example rules file now works on the real repo, but broader regression coverage and more stable benchmark conditions are still needed
 
 ## Tier 3: Advanced Static Analysis
 
@@ -351,8 +351,8 @@ Open gap:
 Status: partial
 
 - [x] create initial scoped golden outputs for `parallel-code`
-- [-] expand `parallel-code` goldens to cover `session_end` and touched-concept gate scenarios
-- [-] add synthetic touched-concept gate and `session_end` regression scenarios
+- [x] expand `parallel-code` goldens to cover `session_end` and touched-concept gate scenarios
+- [x] add synthetic touched-concept gate and `session_end` regression scenarios
 - [-] add fixture repos for semantic frontends
 - [-] add bridge contract tests for the persistent Node subprocess
 - [-] capture initial `parallel-code` benchmark artifact
@@ -364,7 +364,7 @@ Status: partial
 
 Open gap:
 
-- implementation is ahead of proof, benchmarking, and release-grade validation
+- implementation is still ahead of proof and release-grade validation, but the `parallel-code` pass/fail golden loop and warm patch-safety benchmark loop are now in place
 
 ## Target Outcome On `parallel-code`
 
@@ -394,4 +394,5 @@ Tier 3 should improve the repo story, but it is not required for the wedge to be
 Current reality:
 
 - the codebase is close to a useful MCP beta
-- the real `parallel-code` proof loop is partially closed, and the first scoped goldens have already identified the next analyzer corrections
+- the real `parallel-code` proof loop now includes checked-in pass and fail goldens plus a warm patch-safety benchmark loop
+- cold-path benchmark stability and broader validation coverage are still the next proof gaps

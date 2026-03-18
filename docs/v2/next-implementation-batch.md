@@ -46,7 +46,13 @@ At the start of this batch:
 - the core wedge is mostly implemented in MCP
 - suppressions are enforced across findings, gate, session, and concept-inspection outputs
 - clone findings now have stable ids, git-aware risk context, and deterministic ordering
-- `parallel-code` has real scoped goldens and a cold/warm benchmark
+- `parallel-code` now has real scoped pass/fail goldens and a cold/warm benchmark
+
+Recent learning:
+
+- the real-repo proof loop is stronger now because a deterministic fail-path mutation exists in the golden harness
+- the warm no-change patch-safety path improved once cached scan reuse and the empty-change semantic short-circuit landed
+- the remaining performance uncertainty is now mostly cold-path noise and residual file-hash/structural work
 
 Relevant references:
 

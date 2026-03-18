@@ -281,17 +281,18 @@ Delivered:
 - v2-only and invalid-v1-baseline coexistence tests
 - initial scoped golden outputs for `parallel-code`
 - checked-in real-repo `session_start`, `gate`, and `session_end` pass goldens captured from a temporary local clone
+- checked-in real-repo regression-path `gate` and `session_end` fail goldens captured from a deterministic temporary mutation on a local clone
 - initial cold/warm benchmark artifact for `parallel-code`
 - versioned benchmark comparison flow with separate warm patch-safety timings
+- no-change patch-safety reuse for cached scan state plus an empty-change semantic short-circuit
 - false-positive review workflow and promotion checklist
 
 Still missing:
 
 - confidence-report regression tests
 - full v1/v2 migration suite, including schema/version mismatch cases
-- release-grade `parallel-code` regression-path goldens for `session_end` and gate flows
 - performance regression benchmarks beyond the initial benchmark artifact
-- scan-bound performance work on `gate` and `session_end`
+- remaining patch-safety performance work beyond the new no-change fast path, especially file-hash walk cost and cold-path variance
 
 ## Where We Are Relative To The Plan
 

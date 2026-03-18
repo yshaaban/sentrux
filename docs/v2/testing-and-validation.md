@@ -104,11 +104,12 @@ Current status:
 
 - initial scoped `parallel-code` goldens exist in [examples/parallel-code-golden](./examples/parallel-code-golden/README.md)
 - checked-in real-repo pass goldens now include `session_start`, `gate`, and `session_end` captured from a temporary local clone of `parallel-code`
+- checked-in real-repo regression goldens now include deterministic fail-path `gate` and `session_end` cases on a temporary local clone of `parallel-code`
 - initial benchmark notes exist in [examples/parallel-code-benchmark.md](./examples/parallel-code-benchmark.md)
 - synthetic touched-concept gate and `session_end` regression scenarios now exist in the MCP handler test suite
 - initial migration/coexistence coverage now verifies that v2 gate and `session_end` still work when only the v2 session baseline is usable
 - the benchmark harness now supports versioned artifact comparison and separate warm patch-safety timings
-- full release-grade goldens still need real-repo regression-path `gate` / `session_end` cases and broader regression coverage
+- full release-grade validation still needs broader regression coverage beyond the current single real-repo fail path, plus confidence-report regression checks
 
 ## Layer 5: False-Positive Review
 
