@@ -254,21 +254,19 @@ fn fresh_mcp_state() -> McpState {
 
 fn refresh_changed_scope(state: &mut McpState, root: &Path) -> Result<BTreeSet<String>, String> {
     let session_v2 = current_session_v2_baseline(state, root)?;
-    let bundle = do_scan(root)?;
-    let current_file_hashes = snapshot_file_hashes(root, &bundle.snapshot);
-    let changed_files = changed_files_from_session_context(
-        root,
-        &bundle.snapshot,
-        &current_file_hashes,
-        session_v2.as_ref(),
-    );
+    let context = prepare_patch_check_context(state, root, session_v2.as_ref())?;
+    let changed_files = context.changed_files.clone();
     let persisted_baseline = load_persisted_baseline(root).ok().flatten();
-    update_scan_cache(
-        state,
-        root.to_path_buf(),
-        bundle,
-        persisted_baseline.or(state.baseline.clone()),
-    );
+    if !context.reused_cached_scan {
+        update_scan_cache(
+            state,
+            root.to_path_buf(),
+            context.bundle,
+            persisted_baseline.or(state.baseline.clone()),
+        );
+    } else if persisted_baseline.is_some() {
+        state.baseline = persisted_baseline;
+    }
     Ok(changed_files)
 }
 
@@ -392,6 +390,51 @@ fn update_scan_cache(
     state.cached_evolution = None;
 }
 
+fn cached_scan_bundle(state: &McpState, root: &Path) -> Option<ScanBundle> {
+    if state.scan_root.as_deref() != Some(root) {
+        return None;
+    }
+
+    Some(ScanBundle {
+        snapshot: (*state.cached_snapshot.as_ref()?).as_ref().clone(),
+        metadata: state.cached_scan_metadata.clone()?,
+        health: state.cached_health.clone()?,
+        arch_report: state.cached_arch.clone()?,
+    })
+}
+
+struct PatchCheckContext {
+    bundle: ScanBundle,
+    changed_files: BTreeSet<String>,
+    reused_cached_scan: bool,
+}
+
+fn prepare_patch_check_context(
+    state: &McpState,
+    root: &Path,
+    session_v2: Option<&SessionV2Baseline>,
+) -> Result<PatchCheckContext, String> {
+    if let Some(bundle) = cached_scan_bundle(state, root) {
+        let changed_files = changed_files_from_session_context(root, &bundle.snapshot, session_v2);
+        if changed_files.is_empty() {
+            return Ok(PatchCheckContext {
+                bundle,
+                changed_files,
+                reused_cached_scan: true,
+            });
+        }
+    }
+
+    let bundle = do_scan(root)?;
+    let changed_files = changed_files_from_session_context(root, &bundle.snapshot, session_v2);
+
+    Ok(PatchCheckContext {
+        bundle,
+        changed_files,
+        reused_cached_scan: false,
+    })
+}
+
 fn working_tree_changed_files(root: &Path) -> BTreeSet<String> {
     let output = match Command::new("git")
         .arg("-C")
@@ -478,11 +521,13 @@ fn filter_changed_files_to_snapshot(
 fn changed_files_from_session_context(
     root: &Path,
     snapshot: &Snapshot,
-    current_file_hashes: &BTreeMap<String, u64>,
     session_v2: Option<&SessionV2Baseline>,
 ) -> BTreeSet<String> {
     match session_v2 {
-        Some(session_v2) => diff_file_hashes(&session_v2.file_hashes, current_file_hashes),
+        Some(session_v2) => {
+            let current_file_hashes = snapshot_file_hashes(root, snapshot);
+            diff_file_hashes(&session_v2.file_hashes, &current_file_hashes)
+        }
         None => filter_changed_files_to_snapshot(working_tree_changed_files(root), snapshot),
     }
 }
@@ -857,16 +902,14 @@ fn compute_touched_concept_gate(
     strict: bool,
 ) -> Result<Value, String> {
     let session_v2 = current_session_v2_baseline(state, root)?;
-    let bundle = do_scan(root)?;
-    let current_file_hashes = snapshot_file_hashes(root, &bundle.snapshot);
-    let changed_files = changed_files_from_session_context(
-        root,
-        &bundle.snapshot,
-        &current_file_hashes,
-        session_v2.as_ref(),
-    );
+    let context = prepare_patch_check_context(state, root, session_v2.as_ref())?;
+    let bundle = context.bundle;
+    let changed_files = context.changed_files;
 
-    state.cached_semantic = None;
+    if !context.reused_cached_scan {
+        state.cached_semantic = None;
+        state.cached_evolution = None;
+    }
     let (current_clone_findings, clone_error) = clone_findings_for_health(
         state,
         root,
@@ -885,34 +928,57 @@ fn compute_touched_concept_gate(
         finding_values(&current_clone_findings, &all_semantic_findings),
     );
     let current_finding_payloads = finding_payload_map(&suppression_application.visible_findings);
-    state.cached_semantic = None;
-    let (changed_semantic_findings, changed_obligations, changed_semantic_error) =
-        semantic_findings_and_obligations(
+    let (rules_config, _) = load_v2_rules_config(root);
+    let (
+        _changed_semantic_findings,
+        changed_obligations,
+        changed_semantic_error,
+        touched_concepts,
+        changed_suppression_application,
+    ) = if changed_files.is_empty() {
+        (
+            Vec::new(),
+            Vec::new(),
+            None,
+            BTreeSet::new(),
+            SuppressionApplication::default(),
+        )
+    } else {
+        state.cached_semantic = None;
+        let (changed_semantic_findings, changed_obligations, changed_semantic_error) =
+            semantic_findings_and_obligations(
+                state,
+                root,
+                crate::metrics::v2::ObligationScope::Changed,
+                &changed_files,
+            );
+        let changed_state_reports = changed_state_integrity_reports(
             state,
             root,
-            crate::metrics::v2::ObligationScope::Changed,
+            &rules_config,
+            &changed_obligations,
             &changed_files,
         );
-    let (rules_config, _) = load_v2_rules_config(root);
-    let changed_state_reports = changed_state_integrity_reports(
-        state,
-        root,
-        &rules_config,
-        &changed_obligations,
-        &changed_files,
-    );
-    let mut touched_concepts =
-        crate::metrics::v2::changed_concept_ids_from_files(&rules_config, &changed_files)
-            .into_iter()
-            .collect::<BTreeSet<_>>();
-    touched_concepts.extend(crate::metrics::v2::changed_state_model_ids_from_files(
-        &rules_config,
-        &changed_files,
-    ));
-    touched_concepts.extend(state_model_ids_from_reports(&changed_state_reports));
-    touched_concepts.extend(state_model_ids_from_findings(&changed_semantic_findings));
-    let changed_findings = serialized_values(&changed_semantic_findings);
-    let changed_suppression_application = apply_suppressions(&rules_config, changed_findings);
+        let mut touched_concepts =
+            crate::metrics::v2::changed_concept_ids_from_files(&rules_config, &changed_files)
+                .into_iter()
+                .collect::<BTreeSet<_>>();
+        touched_concepts.extend(crate::metrics::v2::changed_state_model_ids_from_files(
+            &rules_config,
+            &changed_files,
+        ));
+        touched_concepts.extend(state_model_ids_from_reports(&changed_state_reports));
+        touched_concepts.extend(state_model_ids_from_findings(&changed_semantic_findings));
+        let changed_findings = serialized_values(&changed_semantic_findings);
+        let changed_suppression_application = apply_suppressions(&rules_config, changed_findings);
+        (
+            changed_semantic_findings,
+            changed_obligations,
+            changed_semantic_error,
+            touched_concepts,
+            changed_suppression_application,
+        )
+    };
 
     let introduced_findings = session_v2
         .as_ref()
@@ -962,6 +1028,8 @@ fn compute_touched_concept_gate(
         "No blocking touched-concept regressions detected"
     };
     let persisted_baseline = load_persisted_baseline(root).ok().flatten();
+    let preserved_semantic = state.cached_semantic.clone();
+    let preserved_evolution = state.cached_evolution.clone();
 
     let response = json!({
         "decision": decision,
@@ -981,12 +1049,18 @@ fn compute_touched_concept_gate(
         "scan_trust": scan_trust_json(&bundle.metadata),
     });
 
-    update_scan_cache(
-        state,
-        root.to_path_buf(),
-        bundle,
-        persisted_baseline.or(state.baseline.clone()),
-    );
+    if !context.reused_cached_scan {
+        update_scan_cache(
+            state,
+            root.to_path_buf(),
+            bundle,
+            persisted_baseline.or(state.baseline.clone()),
+        );
+        state.cached_semantic = preserved_semantic;
+        state.cached_evolution = preserved_evolution;
+    } else if persisted_baseline.is_some() {
+        state.baseline = persisted_baseline;
+    }
 
     Ok(response)
 }
@@ -1750,10 +1824,11 @@ fn distinct_file_count(group: &crate::metrics::DuplicateGroup) -> usize {
 mod tests {
     use super::{
         apply_suppressions, build_exact_clone_findings, cli_evaluate_v2_gate, cli_save_v2_session,
-        distinct_file_count, fresh_mcp_state, handle_concepts, handle_explain_concept,
-        handle_session_end, handle_state, handle_trace_symbol, load_persisted_session_v2,
-        load_v2_rules_config, overall_confidence_0_10000, save_session_v2_baseline,
-        state_model_ids_from_findings, state_model_ids_from_reports,
+        distinct_file_count, do_scan, fresh_mcp_state, handle_concepts, handle_explain_concept,
+        handle_gate, handle_obligations, handle_scan, handle_session_end, handle_session_start,
+        handle_state, handle_trace_symbol, load_persisted_session_v2, load_v2_rules_config,
+        overall_confidence_0_10000, prepare_patch_check_context, save_session_v2_baseline,
+        state_model_ids_from_findings, state_model_ids_from_reports, update_scan_cache,
     };
     use crate::analysis::scanner::common::{ScanMetadata, ScanMode};
     use crate::analysis::semantic::{
@@ -2318,6 +2393,46 @@ mod tests {
                 .map(|files| files.len()),
             Some(0)
         );
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn patch_check_context_reuses_cached_scan_when_nothing_changed() {
+        let root = cli_gate_fixture_root();
+        let bundle = do_scan(&root).expect("scan fixture");
+        let mut state = fresh_mcp_state();
+        update_scan_cache(&mut state, root.clone(), bundle, None);
+
+        let context =
+            prepare_patch_check_context(&state, &root, None).expect("prepare patch context");
+
+        assert!(context.reused_cached_scan);
+        assert!(context.changed_files.is_empty());
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn gate_preserves_derived_caches_on_no_change_path() {
+        let root = closed_domain_gate_fixture_root();
+        let mut state = fresh_mcp_state();
+        handle_scan(
+            &json!({"path": root.to_string_lossy().to_string()}),
+            &Tier::Free,
+            &mut state,
+        )
+        .expect("scan fixture");
+        handle_session_start(&json!({}), &Tier::Free, &mut state).expect("session start");
+        handle_obligations(&json!({}), &Tier::Free, &mut state).expect("populate semantic cache");
+
+        assert!(state.cached_semantic.is_some());
+
+        let response = handle_gate(&json!({}), &Tier::Free, &mut state).expect("gate");
+
+        assert_eq!(response["decision"], "pass");
+        assert_eq!(response["summary"], "No working-tree changes detected");
+        assert!(state.cached_semantic.is_some());
 
         let _ = std::fs::remove_dir_all(root);
     }
@@ -2942,18 +3057,16 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         },
     };
 
-    let bundle = do_scan(&root)?;
+    let context = prepare_patch_check_context(state, &root, session_v2.as_ref())?;
+    let bundle = context.bundle;
     let legacy_diff = baseline
         .as_ref()
         .map(|baseline| baseline.diff(&bundle.health));
-    let current_file_hashes = snapshot_file_hashes(&root, &bundle.snapshot);
-    let changed_files = changed_files_from_session_context(
-        &root,
-        &bundle.snapshot,
-        &current_file_hashes,
-        session_v2.as_ref(),
-    );
-    state.cached_semantic = None;
+    let changed_files = context.changed_files;
+    if !context.reused_cached_scan {
+        state.cached_semantic = None;
+        state.cached_evolution = None;
+    }
     let (current_clone_findings, clone_error) = clone_findings_for_health(
         state,
         &root,
@@ -2972,39 +3085,61 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         finding_values(&current_clone_findings, &all_semantic_findings),
     );
     let current_finding_payloads = finding_payload_map(&suppression_application.visible_findings);
-    state.cached_semantic = None;
-    let (changed_semantic_findings, changed_obligations, changed_semantic_error) =
-        semantic_findings_and_obligations(
+    let (rules_config, _) = load_v2_rules_config(&root);
+    let (
+        _changed_semantic_findings,
+        changed_obligations,
+        changed_semantic_error,
+        changed_suppression_application,
+        changed_concepts,
+    ) = if changed_files.is_empty() {
+        (
+            Vec::new(),
+            Vec::new(),
+            None,
+            SuppressionApplication::default(),
+            Vec::new(),
+        )
+    } else {
+        state.cached_semantic = None;
+        let (changed_semantic_findings, changed_obligations, changed_semantic_error) =
+            semantic_findings_and_obligations(
+                state,
+                &root,
+                crate::metrics::v2::ObligationScope::Changed,
+                &changed_files,
+            );
+        let mut changed_concepts =
+            crate::metrics::v2::changed_concepts_from_obligations(&changed_obligations)
+                .into_iter()
+                .collect::<BTreeSet<_>>();
+        let changed_state_reports = changed_state_integrity_reports(
             state,
             &root,
-            crate::metrics::v2::ObligationScope::Changed,
+            &rules_config,
+            &changed_obligations,
             &changed_files,
         );
-    let mut changed_concepts =
-        crate::metrics::v2::changed_concepts_from_obligations(&changed_obligations)
-            .into_iter()
-            .collect::<BTreeSet<_>>();
-    let (rules_config, _) = load_v2_rules_config(&root);
-    let changed_state_reports = changed_state_integrity_reports(
-        state,
-        &root,
-        &rules_config,
-        &changed_obligations,
-        &changed_files,
-    );
-    changed_concepts.extend(crate::metrics::v2::changed_concept_ids_from_files(
-        &rules_config,
-        &changed_files,
-    ));
-    changed_concepts.extend(crate::metrics::v2::changed_state_model_ids_from_files(
-        &rules_config,
-        &changed_files,
-    ));
-    changed_concepts.extend(state_model_ids_from_reports(&changed_state_reports));
-    changed_concepts.extend(state_model_ids_from_findings(&changed_semantic_findings));
-    let changed_findings = serialized_values(&changed_semantic_findings);
-    let changed_suppression_application = apply_suppressions(&rules_config, changed_findings);
-    let changed_concepts = changed_concepts.into_iter().collect::<Vec<_>>();
+        changed_concepts.extend(crate::metrics::v2::changed_concept_ids_from_files(
+            &rules_config,
+            &changed_files,
+        ));
+        changed_concepts.extend(crate::metrics::v2::changed_state_model_ids_from_files(
+            &rules_config,
+            &changed_files,
+        ));
+        changed_concepts.extend(state_model_ids_from_reports(&changed_state_reports));
+        changed_concepts.extend(state_model_ids_from_findings(&changed_semantic_findings));
+        let changed_findings = serialized_values(&changed_semantic_findings);
+        let changed_suppression_application = apply_suppressions(&rules_config, changed_findings);
+        (
+            changed_semantic_findings,
+            changed_obligations,
+            changed_semantic_error,
+            changed_suppression_application,
+            changed_concepts.into_iter().collect::<Vec<_>>(),
+        )
+    };
     let missing_obligations = changed_obligations
         .iter()
         .filter(|obligation| !obligation.missing_sites.is_empty())
@@ -3060,6 +3195,8 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         baseline_error =
             Some("Legacy baseline unavailable; structural delta fields were omitted".to_string());
     }
+    let preserved_semantic = state.cached_semantic.clone();
+    let preserved_evolution = state.cached_evolution.clone();
 
     let signal_before = legacy_diff
         .as_ref()
@@ -3118,7 +3255,13 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         "baseline_error": baseline_error
     });
 
-    update_scan_cache(state, root, bundle, baseline);
+    if !context.reused_cached_scan {
+        update_scan_cache(state, root, bundle, baseline);
+        state.cached_semantic = preserved_semantic;
+        state.cached_evolution = preserved_evolution;
+    } else {
+        state.baseline = baseline;
+    }
 
     Ok(result)
 }

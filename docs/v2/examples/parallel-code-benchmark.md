@@ -32,14 +32,14 @@ That is the relevant distinction for agent workflows:
 
 Primary captured run:
 
-- cold `scan`: `6785.1ms`
-- first semantic call (`concepts`): `3234.0ms`
-- total first-round session through `state`: `14126.3ms`
-- warm cached semantic round: `422.5ms`
-- warm `session_start`: `131.4ms`
-- warm `gate`: `7695.9ms`
-- warm `session_end`: `7239.6ms`
-- total warm patch-safety round: `15067.4ms`
+- cold `scan`: `8452.5ms`
+- first semantic call (`concepts`): `3372.0ms`
+- total first-round session through `state`: `16209.1ms`
+- warm cached semantic round: `538.1ms`
+- warm `session_start`: `142.3ms`
+- warm `gate`: `7265.8ms`
+- warm `session_end`: `6888.7ms`
+- total warm patch-safety round: `14297.1ms`
 
 ## What We Learned
 
@@ -55,11 +55,16 @@ Primary captured run:
    - the bridge and cached semantic facts are fast enough for repeated MCP calls
    - the next ROI is no longer bridge startup or semantic caching
 
-4. the patch-safety tools are still scan-bound
-   - warm `gate` and `session_end` each take roughly `7-8s` on the real repo even with cached semantic state
-   - the current bottleneck is repeated scan/evolution work inside those tools, not semantic reuse
+4. the warm no-change patch-safety path is measurably better, but still expensive
+   - warm `gate` improved from the previous artifact (`7983.4ms` -> `7265.8ms`)
+   - warm `session_end` improved more materially (`8965.3ms` -> `6888.7ms`)
+   - the remaining cost is no longer just repeated semantic work; file hashing and residual structural work still dominate
 
-5. the benchmark harness now needs stable inputs as well as stable timings
+5. the benchmark harness still needs more stable cold-path conditions
+   - cold timings are noisy enough to trigger comparison regressions across consecutive runs
+   - warm patch-safety comparisons are currently the more useful signal for this part of the roadmap
+
+6. the benchmark harness now needs stable inputs as well as stable timings
    - the artifact is now format-versioned so regression comparison does not compare incompatible benchmark shapes
    - future regression runs should prefer a controlled repo state or temp copy when possible
 
@@ -72,5 +77,5 @@ The next implementation step should focus on two things:
    - false-positive review workflow
 
 2. patch-safety performance
-   - reduce redundant scan/evolution work for `gate` and `session_end`
-   - preserve the already-good warm semantic path while improving the scan-bound tools
+   - reduce remaining file-hash and structural work for `gate` and `session_end`
+   - preserve the already-good warm semantic path while improving the still-expensive patch-safety tools
