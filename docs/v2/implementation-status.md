@@ -281,6 +281,7 @@ Delivered:
 - v2-only and invalid-v1-baseline coexistence tests
 - initial scoped golden outputs for `parallel-code`
 - initial cold/warm benchmark artifact for `parallel-code`
+- versioned benchmark comparison flow with separate warm patch-safety timings
 
 Still missing:
 
@@ -289,6 +290,7 @@ Still missing:
 - full v1/v2 migration suite, including schema/version mismatch cases
 - release-grade `parallel-code` goldens for `session_end` and gate flows
 - performance regression benchmarks beyond the initial benchmark artifact
+- scan-bound performance work on `gate` and `session_end`
 
 ## Where We Are Relative To The Plan
 

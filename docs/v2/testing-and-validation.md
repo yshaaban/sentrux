@@ -106,6 +106,7 @@ Current status:
 - initial benchmark notes exist in [examples/parallel-code-benchmark.md](./examples/parallel-code-benchmark.md)
 - synthetic touched-concept gate and `session_end` regression scenarios now exist in the MCP handler test suite
 - initial migration/coexistence coverage now verifies that v2 gate and `session_end` still work when only the v2 session baseline is usable
+- the benchmark harness now supports versioned artifact comparison and separate warm patch-safety timings
 - full release-grade goldens still need `session_end`, gate-oriented deltas, and broader regression coverage
 
 ## Layer 5: False-Positive Review
@@ -209,6 +210,6 @@ it should have:
 - [-] add synthetic gate/session regression scenarios for closed-domain changes
 - [ ] add analyzer false-positive review checklist
 - [-] capture initial `parallel-code` benchmark artifact
-- [ ] add performance regression benchmarks
+- [-] add performance regression benchmarks
 - [-] add baseline migration tests
 - [ ] define promotion criteria for gating analyzers

@@ -356,7 +356,7 @@ Status: partial
 - [-] add fixture repos for semantic frontends
 - [-] add bridge contract tests for the persistent Node subprocess
 - [-] capture initial `parallel-code` benchmark artifact
-- [ ] add performance regression benchmarks
+- [-] add performance regression benchmarks
 - [ ] add false-positive review process for new heuristics
 - [-] add confidence-report regression tests
 - [-] add v1/v2 baseline migration tests

@@ -1,49 +1,50 @@
 {
-  "generated_at": "2026-03-18T21:22:16.827Z",
+  "benchmark_format_version": 2,
+  "generated_at": "2026-03-18T22:44:34.504Z",
   "parallel_code_root": "<parallel-code-root>",
   "sentrux_binary": "<sentrux-root>/target/debug/sentrux",
   "benchmark": {
-    "cold_process_total_ms": 12416.3,
+    "cold_process_total_ms": 14126.3,
     "cold": {
       "scan": {
         "label": "scan",
         "tool": "scan",
-        "elapsed_ms": 9085.6,
+        "elapsed_ms": 6785.1,
         "summary": {
-          "files": 540,
-          "import_edges": 1559,
-          "quality_signal": 4973,
-          "overall_confidence_0_10000": 8036,
-          "resolved": 1560,
+          "files": 544,
+          "import_edges": 1584,
+          "quality_signal": 4964,
+          "overall_confidence_0_10000": 8047,
+          "resolved": 1585,
           "unresolved_internal": 1
         }
       },
       "concepts": {
         "label": "concepts",
         "tool": "concepts",
-        "elapsed_ms": 2895.5,
+        "elapsed_ms": 3234,
         "summary": {
           "configured_concept_count": 3,
           "matched_guardrail_test_count": 1,
-          "inferred_concept_count": 89
+          "inferred_concept_count": 98
         }
       },
       "findings": {
         "label": "findings_top12",
         "tool": "findings",
-        "elapsed_ms": 116.9,
+        "elapsed_ms": 3784.7,
         "summary": {
-          "clone_group_count": 38,
+          "clone_group_count": 41,
           "finding_count": 12,
-          "semantic_finding_count": 8
+          "semantic_finding_count": 5
         }
       },
       "explain_task_git_status": {
         "label": "explain_task_git_status",
         "tool": "explain_concept",
-        "elapsed_ms": 143.3,
+        "elapsed_ms": 129.4,
         "summary": {
-          "finding_count": 5,
+          "finding_count": 2,
           "obligation_count": 0,
           "read_count": 3,
           "write_count": 5,
@@ -53,11 +54,11 @@
       "explain_task_presentation_status": {
         "label": "explain_task_presentation_status",
         "tool": "explain_concept",
-        "elapsed_ms": 151.4,
+        "elapsed_ms": 155.5,
         "summary": {
           "finding_count": 1,
           "obligation_count": 1,
-          "read_count": 0,
+          "read_count": 7,
           "write_count": 0,
           "related_test_count": 4
         }
@@ -65,53 +66,53 @@
       "parity_server_state_bootstrap": {
         "label": "parity_server_state_bootstrap",
         "tool": "parity",
-        "elapsed_ms": 11.7,
+        "elapsed_ms": 22,
         "summary": {
           "contract_count": 1,
-          "missing_cell_count": 3,
-          "parity_score_0_10000": 6667,
-          "finding_count": 3
+          "missing_cell_count": 0,
+          "parity_score_0_10000": 10000,
+          "finding_count": 0
         }
       },
       "state": {
         "label": "state",
         "tool": "state",
-        "elapsed_ms": 11,
+        "elapsed_ms": 14.4,
         "summary": {
           "state_model_count": 2,
-          "finding_count": 2,
-          "state_integrity_score_0_10000": 0
+          "finding_count": 0,
+          "state_integrity_score_0_10000": 10000
         }
       }
     },
-    "warm_cached_total_ms": 465.7,
+    "warm_cached_total_ms": 422.5,
     "warm_cached": {
       "concepts": {
         "label": "concepts",
         "tool": "concepts",
-        "elapsed_ms": 23.4,
+        "elapsed_ms": 31.6,
         "summary": {
           "configured_concept_count": 3,
           "matched_guardrail_test_count": 1,
-          "inferred_concept_count": 89
+          "inferred_concept_count": 98
         }
       },
       "findings": {
         "label": "findings_top12",
         "tool": "findings",
-        "elapsed_ms": 120.8,
+        "elapsed_ms": 118.4,
         "summary": {
-          "clone_group_count": 38,
+          "clone_group_count": 41,
           "finding_count": 12,
-          "semantic_finding_count": 8
+          "semantic_finding_count": 5
         }
       },
       "explain_task_git_status": {
         "label": "explain_task_git_status",
         "tool": "explain_concept",
-        "elapsed_ms": 143.8,
+        "elapsed_ms": 118.6,
         "summary": {
-          "finding_count": 5,
+          "finding_count": 2,
           "obligation_count": 0,
           "read_count": 3,
           "write_count": 5,
@@ -121,11 +122,11 @@
       "explain_task_presentation_status": {
         "label": "explain_task_presentation_status",
         "tool": "explain_concept",
-        "elapsed_ms": 152.7,
+        "elapsed_ms": 128.3,
         "summary": {
           "finding_count": 1,
           "obligation_count": 1,
-          "read_count": 0,
+          "read_count": 7,
           "write_count": 0,
           "related_test_count": 4
         }
@@ -136,19 +137,55 @@
         "elapsed_ms": 13.1,
         "summary": {
           "contract_count": 1,
-          "missing_cell_count": 3,
-          "parity_score_0_10000": 6667,
-          "finding_count": 3
+          "missing_cell_count": 0,
+          "parity_score_0_10000": 10000,
+          "finding_count": 0
         }
       },
       "state": {
         "label": "state",
         "tool": "state",
-        "elapsed_ms": 11.6,
+        "elapsed_ms": 12.3,
         "summary": {
           "state_model_count": 2,
-          "finding_count": 2,
-          "state_integrity_score_0_10000": 0
+          "finding_count": 0,
+          "state_integrity_score_0_10000": 10000
+        }
+      }
+    },
+    "warm_patch_safety_total_ms": 15067.4,
+    "warm_patch_safety": {
+      "session_start": {
+        "label": "session_start",
+        "tool": "session_start",
+        "elapsed_ms": 131.4,
+        "summary": {
+          "session_finding_count": 24,
+          "suppressed_finding_count": 0
+        }
+      },
+      "gate": {
+        "label": "gate",
+        "tool": "gate",
+        "elapsed_ms": 7695.9,
+        "summary": {
+          "decision": "pass",
+          "changed_file_count": 1,
+          "introduced_finding_count": 0,
+          "missing_obligation_count": 0,
+          "obligation_completeness_0_10000": 10000
+        }
+      },
+      "session_end": {
+        "label": "session_end",
+        "tool": "session_end",
+        "elapsed_ms": 7239.6,
+        "summary": {
+          "pass": true,
+          "changed_file_count": 1,
+          "introduced_finding_count": 0,
+          "missing_obligation_count": 0,
+          "gate_decision": "pass"
         }
       }
     },
@@ -157,10 +194,21 @@
       "Downloading language grammars for v0.5.6...",
       "(one-time download, ~30MB)",
       "[░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]   0%  50 language grammars ready.",
-      "[build_project_map] 540 files, 31 unique dirs, 30 cache misses, 1.8ms",
-      "[resolve] 1560 resolved, 1 unresolved_internal, 465 unresolved_external, 73 unresolved_unknown (of 2099 total specs)",
-      "[resolve_imports] project_map 2.5ms, suffix_idx 2.9ms, suffix_resolve 27.0ms, total 32.4ms",
-      "[build_graphs] 540 files | maps 4.3ms, imports 32.6ms, calls+inherit 18.0ms, total 54.9ms | 1559 import, 3561 call, 0 inherit edges"
+      "[build_project_map] 544 files, 31 unique dirs, 30 cache misses, 2.0ms",
+      "[resolve] 1585 resolved, 1 unresolved_internal, 467 unresolved_external, 73 unresolved_unknown (of 2126 total specs)",
+      "[resolve_imports] project_map 2.7ms, suffix_idx 3.3ms, suffix_resolve 28.1ms, total 34.1ms",
+      "[build_graphs] 544 files | maps 4.4ms, imports 34.3ms, calls+inherit 20.9ms, total 59.6ms | 1584 import, 3593 call, 0 inherit edges",
+      "[evolution] walked 804 commits, skipped 90 (oid_err=0, commit_err=0, unparseable=90)",
+      "[build_project_map] 545 files, 31 unique dirs, 30 cache misses, 2.3ms",
+      "[resolve] 1586 resolved, 1 unresolved_internal, 468 unresolved_external, 73 unresolved_unknown (of 2128 total specs)",
+      "[resolve_imports] project_map 3.0ms, suffix_idx 3.6ms, suffix_resolve 27.3ms, total 33.9ms",
+      "[build_graphs] 545 files | maps 4.9ms, imports 34.3ms, calls+inherit 18.7ms, total 57.9ms | 1585 import, 3596 call, 0 inherit edges",
+      "[evolution] walked 804 commits, skipped 90 (oid_err=0, commit_err=0, unparseable=90)",
+      "[build_project_map] 545 files, 31 unique dirs, 30 cache misses, 2.0ms",
+      "[resolve] 1586 resolved, 1 unresolved_internal, 468 unresolved_external, 73 unresolved_unknown (of 2128 total specs)",
+      "[resolve_imports] project_map 2.6ms, suffix_idx 3.4ms, suffix_resolve 21.0ms, total 27.0ms",
+      "[build_graphs] 545 files | maps 4.6ms, imports 27.3ms, calls+inherit 17.2ms, total 49.1ms | 1585 import, 3596 call, 0 inherit edges",
+      "[evolution] walked 804 commits, skipped 90 (oid_err=0, commit_err=0, unparseable=90)"
     ]
   }
 }

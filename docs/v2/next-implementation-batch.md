@@ -243,7 +243,7 @@ Tasks:
 - [-] add `session_end` golden scenarios
 - [-] add touched-concept gate golden scenarios
 - [-] add synthetic patch fixtures for closed-domain propagation
-- [ ] turn one-off benchmark script into a comparable regression benchmark flow
+- [-] turn one-off benchmark script into a comparable regression benchmark flow
 - [ ] add false-positive review checklist and sample set
 - [-] add baseline migration coexistence tests
 
@@ -257,6 +257,7 @@ What we learned so far:
 - the current touched-concept gate is stable on a real closed-domain regression fixture
 - `session_end` was too tightly coupled to the legacy structural baseline and now needs to degrade gracefully for v2-only workflows
 - synthetic regression fixtures are the right first layer, but they do not replace checked-in real-repo goldens
+- the warm semantic path is already fast, but `gate` and `session_end` are still scan-bound on the real repo and need their own performance attention
 
 ## Work Package E: Quality Improvement Prioritization
 

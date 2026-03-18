@@ -18,7 +18,22 @@ const outputPath =
 const parallelSentruxDir = path.join(parallelCodeRoot, '.sentrux');
 const parallelRulesPath = path.join(parallelSentruxDir, 'rules.toml');
 const parallelRulesBackupPath = path.join(parallelSentruxDir, 'rules.toml.bak_sentrux_benchmark');
+const parallelBaselinePath = path.join(parallelSentruxDir, 'baseline.json');
+const parallelBaselineBackupPath = path.join(
+  parallelSentruxDir,
+  'baseline.json.bak_sentrux_benchmark',
+);
+const parallelSessionV2Path = path.join(parallelSentruxDir, 'session-v2.json');
+const parallelSessionV2BackupPath = path.join(
+  parallelSentruxDir,
+  'session-v2.json.bak_sentrux_benchmark',
+);
+const compareToPath = process.env.COMPARE_TO ?? outputPath;
 const requestTimeoutMs = Number(process.env.REQUEST_TIMEOUT_MS ?? '120000');
+const maxRegressionMs = Number(process.env.MAX_REGRESSION_MS ?? '250');
+const maxRegressionPercent = Number(process.env.MAX_REGRESSION_PERCENT ?? '20');
+const failOnRegression = process.env.FAIL_ON_REGRESSION === '1';
+const benchmarkFormatVersion = 2;
 
 function roundMs(value) {
   return Number(value.toFixed(1));
@@ -86,6 +101,140 @@ function summarizeState(payload) {
     finding_count: payload.finding_count ?? null,
     state_integrity_score_0_10000: payload.state_integrity_score_0_10000 ?? null,
   };
+}
+
+function summarizeGate(payload) {
+  return {
+    decision: payload.decision ?? null,
+    changed_file_count: Array.isArray(payload.changed_files) ? payload.changed_files.length : null,
+    introduced_finding_count: Array.isArray(payload.introduced_findings)
+      ? payload.introduced_findings.length
+      : null,
+    missing_obligation_count: Array.isArray(payload.missing_obligations)
+      ? payload.missing_obligations.length
+      : null,
+    obligation_completeness_0_10000: payload.obligation_completeness_0_10000 ?? null,
+  };
+}
+
+function summarizeSessionSave(payload) {
+  return {
+    session_finding_count: payload.session_finding_count ?? null,
+    suppressed_finding_count: payload.suppressed_finding_count ?? null,
+  };
+}
+
+function summarizeSessionEnd(payload) {
+  return {
+    pass: payload.pass ?? null,
+    changed_file_count: Array.isArray(payload.changed_files) ? payload.changed_files.length : null,
+    introduced_finding_count: Array.isArray(payload.introduced_findings)
+      ? payload.introduced_findings.length
+      : null,
+    missing_obligation_count: Array.isArray(payload.missing_obligations)
+      ? payload.missing_obligations.length
+      : null,
+    gate_decision: payload.touched_concept_gate?.decision ?? null,
+  };
+}
+
+function getBenchmarkMetric(benchmark, metricPath) {
+  return metricPath.split('.').reduce((value, key) => value?.[key], benchmark);
+}
+
+function safePercent(delta, baseline) {
+  if (!Number.isFinite(delta) || !Number.isFinite(baseline) || baseline === 0) {
+    return null;
+  }
+  return Number(((delta / baseline) * 100).toFixed(1));
+}
+
+function buildBenchmarkComparison(currentResult, previousResult) {
+  if (
+    !previousResult?.benchmark ||
+    previousResult.benchmark_format_version !== currentResult.benchmark_format_version
+  ) {
+    return null;
+  }
+
+  const trackedMetrics = [
+    ['cold_process_total_ms', 'cold process total'],
+    ['cold.scan.elapsed_ms', 'cold scan'],
+    ['cold.concepts.elapsed_ms', 'cold concepts'],
+    ['warm_cached_total_ms', 'warm cached total'],
+    ['warm_cached.findings.elapsed_ms', 'warm findings'],
+    ['warm_patch_safety_total_ms', 'warm patch-safety total'],
+    ['warm_patch_safety.session_start.elapsed_ms', 'warm session_start'],
+    ['warm_patch_safety.gate.elapsed_ms', 'warm gate'],
+    ['warm_patch_safety.session_end.elapsed_ms', 'warm session_end'],
+  ];
+
+  const metrics = trackedMetrics
+    .map(([metricPath, label]) => {
+      const previousValue = getBenchmarkMetric(previousResult.benchmark, metricPath);
+      const currentValue = getBenchmarkMetric(currentResult.benchmark, metricPath);
+      if (!Number.isFinite(previousValue) || !Number.isFinite(currentValue)) {
+        return null;
+      }
+
+      const deltaMs = Number((currentValue - previousValue).toFixed(1));
+      const deltaPercent = safePercent(deltaMs, previousValue);
+      const regressed =
+        deltaMs > maxRegressionMs &&
+        deltaPercent !== null &&
+        deltaPercent > maxRegressionPercent;
+
+      return {
+        metric: label,
+        path: metricPath,
+        previous_ms: previousValue,
+        current_ms: currentValue,
+        delta_ms: deltaMs,
+        delta_percent: deltaPercent,
+        regressed,
+      };
+    })
+    .filter(Boolean);
+
+  return {
+    compared_to: compareToPath,
+    previous_generated_at: previousResult.generated_at ?? null,
+    thresholds: {
+      max_regression_ms: maxRegressionMs,
+      max_regression_percent: maxRegressionPercent,
+    },
+    metrics,
+    regressions: metrics.filter((metric) => metric.regressed),
+  };
+}
+
+async function loadPreviousBenchmark(comparePath) {
+  if (!existsSync(comparePath)) {
+    return null;
+  }
+
+  const raw = await readFile(comparePath, 'utf8');
+  return JSON.parse(raw);
+}
+
+async function backupFileIfExists(targetPath, backupPath) {
+  if (!existsSync(targetPath)) {
+    return false;
+  }
+
+  await cp(targetPath, backupPath);
+  return true;
+}
+
+async function restoreManagedFile(targetPath, backupPath, existedBefore) {
+  if (existedBefore) {
+    await rename(backupPath, targetPath);
+    return;
+  }
+
+  if (existsSync(targetPath)) {
+    await rm(targetPath, { force: true });
+  }
 }
 
 function parseToolPayload(response) {
@@ -234,6 +383,7 @@ async function runBenchmarkSession() {
   const session = createSession(sentruxBin);
   const cold = {};
   const warm = {};
+  const warmPatchSafety = {};
   const coldStartedAt = nowMs();
 
   try {
@@ -333,11 +483,37 @@ async function runBenchmarkSession() {
     );
     const warmCachedTotalMs = roundMs(nowMs() - warmStartedAt);
 
+    const patchSafetyStartedAt = nowMs();
+    warmPatchSafety.session_start = await measureRequest(
+      session,
+      'session_start',
+      'session_start',
+      {},
+      summarizeSessionSave,
+    );
+    warmPatchSafety.gate = await measureRequest(
+      session,
+      'gate',
+      'gate',
+      {},
+      summarizeGate,
+    );
+    warmPatchSafety.session_end = await measureRequest(
+      session,
+      'session_end',
+      'session_end',
+      {},
+      summarizeSessionEnd,
+    );
+    const warmPatchSafetyTotalMs = roundMs(nowMs() - patchSafetyStartedAt);
+
     return {
       cold_process_total_ms: coldProcessTotalMs,
       cold,
       warm_cached_total_ms: warmCachedTotalMs,
       warm_cached: warm,
+      warm_patch_safety_total_ms: warmPatchSafetyTotalMs,
+      warm_patch_safety: warmPatchSafety,
       stdout_log: session.stdoutLog,
       stderr_log: session.stderrLog,
     };
@@ -349,6 +525,14 @@ async function runBenchmarkSession() {
 async function withInstalledRules(run) {
   await mkdir(parallelSentruxDir, { recursive: true });
   const rulesPreviouslyExisted = existsSync(parallelRulesPath);
+  const baselinePreviouslyExisted = await backupFileIfExists(
+    parallelBaselinePath,
+    parallelBaselineBackupPath,
+  );
+  const sessionV2PreviouslyExisted = await backupFileIfExists(
+    parallelSessionV2Path,
+    parallelSessionV2BackupPath,
+  );
 
   if (rulesPreviouslyExisted) {
     await cp(parallelRulesPath, parallelRulesBackupPath);
@@ -364,6 +548,17 @@ async function withInstalledRules(run) {
     } else if (existsSync(parallelRulesPath)) {
       await unlink(parallelRulesPath);
     }
+
+    await restoreManagedFile(
+      parallelBaselinePath,
+      parallelBaselineBackupPath,
+      baselinePreviouslyExisted,
+    );
+    await restoreManagedFile(
+      parallelSessionV2Path,
+      parallelSessionV2BackupPath,
+      sessionV2PreviouslyExisted,
+    );
   }
 }
 
@@ -372,17 +567,36 @@ async function main() {
   assertPathExists(rulesSource, 'parallel-code rules source');
   assertPathExists(parallelCodeRoot, 'parallel-code repo');
 
+  const previousResult = await loadPreviousBenchmark(compareToPath);
   const benchmark = await withInstalledRules(runBenchmarkSession);
   const result = {
+    benchmark_format_version: benchmarkFormatVersion,
     generated_at: new Date().toISOString(),
     parallel_code_root: parallelCodeRoot,
     sentrux_binary: sentruxBin,
     benchmark,
   };
+  const comparison = buildBenchmarkComparison(result, previousResult);
+  if (comparison) {
+    result.comparison = comparison;
+  }
 
   await mkdir(path.dirname(outputPath), { recursive: true });
   await writeFile(outputPath, `${JSON.stringify(result, null, 2)}\n`, 'utf8');
   console.log(`Wrote benchmark results to ${outputPath}`);
+
+  if (comparison?.regressions.length) {
+    console.log('\nBenchmark regressions detected:');
+    for (const regression of comparison.regressions) {
+      console.log(
+        `- ${regression.metric}: ${regression.previous_ms}ms -> ${regression.current_ms}ms (${regression.delta_ms}ms, ${regression.delta_percent}%)`,
+      );
+    }
+
+    if (failOnRegression) {
+      process.exitCode = 1;
+    }
+  }
 }
 
 main().catch(async (error) => {
