@@ -382,17 +382,6 @@
     },
     {
       "anchors": [
-        "src/components/TaskPanel.test.tsx::store.focusedPanel"
-      ],
-      "confidence_0_10000": 7500,
-      "evidence": [
-        "symbol 'store.focusedPanel' is touched from 13 file(s)"
-      ],
-      "id": "store_focused_panel",
-      "kind": "store_like_symbol"
-    },
-    {
-      "anchors": [
         "src/store/autosave.test.ts::store.fontScales"
       ],
       "confidence_0_10000": 7500,
@@ -844,6 +833,17 @@
     },
     {
       "anchors": [
+        "src/components/TaskPanel.test.tsx::store.focusedPanel.*"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "symbol 'store.focusedPanel.*' is touched from 3 file(s)"
+      ],
+      "id": "store_focused_panel",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
         "src/App.tsx::store.hasSeenDesktopIntro"
       ],
       "confidence_0_10000": 7000,
@@ -983,17 +983,6 @@
         "closed domain 'TerminalRecoveryPayload' has 1 exhaustiveness site(s)"
       ],
       "id": "terminal_recovery_payload",
-      "kind": "closed_domain"
-    },
-    {
-      "anchors": [
-        "src/components/terminal-view/types.ts::TerminalViewStatus"
-      ],
-      "confidence_0_10000": 7000,
-      "evidence": [
-        "closed domain 'TerminalViewStatus' has 1 exhaustiveness site(s)"
-      ],
-      "id": "terminal_view_status",
       "kind": "closed_domain"
     },
     {
@@ -1275,7 +1264,7 @@
     "configured_concept_count": 3,
     "contract_count": 1,
     "guardrail_test_count": 4,
-    "inferred_concept_count": 98,
+    "inferred_concept_count": 97,
     "matched_guardrail_test_count": 1,
     "state_model_count": 2
   },

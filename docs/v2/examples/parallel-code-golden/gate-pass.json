@@ -1,11 +1,13 @@
 {
-  "baseline_error": null,
-  "baseline_loaded": false,
-  "baseline_path": "<parallel-code-root>/.sentrux/baseline.json",
-  "files": 545,
-  "import_edges": 1585,
-  "lines": 133483,
-  "quality_signal": 4964,
+  "blocking_findings": [],
+  "changed_files": [],
+  "decision": "pass",
+  "expired_suppression_match_count": 0,
+  "expired_suppressions": [],
+  "introduced_findings": [],
+  "missing_obligations": [],
+  "obligation_completeness_0_10000": 10000,
+  "rules_error": null,
   "scan_trust": {
     "candidate_files": 677,
     "exclusions": {
@@ -38,5 +40,9 @@
     "truncated": false,
     "untracked_candidates": 0
   },
-  "scanned": "<parallel-code-root>"
+  "semantic_error": null,
+  "strict": false,
+  "summary": "No working-tree changes detected",
+  "suppressed_finding_count": 0,
+  "suppression_hits": []
 }

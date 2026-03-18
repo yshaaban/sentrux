@@ -7,9 +7,6 @@ PARALLEL_CODE_ROOT="${PARALLEL_CODE_ROOT:-<parallel-code-root>}"
 RULES_SOURCE="$REPO_ROOT/docs/v2/examples/parallel-code.rules.toml"
 OUTPUT_DIR="${OUTPUT_DIR:-$REPO_ROOT/docs/v2/examples/parallel-code-golden}"
 SENTRUX_BIN="${SENTRUX_BIN:-$REPO_ROOT/target/debug/sentrux}"
-PARALLEL_SENTRUX_DIR="$PARALLEL_CODE_ROOT/.sentrux"
-PARALLEL_RULES_PATH="$PARALLEL_SENTRUX_DIR/rules.toml"
-RULES_BACKUP_PATH="$PARALLEL_SENTRUX_DIR/rules.toml.bak_sentrux_tmp"
 
 if [[ ! -x "$SENTRUX_BIN" ]]; then
   echo "Expected built sentrux binary at $SENTRUX_BIN" >&2
@@ -31,29 +28,29 @@ if ! command -v node >/dev/null 2>&1; then
   exit 1
 fi
 
+if ! command -v git >/dev/null 2>&1; then
+  echo "This script requires git on PATH" >&2
+  exit 1
+fi
+
 tmpdir="$(mktemp -d)"
+WORK_ROOT="$tmpdir/parallel-code"
+WORK_SENTRUX_DIR="$WORK_ROOT/.sentrux"
+WORK_RULES_PATH="$WORK_SENTRUX_DIR/rules.toml"
 
 cleanup() {
   rm -rf "$tmpdir"
-  if [[ -f "$RULES_BACKUP_PATH" ]]; then
-    mv "$RULES_BACKUP_PATH" "$PARALLEL_RULES_PATH"
-  else
-    rm -f "$PARALLEL_RULES_PATH"
-  fi
 }
 
 trap cleanup EXIT
 
-mkdir -p "$PARALLEL_SENTRUX_DIR"
 mkdir -p "$OUTPUT_DIR"
-
-if [[ -f "$PARALLEL_RULES_PATH" ]]; then
-  cp "$PARALLEL_RULES_PATH" "$RULES_BACKUP_PATH"
-fi
-cp "$RULES_SOURCE" "$PARALLEL_RULES_PATH"
+git clone --quiet --local --no-hardlinks "$PARALLEL_CODE_ROOT" "$WORK_ROOT"
+mkdir -p "$WORK_SENTRUX_DIR"
+cp "$RULES_SOURCE" "$WORK_RULES_PATH"
 
 cat > "$tmpdir/requests.jsonl" <<EOF
-{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"scan","arguments":{"path":"$PARALLEL_CODE_ROOT"}}}
+{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"scan","arguments":{"path":"$WORK_ROOT"}}}
 {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"concepts","arguments":{}}}
 {"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"findings","arguments":{"limit":12}}}
 {"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"explain_concept","arguments":{"id":"task_git_status"}}}
@@ -62,15 +59,18 @@ cat > "$tmpdir/requests.jsonl" <<EOF
 {"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"obligations","arguments":{"concept":"task_presentation_status"}}}
 {"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"parity","arguments":{"contract":"server_state_bootstrap"}}}
 {"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"state","arguments":{}}}
+{"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"session_start","arguments":{}}}
+{"jsonrpc":"2.0","id":11,"method":"tools/call","params":{"name":"gate","arguments":{}}}
+{"jsonrpc":"2.0","id":12,"method":"tools/call","params":{"name":"session_end","arguments":{}}}
 EOF
 
 "$SENTRUX_BIN" --mcp < "$tmpdir/requests.jsonl" | grep '^[{]' > "$tmpdir/responses.jsonl"
 
-node - "$tmpdir/responses.jsonl" "$OUTPUT_DIR" <<'EOF'
+node - "$tmpdir/responses.jsonl" "$OUTPUT_DIR" "$WORK_ROOT" "$PARALLEL_CODE_ROOT" <<'EOF'
 const fs = require('node:fs');
 const path = require('node:path');
 
-const [, , responsesPath, outputDir] = process.argv;
+const [, , responsesPath, outputDir, workRoot, sourceRoot] = process.argv;
 const responseLines = fs
   .readFileSync(responsesPath, 'utf8')
   .split('\n')
@@ -93,7 +93,25 @@ const outputs = [
   [7, 'obligations-task_presentation_status.json'],
   [8, 'parity-server_state_bootstrap.json'],
   [9, 'state.json'],
+  [10, 'session-start.json'],
+  [11, 'gate-pass.json'],
+  [12, 'session-end-pass.json'],
 ];
+
+function sanitizeValue(value) {
+  if (typeof value === 'string') {
+    return value.split(workRoot).join(sourceRoot);
+  }
+  if (Array.isArray(value)) {
+    return value.map(sanitizeValue);
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [key, sanitizeValue(entry)]),
+    );
+  }
+  return value;
+}
 
 for (const [id, filename] of outputs) {
   const response = responses.get(id);
@@ -106,7 +124,7 @@ for (const [id, filename] of outputs) {
     throw new Error(`Missing text payload for id ${id}`);
   }
 
-  const parsed = JSON.parse(text);
+  const parsed = sanitizeValue(JSON.parse(text));
   fs.writeFileSync(path.join(outputDir, filename), `${JSON.stringify(parsed, null, 2)}\n`);
 }
 EOF
@@ -115,6 +133,7 @@ cat > "$OUTPUT_DIR/metadata.json" <<EOF
 {
   "generated_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
   "parallel_code_root": "$PARALLEL_CODE_ROOT",
+  "analysis_mode": "temporary_local_clone",
   "rules_source": "$RULES_SOURCE",
   "sentrux_binary": "$SENTRUX_BIN"
 }

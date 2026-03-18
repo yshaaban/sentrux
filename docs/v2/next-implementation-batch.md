@@ -258,6 +258,7 @@ What we learned so far:
 - `session_end` was too tightly coupled to the legacy structural baseline and now needs to degrade gracefully for v2-only workflows
 - synthetic regression fixtures are the right first layer, but they do not replace checked-in real-repo goldens
 - the warm semantic path is already fast, but `gate` and `session_end` are still scan-bound on the real repo and need their own performance attention
+- checked-in real-repo no-change `gate` and `session_end` goldens now exist; the remaining golden gap is real-repo regression scenarios
 
 ## Work Package E: Quality Improvement Prioritization
 

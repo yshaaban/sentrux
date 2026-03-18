@@ -351,7 +351,7 @@ Open gap:
 Status: partial
 
 - [x] create initial scoped golden outputs for `parallel-code`
-- [ ] expand `parallel-code` goldens to cover `session_end` and touched-concept gate scenarios
+- [-] expand `parallel-code` goldens to cover `session_end` and touched-concept gate scenarios
 - [-] add synthetic touched-concept gate and `session_end` regression scenarios
 - [-] add fixture repos for semantic frontends
 - [-] add bridge contract tests for the persistent Node subprocess

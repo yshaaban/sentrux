@@ -1,11 +1,23 @@
 {
   "baseline_error": null,
-  "baseline_loaded": false,
-  "baseline_path": "<parallel-code-root>/.sentrux/baseline.json",
-  "files": 545,
-  "import_edges": 1585,
-  "lines": 133483,
-  "quality_signal": 4964,
+  "changed_concepts": [],
+  "changed_files": [],
+  "coupling_change": [
+    0.47129337539432176,
+    0.47129337539432176
+  ],
+  "cycles_change": [
+    1,
+    1
+  ],
+  "expired_suppression_match_count": 0,
+  "expired_suppressions": [],
+  "introduced_findings": [],
+  "missing_obligations": [],
+  "obligation_completeness_0_10000": 10000,
+  "pass": true,
+  "resolved_findings": [],
+  "rules_error": null,
   "scan_trust": {
     "candidate_files": 677,
     "exclusions": {
@@ -38,5 +50,16 @@
     "truncated": false,
     "untracked_candidates": 0
   },
-  "scanned": "<parallel-code-root>"
+  "semantic_error": null,
+  "signal_after": 4964,
+  "signal_before": 4964,
+  "signal_delta": 0,
+  "summary": "Quality stable or improved",
+  "suppressed_finding_count": 0,
+  "suppression_hits": [],
+  "touched_concept_gate": {
+    "blocking_findings": [],
+    "decision": "pass"
+  },
+  "violations": []
 }

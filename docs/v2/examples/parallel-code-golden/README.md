@@ -26,6 +26,9 @@ That matters for two reasons:
 - `obligations-task_presentation_status.json`
 - `parity-server_state_bootstrap.json`
 - `state.json`
+- `session-start.json`
+- `gate-pass.json`
+- `session-end-pass.json`
 - `metadata.json`
 
 ## Known Current Learnings
@@ -40,6 +43,8 @@ These goldens currently demonstrate several important v2 gaps:
 - zero-config exhaustiveness no longer lets giant transport domains like `IPC` dominate the top findings
 - clone findings now have stable ids, git-aware churn/code-age context, deterministic instance ordering, and distinct-file recent-activity accounting
 - clone findings still need family-level prioritization because related production clone groups can crowd the top list
+- real-repo `session_start`, `gate`, and `session_end` pass outputs are now checked in using a temporary local clone rather than the live working tree
+- regression-path gate/session goldens still do not exist for the real repo; those remain covered only by synthetic fixtures today
 
 Those are not reasons to hide the outputs. They are reasons to keep them versioned.
 
@@ -54,3 +59,12 @@ Optional environment overrides:
 - `PARALLEL_CODE_ROOT=/path/to/parallel-code`
 - `OUTPUT_DIR=/custom/output/dir`
 - `SENTRUX_BIN=/path/to/sentrux`
+
+## Stability Note
+
+The refresh script now clones the source repo into a temporary local copy before running MCP requests.
+
+That means:
+
+- checked-in goldens do not depend on whatever uncommitted state happens to exist in the live `parallel-code` worktree
+- absolute temp-copy paths are sanitized back to the source repo root before the JSON is written

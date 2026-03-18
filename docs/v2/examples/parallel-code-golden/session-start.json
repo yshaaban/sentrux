@@ -1,0 +1,13 @@
+{
+  "baseline_path": "<parallel-code-root>/.sentrux/baseline.json",
+  "expired_suppression_match_count": 0,
+  "expired_suppressions": [],
+  "message": "Call 'session_end' after making changes to see the diff",
+  "quality_signal": 4964,
+  "semantic_error": null,
+  "session_finding_count": 23,
+  "session_v2_baseline_path": "<parallel-code-root>/.sentrux/session-v2.json",
+  "status": "Baseline saved",
+  "suppressed_finding_count": 0,
+  "suppression_hits": []
+}

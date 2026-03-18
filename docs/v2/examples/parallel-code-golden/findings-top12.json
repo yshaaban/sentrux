@@ -44,103 +44,6 @@
       "summary": "Closed domain 'ConnectionBannerState' is missing coverage for variants: connecting, reconnecting, restoring"
     },
     {
-      "concept_id": "TerminalViewStatus",
-      "evidence": [
-        "src/components/TerminalView.tsx [missing variants: error, ready]"
-      ],
-      "files": [
-        "src/components/TerminalView.tsx",
-        "src/components/terminal-view/types.ts"
-      ],
-      "kind": "closed_domain_exhaustiveness",
-      "severity": "high",
-      "summary": "Closed domain 'TerminalViewStatus' is missing coverage for variants: error, ready"
-    },
-    {
-      "asymmetric_recent_change": false,
-      "clone_id": "clone-0xcc83be6d4ffab51d",
-      "files": [
-        "src/App.tsx",
-        "src/remote/App.tsx"
-      ],
-      "instance_count": 2,
-      "instances": [
-        {
-          "age_days": 0,
-          "commit_count": 67,
-          "file": "src/App.tsx",
-          "func": "markBusyTakeoverRequest",
-          "lines": 11
-        },
-        {
-          "age_days": 0,
-          "commit_count": 7,
-          "file": "src/remote/App.tsx",
-          "func": "markBusyTakeoverRequest",
-          "lines": 11
-        }
-      ],
-      "kind": "exact_clone_group",
-      "max_commit_count": 67,
-      "max_lines": 11,
-      "production_instance_count": 2,
-      "reasons": [
-        "identical logic spans 2 files",
-        "largest clone instance is 11 lines",
-        "at least one clone file changed in 67 recent commit(s)",
-        "2 clone file(s) changed within the last 30 day(s)",
-        "youngest clone file was touched 0 day(s) ago"
-      ],
-      "recently_touched_file_count": 2,
-      "risk_score": 296,
-      "severity": "high",
-      "summary": "2 functions share an identical normalized body across recently changed files",
-      "total_lines": 22,
-      "youngest_age_days": 0
-    },
-    {
-      "asymmetric_recent_change": false,
-      "clone_id": "clone-0xd90ba88b39f50f42",
-      "files": [
-        "src/App.tsx",
-        "src/remote/App.tsx"
-      ],
-      "instance_count": 2,
-      "instances": [
-        {
-          "age_days": 0,
-          "commit_count": 67,
-          "file": "src/App.tsx",
-          "func": "clearBusyTakeoverRequest",
-          "lines": 11
-        },
-        {
-          "age_days": 0,
-          "commit_count": 7,
-          "file": "src/remote/App.tsx",
-          "func": "clearBusyTakeoverRequest",
-          "lines": 11
-        }
-      ],
-      "kind": "exact_clone_group",
-      "max_commit_count": 67,
-      "max_lines": 11,
-      "production_instance_count": 2,
-      "reasons": [
-        "identical logic spans 2 files",
-        "largest clone instance is 11 lines",
-        "at least one clone file changed in 67 recent commit(s)",
-        "2 clone file(s) changed within the last 30 day(s)",
-        "youngest clone file was touched 0 day(s) ago"
-      ],
-      "recently_touched_file_count": 2,
-      "risk_score": 296,
-      "severity": "high",
-      "summary": "2 functions share an identical normalized body across recently changed files",
-      "total_lines": 22,
-      "youngest_age_days": 0
-    },
-    {
       "asymmetric_recent_change": false,
       "clone_id": "clone-0xfc51cb7428314a19",
       "files": [
@@ -361,12 +264,138 @@
       "summary": "2 functions share an identical normalized body across recently changed files",
       "total_lines": 32,
       "youngest_age_days": 0
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0x31a396cfce0df305",
+      "files": [
+        "src/components/AgentGlyph.tsx",
+        "src/remote/RemoteAgentGlyph.tsx"
+      ],
+      "instance_count": 2,
+      "instances": [
+        {
+          "age_days": 1,
+          "commit_count": 1,
+          "file": "src/components/AgentGlyph.tsx",
+          "func": "GenericGlyph",
+          "lines": 10
+        },
+        {
+          "age_days": 0,
+          "commit_count": 1,
+          "file": "src/remote/RemoteAgentGlyph.tsx",
+          "func": "GenericGlyph",
+          "lines": 10
+        }
+      ],
+      "kind": "exact_clone_group",
+      "max_commit_count": 1,
+      "max_lines": 10,
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 10 lines",
+        "at least one clone file changed in 1 recent commit(s)",
+        "2 clone file(s) changed within the last 30 day(s)",
+        "youngest clone file was touched 0 day(s) ago"
+      ],
+      "recently_touched_file_count": 2,
+      "risk_score": 30,
+      "severity": "medium",
+      "summary": "2 functions share an identical normalized body across recently changed files",
+      "total_lines": 20,
+      "youngest_age_days": 0
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0x1a2c7f190774e2a3",
+      "files": [
+        "src/App.tsx",
+        "src/remote/App.tsx"
+      ],
+      "instance_count": 2,
+      "instances": [
+        {
+          "age_days": 0,
+          "commit_count": 68,
+          "file": "src/App.tsx",
+          "func": "markBusyTakeoverRequest",
+          "lines": 5
+        },
+        {
+          "age_days": 0,
+          "commit_count": 8,
+          "file": "src/remote/App.tsx",
+          "func": "markBusyTakeoverRequest",
+          "lines": 5
+        }
+      ],
+      "kind": "exact_clone_group",
+      "max_commit_count": 68,
+      "max_lines": 5,
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 5 lines",
+        "at least one clone file changed in 68 recent commit(s)",
+        "2 clone file(s) changed within the last 30 day(s)",
+        "youngest clone file was touched 0 day(s) ago"
+      ],
+      "recently_touched_file_count": 2,
+      "risk_score": 288,
+      "severity": "low",
+      "summary": "2 functions share an identical normalized body across recently changed files",
+      "total_lines": 10,
+      "youngest_age_days": 0
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0x4bd1c79c8e548667",
+      "files": [
+        "src/App.tsx",
+        "src/remote/App.tsx"
+      ],
+      "instance_count": 2,
+      "instances": [
+        {
+          "age_days": 0,
+          "commit_count": 68,
+          "file": "src/App.tsx",
+          "func": "clearBusyTakeoverRequest",
+          "lines": 5
+        },
+        {
+          "age_days": 0,
+          "commit_count": 8,
+          "file": "src/remote/App.tsx",
+          "func": "clearBusyTakeoverRequest",
+          "lines": 5
+        }
+      ],
+      "kind": "exact_clone_group",
+      "max_commit_count": 68,
+      "max_lines": 5,
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 5 lines",
+        "at least one clone file changed in 68 recent commit(s)",
+        "2 clone file(s) changed within the last 30 day(s)",
+        "youngest clone file was touched 0 day(s) ago"
+      ],
+      "recently_touched_file_count": 2,
+      "risk_score": 288,
+      "severity": "low",
+      "summary": "2 functions share an identical normalized body across recently changed files",
+      "total_lines": 10,
+      "youngest_age_days": 0
     }
   ],
   "kind": "mixed_findings",
   "rules_error": null,
   "semantic_error": null,
-  "semantic_finding_count": 5,
+  "semantic_finding_count": 4,
   "suppressed_finding_count": 0,
   "suppression_hits": []
 }
