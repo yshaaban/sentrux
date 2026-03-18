@@ -9,14 +9,14 @@ The implementation is in a good place relative to the **core v2 wedge**, but it 
 Current assessment:
 
 - doctrine alignment: strong
-- core patch-safety wedge: mostly implemented
+- core patch-safety wedge: strongly implemented
 - full roadmap: partially implemented
-- cross-cutting proof and validation: behind implementation
+- cross-cutting proof and validation: still behind implementation
 
 Working estimate:
 
-- core wedge completion: about 80-85%
-- full roadmap completion: about 60-65%
+- core wedge completion: about 85-90%
+- full roadmap completion: about 65-70%
 - validation and proof completion: about 45-50%
 
 ## What Is True Today
@@ -34,6 +34,7 @@ The strongest completed work is:
 - trust and scan-scope reporting
 - TypeScript semantic substrate
 - concept rules and rule coverage
+- suppression enforcement with expiry-aware visibility
 - authority/access findings
 - obligation engine
 - upgraded `session_end`
@@ -48,10 +49,10 @@ The strongest completed work is:
 | Tier 0 | Mostly complete | Trust foundation is real in MCP | health/CLI/GUI productization is still uneven |
 | Tier 1A | Partial | Exact clone findings now filter test-only/tiny groups and rank production clones more plausibly | no git-correlated drift or divergent-clone lane |
 | Tier 1B | Mostly complete | TS bridge, semantic facts, and initial `parallel-code` benchmark proof are real | no regression benchmark suite and no mature persisted cache story yet |
-| Tier 1C | Mostly complete | v2 rules and concept graph exist | suppression enforcement is still incomplete |
+| Tier 1C | Mostly complete | v2 rules, concept graph, and suppression enforcement now exist | broader policy UX and validation are still incomplete |
 | Tier 1D | Mostly complete | authority/access findings work | no full scorecard track and limited generic bypass detection |
 | Tier 1E | Mostly complete | obligation engine is one of the strongest pieces | no full contract-driven obligations or scorecard surface |
-| Tier 1F | Mostly complete | `session_end` and `gate` now work in MCP and CLI on the same touched-concept model | suppression-aware gate decisions and release-grade gate validation are still incomplete |
+| Tier 1F | Mostly complete | `session_end` and `gate` now work in MCP and CLI on the same touched-concept model, including suppression-aware decisions | release-grade gate validation is still incomplete |
 | Tier 2A | Mostly complete | parity analyzer, MCP tool, and real `parallel-code` bootstrap proof now exist | broader contract families still need more than one benchmark repo |
 | Tier 2B | Mostly complete | concentration analysis exists and is tested | not yet benchmarked or validated on the real case-study repo |
 | Tier 2C | Mostly complete | inspection tools and adoption helpers exist | real-repo validation has started, but the proof loop is not closed |
@@ -128,10 +129,13 @@ Delivered:
 - v2 `rules.toml` sections
 - rule coverage
 - suppression schema
+- suppression matching by kind, concept, and file
+- suppression-aware findings, gate, session, and concept-inspection outputs
+- expiry-aware suppression visibility in MCP and CLI
 
 Still missing:
 
-- suppression matching and expiry enforcement across analyzers is incomplete
+- broader policy-management ergonomics and release-grade validation around suppressions
 
 ## Tier 1D: Authority And Access
 
@@ -182,11 +186,11 @@ Delivered:
 - MCP `gate`
 - CLI `gate` now uses the touched-concept v2 model when v2 rules are configured
 - CLI `gate --save` now writes the v2 session baseline used by touched-concept comparisons
+- gate and session outputs now respect active suppressions and surface expired suppression matches
 - legacy structural gate remains as the fallback when no v2 rules are configured
 
 Still missing:
 
-- suppression-aware gate decisions
 - release-grade touched-concept gate goldens
 - broader CI ergonomics beyond the current CLI parity step
 

@@ -18,9 +18,9 @@ The current v2 implementation is already good enough to surface useful quality f
 
 But there are still four gaps between “useful diagnostics” and “reliable quality improvement loop”:
 
-1. suppressions exist in schema, but are not enforced
-2. clone drift is still exact-clone-first, not git-aware
-3. validation is behind implementation
+1. clone drift is still exact-clone-first, not git-aware
+2. validation is behind implementation
+3. prioritization still needs to better point at the highest-leverage quality work
 
 This batch closes those gaps in ROI order.
 
@@ -28,10 +28,10 @@ This batch closes those gaps in ROI order.
 
 Included:
 
-1. suppression enforcement and trust controls
-2. signal cleanup for repeated or noisy findings
-3. git-aware clone drift
-4. validation hardening
+1. trust-control completion and signal cleanup
+2. git-aware clone drift
+3. validation hardening
+4. quality-improvement prioritization
 
 Explicitly excluded from this batch:
 
@@ -45,7 +45,7 @@ Explicitly excluded from this batch:
 At the start of this batch:
 
 - the core wedge is mostly implemented in MCP
-- suppressions are parsed but not applied
+- suppressions are enforced across findings, gate, session, and concept-inspection outputs
 - clone findings are filtered and ranked better, but still not git-aware
 - `parallel-code` has real scoped goldens and a cold/warm benchmark
 
@@ -115,7 +115,7 @@ What we expect to learn:
 
 ## Work Package B: Suppressions And Trust Controls
 
-Status: planned
+Status: mostly complete
 
 Goal:
 
@@ -143,17 +143,21 @@ Deliverables:
 
 Tasks:
 
-- [ ] implement suppression matcher shared across analyzer outputs
-- [ ] apply suppressions to findings before gate/session presentation
-- [ ] treat expired suppressions as findings or explicit warnings
+- [x] implement suppression matcher shared across analyzer outputs
+- [x] apply suppressions to findings before gate/session presentation
+- [x] treat expired suppressions as findings or explicit warnings
 - [x] dedupe repeated authority findings from the same file/concept/kind
-- [ ] expose suppression hits and expiry state in MCP/CLI responses
+- [x] expose suppression hits and expiry state in MCP/CLI responses
 
 Acceptance criteria:
 
 - a configured suppression can hide a matching finding
 - an expired suppression becomes visible automatically
 - repeated same-file forbidden-writer evidence collapses into a cleaner top-level finding
+
+Open gap:
+
+- the enforcement layer is in place, but it still needs broader golden coverage and real-repo adoption feedback
 
 What we expect to learn:
 

@@ -22,6 +22,9 @@ use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
+use time::format_description::FormatItem;
+use time::macros::format_description;
+use time::{Date, OffsetDateTime};
 
 // ── Scan helper (shared by scan, rescan, session_end) ──
 
@@ -485,7 +488,7 @@ fn build_session_v2_baseline(
     root: &Path,
     snapshot: &Snapshot,
     health: &metrics::HealthReport,
-) -> (SessionV2Baseline, Option<String>) {
+) -> (SessionV2Baseline, SuppressionApplication, Option<String>) {
     let file_hashes = snapshot_file_hashes(root, snapshot);
     let clone_findings = clone_findings_for_health(health);
     let (semantic_findings, _, semantic_error) = semantic_findings_and_obligations(
@@ -494,13 +497,17 @@ fn build_session_v2_baseline(
         crate::metrics::v2::ObligationScope::All,
         &BTreeSet::new(),
     );
-    let finding_payloads = finding_payload_map(&clone_findings, &semantic_findings);
+    let (config, _) = load_v2_rules_config(root);
+    let suppression_application =
+        apply_suppressions(&config, finding_values(&clone_findings, &semantic_findings));
+    let finding_payloads = finding_payload_map(&suppression_application.visible_findings);
 
     (
         SessionV2Baseline {
             file_hashes,
             finding_payloads,
         },
+        suppression_application,
         semantic_error,
     )
 }
@@ -549,24 +556,220 @@ fn semantic_findings_and_obligations(
     }
 }
 
-fn finding_payload_map(
-    clone_findings: &[Value],
-    semantic_findings: &[crate::metrics::v2::SemanticFinding],
-) -> BTreeMap<String, Value> {
+fn finding_payload_map(findings: &[Value]) -> BTreeMap<String, Value> {
     let mut payloads = BTreeMap::new();
-    for finding in clone_findings {
+    for finding in findings {
         payloads.insert(stable_json_key(finding), finding.clone());
-    }
-    for finding in semantic_findings {
-        if let Ok(payload) = serde_json::to_value(finding) {
-            payloads.insert(stable_json_key(&payload), payload);
-        }
     }
     payloads
 }
 
 fn stable_json_key(value: &Value) -> String {
     serde_json::to_string(value).unwrap_or_else(|_| value.to_string())
+}
+
+fn serialized_values<T: serde::Serialize>(values: &[T]) -> Vec<Value> {
+    values
+        .iter()
+        .filter_map(|value| serde_json::to_value(value).ok())
+        .collect()
+}
+
+#[derive(Debug, Clone, serde::Serialize, Default)]
+struct SuppressionMatch {
+    kind: String,
+    concept: Option<String>,
+    file: Option<String>,
+    reason: String,
+    expires: Option<String>,
+    expired: bool,
+    matched_finding_count: usize,
+}
+
+#[derive(Debug, Clone, Default)]
+struct SuppressionApplication {
+    visible_findings: Vec<Value>,
+    active_matches: Vec<SuppressionMatch>,
+    expired_matches: Vec<SuppressionMatch>,
+}
+
+fn finding_values(
+    clone_findings: &[Value],
+    semantic_findings: &[crate::metrics::v2::SemanticFinding],
+) -> Vec<Value> {
+    let mut findings = clone_findings.to_vec();
+    findings.extend(serialized_values(semantic_findings));
+    findings
+}
+
+fn apply_root_suppressions(
+    root: &Path,
+    findings: Vec<Value>,
+) -> (SuppressionApplication, Option<String>) {
+    let (config, rules_error) = load_v2_rules_config(root);
+    (apply_suppressions(&config, findings), rules_error)
+}
+
+fn suppression_match_count(matches: &[SuppressionMatch]) -> usize {
+    matches
+        .iter()
+        .map(|matched| matched.matched_finding_count)
+        .sum()
+}
+
+fn apply_suppressions(
+    config: &crate::metrics::rules::RulesConfig,
+    findings: Vec<Value>,
+) -> SuppressionApplication {
+    let mut visible_findings = Vec::new();
+    let mut active_matches = BTreeMap::<String, SuppressionMatch>::new();
+    let mut expired_matches = BTreeMap::<String, SuppressionMatch>::new();
+
+    for finding in findings {
+        let mut suppressed = false;
+        for suppression in &config.suppress {
+            if !suppression_matches_finding(suppression, &finding) {
+                continue;
+            }
+
+            let expired = suppression_is_expired(suppression);
+            let entry = suppression_match_entry(suppression, expired);
+            let key = stable_json_key(&serde_json::to_value(&entry).unwrap_or_else(|_| json!({})));
+            let target_map = if entry.expired {
+                &mut expired_matches
+            } else {
+                &mut active_matches
+            };
+            target_map
+                .entry(key)
+                .and_modify(|matched| matched.matched_finding_count += 1)
+                .or_insert_with(|| {
+                    let mut matched = entry;
+                    matched.matched_finding_count = 1;
+                    matched
+                });
+            suppressed |= !expired;
+        }
+
+        if !suppressed {
+            visible_findings.push(finding);
+        }
+    }
+
+    SuppressionApplication {
+        visible_findings,
+        active_matches: active_matches.into_values().collect(),
+        expired_matches: expired_matches.into_values().collect(),
+    }
+}
+
+fn suppression_match_entry(
+    suppression: &crate::metrics::rules::SuppressionRule,
+    expired: bool,
+) -> SuppressionMatch {
+    SuppressionMatch {
+        kind: suppression.kind.clone(),
+        concept: suppression.concept.clone(),
+        file: suppression.file.clone(),
+        reason: suppression.reason.clone(),
+        expires: suppression.expires.clone(),
+        expired,
+        matched_finding_count: 0,
+    }
+}
+
+fn suppression_matches_finding(
+    suppression: &crate::metrics::rules::SuppressionRule,
+    finding: &Value,
+) -> bool {
+    if !suppression_kind_matches(&suppression.kind, finding_kind(finding)) {
+        return false;
+    }
+    if let Some(concept) = &suppression.concept {
+        if finding_concept_id(finding) != Some(concept.as_str()) {
+            return false;
+        }
+    }
+    if let Some(file_pattern) = &suppression.file {
+        if !finding_files(finding)
+            .iter()
+            .any(|file| crate::metrics::rules::glob_match(file_pattern, file))
+        {
+            return false;
+        }
+    }
+
+    true
+}
+
+fn suppression_kind_matches(pattern: &str, finding_kind: &str) -> bool {
+    pattern == "*" || pattern == finding_kind
+}
+
+fn finding_kind(finding: &Value) -> &str {
+    finding
+        .get("kind")
+        .and_then(|value| value.as_str())
+        .unwrap_or("")
+}
+
+fn finding_concept_id(finding: &Value) -> Option<&str> {
+    finding.get("concept_id").and_then(|value| value.as_str())
+}
+
+fn finding_files(finding: &Value) -> Vec<String> {
+    if let Some(files) = finding
+        .get("files")
+        .and_then(|value| value.as_array())
+        .map(|files| {
+            files
+                .iter()
+                .filter_map(|value| value.as_str().map(str::to_string))
+                .collect::<Vec<_>>()
+        })
+    {
+        if !files.is_empty() {
+            return files;
+        }
+    }
+
+    if let Some(path) = finding.get("path").and_then(|value| value.as_str()) {
+        return vec![path.to_string()];
+    }
+
+    finding
+        .get("instances")
+        .and_then(|value| value.as_array())
+        .map(|instances| {
+            instances
+                .iter()
+                .filter_map(|instance| {
+                    instance
+                        .get("file")
+                        .and_then(|value| value.as_str())
+                        .map(str::to_string)
+                })
+                .collect::<BTreeSet<_>>()
+                .into_iter()
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default()
+}
+
+fn suppression_is_expired(suppression: &crate::metrics::rules::SuppressionRule) -> bool {
+    let Some(expires) = &suppression.expires else {
+        return false;
+    };
+    let format = iso_date_format();
+    let Ok(expiry_date) = Date::parse(expires, format) else {
+        return false;
+    };
+    expiry_date < OffsetDateTime::now_utc().date()
+}
+
+fn iso_date_format<'a>() -> &'a [FormatItem<'a>] {
+    static FORMAT: &[FormatItem<'_>] = format_description!("[year]-[month]-[day]");
+    FORMAT
 }
 
 fn state_model_ids_from_findings(
@@ -627,8 +830,11 @@ fn compute_touched_concept_gate(
         crate::metrics::v2::ObligationScope::All,
         &BTreeSet::new(),
     );
-    let current_finding_payloads =
-        finding_payload_map(&current_clone_findings, &all_semantic_findings);
+    let (suppression_application, rules_error) = apply_root_suppressions(
+        root,
+        finding_values(&current_clone_findings, &all_semantic_findings),
+    );
+    let current_finding_payloads = finding_payload_map(&suppression_application.visible_findings);
     state.cached_semantic = None;
     let (changed_semantic_findings, changed_obligations, changed_semantic_error) =
         semantic_findings_and_obligations(
@@ -655,6 +861,8 @@ fn compute_touched_concept_gate(
     ));
     touched_concepts.extend(state_model_ids_from_reports(&changed_state_reports));
     touched_concepts.extend(state_model_ids_from_findings(&changed_semantic_findings));
+    let changed_findings = serialized_values(&changed_semantic_findings);
+    let changed_suppression_application = apply_suppressions(&rules_config, changed_findings);
 
     let introduced_findings = session_v2
         .as_ref()
@@ -666,12 +874,14 @@ fn compute_touched_concept_gate(
                 .collect::<Vec<_>>()
         })
         .unwrap_or_else(|| {
-            changed_semantic_findings
+            changed_suppression_application
+                .visible_findings
                 .iter()
                 .filter(|finding| {
-                    touched_concepts.is_empty() || touched_concepts.contains(&finding.concept_id)
+                    let concept_id = finding_concept_id(finding).unwrap_or_default();
+                    touched_concepts.is_empty() || touched_concepts.contains(concept_id)
                 })
-                .filter_map(|finding| serde_json::to_value(finding).ok())
+                .cloned()
                 .collect::<Vec<_>>()
         });
     let missing_obligations = changed_obligations
@@ -711,6 +921,11 @@ fn compute_touched_concept_gate(
         "blocking_findings": blocking_findings,
         "missing_obligations": missing_obligations,
         "obligation_completeness_0_10000": crate::metrics::v2::obligation_score_0_10000(&changed_obligations),
+        "suppression_hits": suppression_application.active_matches,
+        "suppressed_finding_count": suppression_match_count(&suppression_application.active_matches),
+        "expired_suppressions": suppression_application.expired_matches,
+        "expired_suppression_match_count": suppression_match_count(&suppression_application.expired_matches),
+        "rules_error": rules_error,
         "semantic_error": semantic_error,
         "scan_trust": scan_trust_json(&bundle.metadata),
     });
@@ -731,7 +946,7 @@ pub fn cli_save_v2_session(root: &Path) -> Result<Value, String> {
     let baseline = arch::ArchBaseline::from_health(&bundle.health);
     let signal = baseline.quality_signal;
     let baseline_path = save_baseline(root, &baseline)?;
-    let (session_v2, semantic_error) =
+    let (session_v2, suppression_application, semantic_error) =
         build_session_v2_baseline(&mut state, root, &bundle.snapshot, &bundle.health);
     let session_v2_baseline_path = save_session_v2_baseline(root, &session_v2)?;
     let session_finding_count = session_v2.finding_payloads.len();
@@ -742,6 +957,10 @@ pub fn cli_save_v2_session(root: &Path) -> Result<Value, String> {
         "baseline_path": baseline_path,
         "session_v2_baseline_path": session_v2_baseline_path,
         "session_finding_count": session_finding_count,
+        "suppression_hits": suppression_application.active_matches,
+        "suppressed_finding_count": suppression_match_count(&suppression_application.active_matches),
+        "expired_suppressions": suppression_application.expired_matches,
+        "expired_suppression_match_count": suppression_match_count(&suppression_application.expired_matches),
         "semantic_error": semantic_error,
         "message": "Run 'sentrux gate' after making changes to evaluate touched-concept regressions"
     }))
@@ -950,7 +1169,8 @@ fn handle_findings(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<V
         .and_then(|value| value.as_u64())
         .unwrap_or(10)
         .min(50) as usize;
-    let clone_findings = build_exact_clone_findings(&health.duplicate_groups, limit);
+    let clone_findings =
+        build_exact_clone_findings(&health.duplicate_groups, health.duplicate_groups.len());
     let clone_group_count = health
         .duplicate_groups
         .iter()
@@ -962,13 +1182,24 @@ fn handle_findings(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<V
         crate::metrics::v2::ObligationScope::All,
         &BTreeSet::new(),
     );
-    let findings = merge_findings(clone_findings, semantic_findings, limit);
+    let merged_findings = merge_findings(clone_findings, semantic_findings, usize::MAX);
+    let (suppression_application, rules_error) = apply_root_suppressions(&root, merged_findings);
+    let findings = suppression_application
+        .visible_findings
+        .into_iter()
+        .take(limit)
+        .collect::<Vec<_>>();
 
     Ok(json!({
         "kind": "mixed_findings",
         "clone_group_count": clone_group_count,
         "semantic_finding_count": findings.iter().filter(|finding| finding.get("concept_id").is_some()).count(),
+        "rules_error": rules_error,
         "semantic_error": semantic_error,
+        "suppression_hits": suppression_application.active_matches,
+        "suppressed_finding_count": suppression_match_count(&suppression_application.active_matches),
+        "expired_suppressions": suppression_application.expired_matches,
+        "expired_suppression_match_count": suppression_match_count(&suppression_application.expired_matches),
         "findings": findings
     }))
 }
@@ -1141,6 +1372,8 @@ fn handle_parity(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<Val
         })
         .collect::<Vec<_>>();
     let findings = crate::metrics::v2::build_parity_findings(&reports);
+    let (suppression_application, suppression_rules_error) =
+        apply_root_suppressions(&root, serialized_values(&findings));
     let missing_cell_count = reports
         .iter()
         .map(|report| report.missing_cells.len())
@@ -1163,9 +1396,13 @@ fn handle_parity(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<Val
         "assessable_cell_count": assessable_cell_count,
         "missing_cell_count": missing_cell_count,
         "parity_score_0_10000": parity_score_0_10000,
-        "rules_error": rules_error,
+        "rules_error": merge_optional_errors(rules_error, suppression_rules_error),
         "semantic_error": semantic_error,
-        "findings": findings,
+        "suppression_hits": suppression_application.active_matches,
+        "suppressed_finding_count": suppression_match_count(&suppression_application.active_matches),
+        "expired_suppressions": suppression_application.expired_matches,
+        "expired_suppression_match_count": suppression_match_count(&suppression_application.expired_matches),
+        "findings": suppression_application.visible_findings,
         "reports": reports,
     }))
 }
@@ -1249,6 +1486,8 @@ fn handle_concentration(args: &Value, _tier: &Tier, state: &mut McpState) -> Res
         history.as_ref(),
     );
     let findings = crate::metrics::v2::build_concentration_findings(&reports, limit);
+    let (suppression_application, suppression_rules_error) =
+        apply_root_suppressions(&root, serialized_values(&findings));
     let top_reports = reports.iter().take(limit).cloned().collect::<Vec<_>>();
 
     Ok(json!({
@@ -1257,10 +1496,14 @@ fn handle_concentration(args: &Value, _tier: &Tier, state: &mut McpState) -> Res
         "changed_files": changed_files.iter().cloned().collect::<Vec<_>>(),
         "report_count": reports.len(),
         "finding_count": findings.len(),
-        "rules_error": rules_error,
+        "rules_error": merge_optional_errors(rules_error, suppression_rules_error),
         "semantic_error": semantic_error,
         "evolution_error": evolution_error,
-        "findings": findings,
+        "suppression_hits": suppression_application.active_matches,
+        "suppressed_finding_count": suppression_match_count(&suppression_application.active_matches),
+        "expired_suppressions": suppression_application.expired_matches,
+        "expired_suppression_match_count": suppression_match_count(&suppression_application.expired_matches),
+        "findings": suppression_application.visible_findings,
         "reports": top_reports,
     }))
 }
@@ -1348,6 +1591,8 @@ fn handle_state(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<Valu
         })
         .collect::<Vec<_>>();
     let findings = crate::metrics::v2::build_state_integrity_findings(&reports);
+    let (suppression_application, suppression_rules_error) =
+        apply_root_suppressions(&root, serialized_values(&findings));
     let state_integrity_score_0_10000 = if reports.is_empty() {
         None
     } else {
@@ -1371,9 +1616,13 @@ fn handle_state(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<Valu
         "missing_variant_count": missing_variant_count,
         "missing_site_count": missing_site_count,
         "state_integrity_score_0_10000": state_integrity_score_0_10000,
-        "rules_error": rules_error,
+        "rules_error": merge_optional_errors(rules_error, suppression_rules_error),
         "semantic_error": semantic_error,
-        "findings": findings,
+        "suppression_hits": suppression_application.active_matches,
+        "suppressed_finding_count": suppression_match_count(&suppression_application.active_matches),
+        "expired_suppressions": suppression_application.expired_matches,
+        "expired_suppression_match_count": suppression_match_count(&suppression_application.expired_matches),
+        "findings": suppression_application.visible_findings,
         "reports": reports,
     }))
 }
@@ -1444,6 +1693,14 @@ fn build_exact_clone_findings(
                 "low"
             };
 
+            let files = group
+                .instances
+                .iter()
+                .map(|(file, _, _)| file.clone())
+                .collect::<BTreeSet<_>>()
+                .into_iter()
+                .collect::<Vec<_>>();
+
             json!({
                 "kind": "exact_clone_group",
                 "severity": severity,
@@ -1452,6 +1709,7 @@ fn build_exact_clone_findings(
                 "max_lines": max_lines,
                 "risk_score": (instance_count as u32).saturating_mul(max_lines),
                 "summary": format!("{instance_count} functions share an identical normalized body"),
+                "files": files,
                 "instances": group.instances.iter().map(|(file, func, lines)| json!({
                     "file": file,
                     "func": func,
@@ -1500,7 +1758,7 @@ fn clone_group_production_instance_count(group: &crate::metrics::DuplicateGroup)
 #[cfg(test)]
 mod tests {
     use super::{
-        build_exact_clone_findings, cli_evaluate_v2_gate, cli_save_v2_session,
+        apply_suppressions, build_exact_clone_findings, cli_evaluate_v2_gate, cli_save_v2_session,
         distinct_file_count, handle_concepts, handle_explain_concept, handle_state,
         handle_trace_symbol, load_persisted_session_v2, load_v2_rules_config,
         overall_confidence_0_10000, save_session_v2_baseline, state_model_ids_from_findings,
@@ -1513,6 +1771,7 @@ mod tests {
     };
     use crate::app::mcp_server::{McpState, SessionV2Baseline};
     use crate::license::Tier;
+    use crate::metrics::rules::RulesConfig;
     use crate::metrics::DuplicateGroup;
     use serde_json::json;
     use std::collections::BTreeMap;
@@ -1536,6 +1795,17 @@ mod tests {
             std::fs::create_dir_all(parent).expect("create parent directories");
         }
         std::fs::write(&absolute_path, contents).expect("write file");
+    }
+
+    fn append_file(root: &Path, relative_path: &str, contents: &str) {
+        use std::io::Write;
+
+        let absolute_path = root.join(relative_path);
+        let mut file = std::fs::OpenOptions::new()
+            .append(true)
+            .open(&absolute_path)
+            .expect("open file for append");
+        file.write_all(contents.as_bytes()).expect("append file");
     }
 
     fn concept_fixture_root() -> std::path::PathBuf {
@@ -1808,6 +2078,72 @@ mod tests {
     }
 
     #[test]
+    fn apply_suppressions_hides_matching_findings_and_tracks_hits() {
+        let config: RulesConfig = toml::from_str(
+            r#"
+                [[suppress]]
+                kind = "forbidden_writer"
+                concept = "task_git_status"
+                file = "src/store/**"
+                reason = "temporary migration"
+                expires = "2099-12-31"
+            "#,
+        )
+        .expect("rules config");
+        let findings = vec![
+            json!({
+                "kind": "forbidden_writer",
+                "concept_id": "task_git_status",
+                "files": ["src/store/git-status-polling.ts"],
+                "summary": "forbidden writer",
+            }),
+            json!({
+                "kind": "forbidden_raw_read",
+                "concept_id": "task_git_status",
+                "files": ["src/components/TaskRow.tsx"],
+                "summary": "raw read",
+            }),
+        ];
+
+        let application = apply_suppressions(&config, findings);
+
+        assert_eq!(application.visible_findings.len(), 1);
+        assert_eq!(application.active_matches.len(), 1);
+        assert_eq!(application.active_matches[0].matched_finding_count, 1);
+        assert_eq!(
+            application.visible_findings[0]["kind"],
+            "forbidden_raw_read"
+        );
+    }
+
+    #[test]
+    fn apply_suppressions_keeps_findings_visible_when_expired() {
+        let config: RulesConfig = toml::from_str(
+            r#"
+                [[suppress]]
+                kind = "forbidden_writer"
+                concept = "task_git_status"
+                reason = "expired suppression"
+                expires = "2020-01-01"
+            "#,
+        )
+        .expect("rules config");
+        let findings = vec![json!({
+            "kind": "forbidden_writer",
+            "concept_id": "task_git_status",
+            "files": ["src/store/git-status-polling.ts"],
+            "summary": "forbidden writer",
+        })];
+
+        let application = apply_suppressions(&config, findings);
+
+        assert_eq!(application.visible_findings.len(), 1);
+        assert!(application.active_matches.is_empty());
+        assert_eq!(application.expired_matches.len(), 1);
+        assert!(application.expired_matches[0].expired);
+    }
+
+    #[test]
     fn exact_clone_findings_filter_same_file_groups() {
         let same_file = DuplicateGroup {
             hash: 1,
@@ -1867,6 +2203,7 @@ mod tests {
         assert_eq!(findings[0]["kind"], "exact_clone_group");
         assert_eq!(findings[0]["max_lines"], 8);
         assert_eq!(findings[0]["severity"], "medium");
+        assert_eq!(findings[0]["files"].as_array().map(Vec::len), Some(2));
     }
 
     #[test]
@@ -1925,7 +2262,9 @@ mod tests {
         assert_eq!(evaluated["decision"], "pass");
         assert_eq!(evaluated["summary"], "No working-tree changes detected");
         assert_eq!(
-            evaluated["changed_files"].as_array().map(|files| files.len()),
+            evaluated["changed_files"]
+                .as_array()
+                .map(|files| files.len()),
             Some(0)
         );
 
@@ -1994,6 +2333,78 @@ mod tests {
             response["semantic"]["reads"].as_array().map(Vec::len),
             Some(1)
         );
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn explain_concept_applies_active_suppressions() {
+        let root = concept_fixture_root();
+        append_file(
+            &root,
+            ".sentrux/rules.toml",
+            r#"
+
+                [[suppress]]
+                kind = "forbidden_writer"
+                concept = "task_git_status"
+                file = "src/store/**"
+                reason = "temporary migration"
+                expires = "2099-12-31"
+            "#,
+        );
+        let semantic = concept_fixture_semantic(&root);
+        let mut state = state_with_semantic(&root, semantic);
+
+        let response =
+            handle_explain_concept(&json!({"id": "task_git_status"}), &Tier::Free, &mut state)
+                .expect("explain concept");
+        let findings = response["findings"].as_array().expect("findings");
+
+        assert!(!findings
+            .iter()
+            .any(|value| value["kind"] == "forbidden_writer"));
+        assert!(response["suppression_hits"]
+            .as_array()
+            .expect("suppression hits")
+            .iter()
+            .any(|value| value["kind"] == "forbidden_writer"));
+        assert_eq!(response["suppressed_finding_count"], 1);
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn state_tool_surfaces_expired_suppressions_without_hiding_findings() {
+        let root = state_fixture_root();
+        append_file(
+            &root,
+            ".sentrux/rules.toml",
+            r#"
+
+                [[suppress]]
+                kind = "state_model_missing_assert_never"
+                concept = "browser_state_sync"
+                reason = "expired exception"
+                expires = "2020-01-01"
+            "#,
+        );
+        let semantic = state_fixture_semantic(&root);
+        let mut state = state_with_semantic(&root, semantic);
+
+        let response = handle_state(&json!({}), &Tier::Free, &mut state).expect("state tool");
+
+        assert!(response["findings"]
+            .as_array()
+            .expect("state findings")
+            .iter()
+            .any(|value| value["kind"] == "state_model_missing_assert_never"));
+        assert!(response["expired_suppressions"]
+            .as_array()
+            .expect("expired suppressions")
+            .iter()
+            .any(|value| value["kind"] == "state_model_missing_assert_never"));
+        assert_eq!(response["suppressed_finding_count"], 0);
 
         let _ = std::fs::remove_dir_all(root);
     }
@@ -2330,7 +2741,8 @@ fn handle_session_start(
     let baseline = arch::ArchBaseline::from_health(&health);
     let signal = baseline.quality_signal;
     let baseline_path = save_baseline(&root, &baseline)?;
-    let (session_v2, semantic_error) = build_session_v2_baseline(state, &root, &snapshot, &health);
+    let (session_v2, suppression_application, semantic_error) =
+        build_session_v2_baseline(state, &root, &snapshot, &health);
 
     state.baseline = Some(baseline);
     let session_v2_baseline_path = save_session_v2_baseline(&root, &session_v2)?;
@@ -2342,6 +2754,10 @@ fn handle_session_start(
         "baseline_path": baseline_path,
         "session_v2_baseline_path": session_v2_baseline_path,
         "session_finding_count": state.session_v2.as_ref().map(|baseline| baseline.finding_payloads.len()).unwrap_or(0),
+        "suppression_hits": suppression_application.active_matches,
+        "suppressed_finding_count": suppression_match_count(&suppression_application.active_matches),
+        "expired_suppressions": suppression_application.expired_matches,
+        "expired_suppression_match_count": suppression_match_count(&suppression_application.expired_matches),
         "semantic_error": semantic_error,
         "message": "Call 'session_end' after making changes to see the diff"
     }))
@@ -2392,8 +2808,11 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         crate::metrics::v2::ObligationScope::All,
         &BTreeSet::new(),
     );
-    let current_finding_payloads =
-        finding_payload_map(&current_clone_findings, &all_semantic_findings);
+    let (suppression_application, rules_error) = apply_root_suppressions(
+        &root,
+        finding_values(&current_clone_findings, &all_semantic_findings),
+    );
+    let current_finding_payloads = finding_payload_map(&suppression_application.visible_findings);
     state.cached_semantic = None;
     let (changed_semantic_findings, changed_obligations, changed_semantic_error) =
         semantic_findings_and_obligations(
@@ -2424,6 +2843,8 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
     ));
     changed_concepts.extend(state_model_ids_from_reports(&changed_state_reports));
     changed_concepts.extend(state_model_ids_from_findings(&changed_semantic_findings));
+    let changed_findings = serialized_values(&changed_semantic_findings);
+    let changed_suppression_application = apply_suppressions(&rules_config, changed_findings);
     let changed_concepts = changed_concepts.into_iter().collect::<Vec<_>>();
     let missing_obligations = changed_obligations
         .iter()
@@ -2447,10 +2868,11 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         .collect::<Vec<_>>();
     if session_v2.is_none() {
         blocking_findings.extend(
-            changed_semantic_findings
+            changed_suppression_application
+                .visible_findings
                 .iter()
-                .filter(|finding| finding.severity == "high")
-                .filter_map(|finding| serde_json::to_value(finding).ok()),
+                .filter(|finding| severity_of_value(finding) == "high")
+                .cloned(),
         );
     }
     let resolved_findings = session_v2
@@ -2502,6 +2924,11 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
             "decision": gate_decision,
             "blocking_findings": blocking_findings,
         },
+        "suppression_hits": suppression_application.active_matches,
+        "suppressed_finding_count": suppression_match_count(&suppression_application.active_matches),
+        "expired_suppressions": suppression_application.expired_matches,
+        "expired_suppression_match_count": suppression_match_count(&suppression_application.expired_matches),
+        "rules_error": rules_error,
         "scan_trust": scan_trust_json(&bundle.metadata),
         "semantic_error": semantic_error,
         "baseline_error": baseline_error
@@ -2712,6 +3139,8 @@ fn handle_explain_concept(
         .into_iter()
         .filter(|finding| finding.concept_id == concept_id)
         .collect::<Vec<_>>();
+    let (suppression_application, rules_error) =
+        apply_root_suppressions(&root, serialized_values(&explain_findings));
     let explain_obligations = obligations
         .into_iter()
         .filter(|obligation| obligation.concept_id.as_deref() == Some(concept_id))
@@ -2769,10 +3198,15 @@ fn handle_explain_concept(
         "concept": graph.concepts.into_iter().find(|candidate| candidate.id == concept_id),
         "related_contract_ids": related_contracts.into_iter().collect::<Vec<_>>(),
         "related_tests": related_tests,
-        "findings": explain_findings,
+        "findings": suppression_application.visible_findings,
         "obligations": explain_obligations,
         "parity": parity,
         "semantic": semantic_summary,
+        "rules_error": rules_error,
+        "suppression_hits": suppression_application.active_matches,
+        "suppressed_finding_count": suppression_match_count(&suppression_application.active_matches),
+        "expired_suppressions": suppression_application.expired_matches,
+        "expired_suppression_match_count": suppression_match_count(&suppression_application.expired_matches),
         "semantic_error": semantic_error,
     }))
 }
@@ -2913,6 +3347,8 @@ fn handle_trace_symbol(args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
                 || symbol_query_matches("", &finding.concept_id, query)
         })
         .collect::<Vec<_>>();
+    let (suppression_application, suppression_rules_error) =
+        apply_root_suppressions(&root, serialized_values(&findings));
     let obligations = obligations
         .into_iter()
         .filter(|obligation| {
@@ -2958,9 +3394,13 @@ fn handle_trace_symbol(args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         "writes": writes,
         "related_concepts": related_concepts.into_iter().collect::<Vec<_>>(),
         "related_contracts": related_contracts.into_iter().collect::<Vec<_>>(),
-        "findings": findings,
+        "findings": suppression_application.visible_findings,
         "obligations": obligations,
-        "rules_error": rules_error,
+        "rules_error": merge_optional_errors(rules_error, suppression_rules_error),
+        "suppression_hits": suppression_application.active_matches,
+        "suppressed_finding_count": suppression_match_count(&suppression_application.active_matches),
+        "expired_suppressions": suppression_application.expired_matches,
+        "expired_suppression_match_count": suppression_match_count(&suppression_application.expired_matches),
         "reference_ambiguity": reference_ambiguity,
         "semantic_error": semantic_error,
     }))

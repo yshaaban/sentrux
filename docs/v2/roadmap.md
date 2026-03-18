@@ -147,7 +147,7 @@ Tasks:
 - [x] add `ConceptGraph` types
 - [x] add concept extraction from explicit rules
 - [x] extend `rules.toml` schema with v2 sections
-- [-] add suppression support
+- [x] add suppression support
 - [x] compute rule coverage
 
 Exit criteria:
@@ -157,7 +157,7 @@ Exit criteria:
 
 Open gap:
 
-- suppression schema exists, but suppression matching and expiry enforcement are still incomplete
+- suppression matching and expiry are implemented, but still need broader validation and policy ergonomics
 
 ## Tier 1D: Authority And Access
 
@@ -227,7 +227,7 @@ Exit criteria:
 
 Open gap:
 
-- CLI parity is in place, but suppressions and release-grade gate validation are still incomplete
+- CLI parity and suppression-aware gate behavior are in place, but release-grade gate validation is still incomplete
 
 ## Tier 2: Context And Adoption
 

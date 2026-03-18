@@ -452,6 +452,18 @@ fn print_v2_gate_save(payload: &serde_json::Value) {
     {
         println!("Tracked findings: {count}");
     }
+    if let Some(count) = payload
+        .get("suppressed_finding_count")
+        .and_then(|value| value.as_u64())
+    {
+        println!("Suppressed findings: {count}");
+    }
+    if let Some(count) = payload
+        .get("expired_suppression_match_count")
+        .and_then(|value| value.as_u64())
+    {
+        println!("Expired suppression matches: {count}");
+    }
     if let Some(error) = payload
         .get("semantic_error")
         .and_then(|value| value.as_str())
@@ -492,6 +504,16 @@ fn print_v2_gate_result(payload: &serde_json::Value) -> i32 {
         .and_then(|value| value.as_array())
         .cloned()
         .unwrap_or_default();
+    let suppression_hits = payload
+        .get("suppression_hits")
+        .and_then(|value| value.as_array())
+        .cloned()
+        .unwrap_or_default();
+    let expired_suppressions = payload
+        .get("expired_suppressions")
+        .and_then(|value| value.as_array())
+        .cloned()
+        .unwrap_or_default();
 
     println!("sentrux gate — touched-concept regression check\n");
     println!("Decision:     {decision}");
@@ -500,6 +522,8 @@ fn print_v2_gate_result(payload: &serde_json::Value) -> i32 {
     println!("Introduced findings: {}", introduced_findings.len());
     println!("Blocking findings:  {}", blocking_findings.len());
     println!("Missing obligations: {}", missing_obligations.len());
+    println!("Suppression hits: {}", suppression_hits.len());
+    println!("Expired suppressions: {}", expired_suppressions.len());
 
     if let Some(score) = payload
         .get("obligation_completeness_0_10000")
@@ -513,6 +537,20 @@ fn print_v2_gate_result(payload: &serde_json::Value) -> i32 {
         .and_then(|value| value.as_str())
     {
         println!("\nSemantic note: {error}");
+    }
+
+    if !suppression_hits.is_empty() {
+        println!("\nSuppression hits:");
+        for matched in suppression_hits.iter().take(10) {
+            print_cli_suppression_match(matched);
+        }
+    }
+
+    if !expired_suppressions.is_empty() {
+        println!("\nExpired suppressions:");
+        for matched in expired_suppressions.iter().take(10) {
+            print_cli_suppression_match(matched);
+        }
     }
 
     if !blocking_findings.is_empty() {
@@ -559,6 +597,30 @@ fn print_cli_obligation(obligation: &serde_json::Value) {
         .map(|sites| sites.len())
         .unwrap_or(0);
     println!("  - {summary} ({missing_count} missing site(s))");
+}
+
+fn print_cli_suppression_match(matched: &serde_json::Value) {
+    let kind = matched
+        .get("kind")
+        .and_then(|value| value.as_str())
+        .unwrap_or("*");
+    let concept = matched
+        .get("concept")
+        .and_then(|value| value.as_str())
+        .unwrap_or("-");
+    let file = matched
+        .get("file")
+        .and_then(|value| value.as_str())
+        .unwrap_or("-");
+    let count = matched
+        .get("matched_finding_count")
+        .and_then(|value| value.as_u64())
+        .unwrap_or(0);
+    let reason = matched
+        .get("reason")
+        .and_then(|value| value.as_str())
+        .unwrap_or("suppressed");
+    println!("  - kind={kind} concept={concept} file={file} count={count} reason={reason}");
 }
 
 fn gate_save(
