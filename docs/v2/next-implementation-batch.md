@@ -16,9 +16,9 @@ The current v2 implementation is already good enough to surface useful quality f
 - explicit state-model validation
 - cleaner clone findings than before
 
-But there are still four gaps between “useful diagnostics” and “reliable quality improvement loop”:
+But there are still three gaps between “useful diagnostics” and “reliable quality improvement loop”:
 
-1. clone drift is still exact-clone-first, not git-aware
+1. clone drift is git-aware now, but it still lacks divergence detection and family-level prioritization
 2. validation is behind implementation
 3. prioritization still needs to better point at the highest-leverage quality work
 
@@ -28,10 +28,9 @@ This batch closes those gaps in ROI order.
 
 Included:
 
-1. trust-control completion and signal cleanup
-2. git-aware clone drift
-3. validation hardening
-4. quality-improvement prioritization
+1. git-aware clone drift completion
+2. validation hardening
+3. quality-improvement prioritization
 
 Explicitly excluded from this batch:
 
@@ -46,7 +45,7 @@ At the start of this batch:
 
 - the core wedge is mostly implemented in MCP
 - suppressions are enforced across findings, gate, session, and concept-inspection outputs
-- clone findings are filtered and ranked better, but still not git-aware
+- clone findings now have stable ids, git-aware risk context, and deterministic ordering
 - `parallel-code` has real scoped goldens and a cold/warm benchmark
 
 Relevant references:
@@ -63,8 +62,9 @@ This batch is successful when all of the following are true:
 
 1. suppressions can hide known findings, and expired suppressions become visible again
 2. the top findings surface contains fewer repeated/noisy entries and more actionable ones
-3. clone findings can prioritize risky copied code using git recency/churn, not just exact duplication
+3. clone findings can prioritize risky copied code using git recency/churn
 4. `session_end` and `gate` have golden scenarios and benchmark regression coverage
+5. clone-family clustering is visible enough that the next prioritization pass has a clear target
 
 ## Work Package A: CLI Gate Parity
 
@@ -165,7 +165,7 @@ What we expect to learn:
 
 ## Work Package C: Clone Drift Depth
 
-Status: planned
+Status: mostly complete
 
 Goal:
 
@@ -193,24 +193,26 @@ Deliverables:
 
 Tasks:
 
-- [ ] assign stable clone ids in finding payloads
-- [ ] correlate clone groups with commit recency and churn
-- [ ] rank clones by production presence, size, recency, and asymmetry
+- [x] assign stable clone ids in finding payloads
+- [x] correlate clone groups with commit recency and churn
+- [x] rank clones by production presence, size, recency, and asymmetry
 - [ ] add divergent-clone candidate detection using git/file-history signals
-- [ ] expose clone-drift detail in MCP and CLI surfaces
+- [-] expose clone-drift detail in MCP and CLI surfaces
+- [ ] collapse repeated same-family clone findings into higher-level prioritization
 
 Acceptance criteria:
 
 - clone findings can explain why a group is risky, not just that it exists
 - `parallel-code` clone results prioritize meaningful production clones over trivia
 
-What we expect to learn:
+What we learned:
 
-- whether git-aware clone drift catches real agentic entropy that exact clones miss
+- git-aware clone context materially improves the `parallel-code` findings surface
+- the remaining clone gap is prioritization: repeated clone families can still dominate the top list even when the per-finding ranking is better
 
 ## Work Package D: Validation Hardening
 
-Status: planned
+Status: next
 
 Goal:
 

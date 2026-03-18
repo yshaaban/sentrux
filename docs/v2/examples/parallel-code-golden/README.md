@@ -38,7 +38,8 @@ These goldens currently demonstrate several important v2 gaps:
 - parity now recognizes the real bootstrap/runtime wiring for `server_state_bootstrap`
 - explicit controller-style state models now map cleanly through discriminated unions and trailing `assertNever(...)` proofs
 - zero-config exhaustiveness no longer lets giant transport domains like `IPC` dominate the top findings
-- clone findings now ignore test-only/tiny groups, but the lane is still exact-clone-first rather than git-aware
+- clone findings now have stable ids, git-aware churn/code-age context, deterministic instance ordering, and distinct-file recent-activity accounting
+- clone findings still need family-level prioritization because related production clone groups can crowd the top list
 
 Those are not reasons to hide the outputs. They are reasons to keep them versioned.
 

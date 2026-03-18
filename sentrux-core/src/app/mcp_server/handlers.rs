@@ -15,7 +15,6 @@ use crate::core::snapshot::Snapshot;
 use crate::license::Tier;
 use crate::metrics;
 use crate::metrics::arch;
-use crate::metrics::testgap::is_test_file;
 use serde_json::{json, Value};
 use std::collections::{hash_map::DefaultHasher, BTreeMap, BTreeSet, HashSet};
 use std::hash::{Hash, Hasher};
@@ -345,6 +344,30 @@ fn concentration_history(
     }
 }
 
+fn evolution_report_for_snapshot(
+    state: &mut McpState,
+    root: &Path,
+    snapshot: &Snapshot,
+) -> (Option<crate::metrics::evo::EvolutionReport>, Option<String>) {
+    if let Some(report) = &state.cached_evolution {
+        return (Some(report.clone()), None);
+    }
+
+    let known_files = crate::app::mcp_server::handlers_evo::build_known_files(snapshot);
+    let complexity_map = crate::app::mcp_server::handlers_evo::build_complexity_map(snapshot);
+
+    match crate::metrics::evolution::compute_evolution(root, &known_files, &complexity_map, None) {
+        Ok(report) => {
+            state.cached_evolution = Some(report.clone());
+            (Some(report), None)
+        }
+        Err(error) => (
+            None,
+            Some(format!("Clone drift context unavailable: {error}")),
+        ),
+    }
+}
+
 fn update_scan_cache(
     state: &mut McpState,
     root: PathBuf,
@@ -479,8 +502,28 @@ fn merge_optional_errors(left: Option<String>, right: Option<String>) -> Option<
     }
 }
 
-fn clone_findings_for_health(health: &metrics::HealthReport) -> Vec<Value> {
-    build_exact_clone_findings(&health.duplicate_groups, health.duplicate_groups.len())
+fn build_clone_drift_finding_values(
+    groups: &[crate::metrics::DuplicateGroup],
+    evolution: Option<&crate::metrics::evo::EvolutionReport>,
+    limit: usize,
+) -> Vec<Value> {
+    serialized_values(&crate::metrics::v2::build_clone_drift_findings(
+        groups, evolution, limit,
+    ))
+}
+
+fn clone_findings_for_health(
+    state: &mut McpState,
+    root: &Path,
+    snapshot: &Snapshot,
+    health: &metrics::HealthReport,
+    limit: usize,
+) -> (Vec<Value>, Option<String>) {
+    let (evolution, evolution_error) = evolution_report_for_snapshot(state, root, snapshot);
+    (
+        build_clone_drift_finding_values(&health.duplicate_groups, evolution.as_ref(), limit),
+        evolution_error,
+    )
 }
 
 fn build_session_v2_baseline(
@@ -490,7 +533,8 @@ fn build_session_v2_baseline(
     health: &metrics::HealthReport,
 ) -> (SessionV2Baseline, SuppressionApplication, Option<String>) {
     let file_hashes = snapshot_file_hashes(root, snapshot);
-    let clone_findings = clone_findings_for_health(health);
+    let (clone_findings, clone_error) =
+        clone_findings_for_health(state, root, snapshot, health, health.duplicate_groups.len());
     let (semantic_findings, _, semantic_error) = semantic_findings_and_obligations(
         state,
         root,
@@ -508,7 +552,7 @@ fn build_session_v2_baseline(
             finding_payloads,
         },
         suppression_application,
-        semantic_error,
+        merge_optional_errors(semantic_error, clone_error),
     )
 }
 
@@ -823,7 +867,13 @@ fn compute_touched_concept_gate(
     );
 
     state.cached_semantic = None;
-    let current_clone_findings = clone_findings_for_health(&bundle.health);
+    let (current_clone_findings, clone_error) = clone_findings_for_health(
+        state,
+        root,
+        &bundle.snapshot,
+        &bundle.health,
+        bundle.health.duplicate_groups.len(),
+    );
     let (all_semantic_findings, _, all_semantic_error) = semantic_findings_and_obligations(
         state,
         root,
@@ -902,7 +952,8 @@ fn compute_touched_concept_gate(
     } else {
         "pass"
     };
-    let semantic_error = changed_semantic_error.or(all_semantic_error);
+    let semantic_error =
+        merge_optional_errors(changed_semantic_error.or(all_semantic_error), clone_error);
     let summary = if decision == "fail" {
         "Touched-concept regressions detected"
     } else if changed_files.is_empty() {
@@ -1158,7 +1209,12 @@ pub fn findings_def() -> ToolDef {
 fn handle_findings(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<Value, String> {
     let health = state
         .cached_health
+        .clone()
+        .ok_or("No scan data. Call 'scan' first.")?;
+    let snapshot = state
+        .cached_snapshot
         .as_ref()
+        .cloned()
         .ok_or("No scan data. Call 'scan' first.")?;
     let root = state
         .scan_root
@@ -1169,8 +1225,13 @@ fn handle_findings(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<V
         .and_then(|value| value.as_u64())
         .unwrap_or(10)
         .min(50) as usize;
-    let clone_findings =
-        build_exact_clone_findings(&health.duplicate_groups, health.duplicate_groups.len());
+    let (clone_findings, clone_error) = clone_findings_for_health(
+        state,
+        &root,
+        &snapshot,
+        &health,
+        health.duplicate_groups.len(),
+    );
     let clone_group_count = health
         .duplicate_groups
         .iter()
@@ -1195,7 +1256,7 @@ fn handle_findings(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<V
         "clone_group_count": clone_group_count,
         "semantic_finding_count": findings.iter().filter(|finding| finding.get("concept_id").is_some()).count(),
         "rules_error": rules_error,
-        "semantic_error": semantic_error,
+        "semantic_error": merge_optional_errors(semantic_error, clone_error),
         "suppression_hits": suppression_application.active_matches,
         "suppressed_finding_count": suppression_match_count(&suppression_application.active_matches),
         "expired_suppressions": suppression_application.expired_matches,
@@ -1666,58 +1727,12 @@ fn severity_priority(severity: &str) -> u8 {
     }
 }
 
+#[cfg(test)]
 fn build_exact_clone_findings(
     groups: &[crate::metrics::DuplicateGroup],
     limit: usize,
 ) -> Vec<Value> {
-    const MIN_CLONE_LINES: u32 = 3;
-
-    groups
-        .iter()
-        .filter(|group| distinct_file_count(group) > 1)
-        .filter(|group| clone_group_has_production_instance(group))
-        .filter(|group| clone_group_max_lines(group) >= MIN_CLONE_LINES)
-        .take(limit)
-        .map(|group| {
-            let instance_count = group.instances.len();
-            let production_instance_count = clone_group_production_instance_count(group);
-            let total_lines: u32 = group.instances.iter().map(|(_, _, lines)| *lines).sum();
-            let max_lines = clone_group_max_lines(group);
-            let severity = if max_lines >= 20
-                || (production_instance_count >= 2 && instance_count >= 2 && max_lines >= 10)
-            {
-                "high"
-            } else if max_lines >= 8 || (instance_count >= 3 && max_lines >= 5) {
-                "medium"
-            } else {
-                "low"
-            };
-
-            let files = group
-                .instances
-                .iter()
-                .map(|(file, _, _)| file.clone())
-                .collect::<BTreeSet<_>>()
-                .into_iter()
-                .collect::<Vec<_>>();
-
-            json!({
-                "kind": "exact_clone_group",
-                "severity": severity,
-                "instance_count": instance_count,
-                "total_lines": total_lines,
-                "max_lines": max_lines,
-                "risk_score": (instance_count as u32).saturating_mul(max_lines),
-                "summary": format!("{instance_count} functions share an identical normalized body"),
-                "files": files,
-                "instances": group.instances.iter().map(|(file, func, lines)| json!({
-                    "file": file,
-                    "func": func,
-                    "lines": lines,
-                })).collect::<Vec<_>>()
-            })
-        })
-        .collect()
+    build_clone_drift_finding_values(groups, None, limit)
 }
 
 fn distinct_file_count(group: &crate::metrics::DuplicateGroup) -> usize {
@@ -1729,30 +1744,6 @@ fn distinct_file_count(group: &crate::metrics::DuplicateGroup) -> usize {
         .map(|(file, _, _)| file.as_str())
         .collect::<HashSet<_>>()
         .len()
-}
-
-fn clone_group_max_lines(group: &crate::metrics::DuplicateGroup) -> u32 {
-    group
-        .instances
-        .iter()
-        .map(|(_, _, lines)| *lines)
-        .max()
-        .unwrap_or(0)
-}
-
-fn clone_group_has_production_instance(group: &crate::metrics::DuplicateGroup) -> bool {
-    group
-        .instances
-        .iter()
-        .any(|(file, _, _)| !is_test_file(file))
-}
-
-fn clone_group_production_instance_count(group: &crate::metrics::DuplicateGroup) -> usize {
-    group
-        .instances
-        .iter()
-        .filter(|(file, _, _)| !is_test_file(file))
-        .count()
 }
 
 #[cfg(test)]
@@ -2801,7 +2792,13 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         session_v2.as_ref(),
     );
     state.cached_semantic = None;
-    let current_clone_findings = clone_findings_for_health(&bundle.health);
+    let (current_clone_findings, clone_error) = clone_findings_for_health(
+        state,
+        &root,
+        &bundle.snapshot,
+        &bundle.health,
+        bundle.health.duplicate_groups.len(),
+    );
     let (all_semantic_findings, _, all_semantic_error) = semantic_findings_and_obligations(
         state,
         &root,
@@ -2893,7 +2890,8 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
     } else {
         "pass"
     };
-    let semantic_error = changed_semantic_error.or(all_semantic_error);
+    let semantic_error =
+        merge_optional_errors(changed_semantic_error.or(all_semantic_error), clone_error);
     let (persisted_baseline, baseline_error) = match load_persisted_baseline(&root) {
         Ok(persisted_baseline) => (persisted_baseline, None),
         Err(error) => (None, Some(error)),

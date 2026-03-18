@@ -1,5 +1,7 @@
 {
   "changed_files": [],
+  "expired_suppression_match_count": 0,
+  "expired_suppressions": [],
   "finding_count": 0,
   "findings": [],
   "kind": "state",
@@ -53,5 +55,7 @@
   "scope": "all",
   "semantic_error": null,
   "state_integrity_score_0_10000": 10000,
-  "state_model_count": 2
+  "state_model_count": 2,
+  "suppressed_finding_count": 0,
+  "suppression_hits": []
 }

@@ -2,6 +2,8 @@
   "assessable_cell_count": 8,
   "changed_files": [],
   "contract_count": 1,
+  "expired_suppression_match_count": 0,
+  "expired_suppressions": [],
   "findings": [],
   "kind": "parity",
   "missing_cell_count": 0,
@@ -74,5 +76,7 @@
   ],
   "rules_error": null,
   "scope": "all",
-  "semantic_error": null
+  "semantic_error": null,
+  "suppressed_finding_count": 0,
+  "suppression_hits": []
 }

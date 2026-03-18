@@ -29,6 +29,8 @@
       "src/components/SidebarTaskRow.architecture.test.ts"
     ]
   },
+  "expired_suppression_match_count": 0,
+  "expired_suppressions": [],
   "findings": [
     {
       "concept_id": "task_git_status",
@@ -90,6 +92,7 @@
       "pattern": "src/components/SidebarTaskRow.architecture.test.ts"
     }
   ],
+  "rules_error": null,
   "semantic": {
     "reads": [
       {
@@ -144,5 +147,7 @@
       }
     ]
   },
-  "semantic_error": null
+  "semantic_error": null,
+  "suppressed_finding_count": 0,
+  "suppression_hits": []
 }

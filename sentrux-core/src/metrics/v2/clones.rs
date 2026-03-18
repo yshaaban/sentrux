@@ -1,0 +1,462 @@
+//! Git-aware clone-drift findings built on duplicate groups plus evolution context.
+
+use crate::metrics::evolution::EvolutionReport;
+use crate::metrics::testgap::is_test_file;
+use crate::metrics::DuplicateGroup;
+use std::cmp::Ordering;
+use std::collections::{BTreeMap, BTreeSet};
+
+const MIN_CLONE_LINES: u32 = 3;
+const RECENT_AGE_DAYS: u32 = 30;
+
+#[derive(Debug, Clone, serde::Serialize, Default)]
+pub struct CloneDriftInstance {
+    pub file: String,
+    pub func: String,
+    pub lines: u32,
+    pub commit_count: Option<u32>,
+    pub age_days: Option<u32>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, Default)]
+pub struct CloneDriftFinding {
+    pub kind: String,
+    pub clone_id: String,
+    pub severity: String,
+    pub instance_count: usize,
+    pub production_instance_count: usize,
+    pub total_lines: u32,
+    pub max_lines: u32,
+    pub risk_score: u32,
+    pub max_commit_count: u32,
+    pub recently_touched_file_count: usize,
+    pub youngest_age_days: Option<u32>,
+    pub asymmetric_recent_change: bool,
+    pub files: Vec<String>,
+    pub reasons: Vec<String>,
+    pub summary: String,
+    pub instances: Vec<CloneDriftInstance>,
+}
+
+pub fn build_clone_drift_findings(
+    groups: &[DuplicateGroup],
+    evolution: Option<&EvolutionReport>,
+    limit: usize,
+) -> Vec<CloneDriftFinding> {
+    let mut findings = groups
+        .iter()
+        .filter_map(|group| clone_drift_finding(group, evolution))
+        .collect::<Vec<_>>();
+    findings.sort_by(compare_clone_findings);
+    findings.truncate(limit);
+    findings
+}
+
+fn clone_drift_finding(
+    group: &DuplicateGroup,
+    evolution: Option<&EvolutionReport>,
+) -> Option<CloneDriftFinding> {
+    if distinct_file_count(group) <= 1 {
+        return None;
+    }
+    if !has_production_instance(group) {
+        return None;
+    }
+
+    let max_lines = group_max_lines(group);
+    if max_lines < MIN_CLONE_LINES {
+        return None;
+    }
+
+    let instance_count = group.instances.len();
+    let production_instance_count = production_instance_count(group);
+    let total_lines = group.instances.iter().map(|(_, _, lines)| *lines).sum();
+    let files = clone_group_files(group);
+    let mut instances = group
+        .instances
+        .iter()
+        .map(|(file, func, lines)| CloneDriftInstance {
+            file: file.clone(),
+            func: func.clone(),
+            lines: *lines,
+            commit_count: evolution
+                .and_then(|report| report.churn.get(file))
+                .map(|churn| churn.commit_count),
+            age_days: evolution.and_then(|report| report.code_age.get(file).copied()),
+        })
+        .collect::<Vec<_>>();
+    instances.sort_by(|left, right| {
+        left.file
+            .cmp(&right.file)
+            .then_with(|| left.func.cmp(&right.func))
+            .then_with(|| left.lines.cmp(&right.lines))
+    });
+    let file_summaries = clone_file_summaries(&instances);
+    let max_commit_count = instances
+        .iter()
+        .filter_map(|instance| instance.commit_count)
+        .max()
+        .unwrap_or(0);
+    let youngest_age_days = instances
+        .iter()
+        .filter_map(|instance| instance.age_days)
+        .min();
+    let recently_touched_file_count = file_summaries
+        .values()
+        .filter(|summary| is_recent_age(summary.age_days))
+        .count();
+    let active_files = file_summaries
+        .values()
+        .filter(|summary| file_summary_has_recent_activity(summary))
+        .count();
+    let inactive_files = file_summaries.len().saturating_sub(active_files);
+    let asymmetric_recent_change = active_files > 0 && inactive_files > 0;
+    let risk_score = clone_risk_score(
+        instance_count,
+        max_lines,
+        max_commit_count,
+        recently_touched_file_count,
+        asymmetric_recent_change,
+    );
+    let severity = clone_severity(
+        instance_count,
+        production_instance_count,
+        max_lines,
+        max_commit_count,
+        asymmetric_recent_change,
+    );
+    let reasons = clone_reasons(
+        files.len(),
+        max_lines,
+        max_commit_count,
+        recently_touched_file_count,
+        youngest_age_days,
+        asymmetric_recent_change,
+    );
+    let summary = clone_summary(instance_count, asymmetric_recent_change, max_commit_count);
+
+    Some(CloneDriftFinding {
+        kind: "exact_clone_group".to_string(),
+        clone_id: clone_id(group.hash),
+        severity: severity.to_string(),
+        instance_count,
+        production_instance_count,
+        total_lines,
+        max_lines,
+        risk_score,
+        max_commit_count,
+        recently_touched_file_count,
+        youngest_age_days,
+        asymmetric_recent_change,
+        files,
+        reasons,
+        summary,
+        instances,
+    })
+}
+
+fn compare_clone_findings(left: &CloneDriftFinding, right: &CloneDriftFinding) -> Ordering {
+    severity_priority(&right.severity)
+        .cmp(&severity_priority(&left.severity))
+        .then_with(|| right.risk_score.cmp(&left.risk_score))
+        .then_with(|| left.clone_id.cmp(&right.clone_id))
+}
+
+fn severity_priority(severity: &str) -> u8 {
+    match severity {
+        "high" => 3,
+        "medium" => 2,
+        "low" => 1,
+        _ => 0,
+    }
+}
+
+fn clone_risk_score(
+    instance_count: usize,
+    max_lines: u32,
+    max_commit_count: u32,
+    recently_touched_file_count: usize,
+    asymmetric_recent_change: bool,
+) -> u32 {
+    let base = (instance_count as u32).saturating_mul(max_lines);
+    let churn_bonus = max_commit_count.saturating_mul(4);
+    let recent_bonus = (recently_touched_file_count as u32).saturating_mul(3);
+    let asymmetry_bonus = if asymmetric_recent_change { 12 } else { 0 };
+    base.saturating_add(churn_bonus)
+        .saturating_add(recent_bonus)
+        .saturating_add(asymmetry_bonus)
+}
+
+fn clone_severity(
+    instance_count: usize,
+    production_instance_count: usize,
+    max_lines: u32,
+    max_commit_count: u32,
+    asymmetric_recent_change: bool,
+) -> &'static str {
+    if max_lines >= 20
+        || (production_instance_count >= 2
+            && max_lines >= 10
+            && (asymmetric_recent_change || max_commit_count >= 3))
+        || (instance_count >= 3 && max_lines >= 8)
+    {
+        "high"
+    } else if max_lines >= 8
+        || (asymmetric_recent_change && max_commit_count >= 1)
+        || (instance_count >= 3 && max_lines >= 5)
+    {
+        "medium"
+    } else {
+        "low"
+    }
+}
+
+fn clone_summary(
+    instance_count: usize,
+    asymmetric_recent_change: bool,
+    max_commit_count: u32,
+) -> String {
+    if asymmetric_recent_change {
+        return format!(
+            "{instance_count} functions share an identical normalized body and recent edits are asymmetric across clone files"
+        );
+    }
+    if max_commit_count > 0 {
+        return format!(
+            "{instance_count} functions share an identical normalized body across recently changed files"
+        );
+    }
+    format!("{instance_count} functions share an identical normalized body")
+}
+
+fn clone_reasons(
+    file_count: usize,
+    max_lines: u32,
+    max_commit_count: u32,
+    recently_touched_file_count: usize,
+    youngest_age_days: Option<u32>,
+    asymmetric_recent_change: bool,
+) -> Vec<String> {
+    let mut reasons = vec![
+        format!("identical logic spans {} files", file_count),
+        format!("largest clone instance is {} lines", max_lines),
+    ];
+    if max_commit_count > 0 {
+        reasons.push(format!(
+            "at least one clone file changed in {} recent commit(s)",
+            max_commit_count
+        ));
+    }
+    if recently_touched_file_count > 0 {
+        reasons.push(format!(
+            "{} clone file(s) changed within the last {} day(s)",
+            recently_touched_file_count, RECENT_AGE_DAYS
+        ));
+    }
+    if let Some(age_days) = youngest_age_days {
+        reasons.push(format!(
+            "youngest clone file was touched {} day(s) ago",
+            age_days
+        ));
+    }
+    if asymmetric_recent_change {
+        reasons.push("recent activity is uneven across clone instances".to_string());
+    }
+    reasons
+}
+
+fn clone_id(hash: u64) -> String {
+    format!("clone-{hash:#016x}")
+}
+
+fn is_recent_age(age_days: Option<u32>) -> bool {
+    age_days
+        .map(|age_days| age_days <= RECENT_AGE_DAYS)
+        .unwrap_or(false)
+}
+
+fn distinct_file_count(group: &DuplicateGroup) -> usize {
+    clone_group_files(group).len()
+}
+
+fn clone_group_files(group: &DuplicateGroup) -> Vec<String> {
+    group
+        .instances
+        .iter()
+        .map(|(file, _, _)| file.clone())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+struct CloneFileSummary {
+    commit_count: Option<u32>,
+    age_days: Option<u32>,
+}
+
+fn file_summary_has_recent_activity(summary: &CloneFileSummary) -> bool {
+    summary.commit_count.unwrap_or(0) > 0 || is_recent_age(summary.age_days)
+}
+
+fn clone_file_summaries(instances: &[CloneDriftInstance]) -> BTreeMap<&str, CloneFileSummary> {
+    let mut summaries = BTreeMap::new();
+    for instance in instances {
+        summaries
+            .entry(instance.file.as_str())
+            .and_modify(|summary: &mut CloneFileSummary| {
+                summary.commit_count = Some(
+                    summary
+                        .commit_count
+                        .unwrap_or(0)
+                        .max(instance.commit_count.unwrap_or(0)),
+                );
+                summary.age_days = match (summary.age_days, instance.age_days) {
+                    (Some(current), Some(next)) => Some(current.min(next)),
+                    (Some(current), None) => Some(current),
+                    (None, Some(next)) => Some(next),
+                    (None, None) => None,
+                };
+            })
+            .or_insert(CloneFileSummary {
+                commit_count: instance.commit_count,
+                age_days: instance.age_days,
+            });
+    }
+    summaries
+}
+
+fn group_max_lines(group: &DuplicateGroup) -> u32 {
+    group
+        .instances
+        .iter()
+        .map(|(_, _, lines)| *lines)
+        .max()
+        .unwrap_or(0)
+}
+
+fn has_production_instance(group: &DuplicateGroup) -> bool {
+    group
+        .instances
+        .iter()
+        .any(|(file, _, _)| !is_test_file(file))
+}
+
+fn production_instance_count(group: &DuplicateGroup) -> usize {
+    group
+        .instances
+        .iter()
+        .filter(|(file, _, _)| !is_test_file(file))
+        .count()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::build_clone_drift_findings;
+    use crate::metrics::evolution::{
+        AuthorInfo, CouplingPair, EvolutionReport, FileChurn, TemporalHotspot,
+    };
+    use crate::metrics::DuplicateGroup;
+    use std::collections::HashMap;
+
+    fn test_evolution() -> EvolutionReport {
+        EvolutionReport {
+            churn: HashMap::from([
+                (
+                    "src/a.ts".to_string(),
+                    FileChurn {
+                        commit_count: 4,
+                        lines_added: 10,
+                        lines_removed: 2,
+                        total_churn: 12,
+                    },
+                ),
+                (
+                    "src/b.ts".to_string(),
+                    FileChurn {
+                        commit_count: 0,
+                        lines_added: 0,
+                        lines_removed: 0,
+                        total_churn: 0,
+                    },
+                ),
+            ]),
+            coupling_pairs: Vec::<CouplingPair>::new(),
+            hotspots: Vec::<TemporalHotspot>::new(),
+            code_age: HashMap::from([("src/a.ts".to_string(), 3), ("src/b.ts".to_string(), 90)]),
+            authors: HashMap::<String, AuthorInfo>::new(),
+            single_author_ratio: 0.0,
+            bus_factor_score: 1.0,
+            churn_score: 1.0,
+            evolution_score: 1.0,
+            lookback_days: 90,
+            commits_analyzed: 5,
+        }
+    }
+
+    #[test]
+    fn clone_drift_findings_include_stable_ids_and_git_context() {
+        let groups = vec![DuplicateGroup {
+            hash: 42,
+            instances: vec![
+                ("src/a.ts".to_string(), "dup_a".to_string(), 12),
+                ("src/b.ts".to_string(), "dup_b".to_string(), 12),
+            ],
+        }];
+
+        let findings = build_clone_drift_findings(&groups, Some(&test_evolution()), 10);
+
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].clone_id, "clone-0x0000000000002a");
+        assert_eq!(findings[0].max_commit_count, 4);
+        assert_eq!(findings[0].youngest_age_days, Some(3));
+        assert!(findings[0].asymmetric_recent_change);
+        assert_eq!(findings[0].severity, "high");
+    }
+
+    #[test]
+    fn clone_drift_filters_test_only_and_tiny_groups() {
+        let groups = vec![
+            DuplicateGroup {
+                hash: 1,
+                instances: vec![
+                    ("src/a.test.ts".to_string(), "dup_a".to_string(), 10),
+                    ("src/b.test.ts".to_string(), "dup_b".to_string(), 10),
+                ],
+            },
+            DuplicateGroup {
+                hash: 2,
+                instances: vec![
+                    ("src/a.ts".to_string(), "dup_a".to_string(), 1),
+                    ("src/b.ts".to_string(), "dup_b".to_string(), 1),
+                ],
+            },
+        ];
+
+        let findings = build_clone_drift_findings(&groups, None, 10);
+
+        assert!(findings.is_empty());
+    }
+
+    #[test]
+    fn clone_drift_counts_recent_activity_per_file() {
+        let groups = vec![DuplicateGroup {
+            hash: 99,
+            instances: vec![
+                ("src/a.ts".to_string(), "dup_a".to_string(), 12),
+                ("src/a.ts".to_string(), "dup_b".to_string(), 12),
+                ("src/b.ts".to_string(), "dup_c".to_string(), 12),
+            ],
+        }];
+
+        let findings = build_clone_drift_findings(&groups, Some(&test_evolution()), 10);
+
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].recently_touched_file_count, 1);
+        assert!(findings[0].asymmetric_recent_change);
+        assert_eq!(findings[0].reasons[0], "identical logic spans 2 files");
+        assert_eq!(findings[0].instances[0].file, "src/a.ts");
+        assert_eq!(findings[0].instances[1].file, "src/a.ts");
+        assert_eq!(findings[0].instances[2].file, "src/b.ts");
+    }
+}

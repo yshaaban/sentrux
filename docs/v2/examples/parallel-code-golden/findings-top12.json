@@ -1,5 +1,7 @@
 {
-  "clone_group_count": 39,
+  "clone_group_count": 41,
+  "expired_suppression_match_count": 0,
+  "expired_suppressions": [],
   "findings": [
     {
       "concept_id": "task_git_status",
@@ -55,67 +57,256 @@
       "summary": "Closed domain 'TerminalViewStatus' is missing coverage for variants: error, ready"
     },
     {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0xcc83be6d4ffab51d",
+      "files": [
+        "src/App.tsx",
+        "src/remote/App.tsx"
+      ],
       "instance_count": 2,
       "instances": [
         {
+          "age_days": 0,
+          "commit_count": 67,
+          "file": "src/App.tsx",
+          "func": "markBusyTakeoverRequest",
+          "lines": 11
+        },
+        {
+          "age_days": 0,
+          "commit_count": 7,
+          "file": "src/remote/App.tsx",
+          "func": "markBusyTakeoverRequest",
+          "lines": 11
+        }
+      ],
+      "kind": "exact_clone_group",
+      "max_commit_count": 67,
+      "max_lines": 11,
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 11 lines",
+        "at least one clone file changed in 67 recent commit(s)",
+        "2 clone file(s) changed within the last 30 day(s)",
+        "youngest clone file was touched 0 day(s) ago"
+      ],
+      "recently_touched_file_count": 2,
+      "risk_score": 296,
+      "severity": "high",
+      "summary": "2 functions share an identical normalized body across recently changed files",
+      "total_lines": 22,
+      "youngest_age_days": 0
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0xd90ba88b39f50f42",
+      "files": [
+        "src/App.tsx",
+        "src/remote/App.tsx"
+      ],
+      "instance_count": 2,
+      "instances": [
+        {
+          "age_days": 0,
+          "commit_count": 67,
+          "file": "src/App.tsx",
+          "func": "clearBusyTakeoverRequest",
+          "lines": 11
+        },
+        {
+          "age_days": 0,
+          "commit_count": 7,
+          "file": "src/remote/App.tsx",
+          "func": "clearBusyTakeoverRequest",
+          "lines": 11
+        }
+      ],
+      "kind": "exact_clone_group",
+      "max_commit_count": 67,
+      "max_lines": 11,
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 11 lines",
+        "at least one clone file changed in 67 recent commit(s)",
+        "2 clone file(s) changed within the last 30 day(s)",
+        "youngest clone file was touched 0 day(s) ago"
+      ],
+      "recently_touched_file_count": 2,
+      "risk_score": 296,
+      "severity": "high",
+      "summary": "2 functions share an identical normalized body across recently changed files",
+      "total_lines": 22,
+      "youngest_age_days": 0
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0xfc51cb7428314a19",
+      "files": [
+        "src/components/AgentGlyph.tsx",
+        "src/remote/RemoteAgentGlyph.tsx"
+      ],
+      "instance_count": 2,
+      "instances": [
+        {
+          "age_days": 1,
+          "commit_count": 1,
+          "file": "src/components/AgentGlyph.tsx",
+          "func": "CodexGlyph",
+          "lines": 30
+        },
+        {
+          "age_days": 0,
+          "commit_count": 1,
+          "file": "src/remote/RemoteAgentGlyph.tsx",
+          "func": "CodexGlyph",
+          "lines": 30
+        }
+      ],
+      "kind": "exact_clone_group",
+      "max_commit_count": 1,
+      "max_lines": 30,
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 30 lines",
+        "at least one clone file changed in 1 recent commit(s)",
+        "2 clone file(s) changed within the last 30 day(s)",
+        "youngest clone file was touched 0 day(s) ago"
+      ],
+      "recently_touched_file_count": 2,
+      "risk_score": 70,
+      "severity": "high",
+      "summary": "2 functions share an identical normalized body across recently changed files",
+      "total_lines": 60,
+      "youngest_age_days": 0
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0x220ca1c043f3d29c",
+      "files": [
+        "src/components/AgentGlyph.tsx",
+        "src/remote/RemoteAgentGlyph.tsx"
+      ],
+      "instance_count": 2,
+      "instances": [
+        {
+          "age_days": 1,
+          "commit_count": 1,
+          "file": "src/components/AgentGlyph.tsx",
+          "func": "ClaudeGlyph",
+          "lines": 25
+        },
+        {
+          "age_days": 0,
+          "commit_count": 1,
+          "file": "src/remote/RemoteAgentGlyph.tsx",
+          "func": "ClaudeGlyph",
+          "lines": 25
+        }
+      ],
+      "kind": "exact_clone_group",
+      "max_commit_count": 1,
+      "max_lines": 25,
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 25 lines",
+        "at least one clone file changed in 1 recent commit(s)",
+        "2 clone file(s) changed within the last 30 day(s)",
+        "youngest clone file was touched 0 day(s) ago"
+      ],
+      "recently_touched_file_count": 2,
+      "risk_score": 60,
+      "severity": "high",
+      "summary": "2 functions share an identical normalized body across recently changed files",
+      "total_lines": 50,
+      "youngest_age_days": 0
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0x1cb44275b908d532",
+      "files": [
+        "electron/remote/ws-server.ts",
+        "server/browser-websocket.ts"
+      ],
+      "instance_count": 2,
+      "instances": [
+        {
+          "age_days": 0,
+          "commit_count": 4,
+          "file": "electron/remote/ws-server.ts",
+          "func": "resume",
+          "lines": 11
+        },
+        {
+          "age_days": 0,
+          "commit_count": 7,
+          "file": "server/browser-websocket.ts",
+          "func": "resume",
+          "lines": 11
+        }
+      ],
+      "kind": "exact_clone_group",
+      "max_commit_count": 7,
+      "max_lines": 11,
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 11 lines",
+        "at least one clone file changed in 7 recent commit(s)",
+        "2 clone file(s) changed within the last 30 day(s)",
+        "youngest clone file was touched 0 day(s) ago"
+      ],
+      "recently_touched_file_count": 2,
+      "risk_score": 56,
+      "severity": "high",
+      "summary": "2 functions share an identical normalized body across recently changed files",
+      "total_lines": 22,
+      "youngest_age_days": 0
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0x6de9a148bb69f645",
+      "files": [
+        "electron/remote/ws-server.ts",
+        "server/browser-websocket.ts"
+      ],
+      "instance_count": 2,
+      "instances": [
+        {
+          "age_days": 0,
+          "commit_count": 4,
           "file": "electron/remote/ws-server.ts",
           "func": "pause",
           "lines": 11
         },
         {
+          "age_days": 0,
+          "commit_count": 7,
           "file": "server/browser-websocket.ts",
           "func": "pause",
           "lines": 11
         }
       ],
       "kind": "exact_clone_group",
+      "max_commit_count": 7,
       "max_lines": 11,
-      "risk_score": 22,
-      "severity": "high",
-      "summary": "2 functions share an identical normalized body",
-      "total_lines": 22
-    },
-    {
-      "instance_count": 2,
-      "instances": [
-        {
-          "file": "src/components/DiffViewerDialog.tsx",
-          "func": "handleCopyComments",
-          "lines": 17
-        },
-        {
-          "file": "src/components/ReviewPanel.tsx",
-          "func": "handleCopyComments",
-          "lines": 17
-        }
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 11 lines",
+        "at least one clone file changed in 7 recent commit(s)",
+        "2 clone file(s) changed within the last 30 day(s)",
+        "youngest clone file was touched 0 day(s) ago"
       ],
-      "kind": "exact_clone_group",
-      "max_lines": 17,
-      "risk_score": 34,
+      "recently_touched_file_count": 2,
+      "risk_score": 56,
       "severity": "high",
-      "summary": "2 functions share an identical normalized body",
-      "total_lines": 34
-    },
-    {
-      "instance_count": 2,
-      "instances": [
-        {
-          "file": "src/components/AgentGlyph.tsx",
-          "func": "HydraGlyph",
-          "lines": 16
-        },
-        {
-          "file": "src/remote/RemoteAgentGlyph.tsx",
-          "func": "HydraGlyph",
-          "lines": 16
-        }
-      ],
-      "kind": "exact_clone_group",
-      "max_lines": 16,
-      "risk_score": 32,
-      "severity": "high",
-      "summary": "2 functions share an identical normalized body",
-      "total_lines": 32
+      "summary": "2 functions share an identical normalized body across recently changed files",
+      "total_lines": 22,
+      "youngest_age_days": 0
     },
     {
       "concept_id": "task_presentation_status",
@@ -130,106 +321,52 @@
       "summary": "Closed domain 'task_presentation_status' is missing required update sites"
     },
     {
-      "instance_count": 4,
-      "instances": [
-        {
-          "file": "electron/remote/server.ts",
-          "func": "closeClient",
-          "lines": 3
-        },
-        {
-          "file": "electron/remote/ws-transport.test.ts",
-          "func": "closeClient",
-          "lines": 3
-        },
-        {
-          "file": "server/browser-control-plane.ts",
-          "func": "closeClient",
-          "lines": 3
-        },
-        {
-          "file": "tests/harness/websocket-contract-harness.ts",
-          "func": "closeClient",
-          "lines": 3
-        }
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0x1d0ffc9c1f5ac781",
+      "files": [
+        "src/components/AgentGlyph.tsx",
+        "src/remote/RemoteAgentGlyph.tsx"
       ],
-      "kind": "exact_clone_group",
-      "max_lines": 3,
-      "risk_score": 12,
-      "severity": "low",
-      "summary": "4 functions share an identical normalized body",
-      "total_lines": 12
-    },
-    {
-      "instance_count": 3,
-      "instances": [
-        {
-          "file": "electron/remote/server.ts",
-          "func": "terminateClient",
-          "lines": 3
-        },
-        {
-          "file": "electron/remote/ws-transport.test.ts",
-          "func": "terminateClient",
-          "lines": 3
-        },
-        {
-          "file": "tests/harness/websocket-contract-harness.ts",
-          "func": "terminateClient",
-          "lines": 3
-        }
-      ],
-      "kind": "exact_clone_group",
-      "max_lines": 3,
-      "risk_score": 9,
-      "severity": "low",
-      "summary": "3 functions share an identical normalized body",
-      "total_lines": 9
-    },
-    {
       "instance_count": 2,
       "instances": [
         {
-          "file": "src/lib/browser-channel-client.ts",
-          "func": "ignoreErrorAsync",
-          "lines": 3
+          "age_days": 1,
+          "commit_count": 1,
+          "file": "src/components/AgentGlyph.tsx",
+          "func": "HydraGlyph",
+          "lines": 16
         },
         {
-          "file": "src/lib/browser-control-client.ts",
-          "func": "ignoreErrorAsync",
-          "lines": 3
+          "age_days": 0,
+          "commit_count": 1,
+          "file": "src/remote/RemoteAgentGlyph.tsx",
+          "func": "HydraGlyph",
+          "lines": 16
         }
       ],
       "kind": "exact_clone_group",
-      "max_lines": 3,
-      "risk_score": 6,
-      "severity": "low",
-      "summary": "2 functions share an identical normalized body",
-      "total_lines": 6
-    },
-    {
-      "instance_count": 2,
-      "instances": [
-        {
-          "file": "electron/remote/ws-server.ts",
-          "func": "shouldRequireAgentControl",
-          "lines": 3
-        },
-        {
-          "file": "server/browser-websocket.ts",
-          "func": "shouldRequireAgentControl",
-          "lines": 3
-        }
+      "max_commit_count": 1,
+      "max_lines": 16,
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 16 lines",
+        "at least one clone file changed in 1 recent commit(s)",
+        "2 clone file(s) changed within the last 30 day(s)",
+        "youngest clone file was touched 0 day(s) ago"
       ],
-      "kind": "exact_clone_group",
-      "max_lines": 3,
-      "risk_score": 6,
-      "severity": "low",
-      "summary": "2 functions share an identical normalized body",
-      "total_lines": 6
+      "recently_touched_file_count": 2,
+      "risk_score": 42,
+      "severity": "medium",
+      "summary": "2 functions share an identical normalized body across recently changed files",
+      "total_lines": 32,
+      "youngest_age_days": 0
     }
   ],
   "kind": "mixed_findings",
+  "rules_error": null,
   "semantic_error": null,
-  "semantic_finding_count": 5
+  "semantic_finding_count": 5,
+  "suppressed_finding_count": 0,
+  "suppression_hits": []
 }

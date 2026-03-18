@@ -69,7 +69,9 @@ What did not hold up cleanly:
 - parity now matches the real bootstrap/runtime wiring for `server_state_bootstrap`; the earlier missing live-update findings were analyzer misses, not repo defects
 - explicit controller-style state models now map correctly; the earlier `state_model_unmapped` findings were a discriminated-union extraction gap
 - zero-config closed-domain findings need beta scoping; filtering test-only sites and oversized domains removes `IPC`-style noise and leaves smaller actionable domains
-- exact-clone findings also need beta scoping; filtering test-only/tiny groups and tightening severity moves larger production clones ahead of trivial helpers
+- exact-clone findings also need beta scoping; filtering test-only/tiny groups, adding git-aware churn/code-age context, and tightening severity moves larger production clones ahead of trivial helpers
+- clone findings need distinct-file accounting and deterministic ordering; counting recent activity per file and sorting clone instances stabilizes the case-study goldens and session deltas
+- the remaining clone gap is prioritization: a few related production clone families can still crowd the top list, which argues for family-level collapse rather than more raw clone rows
 
 This means `parallel-code` is already doing its job as a benchmark repo: it is showing where v2 is useful and where the next analyzer corrections belong.
 
@@ -219,8 +221,9 @@ Once the first v2 analyzers land, this repo should plausibly produce findings su
   - current result: the scoped `server_state_bootstrap` contract now scores 10000 and the prior missing live-update findings were confirmed analyzer misses
 - [x] verify explicit state-model mapping on bootstrap and browser sync controllers
   - current result: both configured state models now score 10000 on the real repo
-- [ ] verify clone-drift findings on diff parsing and shared escaping helpers
-  - current state: the clone surface is now materially cleaner, but clone drift is still exact-clone-first rather than git-aware
+- [x] verify git-aware clone-drift findings on meaningful production clone families
+  - current result: clone findings now carry stable ids, churn/code-age context, and better production-first ranking on the real repo
+- [ ] add divergence detection and family-level prioritization for related clone clusters
 - [ ] defer `task_command_controller` and `task_convergence` until Tier 2
 - [ ] verify concentration analysis on lease and restore controllers
 - [ ] verify session delta output on a synthetic closed-domain change

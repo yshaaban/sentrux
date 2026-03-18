@@ -47,7 +47,7 @@ The strongest completed work is:
 | Tier | Status | Assessment | Main Gap |
 | --- | --- | --- | --- |
 | Tier 0 | Mostly complete | Trust foundation is real in MCP | health/CLI/GUI productization is still uneven |
-| Tier 1A | Partial | Exact clone findings now filter test-only/tiny groups and rank production clones more plausibly | no git-correlated drift or divergent-clone lane |
+| Tier 1A | Mostly complete | Clone drift findings now have stable ids, git-aware risk context, deterministic instance ordering, and cleaner production-first ranking | no divergent-clone lane or family-level prioritization yet |
 | Tier 1B | Mostly complete | TS bridge, semantic facts, and initial `parallel-code` benchmark proof are real | no regression benchmark suite and no mature persisted cache story yet |
 | Tier 1C | Mostly complete | v2 rules, concept graph, and suppression enforcement now exist | broader policy UX and validation are still incomplete |
 | Tier 1D | Mostly complete | authority/access findings work | no full scorecard track and limited generic bypass detection |
@@ -82,19 +82,23 @@ Still missing or partial:
 
 ## Tier 1A: Clone Drift Fast Lane
 
-Status: partial
+Status: mostly complete
 
 Delivered:
 
 - exact clone groups are emitted as findings
 - clone findings are integrated into `findings`, `session_end`, and `gate`
+- stable clone ids are carried in finding payloads
+- clone findings now include git-aware churn and code-age context
+- clone reasons now explain recent activity and uneven change patterns
+- clone instance ordering is deterministic, which makes baselines and session deltas more stable
+- recent-activity and asymmetry counts are now computed at the distinct-file level, not per clone instance
 
 Still missing:
 
-- stable clone ids beyond the current finding payload shape
-- git-recency/churn correlation
 - recently diverged clone family detection
-- a meaningful CLI clone-drift surface
+- family-level prioritization and collapse when the same subsystem emits several adjacent clone findings
+- a dedicated CLI clone-drift surface beyond the general findings and gate flows
 
 ## Tier 1B: TypeScript Semantic Substrate
 

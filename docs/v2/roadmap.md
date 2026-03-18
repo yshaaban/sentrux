@@ -89,16 +89,17 @@ Deliverables:
 
 ## Tier 1A: Clone Drift Fast Lane
 
-Status: partial
+Status: mostly complete
 
 Tasks:
 
 - [x] emit exact clone groups as findings, not just aggregate counts
 - [x] filter test-only and tiny clone groups from the beta findings surface
-- [-] add stable clone identifiers and evidence payloads
-- [ ] correlate clone groups with git recency and churn
+- [x] add stable clone identifiers and evidence payloads
+- [x] correlate clone groups with git recency and churn
 - [ ] detect recently diverged clone families
 - [-] expose clone-drift findings via MCP and CLI
+- [ ] collapse repeated clone-family findings into higher-level prioritization where appropriate
 
 Exit criteria:
 
@@ -106,7 +107,7 @@ Exit criteria:
 
 Open gap:
 
-- current clone drift is exact-clone-first, not yet git-aware or divergence-aware
+- current clone drift is now git-aware, but it is still exact-clone-first and not yet divergence-aware or family-collapsed
 
 ## Tier 1B: TypeScript Semantic Substrate
 
