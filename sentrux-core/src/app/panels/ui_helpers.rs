@@ -22,7 +22,7 @@ pub(crate) fn score_color(score: f64) -> egui::Color32 {
         egui::Color32::from_rgb(
             (200.0 - t * 100.0) as u8, // 200 → 100
             200,
-            (60.0 + t * 40.0) as u8,   // 60 → 100
+            (60.0 + t * 40.0) as u8, // 60 → 100
         )
     }
 }
@@ -46,11 +46,18 @@ pub(crate) fn draw_flagged_list<T, F, H>(
         return;
     }
     ui.add_space(3.0);
-    ui.label(egui::RichText::new(title).monospace().size(8.0).color(color));
+    ui.label(
+        egui::RichText::new(title)
+            .monospace()
+            .size(8.0)
+            .color(color),
+    );
     for item in items.iter().take(max_items) {
         let text = format_fn(item);
-        let (rect, resp) =
-            ui.allocate_exact_size(egui::vec2(ui.available_width(), row_h), egui::Sense::hover());
+        let (rect, resp) = ui.allocate_exact_size(
+            egui::vec2(ui.available_width(), row_h),
+            egui::Sense::hover(),
+        );
         if resp.hovered() {
             resp.on_hover_text(egui::RichText::new(hover_fn(item)).monospace().size(10.0));
         }
@@ -64,8 +71,10 @@ pub(crate) fn draw_flagged_list<T, F, H>(
     }
     let remaining = items.len().saturating_sub(max_items);
     if remaining > 0 {
-        let (rect, _) =
-            ui.allocate_exact_size(egui::vec2(ui.available_width(), row_h), egui::Sense::hover());
+        let (rect, _) = ui.allocate_exact_size(
+            egui::vec2(ui.available_width(), row_h),
+            egui::Sense::hover(),
+        );
         ui.painter().text(
             egui::pos2(rect.left() + 4.0, rect.center().y),
             egui::Align2::LEFT_CENTER,
@@ -75,4 +84,3 @@ pub(crate) fn draw_flagged_list<T, F, H>(
         );
     }
 }
-

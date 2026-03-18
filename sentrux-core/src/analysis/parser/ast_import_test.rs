@@ -122,14 +122,15 @@ require_relative '../utils/parser'
     #[test]
     #[ignore]
     fn ast_elixir_multi_alias_dump() {
-        let elixir_samples = &[
-            ("elixir", r#"alias Acme.Shared.V1
+        let elixir_samples = &[(
+            "elixir",
+            r#"alias Acme.Shared.V1
 alias Acme.Inventory.Domain.{Product, ProductNotFoundError, InsufficientStockError}
 import Ecto.Query
 use GenServer
 require Logger
-"#),
-        ];
+"#,
+        )];
         let mut parser = Parser::new();
         for &(lang, source) in elixir_samples {
             println!("\n{}", "=".repeat(72));
@@ -137,14 +138,21 @@ require Logger
             println!("{}", "=".repeat(72));
             let config = match lang_registry::get(lang) {
                 Some(c) => c,
-                None => { println!("[{}] SKIPPED — plugin not installed", lang); continue; }
+                None => {
+                    println!("[{}] SKIPPED — plugin not installed", lang);
+                    continue;
+                }
             };
             if let Err(e) = parser.set_language(&config.grammar) {
-                println!("[{}] ERROR: {}", lang, e); continue;
+                println!("[{}] ERROR: {}", lang, e);
+                continue;
             }
             let tree = match parser.parse(source.as_bytes(), None) {
                 Some(t) => t,
-                None => { println!("[{}] parse returned None", lang); continue; }
+                None => {
+                    println!("[{}] parse returned None", lang);
+                    continue;
+                }
             };
             println!("[{}] Source:", lang);
             for (i, line) in source.lines().enumerate() {
@@ -192,14 +200,21 @@ require Logger
             println!("{}", "=".repeat(72));
             let config = match lang_registry::get(lang) {
                 Some(c) => c,
-                None => { println!("SKIPPED — not loaded"); continue; }
+                None => {
+                    println!("SKIPPED — not loaded");
+                    continue;
+                }
             };
             if let Err(e) = parser.set_language(&config.grammar) {
-                println!("ERROR: {}", e); continue;
+                println!("ERROR: {}", e);
+                continue;
             }
             let tree = match parser.parse(source.as_bytes(), None) {
                 Some(t) => t,
-                None => { println!("parse returned None"); continue; }
+                None => {
+                    println!("parse returned None");
+                    continue;
+                }
             };
             print_tree(tree.root_node(), source.as_bytes(), lang, 0, None);
         }

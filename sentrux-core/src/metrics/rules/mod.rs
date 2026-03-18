@@ -14,8 +14,13 @@ use crate::core::types::ImportEdge;
 pub mod checks;
 #[cfg(test)]
 mod tests;
+pub mod v2;
 
 pub use self::checks::{Constraints, RuleCheckResult, RuleViolation, Severity};
+pub use self::v2::{
+    compute_rule_coverage, ConceptRule, ContractRule, ProjectRuleConfig, RuleCoverage,
+    StateModelRule, SuppressionRule,
+};
 use serde::Deserialize;
 use std::path::Path;
 
@@ -36,6 +41,10 @@ use std::path::Path;
 /// ```
 #[derive(Debug, Clone, Deserialize)]
 pub struct RulesConfig {
+    /// Project-wide v2 settings and exclusions.
+    #[serde(default)]
+    pub project: ProjectRuleConfig,
+
     /// Structural constraints (thresholds on existing metrics).
     #[serde(default)]
     pub constraints: Constraints,
@@ -52,6 +61,22 @@ pub struct RulesConfig {
     /// Explicit deny rules between file patterns.
     #[serde(default)]
     pub boundaries: Vec<BoundaryRule>,
+
+    /// Explicit critical concepts for v2 authority/access and obligation checks.
+    #[serde(default)]
+    pub concept: Vec<ConceptRule>,
+
+    /// Explicit contract parity expectations.
+    #[serde(default)]
+    pub contract: Vec<ContractRule>,
+
+    /// Explicit state-model expectations.
+    #[serde(default)]
+    pub state_model: Vec<StateModelRule>,
+
+    /// Approved exceptions and time-boxed suppressions.
+    #[serde(default)]
+    pub suppress: Vec<SuppressionRule>,
 }
 
 /// Per-language section in rules.toml.
@@ -71,8 +96,16 @@ impl RulesConfig {
             None => self.constraints.clone(),
         }
     }
-}
 
+    pub fn v2_rule_coverage(&self) -> RuleCoverage {
+        compute_rule_coverage(
+            &self.concept,
+            &self.contract,
+            &self.state_model,
+            &self.suppress,
+        )
+    }
+}
 
 /// A named layer with glob patterns for file matching.
 #[derive(Debug, Clone, Deserialize)]
@@ -98,7 +131,6 @@ pub struct BoundaryRule {
     pub reason: String,
 }
 
-
 // ── Loading ──
 
 impl RulesConfig {
@@ -106,8 +138,7 @@ impl RulesConfig {
     pub fn load(path: &Path) -> Result<Self, String> {
         let content = std::fs::read_to_string(path)
             .map_err(|e| format!("Failed to read {}: {e}", path.display()))?;
-        toml::from_str(&content)
-            .map_err(|e| format!("Failed to parse {}: {e}", path.display()))
+        toml::from_str(&content).map_err(|e| format!("Failed to parse {}: {e}", path.display()))
     }
 
     /// Try to load from `.sentrux/rules.toml` relative to a root directory.
@@ -148,19 +179,37 @@ pub fn check_rules(
     let checks: [(&dyn Fn() -> Option<RuleViolation>, bool); 13] = [
         // Root cause gates
         (&|| check_min_quality(c, health), c.min_quality.is_some()),
-        (&|| check_min_modularity(c, health), c.min_modularity.is_some()),
-        (&|| check_min_acyclicity(c, health), c.min_acyclicity.is_some()),
+        (
+            &|| check_min_modularity(c, health),
+            c.min_modularity.is_some(),
+        ),
+        (
+            &|| check_min_acyclicity(c, health),
+            c.min_acyclicity.is_some(),
+        ),
         (&|| check_min_depth(c, health), c.min_depth.is_some()),
         (&|| check_min_equality(c, health), c.min_equality.is_some()),
-        (&|| check_min_redundancy(c, health), c.min_redundancy.is_some()),
+        (
+            &|| check_min_redundancy(c, health),
+            c.min_redundancy.is_some(),
+        ),
         // Specific engineering limits
-        (&|| check_max_coupling(c, health), c.max_coupling_score.is_some()),
+        (
+            &|| check_max_coupling(c, health),
+            c.max_coupling_score.is_some(),
+        ),
         (&|| check_max_cycles(c, health), c.max_cycles.is_some()),
         (&|| check_max_cc(c, health), c.max_cc.is_some()),
-        (&|| check_max_file_lines(c, health), c.max_file_lines.is_some()),
+        (
+            &|| check_max_file_lines(c, health),
+            c.max_file_lines.is_some(),
+        ),
         (&|| check_max_fn_lines(c, health), c.max_fn_lines.is_some()),
         (&|| check_no_god_files(c, health), c.no_god_files),
-        (&|| check_max_upward(c, arch), c.max_upward_violations.is_some()),
+        (
+            &|| check_max_upward(c, arch),
+            c.max_upward_violations.is_some(),
+        ),
     ];
     for (check_fn, active) in &checks {
         if *active {
@@ -184,7 +233,11 @@ pub fn check_rules(
     }
 
     let passed = violations.iter().all(|v| v.severity != Severity::Error);
-    RuleCheckResult { passed, violations, rules_checked }
+    RuleCheckResult {
+        passed,
+        violations,
+        rules_checked,
+    }
 }
 
 /// Check layer ordering: files in higher layers must not import files in lower layers.
@@ -233,10 +286,7 @@ fn check_layers(layers: &[LayerDef], edges: &[ImportEdge]) -> Vec<RuleViolation>
 }
 
 /// Find which layer a file belongs to based on glob patterns.
-fn find_layer<'a>(
-    file: &str,
-    layers: &'a [(usize, &LayerDef)],
-) -> Option<(usize, &'a str)> {
+fn find_layer<'a>(file: &str, layers: &'a [(usize, &LayerDef)]) -> Option<(usize, &'a str)> {
     for &(order, layer) in layers {
         for pattern in &layer.paths {
             if glob_match(pattern, file) {

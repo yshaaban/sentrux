@@ -5,7 +5,7 @@
 //! Import resolution uses oxc_resolver for JS/TS and suffix-index for others.
 
 use super::entry_points::{compute_exec_depth, detect_entry_points};
-use super::resolver::suffix::resolve_path_imports_ref;
+use super::resolver::suffix::{resolve_path_imports_ref, ImportResolutionSummary};
 use crate::core::types::{CallEdge, EntryPoint, FileNode, ImportEdge, InheritEdge};
 use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
@@ -15,7 +15,12 @@ use std::path::Path;
 /// Enables alternative implementations for testing or incremental graph updates.
 pub trait GraphBuilder {
     /// Build all dependency graphs from a set of parsed files.
-    fn build(&self, files: &[&FileNode], scan_root: Option<&Path>, max_call_targets: usize) -> GraphResult;
+    fn build(
+        &self,
+        files: &[&FileNode],
+        scan_root: Option<&Path>,
+        max_call_targets: usize,
+    ) -> GraphResult;
 }
 
 /// Result of `build_graphs`: all three dependency graphs plus entry points.
@@ -31,6 +36,8 @@ pub struct GraphResult {
     pub entry_points: Vec<EntryPoint>,
     /// BFS distance from entry points (0 = entry point, higher = deeper)
     pub exec_depth: HashMap<String, u32>,
+    /// Import resolution accounting used for scan trust reporting
+    pub resolution: ImportResolutionSummary,
 }
 
 /// Build cross-file graphs from a flat list of file references with structural analysis.
@@ -51,27 +58,53 @@ pub fn build_graphs(
     let (lang_map, func_map, class_map) = build_lookup_maps(files);
     let t_maps = t0.elapsed();
 
-    let mut import_edges = resolve_path_imports_ref(files, scan_root);
+    let (mut import_edges, resolution) = resolve_path_imports_ref(files, scan_root);
     let t_imports = t0.elapsed();
 
     // Dedup BEFORE building target index to avoid wasted allocations
     dedup_import_edges(&mut import_edges);
 
     let import_targets = build_import_target_index(&import_edges);
-    let call_edges = compute_call_edges(files, &lang_map, &func_map, &class_map, &import_targets, max_call_targets);
+    let call_edges = compute_call_edges(
+        files,
+        &lang_map,
+        &func_map,
+        &class_map,
+        &import_targets,
+        max_call_targets,
+    );
     let inherit_edges = compute_inherit_edges(files, &lang_map, &class_map, &import_targets);
     let entry_points = collect_entry_points(files);
     let exec_depth = compute_exec_depth(&import_edges, &entry_points);
 
-    log_build_graphs_timing(files.len(), &t0, t_maps, t_imports, &import_edges, &call_edges, &inherit_edges);
+    log_build_graphs_timing(
+        files.len(),
+        &t0,
+        t_maps,
+        t_imports,
+        &import_edges,
+        &call_edges,
+        &inherit_edges,
+    );
 
-    GraphResult { import_edges, call_edges, inherit_edges, entry_points, exec_depth }
+    GraphResult {
+        import_edges,
+        call_edges,
+        inherit_edges,
+        entry_points,
+        exec_depth,
+        resolution,
+    }
 }
 
 /// Build lookup maps for language, functions, and classes from file nodes.
 /// Zero-copy: borrows from the files slice which outlives these maps.
 /// Lookup maps: (lang_map, func_map, class_map).
-type LookupMaps<'a> = (HashMap<&'a str, &'a str>, HashMap<&'a str, Vec<&'a str>>, HashMap<&'a str, Vec<&'a str>>);
+type LookupMaps<'a> = (
+    HashMap<&'a str, &'a str>,
+    HashMap<&'a str, Vec<&'a str>>,
+    HashMap<&'a str, Vec<&'a str>>,
+);
 
 /// Index functions and classes from a file's structural analysis into lookup maps.
 fn index_file_symbols<'a>(
@@ -95,9 +128,7 @@ fn index_file_symbols<'a>(
     }
 }
 
-fn build_lookup_maps<'a>(
-    files: &[&'a FileNode],
-) -> LookupMaps<'a> {
+fn build_lookup_maps<'a>(files: &[&'a FileNode]) -> LookupMaps<'a> {
     let mut lang_map: HashMap<&str, &str> = HashMap::new();
     let mut func_map: HashMap<&str, Vec<&str>> = HashMap::new();
     let mut class_map: HashMap<&str, Vec<&str>> = HashMap::new();
@@ -203,7 +234,11 @@ fn resolve_call_targets<'a>(
         })
         .copied()
         .collect();
-    if same_lang.len() <= max_call_targets { same_lang } else { Vec::new() }
+    if same_lang.len() <= max_call_targets {
+        same_lang
+    } else {
+        Vec::new()
+    }
 }
 
 /// Compute call edges between files connected by import edges.
@@ -237,12 +272,26 @@ fn compute_call_edges<'a>(
             let mut emit_call = |from_func: &str, call_name: &str| {
                 // Match against function names
                 let mut targets = resolve_call_targets(
-                    call_name, &file.path, src_lang, func_map, lang_map, imported_files, max_call_targets, implicit,
+                    call_name,
+                    &file.path,
+                    src_lang,
+                    func_map,
+                    lang_map,
+                    imported_files,
+                    max_call_targets,
+                    implicit,
                 );
                 // Also match against class/type names — type references are dependencies too
                 if targets.is_empty() {
                     targets = resolve_call_targets(
-                        call_name, &file.path, src_lang, class_map, lang_map, imported_files, max_call_targets, implicit,
+                        call_name,
+                        &file.path,
+                        src_lang,
+                        class_map,
+                        lang_map,
+                        imported_files,
+                        max_call_targets,
+                        implicit,
                     );
                 }
                 for target_file in targets {
@@ -270,7 +319,8 @@ fn compute_call_edges<'a>(
         .collect();
     // Sort for deterministic output regardless of par_iter ordering. [H2 fix]
     all_edges.sort_unstable_by(|a, b| {
-        a.from_file.cmp(&b.from_file)
+        a.from_file
+            .cmp(&b.from_file)
             .then_with(|| a.from_func.cmp(&b.from_func))
             .then_with(|| a.to_file.cmp(&b.to_file))
             .then_with(|| a.to_func.cmp(&b.to_func))
@@ -318,7 +368,13 @@ fn collect_class_inherit_edges(
             None => continue,
         };
         for &parent_file in parent_files {
-            if is_valid_inherit_target(parent_file, lk.file_path, lk.src_lang, lk.lang_map, lk.imported_files) {
+            if is_valid_inherit_target(
+                parent_file,
+                lk.file_path,
+                lk.src_lang,
+                lk.lang_map,
+                lk.imported_files,
+            ) {
                 edges.push(InheritEdge {
                     child_file: lk.file_path.to_string(),
                     child_class: cls.n.clone(),
@@ -367,7 +423,8 @@ fn compute_inherit_edges<'a>(
         .collect();
     // Sort for deterministic output regardless of par_iter ordering. [H2 fix]
     all_edges.sort_unstable_by(|a, b| {
-        a.child_file.cmp(&b.child_file)
+        a.child_file
+            .cmp(&b.child_file)
             .then_with(|| a.child_class.cmp(&b.child_class))
             .then_with(|| a.parent_file.cmp(&b.parent_file))
             .then_with(|| a.parent_class.cmp(&b.parent_class))

@@ -22,4 +22,5 @@ target/
 .beemem*/
 .claude/
 .wrangler/
+ts-bridge/node_modules/
 sentrux-core/src/analysis/plugin/embedded.rs

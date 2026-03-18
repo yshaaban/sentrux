@@ -7,6 +7,7 @@
 #[cfg(test)]
 pub(crate) mod test_helpers;
 
+pub mod concepts;
 pub mod entry_points;
 pub mod git;
 pub mod graph;
@@ -15,4 +16,4 @@ pub mod parser;
 pub mod plugin;
 pub mod resolver;
 pub mod scanner;
-
+pub mod semantic;

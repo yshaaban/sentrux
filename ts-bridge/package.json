@@ -1,0 +1,19 @@
+{
+  "name": "sentrux-ts-bridge",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "JSON-RPC-over-stdio TypeScript semantic bridge for Sentrux v2",
+  "main": "dist/index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "typescript": "^5.8.2"
+  }
+}

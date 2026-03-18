@@ -4,15 +4,15 @@
 //! file paths. Handles relative imports, path aliases (from plugin-declared
 //! config files like tsconfig.json), and monorepo project boundaries.
 
-use crate::core::types::ImportEdge;
 use crate::core::types::FileNode;
+use crate::core::types::ImportEdge;
 use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use super::helpers::{
-    resolve_relative, try_resolve_name,
-    try_suffix_resolve, file_to_module_path, SuffixIndex, ResolveEnv,
+    file_to_module_path, resolve_relative, try_resolve_name, try_suffix_resolve, ResolveEnv,
+    SuffixIndex,
 };
 // Re-export normalize_path so existing callers (tests, graph) still find it here.
 pub(crate) use super::helpers::normalize_path;
@@ -25,14 +25,10 @@ pub(crate) struct SourceContext<'a> {
     pub file: &'a FileNode,
     /// Parent directory of the importing file
     pub file_dir: &'a Path,
-    /// Project root this file belongs to (for boundary filtering)
-    pub src_project: &'a str,
 }
 
 /// Shared indexes used for resolution lookups.
 pub(crate) struct ResolutionIndex<'a> {
-    /// Map from file path to its project root
-    pub project_map: &'a HashMap<String, String>,
     #[allow(dead_code)]
     /// Set of all known file paths in the scan (reserved for future resolution strategies)
     pub known_files: &'a HashSet<&'a str>,
@@ -41,12 +37,34 @@ pub(crate) struct ResolutionIndex<'a> {
     pub suffix_index: &'a SuffixIndex<'a>,
 }
 
+/// Import resolution summary surfaced to scan trust reporting.
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct ImportResolutionSummary {
+    pub resolved: usize,
+    pub unresolved_internal: usize,
+    pub unresolved_external: usize,
+    pub unresolved_unknown: usize,
+}
+
+impl ImportResolutionSummary {
+    pub fn total_specs(&self) -> usize {
+        self.resolved
+            + self.unresolved_internal
+            + self.unresolved_external
+            + self.unresolved_unknown
+    }
+}
+
 /// Atomic counters for resolution statistics.
 pub(crate) struct ResolutionStats {
     /// Number of imports successfully resolved to a file
     pub resolved_count: std::sync::atomic::AtomicUsize,
-    /// Number of imports that could not be resolved
-    pub unresolved_count: std::sync::atomic::AtomicUsize,
+    /// Number of imports that should have resolved inside the project but did not
+    pub unresolved_internal_count: std::sync::atomic::AtomicUsize,
+    /// Number of unresolved bare imports that appear to target external packages
+    pub unresolved_external_count: std::sync::atomic::AtomicUsize,
+    /// Number of unresolved imports whose intent is ambiguous from syntax alone
+    pub unresolved_unknown_count: std::sync::atomic::AtomicUsize,
 }
 
 impl ResolutionStats {
@@ -54,7 +72,20 @@ impl ResolutionStats {
     pub fn new() -> Self {
         Self {
             resolved_count: std::sync::atomic::AtomicUsize::new(0),
-            unresolved_count: std::sync::atomic::AtomicUsize::new(0),
+            unresolved_internal_count: std::sync::atomic::AtomicUsize::new(0),
+            unresolved_external_count: std::sync::atomic::AtomicUsize::new(0),
+            unresolved_unknown_count: std::sync::atomic::AtomicUsize::new(0),
+        }
+    }
+
+    pub fn summary(&self) -> ImportResolutionSummary {
+        use std::sync::atomic::Ordering;
+
+        ImportResolutionSummary {
+            resolved: self.resolved_count.load(Ordering::Relaxed),
+            unresolved_internal: self.unresolved_internal_count.load(Ordering::Relaxed),
+            unresolved_external: self.unresolved_external_count.load(Ordering::Relaxed),
+            unresolved_unknown: self.unresolved_unknown_count.load(Ordering::Relaxed),
         }
     }
 }
@@ -67,21 +98,23 @@ impl ResolutionStats {
 /// levels within a single project (CMake per-directory, recursive Make),
 /// causing the boundary gate to silently drop valid cross-directory imports.
 /// Manifest files aggregated from all loaded plugins. Cached at first access.
-static MANIFEST_FILES: std::sync::LazyLock<Vec<String>> =
-    std::sync::LazyLock::new(|| {
-        crate::analysis::lang_registry::all_manifest_files()
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect()
-    });
+static MANIFEST_FILES: std::sync::LazyLock<Vec<String>> = std::sync::LazyLock::new(|| {
+    crate::analysis::lang_registry::all_manifest_files()
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect()
+});
 
 /// Unified import resolution for ALL languages via suffix-index.
 /// No tier split — JS/TS goes through the same resolver with path alias support.
-pub(crate) fn resolve_path_imports_ref(files: &[&FileNode], scan_root: Option<&Path>) -> Vec<ImportEdge> {
+pub(crate) fn resolve_path_imports_ref(
+    files: &[&FileNode],
+    scan_root: Option<&Path>,
+) -> (Vec<ImportEdge>, ImportResolutionSummary) {
     let t0 = std::time::Instant::now();
     let scan_root = match scan_root {
         Some(r) => r,
-        None => return Vec::new(),
+        None => return (Vec::new(), ImportResolutionSummary::default()),
     };
 
     let known_files: HashSet<&str> = files
@@ -104,11 +137,21 @@ pub(crate) fn resolve_path_imports_ref(files: &[&FileNode], scan_root: Option<&P
     let mut path_aliases = load_path_aliases(&project_map, scan_root);
     let manifest_aliases = collect_manifest_path_aliases(&project_map, scan_root);
     if !manifest_aliases.is_empty() {
-        path_aliases.entry(String::new()).or_default().extend(manifest_aliases);
+        path_aliases
+            .entry(String::new())
+            .or_default()
+            .extend(manifest_aliases);
     }
     let t_suffix = t0.elapsed();
 
-    let edges = resolve_tier2_imports(files, &known_files, &project_map, &suffix_index, &exts, &path_aliases);
+    let (edges, summary) = resolve_tier2_imports(
+        files,
+        &known_files,
+        &project_map,
+        &suffix_index,
+        &exts,
+        &path_aliases,
+    );
     let t_total = t0.elapsed();
 
     eprintln!(
@@ -119,7 +162,7 @@ pub(crate) fn resolve_path_imports_ref(files: &[&FileNode], scan_root: Option<&P
         t_total.as_secs_f64() * 1000.0,
     );
 
-    edges
+    (edges, summary)
 }
 
 /// Resolve a single import specifier for a file and classify the result.
@@ -128,7 +171,6 @@ fn resolve_single_specifier(
     src: &SourceContext<'_>,
     _idx: &ResolutionIndex<'_>,
     env: &ResolveEnv<'_>,
-    stats: &ResolutionStats,
 ) -> Option<ImportEdge> {
     if src.specifier.starts_with('<') {
         return None;
@@ -139,13 +181,12 @@ fn resolve_single_specifier(
             // Accept ALL resolved edges. The user chose to scan this directory —
             // everything in it is their project. Cross-sub-project imports are
             // real dependencies that the tool should show, not hide.
-            stats.resolved_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            Some(ImportEdge { from_file: src.file.path.clone(), to_file: target })
+            Some(ImportEdge {
+                from_file: src.file.path.clone(),
+                to_file: target,
+            })
         }
-        None => {
-            stats.unresolved_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            None
-        }
+        None => None,
         _ => None,
     }
 }
@@ -158,9 +199,12 @@ fn resolve_tier2_imports(
     suffix_index: &SuffixIndex<'_>,
     exts: &[&str],
     path_aliases: &HashMap<String, Vec<PathAlias>>,
-) -> Vec<ImportEdge> {
+) -> (Vec<ImportEdge>, ImportResolutionSummary) {
     let stats = ResolutionStats::new();
-    let idx = ResolutionIndex { known_files, project_map, suffix_index };
+    let idx = ResolutionIndex {
+        known_files,
+        suffix_index,
+    };
     let edges: Vec<ImportEdge> = files
         .par_iter()
         .filter(|f| !f.is_dir)
@@ -172,20 +216,31 @@ fn resolve_tier2_imports(
             // Per-file env: directory_is_package comes from the file's language profile (TOML)
             let profile = crate::analysis::lang_registry::profile(&file.lang);
             let env = ResolveEnv {
-                suffix_index, known_files, exts,
+                suffix_index,
+                known_files,
+                exts,
                 directory_is_package: profile.semantics.project.directory_is_package,
             };
             let file_dir = Path::new(&file.path).parent().unwrap_or(Path::new(""));
-            let src_project = project_map.get(&file.path).map(|s| s.as_str()).unwrap_or("");
+            let src_project = project_map
+                .get(&file.path)
+                .map(|s| s.as_str())
+                .unwrap_or("");
 
             // Get path aliases for this file's project
-            let project_aliases = path_aliases.get(src_project).map(|v| v.as_slice()).unwrap_or(&[]);
+            let project_aliases = path_aliases
+                .get(src_project)
+                .map(|v| v.as_slice())
+                .unwrap_or(&[]);
 
             // Also try root-level aliases (from manifest name discovery)
             let root_aliases = path_aliases.get("").map(|v| v.as_slice()).unwrap_or(&[]);
 
-            imports.iter()
+            imports
+                .iter()
                 .filter_map(|specifier| {
+                    let resolution_kind =
+                        classify_specifier_kind(specifier, project_aliases, root_aliases);
                     // Try alias-substituted specifier first, fall back to original.
                     // Aliases are hints, not absolute — if the substituted path
                     // doesn't exist (source not in src/), the original may still resolve.
@@ -193,32 +248,114 @@ fn resolve_tier2_imports(
                         apply_path_alias(specifier, project_aliases),
                         apply_path_alias(specifier, root_aliases),
                     ];
+                    let mut resolved_edge: Option<ImportEdge> = None;
                     for aliased in &alias_specs {
                         if let Some(ref spec) = aliased {
-                            let src = SourceContext { specifier: spec, file, file_dir, src_project };
-                            if let Some(edge) = resolve_single_specifier(&src, &idx, &env, &stats) {
-                                return Some(edge);
+                            let src = SourceContext {
+                                specifier: spec,
+                                file,
+                                file_dir,
+                            };
+                            if let Some(edge) = resolve_single_specifier(&src, &idx, &env) {
+                                resolved_edge = Some(edge);
+                                break;
                             }
                         }
                     }
-                    // Fall back to original specifier
-                    let src = SourceContext { specifier, file, file_dir, src_project };
-                    resolve_single_specifier(&src, &idx, &env, &stats)
+                    if resolved_edge.is_none() {
+                        let src = SourceContext {
+                            specifier,
+                            file,
+                            file_dir,
+                        };
+                        resolved_edge = resolve_single_specifier(&src, &idx, &env);
+                    }
+
+                    if resolved_edge.is_some() {
+                        stats
+                            .resolved_count
+                            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    } else {
+                        increment_unresolved(&stats, resolution_kind);
+                    }
+                    resolved_edge
                 })
                 .collect()
         })
         .collect();
 
-    let unresolved = stats.unresolved_count.load(std::sync::atomic::Ordering::Relaxed);
-    let resolved = stats.resolved_count.load(std::sync::atomic::Ordering::Relaxed);
-    let total_specs = resolved + unresolved;
+    let summary = stats.summary();
+    let total_specs = summary.total_specs();
     if total_specs > 0 {
         eprintln!(
-            "[resolve] {} resolved, {} unresolved (of {} total specs)",
-            resolved, unresolved, total_specs
+            "[resolve] {} resolved, {} unresolved_internal, {} unresolved_external, {} unresolved_unknown (of {} total specs)",
+            summary.resolved,
+            summary.unresolved_internal,
+            summary.unresolved_external,
+            summary.unresolved_unknown,
+            total_specs
         );
     }
-    edges
+    (edges, summary)
+}
+
+#[derive(Clone, Copy)]
+enum SpecifierKind {
+    Internal,
+    External,
+    Unknown,
+}
+
+fn increment_unresolved(stats: &ResolutionStats, kind: SpecifierKind) {
+    use std::sync::atomic::Ordering;
+
+    match kind {
+        SpecifierKind::Internal => {
+            stats
+                .unresolved_internal_count
+                .fetch_add(1, Ordering::Relaxed);
+        }
+        SpecifierKind::External => {
+            stats
+                .unresolved_external_count
+                .fetch_add(1, Ordering::Relaxed);
+        }
+        SpecifierKind::Unknown => {
+            stats
+                .unresolved_unknown_count
+                .fetch_add(1, Ordering::Relaxed);
+        }
+    }
+}
+
+fn classify_specifier_kind(
+    specifier: &str,
+    project_aliases: &[PathAlias],
+    root_aliases: &[PathAlias],
+) -> SpecifierKind {
+    if specifier.starts_with('.')
+        || specifier.starts_with('/')
+        || specifier.starts_with("crate::")
+        || specifier.starts_with("self::")
+        || specifier.starts_with("super::")
+    {
+        return SpecifierKind::Internal;
+    }
+    if matches_path_alias(specifier, project_aliases) || matches_path_alias(specifier, root_aliases)
+    {
+        return SpecifierKind::Internal;
+    }
+    if specifier.starts_with("node:") || (!specifier.contains('/') && !specifier.starts_with('@')) {
+        return SpecifierKind::External;
+    }
+    SpecifierKind::Unknown
+}
+
+fn matches_path_alias(specifier: &str, aliases: &[PathAlias]) -> bool {
+    aliases.iter().any(|alias| {
+        specifier == alias.prefix.trim_end_matches('/')
+            || specifier.starts_with(alias.prefix.as_str())
+    })
 }
 
 /// Backfill all visited directories with the found project root.
@@ -230,7 +367,9 @@ fn backfill_cache(cache: &mut HashMap<String, String>, visited: &[String], resul
 
 /// Check if any manifest file exists in the given directory.
 fn has_manifest(dir: &Path) -> bool {
-    MANIFEST_FILES.iter().any(|manifest| dir.join(manifest).exists())
+    MANIFEST_FILES
+        .iter()
+        .any(|manifest| dir.join(manifest).exists())
 }
 
 /// Detect which project a file belongs to by walking up from its directory
@@ -247,7 +386,8 @@ fn detect_project_root_cached(
     let mut visited: Vec<String> = Vec::new();
 
     while dir.starts_with(scan_root) {
-        let rel = dir.strip_prefix(scan_root)
+        let rel = dir
+            .strip_prefix(scan_root)
             .unwrap_or(&dir)
             .to_string_lossy()
             .to_string();
@@ -286,7 +426,9 @@ fn build_project_map(files: &[&FileNode], scan_root: &Path) -> HashMap<String, S
     let mut cache_misses = 0usize;
 
     for file in files {
-        if file.is_dir { continue; }
+        if file.is_dir {
+            continue;
+        }
         let dir = Path::new(&file.path)
             .parent()
             .unwrap_or(Path::new(""))
@@ -302,14 +444,21 @@ fn build_project_map(files: &[&FileNode], scan_root: &Path) -> HashMap<String, S
     }
     eprintln!(
         "[build_project_map] {} files, {} unique dirs, {} cache misses, {:.1}ms",
-        files.len(), dir_cache.len(), cache_misses, t0.elapsed().as_secs_f64() * 1000.0
+        files.len(),
+        dir_cache.len(),
+        cache_misses,
+        t0.elapsed().as_secs_f64() * 1000.0
     );
     project_map
 }
 
 /// Add all suffixes of a module path to the index, pointing to the given file.
 /// e.g. "a/b/c" generates suffixes ["a/b/c", "b/c", "c"].
-fn add_module_suffixes<'a>(index: &mut HashMap<String, Vec<&'a str>>, module_path: &str, file_path: &'a str) {
+fn add_module_suffixes<'a>(
+    index: &mut HashMap<String, Vec<&'a str>>,
+    module_path: &str,
+    file_path: &'a str,
+) {
     let mut pos = 0;
     loop {
         let suffix = &module_path[pos..];
@@ -329,7 +478,11 @@ fn add_module_suffixes<'a>(index: &mut HashMap<String, Vec<&'a str>>, module_pat
 /// Package index files use their parent directory as the module path:
 ///   __init__.py, mod.rs, index.js, index.ts, etc.
 /// This is detected from the filename -- no language knowledge needed.
-fn build_module_suffix_index<'a>(known_files: &HashSet<&'a str>, scan_root: &Path, project_map: &HashMap<String, String>) -> SuffixIndex<'a> {
+fn build_module_suffix_index<'a>(
+    known_files: &HashSet<&'a str>,
+    scan_root: &Path,
+    project_map: &HashMap<String, String>,
+) -> SuffixIndex<'a> {
     let mut index: HashMap<String, Vec<&'a str>> = HashMap::new();
 
     // Collect extensions for languages where directories are packages
@@ -355,7 +508,9 @@ fn build_module_suffix_index<'a>(known_files: &HashSet<&'a str>, scan_root: &Pat
         // For directory-is-package languages: also add parent dir as module path.
         // e.g., Go `import "internal/config"` references the directory, not a file.
         if !dir_pkg_exts.is_empty() {
-            let has_dir_pkg_ext = file_path.rsplit('.').next()
+            let has_dir_pkg_ext = file_path
+                .rsplit('.')
+                .next()
                 .map_or(false, |ext| dir_pkg_exts.iter().any(|e| e == ext));
             if has_dir_pkg_ext {
                 if let Some((parent, _)) = module_path.rsplit_once('/') {
@@ -375,7 +530,11 @@ fn build_module_suffix_index<'a>(known_files: &HashSet<&'a str>, scan_root: &Pat
     let mut manifest_name_aliases: HashMap<String, Vec<&'a str>> = HashMap::new();
     inject_manifest_name_aliases(&mut manifest_name_aliases, known_files, scan_root);
 
-    SuffixIndex { index, manifest_name_aliases, module_prefixes }
+    SuffixIndex {
+        index,
+        manifest_name_aliases,
+        module_prefixes,
+    }
 }
 
 /// Extract a module path from a file content using a directive keyword.
@@ -386,7 +545,9 @@ fn extract_module_name_generic<'a>(content: &'a str, directive: &str) -> Option<
         let trimmed = line.trim();
         if let Some(rest) = trimmed.strip_prefix(directive) {
             let rest = rest.trim();
-            if rest.is_empty() { continue; }
+            if rest.is_empty() {
+                continue;
+            }
             return Some(rest.split_whitespace().next().unwrap_or(rest));
         }
     }
@@ -396,15 +557,22 @@ fn extract_module_name_generic<'a>(content: &'a str, directive: &str) -> Option<
 /// Scan project roots for module prefix files and build a map of module paths to project dirs.
 /// Reads module_prefix_file and module_prefix_directive from ALL loaded plugin profiles.
 /// Sorted longest-first so more specific module paths match before shorter ones.
-fn collect_module_prefixes(project_map: &HashMap<String, String>, scan_root: &Path) -> Vec<(String, String)> {
+fn collect_module_prefixes(
+    project_map: &HashMap<String, String>,
+    scan_root: &Path,
+) -> Vec<(String, String)> {
     // Collect all (file, directive) pairs from plugin profiles
     let prefix_configs: Vec<(&str, &str)> = crate::analysis::lang_registry::all_profiles()
-        .filter(|p| !p.semantics.resolver.module_prefix_file.is_empty()
-                  && !p.semantics.resolver.module_prefix_directive.is_empty())
-        .map(|p| (
-            p.semantics.resolver.module_prefix_file.as_str(),
-            p.semantics.resolver.module_prefix_directive.as_str(),
-        ))
+        .filter(|p| {
+            !p.semantics.resolver.module_prefix_file.is_empty()
+                && !p.semantics.resolver.module_prefix_directive.is_empty()
+        })
+        .map(|p| {
+            (
+                p.semantics.resolver.module_prefix_file.as_str(),
+                p.semantics.resolver.module_prefix_directive.as_str(),
+            )
+        })
         .collect();
 
     if prefix_configs.is_empty() {
@@ -453,11 +621,17 @@ fn extract_manifest_alias(
         scan_root.join(project_dir).join(&resolver.alias_file)
     };
     let content = std::fs::read_to_string(&manifest_path).ok()?;
-    let manifest_name = manifest_path.file_name()
-        .and_then(|n| n.to_str()).unwrap_or(&resolver.alias_file);
+    let manifest_name = manifest_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or(&resolver.alias_file);
     let name = extract_name_from_manifest(&content, &resolver.alias_field, manifest_name)?;
     let transformed = apply_alias_transform(&name, &resolver.alias_transform);
-    if transformed.is_empty() { None } else { Some(transformed) }
+    if transformed.is_empty() {
+        None
+    } else {
+        Some(transformed)
+    }
 }
 
 fn inject_manifest_name_aliases<'a>(
@@ -467,13 +641,17 @@ fn inject_manifest_name_aliases<'a>(
 ) {
     for profile in crate::analysis::lang_registry::all_profiles() {
         let resolver = &profile.semantics.resolver;
-        if resolver.alias_file.is_empty() || resolver.alias_field.is_empty()
+        if resolver.alias_file.is_empty()
+            || resolver.alias_field.is_empty()
             || resolver.alias_entry_point.is_empty()
         {
             continue;
         }
 
-        let entry_filename = resolver.alias_entry_point.rsplit('/').next()
+        let entry_filename = resolver
+            .alias_entry_point
+            .rsplit('/')
+            .next()
             .unwrap_or(&resolver.alias_entry_point);
 
         for &file_path in known_files {
@@ -536,7 +714,11 @@ fn build_dir_replacement(project_dir: &str, source_root: &str) -> String {
     } else {
         format!("{}/", project_dir)
     };
-    if source_root.is_empty() { base } else { format!("{}{}/", base, source_root) }
+    if source_root.is_empty() {
+        base
+    } else {
+        format!("{}{}/", base, source_root)
+    }
 }
 
 fn collect_manifest_path_aliases(
@@ -585,7 +767,11 @@ fn resolve_manifest_path(dir: &Path, filename: &str) -> Option<std::path::PathBu
         None
     } else {
         let path = dir.join(filename);
-        if path.exists() { Some(path) } else { None }
+        if path.exists() {
+            Some(path)
+        } else {
+            None
+        }
     }
 }
 
@@ -619,7 +805,10 @@ fn extract_line_match(content: &str, prefix: &str) -> Option<String> {
     for line in content.lines() {
         let trimmed = line.trim();
         if let Some(rest) = trimmed.strip_prefix(prefix) {
-            let rest = rest.trim().trim_start_matches(|c: char| c == '=' || c == ':').trim();
+            let rest = rest
+                .trim()
+                .trim_start_matches(|c: char| c == '=' || c == ':')
+                .trim();
             // Extract quoted string: "value" or 'value'
             if rest.starts_with('"') {
                 return rest[1..].find('"').map(|i| rest[1..1 + i].to_string());
@@ -629,15 +818,20 @@ fn extract_line_match(content: &str, prefix: &str) -> Option<String> {
             }
             // Elixir atom: :my_app
             if rest.starts_with(':') {
-                let atom = rest[1..].split(|c: char| !c.is_alphanumeric() && c != '_')
-                    .next().unwrap_or("");
+                let atom = rest[1..]
+                    .split(|c: char| !c.is_alphanumeric() && c != '_')
+                    .next()
+                    .unwrap_or("");
                 if !atom.is_empty() {
                     return Some(atom.to_string());
                 }
             }
             // Bare word (no quotes)
-            let word = rest.split(|c: char| c.is_whitespace() || c == ',')
-                .next().unwrap_or("").trim_matches('"');
+            let word = rest
+                .split(|c: char| c.is_whitespace() || c == ',')
+                .next()
+                .unwrap_or("")
+                .trim_matches('"');
             if !word.is_empty() {
                 return Some(word.to_string());
             }
@@ -829,8 +1023,14 @@ fn try_load_project_aliases(
     } else {
         scan_root.join(project_dir).join(&resolver.path_alias_file)
     };
-    if !config_path.exists() { return None; }
-    parse_path_alias_config(&config_path, &resolver.path_alias_field, &resolver.path_alias_base_url)
+    if !config_path.exists() {
+        return None;
+    }
+    parse_path_alias_config(
+        &config_path,
+        &resolver.path_alias_field,
+        &resolver.path_alias_base_url,
+    )
 }
 
 fn load_path_aliases(
@@ -846,9 +1046,14 @@ fn load_path_aliases(
             continue;
         }
         for &project_dir in &unique_roots {
-            if result.contains_key(project_dir) { continue; }
+            if result.contains_key(project_dir) {
+                continue;
+            }
             if let Some(aliases) = try_load_project_aliases(project_dir, scan_root, resolver) {
-                result.entry(project_dir.to_string()).or_default().extend(aliases);
+                result
+                    .entry(project_dir.to_string())
+                    .or_default()
+                    .extend(aliases);
             }
         }
     }
@@ -868,37 +1073,58 @@ fn parse_path_alias_config(
         navigate_json(&json, base_url_path)
             .and_then(|v| v.as_str())
             .unwrap_or(".")
-    } else { "." };
+    } else {
+        "."
+    };
 
     let paths_obj = navigate_json(&json, field_path)?.as_object()?;
     let mut aliases = Vec::new();
 
     for (pattern, mapped) in paths_obj {
         let prefix = pattern.trim_end_matches('*');
-        if prefix.is_empty() { continue; }
+        if prefix.is_empty() {
+            continue;
+        }
         let replacements: Vec<String> = match mapped {
-            serde_json::Value::Array(arr) => arr.iter()
+            serde_json::Value::Array(arr) => arr
+                .iter()
                 .filter_map(|v| v.as_str())
                 .map(|s| {
                     let stripped = s.trim_end_matches('*');
-                    if base_url == "." { stripped.to_string() }
-                    else { format!("{}/{}", base_url.trim_end_matches('/'), stripped.trim_start_matches("./")) }
+                    if base_url == "." {
+                        stripped.to_string()
+                    } else {
+                        format!(
+                            "{}/{}",
+                            base_url.trim_end_matches('/'),
+                            stripped.trim_start_matches("./")
+                        )
+                    }
                 })
                 .collect(),
             _ => continue,
         };
         if !replacements.is_empty() {
-            aliases.push(PathAlias { prefix: prefix.to_string(), replacements });
+            aliases.push(PathAlias {
+                prefix: prefix.to_string(),
+                replacements,
+            });
         }
     }
 
     aliases.sort_by(|a, b| b.prefix.len().cmp(&a.prefix.len()));
-    if aliases.is_empty() { None } else { Some(aliases) }
+    if aliases.is_empty() {
+        None
+    } else {
+        Some(aliases)
+    }
 }
 
 /// Navigate a JSON value by dot-separated path.
 fn navigate_json<'a>(value: &'a serde_json::Value, path: &str) -> Option<&'a serde_json::Value> {
     let mut current = value;
-    for key in path.split('.') { current = current.get(key)?; }
+    for key in path.split('.') {
+        current = current.get(key)?;
+    }
     Some(current)
 }

@@ -24,7 +24,6 @@ use serde::Deserialize;
 #[serde(default)]
 pub struct LanguageSemantics {
     // ── Import system ──
-
     /// Whether `.` is a module separator (Python: `os.path` → `os/path`).
     /// If false, `.` is treated as file extension (C: `stdio.h`).
     pub dot_is_module_separator: bool,
@@ -51,7 +50,6 @@ pub struct LanguageSemantics {
     pub base_class_node_kinds: Vec<String>,
 
     // ── Comment & string syntax ──
-
     /// Whether `#` starts a line comment (Python, Ruby, Bash, R).
     pub hash_is_comment: bool,
 
@@ -60,14 +58,12 @@ pub struct LanguageSemantics {
     pub has_triple_quote_strings: bool,
 
     // ── Module resolution ──
-
     /// Filenames that represent "directory as module" / barrel re-exporters.
     /// These files' fan-in reflects re-exports, not genuine coupling.
     /// Examples: `["__init__.py"]` for Python, `["mod.rs"]` for Rust.
     pub package_index_files: Vec<String>,
 
     // ── Abstract type detection (Martin 2003 Distance from Main Sequence) ──
-
     /// Base class names that indicate an abstract type.
     /// Examples: Python `["Protocol", "ABC", "ABCMeta"]`.
     /// Used in `is_abstract_kind()` fallback when tree-sitter capture doesn't
@@ -96,7 +92,6 @@ pub struct LanguageSemantics {
     pub qualified_name_separator: String,
 
     // ── Visibility detection ──
-
     /// Keywords that indicate a function is publicly visible.
     /// Examples: Rust `["pub"]`, JS/TS `["export"]`, Java `["public"]`,
     ///          Swift `["public", "open"]`, C# `["public"]`.
@@ -121,7 +116,6 @@ pub struct LanguageSemantics {
     pub method_parent_kinds: Vec<String>,
 
     // ── Entry point detection ──
-
     /// Whether this language can have executable entry points.
     /// False for CSS, HTML, Markdown, etc.
     pub is_executable: bool,
@@ -138,7 +132,6 @@ pub struct LanguageSemantics {
     pub entry_point_patterns: Vec<String>,
 
     // ── Test module detection (import filtering) ──
-
     /// Node kind for test module declarations (to exclude from import graph).
     /// Rust: "mod_item". Empty = no test-module filtering.
     #[serde(default)]
@@ -155,7 +148,6 @@ pub struct LanguageSemantics {
     pub test_attribute_patterns: Vec<String>,
 
     // ── Parameter counting (AST-based) ──
-
     /// Node kinds for parameter list containers.
     /// Examples: ["parameters", "formal_parameters", "parameter_list"].
     #[serde(default)]
@@ -177,7 +169,6 @@ pub struct LanguageSemantics {
     pub param_kinds: Vec<String>,
 
     // ── Base class extraction ──
-
     /// Node kinds that represent type identifiers in class inheritance.
     /// Examples: ["type_identifier", "identifier", "constant", "scope_resolution"].
     #[serde(default)]
@@ -189,7 +180,6 @@ pub struct LanguageSemantics {
     pub visibility_keywords: Vec<String>,
 
     // ── Test file detection ──
-
     /// Directory prefixes that indicate test directories.
     /// Examples: `["test/", "tests/"]` for Python.
     pub test_dir_prefixes: Vec<String>,
@@ -207,31 +197,26 @@ pub struct LanguageSemantics {
     pub test_prefixes: Vec<String>,
 
     // ── Import extraction (AST-based) ──
-
     /// AST-based import path extraction configuration.
     #[serde(default)]
     pub import_ast: ImportAstConfig,
 
     // ── Project structure ──
-
     /// Project structure configuration — manifest files, ignored dirs, source dirs.
     #[serde(default)]
     pub project: ProjectConfig,
 
     // ── Import resolution ──
-
     /// Import resolver configuration — path aliases, module prefixes, crate aliases.
     #[serde(default)]
     pub resolver: ResolverConfig,
 
     // ── Complexity (AST-based) ──
-
     /// AST node kinds for complexity counting.
     /// The platform walks the tree-sitter AST and counts nodes matching these kinds.
     /// No text scanning — tree-sitter already parsed the structure.
     #[serde(default)]
     pub complexity: ComplexityNodes,
-
     // Legacy complexity_keywords section is ignored if present in plugin.toml.
     // All complexity analysis uses AST node-based branch_nodes/logic_nodes.
 }
@@ -251,7 +236,6 @@ pub struct ImportAstConfig {
     pub strategy: String,
 
     // ── field_read strategy ──
-
     /// Field name on the import node that contains the module path.
     /// Python: "module_name", Go: "path", JS: "source", C: "path".
     pub module_path_field: String,
@@ -277,7 +261,6 @@ pub struct ImportAstConfig {
     pub recursive_search: bool,
 
     // ── scoped_path strategy ──
-
     /// Separator for joining scoped path segments. Rust: "::", Java: ".".
     pub path_separator: String,
 
@@ -303,7 +286,6 @@ pub struct ImportAstConfig {
     pub skip_type_imports_in_use_list: bool,
 
     // ── Python relative imports ──
-
     /// Node kind that indicates a relative import. Python: "relative_import".
     pub relative_import_kind: String,
 
@@ -311,7 +293,6 @@ pub struct ImportAstConfig {
     pub import_prefix_kind: String,
 
     // ── Post-processing ──
-
     /// Transform applied to extracted module names.
     /// "pascal_to_snake" for Elixir. Empty = no transform.
     pub module_name_transform: String,
@@ -453,7 +434,6 @@ pub struct ResolverConfig {
     /// Rust: `"src"` → sentrux_core/app → sentrux-core/src/app.
     /// Empty = source at package root (no subdirectory).
     pub source_root: String,
-
     // Workspace resolution is handled by the suffix-index + alias system.
     // No workspace-specific fields needed — the resolver accepts ALL edges
     // within the scan root. Cross-project imports are real dependencies.
@@ -692,18 +672,22 @@ impl LanguageProfile {
             return false;
         }
         let filename = path.rsplit('/').next().unwrap_or(path);
-        self.semantics.package_index_files.iter().any(|f| f == filename)
+        self.semantics
+            .package_index_files
+            .iter()
+            .any(|f| f == filename)
     }
 
     /// Check if a base class name indicates an abstract type for this language.
     pub fn has_abstract_base(&self, bases: Option<&Vec<String>>) -> bool {
         match bases {
-            Some(bs) if !self.semantics.abstract_base_classes.is_empty() => {
-                bs.iter().any(|b| {
-                    let name = b.rsplit('.').next().unwrap_or(b);
-                    self.semantics.abstract_base_classes.iter().any(|abc| abc == name)
-                })
-            }
+            Some(bs) if !self.semantics.abstract_base_classes.is_empty() => bs.iter().any(|b| {
+                let name = b.rsplit('.').next().unwrap_or(b);
+                self.semantics
+                    .abstract_base_classes
+                    .iter()
+                    .any(|abc| abc == name)
+            }),
             _ => false,
         }
     }
@@ -713,7 +697,9 @@ impl LanguageProfile {
         self.semantics.abstract_keywords.iter().any(|kw| {
             // Match as whole word: "abstract" should match "abstract class"
             // but not "abstractFactory" (check for word boundary after keyword)
-            source_text.split_whitespace().any(|word| word == kw.as_str())
+            source_text
+                .split_whitespace()
+                .any(|word| word == kw.as_str())
         })
     }
 
@@ -772,12 +758,12 @@ mod tests {
         let t = LanguageThresholds::default();
         // These must match the constants in metrics/types.rs exactly.
         // If they diverge, the migration will change behavior.
-        assert_eq!(t.cc_high, 15);        // CC_THRESHOLD_HIGH
-        assert_eq!(t.func_length, 50);    // FUNC_LENGTH_THRESHOLD
-        assert_eq!(t.cog_high, 15);       // COG_THRESHOLD_HIGH
-        assert_eq!(t.param_high, 4);      // PARAM_THRESHOLD_HIGH
-        assert_eq!(t.fan_out, 15);        // FAN_OUT_THRESHOLD
-        assert_eq!(t.fan_in, 20);         // FAN_IN_THRESHOLD
+        assert_eq!(t.cc_high, 15); // CC_THRESHOLD_HIGH
+        assert_eq!(t.func_length, 50); // FUNC_LENGTH_THRESHOLD
+        assert_eq!(t.cog_high, 15); // COG_THRESHOLD_HIGH
+        assert_eq!(t.param_high, 4); // PARAM_THRESHOLD_HIGH
+        assert_eq!(t.fan_out, 15); // FAN_OUT_THRESHOLD
+        assert_eq!(t.fan_in, 20); // FAN_IN_THRESHOLD
         assert_eq!(t.large_file_lines, 500); // LARGE_FILE_THRESHOLD
     }
 

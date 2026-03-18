@@ -6,8 +6,8 @@
 //! - Stats summary at top
 //! - Click to select a file in the main treemap
 
-use crate::metrics::dsm::{self, DesignStructureMatrix, DsmStats};
 use super::AppState;
+use crate::metrics::dsm::{self, DesignStructureMatrix, DsmStats};
 
 /// Draw the DSM panel (left side).
 /// Returns true if a file was clicked (to highlight in treemap).
@@ -91,7 +91,10 @@ fn draw_dsm_body(
     let snap_key = snap.import_graph.len() as u64 * 1_000_003
         + snap.total_files as u64 * 7
         + snap.total_lines as u64;
-    let needs_rebuild = state.dsm_cache.as_ref().is_none_or(|(v, _, _)| *v != snap_key);
+    let needs_rebuild = state
+        .dsm_cache
+        .as_ref()
+        .is_none_or(|(v, _, _)| *v != snap_key);
     if needs_rebuild {
         let m = dsm::build_dsm(&snap.import_graph);
         let s = dsm::compute_stats(&m);
@@ -136,7 +139,13 @@ fn draw_stats(
     let mono = |s: &str| egui::RichText::new(s).monospace().size(9.0);
     draw_stats_file_counts(ui, stats, tc, total_files, dropped_level_range, &mono);
     draw_stats_direction_row(ui, stats, &mono);
-    ui.label(mono(&format!("Propagation: {}", (stats.propagation_cost * 10000.0).round() as u32)).color(tc.text_secondary));
+    ui.label(
+        mono(&format!(
+            "Propagation: {}",
+            (stats.propagation_cost * 10000.0).round() as u32
+        ))
+        .color(tc.text_secondary),
+    );
     draw_stats_clusters(ui, stats, tc, &mono);
 }
 
@@ -150,20 +159,46 @@ fn draw_stats_file_counts(
     mono: &dyn Fn(&str) -> egui::RichText,
 ) {
     if total_files > stats.size {
-        ui.label(mono(&format!("Files: {} of {}  Edges: {}", stats.size, total_files, stats.edge_count)).color(tc.text_primary));
-        ui.label(mono(&format!("(sampled {} of {} — metrics approximate)", stats.size, total_files))
-            .color(egui::Color32::from_rgb(220, 170, 80)));
+        ui.label(
+            mono(&format!(
+                "Files: {} of {}  Edges: {}",
+                stats.size, total_files, stats.edge_count
+            ))
+            .color(tc.text_primary),
+        );
+        ui.label(
+            mono(&format!(
+                "(sampled {} of {} — metrics approximate)",
+                stats.size, total_files
+            ))
+            .color(egui::Color32::from_rgb(220, 170, 80)),
+        );
         if let Some((lo, hi)) = dropped_level_range {
-            ui.label(mono(&format!("(levels L{}–L{} omitted)", lo, hi))
-                .color(egui::Color32::from_rgb(180, 150, 80)));
+            ui.label(
+                mono(&format!("(levels L{}–L{} omitted)", lo, hi))
+                    .color(egui::Color32::from_rgb(180, 150, 80)),
+            );
         } else {
-            ui.label(mono("(middle-level files omitted)")
-                .color(egui::Color32::from_rgb(180, 150, 80)));
+            ui.label(
+                mono("(middle-level files omitted)").color(egui::Color32::from_rgb(180, 150, 80)),
+            );
         }
     } else {
-        ui.label(mono(&format!("Files: {}  Edges: {}", stats.size, stats.edge_count)).color(tc.text_primary));
+        ui.label(
+            mono(&format!(
+                "Files: {}  Edges: {}",
+                stats.size, stats.edge_count
+            ))
+            .color(tc.text_primary),
+        );
     }
-    ui.label(mono(&format!("Density: {}", (stats.density * 10000.0).round() as u32)).color(tc.text_secondary));
+    ui.label(
+        mono(&format!(
+            "Density: {}",
+            (stats.density * 10000.0).round() as u32
+        ))
+        .color(tc.text_secondary),
+    );
 }
 
 /// Below/above diagonal and same-level edge count row.
@@ -184,10 +219,7 @@ fn draw_stats_direction_row(
                     .color(egui::Color32::from_rgb(220, 100, 100)),
             );
         } else {
-            ui.label(
-                mono("▲ 0")
-                    .color(egui::Color32::from_rgb(100, 200, 100)),
-            );
+            ui.label(mono("▲ 0").color(egui::Color32::from_rgb(100, 200, 100)));
         }
         if stats.same_level > 0 {
             ui.label(
@@ -210,8 +242,14 @@ fn draw_stats_clusters(
         ui.label(mono(&format!("Clusters: {}", stats.clusters.len())).color(tc.text_primary));
         for (i, c) in stats.clusters.iter().take(3).enumerate() {
             ui.label(
-                mono(&format!("  #{}: {} files, {} internal edges (L{})", i + 1, c.files.len(), c.internal_edges, c.level))
-                    .color(tc.text_secondary),
+                mono(&format!(
+                    "  #{}: {} files, {} internal edges (L{})",
+                    i + 1,
+                    c.files.len(),
+                    c.internal_edges,
+                    c.level
+                ))
+                .color(tc.text_secondary),
             );
         }
     }
@@ -282,13 +320,22 @@ fn detect_hover(
 /// Pick the direction color based on row/col levels.
 #[inline]
 fn direction_color(rl: u32, cl: u32, c: &DsmColors) -> egui::Color32 {
-    if rl > cl { c.below } else if rl < cl { c.above } else { c.same_level }
+    if rl > cl {
+        c.below
+    } else if rl < cl {
+        c.above
+    } else {
+        c.same_level
+    }
 }
 
 /// Compute the color for a single DSM cell.
 fn cell_color(
-    row: usize, col: usize, row_levels: &[u32],
-    matrix: &DesignStructureMatrix, dctx: &DsmDrawCtx<'_>,
+    row: usize,
+    col: usize,
+    row_levels: &[u32],
+    matrix: &DesignStructureMatrix,
+    dctx: &DsmDrawCtx<'_>,
 ) -> Option<egui::Color32> {
     if row == col {
         return Some(dctx.colors.diag);
@@ -298,7 +345,11 @@ fn cell_color(
     let is_hovered = dctx.hover_row == Some(row) || dctx.hover_col == Some(col);
 
     if has_edge {
-        Some(direction_color(row_levels[row], row_levels[col], &dctx.colors))
+        Some(direction_color(
+            row_levels[row],
+            row_levels[col],
+            &dctx.colors,
+        ))
     } else if is_hovered {
         Some(dctx.colors.hover.linear_multiply(0.3))
     } else if dctx.selected_row.is_some_and(|sr| row == sr || col == sr) {
@@ -310,8 +361,10 @@ fn cell_color(
 
 /// Draw column index labels and level break lines on the DSM grid.
 fn draw_matrix_chrome(
-    painter: &egui::Painter, origin: egui::Pos2,
-    matrix: &DesignStructureMatrix, dctx: &DsmDrawCtx<'_>,
+    painter: &egui::Painter,
+    origin: egui::Pos2,
+    matrix: &DesignStructureMatrix,
+    dctx: &DsmDrawCtx<'_>,
 ) {
     let label_width = dctx.label_width;
     let cell_size = dctx.cell_size;
@@ -355,8 +408,11 @@ fn draw_matrix_chrome(
 
 /// Draw row labels for the DSM matrix.
 fn draw_row_label(
-    painter: &egui::Painter, origin: egui::Pos2,
-    row: usize, label: &str, dctx: &DsmDrawCtx<'_>,
+    painter: &egui::Painter,
+    origin: egui::Pos2,
+    row: usize,
+    label: &str,
+    dctx: &DsmDrawCtx<'_>,
 ) {
     let y = origin.y + dctx.cell_size + (row as f32 * dctx.cell_size);
     let short = if label.len() > 18 {
@@ -417,21 +473,22 @@ fn draw_matrix(
     let cell_size = 8.0_f32;
     let label_width = 120.0_f32;
 
-    let selected_row: Option<usize> = selected_path.and_then(|sp| {
-        matrix.files.iter().take(display_size).position(|f| f == sp)
-    });
+    let selected_row: Option<usize> =
+        selected_path.and_then(|sp| matrix.files.iter().take(display_size).position(|f| f == sp));
 
     let total_w = label_width + (display_size as f32 * cell_size) + 8.0;
     let total_h = (display_size as f32 * cell_size) + cell_size + 8.0;
 
-    let (response, painter) = ui.allocate_painter(
-        egui::vec2(total_w, total_h),
-        egui::Sense::click(),
-    );
+    let (response, painter) =
+        ui.allocate_painter(egui::vec2(total_w, total_h), egui::Sense::click());
     let origin = response.rect.min;
 
     let (hover_row, hover_col) = detect_hover(
-        response.hover_pos(), origin, label_width, cell_size, display_size,
+        response.hover_pos(),
+        origin,
+        label_width,
+        cell_size,
+        display_size,
     );
 
     let dctx = DsmDrawCtx {
@@ -469,8 +526,13 @@ fn draw_matrix(
     let click_result = handle_matrix_interaction(response, matrix, &dctx);
     if display_size < matrix.size {
         ui.label(
-            egui::RichText::new(format!("({} more files not shown)", matrix.size - display_size))
-                .monospace().size(8.0).color(tc.text_secondary),
+            egui::RichText::new(format!(
+                "({} more files not shown)",
+                matrix.size - display_size
+            ))
+            .monospace()
+            .size(8.0)
+            .color(tc.text_secondary),
         );
     }
     click_result
@@ -487,7 +549,9 @@ fn draw_rows_and_cells(
 ) {
     for row in 0..dctx.display_size {
         draw_row_label(painter, origin, row, &matrix.files[row], dctx);
-        if !row_has_edges[row] { continue; }
+        if !row_has_edges[row] {
+            continue;
+        }
         let y = origin.y + dctx.cell_size + (row as f32 * dctx.cell_size);
         for col in 0..dctx.display_size {
             if let Some(color) = cell_color(row, col, row_levels, matrix, dctx) {

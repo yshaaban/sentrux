@@ -139,11 +139,19 @@ struct StripState {
 
 impl StripState {
     fn new() -> Self {
-        Self { block_comment_depth: 0, in_triple_quote: None }
+        Self {
+            block_comment_depth: 0,
+            in_triple_quote: None,
+        }
     }
 
     /// Process one line, returning the stripped output (or None to skip the line).
-    fn process_line(&mut self, line: &str, hash_is_comment: bool, has_triple_quote_strings: bool) -> Option<String> {
+    fn process_line(
+        &mut self,
+        line: &str,
+        hash_is_comment: bool,
+        has_triple_quote_strings: bool,
+    ) -> Option<String> {
         let trimmed = line.trim_start();
 
         if let Some(tq_char) = self.in_triple_quote {
@@ -211,7 +219,10 @@ fn try_prefixed_string(chars: &[char], i: usize) -> Option<(usize, bool, char)> 
     }
     // Two-char prefix (rb, br, fr, rf) followed by quote
     if i + 2 < len
-        && matches!((c, chars[i + 1]), ('r', 'b') | ('b', 'r') | ('r', 'f') | ('f', 'r'))
+        && matches!(
+            (c, chars[i + 1]),
+            ('r', 'b') | ('b', 'r') | ('r', 'f') | ('f', 'r')
+        )
         && (chars[i + 2] == '"' || chars[i + 2] == '\'')
     {
         let is_raw = c == 'r' || chars[i + 1] == 'r';
@@ -226,7 +237,13 @@ fn try_prefixed_string(chars: &[char], i: usize) -> Option<(usize, bool, char)> 
 
 /// Consume a prefixed string literal content, stripping it.
 /// Returns the new position after the closing quote.
-fn consume_prefixed_string(chars: &[char], mut i: usize, is_raw: bool, quote: char, result: &mut String) -> usize {
+fn consume_prefixed_string(
+    chars: &[char],
+    mut i: usize,
+    is_raw: bool,
+    quote: char,
+    result: &mut String,
+) -> usize {
     let len = chars.len();
     while i < len {
         if !is_raw && chars[i] == '\\' && i + 1 < len {
@@ -266,20 +283,31 @@ fn is_raw_string_close(chars: &[char], pos: usize, hashes: usize) -> bool {
 
 /// Emit the raw string delimiter (r###"...or..."###) into result.
 fn emit_raw_delim(result: &mut String, quote: char, hashes: usize) {
-    if quote == 'r' { result.push('r'); }
-    for _ in 0..hashes { result.push('#'); }
+    if quote == 'r' {
+        result.push('r');
+    }
+    for _ in 0..hashes {
+        result.push('#');
+    }
     result.push('"');
 }
 
 /// Scan for the closing delimiter of a Rust raw string and emit it.
 /// Returns the position after the closing delimiter, or `len` if not found.
-fn scan_raw_string_close(chars: &[char], start: usize, hashes: usize, result: &mut String) -> usize {
+fn scan_raw_string_close(
+    chars: &[char],
+    start: usize,
+    hashes: usize,
+    result: &mut String,
+) -> usize {
     let len = chars.len();
     let mut pos = start;
     while pos < len {
         if chars[pos] == '"' && is_raw_string_close(chars, pos, hashes) {
             result.push('"');
-            for _ in 0..hashes { result.push('#'); }
+            for _ in 0..hashes {
+                result.push('#');
+            }
             return pos + 1 + hashes;
         }
         pos += 1;
@@ -396,7 +424,9 @@ pub(crate) fn strip_string_literals(line: &str) -> String {
 
         // Handle Python-style string prefixes (r"...", b"...", f"...", rb"...", etc.)
         if let Some((prefix_len, is_raw, quote)) = try_prefixed_string(&chars, i) {
-            for k in 0..prefix_len { result.push(chars[i + k]); }
+            for k in 0..prefix_len {
+                result.push(chars[i + k]);
+            }
             result.push(quote);
             i = consume_prefixed_string(&chars, i + prefix_len + 1, is_raw, quote, &mut result);
             continue;

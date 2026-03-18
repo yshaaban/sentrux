@@ -198,7 +198,7 @@ impl Default for Settings {
             trail_max_age: 30.0,
             trail_dot_radius: 3.0,
 
-            file_rect_inset: 2.0,   // gap between blocks so selection borders are visible
+            file_rect_inset: 2.0, // gap between blocks so selection borders are visible
 
             max_call_targets: 5,
 

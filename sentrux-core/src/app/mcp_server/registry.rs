@@ -7,8 +7,8 @@
 //! - Cache invalidation is declarative (`invalidates_evolution` flag), not manual.
 //! - Adding a new tool = adding one `ToolDef` and registering it. Nothing else.
 
-use crate::license::Tier;
 use super::McpState;
+use crate::license::Tier;
 use serde_json::{json, Value};
 
 /// Handler function signature: args + tier + mutable state → result.
@@ -36,7 +36,9 @@ pub struct ToolRegistry {
 
 impl ToolRegistry {
     pub fn new() -> Self {
-        Self { tools: Vec::with_capacity(24) }
+        Self {
+            tools: Vec::with_capacity(24),
+        }
     }
 
     /// Register a tool. Panics on duplicate names (programming error, caught at startup).

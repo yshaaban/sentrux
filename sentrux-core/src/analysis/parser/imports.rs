@@ -6,9 +6,9 @@
 //!
 //! Per-language extractors live in lang_extractors.rs.
 
+use std::collections::hash_map::DefaultHasher;
 use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
-use std::collections::hash_map::DefaultHasher;
 
 use super::lang_extractors;
 pub(crate) use super::strings::strip_strings_and_comments;
@@ -26,7 +26,9 @@ pub(crate) use super::strings::strip_strings_and_comments;
 /// Whether '.' is a module separator (not a file extension) for this language.
 /// Reads from the language profile (Layer 2). Falls back to false for unknown languages.
 pub(crate) fn lang_uses_dot_separator(lang: &str) -> bool {
-    crate::analysis::lang_registry::profile(lang).semantics.dot_is_module_separator
+    crate::analysis::lang_registry::profile(lang)
+        .semantics
+        .dot_is_module_separator
 }
 
 /// Normalize a module path to slash-separated form.
@@ -101,7 +103,10 @@ pub(crate) fn expand_braces(text: &str) -> Vec<String> {
         return vec![];
     }
 
-    items.iter().map(|item| format!("{}{}", prefix, item)).collect()
+    items
+        .iter()
+        .map(|item| format!("{}{}", prefix, item))
+        .collect()
 }
 
 // ── Base class extraction ───────────────────────────────────────────────
@@ -112,20 +117,39 @@ pub(crate) fn expand_braces(text: &str) -> Vec<String> {
 /// 1. Profile `base_class_node_kinds` (data-driven, covers most languages)
 /// 2. Compiled `base_class_extractor` (for Python which needs special handling)
 /// 3. Generic fallback (pattern-match on node kind names)
-pub(crate) fn extract_base_classes(node: tree_sitter::Node, content: &[u8], lang: &str) -> Option<Vec<String>> {
+pub(crate) fn extract_base_classes(
+    node: tree_sitter::Node,
+    content: &[u8],
+    lang: &str,
+) -> Option<Vec<String>> {
     let profile = crate::analysis::lang_registry::profile(lang);
     let mut bases = Vec::new();
 
     if !profile.semantics.base_class_node_kinds.is_empty() {
         // Data-driven: use node kinds from plugin.toml
-        let kinds: Vec<&str> = profile.semantics.base_class_node_kinds.iter().map(|s| s.as_str()).collect();
-        lang_extractors::extract_bases_by_kinds(node, content, &kinds, &mut bases, &profile.semantics);
+        let kinds: Vec<&str> = profile
+            .semantics
+            .base_class_node_kinds
+            .iter()
+            .map(|s| s.as_str())
+            .collect();
+        lang_extractors::extract_bases_by_kinds(
+            node,
+            content,
+            &kinds,
+            &mut bases,
+            &profile.semantics,
+        );
     } else {
         // Generic fallback: pattern-match on node kind substrings
         lang_extractors::extract_bases_generic(node, content, &mut bases, &profile.semantics);
     }
 
-    if bases.is_empty() { None } else { Some(bases) }
+    if bases.is_empty() {
+        None
+    } else {
+        Some(bases)
+    }
 }
 
 // Legacy text-based complexity counting has been removed.
@@ -188,21 +212,30 @@ fn nesting_depth(
 }
 
 /// Walk every node in the subtree rooted at `func_node`, calling `visitor` on each.
-fn walk_subtree(
-    func_node: tree_sitter::Node,
-    mut visitor: impl FnMut(tree_sitter::Node),
-) {
+fn walk_subtree(func_node: tree_sitter::Node, mut visitor: impl FnMut(tree_sitter::Node)) {
     let mut cursor = func_node.walk();
     let mut visited_root = false;
     loop {
-        if !visited_root { visited_root = true; }
+        if !visited_root {
+            visited_root = true;
+        }
         visitor(cursor.node());
-        if cursor.goto_first_child() { continue; }
-        if cursor.goto_next_sibling() { continue; }
+        if cursor.goto_first_child() {
+            continue;
+        }
+        if cursor.goto_next_sibling() {
+            continue;
+        }
         loop {
-            if !cursor.goto_parent() { return; }
-            if cursor.node().id() == func_node.id() { return; }
-            if cursor.goto_next_sibling() { break; }
+            if !cursor.goto_parent() {
+                return;
+            }
+            if cursor.node().id() == func_node.id() {
+                return;
+            }
+            if cursor.goto_next_sibling() {
+                break;
+            }
         }
     }
 }
@@ -221,7 +254,9 @@ pub(crate) fn count_complexity_ast(
     walk_subtree(func_node, |node| {
         if branch_set.contains(node.kind()) {
             cc += 1;
-        } else if logic_set.contains(node.kind()) && is_logic_operator(node, content, &cx.logic_operators) {
+        } else if logic_set.contains(node.kind())
+            && is_logic_operator(node, content, &cx.logic_operators)
+        {
             cc += 1;
         }
     });
@@ -243,7 +278,9 @@ pub(crate) fn count_cognitive_complexity_ast(
     walk_subtree(func_node, |node| {
         if branch_set.contains(node.kind()) {
             cog += 1 + nesting_depth(node, func_node, &nesting_set);
-        } else if logic_set.contains(node.kind()) && is_logic_operator(node, content, &cx.logic_operators) {
+        } else if logic_set.contains(node.kind())
+            && is_logic_operator(node, content, &cx.logic_operators)
+        {
             cog += 1;
         }
     });
@@ -252,8 +289,11 @@ pub(crate) fn count_cognitive_complexity_ast(
 
 /// Default parameter list node kinds (used when plugin TOML doesn't specify).
 const DEFAULT_PARAM_LIST_KINDS: &[&str] = &[
-    "parameters", "formal_parameters", "parameter_list",
-    "function_type_parameters", "type_parameters",
+    "parameters",
+    "formal_parameters",
+    "parameter_list",
+    "function_type_parameters",
+    "type_parameters",
 ];
 
 /// Default self/this parameter node kinds.
@@ -264,18 +304,29 @@ const DEFAULT_SELF_PARAM_TEXTS: &[&str] = &["self", "&self", "&mut self", "this"
 
 /// Default countable parameter node kinds.
 const DEFAULT_PARAM_KINDS: &[&str] = &[
-    "parameter", "formal_parameter",
-    "simple_parameter", "typed_parameter",
-    "default_parameter", "typed_default_parameter",
-    "identifier", "required_parameter",
-    "optional_parameter", "rest_parameter",
-    "spread_parameter", "variadic_parameter",
-    "keyword_argument", "list_splat_pattern",
+    "parameter",
+    "formal_parameter",
+    "simple_parameter",
+    "typed_parameter",
+    "default_parameter",
+    "typed_default_parameter",
+    "identifier",
+    "required_parameter",
+    "optional_parameter",
+    "rest_parameter",
+    "spread_parameter",
+    "variadic_parameter",
+    "keyword_argument",
+    "list_splat_pattern",
     "dictionary_splat_pattern",
 ];
 
 /// Check if a parameter node represents self/this (should be excluded from count).
-fn is_self_or_this(param: tree_sitter::Node, content: &[u8], sem: &crate::analysis::plugin::profile::LanguageSemantics) -> bool {
+fn is_self_or_this(
+    param: tree_sitter::Node,
+    content: &[u8],
+    sem: &crate::analysis::plugin::profile::LanguageSemantics,
+) -> bool {
     let pk = param.kind();
     let self_kinds = if sem.self_param_kinds.is_empty() {
         DEFAULT_SELF_PARAM_KINDS
@@ -284,7 +335,9 @@ fn is_self_or_this(param: tree_sitter::Node, content: &[u8], sem: &crate::analys
         &[] // handled below
     };
     if !sem.self_param_kinds.is_empty() {
-        if sem.self_param_kinds.iter().any(|k| k == pk) { return true; }
+        if sem.self_param_kinds.iter().any(|k| k == pk) {
+            return true;
+        }
     } else if self_kinds.contains(&pk) {
         return true;
     }
@@ -301,7 +354,10 @@ fn is_self_or_this(param: tree_sitter::Node, content: &[u8], sem: &crate::analys
 }
 
 /// Check if a node kind represents a countable parameter.
-fn is_parameter_kind(kind: &str, sem: &crate::analysis::plugin::profile::LanguageSemantics) -> bool {
+fn is_parameter_kind(
+    kind: &str,
+    sem: &crate::analysis::plugin::profile::LanguageSemantics,
+) -> bool {
     if !sem.param_kinds.is_empty() {
         sem.param_kinds.iter().any(|k| k == kind)
     } else {
@@ -310,11 +366,17 @@ fn is_parameter_kind(kind: &str, sem: &crate::analysis::plugin::profile::Languag
 }
 
 /// Count parameters in a parameter list node, excluding self/this.
-fn count_params_in_list(param_list: tree_sitter::Node, content: &[u8], sem: &crate::analysis::plugin::profile::LanguageSemantics) -> u32 {
+fn count_params_in_list(
+    param_list: tree_sitter::Node,
+    content: &[u8],
+    sem: &crate::analysis::plugin::profile::LanguageSemantics,
+) -> u32 {
     let mut count = 0u32;
     for j in 0..param_list.named_child_count() {
         let param = param_list.named_child(j).unwrap();
-        if is_self_or_this(param, content, sem) { continue; }
+        if is_self_or_this(param, content, sem) {
+            continue;
+        }
         if is_parameter_kind(param.kind(), sem) {
             count += 1;
         }
@@ -346,9 +408,7 @@ pub(crate) fn count_parameters(node: tree_sitter::Node, content: &[u8], lang: &s
 pub(crate) fn hash_body(body: &str, lang: &str) -> u64 {
     let stripped = strip_strings_and_comments(body, lang);
     // Normalize: remove all whitespace for content-only comparison
-    let normalized: String = stripped.chars()
-        .filter(|c| !c.is_whitespace())
-        .collect();
+    let normalized: String = stripped.chars().filter(|c| !c.is_whitespace()).collect();
     if normalized.len() < 20 {
         // Too short to be meaningful duplication
         return 0;
@@ -370,12 +430,17 @@ mod tests {
 
     #[test]
     fn brace_expansion_three_items() {
-        let result = expand_braces("alias Acme.Inventory.Domain.{Product, ProductNotFoundError, InsufficientStockError}");
-        assert_eq!(result, vec![
-            "Acme.Inventory.Domain.Product",
-            "Acme.Inventory.Domain.ProductNotFoundError",
-            "Acme.Inventory.Domain.InsufficientStockError",
-        ]);
+        let result = expand_braces(
+            "alias Acme.Inventory.Domain.{Product, ProductNotFoundError, InsufficientStockError}",
+        );
+        assert_eq!(
+            result,
+            vec![
+                "Acme.Inventory.Domain.Product",
+                "Acme.Inventory.Domain.ProductNotFoundError",
+                "Acme.Inventory.Domain.InsufficientStockError",
+            ]
+        );
     }
 
     #[test]
@@ -387,7 +452,10 @@ mod tests {
     #[test]
     fn brace_expansion_double_colon() {
         let result = expand_braces("use std::collections::{HashMap, BTreeMap}");
-        assert_eq!(result, vec!["std::collections::HashMap", "std::collections::BTreeMap"]);
+        assert_eq!(
+            result,
+            vec!["std::collections::HashMap", "std::collections::BTreeMap"]
+        );
     }
 
     #[test]
@@ -411,7 +479,10 @@ mod tests {
 
     #[test]
     fn normalize_rust_path() {
-        assert_eq!(normalize_module_path("std::collections::HashMap", false), "std/collections/HashMap");
+        assert_eq!(
+            normalize_module_path("std::collections::HashMap", false),
+            "std/collections/HashMap"
+        );
     }
 
     #[test]
@@ -420,4 +491,3 @@ mod tests {
         assert_eq!(normalize_module_path("...deep.path", true), "...deep/path");
     }
 }
-

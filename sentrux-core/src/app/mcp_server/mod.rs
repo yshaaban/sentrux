@@ -14,15 +14,24 @@ pub mod handlers;
 pub mod handlers_evo;
 pub mod registry;
 
+use crate::analysis::scanner::common::ScanMetadata;
+use crate::analysis::semantic::SemanticSnapshot;
+use crate::app::bridge::TypeScriptBridgeSupervisor;
+use crate::core::snapshot::Snapshot;
 use crate::license::{self, Tier};
+use crate::metrics;
 use crate::metrics::arch;
 use crate::metrics::evolution;
-use crate::metrics;
-use crate::core::snapshot::Snapshot;
 use serde_json::{json, Value};
 use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::{collections::BTreeMap, sync::Arc};
+
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct SessionV2Baseline {
+    pub file_hashes: BTreeMap<String, u64>,
+    pub finding_payloads: BTreeMap<String, Value>,
+}
 
 /// Mutable state shared across MCP requests.
 /// Handlers receive `&mut McpState` directly — no more exploded parameters.
@@ -31,10 +40,14 @@ pub struct McpState {
     pub tier: Tier,
     pub scan_root: Option<PathBuf>,
     pub cached_snapshot: Option<Arc<Snapshot>>,
+    pub cached_scan_metadata: Option<ScanMetadata>,
+    pub cached_semantic: Option<SemanticSnapshot>,
     pub cached_health: Option<metrics::HealthReport>,
     pub cached_arch: Option<arch::ArchReport>,
     pub baseline: Option<arch::ArchBaseline>,
+    pub session_v2: Option<SessionV2Baseline>,
     pub cached_evolution: Option<evolution::EvolutionReport>,
+    pub semantic_bridge: Option<TypeScriptBridgeSupervisor>,
 }
 
 /// Run the MCP server loop. Blocks until stdin is closed.
@@ -57,10 +70,14 @@ pub fn run_mcp_server(register_extra: Option<&dyn Fn(&mut registry::ToolRegistry
         tier,
         scan_root: None,
         cached_snapshot: None,
+        cached_scan_metadata: None,
+        cached_semantic: None,
         cached_health: None,
         cached_arch: None,
         baseline: None,
+        session_v2: None,
         cached_evolution: None,
+        semantic_bridge: None,
     };
 
     for line in stdin.lock().lines() {
@@ -105,10 +122,7 @@ fn dispatch_request(
     state: &mut McpState,
 ) -> Option<Value> {
     let id = request.get("id").cloned().unwrap_or(Value::Null);
-    let method = request
-        .get("method")
-        .and_then(|m| m.as_str())
-        .unwrap_or("");
+    let method = request.get("method").and_then(|m| m.as_str()).unwrap_or("");
 
     match method {
         "initialize" => Some(handle_initialize(&id)),
@@ -170,14 +184,8 @@ fn handle_tools_call(
     registry: &registry::ToolRegistry,
     state: &mut McpState,
 ) -> Value {
-    let tool_name = params
-        .get("name")
-        .and_then(|n| n.as_str())
-        .unwrap_or("");
-    let args = params
-        .get("arguments")
-        .cloned()
-        .unwrap_or(json!({}));
+    let tool_name = params.get("name").and_then(|n| n.as_str()).unwrap_or("");
+    let args = params.get("arguments").cloned().unwrap_or(json!({}));
 
     // Copy tier to avoid borrow conflict (&state.tier vs &mut state)
     let tier = state.tier;
@@ -223,11 +231,20 @@ pub fn build_registry() -> registry::ToolRegistry {
     reg.register(handlers::rescan_def());
     reg.register(handlers::session_start_def());
     reg.register(handlers::session_end_def());
+    reg.register(handlers::gate_def());
+    reg.register(handlers::findings_def());
+    reg.register(handlers::obligations_def());
+    reg.register(handlers::parity_def());
+    reg.register(handlers::state_def());
+    reg.register(handlers::concentration_def());
 
     // Health — one true score + root-cause-organized diagnostics
     reg.register(handlers::health_def());
 
     // Rules
+    reg.register(handlers::concepts_def());
+    reg.register(handlers::explain_concept_def());
+    reg.register(handlers::trace_symbol_def());
     reg.register(handlers::check_rules_def());
 
     // Evolution (git history analysis)

@@ -27,8 +27,14 @@ fn render_breadcrumb_buttons(ui: &mut egui::Ui, drill_stack: &[String]) -> Optio
 /// Apply a breadcrumb click action to the drill stack. Returns true if changed.
 fn apply_breadcrumb_action(drill_stack: &mut Vec<String>, action: Option<usize>) -> bool {
     match action {
-        Some(usize::MAX) => { drill_stack.clear(); true }
-        Some(i) if i + 1 < drill_stack.len() => { drill_stack.truncate(i + 1); true }
+        Some(usize::MAX) => {
+            drill_stack.clear();
+            true
+        }
+        Some(i) if i + 1 < drill_stack.len() => {
+            drill_stack.truncate(i + 1);
+            true
+        }
         _ => false,
     }
 }
@@ -42,9 +48,12 @@ pub fn draw_breadcrumb(ui: &mut egui::Ui, state: &mut AppState) -> bool {
             let name = root.rsplit('/').next().unwrap_or(root);
             ui.horizontal(|ui| {
                 ui.label(egui::RichText::new(name).monospace().size(10.0).weak());
-                ui.label(egui::RichText::new("(double-click a directory to drill in)").monospace().size(8.0).color(
-                    egui::Color32::from_rgb(100, 100, 110)
-                ));
+                ui.label(
+                    egui::RichText::new("(double-click a directory to drill in)")
+                        .monospace()
+                        .size(8.0)
+                        .color(egui::Color32::from_rgb(100, 100, 110)),
+                );
             });
         }
         return false;

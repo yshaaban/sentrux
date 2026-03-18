@@ -103,7 +103,13 @@ struct TelemetryState {
 
 impl TelemetryState {
     const fn new() -> Self {
-        Self { scans: 0, mcp_calls: 0, gate_runs: 0, files: 0, grade: 0 }
+        Self {
+            scans: 0,
+            mcp_calls: 0,
+            gate_runs: 0,
+            files: 0,
+            grade: 0,
+        }
     }
 
     /// Persist current counters to disk so they survive process exit.
@@ -174,11 +180,27 @@ fn pending_path() -> Option<PathBuf> {
 fn load_pending_from_disk() -> TelemetrySnapshot {
     let path = match pending_path() {
         Some(p) => p,
-        None => return TelemetrySnapshot { scans: 0, mcp_calls: 0, gate_runs: 0, files: 0, grade: 0 },
+        None => {
+            return TelemetrySnapshot {
+                scans: 0,
+                mcp_calls: 0,
+                gate_runs: 0,
+                files: 0,
+                grade: 0,
+            }
+        }
     };
     let content = match std::fs::read_to_string(&path) {
         Ok(c) => c,
-        Err(_) => return TelemetrySnapshot { scans: 0, mcp_calls: 0, gate_runs: 0, files: 0, grade: 0 },
+        Err(_) => {
+            return TelemetrySnapshot {
+                scans: 0,
+                mcp_calls: 0,
+                gate_runs: 0,
+                files: 0,
+                grade: 0,
+            }
+        }
     };
     let get = |key: &str| -> u32 {
         content
@@ -283,8 +305,14 @@ fn is_dev() -> bool {
 fn parse_version(v: &str) -> Option<(u32, u32, u32)> {
     let v = v.strip_prefix('v').unwrap_or(v);
     let parts: Vec<&str> = v.split('.').collect();
-    if parts.len() != 3 { return None; }
-    Some((parts[0].parse().ok()?, parts[1].parse().ok()?, parts[2].parse().ok()?))
+    if parts.len() != 3 {
+        return None;
+    }
+    Some((
+        parts[0].parse().ok()?,
+        parts[1].parse().ok()?,
+        parts[2].parse().ok()?,
+    ))
 }
 
 fn is_newer(current: &str, latest: &str) -> bool {
@@ -298,26 +326,39 @@ fn is_newer(current: &str, latest: &str) -> bool {
 
 fn platform_id() -> &'static str {
     #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-    { "darwin-arm64" }
+    {
+        "darwin-arm64"
+    }
     #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
-    { "darwin-x86_64" }
+    {
+        "darwin-x86_64"
+    }
     #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
-    { "linux-x86_64" }
+    {
+        "linux-x86_64"
+    }
     #[cfg(not(any(
         all(target_os = "macos", target_arch = "aarch64"),
         all(target_os = "macos", target_arch = "x86_64"),
         all(target_os = "linux", target_arch = "x86_64"),
     )))]
-    { "other" }
+    {
+        "other"
+    }
 }
 
 /// Detect how sentrux was launched.
 fn detect_mode() -> &'static str {
     let args: Vec<String> = std::env::args().collect();
-    if args.iter().any(|a| a == "--mcp") { "mcp" }
-    else if args.iter().any(|a| a == "check" || a == "gate") { "cli" }
-    else if args.iter().any(|a| a == "plugin") { "plugin" }
-    else { "gui" }
+    if args.iter().any(|a| a == "--mcp") {
+        "mcp"
+    } else if args.iter().any(|a| a == "check" || a == "gate") {
+        "cli"
+    } else if args.iter().any(|a| a == "plugin") {
+        "plugin"
+    } else {
+        "gui"
+    }
 }
 
 /// Check if this is the first ever ping (new user).
@@ -335,7 +376,9 @@ pub fn check_for_updates_async(current_version: &str) {
     let version = current_version.to_string();
     std::thread::Builder::new()
         .name("update-check".into())
-        .spawn(move || { check_and_notify(&version); })
+        .spawn(move || {
+            check_and_notify(&version);
+        })
         .ok();
 }
 
@@ -363,16 +406,16 @@ fn check_and_notify(current_version: &str) {
         UPDATE_CHECK_URL,
         current_version,
         platform_id(),
-        new,                 // new user
-        mode,                // gui/mcp/cli/plugin
-        plugins,             // loaded plugin count
-        tier,                // Free/Pro/Team
-        snapshot.scans,      // scans since last ping
-        snapshot.mcp_calls,  // MCP calls since last ping
-        snapshot.gate_runs,  // gate runs since last ping
-        snapshot.files,      // last scanned file count
-        snapshot.grade,      // last quality score (0-100 integer, 0=none)
-        dev,                 // 1 = internal/dev traffic
+        new,                // new user
+        mode,               // gui/mcp/cli/plugin
+        plugins,            // loaded plugin count
+        tier,               // Free/Pro/Team
+        snapshot.scans,     // scans since last ping
+        snapshot.mcp_calls, // MCP calls since last ping
+        snapshot.gate_runs, // gate runs since last ping
+        snapshot.files,     // last scanned file count
+        snapshot.grade,     // last quality score (0-100 integer, 0=none)
+        dev,                // 1 = internal/dev traffic
     );
 
     // ── Phase 2: Network call (NO lock held) ──

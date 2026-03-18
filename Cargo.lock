@@ -3385,6 +3385,7 @@ dependencies = [
  "eframe",
  "egui",
  "sentrux-core",
+ "serde_json",
 ]
 
 [[package]]

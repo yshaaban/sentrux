@@ -5,21 +5,22 @@
 //! All fields are public for UI code simplicity; access is serialized by
 //! the single-threaded egui event loop.
 
+use crate::analysis::scanner::common::ScanMetadata;
+use crate::core::heat::HeatTracker;
+use crate::core::settings::Settings;
+use crate::core::settings::{Theme, ThemeConfig};
+use crate::core::snapshot::Snapshot;
+use crate::core::types::FileIndexEntry;
+use crate::layout::spatial_index::SpatialIndex;
+use crate::layout::types::ColorMode;
+use crate::layout::types::{EdgeFilter, FocusMode, LayoutMode, RenderData, ScaleMode, SizeMode};
+use crate::layout::viewport::ViewportTransform;
 use crate::metrics::arch::ArchReport;
 use crate::metrics::dsm::{DesignStructureMatrix, DsmStats};
 use crate::metrics::evo::EvolutionReport;
-use crate::metrics::testgap::TestGapReport;
 use crate::metrics::rules::checks::RuleCheckResult;
-use crate::layout::types::{EdgeFilter, FocusMode, LayoutMode, RenderData, ScaleMode, SizeMode};
+use crate::metrics::testgap::TestGapReport;
 use crate::metrics::HealthReport;
-use crate::layout::types::ColorMode;
-use crate::core::heat::HeatTracker;
-use crate::layout::spatial_index::SpatialIndex;
-use crate::core::settings::{Theme, ThemeConfig};
-use crate::layout::viewport::ViewportTransform;
-use crate::core::settings::Settings;
-use crate::core::snapshot::Snapshot;
-use crate::core::types::FileIndexEntry;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Instant;
@@ -171,6 +172,8 @@ pub struct AppState {
     pub test_gap_report: Option<TestGapReport>,
     /// Architecture rules check result
     pub rule_check_result: Option<RuleCheckResult>,
+    /// Scan-scope and resolution metadata for trust reporting
+    pub scan_metadata: Option<ScanMetadata>,
     /// Cached what-if simulation result for the selected file
     pub(crate) whatif_cache: Option<super::panels::whatif_display::WhatIfCache>,
     /// Pre-computed impact files for ImpactRadius focus mode (transitive dependents).
@@ -192,7 +195,6 @@ pub struct AppState {
     pub hidden_paths: Arc<HashSet<String>>,
     /// Path under the pointer when context menu was opened (file or section).
     pub context_menu_target: Option<ContextMenuTarget>,
-
 }
 
 /// A recent file change event for the activity panel.
@@ -292,6 +294,7 @@ impl AppState {
             evolution_report: None,
             test_gap_report: None,
             rule_check_result: None,
+            scan_metadata: None,
             whatif_cache: None,
             impact_files: None,
             folder_picker_requested: false,
@@ -308,17 +311,27 @@ impl AppState {
         self.record_activity_with_delta(path, kind, 0, 0);
     }
 
-    pub fn record_activity_with_delta(&mut self, path: String, kind: String, lines_delta: i32, funcs_delta: i32) {
+    pub fn record_activity_with_delta(
+        &mut self,
+        path: String,
+        kind: String,
+        lines_delta: i32,
+        funcs_delta: i32,
+    ) {
         const MAX_ACTIVITY: usize = 50;
         if let Some(pos) = self.recent_activity.iter().position(|e| e.path == path) {
             self.recent_activity.remove(pos);
         }
-        self.recent_activity.insert(0, ActivityEntry {
-            path, kind,
-            time: Instant::now(),
-            lines_delta,
-            funcs_delta,
-        });
+        self.recent_activity.insert(
+            0,
+            ActivityEntry {
+                path,
+                kind,
+                time: Instant::now(),
+                lines_delta,
+                funcs_delta,
+            },
+        );
         self.recent_activity.truncate(MAX_ACTIVITY);
     }
 
@@ -402,7 +415,8 @@ impl AppState {
         let mut lang_set: std::collections::HashSet<String> = std::collections::HashSet::new();
 
         for f in &files {
-            self.file_index.insert(f.path.clone(), Self::file_to_index_entry(f));
+            self.file_index
+                .insert(f.path.clone(), Self::file_to_index_entry(f));
             if let Some(slash) = f.path.find('/') {
                 dir_set.insert(f.path[..slash].to_string());
             }
