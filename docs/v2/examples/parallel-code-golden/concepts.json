@@ -1,0 +1,1283 @@
+{
+  "concepts": [
+    {
+      "allowed_writers": [
+        "src/app/git-status-sync.ts::store.taskGitStatus.*"
+      ],
+      "anchors": [
+        "src/store/core.ts::store.taskGitStatus"
+      ],
+      "authoritative_inputs": [
+        "src/store/core.ts::store.taskGitStatus"
+      ],
+      "canonical_accessors": [
+        "src/store/taskStatus.ts::getTaskDotStatus",
+        "src/store/taskStatus.ts::refreshTaskStatus",
+        "src/store/taskStatus.ts::applyGitStatusFromPush",
+        "src/app/task-presentation-status.ts::getTaskPresentationStatus"
+      ],
+      "forbid_raw_reads": [],
+      "forbid_writers": [
+        "src/store/git-status-polling.ts::store.taskGitStatus.*"
+      ],
+      "id": "task_git_status",
+      "kind": "authoritative_state",
+      "priority": "critical",
+      "related_tests": [
+        "src/app/git-status-sync.test.ts",
+        "src/domain/git-status.test.ts",
+        "src/store/taskStatus.test.ts",
+        "src/components/SidebarTaskRow.architecture.test.ts"
+      ]
+    },
+    {
+      "allowed_writers": [],
+      "anchors": [
+        "src/app/task-presentation-status.ts::TaskDotStatus",
+        "src/app/task-presentation-status.ts::TaskAttentionEntry",
+        "src/app/task-presentation-status.ts::getTaskPresentationStatus",
+        "src/app/task-presentation-status.ts::getTaskDotStatus",
+        "src/app/task-presentation-status.ts::getTaskAttentionEntry",
+        "src/app/task-attention.ts::getTaskAttentionEntries",
+        "src/app/task-attention.ts::getTaskAttentionFocusPanel"
+      ],
+      "authoritative_inputs": [
+        "src/store/core.ts::store.agentSupervision",
+        "src/store/core.ts::store.taskGitStatus",
+        "src/store/core.ts::store.taskReview"
+      ],
+      "canonical_accessors": [
+        "src/app/task-presentation-status.ts::getTaskPresentationStatus",
+        "src/app/task-presentation-status.ts::getTaskDotStatus",
+        "src/app/task-presentation-status.ts::getTaskAttentionEntry",
+        "src/app/task-attention.ts::getTaskAttentionEntries",
+        "src/app/task-attention.ts::getTaskAttentionFocusPanel"
+      ],
+      "forbid_raw_reads": [
+        "src/components/**::store.agentSupervision",
+        "src/components/**::store.taskGitStatus",
+        "src/components/**::store.taskReview"
+      ],
+      "forbid_writers": [],
+      "id": "task_presentation_status",
+      "kind": "projection",
+      "priority": "critical",
+      "related_tests": [
+        "src/app/task-attention.test.ts",
+        "src/app/task-presentation-status.test.ts",
+        "src/components/SidebarTaskRow.architecture.test.ts",
+        "src/components/SidebarTaskRow.test.tsx"
+      ]
+    },
+    {
+      "allowed_writers": [],
+      "anchors": [
+        "src/domain/server-state-bootstrap.ts::SERVER_STATE_BOOTSTRAP_CATEGORIES",
+        "src/domain/server-state-bootstrap.ts::ServerStateBootstrapCategory",
+        "src/domain/server-state-bootstrap.ts::ServerStateBootstrapPayloadMap",
+        "src/app/server-state-bootstrap-registry.ts::SERVER_STATE_BOOTSTRAP_REGISTRY",
+        "src/app/server-state-bootstrap.ts::replaceServerStateBootstrap",
+        "src/app/server-state-bootstrap.ts::createServerStateBootstrapGate"
+      ],
+      "authoritative_inputs": [],
+      "canonical_accessors": [
+        "src/app/server-state-bootstrap.ts::replaceServerStateBootstrap",
+        "src/app/server-state-bootstrap-registry.ts::createServerStateBootstrapCategoryDescriptors",
+        "src/app/server-state-bootstrap-registry.ts::getServerStateListenerScope"
+      ],
+      "forbid_raw_reads": [],
+      "forbid_writers": [],
+      "id": "server_state_bootstrap",
+      "kind": "runtime_contract",
+      "priority": "critical",
+      "related_tests": [
+        "src/app/server-state-bootstrap.test.ts",
+        "src/app/server-state-bootstrap-registry.test.ts",
+        "src/app/session-bootstrap-controller.test.ts"
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "browser_entry": "src/runtime/browser-session.ts",
+      "categories_symbol": "src/domain/server-state-bootstrap.ts::SERVER_STATE_BOOTSTRAP_CATEGORIES",
+      "electron_entry": "src/app/desktop-session.ts",
+      "id": "server_state_bootstrap",
+      "kind": "runtime_parity",
+      "payload_map_symbol": "src/domain/server-state-bootstrap.ts::ServerStateBootstrapPayloadMap",
+      "priority": "critical",
+      "registry_symbol": "src/app/server-state-bootstrap-registry.ts::SERVER_STATE_BOOTSTRAP_REGISTRY",
+      "required_capabilities": [
+        "snapshot",
+        "live_updates",
+        "versioning"
+      ]
+    }
+  ],
+  "guardrail_tests": [
+    {
+      "matched_concepts": [],
+      "matched_symbols": [],
+      "path": "server/browser-control-plane.architecture.test.ts"
+    },
+    {
+      "matched_concepts": [],
+      "matched_symbols": [],
+      "path": "src/app/desktop-session.architecture.test.ts"
+    },
+    {
+      "matched_concepts": [
+        "task_git_status",
+        "task_presentation_status"
+      ],
+      "matched_symbols": [
+        "TaskAttentionEntry",
+        "TaskDotStatus",
+        "getTaskAttentionEntry",
+        "getTaskDotStatus",
+        "related_test:src/components/SidebarTaskRow.architecture.test.ts",
+        "store.agentSupervision",
+        "store.taskGitStatus",
+        "store.taskReview"
+      ],
+      "path": "src/components/SidebarTaskRow.architecture.test.ts"
+    },
+    {
+      "matched_concepts": [],
+      "matched_symbols": [],
+      "path": "src/components/review-surfaces.architecture.test.ts"
+    }
+  ],
+  "inferred_concepts": [
+    {
+      "anchors": [
+        "src/domain/server-state.ts::AgentSupervisionState"
+      ],
+      "confidence_0_10000": 8500,
+      "evidence": [
+        "closed domain 'AgentSupervisionState' has 5 exhaustiveness site(s)"
+      ],
+      "id": "agent_supervision_state",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/runtime/browser-state-sync-controller.ts::BrowserStateSyncStatus"
+      ],
+      "confidence_0_10000": 8500,
+      "evidence": [
+        "closed domain 'BrowserStateSyncStatus' has 4 exhaustiveness site(s)"
+      ],
+      "id": "browser_state_sync_status",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "electron/ipc/channels.ts::IPC"
+      ],
+      "confidence_0_10000": 8500,
+      "evidence": [
+        "closed domain 'IPC' has 14 exhaustiveness site(s)"
+      ],
+      "id": "ipc",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/domain/server-state.ts::RemoteAgentStatus"
+      ],
+      "confidence_0_10000": 8500,
+      "evidence": [
+        "closed domain 'RemoteAgentStatus' has 5 exhaustiveness site(s)"
+      ],
+      "id": "remote_agent_status",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/domain/task-convergence.ts::TaskReviewState"
+      ],
+      "confidence_0_10000": 8500,
+      "evidence": [
+        "closed domain 'TaskReviewState' has 7 exhaustiveness site(s)"
+      ],
+      "id": "task_review_state",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/lib/terminal-output-priority.ts::TerminalOutputPriority"
+      ],
+      "confidence_0_10000": 8500,
+      "evidence": [
+        "closed domain 'TerminalOutputPriority' has 5 exhaustiveness site(s)"
+      ],
+      "id": "terminal_output_priority",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/domain/git-status.ts::ChangedFileStatusCategory"
+      ],
+      "confidence_0_10000": 8000,
+      "evidence": [
+        "closed domain 'ChangedFileStatusCategory' has 3 exhaustiveness site(s)"
+      ],
+      "id": "changed_file_status_category",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/runtime/browser-session.ts::ConnectionBannerState"
+      ],
+      "confidence_0_10000": 8000,
+      "evidence": [
+        "closed domain 'ConnectionBannerState' has 3 exhaustiveness site(s)"
+      ],
+      "id": "connection_banner_state",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/domain/server-state.ts::TaskAttentionReason"
+      ],
+      "confidence_0_10000": 8000,
+      "evidence": [
+        "closed domain 'TaskAttentionReason' has 3 exhaustiveness site(s)"
+      ],
+      "id": "task_attention_reason",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/components/AgentGlyph.tsx::AgentGlyphKind"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "closed domain 'AgentGlyphKind' has 2 exhaustiveness site(s)"
+      ],
+      "id": "agent_glyph_kind",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/remote/ws.ts::ConnectionStatus"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "closed domain 'ConnectionStatus' has 2 exhaustiveness site(s)"
+      ],
+      "id": "connection_status",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/lib/look.ts::LookPreset"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "closed domain 'LookPreset' has 2 exhaustiveness site(s)"
+      ],
+      "id": "look_preset",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "server/browser-channels.ts::PendingMessage"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "closed domain 'PendingMessage' has 2 exhaustiveness site(s)"
+      ],
+      "id": "pending_message",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/remote/agent-presentation.ts::RemoteAgentGlyphKind"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "closed domain 'RemoteAgentGlyphKind' has 2 exhaustiveness site(s)"
+      ],
+      "id": "remote_agent_glyph_kind",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/app/server-state-bootstrap.ts::ServerStateBootstrapGateState"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "closed domain 'ServerStateBootstrapGateState' has 2 exhaustiveness site(s)"
+      ],
+      "id": "server_state_bootstrap_gate_state",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/app/task-workflows.control.test.ts::store.activeAgentId"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.activeAgentId' is touched from 7 file(s)"
+      ],
+      "id": "store_active_agent_id",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/task-workflows.control.test.ts::store.activeTaskId"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.activeTaskId' is touched from 23 file(s)"
+      ],
+      "id": "store_active_task_id",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/task-attention.test.ts::store.agents"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.agents' is touched from 18 file(s)"
+      ],
+      "id": "store_agents",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/components/SettingsDialog.tsx::store.autoTrustFolders"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.autoTrustFolders' is touched from 5 file(s)"
+      ],
+      "id": "store_auto_trust_folders",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/desktop-session.ts::store.collapsedTaskOrder"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.collapsedTaskOrder' is touched from 6 file(s)"
+      ],
+      "id": "store_collapsed_task_order",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/components/SettingsDialog.tsx::store.editorCommand"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.editorCommand' is touched from 7 file(s)"
+      ],
+      "id": "store_editor_command",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/components/TaskPanel.test.tsx::store.focusedPanel"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.focusedPanel' is touched from 13 file(s)"
+      ],
+      "id": "store_focused_panel",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/store/autosave.test.ts::store.fontScales"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.fontScales' is touched from 6 file(s)"
+      ],
+      "id": "store_font_scales",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/store/autosave.test.ts::store.globalScale"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.globalScale' is touched from 6 file(s)"
+      ],
+      "id": "store_global_scale",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/agent-catalog.ts::store.hydraCommand"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.hydraCommand' is touched from 4 file(s)"
+      ],
+      "id": "store_hydra_command",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/task-workflows.ts::store.hydraForceDispatchFromPromptPanel"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.hydraForceDispatchFromPromptPanel' is touched from 5 file(s)"
+      ],
+      "id": "store_hydra_force_dispatch_from_prompt_panel",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/components/SettingsDialog.tsx::store.hydraStartupMode"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.hydraStartupMode' is touched from 4 file(s)"
+      ],
+      "id": "store_hydra_startup_mode",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/App.tsx::store.inactiveColumnOpacity"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.inactiveColumnOpacity' is touched from 8 file(s)"
+      ],
+      "id": "store_inactive_column_opacity",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/components/NewTaskDialog.tsx::store.lastAgentId"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.lastAgentId' is touched from 5 file(s)"
+      ],
+      "id": "store_last_agent_id",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/components/NewTaskDialog.tsx::store.lastProjectId"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.lastProjectId' is touched from 5 file(s)"
+      ],
+      "id": "store_last_project_id",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/store/autosave.test.ts::store.panelSizes"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.panelSizes' is touched from 6 file(s)"
+      ],
+      "id": "store_panel_sizes",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/components/NewTaskPlaceholder.tsx::store.placeholderFocused"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.placeholderFocused' is touched from 5 file(s)"
+      ],
+      "id": "store_placeholder_focused",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/components/NewTaskPlaceholder.tsx::store.placeholderFocusedButton"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.placeholderFocusedButton' is touched from 5 file(s)"
+      ],
+      "id": "store_placeholder_focused_button",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/task-convergence.test.ts::store.projects"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.projects' is touched from 16 file(s)"
+      ],
+      "id": "store_projects",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/arena/ConfigScreen.tsx::store.projects.find"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.projects.find' is touched from 6 file(s)"
+      ],
+      "id": "store_projects_find",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/components/Sidebar.tsx::store.projects.length"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.projects.length' is touched from 4 file(s)"
+      ],
+      "id": "store_projects_length",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/App.tsx::store.showHelpDialog"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.showHelpDialog' is touched from 4 file(s)"
+      ],
+      "id": "store_show_help_dialog",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/App.tsx::store.showNewTaskDialog"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.showNewTaskDialog' is touched from 5 file(s)"
+      ],
+      "id": "store_show_new_task_dialog",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/components/SettingsDialog.tsx::store.showPlans"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.showPlans' is touched from 10 file(s)"
+      ],
+      "id": "store_show_plans",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/App.tsx::store.showSettingsDialog"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.showSettingsDialog' is touched from 4 file(s)"
+      ],
+      "id": "store_show_settings_dialog",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/components/Sidebar.tsx::store.sidebarFocused"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.sidebarFocused' is touched from 11 file(s)"
+      ],
+      "id": "store_sidebar_focused",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/components/Sidebar.tsx::store.sidebarFocusedProjectId"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.sidebarFocusedProjectId' is touched from 7 file(s)"
+      ],
+      "id": "store_sidebar_focused_project_id",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/components/Sidebar.tsx::store.sidebarFocusedTaskId"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.sidebarFocusedTaskId' is touched from 8 file(s)"
+      ],
+      "id": "store_sidebar_focused_task_id",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/App.tsx::store.sidebarVisible"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.sidebarVisible' is touched from 8 file(s)"
+      ],
+      "id": "store_sidebar_visible",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/task-command-lease.ts::store.taskCommandControllers"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.taskCommandControllers' is touched from 5 file(s)"
+      ],
+      "id": "store_task_command_controllers",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/desktop-session.ts::store.taskOrder"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.taskOrder' is touched from 20 file(s)"
+      ],
+      "id": "store_task_order",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/components/TilingLayout.tsx::store.taskOrder.length"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.taskOrder.length' is touched from 5 file(s)"
+      ],
+      "id": "store_task_order_length",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/desktop-session.ts::store.tasks"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.tasks' is touched from 32 file(s)"
+      ],
+      "id": "store_tasks",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/components/SettingsDialog.tsx::store.terminalFont"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.terminalFont' is touched from 10 file(s)"
+      ],
+      "id": "store_terminal_font",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/task-workflows.ts::store.terminals"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.terminals' is touched from 8 file(s)"
+      ],
+      "id": "store_terminals",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/App.tsx::store.themePreset"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.themePreset' is touched from 13 file(s)"
+      ],
+      "id": "store_theme_preset",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/runtime/window-session.ts::store.windowState"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.windowState' is touched from 7 file(s)"
+      ],
+      "id": "store_window_state",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/domain/server-state.ts::TaskPreviewAvailability"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "closed domain 'TaskPreviewAvailability' has 2 exhaustiveness site(s)"
+      ],
+      "id": "task_preview_availability",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/domain/task-convergence.ts::TaskReviewQueueGroup"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "closed domain 'TaskReviewQueueGroup' has 2 exhaustiveness site(s)"
+      ],
+      "id": "task_review_queue_group",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "electron/ipc/pty.ts::AgentTerminalRecovery"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'AgentTerminalRecovery' has 1 exhaustiveness site(s)"
+      ],
+      "id": "agent_terminal_recovery",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/domain/server-state-bootstrap.ts::AnyServerStateBootstrapSnapshot"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'AnyServerStateBootstrapSnapshot' has 1 exhaustiveness site(s)"
+      ],
+      "id": "any_server_state_bootstrap_snapshot",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/arena/types.ts::BattleCompetitorStatus"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'BattleCompetitorStatus' has 1 exhaustiveness site(s)"
+      ],
+      "id": "battle_competitor_status",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/runtime/browser-session.ts::BrowserLifecycleEffect"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'BrowserLifecycleEffect' has 1 exhaustiveness site(s)"
+      ],
+      "id": "browser_lifecycle_effect",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/runtime/browser-session.ts::BrowserRecoveryState"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'BrowserRecoveryState' has 1 exhaustiveness site(s)"
+      ],
+      "id": "browser_recovery_state",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "electron/remote/ws-transport.ts::ClaimAgentControlFailure"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'ClaimAgentControlFailure' has 1 exhaustiveness site(s)"
+      ],
+      "id": "claim_agent_control_failure",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/app/agent-catalog.ts::store.availableAgents"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "symbol 'store.availableAgents' is touched from 3 file(s)"
+      ],
+      "id": "store_available_agents",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/components/Sidebar.tsx::store.collapsedTaskOrder.filter"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "symbol 'store.collapsedTaskOrder.filter' is touched from 3 file(s)"
+      ],
+      "id": "store_collapsed_task_order_filter",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/agent-catalog.ts::store.customAgents"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "symbol 'store.customAgents' is touched from 3 file(s)"
+      ],
+      "id": "store_custom_agents",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/App.tsx::store.hasSeenDesktopIntro"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "symbol 'store.hasSeenDesktopIntro' is touched from 3 file(s)"
+      ],
+      "id": "store_has_seen_desktop_intro",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/components/NewTaskDialog.tsx::store.newTaskDropUrl"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "symbol 'store.newTaskDropUrl' is touched from 3 file(s)"
+      ],
+      "id": "store_new_task_drop_url",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/components/NewTaskDialog.tsx::store.newTaskPrefillPrompt"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "symbol 'store.newTaskPrefillPrompt' is touched from 3 file(s)"
+      ],
+      "id": "store_new_task_prefill_prompt",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/components/Sidebar.tsx::store.projects.map"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "symbol 'store.projects.map' is touched from 3 file(s)"
+      ],
+      "id": "store_projects_map",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/remote-access.ts::store.remoteAccess"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "symbol 'store.remoteAccess' is touched from 3 file(s)"
+      ],
+      "id": "store_remote_access",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/remote-access.ts::store.remoteAccess.connectedClients"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "symbol 'store.remoteAccess.connectedClients' is touched from 3 file(s)"
+      ],
+      "id": "store_remote_access_connected_clients",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/remote-access.ts::store.remoteAccess.peerClients"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "symbol 'store.remoteAccess.peerClients' is touched from 3 file(s)"
+      ],
+      "id": "store_remote_access_peer_clients",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/App.tsx::store.showArena"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "symbol 'store.showArena' is touched from 3 file(s)"
+      ],
+      "id": "store_show_arena",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/task-convergence.test.ts::store.taskConvergence"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "symbol 'store.taskConvergence' is touched from 3 file(s)"
+      ],
+      "id": "store_task_convergence",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/task-ports.ts::store.taskPorts"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "symbol 'store.taskPorts' is touched from 3 file(s)"
+      ],
+      "id": "store_task_ports",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/task-presentation-status.ts::TaskAttentionTone"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'TaskAttentionTone' has 1 exhaustiveness site(s)"
+      ],
+      "id": "task_attention_tone",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/app/terminal-output-scheduler.ts::TerminalOutputDrainLane"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'TerminalOutputDrainLane' has 1 exhaustiveness site(s)"
+      ],
+      "id": "terminal_output_drain_lane",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/ipc/types.ts::TerminalRecoveryPayload"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'TerminalRecoveryPayload' has 1 exhaustiveness site(s)"
+      ],
+      "id": "terminal_recovery_payload",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/components/terminal-view/types.ts::TerminalViewStatus"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'TerminalViewStatus' has 1 exhaustiveness site(s)"
+      ],
+      "id": "terminal_view_status",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/lib/terminal-output-priority.ts::TerminalWebglPriority"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'TerminalWebglPriority' has 1 exhaustiveness site(s)"
+      ],
+      "id": "terminal_webgl_priority",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/lib/websocket-client.ts::WebSocketConnectionState"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'WebSocketConnectionState' has 1 exhaustiveness site(s)"
+      ],
+      "id": "web_socket_connection_state",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/store/persistence.test.ts::store.agentActive"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.agentActive' is touched from 2 file(s)"
+      ],
+      "id": "store_agent_active",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/components/task-panel/TaskAiTerminalSection.tsx::store.availableAgents.filter"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.availableAgents.filter' is touched from 2 file(s)"
+      ],
+      "id": "store_available_agents_filter",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/store/completion.ts::store.completedTaskCount"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.completedTaskCount' is touched from 2 file(s)"
+      ],
+      "id": "store_completed_task_count",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/store/completion.ts::store.completedTaskDate"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.completedTaskDate' is touched from 2 file(s)"
+      ],
+      "id": "store_completed_task_date",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/components/PromptInput.test.tsx::store.focusedPanel.task-1"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.focusedPanel.task-1' is touched from 2 file(s)"
+      ],
+      "id": "store_focused_panel_task_1",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/App.tsx::store.incomingTaskTakeoverRequests"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.incomingTaskTakeoverRequests' is touched from 2 file(s)"
+      ],
+      "id": "store_incoming_task_takeover_requests",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/store/completion.ts::store.mergedLinesAdded"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.mergedLinesAdded' is touched from 2 file(s)"
+      ],
+      "id": "store_merged_lines_added",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/store/completion.ts::store.mergedLinesRemoved"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.mergedLinesRemoved' is touched from 2 file(s)"
+      ],
+      "id": "store_merged_lines_removed",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/store/projects.test.ts::store.missingProjectIds"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.missingProjectIds' is touched from 2 file(s)"
+      ],
+      "id": "store_missing_project_ids",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/App.tsx::store.notification"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.notification' is touched from 2 file(s)"
+      ],
+      "id": "store_notification",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/components/TaskPanel.tsx::store.pendingAction"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.pendingAction' is touched from 2 file(s)"
+      ],
+      "id": "store_pending_action",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/components/NewTaskDialog.tsx::store.projects.0"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.projects.0' is touched from 2 file(s)"
+      ],
+      "id": "store_projects_0",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/components/NewTaskDialog.tsx::store.projects.0.id"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.projects.0.id' is touched from 2 file(s)"
+      ],
+      "id": "store_projects_0_id",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/components/ConnectPhoneModal.tsx::store.remoteAccess.enabled"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.remoteAccess.enabled' is touched from 2 file(s)"
+      ],
+      "id": "store_remote_access_enabled",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/components/PromptInput.test.tsx::store.taskCommandControllers.task-1"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.taskCommandControllers.task-1' is touched from 2 file(s)"
+      ],
+      "id": "store_task_command_controllers_task_1",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/task-convergence.test.ts::store.taskConvergence.task-1"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.taskConvergence.task-1' is touched from 2 file(s)"
+      ],
+      "id": "store_task_convergence_task_1",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/store/git-status-polling.ts::store.taskOrder.filter"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.taskOrder.filter' is touched from 2 file(s)"
+      ],
+      "id": "store_task_order_filter",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/task-workflows.ts::store.tasks.*.lastPrompt"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.tasks.*.lastPrompt' is touched from 2 file(s)"
+      ],
+      "id": "store_tasks_last_prompt",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/task-workflows.control.test.ts::store.tasks.task-1"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.tasks.task-1' is touched from 2 file(s)"
+      ],
+      "id": "store_tasks_task_1",
+      "kind": "store_like_symbol"
+    }
+  ],
+  "kind": "concepts",
+  "project": {
+    "exclude": [
+      "vendor/**",
+      "dist/**",
+      "coverage/**",
+      "build/**"
+    ],
+    "primary_language": "typescript"
+  },
+  "rule_coverage": {
+    "concepts_declared": 3,
+    "concepts_machine_checkable": 3,
+    "contracts_declared": 1,
+    "contracts_machine_checkable": 1,
+    "coverage_0_10000": 10000,
+    "state_models_declared": 2,
+    "state_models_machine_checkable": 2,
+    "suppressions_declared": 0,
+    "suppressions_expiring": 0
+  },
+  "rules_error": null,
+  "semantic_error": null,
+  "state_models": [
+    {
+      "id": "server_state_bootstrap_gate",
+      "kind": "explicit",
+      "require_assert_never": true,
+      "require_exhaustive_switch": true,
+      "roots": [
+        "src/app/server-state-bootstrap.ts"
+      ]
+    },
+    {
+      "id": "browser_state_sync",
+      "kind": "explicit",
+      "require_assert_never": true,
+      "require_exhaustive_switch": true,
+      "roots": [
+        "src/runtime/browser-state-sync-controller.ts"
+      ]
+    }
+  ],
+  "summary": {
+    "configured_concept_count": 3,
+    "contract_count": 1,
+    "guardrail_test_count": 4,
+    "inferred_concept_count": 98,
+    "matched_guardrail_test_count": 1,
+    "state_model_count": 2
+  },
+  "suppressions": []
+}

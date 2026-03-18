@@ -1,0 +1,42 @@
+{
+  "baseline_error": null,
+  "baseline_loaded": true,
+  "baseline_path": "<parallel-code-root>/.sentrux/baseline.json",
+  "files": 541,
+  "import_edges": 1572,
+  "lines": 132701,
+  "quality_signal": 4967,
+  "scan_trust": {
+    "candidate_files": 673,
+    "exclusions": {
+      "bucketed": {
+        "build": 12,
+        "cache": 0,
+        "fixture": 7,
+        "generated": 0,
+        "vendor": 100
+      },
+      "ignored_extension": 11,
+      "metadata_error": 0,
+      "too_large": 2,
+      "total": 132
+    },
+    "fallback_reason": null,
+    "kept_files": 541,
+    "mode": "git",
+    "overall_confidence_0_10000": 8039,
+    "partial": false,
+    "resolution": {
+      "internal_confidence_0_10000": 9994,
+      "resolved": 1573,
+      "unresolved_external": 465,
+      "unresolved_internal": 1,
+      "unresolved_unknown": 73
+    },
+    "scope_coverage_0_10000": 8039,
+    "tracked_candidates": 673,
+    "truncated": false,
+    "untracked_candidates": 0
+  },
+  "scanned": "<parallel-code-root>"
+}

@@ -1,0 +1,235 @@
+{
+  "clone_group_count": 39,
+  "findings": [
+    {
+      "concept_id": "task_git_status",
+      "evidence": [
+        "src/app/git-status-sync.ts::store.taskGitStatus (store_call)",
+        "src/store/git-status-polling.ts::store.taskGitStatus.* (store_call)"
+      ],
+      "files": [
+        "src/app/git-status-sync.ts",
+        "src/store/git-status-polling.ts"
+      ],
+      "kind": "multi_writer_concept",
+      "severity": "high",
+      "summary": "Concept 'task_git_status' is mutated from 2 files"
+    },
+    {
+      "concept_id": "task_git_status",
+      "evidence": [
+        "src/store/git-status-polling.ts::store.taskGitStatus.*"
+      ],
+      "files": [
+        "src/store/git-status-polling.ts"
+      ],
+      "kind": "forbidden_writer",
+      "severity": "high",
+      "summary": "Concept 'task_git_status' is written from forbidden location src/store/git-status-polling.ts"
+    },
+    {
+      "concept_id": "ConnectionBannerState",
+      "evidence": [
+        "src/App.tsx [missing variants: connecting, reconnecting, restoring]",
+        "src/App.tsx [missing variants: connecting, reconnecting, restoring]"
+      ],
+      "files": [
+        "src/App.tsx",
+        "src/runtime/browser-session.ts"
+      ],
+      "kind": "closed_domain_exhaustiveness",
+      "severity": "high",
+      "summary": "Closed domain 'ConnectionBannerState' is missing coverage for variants: connecting, reconnecting, restoring"
+    },
+    {
+      "concept_id": "TerminalViewStatus",
+      "evidence": [
+        "src/components/TerminalView.tsx [missing variants: error, ready]"
+      ],
+      "files": [
+        "src/components/TerminalView.tsx",
+        "src/components/terminal-view/types.ts"
+      ],
+      "kind": "closed_domain_exhaustiveness",
+      "severity": "high",
+      "summary": "Closed domain 'TerminalViewStatus' is missing coverage for variants: error, ready"
+    },
+    {
+      "instance_count": 2,
+      "instances": [
+        {
+          "file": "electron/remote/ws-server.ts",
+          "func": "pause",
+          "lines": 11
+        },
+        {
+          "file": "server/browser-websocket.ts",
+          "func": "pause",
+          "lines": 11
+        }
+      ],
+      "kind": "exact_clone_group",
+      "max_lines": 11,
+      "risk_score": 22,
+      "severity": "high",
+      "summary": "2 functions share an identical normalized body",
+      "total_lines": 22
+    },
+    {
+      "instance_count": 2,
+      "instances": [
+        {
+          "file": "src/components/DiffViewerDialog.tsx",
+          "func": "handleCopyComments",
+          "lines": 17
+        },
+        {
+          "file": "src/components/ReviewPanel.tsx",
+          "func": "handleCopyComments",
+          "lines": 17
+        }
+      ],
+      "kind": "exact_clone_group",
+      "max_lines": 17,
+      "risk_score": 34,
+      "severity": "high",
+      "summary": "2 functions share an identical normalized body",
+      "total_lines": 34
+    },
+    {
+      "instance_count": 2,
+      "instances": [
+        {
+          "file": "src/components/AgentGlyph.tsx",
+          "func": "HydraGlyph",
+          "lines": 16
+        },
+        {
+          "file": "src/remote/RemoteAgentGlyph.tsx",
+          "func": "HydraGlyph",
+          "lines": 16
+        }
+      ],
+      "kind": "exact_clone_group",
+      "max_lines": 16,
+      "risk_score": 32,
+      "severity": "high",
+      "summary": "2 functions share an identical normalized body",
+      "total_lines": 32
+    },
+    {
+      "concept_id": "task_presentation_status",
+      "evidence": [
+        "src/app/task-presentation-status.ts [no exhaustive mapping or switch site found for 'TaskDotStatus']"
+      ],
+      "files": [
+        "src/app/task-presentation-status.ts"
+      ],
+      "kind": "closed_domain_exhaustiveness",
+      "severity": "medium",
+      "summary": "Closed domain 'task_presentation_status' is missing required update sites"
+    },
+    {
+      "instance_count": 4,
+      "instances": [
+        {
+          "file": "electron/remote/server.ts",
+          "func": "closeClient",
+          "lines": 3
+        },
+        {
+          "file": "electron/remote/ws-transport.test.ts",
+          "func": "closeClient",
+          "lines": 3
+        },
+        {
+          "file": "server/browser-control-plane.ts",
+          "func": "closeClient",
+          "lines": 3
+        },
+        {
+          "file": "tests/harness/websocket-contract-harness.ts",
+          "func": "closeClient",
+          "lines": 3
+        }
+      ],
+      "kind": "exact_clone_group",
+      "max_lines": 3,
+      "risk_score": 12,
+      "severity": "low",
+      "summary": "4 functions share an identical normalized body",
+      "total_lines": 12
+    },
+    {
+      "instance_count": 3,
+      "instances": [
+        {
+          "file": "electron/remote/server.ts",
+          "func": "terminateClient",
+          "lines": 3
+        },
+        {
+          "file": "electron/remote/ws-transport.test.ts",
+          "func": "terminateClient",
+          "lines": 3
+        },
+        {
+          "file": "tests/harness/websocket-contract-harness.ts",
+          "func": "terminateClient",
+          "lines": 3
+        }
+      ],
+      "kind": "exact_clone_group",
+      "max_lines": 3,
+      "risk_score": 9,
+      "severity": "low",
+      "summary": "3 functions share an identical normalized body",
+      "total_lines": 9
+    },
+    {
+      "instance_count": 2,
+      "instances": [
+        {
+          "file": "src/lib/browser-channel-client.ts",
+          "func": "ignoreErrorAsync",
+          "lines": 3
+        },
+        {
+          "file": "src/lib/browser-control-client.ts",
+          "func": "ignoreErrorAsync",
+          "lines": 3
+        }
+      ],
+      "kind": "exact_clone_group",
+      "max_lines": 3,
+      "risk_score": 6,
+      "severity": "low",
+      "summary": "2 functions share an identical normalized body",
+      "total_lines": 6
+    },
+    {
+      "instance_count": 2,
+      "instances": [
+        {
+          "file": "electron/remote/ws-server.ts",
+          "func": "shouldRequireAgentControl",
+          "lines": 3
+        },
+        {
+          "file": "server/browser-websocket.ts",
+          "func": "shouldRequireAgentControl",
+          "lines": 3
+        }
+      ],
+      "kind": "exact_clone_group",
+      "max_lines": 3,
+      "risk_score": 6,
+      "severity": "low",
+      "summary": "2 functions share an identical normalized body",
+      "total_lines": 6
+    }
+  ],
+  "kind": "mixed_findings",
+  "semantic_error": null,
+  "semantic_finding_count": 5
+}

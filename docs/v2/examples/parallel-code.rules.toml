@@ -1,0 +1,109 @@
+[project]
+primary_language = "typescript"
+exclude = ["vendor/**", "dist/**", "coverage/**", "build/**"]
+
+[[concept]]
+id = "task_git_status"
+kind = "authoritative_state"
+priority = "critical"
+anchors = ["src/store/core.ts::store.taskGitStatus"]
+authoritative_inputs = ["src/store/core.ts::store.taskGitStatus"]
+allowed_writers = ["src/app/git-status-sync.ts::store.taskGitStatus.*"]
+canonical_accessors = [
+  "src/store/taskStatus.ts::getTaskDotStatus",
+  "src/store/taskStatus.ts::refreshTaskStatus",
+  "src/store/taskStatus.ts::applyGitStatusFromPush",
+  "src/app/task-presentation-status.ts::getTaskPresentationStatus",
+]
+forbid_writers = ["src/store/git-status-polling.ts::store.taskGitStatus.*"]
+related_tests = [
+  "src/app/git-status-sync.test.ts",
+  "src/domain/git-status.test.ts",
+  "src/store/taskStatus.test.ts",
+  "src/components/SidebarTaskRow.architecture.test.ts",
+]
+
+[[concept]]
+id = "task_presentation_status"
+kind = "projection"
+priority = "critical"
+anchors = [
+  "src/app/task-presentation-status.ts::TaskDotStatus",
+  "src/app/task-presentation-status.ts::TaskAttentionEntry",
+  "src/app/task-presentation-status.ts::getTaskPresentationStatus",
+  "src/app/task-presentation-status.ts::getTaskDotStatus",
+  "src/app/task-presentation-status.ts::getTaskAttentionEntry",
+  "src/app/task-attention.ts::getTaskAttentionEntries",
+  "src/app/task-attention.ts::getTaskAttentionFocusPanel",
+]
+authoritative_inputs = [
+  "src/store/core.ts::store.agentSupervision",
+  "src/store/core.ts::store.taskGitStatus",
+  "src/store/core.ts::store.taskReview",
+]
+canonical_accessors = [
+  "src/app/task-presentation-status.ts::getTaskPresentationStatus",
+  "src/app/task-presentation-status.ts::getTaskDotStatus",
+  "src/app/task-presentation-status.ts::getTaskAttentionEntry",
+  "src/app/task-attention.ts::getTaskAttentionEntries",
+  "src/app/task-attention.ts::getTaskAttentionFocusPanel",
+]
+forbid_raw_reads = [
+  "src/components/**::store.agentSupervision",
+  "src/components/**::store.taskGitStatus",
+  "src/components/**::store.taskReview",
+]
+related_tests = [
+  "src/app/task-attention.test.ts",
+  "src/app/task-presentation-status.test.ts",
+  "src/components/SidebarTaskRow.architecture.test.ts",
+  "src/components/SidebarTaskRow.test.tsx",
+]
+
+[[concept]]
+id = "server_state_bootstrap"
+kind = "runtime_contract"
+priority = "critical"
+anchors = [
+  "src/domain/server-state-bootstrap.ts::SERVER_STATE_BOOTSTRAP_CATEGORIES",
+  "src/domain/server-state-bootstrap.ts::ServerStateBootstrapCategory",
+  "src/domain/server-state-bootstrap.ts::ServerStateBootstrapPayloadMap",
+  "src/app/server-state-bootstrap-registry.ts::SERVER_STATE_BOOTSTRAP_REGISTRY",
+  "src/app/server-state-bootstrap.ts::replaceServerStateBootstrap",
+  "src/app/server-state-bootstrap.ts::createServerStateBootstrapGate",
+]
+canonical_accessors = [
+  "src/app/server-state-bootstrap.ts::replaceServerStateBootstrap",
+  "src/app/server-state-bootstrap-registry.ts::createServerStateBootstrapCategoryDescriptors",
+  "src/app/server-state-bootstrap-registry.ts::getServerStateListenerScope",
+]
+related_tests = [
+  "src/app/server-state-bootstrap.test.ts",
+  "src/app/server-state-bootstrap-registry.test.ts",
+  "src/app/session-bootstrap-controller.test.ts",
+]
+
+[[contract]]
+id = "server_state_bootstrap"
+kind = "runtime_parity"
+priority = "critical"
+categories_symbol = "src/domain/server-state-bootstrap.ts::SERVER_STATE_BOOTSTRAP_CATEGORIES"
+payload_map_symbol = "src/domain/server-state-bootstrap.ts::ServerStateBootstrapPayloadMap"
+registry_symbol = "src/app/server-state-bootstrap-registry.ts::SERVER_STATE_BOOTSTRAP_REGISTRY"
+browser_entry = "src/runtime/browser-session.ts"
+electron_entry = "src/app/desktop-session.ts"
+required_capabilities = ["snapshot", "live_updates", "versioning"]
+
+[[state_model]]
+id = "server_state_bootstrap_gate"
+kind = "explicit"
+roots = ["src/app/server-state-bootstrap.ts"]
+require_exhaustive_switch = true
+require_assert_never = true
+
+[[state_model]]
+id = "browser_state_sync"
+kind = "explicit"
+roots = ["src/runtime/browser-state-sync-controller.ts"]
+require_exhaustive_switch = true
+require_assert_never = true

@@ -1,0 +1,148 @@
+{
+  "concept": {
+    "allowed_writers": [
+      "src/app/git-status-sync.ts::store.taskGitStatus.*"
+    ],
+    "anchors": [
+      "src/store/core.ts::store.taskGitStatus"
+    ],
+    "authoritative_inputs": [
+      "src/store/core.ts::store.taskGitStatus"
+    ],
+    "canonical_accessors": [
+      "src/store/taskStatus.ts::getTaskDotStatus",
+      "src/store/taskStatus.ts::refreshTaskStatus",
+      "src/store/taskStatus.ts::applyGitStatusFromPush",
+      "src/app/task-presentation-status.ts::getTaskPresentationStatus"
+    ],
+    "forbid_raw_reads": [],
+    "forbid_writers": [
+      "src/store/git-status-polling.ts::store.taskGitStatus.*"
+    ],
+    "id": "task_git_status",
+    "kind": "authoritative_state",
+    "priority": "critical",
+    "related_tests": [
+      "src/app/git-status-sync.test.ts",
+      "src/domain/git-status.test.ts",
+      "src/store/taskStatus.test.ts",
+      "src/components/SidebarTaskRow.architecture.test.ts"
+    ]
+  },
+  "findings": [
+    {
+      "concept_id": "task_git_status",
+      "evidence": [
+        "src/app/git-status-sync.ts::store.taskGitStatus (store_call)",
+        "src/store/git-status-polling.ts::store.taskGitStatus.* (store_call)"
+      ],
+      "files": [
+        "src/app/git-status-sync.ts",
+        "src/store/git-status-polling.ts"
+      ],
+      "kind": "multi_writer_concept",
+      "severity": "high",
+      "summary": "Concept 'task_git_status' is mutated from 2 files"
+    },
+    {
+      "concept_id": "task_git_status",
+      "evidence": [
+        "src/store/git-status-polling.ts::store.taskGitStatus.*"
+      ],
+      "files": [
+        "src/store/git-status-polling.ts"
+      ],
+      "kind": "forbidden_writer",
+      "severity": "high",
+      "summary": "Concept 'task_git_status' is written from forbidden location src/store/git-status-polling.ts"
+    }
+  ],
+  "obligations": [],
+  "parity": [],
+  "related_contract_ids": [],
+  "related_tests": [
+    {
+      "exists": true,
+      "matched_files": [
+        "src/app/git-status-sync.test.ts"
+      ],
+      "pattern": "src/app/git-status-sync.test.ts"
+    },
+    {
+      "exists": true,
+      "matched_files": [
+        "src/domain/git-status.test.ts"
+      ],
+      "pattern": "src/domain/git-status.test.ts"
+    },
+    {
+      "exists": true,
+      "matched_files": [
+        "src/store/taskStatus.test.ts"
+      ],
+      "pattern": "src/store/taskStatus.test.ts"
+    },
+    {
+      "exists": true,
+      "matched_files": [
+        "src/components/SidebarTaskRow.architecture.test.ts"
+      ],
+      "pattern": "src/components/SidebarTaskRow.architecture.test.ts"
+    }
+  ],
+  "semantic": {
+    "reads": [
+      {
+        "line": 201,
+        "path": "src/app/task-presentation-status.ts",
+        "read_kind": "property_access",
+        "symbol_name": "store.taskGitStatus"
+      },
+      {
+        "line": 633,
+        "path": "src/store/persistence.test.ts",
+        "read_kind": "element_access",
+        "symbol_name": "store.taskGitStatus.task-1"
+      },
+      {
+        "line": 633,
+        "path": "src/store/persistence.test.ts",
+        "read_kind": "property_access",
+        "symbol_name": "store.taskGitStatus"
+      }
+    ],
+    "writes": [
+      {
+        "line": 61,
+        "path": "src/store/git-status-polling.ts",
+        "symbol_name": "store.taskGitStatus.*",
+        "write_kind": "store_call"
+      },
+      {
+        "line": 113,
+        "path": "src/store/git-status-polling.ts",
+        "symbol_name": "store.taskGitStatus.*",
+        "write_kind": "store_call"
+      },
+      {
+        "line": 75,
+        "path": "src/app/git-status-sync.ts",
+        "symbol_name": "store.taskGitStatus",
+        "write_kind": "store_call"
+      },
+      {
+        "line": 175,
+        "path": "src/app/task-presentation-status.test.ts",
+        "symbol_name": "store.taskGitStatus",
+        "write_kind": "store_call"
+      },
+      {
+        "line": 591,
+        "path": "src/store/persistence.test.ts",
+        "symbol_name": "store.taskGitStatus",
+        "write_kind": "store_call"
+      }
+    ]
+  },
+  "semantic_error": null
+}

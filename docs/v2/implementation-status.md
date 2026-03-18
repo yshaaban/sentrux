@@ -1,0 +1,321 @@
+# Sentrux V2 Implementation Status
+
+Last audited: 2026-03-19
+
+## Overall Verdict
+
+The implementation is in a good place relative to the **core v2 wedge**, but it is not done relative to the **full roadmap**.
+
+Current assessment:
+
+- doctrine alignment: strong
+- core patch-safety wedge: mostly implemented
+- full roadmap: partially implemented
+- cross-cutting proof and validation: behind implementation
+
+Working estimate:
+
+- core wedge completion: about 80-85%
+- full roadmap completion: about 60-65%
+- validation and proof completion: about 45-50%
+
+## What Is True Today
+
+The product shape in code matches the doctrine in [doctrine.md](./doctrine.md):
+
+- patch safety is primary
+- findings, obligations, and session delta are primary MCP outputs
+- TypeScript-first deep analysis is real
+- concept-level findings are mostly rule-driven
+- score summaries are secondary context, not the main narrative
+
+The strongest completed work is:
+
+- trust and scan-scope reporting
+- TypeScript semantic substrate
+- concept rules and rule coverage
+- authority/access findings
+- obligation engine
+- upgraded `session_end`
+- touched-concept `gate` in MCP and CLI
+- parity and concentration context
+- conservative state-integrity analysis
+
+## Overall Status By Tier
+
+| Tier | Status | Assessment | Main Gap |
+| --- | --- | --- | --- |
+| Tier 0 | Mostly complete | Trust foundation is real in MCP | health/CLI/GUI productization is still uneven |
+| Tier 1A | Partial | Exact clone findings now filter test-only/tiny groups and rank production clones more plausibly | no git-correlated drift or divergent-clone lane |
+| Tier 1B | Mostly complete | TS bridge, semantic facts, and initial `parallel-code` benchmark proof are real | no regression benchmark suite and no mature persisted cache story yet |
+| Tier 1C | Mostly complete | v2 rules and concept graph exist | suppression enforcement is still incomplete |
+| Tier 1D | Mostly complete | authority/access findings work | no full scorecard track and limited generic bypass detection |
+| Tier 1E | Mostly complete | obligation engine is one of the strongest pieces | no full contract-driven obligations or scorecard surface |
+| Tier 1F | Mostly complete | `session_end` and `gate` now work in MCP and CLI on the same touched-concept model | suppression-aware gate decisions and release-grade gate validation are still incomplete |
+| Tier 2A | Mostly complete | parity analyzer, MCP tool, and real `parallel-code` bootstrap proof now exist | broader contract families still need more than one benchmark repo |
+| Tier 2B | Mostly complete | concentration analysis exists and is tested | not yet benchmarked or validated on the real case-study repo |
+| Tier 2C | Mostly complete | inspection tools and adoption helpers exist | real-repo validation has started, but the proof loop is not closed |
+| Tier 3 | Partial | conservative state-integrity slice is in place and now validated on real `parallel-code` controllers | transition modeling and implicit lifecycle heuristics are not built |
+| Validation | Partial | unit tests, initial scoped goldens, and an initial `parallel-code` benchmark artifact exist | no regression benchmark suite, gate/session goldens, or migration test suite |
+
+## Tier-By-Tier Status
+
+## Tier 0: Trust And Output Foundation
+
+Status: mostly complete
+
+Delivered:
+
+- tracked plus untracked scan scope
+- exclusion buckets
+- internal vs external unresolved split
+- scan trust/confidence data in MCP
+- bottleneck-first health framing
+- baseline/session-v2 persistence
+
+Still missing or partial:
+
+- baseline deltas are not surfaced inline in `health`
+- the composite score is demoted in MCP, but CLI and GUI are not yet fully aligned
+- confidence exists as MCP payload shape, but not as a fully unified first-class v2 type across product surfaces
+
+## Tier 1A: Clone Drift Fast Lane
+
+Status: partial
+
+Delivered:
+
+- exact clone groups are emitted as findings
+- clone findings are integrated into `findings`, `session_end`, and `gate`
+
+Still missing:
+
+- stable clone ids beyond the current finding payload shape
+- git-recency/churn correlation
+- recently diverged clone family detection
+- a meaningful CLI clone-drift surface
+
+## Tier 1B: TypeScript Semantic Substrate
+
+Status: mostly complete
+
+Delivered:
+
+- `analysis::semantic`
+- TypeScript project discovery
+- persistent Node bridge
+- protocol version and capability handshake
+- compiler-backed semantic extraction
+- symbols
+- reads and writes
+- closed domains and exhaustiveness sites
+- crash recovery and Node-missing fallback behavior
+
+Still missing:
+
+- first-class generic reference facts are still incomplete compared to the design intent
+- semantic fact caching is mostly in-memory, not a mature persisted cache story
+- there is no regression benchmark suite yet, even though an initial real-repo benchmark now exists
+
+## Tier 1C: Minimal Concept Graph And Rules
+
+Status: mostly complete
+
+Delivered:
+
+- concept graph types
+- explicit concept extraction from rules
+- v2 `rules.toml` sections
+- rule coverage
+- suppression schema
+
+Still missing:
+
+- suppression matching and expiry enforcement across analyzers is incomplete
+
+## Tier 1D: Authority And Access
+
+Status: mostly complete
+
+Delivered:
+
+- durable write-path analysis
+- multi-writer findings
+- writer allowlist/forbid findings
+- forbidden raw-read findings
+- production-only authority findings now ignore test setup writes
+
+Still missing:
+
+- no explicit authority/access scorecard tool or track surface
+- authoritative concept detection is still primarily rule-driven
+- public-API/barrel bypass detection is still narrower than the roadmap intent
+
+## Tier 1E: Obligation Engine
+
+Status: mostly complete
+
+Delivered:
+
+- obligation model
+- missing vs satisfied site computation
+- obligation findings
+- closed-domain exhaustiveness support
+- obligation count and context burden summaries
+
+Still missing:
+
+- obligations are primarily closed-domain driven, not fully contract-driven
+- changed-symbol precision is still coarser than the full design ambition
+- no full scorecard surface for obligation completeness
+
+## Tier 1F: Session Delta And CI Gate
+
+Status: mostly complete
+
+Delivered:
+
+- `findings`
+- `obligations`
+- upgraded `session_end`
+- touched-concept regression verdicts
+- MCP `gate`
+- CLI `gate` now uses the touched-concept v2 model when v2 rules are configured
+- CLI `gate --save` now writes the v2 session baseline used by touched-concept comparisons
+- legacy structural gate remains as the fallback when no v2 rules are configured
+
+Still missing:
+
+- suppression-aware gate decisions
+- release-grade touched-concept gate goldens
+- broader CI ergonomics beyond the current CLI parity step
+
+## Tier 2A: Contract Parity
+
+Status: mostly complete
+
+Delivered:
+
+- parity cells
+- parity reports and findings
+- `parity` MCP tool
+
+Still missing:
+
+- deeper runtime-binding detection and false-positive review against the real `parallel-code` goldens
+
+## Tier 2B: Concentration Risk
+
+Status: mostly complete
+
+Delivered:
+
+- side-effect breadth
+- authority breadth
+- timer/retry weight
+- async branching weight
+- churn-aware scoring
+- concentration findings
+
+Still missing:
+
+- proof that rankings and thresholds are good on `parallel-code`
+
+## Tier 2C: Concept Inspection And Rule Adoption
+
+Status: mostly complete
+
+Delivered:
+
+- `concepts`
+- `explain_concept`
+- `trace_symbol`
+- guardrail-test evidence
+- conservative concept inference
+- onboarding docs
+
+Still missing:
+
+- broader proof beyond the initial real-repo validation and scoped golden outputs
+
+## Tier 3: Advanced Static Analysis
+
+Status: partial
+
+Delivered:
+
+- conservative state-integrity reports
+- state findings
+- `state` MCP tool
+- state findings integrated into `findings`, `gate`, `session_end`, `trace_symbol`, and `explain_concept`
+
+Still missing:
+
+- transition modeling
+- transition-coverage analysis
+- implicit lifecycle inference
+- invalid-state-risk findings
+- real scorecard track for state integrity
+
+## Cross-Cutting Validation Status
+
+Status: partial
+
+Delivered:
+
+- bridge supervisor tests
+- semantic fixture-style tests
+- concept tests
+- concentration tests
+- state-analysis tests
+- MCP handler tests
+- initial scoped golden outputs for `parallel-code`
+- initial cold/warm benchmark artifact for `parallel-code`
+
+Still missing:
+
+- false-positive review process
+- confidence-report regression tests
+- v1/v2 baseline migration tests
+- release-grade `parallel-code` goldens for `session_end` and gate flows
+- performance regression benchmarks beyond the initial benchmark artifact
+
+## Where We Are Relative To The Plan
+
+The current implementation is enough to say:
+
+- the **core patch-safety engine exists**
+- the **MCP story is real**
+- the **TypeScript-first architecture is viable**
+
+It is not enough to say:
+
+- the full roadmap is delivered
+- the case-study proof loop is closed
+- the product is equally mature across MCP, CLI, and GUI
+
+## Biggest Remaining Gaps
+
+1. the roadmap document had fallen behind the code and needed an explicit audit
+2. the real `parallel-code` validation loop is only partially closed
+3. suppressions still do not affect findings or gate decisions
+4. clone drift is still exact-clone-first, not full drift analysis
+5. Tier 3 is only an initial conservative slice
+
+## Recommended Next Execution Order
+
+1. finish suppression matching and expiry handling
+2. expand clone drift with git-correlated divergence
+3. add touched-concept gate and `session_end` goldens
+4. turn the one-off benchmark into a regression benchmark suite
+5. validate parity and concentration against a second real repo
+
+## Beta Readiness
+
+The implementation is close to a useful **MCP beta**, but not yet to a fully proven **v2 beta release**.
+
+The missing bar is mostly not new analysis code. It is:
+
+- proof on the real case-study repo
+- validation artifacts
+- surface consistency across product entry points

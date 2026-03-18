@@ -18,7 +18,7 @@
 
 **English** | [中文](README.zh-CN.md) | [Deutsch](README.de.md) | [日本語](README.ja.md)
 
-[How it Works](#how-it-works) · [Quick Start](#quick-start) · [MCP Integration](#mcp-server) · [Rules Engine](#rules-engine) · [Releases](https://github.com/sentrux/sentrux/releases)
+[How it Works](#how-it-works) · [Quick Start](#quick-start) · [MCP Integration](#mcp-server) · [Rules Engine](#rules-engine) · [V2 Design Docs](docs/v2/README.md) · [Releases](https://github.com/sentrux/sentrux/releases)
 
 </div>
 
@@ -45,6 +45,22 @@
 <div align="center">
 <img src="assets/how-it-works.svg" width="600" alt="How sentrux works: scan → score → agent improves → rescan → better score → repeat">
 </div>
+
+## V2 Design Work
+
+The detailed v2 planning docs live under [`docs/v2/`](docs/v2/README.md).
+
+Current implementation audit: [`docs/v2/implementation-status.md`](docs/v2/implementation-status.md)
+
+That folder tracks the working specification for:
+
+- product model
+- semantic data model
+- analyzer pipeline
+- rules v2
+- MCP and CLI surface
+- phased implementation roadmap
+- `parallel-code` case-study validation plan
 
 
 ## Quick Start

@@ -1,0 +1,166 @@
+{
+  "generated_at": "2026-03-18T21:22:16.827Z",
+  "parallel_code_root": "<parallel-code-root>",
+  "sentrux_binary": "<sentrux-root>/target/debug/sentrux",
+  "benchmark": {
+    "cold_process_total_ms": 12416.3,
+    "cold": {
+      "scan": {
+        "label": "scan",
+        "tool": "scan",
+        "elapsed_ms": 9085.6,
+        "summary": {
+          "files": 540,
+          "import_edges": 1559,
+          "quality_signal": 4973,
+          "overall_confidence_0_10000": 8036,
+          "resolved": 1560,
+          "unresolved_internal": 1
+        }
+      },
+      "concepts": {
+        "label": "concepts",
+        "tool": "concepts",
+        "elapsed_ms": 2895.5,
+        "summary": {
+          "configured_concept_count": 3,
+          "matched_guardrail_test_count": 1,
+          "inferred_concept_count": 89
+        }
+      },
+      "findings": {
+        "label": "findings_top12",
+        "tool": "findings",
+        "elapsed_ms": 116.9,
+        "summary": {
+          "clone_group_count": 38,
+          "finding_count": 12,
+          "semantic_finding_count": 8
+        }
+      },
+      "explain_task_git_status": {
+        "label": "explain_task_git_status",
+        "tool": "explain_concept",
+        "elapsed_ms": 143.3,
+        "summary": {
+          "finding_count": 5,
+          "obligation_count": 0,
+          "read_count": 3,
+          "write_count": 5,
+          "related_test_count": 4
+        }
+      },
+      "explain_task_presentation_status": {
+        "label": "explain_task_presentation_status",
+        "tool": "explain_concept",
+        "elapsed_ms": 151.4,
+        "summary": {
+          "finding_count": 1,
+          "obligation_count": 1,
+          "read_count": 0,
+          "write_count": 0,
+          "related_test_count": 4
+        }
+      },
+      "parity_server_state_bootstrap": {
+        "label": "parity_server_state_bootstrap",
+        "tool": "parity",
+        "elapsed_ms": 11.7,
+        "summary": {
+          "contract_count": 1,
+          "missing_cell_count": 3,
+          "parity_score_0_10000": 6667,
+          "finding_count": 3
+        }
+      },
+      "state": {
+        "label": "state",
+        "tool": "state",
+        "elapsed_ms": 11,
+        "summary": {
+          "state_model_count": 2,
+          "finding_count": 2,
+          "state_integrity_score_0_10000": 0
+        }
+      }
+    },
+    "warm_cached_total_ms": 465.7,
+    "warm_cached": {
+      "concepts": {
+        "label": "concepts",
+        "tool": "concepts",
+        "elapsed_ms": 23.4,
+        "summary": {
+          "configured_concept_count": 3,
+          "matched_guardrail_test_count": 1,
+          "inferred_concept_count": 89
+        }
+      },
+      "findings": {
+        "label": "findings_top12",
+        "tool": "findings",
+        "elapsed_ms": 120.8,
+        "summary": {
+          "clone_group_count": 38,
+          "finding_count": 12,
+          "semantic_finding_count": 8
+        }
+      },
+      "explain_task_git_status": {
+        "label": "explain_task_git_status",
+        "tool": "explain_concept",
+        "elapsed_ms": 143.8,
+        "summary": {
+          "finding_count": 5,
+          "obligation_count": 0,
+          "read_count": 3,
+          "write_count": 5,
+          "related_test_count": 4
+        }
+      },
+      "explain_task_presentation_status": {
+        "label": "explain_task_presentation_status",
+        "tool": "explain_concept",
+        "elapsed_ms": 152.7,
+        "summary": {
+          "finding_count": 1,
+          "obligation_count": 1,
+          "read_count": 0,
+          "write_count": 0,
+          "related_test_count": 4
+        }
+      },
+      "parity_server_state_bootstrap": {
+        "label": "parity_server_state_bootstrap",
+        "tool": "parity",
+        "elapsed_ms": 13.1,
+        "summary": {
+          "contract_count": 1,
+          "missing_cell_count": 3,
+          "parity_score_0_10000": 6667,
+          "finding_count": 3
+        }
+      },
+      "state": {
+        "label": "state",
+        "tool": "state",
+        "elapsed_ms": 11.6,
+        "summary": {
+          "state_model_count": 2,
+          "finding_count": 2,
+          "state_integrity_score_0_10000": 0
+        }
+      }
+    },
+    "stdout_log": [],
+    "stderr_log": [
+      "Downloading language grammars for v0.5.6...",
+      "(one-time download, ~30MB)",
+      "[░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]   0%  50 language grammars ready.",
+      "[build_project_map] 540 files, 31 unique dirs, 30 cache misses, 1.8ms",
+      "[resolve] 1560 resolved, 1 unresolved_internal, 465 unresolved_external, 73 unresolved_unknown (of 2099 total specs)",
+      "[resolve_imports] project_map 2.5ms, suffix_idx 2.9ms, suffix_resolve 27.0ms, total 32.4ms",
+      "[build_graphs] 540 files | maps 4.3ms, imports 32.6ms, calls+inherit 18.0ms, total 54.9ms | 1559 import, 3561 call, 0 inherit edges"
+    ]
+  }
+}

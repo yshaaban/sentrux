@@ -1,0 +1,166 @@
+{
+  "concept": {
+    "allowed_writers": [],
+    "anchors": [
+      "src/app/task-presentation-status.ts::TaskDotStatus",
+      "src/app/task-presentation-status.ts::TaskAttentionEntry",
+      "src/app/task-presentation-status.ts::getTaskPresentationStatus",
+      "src/app/task-presentation-status.ts::getTaskDotStatus",
+      "src/app/task-presentation-status.ts::getTaskAttentionEntry",
+      "src/app/task-attention.ts::getTaskAttentionEntries",
+      "src/app/task-attention.ts::getTaskAttentionFocusPanel"
+    ],
+    "authoritative_inputs": [
+      "src/store/core.ts::store.agentSupervision",
+      "src/store/core.ts::store.taskGitStatus",
+      "src/store/core.ts::store.taskReview"
+    ],
+    "canonical_accessors": [
+      "src/app/task-presentation-status.ts::getTaskPresentationStatus",
+      "src/app/task-presentation-status.ts::getTaskDotStatus",
+      "src/app/task-presentation-status.ts::getTaskAttentionEntry",
+      "src/app/task-attention.ts::getTaskAttentionEntries",
+      "src/app/task-attention.ts::getTaskAttentionFocusPanel"
+    ],
+    "forbid_raw_reads": [
+      "src/components/**::store.agentSupervision",
+      "src/components/**::store.taskGitStatus",
+      "src/components/**::store.taskReview"
+    ],
+    "forbid_writers": [],
+    "id": "task_presentation_status",
+    "kind": "projection",
+    "priority": "critical",
+    "related_tests": [
+      "src/app/task-attention.test.ts",
+      "src/app/task-presentation-status.test.ts",
+      "src/components/SidebarTaskRow.architecture.test.ts",
+      "src/components/SidebarTaskRow.test.tsx"
+    ]
+  },
+  "findings": [
+    {
+      "concept_id": "task_presentation_status",
+      "evidence": [
+        "src/app/task-presentation-status.ts [no exhaustive mapping or switch site found for 'TaskDotStatus']"
+      ],
+      "files": [
+        "src/app/task-presentation-status.ts"
+      ],
+      "kind": "closed_domain_exhaustiveness",
+      "severity": "medium",
+      "summary": "Closed domain 'task_presentation_status' is missing required update sites"
+    }
+  ],
+  "obligations": [
+    {
+      "concept_id": "task_presentation_status",
+      "context_burden": 1,
+      "domain_symbol_name": "TaskDotStatus",
+      "files": [
+        "src/app/task-presentation-status.ts"
+      ],
+      "id": "task_presentation_status::TaskDotStatus",
+      "kind": "closed_domain_exhaustiveness",
+      "missing_sites": [
+        {
+          "detail": "no exhaustive mapping or switch site found for 'TaskDotStatus'",
+          "kind": "closed_domain",
+          "line": 12,
+          "path": "src/app/task-presentation-status.ts"
+        }
+      ],
+      "missing_variants": [],
+      "required_sites": [
+        {
+          "detail": "no exhaustive mapping or switch site found for 'TaskDotStatus'",
+          "kind": "closed_domain",
+          "line": 12,
+          "path": "src/app/task-presentation-status.ts"
+        }
+      ],
+      "satisfied_sites": [],
+      "summary": "Closed domain 'task_presentation_status' is missing required update sites"
+    }
+  ],
+  "parity": [],
+  "related_contract_ids": [],
+  "related_tests": [
+    {
+      "exists": true,
+      "matched_files": [
+        "src/app/task-attention.test.ts"
+      ],
+      "pattern": "src/app/task-attention.test.ts"
+    },
+    {
+      "exists": true,
+      "matched_files": [
+        "src/app/task-presentation-status.test.ts"
+      ],
+      "pattern": "src/app/task-presentation-status.test.ts"
+    },
+    {
+      "exists": true,
+      "matched_files": [
+        "src/components/SidebarTaskRow.architecture.test.ts"
+      ],
+      "pattern": "src/components/SidebarTaskRow.architecture.test.ts"
+    },
+    {
+      "exists": true,
+      "matched_files": [
+        "src/components/SidebarTaskRow.test.tsx"
+      ],
+      "pattern": "src/components/SidebarTaskRow.test.tsx"
+    }
+  ],
+  "semantic": {
+    "reads": [
+      {
+        "line": 187,
+        "path": "src/app/task-presentation-status.ts",
+        "read_kind": "property_access",
+        "symbol_name": "store.agentSupervision"
+      },
+      {
+        "line": 201,
+        "path": "src/app/task-presentation-status.ts",
+        "read_kind": "property_access",
+        "symbol_name": "store.taskGitStatus"
+      },
+      {
+        "line": 42,
+        "path": "src/app/task-review-state.ts",
+        "read_kind": "property_access",
+        "symbol_name": "store.taskReview"
+      },
+      {
+        "line": 633,
+        "path": "src/store/persistence.test.ts",
+        "read_kind": "element_access",
+        "symbol_name": "store.taskGitStatus.task-1"
+      },
+      {
+        "line": 633,
+        "path": "src/store/persistence.test.ts",
+        "read_kind": "property_access",
+        "symbol_name": "store.taskGitStatus"
+      },
+      {
+        "line": 757,
+        "path": "src/store/persistence.test.ts",
+        "read_kind": "element_access",
+        "symbol_name": "store.agentSupervision.terminal-agent-1"
+      },
+      {
+        "line": 757,
+        "path": "src/store/persistence.test.ts",
+        "read_kind": "property_access",
+        "symbol_name": "store.agentSupervision"
+      }
+    ],
+    "writes": []
+  },
+  "semantic_error": null
+}

@@ -1,0 +1,156 @@
+# Sentrux V2 Product Doctrine
+
+## Purpose
+
+This document records the product decisions that should constrain the rest of v2.
+
+If a roadmap item, metric, or analyzer conflicts with this doctrine, the doctrine wins unless it is explicitly revised.
+
+## Primary Job
+
+Sentrux v2 exists to reduce agentic entropy by catching patch-level architectural regressions before they land.
+
+The core product question is:
+
+> What did this patch change, what architectural obligations did that create, and what did the agent fail to update?
+
+## Priority Order
+
+Priority order for v2:
+
+1. patch safety
+2. touched-concept regression ratchet
+3. repo-level context
+4. repo-level score summaries
+
+This means:
+
+- a patch-scoped missing obligation matters more than a repo-wide depth penalty
+- a new multi-writer regression matters more than a low modularity score
+- actionable findings matter more than elegant composite math
+
+## Primary User
+
+The primary user is the coding agent during a session.
+
+Secondary users:
+
+- human reviewer
+- CI gate
+- repo owner looking at trend summaries
+
+## Primary Outputs
+
+The product surface must be ordered like this:
+
+1. findings
+2. obligations
+3. session delta
+4. scorecard
+5. confidence
+
+The scorecard is useful, but it is not the core wedge.
+
+## Core Wedge
+
+The highest-ROI v2 wedge is only three analyzer families:
+
+1. clone drift
+2. authority and access
+3. obligation completeness
+
+These directly address the most expensive static failure modes in agentic coding:
+
+- copy-paste divergence
+- ownership drift across layers
+- incomplete propagation of closed-domain changes
+
+For beta, concept-level findings in this wedge should rely on explicit critical concept rules.
+
+Zero-config beta findings should be limited to:
+
+- clone drift
+- conservative closed-domain and exhaustiveness checks
+
+## Secondary Context
+
+These analyzers are valuable, but they are not the first wedge:
+
+1. contract parity
+2. concentration risk
+
+They help with prioritization, architecture review, and longer-term repo quality, but they should not delay the patch-safety engine.
+
+## Later Analysis
+
+These are later-stage analyzers because they are more heuristic or more expensive:
+
+1. explicit state-model synthesis across files
+2. transition-coverage modeling
+3. implicit state-machine inference
+4. richer protocol/state integrity heuristics
+
+They are aligned with the vision, but they are not the highest-ROI starting point.
+
+## Language Strategy
+
+V2 should be TypeScript/JavaScript-first.
+
+Reason:
+
+- that is where the case study value is strongest
+- that is where agentic entropy is currently most visible
+- high-quality deep analysis in one ecosystem is better than shallow cross-language coverage
+
+## Rules Strategy
+
+Rule priority order:
+
+1. explicit repo rules
+2. existing architecture guardrail tests
+3. conservative inference
+
+Teams should not have to model their entire repo to get value.
+
+The intended onboarding path is:
+
+1. zero-config findings
+2. add 3-5 critical concepts
+3. bind critical rules to CI ratchets
+
+In beta, that means:
+
+- zero-config findings do not need concept inference
+- authority, access, and obligation findings for important domains should come from explicit `[[concept]]` rules
+
+## Trust Rules
+
+V2 must always expose:
+
+- what was analyzed
+- what was excluded
+- what required heuristics
+- what had deep semantic coverage
+- what confidence the result deserves
+
+Do not hide uncertainty behind precise scores.
+
+## Anti-Goals
+
+Do not optimize v2 around:
+
+- a better single quality number
+- graph-theory elegance over actionability
+- runtime tracing as a dependency
+- full semantic clone detection in the initial wedge
+- broad implicit-FSM inference before obligation and ownership work is strong
+
+## Success Definition
+
+V2 is succeeding when:
+
+1. agents get fixable findings at `session_end`
+2. touched-concept regressions can fail CI with high trust
+3. important architectural rules become machine-checkable
+4. `parallel-code` gets meaningful findings that match its own architecture docs and tests
+5. the score is no longer the primary product narrative
