@@ -33,7 +33,7 @@ impl SentruxApp {
         let load_cjk = state.settings.load_cjk_fonts
             && std::env::var("SENTRUX_NO_CJK").is_err();
         setup_fonts(ctx, load_cjk);
-        setup_style(ctx);
+        setup_style(ctx, state.settings.ui_scale);
 
         let (scan_cmd_tx, scan_cmd_rx) = bounded::<ScanCommand>(1);
         let (scan_msg_tx, scan_msg_rx) = bounded::<ScanMsg>(64);
@@ -366,12 +366,17 @@ fn setup_fonts(ctx: &egui::Context, load_cjk: bool) {
     ctx.set_fonts(fonts);
 }
 
-fn setup_style(ctx: &egui::Context) {
+fn setup_style(ctx: &egui::Context, ui_scale: f32) {
+    // Scale ALL UI (text + widgets) uniformly via pixels_per_point.
+    // This affects both text styles AND hardcoded FontId sizes in panels.
+    let base_ppp = ctx.pixels_per_point();
+    ctx.set_pixels_per_point(base_ppp * ui_scale);
+
     let mut style = (*ctx.style()).clone();
-    style.text_styles.insert(egui::TextStyle::Body, egui::FontId::new(12.0, egui::FontFamily::Monospace));
-    style.text_styles.insert(egui::TextStyle::Button, egui::FontId::new(11.0, egui::FontFamily::Monospace));
-    style.text_styles.insert(egui::TextStyle::Small, egui::FontId::new(10.0, egui::FontFamily::Monospace));
-    style.text_styles.insert(egui::TextStyle::Heading, egui::FontId::new(14.0, egui::FontFamily::Monospace));
+    style.text_styles.insert(egui::TextStyle::Body, egui::FontId::new(13.0, egui::FontFamily::Monospace));
+    style.text_styles.insert(egui::TextStyle::Button, egui::FontId::new(12.0, egui::FontFamily::Monospace));
+    style.text_styles.insert(egui::TextStyle::Small, egui::FontId::new(11.0, egui::FontFamily::Monospace));
+    style.text_styles.insert(egui::TextStyle::Heading, egui::FontId::new(15.0, egui::FontFamily::Monospace));
     style.visuals.window_corner_radius = egui::CornerRadius::ZERO;
     style.visuals.menu_corner_radius = egui::CornerRadius::ZERO;
     style.visuals.widgets.noninteractive.corner_radius = egui::CornerRadius::ZERO;

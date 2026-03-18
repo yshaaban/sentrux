@@ -75,6 +75,8 @@ pub struct Settings {
     // ── Font sizes ──
     /// Scale factor for zoom-proportional text (0.05 = tiny, 0.35 = large)
     pub font_scale: f32,
+    /// UI scale factor for panel/toolbar text (1.0 = default 13px body, 1.5 = large)
+    pub ui_scale: f32,
 
     // ── Viewport ──
     /// Minimum zoom level (prevents zooming out too far)
@@ -180,6 +182,7 @@ impl Default for Settings {
             blueprint_route_margin: 40.0,
 
             font_scale: 0.10,
+            ui_scale: 1.0,
 
             zoom_min: 0.05,
             zoom_max: 50.0,
@@ -232,6 +235,7 @@ impl Settings {
         self.zoom_max = self.zoom_max.max(self.zoom_min + 0.01);
         self.edge_alpha_base = self.edge_alpha_base.clamp(0.0, 1.0);
         self.edge_alpha_max = self.edge_alpha_max.clamp(self.edge_alpha_base, 1.0);
+        self.ui_scale = self.ui_scale.clamp(0.5, 3.0);
     }
 
     /// Create a HeatConfig from current settings

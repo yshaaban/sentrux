@@ -109,6 +109,7 @@ fn draw_viewport_sections(ui: &mut egui::Ui, settings: &mut Settings) -> (bool, 
     let mut vc = false;
     ui.collapsing("Font", |ui| {
         vc |= slider_f32(ui, "Font Scale", &mut settings.font_scale, 0.05..=0.40);
+        vc |= slider_f32(ui, "UI Scale", &mut settings.ui_scale, 0.5..=3.0);
     });
     ui.collapsing("Viewport", |ui| {
         vc |= slider_f64(ui, "Zoom Min", &mut settings.zoom_min, 0.01..=1.0);

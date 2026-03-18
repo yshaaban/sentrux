@@ -107,7 +107,7 @@ pub fn draw_rects(
     let connected_files: Option<HashSet<&str>> = build_connected_set(rd, ctx, kind, lod_full);
 
     // ONE global font size for ALL text. Scales with zoom.
-    let fs = (ctx.settings.font_scale * 72.0 * vp.scale as f32).clamp(4.0, 40.0);
+    let fs = (ctx.settings.font_scale * 72.0 * vp.scale as f32).clamp(8.0, 22.0);
     let cw = fs * 0.62; // monospace char width
     let px = fs * 0.25;
     let py = fs * 0.15;
