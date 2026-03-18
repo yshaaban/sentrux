@@ -382,6 +382,17 @@
     },
     {
       "anchors": [
+        "src/components/TaskPanel.test.tsx::store.focusedPanel"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.focusedPanel' is touched from 13 file(s)"
+      ],
+      "id": "store_focused_panel",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
         "src/store/autosave.test.ts::store.fontScales"
       ],
       "confidence_0_10000": 7500,
@@ -829,17 +840,6 @@
         "symbol 'store.customAgents' is touched from 3 file(s)"
       ],
       "id": "store_custom_agents",
-      "kind": "store_like_symbol"
-    },
-    {
-      "anchors": [
-        "src/components/TaskPanel.test.tsx::store.focusedPanel.*"
-      ],
-      "confidence_0_10000": 7000,
-      "evidence": [
-        "symbol 'store.focusedPanel.*' is touched from 3 file(s)"
-      ],
-      "id": "store_focused_panel",
       "kind": "store_like_symbol"
     },
     {

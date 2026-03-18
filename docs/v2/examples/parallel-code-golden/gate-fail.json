@@ -1,0 +1,141 @@
+{
+  "blocking_findings": [],
+  "changed_files": [
+    "src/components/SidebarTaskRow.tsx"
+  ],
+  "decision": "fail",
+  "expired_suppression_match_count": 0,
+  "expired_suppressions": [],
+  "introduced_findings": [
+    {
+      "concept_id": "task_presentation_status",
+      "evidence": [
+        "src/components/SidebarTaskRow.tsx::store.taskGitStatus"
+      ],
+      "files": [
+        "src/components/SidebarTaskRow.tsx"
+      ],
+      "kind": "forbidden_raw_read",
+      "severity": "medium",
+      "summary": "Concept 'task_presentation_status' is read from a forbidden raw access path at src/components/SidebarTaskRow.tsx"
+    }
+  ],
+  "missing_obligations": [
+    {
+      "concept_id": "task_presentation_status",
+      "context_burden": 5,
+      "domain_symbol_name": "TaskDotStatus",
+      "files": [
+        "src/app/task-presentation-status.ts"
+      ],
+      "id": "task_presentation_status::TaskDotStatus",
+      "kind": "closed_domain_exhaustiveness",
+      "missing_sites": [
+        {
+          "detail": "related test coverage for changed concept",
+          "kind": "related_test",
+          "line": null,
+          "path": "src/app/task-attention.test.ts"
+        },
+        {
+          "detail": "related test coverage for changed concept",
+          "kind": "related_test",
+          "line": null,
+          "path": "src/app/task-presentation-status.test.ts"
+        },
+        {
+          "detail": "no exhaustive mapping or switch site found for 'TaskDotStatus'",
+          "kind": "closed_domain",
+          "line": 12,
+          "path": "src/app/task-presentation-status.ts"
+        },
+        {
+          "detail": "related test coverage for changed concept",
+          "kind": "related_test",
+          "line": null,
+          "path": "src/components/SidebarTaskRow.architecture.test.ts"
+        },
+        {
+          "detail": "related test coverage for changed concept",
+          "kind": "related_test",
+          "line": null,
+          "path": "src/components/SidebarTaskRow.test.tsx"
+        }
+      ],
+      "missing_variants": [],
+      "required_sites": [
+        {
+          "detail": "related test coverage for changed concept",
+          "kind": "related_test",
+          "line": null,
+          "path": "src/app/task-attention.test.ts"
+        },
+        {
+          "detail": "related test coverage for changed concept",
+          "kind": "related_test",
+          "line": null,
+          "path": "src/app/task-presentation-status.test.ts"
+        },
+        {
+          "detail": "no exhaustive mapping or switch site found for 'TaskDotStatus'",
+          "kind": "closed_domain",
+          "line": 12,
+          "path": "src/app/task-presentation-status.ts"
+        },
+        {
+          "detail": "related test coverage for changed concept",
+          "kind": "related_test",
+          "line": null,
+          "path": "src/components/SidebarTaskRow.architecture.test.ts"
+        },
+        {
+          "detail": "related test coverage for changed concept",
+          "kind": "related_test",
+          "line": null,
+          "path": "src/components/SidebarTaskRow.test.tsx"
+        }
+      ],
+      "satisfied_sites": [],
+      "summary": "Closed domain 'task_presentation_status' is missing required update sites"
+    }
+  ],
+  "obligation_completeness_0_10000": 0,
+  "rules_error": null,
+  "scan_trust": {
+    "candidate_files": 677,
+    "exclusions": {
+      "bucketed": {
+        "build": 12,
+        "cache": 0,
+        "fixture": 7,
+        "generated": 0,
+        "vendor": 100
+      },
+      "ignored_extension": 11,
+      "metadata_error": 0,
+      "too_large": 2,
+      "total": 132
+    },
+    "fallback_reason": null,
+    "kept_files": 545,
+    "mode": "git",
+    "overall_confidence_0_10000": 8050,
+    "partial": false,
+    "resolution": {
+      "internal_confidence_0_10000": 9994,
+      "resolved": 1586,
+      "unresolved_external": 468,
+      "unresolved_internal": 1,
+      "unresolved_unknown": 73
+    },
+    "scope_coverage_0_10000": 8050,
+    "tracked_candidates": 677,
+    "truncated": false,
+    "untracked_candidates": 0
+  },
+  "semantic_error": null,
+  "strict": false,
+  "summary": "Touched-concept regressions detected",
+  "suppressed_finding_count": 0,
+  "suppression_hits": []
+}

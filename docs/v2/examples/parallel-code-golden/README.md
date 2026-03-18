@@ -28,7 +28,9 @@ That matters for two reasons:
 - `state.json`
 - `session-start.json`
 - `gate-pass.json`
+- `gate-fail.json`
 - `session-end-pass.json`
+- `session-end-fail.json`
 - `metadata.json`
 
 ## Known Current Learnings
@@ -44,7 +46,8 @@ These goldens currently demonstrate several important v2 gaps:
 - clone findings now have stable ids, git-aware churn/code-age context, deterministic instance ordering, and distinct-file recent-activity accounting
 - clone findings still need family-level prioritization because related production clone groups can crowd the top list
 - real-repo `session_start`, `gate`, and `session_end` pass outputs are now checked in using a temporary local clone rather than the live working tree
-- regression-path gate/session goldens still do not exist for the real repo; those remain covered only by synthetic fixtures today
+- real-repo regression-path `gate` and `session_end` fail outputs now exist using a deterministic mutation in `src/components/SidebarTaskRow.tsx`
+- the current regression fixture is intentionally minimal: one injected forbidden raw read that should fail patch safety on a real `parallel-code` rule
 
 Those are not reasons to hide the outputs. They are reasons to keep them versioned.
 
@@ -68,3 +71,4 @@ That means:
 
 - checked-in goldens do not depend on whatever uncommitted state happens to exist in the live `parallel-code` worktree
 - absolute temp-copy paths are sanitized back to the source repo root before the JSON is written
+- regression fail goldens are generated from a deterministic temporary mutation, not from a hand-edited live checkout

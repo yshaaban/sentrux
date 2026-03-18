@@ -129,11 +129,94 @@ for (const [id, filename] of outputs) {
 }
 EOF
 
+node - "$WORK_ROOT/src/components/SidebarTaskRow.tsx" <<'EOF'
+const fs = require('node:fs');
+
+const [, , targetPath] = process.argv;
+const source = fs.readFileSync(targetPath, 'utf8');
+const needle = "function getPrimaryTaskAgentDef(taskId: string): AgentDef | null {\n";
+const injection = `${needle}  store.taskGitStatus = store.taskGitStatus;\n`;
+
+if (source.includes("store.taskGitStatus = store.taskGitStatus;")) {
+  throw new Error(`Regression mutation already present in ${targetPath}`);
+}
+if (!source.includes(needle)) {
+  throw new Error(`Could not find injection point in ${targetPath}`);
+}
+
+fs.writeFileSync(targetPath, source.replace(needle, injection));
+EOF
+
+cat > "$tmpdir/regression-requests.jsonl" <<EOF
+{"jsonrpc":"2.0","id":20,"method":"tools/call","params":{"name":"scan","arguments":{"path":"$WORK_ROOT"}}}
+{"jsonrpc":"2.0","id":21,"method":"tools/call","params":{"name":"gate","arguments":{}}}
+{"jsonrpc":"2.0","id":22,"method":"tools/call","params":{"name":"session_end","arguments":{}}}
+EOF
+
+"$SENTRUX_BIN" --mcp < "$tmpdir/regression-requests.jsonl" | grep '^[{]' > "$tmpdir/regression-responses.jsonl"
+
+node - "$tmpdir/regression-responses.jsonl" "$OUTPUT_DIR" "$WORK_ROOT" "$PARALLEL_CODE_ROOT" <<'EOF'
+const fs = require('node:fs');
+const path = require('node:path');
+
+const [, , responsesPath, outputDir, workRoot, sourceRoot] = process.argv;
+const responseLines = fs
+  .readFileSync(responsesPath, 'utf8')
+  .split('\n')
+  .map((line) => line.trim())
+  .filter(Boolean);
+
+const responses = new Map();
+for (const line of responseLines) {
+  const payload = JSON.parse(line);
+  responses.set(payload.id, payload);
+}
+
+const outputs = [
+  [21, 'gate-fail.json'],
+  [22, 'session-end-fail.json'],
+];
+
+function sanitizeValue(value) {
+  if (typeof value === 'string') {
+    return value.split(workRoot).join(sourceRoot);
+  }
+  if (Array.isArray(value)) {
+    return value.map(sanitizeValue);
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [key, sanitizeValue(entry)]),
+    );
+  }
+  return value;
+}
+
+for (const [id, filename] of outputs) {
+  const response = responses.get(id);
+  if (!response) {
+    throw new Error(`Missing MCP response for id ${id}`);
+  }
+
+  const text = response.result?.content?.[0]?.text;
+  if (typeof text !== 'string') {
+    throw new Error(`Missing text payload for id ${id}`);
+  }
+
+  const parsed = sanitizeValue(JSON.parse(text));
+  fs.writeFileSync(path.join(outputDir, filename), `${JSON.stringify(parsed, null, 2)}\n`);
+}
+EOF
+
 cat > "$OUTPUT_DIR/metadata.json" <<EOF
 {
   "generated_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
   "parallel_code_root": "$PARALLEL_CODE_ROOT",
   "analysis_mode": "temporary_local_clone",
+  "regression_mutation": {
+    "path": "src/components/SidebarTaskRow.tsx",
+    "change": "store.taskGitStatus = store.taskGitStatus"
+  },
   "rules_source": "$RULES_SOURCE",
   "sentrux_binary": "$SENTRUX_BIN"
 }

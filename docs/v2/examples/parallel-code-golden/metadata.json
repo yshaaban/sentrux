@@ -1,7 +1,11 @@
 {
-  "generated_at": "2026-03-18T22:49:02Z",
+  "generated_at": "2026-03-18T23:21:47Z",
   "parallel_code_root": "<parallel-code-root>",
   "analysis_mode": "temporary_local_clone",
+  "regression_mutation": {
+    "path": "src/components/SidebarTaskRow.tsx",
+    "change": "store.taskGitStatus = store.taskGitStatus"
+  },
   "rules_source": "<sentrux-root>/docs/v2/examples/parallel-code.rules.toml",
   "sentrux_binary": "<sentrux-root>/target/debug/sentrux"
 }
