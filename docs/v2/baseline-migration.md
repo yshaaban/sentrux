@@ -24,9 +24,11 @@ For rollout:
 - keep the existing v1 baseline at its current path
 - store the v2 baseline at a separate path
 
-Suggested v2 path:
+Current v2 path:
 
-`.sentrux/baseline.v2.json`
+`.sentrux/session-v2.json`
+
+This is the file the current implementation reads and writes for touched-concept gate and `session_end` comparisons.
 
 This avoids cross-version ambiguity and lets v1 binaries ignore v2 baseline files safely.
 
@@ -111,7 +113,7 @@ Predictability matters more than clever migration.
 
 V1 binary behavior:
 
-- ignore `.sentrux/baseline.v2.json`
+- ignore `.sentrux/session-v2.json`
 
 V2 binary behavior:
 
@@ -157,9 +159,9 @@ If fields are missing:
 
 ## Implementation Tasks
 
-- [ ] define v2 baseline schema and versioning
-- [ ] store v2 baseline at a dedicated path
-- [ ] keep v1 baseline reader unchanged
-- [ ] teach v2 to ignore incompatible or missing baselines cleanly
-- [ ] add mixed-version session tests
+- [ ] define a richer v2 baseline schema and versioning
+- [x] keep v2 baseline at a dedicated path separate from v1
+- [x] keep v1 baseline reader unchanged
+- [-] teach v2 to ignore incompatible or missing baselines cleanly
+- [-] add mixed-version and coexistence tests
 - [ ] document baseline update workflow for CI and MCP sessions

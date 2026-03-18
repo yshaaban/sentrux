@@ -1750,10 +1750,10 @@ fn distinct_file_count(group: &crate::metrics::DuplicateGroup) -> usize {
 mod tests {
     use super::{
         apply_suppressions, build_exact_clone_findings, cli_evaluate_v2_gate, cli_save_v2_session,
-        distinct_file_count, handle_concepts, handle_explain_concept, handle_state,
-        handle_trace_symbol, load_persisted_session_v2, load_v2_rules_config,
-        overall_confidence_0_10000, save_session_v2_baseline, state_model_ids_from_findings,
-        state_model_ids_from_reports,
+        distinct_file_count, fresh_mcp_state, handle_concepts, handle_explain_concept,
+        handle_session_end, handle_state, handle_trace_symbol, load_persisted_session_v2,
+        load_v2_rules_config, overall_confidence_0_10000, save_session_v2_baseline,
+        state_model_ids_from_findings, state_model_ids_from_reports,
     };
     use crate::analysis::scanner::common::{ScanMetadata, ScanMode};
     use crate::analysis::semantic::{
@@ -1902,6 +1902,66 @@ mod tests {
             &root,
             "src/domain/state.ts",
             "export type AppState = 'idle' | 'busy';\n",
+        );
+        root
+    }
+
+    fn closed_domain_gate_fixture_root() -> std::path::PathBuf {
+        let root = temp_root("closed-domain-gate");
+        write_file(
+            &root,
+            ".sentrux/rules.toml",
+            r#"
+                [[concept]]
+                id = "app_state"
+                anchors = ["src/domain/state.ts::AppState"]
+            "#,
+        );
+        write_file(
+            &root,
+            "package.json",
+            r#"{ "name": "closed-domain-gate-fixture", "type": "module" }"#,
+        );
+        write_file(
+            &root,
+            "tsconfig.json",
+            r#"
+                {
+                  "compilerOptions": {
+                    "module": "esnext",
+                    "target": "es2020",
+                    "strict": true
+                  },
+                  "include": ["src/**/*.ts"]
+                }
+            "#,
+        );
+        write_file(
+            &root,
+            "src/domain/state.ts",
+            "export type AppState = 'idle' | 'busy';\n",
+        );
+        write_file(
+            &root,
+            "src/app/render.ts",
+            r#"
+                import type { AppState } from '../domain/state';
+
+                function assertNever(value: never): never {
+                  throw new Error(String(value));
+                }
+
+                export function renderState(state: AppState): string {
+                  switch (state) {
+                    case 'idle':
+                      return 'idle';
+                    case 'busy':
+                      return 'busy';
+                    default:
+                      return assertNever(state);
+                  }
+                }
+            "#,
         );
         root
     }
@@ -2258,6 +2318,104 @@ mod tests {
                 .map(|files| files.len()),
             Some(0)
         );
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn cli_v2_gate_fails_on_closed_domain_regression() {
+        let root = closed_domain_gate_fixture_root();
+        cli_save_v2_session(&root).expect("save v2 session");
+        write_file(
+            &root,
+            "src/domain/state.ts",
+            "export type AppState = 'idle' | 'busy' | 'error';\n",
+        );
+
+        let evaluated = cli_evaluate_v2_gate(&root, false).expect("evaluate v2 gate");
+
+        assert_eq!(evaluated["decision"], "fail");
+        assert_eq!(evaluated["summary"], "Touched-concept regressions detected");
+        assert!(evaluated["changed_files"]
+            .as_array()
+            .expect("changed files")
+            .iter()
+            .any(|value| value == "src/domain/state.ts"));
+        assert!(evaluated["introduced_findings"]
+            .as_array()
+            .expect("introduced findings")
+            .iter()
+            .any(|value| value["kind"] == "closed_domain_exhaustiveness"));
+        assert!(evaluated["missing_obligations"]
+            .as_array()
+            .expect("missing obligations")
+            .iter()
+            .any(|value| value["domain_symbol_name"] == "AppState"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn cli_v2_gate_ignores_invalid_legacy_baseline_when_v2_session_exists() {
+        let root = closed_domain_gate_fixture_root();
+        cli_save_v2_session(&root).expect("save v2 session");
+        write_file(&root, ".sentrux/baseline.json", "{ invalid json");
+        write_file(
+            &root,
+            "src/domain/state.ts",
+            "export type AppState = 'idle' | 'busy' | 'error';\n",
+        );
+
+        let evaluated = cli_evaluate_v2_gate(&root, false).expect("evaluate v2 gate");
+
+        assert_eq!(evaluated["decision"], "fail");
+        assert!(evaluated["baseline_error"].is_null());
+        assert!(evaluated["introduced_findings"]
+            .as_array()
+            .expect("introduced findings")
+            .iter()
+            .any(|value| value["kind"] == "closed_domain_exhaustiveness"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn session_end_works_with_v2_session_when_legacy_baseline_is_missing() {
+        let root = closed_domain_gate_fixture_root();
+        cli_save_v2_session(&root).expect("save v2 session");
+        std::fs::remove_file(root.join(".sentrux").join("baseline.json"))
+            .expect("remove legacy baseline");
+        write_file(
+            &root,
+            "src/domain/state.ts",
+            "export type AppState = 'idle' | 'busy' | 'error';\n",
+        );
+
+        let mut state = fresh_mcp_state();
+        state.scan_root = Some(root.clone());
+
+        let response = handle_session_end(&json!({}), &Tier::Free, &mut state)
+            .expect("session end without legacy baseline");
+
+        assert_eq!(response["pass"], false);
+        assert_eq!(response["summary"], "Touched-concept regressions detected");
+        assert!(response["signal_before"].is_null());
+        assert!(response["signal_after"].is_null());
+        assert!(response["baseline_error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("Legacy baseline unavailable"));
+        assert!(response["introduced_findings"]
+            .as_array()
+            .expect("introduced findings")
+            .iter()
+            .any(|value| value["kind"] == "closed_domain_exhaustiveness"));
+        assert!(response["missing_obligations"]
+            .as_array()
+            .expect("missing obligations")
+            .iter()
+            .any(|value| value["domain_symbol_name"] == "AppState"));
+        assert_eq!(response["touched_concept_gate"]["decision"], "fail");
 
         let _ = std::fs::remove_dir_all(root);
     }
@@ -2776,14 +2934,18 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         .clone()
         .ok_or("No scan root. Call 'scan' first.")?;
     let session_v2 = current_session_v2_baseline(state, &root)?;
-    let baseline = match state.baseline.clone() {
-        Some(baseline) => baseline,
-        None => load_persisted_baseline(&root)?
-            .ok_or("No baseline saved. Call 'session_start' first.")?,
+    let (baseline, mut baseline_error) = match state.baseline.clone() {
+        Some(baseline) => (Some(baseline), None),
+        None => match load_persisted_baseline(&root) {
+            Ok(baseline) => (baseline, None),
+            Err(error) => (None, Some(error)),
+        },
     };
 
     let bundle = do_scan(&root)?;
-    let diff = baseline.diff(&bundle.health);
+    let legacy_diff = baseline
+        .as_ref()
+        .map(|baseline| baseline.diff(&bundle.health));
     let current_file_hashes = snapshot_file_hashes(&root, &bundle.snapshot);
     let changed_files = changed_files_from_session_context(
         &root,
@@ -2885,30 +3047,54 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         .unwrap_or_default();
     let gate_decision = if !missing_obligations.is_empty() || !blocking_findings.is_empty() {
         "fail"
-    } else if diff.degraded || !introduced_findings.is_empty() {
+    } else if legacy_diff.as_ref().is_some_and(|diff| diff.degraded)
+        || !introduced_findings.is_empty()
+    {
         "warn"
     } else {
         "pass"
     };
     let semantic_error =
         merge_optional_errors(changed_semantic_error.or(all_semantic_error), clone_error);
-    let (persisted_baseline, baseline_error) = match load_persisted_baseline(&root) {
-        Ok(persisted_baseline) => (persisted_baseline, None),
-        Err(error) => (None, Some(error)),
-    };
+    if baseline.is_none() && baseline_error.is_none() {
+        baseline_error =
+            Some("Legacy baseline unavailable; structural delta fields were omitted".to_string());
+    }
+
+    let signal_before = legacy_diff
+        .as_ref()
+        .map(|diff| (diff.signal_before * 10000.0).round() as i32);
+    let signal_after = legacy_diff
+        .as_ref()
+        .map(|diff| (diff.signal_after * 10000.0).round() as i32);
+    let signal_delta = legacy_diff
+        .as_ref()
+        .map(|diff| ((diff.signal_after - diff.signal_before) * 10000.0).round() as i32);
+    let coupling_change = legacy_diff
+        .as_ref()
+        .map(|diff| vec![diff.coupling_before, diff.coupling_after]);
+    let cycles_change = legacy_diff
+        .as_ref()
+        .map(|diff| vec![diff.cycles_before, diff.cycles_after]);
+    let legacy_violations = legacy_diff
+        .as_ref()
+        .map(|diff| diff.violations.clone())
+        .unwrap_or_default();
 
     let result = json!({
         "pass": gate_decision != "fail",
-        "signal_before": (diff.signal_before * 10000.0).round() as i32,
-        "signal_after": (diff.signal_after * 10000.0).round() as i32,
-        "signal_delta": ((diff.signal_after - diff.signal_before) * 10000.0).round() as i32,
-        "coupling_change": [diff.coupling_before, diff.coupling_after],
-        "cycles_change": [diff.cycles_before, diff.cycles_after],
-        "violations": diff.violations,
+        "signal_before": signal_before,
+        "signal_after": signal_after,
+        "signal_delta": signal_delta,
+        "coupling_change": coupling_change,
+        "cycles_change": cycles_change,
+        "violations": legacy_violations,
         "summary": if gate_decision == "fail" {
             "Touched-concept regressions detected"
-        } else if diff.degraded {
+        } else if legacy_diff.as_ref().is_some_and(|diff| diff.degraded) {
             "Quality degraded"
+        } else if legacy_diff.is_none() {
+            "Patch safety check complete; legacy structural delta unavailable"
         } else {
             "Quality stable or improved"
         },
@@ -2932,7 +3118,7 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         "baseline_error": baseline_error
     });
 
-    update_scan_cache(state, root, bundle, persisted_baseline.or(Some(baseline)));
+    update_scan_cache(state, root, bundle, baseline);
 
     Ok(result)
 }

@@ -57,7 +57,7 @@ The strongest completed work is:
 | Tier 2B | Mostly complete | concentration analysis exists and is tested | not yet benchmarked or validated on the real case-study repo |
 | Tier 2C | Mostly complete | inspection tools and adoption helpers exist | real-repo validation has started, but the proof loop is not closed |
 | Tier 3 | Partial | conservative state-integrity slice is in place and now validated on real `parallel-code` controllers | transition modeling and implicit lifecycle heuristics are not built |
-| Validation | Partial | unit tests, initial scoped goldens, and an initial `parallel-code` benchmark artifact exist | no regression benchmark suite, gate/session goldens, or migration test suite |
+| Validation | Partial | unit tests, synthetic gate/session regression scenarios, initial scoped goldens, and an initial `parallel-code` benchmark artifact exist | no regression benchmark suite, release-grade real-repo gate/session goldens, or full migration suite |
 
 ## Tier-By-Tier Status
 
@@ -277,6 +277,8 @@ Delivered:
 - concentration tests
 - state-analysis tests
 - MCP handler tests
+- synthetic touched-concept gate and `session_end` regression scenarios
+- v2-only and invalid-v1-baseline coexistence tests
 - initial scoped golden outputs for `parallel-code`
 - initial cold/warm benchmark artifact for `parallel-code`
 
@@ -284,7 +286,7 @@ Still missing:
 
 - false-positive review process
 - confidence-report regression tests
-- v1/v2 baseline migration tests
+- full v1/v2 migration suite, including schema/version mismatch cases
 - release-grade `parallel-code` goldens for `session_end` and gate flows
 - performance regression benchmarks beyond the initial benchmark artifact
 
@@ -306,16 +308,16 @@ It is not enough to say:
 
 1. the roadmap document had fallen behind the code and needed an explicit audit
 2. the real `parallel-code` validation loop is only partially closed
-3. suppressions still do not affect findings or gate decisions
-4. clone drift is still exact-clone-first, not full drift analysis
+3. clone drift is still missing divergence-aware prioritization
+4. release-grade gate/session proof is still thinner than the analyzer surface
 5. Tier 3 is only an initial conservative slice
 
 ## Recommended Next Execution Order
 
-1. finish suppression matching and expiry handling
-2. expand clone drift with git-correlated divergence
-3. add touched-concept gate and `session_end` goldens
-4. turn the one-off benchmark into a regression benchmark suite
+1. expand touched-concept gate and `session_end` proof from synthetic tests into checked-in real-repo goldens
+2. turn the one-off benchmark into a regression benchmark suite
+3. add false-positive review workflow and sample set
+4. expand clone drift with divergence-aware prioritization
 5. validate parity and concentration against a second real repo
 
 ## Beta Readiness

@@ -104,6 +104,8 @@ Current status:
 
 - initial scoped `parallel-code` goldens exist in [examples/parallel-code-golden](./examples/parallel-code-golden/README.md)
 - initial benchmark notes exist in [examples/parallel-code-benchmark.md](./examples/parallel-code-benchmark.md)
+- synthetic touched-concept gate and `session_end` regression scenarios now exist in the MCP handler test suite
+- initial migration/coexistence coverage now verifies that v2 gate and `session_end` still work when only the v2 session baseline is usable
 - full release-grade goldens still need `session_end`, gate-oriented deltas, and broader regression coverage
 
 ## Layer 5: False-Positive Review
@@ -134,6 +136,11 @@ Scope:
 Purpose:
 
 - prevent baseline and ratchet regressions during rollout
+
+Current learning:
+
+- `gate` already operates correctly from the v2 session baseline alone
+- `session_end` needed an explicit fallback path so missing or unreadable v1 structural baselines do not break the primary v2 patch-safety output
 
 ## Validation Metrics
 
@@ -198,9 +205,10 @@ it should have:
 - [ ] add bridge contract tests for the Node subprocess
 - [ ] create semantic fixture repos for wedge analyzers
 - [x] create initial scoped golden outputs for `parallel-code`
-- [ ] expand `parallel-code` goldens to include `session_end` and gate-oriented regression cases
+- [-] expand `parallel-code` goldens to include `session_end` and gate-oriented regression cases
+- [-] add synthetic gate/session regression scenarios for closed-domain changes
 - [ ] add analyzer false-positive review checklist
 - [-] capture initial `parallel-code` benchmark artifact
 - [ ] add performance regression benchmarks
-- [ ] add baseline migration tests
+- [-] add baseline migration tests
 - [ ] define promotion criteria for gating analyzers

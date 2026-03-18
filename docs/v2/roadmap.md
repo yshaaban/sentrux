@@ -352,13 +352,14 @@ Status: partial
 
 - [x] create initial scoped golden outputs for `parallel-code`
 - [ ] expand `parallel-code` goldens to cover `session_end` and touched-concept gate scenarios
+- [-] add synthetic touched-concept gate and `session_end` regression scenarios
 - [-] add fixture repos for semantic frontends
 - [-] add bridge contract tests for the persistent Node subprocess
 - [-] capture initial `parallel-code` benchmark artifact
 - [ ] add performance regression benchmarks
 - [ ] add false-positive review process for new heuristics
 - [-] add confidence-report regression tests
-- [ ] add v1/v2 baseline migration tests
+- [-] add v1/v2 baseline migration tests
 - [x] verify case-study examples against the current target repo before docs or demos cite them
 
 Open gap:

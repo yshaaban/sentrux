@@ -212,7 +212,7 @@ What we learned:
 
 ## Work Package D: Validation Hardening
 
-Status: next
+Status: in progress
 
 Goal:
 
@@ -240,21 +240,23 @@ Deliverables:
 
 Tasks:
 
-- [ ] add `session_end` golden scenarios
-- [ ] add touched-concept gate golden scenarios
-- [ ] add synthetic patch fixtures for closed-domain propagation
+- [-] add `session_end` golden scenarios
+- [-] add touched-concept gate golden scenarios
+- [-] add synthetic patch fixtures for closed-domain propagation
 - [ ] turn one-off benchmark script into a comparable regression benchmark flow
 - [ ] add false-positive review checklist and sample set
-- [ ] add baseline migration coexistence tests
+- [-] add baseline migration coexistence tests
 
 Acceptance criteria:
 
 - new analyzer changes can be checked against stable gate/session expectations
 - cold/warm regressions are visible over time
 
-What we expect to learn:
+What we learned so far:
 
-- whether v2 is trustworthy enough to ratchet in CI without constant manual reinterpretation
+- the current touched-concept gate is stable on a real closed-domain regression fixture
+- `session_end` was too tightly coupled to the legacy structural baseline and now needs to degrade gracefully for v2-only workflows
+- synthetic regression fixtures are the right first layer, but they do not replace checked-in real-repo goldens
 
 ## Work Package E: Quality Improvement Prioritization
 
