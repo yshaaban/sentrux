@@ -1874,7 +1874,7 @@ fn handle_scan(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<Value
         Ok(baseline) => (baseline, None),
         Err(error) => (None, Some(error)),
     };
-    let (rules_config, rules_error) = load_v2_rules_config(&root);
+    let (rules_config, config_error) = load_v2_rules_config(&root);
     let (_, session_v2_status) = load_session_v2_baseline_status(&root);
     let confidence = build_v2_confidence_report(&bundle.metadata, &rules_config, session_v2_status);
 
@@ -1889,7 +1889,7 @@ fn handle_scan(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<Value
         "baseline_loaded": baseline.is_some(),
         "baseline_path": baseline_path,
         "baseline_error": baseline_error,
-        "rules_error": rules_error,
+        "rules_error": config_error,
     });
 
     update_scan_cache(state, root, bundle, baseline, scan_identity);
@@ -1904,7 +1904,7 @@ fn handle_scan(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<Value
 pub fn health_def() -> ToolDef {
     ToolDef {
         name: "health",
-        description: "Get quality signal with root-cause breakdown and scan trust metadata. Use the bottleneck and trust data before relying on the composite score.",
+        description: "Get legacy structural context with root-cause breakdown and scan trust metadata. Use `findings`, `obligations`, `gate`, and `session_end` for primary v2 patch-safety output.",
         input_schema: json!({ "type": "object", "properties": {} }),
         min_tier: Tier::Free,
         handler: handle_health,
@@ -1920,6 +1920,7 @@ fn handle_health(_args: &Value, tier: &Tier, state: &mut McpState) -> Result<Val
     let metadata = state
         .cached_scan_metadata
         .as_ref()
+        .cloned()
         .ok_or("No scan data. Call 'scan' first.")?;
     let root = state
         .scan_root
@@ -1933,7 +1934,7 @@ fn handle_health(_args: &Value, tier: &Tier, state: &mut McpState) -> Result<Val
         },
     };
     let baseline_delta = baseline.as_ref().map(|baseline| baseline.diff(h));
-    let (rules_config, rules_error) = load_v2_rules_config(&root);
+    let (rules_config, config_error) = load_v2_rules_config(&root);
     let (_, session_v2_status) = load_session_v2_baseline_status(&root);
     let rc = &h.root_cause_scores;
     let raw = &h.root_cause_raw;
@@ -1953,6 +1954,7 @@ fn handle_health(_args: &Value, tier: &Tier, state: &mut McpState) -> Result<Val
 
     let s = |v: f64| -> u32 { (v * 10000.0).round() as u32 };
     let mut result = json!({
+        "kind": "legacy_structural_context",
         "quality_signal": s(h.quality_signal),
         "bottleneck": bottleneck,
         "root_causes": {
@@ -1964,11 +1966,11 @@ fn handle_health(_args: &Value, tier: &Tier, state: &mut McpState) -> Result<Val
         },
         "total_import_edges": h.total_import_edges,
         "cross_module_edges": h.cross_module_edges,
-        "scan_trust": scan_trust_json(metadata),
-        "confidence": build_v2_confidence_report(metadata, &rules_config, session_v2_status),
+        "scan_trust": scan_trust_json(&metadata),
+        "confidence": build_v2_confidence_report(&metadata, &rules_config, session_v2_status),
         "baseline_delta": legacy_baseline_delta_json(baseline_delta.as_ref()),
         "baseline_error": baseline_error,
-        "rules_error": rules_error,
+        "rules_error": config_error,
     });
 
     // Pro: root-cause-organized diagnostics. Tells AI WHERE to focus for each root cause.
@@ -2013,7 +2015,7 @@ fn handle_health(_args: &Value, tier: &Tier, state: &mut McpState) -> Result<Val
 pub fn findings_def() -> ToolDef {
     ToolDef {
         name: "findings",
-        description: "Return actionable findings for the current scan. Includes exact clone groups plus v2 authority/access findings when explicit concept rules are available.",
+        description: "Return primary v2 actionable findings for the current scan, with clone drift, concept summaries, quality opportunities, and confidence metadata.",
         input_schema: json!({
             "type": "object",
             "properties": {
@@ -2043,11 +2045,18 @@ fn handle_findings(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<V
         .scan_root
         .clone()
         .ok_or("No scan root. Call 'scan' first.")?;
+    let metadata = state
+        .cached_scan_metadata
+        .as_ref()
+        .cloned()
+        .ok_or("No scan data. Call 'scan' first.")?;
     let limit = args
         .get("limit")
         .and_then(|value| value.as_u64())
         .unwrap_or(10)
         .min(50) as usize;
+    let (rules_config, config_error) = load_v2_rules_config(&root);
+    let (_, session_v2_status) = load_session_v2_baseline_status(&root);
     let (clone_payload, clone_error) = clone_findings_for_health(
         state,
         &root,
@@ -2067,7 +2076,8 @@ fn handle_findings(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<V
         semantic_findings,
         usize::MAX,
     );
-    let (suppression_application, rules_error) = apply_root_suppressions(&root, merged_findings);
+    let (suppression_application, suppression_error) =
+        apply_root_suppressions(&root, merged_findings);
     let visible_findings = suppression_application.visible_findings.clone();
     let visible_clone_ids = visible_clone_ids(&visible_findings);
     let semantic_finding_count = visible_findings
@@ -2104,6 +2114,7 @@ fn handle_findings(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<V
 
     Ok(json!({
         "kind": "mixed_findings",
+        "confidence": build_v2_confidence_report(&metadata, &rules_config, session_v2_status),
         "clone_group_count": clone_payload.clone_group_count,
         "clone_family_count": clone_payload.clone_family_count,
         "visible_clone_group_count": visible_clone_ids.len(),
@@ -2115,7 +2126,7 @@ fn handle_findings(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<V
         "quality_opportunity_count": quality_outputs.quality_opportunities.len(),
         "quality_opportunities": quality_outputs.quality_opportunities,
         "semantic_finding_count": semantic_finding_count,
-        "rules_error": rules_error,
+        "rules_error": merge_optional_errors(config_error, suppression_error),
         "semantic_error": merge_optional_errors(semantic_error, clone_error),
         "opportunity_context_error": quality_outputs.context_error,
         "suppression_hits": suppression_application.active_matches,
@@ -3850,6 +3861,12 @@ mod tests {
         let response =
             handle_findings(&json!({"limit": 10}), &Tier::Free, &mut state).expect("findings");
 
+        assert!(response["confidence"]["scan_confidence_0_10000"].is_u64());
+        assert!(response["confidence"]["rule_coverage_0_10000"].is_u64());
+        assert_eq!(
+            response["confidence"]["semantic_rules_loaded"].as_bool(),
+            Some(true)
+        );
         assert!(response["concept_summaries"]
             .as_array()
             .expect("concept summaries")

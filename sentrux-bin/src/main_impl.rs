@@ -334,11 +334,11 @@ fn print_check_results(
     println!("sentrux check — {} rules checked\n", check.rules_checked);
     if has_v2_rules {
         println!(
-            "Structural check only. Use `sentrux gate` for v2 findings, obligations, and session deltas.\n"
+            "Legacy structural check only. Use `sentrux gate` for v2 findings, obligations, and session deltas.\n"
         );
     }
     println!(
-        "Structural quality: {}\n",
+        "Legacy structural context: {}\n",
         (health.quality_signal * 10000.0).round() as u32
     );
 
@@ -435,18 +435,6 @@ fn run_v2_gate(root: &std::path::Path, save_mode: bool, strict: bool) -> i32 {
 
 fn print_v2_gate_save(payload: &serde_json::Value) {
     println!("sentrux gate — v2 baseline saved\n");
-    if let Some(quality_signal) = payload
-        .get("quality_signal")
-        .and_then(|value| value.as_u64())
-    {
-        println!("Structural baseline quality: {quality_signal}");
-    }
-    if let Some(path) = payload
-        .get("baseline_path")
-        .and_then(|value| value.as_str())
-    {
-        println!("Structural baseline: {path}");
-    }
     if let Some(path) = payload
         .get("session_v2_baseline_path")
         .and_then(|value| value.as_str())
@@ -472,6 +460,18 @@ fn print_v2_gate_save(payload: &serde_json::Value) {
         println!("Expired suppression matches: {count}");
     }
     print_cli_confidence_summary(payload);
+    if let Some(path) = payload
+        .get("baseline_path")
+        .and_then(|value| value.as_str())
+    {
+        println!("Legacy structural baseline: {path}");
+    }
+    if let Some(quality_signal) = payload
+        .get("quality_signal")
+        .and_then(|value| value.as_u64())
+    {
+        println!("Legacy structural context: {quality_signal}");
+    }
     if let Some(error) = payload
         .get("semantic_error")
         .and_then(|value| value.as_str())
@@ -864,9 +864,9 @@ fn gate_save(
     let baseline = metrics::arch::ArchBaseline::from_health(health);
     match baseline.save(baseline_path) {
         Ok(()) => {
-            println!("Baseline saved to {}", baseline_path.display());
+            println!("Legacy structural baseline saved to {}", baseline_path.display());
             println!(
-                "Structural baseline quality: {}",
+                "Legacy structural context: {}",
                 (health.quality_signal * 10000.0).round() as u32
             );
             println!("\nRun `sentrux gate` after making changes to compare.");
@@ -898,9 +898,9 @@ fn gate_compare(
 
     let diff = baseline.diff(health);
 
-    println!("sentrux gate — structural regression check\n");
+    println!("sentrux gate — legacy structural regression check\n");
     println!(
-        "Structural quality: {} -> {}",
+        "Legacy structural context: {} -> {}",
         (diff.signal_before * 10000.0).round() as u32,
         (diff.signal_after * 10000.0).round() as u32
     );
