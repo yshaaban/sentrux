@@ -71,6 +71,23 @@ function snapshotMatchesMetadata(snapshot, metadata) {
   return JSON.stringify(snapshotMetadata) === JSON.stringify(metadata);
 }
 
+function isHeadCloneAnalysis(metadata) {
+  return metadata?.analysis_mode === 'head_clone';
+}
+
+function assertHeadCommitFresh(metadata, liveIdentity, allowStale) {
+  const expectedCommit = metadata?.source_tree_identity?.commit ?? null;
+  const actualCommit = liveIdentity?.commit ?? null;
+
+  if (expectedCommit === actualCommit || allowStale) {
+    return;
+  }
+
+  throw new Error(
+    `parallel-code HEAD commit changed: expected ${expectedCommit ?? 'unknown'}, got ${actualCommit ?? 'unknown'}`,
+  );
+}
+
 function appendCodeBullet(lines, label, value) {
   lines.push(`- ${label}: \`${value}\``);
 }
@@ -196,6 +213,7 @@ function buildLiveEngineerReport({
   liveIdentity,
   allowStale,
 }) {
+  const headCloneAnalysis = isHeadCloneAnalysis(metadata);
   const freshness = formatIdentity(metadata);
   const presentationBuckets = selectPresentationBuckets(findings);
   const leadCandidates = presentationBuckets.lead_candidates;
@@ -203,10 +221,16 @@ function buildLiveEngineerReport({
   const hardeningNotes = presentationBuckets.hardening_notes;
   const toolingDebt = presentationBuckets.tooling_debt;
   const lines = [];
-  lines.push('# Parallel Code: Live Analysis Report For Engineers');
+  lines.push(
+    headCloneAnalysis
+      ? '# Parallel Code: Committed HEAD Analysis Report For Engineers'
+      : '# Parallel Code: Live Analysis Report For Engineers',
+  );
   lines.push('');
   lines.push(
-    `Generated on ${formatUtcDate(snapshot.generated_at)} from the live checkout at \`${metadata.parallel_code_root}\`.`,
+    headCloneAnalysis
+      ? `Generated on ${formatUtcDate(snapshot.generated_at)} from a committed HEAD clone of \`${metadata.parallel_code_root}\`.`
+      : `Generated on ${formatUtcDate(snapshot.generated_at)} from the live checkout at \`${metadata.parallel_code_root}\`.`,
   );
   lines.push('');
   lines.push('This report is for an engineer who does not already know `parallel-code` or Sentrux.');
@@ -225,6 +249,12 @@ function buildLiveEngineerReport({
   lines.push('## What Was Analyzed');
   lines.push('');
   lines.push(`- live source checkout: \`${metadata.parallel_code_root}\``);
+  if (headCloneAnalysis) {
+    lines.push('- report scope: committed `HEAD` only');
+    lines.push(
+      `- ignored working-tree changes outside HEAD: \`${liveIdentity?.dirty_paths?.length ?? 0}\``,
+    );
+  }
   lines.push(`- rules file used for the run: \`${metadata.rules_source}\``);
   lines.push(`- comparison snapshot: \`${snapshotJsonPath}\``);
   lines.push(`- benchmark artifact: \`${benchmarkPath}\``);
@@ -379,6 +409,7 @@ function buildLiveEngineerAppendix({
   metadata,
 }) {
   const lines = [];
+  const headCloneAnalysis = isHeadCloneAnalysis(metadata);
   const presentationBuckets = selectPresentationBuckets(findings);
   const leadCandidates = presentationBuckets.lead_candidates;
   const secondaryHotspots = presentationBuckets.secondary_hotspots;
@@ -388,10 +419,16 @@ function buildLiveEngineerAppendix({
   const trustedClusters = snapshot.debt_clusters.filter((cluster) => cluster.trust_tier === 'trusted');
   const experimentalSignals = findings.experimental_debt_signals ?? snapshot.experimental_debt_signals ?? [];
 
-  lines.push('# Parallel Code: Live Analysis Report Appendix');
+  lines.push(
+    headCloneAnalysis
+      ? '# Parallel Code: Committed HEAD Analysis Report Appendix'
+      : '# Parallel Code: Live Analysis Report Appendix',
+  );
   lines.push('');
   lines.push(
-    `Generated on ${formatUtcDate(snapshot.generated_at)} from the live checkout at \`${metadata.parallel_code_root}\`.`,
+    headCloneAnalysis
+      ? `Generated on ${formatUtcDate(snapshot.generated_at)} from a committed HEAD clone of \`${metadata.parallel_code_root}\`.`
+      : `Generated on ${formatUtcDate(snapshot.generated_at)} from the live checkout at \`${metadata.parallel_code_root}\`.`,
   );
   lines.push('');
   lines.push('This appendix contains the evidence behind');
@@ -413,6 +450,9 @@ function buildLiveEngineerAppendix({
   lines.push('- the live repo has `.sentrux/baseline.json`');
   lines.push('- it does **not** currently have its own `.sentrux/rules.toml`');
   lines.push('- this run therefore still uses the bundled example rules');
+  if (headCloneAnalysis) {
+    lines.push('- this report intentionally ignores uncommitted working-tree changes');
+  }
   lines.push('');
   lines.push('## Scan Scope And Confidence');
   lines.push('');
@@ -596,24 +636,28 @@ async function main() {
       'parallel-code proof snapshot JSON is stale relative to the current goldens; regenerate the proof snapshot first',
     );
   }
-  if (metadata.analysis_mode !== 'working_tree') {
+  if (!['working_tree', 'head_clone'].includes(metadata.analysis_mode)) {
     throw new Error(
-      `parallel-code live report requires working_tree analysis metadata, got ${metadata.analysis_mode}`,
+      `parallel-code report requires working_tree or head_clone analysis metadata, got ${metadata.analysis_mode}`,
     );
   }
 
-  assertRepoIdentityFresh({
-    expected: metadata.source_tree_identity,
-    actual: { ...liveIdentity, analysis_mode: metadata.analysis_mode },
-    label: 'parallel-code goldens',
-    allowStale: allowStaleGoldens,
-  });
-  assertRepoIdentityFresh({
-    expected: metadata.analyzed_tree_identity,
-    actual: { ...liveIdentity, analysis_mode: metadata.analysis_mode },
-    label: 'parallel-code analyzed tree',
-    allowStale: allowStaleGoldens,
-  });
+  if (metadata.analysis_mode === 'working_tree') {
+    assertRepoIdentityFresh({
+      expected: metadata.source_tree_identity,
+      actual: { ...liveIdentity, analysis_mode: metadata.analysis_mode },
+      label: 'parallel-code goldens',
+      allowStale: allowStaleGoldens,
+    });
+    assertRepoIdentityFresh({
+      expected: metadata.analyzed_tree_identity,
+      actual: { ...liveIdentity, analysis_mode: metadata.analysis_mode },
+      label: 'parallel-code analyzed tree',
+      allowStale: allowStaleGoldens,
+    });
+  } else {
+    assertHeadCommitFresh(metadata, liveIdentity, allowStaleGoldens);
+  }
   assertFileIdentityFresh({
     expected: metadata.rules_identity,
     actual: liveRulesIdentity,
