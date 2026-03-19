@@ -25,7 +25,10 @@ use crate::metrics::evolution;
 use serde_json::{json, Value};
 use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
-use std::{collections::BTreeMap, sync::Arc};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    sync::Arc,
+};
 
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct SessionV2Baseline {
@@ -50,6 +53,8 @@ pub struct McpState {
     pub baseline: Option<arch::ArchBaseline>,
     pub session_v2: Option<SessionV2Baseline>,
     pub cached_evolution: Option<evolution::EvolutionReport>,
+    pub cached_git_head: Option<String>,
+    pub cached_working_tree_paths: BTreeSet<String>,
     pub semantic_bridge: Option<TypeScriptBridgeSupervisor>,
 }
 
@@ -80,6 +85,8 @@ pub fn run_mcp_server(register_extra: Option<&dyn Fn(&mut registry::ToolRegistry
         baseline: None,
         session_v2: None,
         cached_evolution: None,
+        cached_git_head: None,
+        cached_working_tree_paths: BTreeSet::new(),
         semantic_bridge: None,
     };
 

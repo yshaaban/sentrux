@@ -248,6 +248,8 @@ fn fresh_mcp_state() -> McpState {
         baseline: None,
         session_v2: None,
         cached_evolution: None,
+        cached_git_head: None,
+        cached_working_tree_paths: BTreeSet::new(),
         semantic_bridge: None,
     }
 }
@@ -372,6 +374,7 @@ fn update_scan_cache(
     bundle: ScanBundle,
     baseline: Option<arch::ArchBaseline>,
 ) {
+    let identity = current_scan_identity(&root);
     let root_changed = state
         .scan_root
         .as_ref()
@@ -388,6 +391,10 @@ fn update_scan_cache(
     state.cached_health = Some(bundle.health);
     state.cached_arch = Some(bundle.arch_report);
     state.cached_evolution = None;
+    state.cached_git_head = identity.as_ref().and_then(|identity| identity.git_head.clone());
+    state.cached_working_tree_paths = identity
+        .map(|identity| identity.working_tree_paths)
+        .unwrap_or_default();
 }
 
 fn cached_scan_bundle(state: &McpState, root: &Path) -> Option<ScanBundle> {
@@ -409,14 +416,23 @@ struct PatchCheckContext {
     reused_cached_scan: bool,
 }
 
+#[derive(Clone, Debug, Default)]
+struct ScanCacheIdentity {
+    git_head: Option<String>,
+    working_tree_paths: BTreeSet<String>,
+}
+
 fn prepare_patch_check_context(
     state: &McpState,
     root: &Path,
     session_v2: Option<&SessionV2Baseline>,
 ) -> Result<PatchCheckContext, String> {
     if let Some(bundle) = cached_scan_bundle(state, root) {
-        let changed_files = changed_files_from_session_context(root, &bundle.snapshot, session_v2);
-        if changed_files.is_empty() {
+        let current_identity = current_scan_identity(root);
+        let changed_files =
+            changed_files_from_session_context(root, &bundle.snapshot, session_v2, current_identity.as_ref());
+        if changed_files.is_empty() || scan_cache_matches_identity(state, current_identity.as_ref())
+        {
             return Ok(PatchCheckContext {
                 bundle,
                 changed_files,
@@ -426,12 +442,30 @@ fn prepare_patch_check_context(
     }
 
     let bundle = do_scan(root)?;
-    let changed_files = changed_files_from_session_context(root, &bundle.snapshot, session_v2);
+    let changed_files = changed_files_from_session_context(root, &bundle.snapshot, session_v2, None);
 
     Ok(PatchCheckContext {
         bundle,
         changed_files,
         reused_cached_scan: false,
+    })
+}
+
+fn scan_cache_matches_identity(
+    state: &McpState,
+    identity: Option<&ScanCacheIdentity>,
+) -> bool {
+    let Some(identity) = identity else {
+        return false;
+    };
+    state.cached_git_head == identity.git_head
+        && state.cached_working_tree_paths == identity.working_tree_paths
+}
+
+fn current_scan_identity(root: &Path) -> Option<ScanCacheIdentity> {
+    Some(ScanCacheIdentity {
+        git_head: current_git_head(root),
+        working_tree_paths: working_tree_changed_files(root)?,
     })
 }
 
@@ -608,11 +642,12 @@ fn changed_files_from_session_context(
     root: &Path,
     snapshot: &Snapshot,
     session_v2: Option<&SessionV2Baseline>,
+    current_identity: Option<&ScanCacheIdentity>,
 ) -> BTreeSet<String> {
     match session_v2 {
         Some(session_v2) => {
             if let Some(candidate_paths) =
-                changed_session_candidate_paths(root, snapshot, session_v2)
+                changed_session_candidate_paths(root, snapshot, session_v2, current_identity)
             {
                 if candidate_paths.is_empty() {
                     return BTreeSet::new();
@@ -629,7 +664,9 @@ fn changed_files_from_session_context(
             let current_file_hashes = snapshot_file_hashes(root, snapshot);
             diff_file_hashes(&session_v2.file_hashes, &current_file_hashes)
         }
-        None => working_tree_changed_files(root)
+        None => current_identity
+            .map(|identity| identity.working_tree_paths.clone())
+            .or_else(|| working_tree_changed_files(root))
             .map(|changed_files| filter_changed_files_to_snapshot(changed_files, snapshot))
             .unwrap_or_default(),
     }
@@ -639,15 +676,18 @@ fn changed_session_candidate_paths(
     root: &Path,
     snapshot: &Snapshot,
     session_v2: &SessionV2Baseline,
+    current_identity: Option<&ScanCacheIdentity>,
 ) -> Option<BTreeSet<String>> {
-    let current_working_tree_paths = working_tree_changed_files(root)?;
+    let current_working_tree_paths = current_identity
+        .map(|identity| identity.working_tree_paths.clone())
+        .or_else(|| working_tree_changed_files(root))?;
     let mut candidate_paths = session_v2
         .working_tree_paths
         .union(&current_working_tree_paths)
         .cloned()
         .collect::<BTreeSet<_>>();
 
-    let current_head = current_git_head(root);
+    let current_head = current_identity.and_then(|identity| identity.git_head.clone());
     match (session_v2.git_head.as_deref(), current_head.as_deref()) {
         (Some(baseline_head), Some(current_head)) if baseline_head != current_head => {
             let committed_paths = diff_paths_between_heads(root, baseline_head, current_head)?;
@@ -2415,6 +2455,8 @@ mod tests {
             baseline: None,
             session_v2: None,
             cached_evolution: None,
+            cached_git_head: None,
+            cached_working_tree_paths: BTreeSet::new(),
             semantic_bridge: None,
         }
     }
@@ -2691,7 +2733,7 @@ mod tests {
 
         let current_scan = do_scan(&root).expect("scan renamed tree");
         let changed_files =
-            changed_files_from_session_context(&root, &current_scan.snapshot, Some(&session_v2));
+            changed_files_from_session_context(&root, &current_scan.snapshot, Some(&session_v2), None);
 
         assert!(changed_files.contains("src/domain/state.ts"));
         assert!(changed_files.contains("src/domain/app-state.ts"));
@@ -2748,7 +2790,7 @@ mod tests {
 
         let reverted_scan = do_scan(&root).expect("scan reverted tree");
         let changed_files =
-            changed_files_from_session_context(&root, &reverted_scan.snapshot, Some(&session_v2));
+            changed_files_from_session_context(&root, &reverted_scan.snapshot, Some(&session_v2), None);
 
         assert!(changed_files.contains("src/domain/state.ts"));
 
@@ -2767,6 +2809,40 @@ mod tests {
 
         assert!(context.reused_cached_scan);
         assert!(context.changed_files.is_empty());
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn patch_check_context_reuses_cached_scan_for_same_changed_tree() {
+        let root = closed_domain_gate_fixture_root();
+        init_git_repo(&root);
+        commit_all(&root, "initial");
+
+        let mut state = fresh_mcp_state();
+        handle_scan(
+            &json!({"path": root.to_string_lossy().to_string()}),
+            &Tier::Free,
+            &mut state,
+        )
+        .expect("scan initial tree");
+        handle_session_start(&json!({}), &Tier::Free, &mut state).expect("session start");
+
+        write_file(
+            &root,
+            "src/domain/state.ts",
+            "export type AppState = 'idle' | 'busy' | 'error';\n",
+        );
+
+        let changed_bundle = do_scan(&root).expect("scan changed tree");
+        let baseline = state.baseline.clone();
+        update_scan_cache(&mut state, root.clone(), changed_bundle, baseline);
+
+        let context = prepare_patch_check_context(&state, &root, state.session_v2.as_ref())
+            .expect("prepare patch context on changed tree");
+
+        assert!(context.reused_cached_scan);
+        assert!(context.changed_files.contains("src/domain/state.ts"));
 
         let _ = std::fs::remove_dir_all(root);
     }
