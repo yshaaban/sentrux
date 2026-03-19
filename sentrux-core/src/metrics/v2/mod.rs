@@ -36,7 +36,10 @@ pub use state::{
     changed_state_model_ids_from_files, state_integrity_score_0_10000, StateIntegrityReport,
     StateScope,
 };
-pub use structural::{build_structural_debt_reports, StructuralDebtMetrics, StructuralDebtReport};
+pub use structural::{
+    build_structural_debt_reports, build_structural_debt_reports_with_root, StructuralDebtMetrics,
+    StructuralDebtReport,
+};
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct SemanticFinding {

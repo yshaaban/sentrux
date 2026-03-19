@@ -5,7 +5,9 @@ use crate::core::snapshot::{flatten_files_ref, Snapshot};
 use crate::core::types::{FileNode, ImportEdge};
 use crate::metrics::testgap::is_test_file;
 use crate::metrics::{is_mod_declaration_edge, is_package_index_for_path, HealthReport};
+use ignore::WalkBuilder;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::path::Path;
 
 #[derive(Debug, Clone, serde::Serialize, Default)]
 pub struct StructuralDebtMetrics {
@@ -39,6 +41,10 @@ pub struct StructuralDebtMetrics {
     pub cut_candidate_count: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub largest_cycle_after_best_cut: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub guardrail_test_count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub role_count: Option<usize>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, Default)]
@@ -65,6 +71,8 @@ pub struct StructuralDebtReport {
     pub summary: String,
     pub impact: String,
     pub files: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub role_tags: Vec<String>,
     pub evidence: Vec<String>,
     pub inspection_focus: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -86,6 +94,19 @@ struct FileFacts {
     is_package_index: bool,
     has_entry_tag: bool,
     public_function_count: usize,
+    role_tags: Vec<String>,
+    guardrail_tests: Vec<String>,
+    facade_owner_factories: Vec<String>,
+    boundary_guard_literals: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default)]
+struct GuardrailFileEvidence {
+    tests: Vec<String>,
+    required_literals: Vec<String>,
+    forbidden_literals: Vec<String>,
+    facade_owner_factories: Vec<String>,
+    boundary_guard_literals: Vec<String>,
 }
 
 #[derive(Debug, Default)]
@@ -100,7 +121,23 @@ pub fn build_structural_debt_reports(
     snapshot: &Snapshot,
     health: &HealthReport,
 ) -> Vec<StructuralDebtReport> {
-    let file_facts = build_file_facts(snapshot);
+    build_structural_debt_reports_internal(snapshot, health, None)
+}
+
+pub fn build_structural_debt_reports_with_root(
+    root: &Path,
+    snapshot: &Snapshot,
+    health: &HealthReport,
+) -> Vec<StructuralDebtReport> {
+    build_structural_debt_reports_internal(snapshot, health, Some(root))
+}
+
+fn build_structural_debt_reports_internal(
+    snapshot: &Snapshot,
+    health: &HealthReport,
+    root: Option<&Path>,
+) -> Vec<StructuralDebtReport> {
+    let file_facts = build_file_facts(snapshot, root);
     let graph = build_structural_graph(snapshot);
     let mut reports = Vec::new();
 
@@ -125,15 +162,39 @@ pub fn build_structural_debt_reports(
     reports
 }
 
-fn build_file_facts(snapshot: &Snapshot) -> BTreeMap<String, FileFacts> {
+fn build_file_facts(snapshot: &Snapshot, root: Option<&Path>) -> BTreeMap<String, FileFacts> {
+    let entry_surface_paths = snapshot
+        .entry_points
+        .iter()
+        .map(|entry| entry.file.clone())
+        .collect::<BTreeSet<_>>();
+    let file_paths = flatten_files_ref(&snapshot.root)
+        .into_iter()
+        .filter(|file| !file.lang.is_empty() && file.lang != "unknown")
+        .map(|file| file.path.clone())
+        .collect::<BTreeSet<_>>();
+    let guardrail_evidence = root
+        .map(|root| detect_architecture_guardrails(root, &file_paths))
+        .unwrap_or_default();
+
     flatten_files_ref(&snapshot.root)
         .into_iter()
         .filter(|file| !file.lang.is_empty() && file.lang != "unknown")
-        .map(|file| (file.path.clone(), file_facts(file)))
+        .map(|file| {
+            let evidence = guardrail_evidence.get(&file.path);
+            (
+                file.path.clone(),
+                file_facts(file, entry_surface_paths.contains(&file.path), evidence),
+            )
+        })
         .collect()
 }
 
-fn file_facts(file: &FileNode) -> FileFacts {
+fn file_facts(
+    file: &FileNode,
+    is_entry_surface: bool,
+    guardrail_evidence: Option<&GuardrailFileEvidence>,
+) -> FileFacts {
     let max_complexity = file
         .sa
         .as_ref()
@@ -146,6 +207,27 @@ fn file_facts(file: &FileNode) -> FileFacts {
                 .unwrap_or(0)
         })
         .unwrap_or(0);
+
+    let mut role_tags = Vec::new();
+    if is_entry_surface {
+        role_tags.push("entry_surface".to_string());
+    }
+    if let Some(evidence) = guardrail_evidence {
+        if !evidence.tests.is_empty() {
+            role_tags.push("guarded_seam".to_string());
+        }
+        if evidence.facade_owner_factories.len() >= 2 {
+            role_tags.push("facade_with_extracted_owners".to_string());
+        }
+        if !evidence.boundary_guard_literals.is_empty() {
+            role_tags.push("guarded_boundary".to_string());
+        }
+    }
+    if file.path.contains("store/store.")
+        && role_tags.iter().any(|tag| tag == "guarded_boundary")
+    {
+        role_tags.push("component_barrel".to_string());
+    }
 
     FileFacts {
         lang: file.lang.clone(),
@@ -175,6 +257,16 @@ fn file_facts(file: &FileNode) -> FileFacts {
                     .count()
             })
             .unwrap_or(0),
+        role_tags: dedupe_strings_preserve_order(role_tags),
+        guardrail_tests: guardrail_evidence
+            .map(|evidence| evidence.tests.clone())
+            .unwrap_or_default(),
+        facade_owner_factories: guardrail_evidence
+            .map(|evidence| evidence.facade_owner_factories.clone())
+            .unwrap_or_default(),
+        boundary_guard_literals: guardrail_evidence
+            .map(|evidence| evidence.boundary_guard_literals.clone())
+            .unwrap_or_default(),
     }
 }
 
@@ -245,6 +337,590 @@ fn record_graph_edge(
     incoming.entry(pair.1).or_default().insert(pair.0);
 }
 
+fn detect_architecture_guardrails(
+    root: &Path,
+    file_paths: &BTreeSet<String>,
+) -> BTreeMap<String, GuardrailFileEvidence> {
+    let mut evidence_by_file = BTreeMap::<String, GuardrailFileEvidence>::new();
+
+    for (test_path, contents) in walk_guardrail_test_sources(root) {
+        let named_targets = named_guardrail_targets(&test_path, file_paths);
+        let explicit_targets = explicit_guardrail_targets(&contents, file_paths);
+        let required_literals = test_contains_literals(&contents, false);
+        let forbidden_literals = test_contains_literals(&contents, true);
+        let facade_owner_factories = required_literals
+            .iter()
+            .filter(|literal| is_facade_owner_factory(literal))
+            .cloned()
+            .collect::<Vec<_>>();
+        let boundary_targets = forbidden_literals
+            .iter()
+            .flat_map(|literal| resolve_module_literal_targets(literal, file_paths))
+            .collect::<Vec<_>>();
+
+        for target in named_targets
+            .into_iter()
+            .chain(explicit_targets.into_iter())
+            .collect::<BTreeSet<_>>()
+        {
+            let entry = evidence_by_file.entry(target).or_default();
+            entry.tests.push(test_path.clone());
+            entry.required_literals.extend(required_literals.clone());
+            entry.forbidden_literals.extend(forbidden_literals.clone());
+            entry
+                .facade_owner_factories
+                .extend(facade_owner_factories.clone());
+        }
+
+        for target in boundary_targets {
+            let entry = evidence_by_file.entry(target).or_default();
+            entry.tests.push(test_path.clone());
+            entry
+                .boundary_guard_literals
+                .extend(forbidden_literals.clone());
+        }
+    }
+
+    for evidence in evidence_by_file.values_mut() {
+        evidence.tests = dedupe_strings_preserve_order(std::mem::take(&mut evidence.tests));
+        evidence.required_literals =
+            dedupe_strings_preserve_order(std::mem::take(&mut evidence.required_literals));
+        evidence.forbidden_literals =
+            dedupe_strings_preserve_order(std::mem::take(&mut evidence.forbidden_literals));
+        evidence.facade_owner_factories = dedupe_strings_preserve_order(std::mem::take(
+            &mut evidence.facade_owner_factories,
+        ));
+        evidence.boundary_guard_literals = dedupe_strings_preserve_order(std::mem::take(
+            &mut evidence.boundary_guard_literals,
+        ));
+    }
+
+    evidence_by_file
+}
+
+fn walk_guardrail_test_sources(root: &Path) -> Vec<(String, String)> {
+    let mut sources = WalkBuilder::new(root)
+        .hidden(true)
+        .git_ignore(true)
+        .git_global(true)
+        .git_exclude(true)
+        .build()
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            let path = entry.into_path();
+            if !path.is_file() {
+                return None;
+            }
+            let relative_path = path
+                .strip_prefix(root)
+                .ok()?
+                .to_string_lossy()
+                .replace('\\', "/");
+            if !is_guardrail_test_path(&relative_path) {
+                return None;
+            }
+            let contents = std::fs::read_to_string(&path).ok()?;
+            Some((relative_path, contents))
+        })
+        .collect::<Vec<_>>();
+    sources.sort_by(|left, right| left.0.cmp(&right.0));
+    sources
+}
+
+fn is_guardrail_test_path(path: &str) -> bool {
+    path.ends_with(".architecture.test.ts")
+        || path.ends_with(".architecture.test.tsx")
+        || path.ends_with(".architecture.spec.ts")
+        || path.ends_with(".architecture.spec.tsx")
+}
+
+fn named_guardrail_targets(test_path: &str, file_paths: &BTreeSet<String>) -> Vec<String> {
+    let Some(file_name) = test_path.rsplit('/').next() else {
+        return Vec::new();
+    };
+    let Some(stem) = file_name
+        .strip_suffix(".architecture.test.ts")
+        .or_else(|| file_name.strip_suffix(".architecture.test.tsx"))
+        .or_else(|| file_name.strip_suffix(".architecture.spec.ts"))
+        .or_else(|| file_name.strip_suffix(".architecture.spec.tsx"))
+    else {
+        return Vec::new();
+    };
+    let directory = test_path
+        .rsplit_once('/')
+        .map(|(parent, _)| parent)
+        .unwrap_or_default();
+    [".ts", ".tsx", ".js", ".jsx"]
+        .into_iter()
+        .map(|extension| {
+            if directory.is_empty() {
+                format!("{stem}{extension}")
+            } else {
+                format!("{directory}/{stem}{extension}")
+            }
+        })
+        .filter(|candidate| file_paths.contains(candidate))
+        .collect()
+}
+
+fn explicit_guardrail_targets(contents: &str, file_paths: &BTreeSet<String>) -> Vec<String> {
+    quoted_literals(contents)
+        .into_iter()
+        .filter(|literal| looks_like_source_file_path(literal))
+        .map(|literal| literal.trim_start_matches("./").replace('\\', "/"))
+        .filter(|literal| file_paths.contains(literal))
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
+}
+
+fn test_contains_literals(contents: &str, negated: bool) -> Vec<String> {
+    let mut literals = Vec::new();
+    let needle = if negated {
+        ".not.toContain("
+    } else {
+        ".toContain("
+    };
+    let mut cursor = 0;
+    while let Some(offset) = contents[cursor..].find(needle) {
+        let start = cursor + offset + needle.len();
+        let suffix = &contents[start..];
+        let Some(quote) = suffix.chars().next() else {
+            break;
+        };
+        if quote != '"' && quote != '\'' && quote != '`' {
+            cursor = start;
+            continue;
+        }
+        if let Some((literal, advance)) = quoted_literal_after(contents, start) {
+            literals.push(literal);
+            cursor = advance;
+            continue;
+        }
+        cursor = start + 1;
+    }
+    dedupe_strings_preserve_order(literals)
+}
+
+fn resolve_module_literal_targets(literal: &str, file_paths: &BTreeSet<String>) -> Vec<String> {
+    if !looks_like_import_fragment(literal) {
+        return Vec::new();
+    }
+
+    file_paths
+        .iter()
+        .filter(|path| path_without_extension(path).ends_with(literal))
+        .cloned()
+        .collect()
+}
+
+fn looks_like_source_file_path(literal: &str) -> bool {
+    (literal.ends_with(".ts")
+        || literal.ends_with(".tsx")
+        || literal.ends_with(".js")
+        || literal.ends_with(".jsx"))
+        && literal.contains('/')
+}
+
+fn looks_like_import_fragment(literal: &str) -> bool {
+    literal.contains('/')
+        && !literal.contains(' ')
+        && !literal.ends_with(".ts")
+        && !literal.ends_with(".tsx")
+        && !literal.ends_with(".js")
+        && !literal.ends_with(".jsx")
+}
+
+fn path_without_extension(path: &str) -> &str {
+    path.strip_suffix(".tsx")
+        .or_else(|| path.strip_suffix(".ts"))
+        .or_else(|| path.strip_suffix(".jsx"))
+        .or_else(|| path.strip_suffix(".js"))
+        .unwrap_or(path)
+}
+
+fn is_facade_owner_factory(literal: &str) -> bool {
+    literal.starts_with("create")
+        && literal
+            .chars()
+            .nth(6)
+            .is_some_and(|character| character.is_ascii_uppercase())
+}
+
+fn quoted_literals(contents: &str) -> Vec<String> {
+    let mut literals = Vec::new();
+    let mut index = 0;
+    while index < contents.len() {
+        if let Some((literal, advance)) = quoted_literal_after(contents, index) {
+            literals.push(literal);
+            index = advance;
+        } else {
+            index += 1;
+        }
+    }
+    literals
+}
+
+fn quoted_literal_after(contents: &str, start: usize) -> Option<(String, usize)> {
+    let suffix = contents.get(start..)?;
+    let quote = suffix.chars().next()?;
+    if quote != '"' && quote != '\'' && quote != '`' {
+        return None;
+    }
+
+    let mut escaped = false;
+    let mut literal = String::new();
+    for (offset, character) in suffix.char_indices().skip(1) {
+        if escaped {
+            literal.push(character);
+            escaped = false;
+            continue;
+        }
+        if character == '\\' {
+            escaped = true;
+            continue;
+        }
+        if character == quote {
+            return Some((literal, start + offset + character.len_utf8()));
+        }
+        literal.push(character);
+    }
+
+    None
+}
+
+fn has_role(facts: &FileFacts, role: &str) -> bool {
+    facts.role_tags.iter().any(|tag| tag == role)
+}
+
+fn has_role_tag(role_tags: &[String], role: &str) -> bool {
+    role_tags.iter().any(|tag| tag == role)
+}
+
+fn looks_like_entry_surface_path(path: &str) -> bool {
+    path.ends_with("/index.ts")
+        || path.ends_with("/index.tsx")
+        || path.ends_with("/main.ts")
+        || path.ends_with("/main.tsx")
+}
+
+fn contextual_role_tags(
+    path: &str,
+    facts: &FileFacts,
+    graph: &StructuralGraph,
+    file_facts: &BTreeMap<String, FileFacts>,
+) -> Vec<String> {
+    let mut role_tags = facts.role_tags.clone();
+
+    let imported_by_entry_surface = graph
+        .import_incoming
+        .get(path)
+        .is_some_and(|sources| {
+            sources.iter().any(|source| {
+                file_facts
+                    .get(source)
+                    .is_some_and(|source_facts| {
+                        has_role(source_facts, "entry_surface")
+                            || source_facts.has_entry_tag
+                            || looks_like_entry_surface_path(source)
+                    })
+            })
+        });
+    if imported_by_entry_surface && path.starts_with("src/") {
+        role_tags.push("composition_root".to_string());
+    }
+
+    dedupe_strings_preserve_order(role_tags)
+}
+
+fn with_guardrail_evidence(facts: &FileFacts, mut evidence: Vec<String>) -> Vec<String> {
+    if !facts.guardrail_tests.is_empty() {
+        evidence.push(format!(
+            "guardrail tests: {}",
+            facts.guardrail_tests.join(", ")
+        ));
+    }
+    if !facts.facade_owner_factories.is_empty() {
+        evidence.push(format!(
+            "extracted owner factories: {}",
+            facts.facade_owner_factories.join(", ")
+        ));
+    }
+    if !facts.boundary_guard_literals.is_empty() {
+        evidence.push(format!(
+            "guarded boundary literals: {}",
+            facts.boundary_guard_literals.join(", ")
+        ));
+    }
+    evidence
+}
+
+fn related_structural_surfaces(facts: &FileFacts, mut related: Vec<String>) -> Vec<String> {
+    related.extend(facts.guardrail_tests.iter().cloned());
+    dedupe_strings_preserve_order(related)
+}
+
+fn large_file_summary(
+    path: &str,
+    line_count: usize,
+    lang: &str,
+    threshold: u32,
+    role_tags: &[String],
+) -> String {
+    if has_role_tag(role_tags, "facade_with_extracted_owners") {
+        return format!(
+            "Guarded facade file '{}' is {} lines, above the {} threshold of {}",
+            path, line_count, lang, threshold
+        );
+    }
+    if path.starts_with("src/")
+        && (has_role_tag(role_tags, "composition_root") || has_role_tag(role_tags, "entry_surface"))
+    {
+        return format!(
+            "Composition root '{}' is {} lines, above the {} threshold of {}",
+            path, line_count, lang, threshold
+        );
+    }
+    format!(
+        "File '{}' is {} lines, above the {} threshold of {}",
+        path, line_count, lang, threshold
+    )
+}
+
+fn large_file_impact(path: &str, role_tags: &[String]) -> String {
+    if has_role_tag(role_tags, "facade_with_extracted_owners") {
+        return "The facade is still broad after extraction, which makes it harder to see whether new owner seams are actually shrinking the coordination surface.".to_string();
+    }
+    if path.starts_with("src/")
+        && (has_role_tag(role_tags, "composition_root") || has_role_tag(role_tags, "entry_surface"))
+    {
+        return "A broad entry surface can leak shell, runtime, and presentation concerns into one composition root.".to_string();
+    }
+    "Responsibility concentration increases review friction and makes later splits harder to isolate.".to_string()
+}
+
+fn large_file_inspection_focus(path: &str, role_tags: &[String]) -> Vec<String> {
+    if has_role_tag(role_tags, "facade_with_extracted_owners") {
+        return vec![
+            "inspect whether remaining coordination belongs in extracted owner modules instead of the public facade".to_string(),
+            "inspect whether guardrail-backed owner seams are staying thin or accumulating new logic".to_string(),
+        ];
+    }
+    if path.starts_with("src/")
+        && (has_role_tag(role_tags, "composition_root") || has_role_tag(role_tags, "entry_surface"))
+    {
+        return vec![
+            "inspect whether shell composition and runtime wiring are staying separate".to_string(),
+            "inspect whether the entry surface is acting as a coordinator rather than an implementation sink".to_string(),
+        ];
+    }
+    vec![
+        "inspect whether orchestration, adapters, and data shaping are accumulating in one file"
+            .to_string(),
+        "inspect whether the file can be split along responsibility boundaries instead of line-count slices".to_string(),
+    ]
+}
+
+fn dependency_sprawl_summary(
+    path: &str,
+    fan_out: usize,
+    lang: &str,
+    threshold: usize,
+    role_tags: &[String],
+) -> String {
+    if has_role_tag(role_tags, "component_barrel") {
+        return format!(
+            "Component-facing barrel '{}' depends on {} real surfaces, above the {} threshold of {}",
+            path, fan_out, lang, threshold
+        );
+    }
+    if has_role_tag(role_tags, "guarded_boundary") {
+        return format!(
+            "Guarded boundary file '{}' depends on {} real surfaces, above the {} threshold of {}",
+            path, fan_out, lang, threshold
+        );
+    }
+    if has_role_tag(role_tags, "composition_root") || has_role_tag(role_tags, "entry_surface") {
+        return format!(
+            "Composition root '{}' depends on {} real surfaces, above the {} threshold of {}",
+            path, fan_out, lang, threshold
+        );
+    }
+    format!(
+        "File '{}' depends on {} real surfaces, above the {} threshold of {}",
+        path, fan_out, lang, threshold
+    )
+}
+
+fn dependency_sprawl_impact(role_tags: &[String]) -> String {
+    if has_role_tag(role_tags, "component_barrel") {
+        return "A broad component-facing barrel can stay intentional, but it still needs narrow boundaries so app and runtime layers do not grow back through it.".to_string();
+    }
+    if has_role_tag(role_tags, "guarded_boundary") {
+        return "A broad boundary surface increases change surface and makes it harder to keep consumers on narrow, intended entry paths.".to_string();
+    }
+    if has_role_tag(role_tags, "composition_root") || has_role_tag(role_tags, "entry_surface") {
+        return "Broad dependency fan-out in a composition root makes shell wiring and runtime ownership harder to keep separate.".to_string();
+    }
+    "Broad dependency fan-out expands change surface and makes orchestration drift harder to localize.".to_string()
+}
+
+fn dependency_sprawl_focus(role_tags: &[String]) -> Vec<String> {
+    if has_role_tag(role_tags, "component_barrel") {
+        return vec![
+            "inspect whether component-facing access is staying narrow while app and runtime imports remain outside the barrel".to_string(),
+            "inspect whether mixed responsibilities belong in dedicated owner modules instead of the shared barrel".to_string(),
+        ];
+    }
+    if has_role_tag(role_tags, "guarded_boundary") {
+        return vec![
+            "inspect whether callers are forced through a broad boundary instead of narrower owner modules".to_string(),
+            "inspect whether policy-compliant imports are still pushing too much responsibility through one surface".to_string(),
+        ];
+    }
+    if has_role_tag(role_tags, "composition_root") || has_role_tag(role_tags, "entry_surface") {
+        return vec![
+            "inspect whether view composition can stay separate from runtime or session wiring".to_string(),
+            "inspect whether shell responsibilities are spreading across too many direct imports".to_string(),
+        ];
+    }
+    vec![
+        "inspect whether orchestration and policy code can move behind narrower helpers".to_string(),
+        "inspect whether unrelated adapter dependencies are accumulating in one module".to_string(),
+    ]
+}
+
+fn unstable_hotspot_summary(path: &str, fan_in: usize, role_tags: &[String]) -> String {
+    if has_role_tag(role_tags, "component_barrel") {
+        return format!(
+            "Component-facing barrel '{}' has {} inbound references and remains unstable",
+            path, fan_in
+        );
+    }
+    if has_role_tag(role_tags, "guarded_boundary") {
+        return format!(
+            "Guarded boundary file '{}' has {} inbound references and remains unstable",
+            path, fan_in
+        );
+    }
+    if has_role_tag(role_tags, "facade_with_extracted_owners") {
+        return format!(
+            "Guarded facade '{}' still has {} inbound references and remains unstable",
+            path, fan_in
+        );
+    }
+    format!("File '{}' has {} inbound references and remains unstable", path, fan_in)
+}
+
+fn unstable_hotspot_impact(role_tags: &[String]) -> String {
+    if has_role_tag(role_tags, "component_barrel") {
+        return "A volatile component-facing barrel makes it harder to keep presentation access broad while keeping deeper orchestration changes contained.".to_string();
+    }
+    if has_role_tag(role_tags, "guarded_boundary") {
+        return "A volatile boundary surface increases blast radius even when callers stay inside the intended layer.".to_string();
+    }
+    if has_role_tag(role_tags, "facade_with_extracted_owners") {
+        return "A volatile public facade can hide whether the real extracted owners are taking the intended load or whether coordination is flowing back uphill.".to_string();
+    }
+    "High fan-in plus instability increases blast radius and makes small edits harder to contain.".to_string()
+}
+
+fn unstable_hotspot_focus(role_tags: &[String]) -> Vec<String> {
+    if has_role_tag(role_tags, "component_barrel") {
+        return vec![
+            "inspect which component-facing reads really need the shared barrel and which can move behind narrower selectors".to_string(),
+            "inspect whether broad inbound traffic is hiding a smaller set of volatility-heavy owner modules".to_string(),
+        ];
+    }
+    if has_role_tag(role_tags, "guarded_boundary") {
+        return vec![
+            "inspect whether a narrower public boundary can serve the common consumers".to_string(),
+            "inspect whether intended callers are mixed with broader orchestration traffic".to_string(),
+        ];
+    }
+    if has_role_tag(role_tags, "facade_with_extracted_owners") {
+        return vec![
+            "inspect whether volatile logic belongs in extracted owners instead of the facade".to_string(),
+            "inspect whether too many callers still depend on coordination-heavy facade behavior".to_string(),
+        ];
+    }
+    vec![
+        "inspect whether a stable contract can be split from the volatile implementation"
+            .to_string(),
+        "inspect whether too many callers depend directly on an orchestration-heavy file"
+            .to_string(),
+    ]
+}
+
+fn cycle_role_tags(
+    files: &[String],
+    file_facts: &BTreeMap<String, FileFacts>,
+    graph: &StructuralGraph,
+) -> Vec<String> {
+    dedupe_strings_preserve_order(
+        files.iter()
+            .filter_map(|path| {
+                file_facts
+                    .get(path)
+                    .map(|facts| contextual_role_tags(path, facts, graph, file_facts))
+            })
+            .flat_map(|role_tags| role_tags.into_iter())
+            .collect(),
+    )
+}
+
+fn role_tags_summary(role_tags: &[String]) -> String {
+    if role_tags.is_empty() {
+        return "role tags: none".to_string();
+    }
+    format!("role tags in cycle: {}", role_tags.join(", "))
+}
+
+fn cycle_cluster_impact(role_tags: &[String]) -> String {
+    if role_tags.iter().any(|tag| tag == "component_barrel") {
+        return "The cycle touches a component-facing barrel, which makes it harder to keep broad component access separate from deeper app and runtime seams.".to_string();
+    }
+    if role_tags.iter().any(|tag| tag == "guarded_boundary") {
+        return "The cycle crosses a guardrail-backed boundary, which increases refactor friction and makes it harder to keep the intended layering intact.".to_string();
+    }
+    if role_tags
+        .iter()
+        .any(|tag| tag == "facade_with_extracted_owners")
+    {
+        return "The cycle still touches a guarded facade, which can hide whether extracted owners are actually reducing the coordination surface.".to_string();
+    }
+    "The cycle prevents clean layering and makes initialization order and refactors harder to isolate.".to_string()
+}
+
+fn cycle_cluster_focus(role_tags: &[String]) -> Vec<String> {
+    if role_tags.iter().any(|tag| tag == "component_barrel") {
+        return vec![
+            "inspect whether the best cut keeps component-facing barrel access while moving deeper orchestration behind a narrower seam".to_string(),
+            "inspect whether app or runtime dependencies can stop flowing back through the shared barrel".to_string(),
+        ];
+    }
+    if role_tags.iter().any(|tag| tag == "guarded_boundary") {
+        return vec![
+            "inspect whether the best cut preserves the guardrail-backed boundary instead of widening it".to_string(),
+            "inspect whether boundary callers can move to narrower authority modules".to_string(),
+        ];
+    }
+    if role_tags
+        .iter()
+        .any(|tag| tag == "facade_with_extracted_owners")
+    {
+        return vec![
+            "inspect whether the cycle runs through a facade that should stay thin".to_string(),
+            "inspect whether extracted owner modules can absorb the back-edge instead of routing it through the facade".to_string(),
+        ];
+    }
+    vec![
+        "inspect whether one back-edge can be removed by splitting contracts from implementations"
+            .to_string(),
+        "inspect whether shared types can move to a lower-dependency seam".to_string(),
+    ]
+}
+
 fn build_large_file_reports(
     health: &HealthReport,
     file_facts: &BTreeMap<String, FileFacts>,
@@ -255,6 +931,7 @@ fn build_large_file_reports(
         .iter()
         .filter_map(|file_metric| {
             let facts = file_facts.get(&file_metric.path)?;
+            let role_tags = contextual_role_tags(&file_metric.path, facts, graph, file_facts);
             let threshold = lang_registry::profile(&facts.lang).thresholds.large_file_lines;
             let score_0_10000 =
                 large_file_score(file_metric.value, threshold, facts.max_complexity);
@@ -267,13 +944,19 @@ fn build_large_file_reports(
                 signal_families: vec!["size".to_string(), "coordination".to_string()],
                 severity: signal_severity(score_0_10000).to_string(),
                 score_0_10000,
-                summary: format!(
-                    "File '{}' is {} lines, above the {} threshold of {}",
-                    file_metric.path, file_metric.value, facts.lang, threshold
+                summary: large_file_summary(
+                    &file_metric.path,
+                    file_metric.value,
+                    &facts.lang,
+                    threshold,
+                    &role_tags,
                 ),
-                impact: "Responsibility concentration increases review friction and makes later splits harder to isolate.".to_string(),
+                impact: large_file_impact(&file_metric.path, &role_tags),
                 files: vec![file_metric.path.clone()],
-                evidence: dedupe_strings_preserve_order(vec![
+                role_tags: role_tags.clone(),
+                evidence: dedupe_strings_preserve_order(with_guardrail_evidence(
+                    facts,
+                    vec![
                     format!("line count: {}", file_metric.value),
                     format!("large-file threshold: {}", threshold),
                     format!("function count: {}", facts.function_count),
@@ -282,13 +965,14 @@ fn build_large_file_reports(
                         "outbound dependencies: {}",
                         graph.outgoing.get(&file_metric.path).map(|paths| paths.len()).unwrap_or(0)
                     ),
-                ]),
-                inspection_focus: vec![
-                    "inspect whether orchestration, adapters, and data shaping are accumulating in one file".to_string(),
-                    "inspect whether the file can be split along responsibility boundaries instead of line-count slices".to_string(),
                 ],
+                )),
+                inspection_focus: large_file_inspection_focus(&file_metric.path, &role_tags),
                 candidate_split_axes: large_file_split_axes(facts, graph, &file_metric.path),
-                related_surfaces: sample_paths(graph.outgoing.get(&file_metric.path), 5),
+                related_surfaces: related_structural_surfaces(
+                    facts,
+                    sample_paths(graph.outgoing.get(&file_metric.path), 5),
+                ),
                 cut_candidates: Vec::new(),
                 metrics: StructuralDebtMetrics {
                     file_count: Some(1),
@@ -298,6 +982,8 @@ fn build_large_file_reports(
                         graph.outgoing.get(&file_metric.path).map(|paths| paths.len()).unwrap_or(0),
                     ),
                     max_complexity: Some(facts.max_complexity),
+                    guardrail_test_count: Some(facts.guardrail_tests.len()),
+                    role_count: Some(role_tags.len()),
                     ..StructuralDebtMetrics::default()
                 },
             })
@@ -315,6 +1001,7 @@ fn build_dependency_sprawl_reports(
         .iter()
         .filter_map(|file_metric| {
             let facts = file_facts.get(&file_metric.path)?;
+            let role_tags = contextual_role_tags(&file_metric.path, facts, graph, file_facts);
             let fan_in = graph.incoming.get(&file_metric.path).map(|paths| paths.len()).unwrap_or(0);
             let fan_out = graph.outgoing.get(&file_metric.path).map(|paths| paths.len()).unwrap_or(0);
             let threshold = lang_registry::profile(&facts.lang).thresholds.fan_out;
@@ -330,13 +1017,19 @@ fn build_dependency_sprawl_reports(
                 signal_families: vec!["coupling".to_string(), "coordination".to_string()],
                 severity: signal_severity(score_0_10000).to_string(),
                 score_0_10000,
-                summary: format!(
-                    "File '{}' depends on {} real surfaces, above the {} threshold of {}",
-                    file_metric.path, fan_out, facts.lang, threshold
+                summary: dependency_sprawl_summary(
+                    &file_metric.path,
+                    fan_out,
+                    &facts.lang,
+                    threshold,
+                    &role_tags,
                 ),
-                impact: "Broad dependency fan-out expands change surface and makes orchestration drift harder to localize.".to_string(),
+                impact: dependency_sprawl_impact(&role_tags),
                 files: vec![file_metric.path.clone()],
-                evidence: dedupe_strings_preserve_order(vec![
+                role_tags: role_tags.clone(),
+                evidence: dedupe_strings_preserve_order(with_guardrail_evidence(
+                    facts,
+                    vec![
                     format!("fan-out: {}", fan_out),
                     format!("fan-out threshold: {}", threshold),
                     format!("instability: {:.2}", instability as f64 / 10_000.0),
@@ -352,16 +1045,14 @@ fn build_dependency_sprawl_reports(
                     } else {
                         format!("sample dependencies: {}", dependency_examples.join(", "))
                     },
-                ]),
-                inspection_focus: vec![
-                    "inspect whether orchestration and policy code can move behind narrower helpers".to_string(),
-                    "inspect whether unrelated adapter dependencies are accumulating in one module".to_string(),
                 ],
+                )),
+                inspection_focus: dependency_sprawl_focus(&role_tags),
                 candidate_split_axes: dependency_category_axes(
                     graph.outgoing.get(&file_metric.path),
                     3,
                 ),
-                related_surfaces: dependency_examples,
+                related_surfaces: related_structural_surfaces(facts, dependency_examples),
                 cut_candidates: Vec::new(),
                 metrics: StructuralDebtMetrics {
                     file_count: Some(1),
@@ -371,6 +1062,8 @@ fn build_dependency_sprawl_reports(
                     fan_out: Some(fan_out),
                     instability_0_10000: Some(instability),
                     max_complexity: Some(facts.max_complexity),
+                    guardrail_test_count: Some(facts.guardrail_tests.len()),
+                    role_count: Some(role_tags.len()),
                     ..StructuralDebtMetrics::default()
                 },
             })
@@ -388,6 +1081,7 @@ fn build_unstable_hotspot_reports(
         .iter()
         .filter_map(|file_metric| {
             let facts = file_facts.get(&file_metric.path)?;
+            let role_tags = contextual_role_tags(&file_metric.path, facts, graph, file_facts);
             let fan_in = graph.incoming.get(&file_metric.path).map(|paths| paths.len()).unwrap_or(0);
             let fan_out = graph.outgoing.get(&file_metric.path).map(|paths| paths.len()).unwrap_or(0);
             let threshold = lang_registry::profile(&facts.lang).thresholds.fan_in;
@@ -403,13 +1097,13 @@ fn build_unstable_hotspot_reports(
                 signal_families: vec!["coupling".to_string(), "blast_radius".to_string()],
                 severity: signal_severity(score_0_10000).to_string(),
                 score_0_10000,
-                summary: format!(
-                    "File '{}' has {} inbound references and remains unstable",
-                    file_metric.path, fan_in
-                ),
-                impact: "High fan-in plus instability increases blast radius and makes small edits harder to contain.".to_string(),
+                summary: unstable_hotspot_summary(&file_metric.path, fan_in, &role_tags),
+                impact: unstable_hotspot_impact(&role_tags),
                 files: vec![file_metric.path.clone()],
-                evidence: dedupe_strings_preserve_order(vec![
+                role_tags: role_tags.clone(),
+                evidence: dedupe_strings_preserve_order(with_guardrail_evidence(
+                    facts,
+                    vec![
                     format!("fan-in: {}", fan_in),
                     format!("hotspot threshold: {}", threshold),
                     format!("fan-out: {}", fan_out),
@@ -426,17 +1120,16 @@ fn build_unstable_hotspot_reports(
                     } else {
                         format!("sample dependents: {}", dependent_examples.join(", "))
                     },
-                ]),
-                inspection_focus: vec![
-                    "inspect whether a stable contract can be split from the volatile implementation".to_string(),
-                    "inspect whether too many callers depend directly on an orchestration-heavy file".to_string(),
                 ],
+                )),
+                inspection_focus: unstable_hotspot_focus(&role_tags),
                 candidate_split_axes: hotspot_split_axes(
+                    facts,
                     graph.incoming.get(&file_metric.path),
                     graph.outgoing.get(&file_metric.path),
                     3,
                 ),
-                related_surfaces: dependent_examples,
+                related_surfaces: related_structural_surfaces(facts, dependent_examples),
                 cut_candidates: Vec::new(),
                 metrics: StructuralDebtMetrics {
                     file_count: Some(1),
@@ -446,6 +1139,8 @@ fn build_unstable_hotspot_reports(
                     fan_out: Some(fan_out),
                     instability_0_10000: Some(instability),
                     max_complexity: Some(facts.max_complexity),
+                    guardrail_test_count: Some(facts.guardrail_tests.len()),
+                    role_count: Some(role_tags.len()),
                     ..StructuralDebtMetrics::default()
                 },
             })
@@ -472,6 +1167,7 @@ fn build_cycle_cluster_reports(
                 .filter_map(|path| file_facts.get(path).map(|facts| facts.max_complexity))
                 .max()
                 .unwrap_or(0);
+            let role_tags = cycle_role_tags(files, file_facts, graph);
             let score_0_10000 = cycle_cluster_score(files.len(), total_lines);
             let cut_candidates = cycle_cut_candidates(files, file_facts, graph);
             let cut_candidate_count = cut_candidates.len();
@@ -494,19 +1190,18 @@ fn build_cycle_cluster_reports(
                     "Files {} form a dependency cycle",
                     files.join(", ")
                 ),
-                impact: "The cycle prevents clean layering and makes initialization order and refactors harder to isolate.".to_string(),
+                impact: cycle_cluster_impact(&role_tags),
                 files: files.clone(),
-                evidence: vec![
+                role_tags: role_tags.clone(),
+                evidence: dedupe_strings_preserve_order(vec![
                     format!("cycle size: {}", files.len()),
                     format!("total lines in cycle: {}", total_lines),
                     format!("peak function complexity inside cycle: {}", max_complexity),
                     format!("candidate cuts: {}", cut_candidates.len()),
                     best_cycle_cut_evidence(&cut_candidates),
-                ],
-                inspection_focus: vec![
-                    "inspect whether one back-edge can be removed by splitting contracts from implementations".to_string(),
-                    "inspect whether shared types can move to a lower-dependency seam".to_string(),
-                ],
+                    role_tags_summary(&role_tags),
+                ]),
+                inspection_focus: cycle_cluster_focus(&role_tags),
                 candidate_split_axes,
                 related_surfaces,
                 cut_candidates,
@@ -517,6 +1212,7 @@ fn build_cycle_cluster_reports(
                     max_complexity: Some(max_complexity),
                     cut_candidate_count: Some(cut_candidate_count),
                     largest_cycle_after_best_cut: Some(largest_cycle_after_best_cut),
+                    role_count: Some(role_tags.len()),
                     ..StructuralDebtMetrics::default()
                 },
             }
@@ -566,6 +1262,7 @@ fn build_dead_private_code_cluster_reports(
                 ),
                 impact: "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.".to_string(),
                 files: vec![path.clone()],
+                role_tags: facts.role_tags.clone(),
                 evidence: dedupe_strings_preserve_order(vec![
                     format!("dead private functions: {}", dead_symbol_count),
                     format!("dead private lines: {}", dead_line_count),
@@ -586,6 +1283,7 @@ fn build_dead_private_code_cluster_reports(
                     dead_symbol_count: Some(dead_symbol_count),
                     dead_line_count: Some(dead_line_count),
                     max_complexity: Some(facts.max_complexity),
+                    role_count: Some(facts.role_tags.len()),
                     ..StructuralDebtMetrics::default()
                 },
             })
@@ -711,6 +1409,7 @@ fn build_dead_island_reports(
                     "A disconnected internal component adds maintenance noise and can hide obsolete or unsupported code paths.".to_string()
                 },
                 files: component.clone(),
+                role_tags: Vec::new(),
                 evidence,
                 inspection_focus: vec![
                     "inspect whether this component is intentionally disconnected or stale".to_string(),
@@ -953,6 +1652,7 @@ fn dependency_category_axes(paths: Option<&BTreeSet<String>>, limit: usize) -> V
 }
 
 fn hotspot_split_axes(
+    facts: &FileFacts,
     incoming: Option<&BTreeSet<String>>,
     outgoing: Option<&BTreeSet<String>>,
     limit: usize,
@@ -968,6 +1668,12 @@ fn hotspot_split_axes(
 
     let mut axes = inbound_categories;
     axes.extend(outbound_categories);
+    if has_role(facts, "guarded_boundary") {
+        axes.push("guarded boundary".to_string());
+    }
+    if has_role(facts, "facade_with_extracted_owners") {
+        axes.push("facade owner boundary".to_string());
+    }
     let mut axes = dedupe_strings_preserve_order(axes);
     axes.truncate(limit.max(1));
     if axes.is_empty() {
@@ -978,6 +1684,12 @@ fn hotspot_split_axes(
 
 fn large_file_split_axes(facts: &FileFacts, graph: &StructuralGraph, path: &str) -> Vec<String> {
     let mut axes = dependency_category_axes(graph.outgoing.get(path), 3);
+    if has_role(facts, "facade_with_extracted_owners") {
+        axes.push("facade owner boundary".to_string());
+    }
+    if has_role(facts, "entry_surface") {
+        axes.push("entry surface split".to_string());
+    }
     if facts.max_complexity >= 40 {
         axes.push("high-complexity helper extraction".to_string());
     }
@@ -1038,7 +1750,7 @@ fn cycle_cut_candidates(
                 return None;
             }
 
-            let seam_kind = cycle_seam_kind(&source, &target);
+            let seam_kind = cycle_seam_kind_with_roles(&source, &target, file_facts);
             let score_0_10000 = cycle_cut_candidate_score(
                 original_cycle_size,
                 reduction_file_count,
@@ -1046,6 +1758,7 @@ fn cycle_cut_candidates(
                 &source,
                 &target,
                 graph,
+                seam_kind,
             );
             let source_lines = file_facts
                 .get(&source)
@@ -1265,6 +1978,31 @@ fn cycle_seam_kind(source: &str, target: &str) -> &'static str {
     "local_module_split"
 }
 
+fn cycle_seam_kind_with_roles(
+    source: &str,
+    target: &str,
+    file_facts: &BTreeMap<String, FileFacts>,
+) -> &'static str {
+    let source_facts = file_facts.get(source);
+    let target_facts = file_facts.get(target);
+    if source_facts.is_some_and(|facts| has_role(facts, "guarded_boundary"))
+        || target_facts.is_some_and(|facts| has_role(facts, "guarded_boundary"))
+    {
+        let source_category = path_category(source);
+        let target_category = path_category(target);
+        if is_app_store_boundary(&source_category, &target_category) {
+            return "guarded_app_store_boundary";
+        }
+        return "guarded_boundary_cut";
+    }
+    if source_facts.is_some_and(|facts| has_role(facts, "facade_with_extracted_owners"))
+        || target_facts.is_some_and(|facts| has_role(facts, "facade_with_extracted_owners"))
+    {
+        return "facade_owner_boundary";
+    }
+    cycle_seam_kind(source, target)
+}
+
 fn cycle_cut_candidate_score(
     original_cycle_size: usize,
     reduction_file_count: usize,
@@ -1272,13 +2010,17 @@ fn cycle_cut_candidate_score(
     source: &str,
     target: &str,
     graph: &StructuralGraph,
+    seam_kind: &str,
 ) -> u32 {
     let reduction_bonus = if original_cycle_size == 0 {
         0
     } else {
         ((reduction_file_count as f64 / original_cycle_size as f64) * 4500.0).round() as u32
     };
-    let seam_bonus = match cycle_seam_kind(source, target) {
+    let seam_bonus = match seam_kind {
+        "guarded_app_store_boundary" => 2200,
+        "guarded_boundary_cut" => 2000,
+        "facade_owner_boundary" => 1900,
         "app_store_boundary" => 1800,
         "contract_or_type_extraction" => 1500,
         "cross_layer_boundary" => 1200,
@@ -1437,6 +2179,7 @@ mod tests {
     use crate::metrics::root_causes::{RootCauseRaw, RootCauseScores};
     use crate::metrics::{FileMetric, FuncMetric};
     use std::collections::HashMap;
+    use std::time::{SystemTime, UNIX_EPOCH};
     use std::sync::Arc;
 
     #[test]
@@ -1788,6 +2531,396 @@ mod tests {
         assert!(!reports.iter().any(|report| report.kind == "dead_island"));
     }
 
+    #[test]
+    fn large_file_guarded_facade_reports_role_tags_and_guardrail_evidence() {
+        let root = temp_root("guarded-facade");
+        write_file(
+            &root,
+            "src/components/terminal-session.architecture.test.ts",
+            "\
+                expect(source).toContain('createTerminalInputPipeline');\n\
+                expect(source).toContain('createTerminalOutputPipeline');\n\
+            ",
+        );
+        write_file(&root, "src/components/terminal-session.ts", "export function main() {}\n");
+
+        let snapshot = Snapshot {
+            root: Arc::new(FileNode {
+                path: ".".to_string(),
+                name: ".".to_string(),
+                is_dir: true,
+                lines: 0,
+                logic: 0,
+                comments: 0,
+                blanks: 0,
+                funcs: 0,
+                mtime: 0.0,
+                gs: String::new(),
+                lang: String::new(),
+                sa: None,
+                children: Some(vec![test_file(
+                    "src/components/terminal-session.ts",
+                    720,
+                    24,
+                    51,
+                )]),
+            }),
+            total_files: 1,
+            total_lines: 720,
+            total_dirs: 1,
+            import_graph: Vec::new(),
+            call_graph: Vec::new(),
+            inherit_graph: Vec::new(),
+            entry_points: Vec::new(),
+            exec_depth: HashMap::new(),
+        };
+        let mut health = empty_health_report();
+        health.long_files = vec![FileMetric {
+            path: "src/components/terminal-session.ts".into(),
+            value: 720,
+        }];
+
+        let reports = build_structural_debt_reports_with_root(&root, &snapshot, &health);
+        let report = reports
+            .iter()
+            .find(|report| report.kind == "large_file")
+            .expect("large-file report");
+
+        assert!(report.role_tags.iter().any(|tag| tag == "guarded_seam"));
+        assert!(report
+            .role_tags
+            .iter()
+            .any(|tag| tag == "facade_with_extracted_owners"));
+        assert!(report.summary.contains("Guarded facade file"));
+        assert!(report
+            .evidence
+            .iter()
+            .any(|entry| entry.contains("guardrail tests:")));
+        assert!(report
+            .candidate_split_axes
+            .iter()
+            .any(|axis| axis == "facade owner boundary"));
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn dependency_sprawl_reports_guarded_boundary_role_from_architecture_test_literal() {
+        let root = temp_root("guarded-boundary");
+        write_file(
+            &root,
+            "src/app/store-boundary.architecture.test.ts",
+            "expect(source).not.toContain('store/store');\n",
+        );
+        write_file(&root, "src/store/store.ts", "export function selectStore() {}\n");
+
+        let snapshot = Snapshot {
+            root: Arc::new(FileNode {
+                path: ".".to_string(),
+                name: ".".to_string(),
+                is_dir: true,
+                lines: 0,
+                logic: 0,
+                comments: 0,
+                blanks: 0,
+                funcs: 0,
+                mtime: 0.0,
+                gs: String::new(),
+                lang: String::new(),
+                sa: None,
+                children: Some(vec![
+                    test_file("src/store/store.ts", 220, 6, 18),
+                    test_file("src/components/App.tsx", 120, 3, 8),
+                    test_file("src/components/TaskPanel.tsx", 120, 3, 8),
+                ]),
+            }),
+            total_files: 3,
+            total_lines: 460,
+            total_dirs: 1,
+            import_graph: vec![
+                ImportEdge {
+                    from_file: "src/store/store.ts".into(),
+                    to_file: "src/components/App.tsx".into(),
+                },
+                ImportEdge {
+                    from_file: "src/store/store.ts".into(),
+                    to_file: "src/components/TaskPanel.tsx".into(),
+                },
+            ],
+            call_graph: Vec::new(),
+            inherit_graph: Vec::new(),
+            entry_points: Vec::new(),
+            exec_depth: HashMap::new(),
+        };
+        let mut health = empty_health_report();
+        health.god_files = vec![FileMetric {
+            path: "src/store/store.ts".into(),
+            value: 17,
+        }];
+
+        let reports = build_structural_debt_reports_with_root(&root, &snapshot, &health);
+        let report = reports
+            .iter()
+            .find(|report| report.kind == "dependency_sprawl")
+            .expect("dependency-sprawl report");
+
+        assert!(report.role_tags.iter().any(|tag| tag == "component_barrel"));
+        assert!(report.role_tags.iter().any(|tag| tag == "guarded_boundary"));
+        assert!(report.summary.contains("Component-facing barrel"));
+        assert!(report
+            .evidence
+            .iter()
+            .any(|entry| entry.contains("guarded boundary literals:")));
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn dependency_sprawl_softens_direct_entry_composition_root() {
+        let snapshot = Snapshot {
+            root: Arc::new(FileNode {
+                path: ".".to_string(),
+                name: ".".to_string(),
+                is_dir: true,
+                lines: 0,
+                logic: 0,
+                comments: 0,
+                blanks: 0,
+                funcs: 0,
+                mtime: 0.0,
+                gs: String::new(),
+                lang: String::new(),
+                sa: None,
+                children: Some(vec![
+                    test_file("src/main.tsx", 40, 1, 1),
+                    test_file("src/App.tsx", 260, 8, 24),
+                    test_file("src/components/app-shell/Chrome.tsx", 80, 2, 5),
+                    test_file("src/app/desktop-session.ts", 80, 2, 5),
+                ]),
+            }),
+            total_files: 4,
+            total_lines: 460,
+            total_dirs: 1,
+            import_graph: vec![
+                ImportEdge {
+                    from_file: "src/main.tsx".into(),
+                    to_file: "src/App.tsx".into(),
+                },
+                ImportEdge {
+                    from_file: "src/App.tsx".into(),
+                    to_file: "src/components/app-shell/Chrome.tsx".into(),
+                },
+                ImportEdge {
+                    from_file: "src/App.tsx".into(),
+                    to_file: "src/app/desktop-session.ts".into(),
+                },
+            ],
+            call_graph: Vec::new(),
+            inherit_graph: Vec::new(),
+            entry_points: vec![EntryPoint {
+                file: "src/main.tsx".into(),
+                func: "bootstrap".into(),
+                lang: "typescript".into(),
+                confidence: "high".into(),
+            }],
+            exec_depth: HashMap::new(),
+        };
+        let mut health = empty_health_report();
+        health.god_files = vec![FileMetric {
+            path: "src/App.tsx".into(),
+            value: 22,
+        }];
+
+        let reports = build_structural_debt_reports(&snapshot, &health);
+        let report = reports
+            .iter()
+            .find(|report| report.kind == "dependency_sprawl")
+            .expect("dependency-sprawl report");
+
+        assert!(report.role_tags.iter().any(|tag| tag == "composition_root"));
+        assert!(report.summary.contains("Composition root"));
+        assert!(report
+            .impact
+            .contains("composition root"));
+    }
+
+    #[test]
+    fn dependency_sprawl_softens_direct_index_import_when_entry_points_are_missing() {
+        let snapshot = Snapshot {
+            root: Arc::new(FileNode {
+                path: ".".to_string(),
+                name: ".".to_string(),
+                is_dir: true,
+                lines: 0,
+                logic: 0,
+                comments: 0,
+                blanks: 0,
+                funcs: 0,
+                mtime: 0.0,
+                gs: String::new(),
+                lang: String::new(),
+                sa: None,
+                children: Some(vec![
+                    test_file("src/index.tsx", 40, 1, 1),
+                    test_file("src/App.tsx", 260, 8, 24),
+                    test_file("src/components/app-shell/Chrome.tsx", 80, 2, 5),
+                ]),
+            }),
+            total_files: 3,
+            total_lines: 380,
+            total_dirs: 1,
+            import_graph: vec![
+                ImportEdge {
+                    from_file: "src/index.tsx".into(),
+                    to_file: "src/App.tsx".into(),
+                },
+                ImportEdge {
+                    from_file: "src/App.tsx".into(),
+                    to_file: "src/components/app-shell/Chrome.tsx".into(),
+                },
+            ],
+            call_graph: Vec::new(),
+            inherit_graph: Vec::new(),
+            entry_points: Vec::new(),
+            exec_depth: HashMap::new(),
+        };
+        let mut health = empty_health_report();
+        health.god_files = vec![FileMetric {
+            path: "src/App.tsx".into(),
+            value: 18,
+        }];
+
+        let reports = build_structural_debt_reports(&snapshot, &health);
+        let report = reports
+            .iter()
+            .find(|report| report.kind == "dependency_sprawl")
+            .expect("dependency-sprawl report");
+
+        assert!(report.role_tags.iter().any(|tag| tag == "composition_root"));
+        assert!(report.summary.contains("Composition root"));
+    }
+
+    #[test]
+    fn large_file_keeps_script_entry_surfaces_generic() {
+        let snapshot = Snapshot {
+            root: Arc::new(FileNode {
+                path: ".".to_string(),
+                name: ".".to_string(),
+                is_dir: true,
+                lines: 0,
+                logic: 0,
+                comments: 0,
+                blanks: 0,
+                funcs: 0,
+                mtime: 0.0,
+                gs: String::new(),
+                lang: String::new(),
+                sa: None,
+                children: Some(vec![test_file("scripts/session-stress.mjs", 2048, 12, 14)]),
+            }),
+            total_files: 1,
+            total_lines: 2048,
+            total_dirs: 1,
+            import_graph: Vec::new(),
+            call_graph: Vec::new(),
+            inherit_graph: Vec::new(),
+            entry_points: vec![EntryPoint {
+                file: "scripts/session-stress.mjs".into(),
+                func: "main".into(),
+                lang: "javascript".into(),
+                confidence: "high".into(),
+            }],
+            exec_depth: HashMap::new(),
+        };
+        let mut health = empty_health_report();
+        health.long_files = vec![FileMetric {
+            path: "scripts/session-stress.mjs".into(),
+            value: 2048,
+        }];
+
+        let reports = build_structural_debt_reports(&snapshot, &health);
+        let report = reports
+            .iter()
+            .find(|report| report.kind == "large_file")
+            .expect("large-file report");
+
+        assert!(report.summary.starts_with("File 'scripts/session-stress.mjs'"));
+        assert!(!report.impact.contains("composition root"));
+    }
+
+    #[test]
+    fn cycle_cut_candidates_prefer_guarded_app_store_boundary_edges() {
+        let root = temp_root("cycle-guarded-boundary");
+        write_file(
+            &root,
+            "src/app/store-boundary.architecture.test.ts",
+            "expect(source).not.toContain('store/store');\n",
+        );
+        write_file(&root, "src/store/store.ts", "export function selectStore() {}\n");
+
+        let snapshot = Snapshot {
+            root: Arc::new(FileNode {
+                path: ".".to_string(),
+                name: ".".to_string(),
+                is_dir: true,
+                lines: 0,
+                logic: 0,
+                comments: 0,
+                blanks: 0,
+                funcs: 0,
+                mtime: 0.0,
+                gs: String::new(),
+                lang: String::new(),
+                sa: None,
+                children: Some(vec![
+                    test_file("src/store/store.ts", 220, 6, 18),
+                    test_file("src/store/core.ts", 180, 4, 11),
+                    test_file("src/app/task-workflows.ts", 240, 5, 17),
+                ]),
+            }),
+            total_files: 3,
+            total_lines: 640,
+            total_dirs: 1,
+            import_graph: vec![
+                ImportEdge {
+                    from_file: "src/store/store.ts".into(),
+                    to_file: "src/app/task-workflows.ts".into(),
+                },
+                ImportEdge {
+                    from_file: "src/app/task-workflows.ts".into(),
+                    to_file: "src/store/store.ts".into(),
+                },
+                ImportEdge {
+                    from_file: "src/store/core.ts".into(),
+                    to_file: "src/store/store.ts".into(),
+                },
+                ImportEdge {
+                    from_file: "src/store/store.ts".into(),
+                    to_file: "src/store/core.ts".into(),
+                },
+            ],
+            call_graph: Vec::new(),
+            inherit_graph: Vec::new(),
+            entry_points: Vec::new(),
+            exec_depth: HashMap::new(),
+        };
+        let mut health = empty_health_report();
+        health.circular_dep_files = vec![vec![
+            "src/app/task-workflows.ts".into(),
+            "src/store/core.ts".into(),
+            "src/store/store.ts".into(),
+        ]];
+        health.circular_dep_count = 1;
+
+        let reports = build_structural_debt_reports_with_root(&root, &snapshot, &health);
+        let report = reports
+            .iter()
+            .find(|report| report.kind == "cycle_cluster")
+            .expect("cycle-cluster report");
+        let best_cut = report.cut_candidates.first().expect("best cut");
+
+        assert_eq!(best_cut.seam_kind, "guarded_app_store_boundary");
+        let _ = std::fs::remove_dir_all(root);
+    }
+
     fn test_file(path: &str, lines: u32, funcs: u32, max_complexity: u32) -> FileNode {
         FileNode {
             path: path.to_string(),
@@ -1877,5 +3010,26 @@ mod tests {
                 redundancy: 0.0,
             },
         }
+    }
+
+    fn temp_root(label: &str) -> std::path::PathBuf {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "sentrux-structural-{label}-{}-{unique}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&root).expect("create temp root");
+        root
+    }
+
+    fn write_file(root: &Path, relative_path: &str, contents: &str) {
+        let absolute_path = root.join(relative_path);
+        if let Some(parent) = absolute_path.parent() {
+            std::fs::create_dir_all(parent).expect("create parent");
+        }
+        std::fs::write(&absolute_path, contents).expect("write file");
     }
 }

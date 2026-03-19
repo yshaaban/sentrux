@@ -1205,8 +1205,11 @@ fn build_patch_safety_analysis(
         &bundle.health,
         bundle.health.duplicate_groups.len(),
     );
-    let structural_reports =
-        crate::metrics::v2::build_structural_debt_reports(&bundle.snapshot, &bundle.health);
+    let structural_reports = crate::metrics::v2::build_structural_debt_reports_with_root(
+        root,
+        &bundle.snapshot,
+        &bundle.health,
+    );
     let (rules_config, rules_error) = load_v2_rules_config(state, root);
     let semantic = match analyze_semantic_snapshot(state, root) {
         Ok(semantic) => semantic,
@@ -1317,7 +1320,8 @@ fn build_session_v2_baseline(
         crate::metrics::v2::ObligationScope::All,
         &BTreeSet::new(),
     );
-    let structural_reports = crate::metrics::v2::build_structural_debt_reports(snapshot, health);
+    let structural_reports =
+        crate::metrics::v2::build_structural_debt_reports_with_root(root, snapshot, health);
     let all_finding_values = combined_other_finding_values(&semantic_findings, &structural_reports);
     let (config, _) = load_v2_rules_config(state, root);
     let suppression_application = apply_suppressions(
@@ -1716,6 +1720,7 @@ fn finding_detail(finding: &Value) -> FindingDetail {
             .to_string(),
         impact: finding_detail_impact(finding),
         files: files.clone(),
+        role_tags: finding_string_values(finding, "role_tags"),
         evidence: evidence.clone(),
         inspection_focus,
         candidate_split_axes: finding_detail_candidate_split_axes(finding),
@@ -2343,7 +2348,8 @@ fn handle_findings(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<V
         crate::metrics::v2::ObligationScope::All,
         &BTreeSet::new(),
     );
-    let structural_reports = crate::metrics::v2::build_structural_debt_reports(&snapshot, &health);
+    let structural_reports =
+        crate::metrics::v2::build_structural_debt_reports_with_root(&root, &snapshot, &health);
     let other_findings = combined_other_finding_values(&semantic_findings, &structural_reports);
     let merged_findings = merge_findings(
         clone_payload.prioritized_findings.clone(),
@@ -3015,6 +3021,7 @@ struct DebtSignal {
     summary: String,
     impact: String,
     files: Vec<String>,
+    role_tags: Vec<String>,
     evidence: Vec<String>,
     inspection_focus: Vec<String>,
     candidate_split_axes: Vec<String>,
@@ -3031,6 +3038,7 @@ struct FindingDetail {
     summary: String,
     impact: String,
     files: Vec<String>,
+    role_tags: Vec<String>,
     evidence: Vec<String>,
     inspection_focus: Vec<String>,
     candidate_split_axes: Vec<String>,
@@ -3048,6 +3056,7 @@ struct InspectionWatchpoint {
     summary: String,
     impact: String,
     files: Vec<String>,
+    role_tags: Vec<String>,
     evidence: Vec<String>,
     inspection_focus: Vec<String>,
     candidate_split_axes: Vec<String>,
@@ -3068,6 +3077,7 @@ struct DebtCluster {
     summary: String,
     impact: String,
     files: Vec<String>,
+    role_tags: Vec<String>,
     evidence: Vec<String>,
     inspection_focus: Vec<String>,
     signal_families: Vec<String>,
@@ -3139,6 +3149,10 @@ struct DebtSignalMetrics {
     public_surface_count: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     reachable_from_tests: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    guardrail_test_count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    role_count: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     divergence_score: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -3215,7 +3229,7 @@ fn build_debt_report_outputs(
     let (concentration_reports, context_error) =
         debt_signal_concentration_reports(state, root, snapshot, &candidate_files);
     let concept_summaries = build_concept_debt_summaries(findings, obligations);
-    let structural_reports = structural_reports_for_scope(snapshot, health, extra_files);
+    let structural_reports = structural_reports_for_scope(root, snapshot, health, extra_files);
     let all_debt_signals = collect_debt_signals(
         &concept_summaries,
         &structural_reports,
@@ -3268,11 +3282,13 @@ fn build_debt_report_outputs(
 }
 
 fn structural_reports_for_scope(
+    root: &Path,
     snapshot: &Snapshot,
     health: &metrics::HealthReport,
     scope_files: &BTreeSet<String>,
 ) -> Vec<crate::metrics::v2::StructuralDebtReport> {
-    let reports = crate::metrics::v2::build_structural_debt_reports(snapshot, health);
+    let reports =
+        crate::metrics::v2::build_structural_debt_reports_with_root(root, snapshot, health);
     if scope_files.is_empty() {
         return reports;
     }
@@ -3451,6 +3467,7 @@ fn collect_debt_signals(
                 summary: summary.summary.clone(),
                 impact: concept_signal_impact(summary),
                 files: summary.files.clone(),
+                role_tags: Vec::new(),
                 evidence,
                 inspection_focus: summary.inspection_focus.clone(),
                 candidate_split_axes: concept_candidate_split_axes(summary),
@@ -3551,6 +3568,7 @@ fn build_inspection_watchpoints(
                 ),
                 impact: concept_signal_impact(summary),
                 files: summary.files.clone(),
+                role_tags: Vec::new(),
                 evidence: inspection_watchpoint_evidence(
                     summary,
                     matching_clone_families.as_slice(),
@@ -3599,6 +3617,7 @@ fn debt_signal_watchpoints(signals: &[DebtSignal], limit: usize) -> Vec<Inspecti
             summary: signal.summary.clone(),
             impact: signal.impact.clone(),
             files: signal.files.clone(),
+            role_tags: signal.role_tags.clone(),
             evidence: signal.evidence.clone(),
             inspection_focus: signal.inspection_focus.clone(),
             candidate_split_axes: signal.candidate_split_axes.clone(),
@@ -3714,6 +3733,12 @@ fn debt_cluster(signals: &[DebtSignal]) -> Option<DebtCluster> {
         .flat_map(|signal| signal.signal_families.iter().cloned())
         .collect::<Vec<_>>();
     signal_families = dedupe_strings_preserve_order(signal_families);
+    let role_tags = dedupe_strings_preserve_order(
+        signals
+            .iter()
+            .flat_map(|signal| signal.role_tags.iter().cloned())
+            .collect::<Vec<_>>(),
+    );
 
     let summary = if files.len() == 1 {
         format!(
@@ -3750,6 +3775,9 @@ fn debt_cluster(signals: &[DebtSignal]) -> Option<DebtCluster> {
         format!("signal kinds: {}", signal_kinds.join(", ")),
         format!("affected files: {}", files.len()),
     ];
+    if !role_tags.is_empty() {
+        evidence.push(format!("role tags: {}", role_tags.join(", ")));
+    }
     evidence.extend(
         signals
             .iter()
@@ -3782,6 +3810,7 @@ fn debt_cluster(signals: &[DebtSignal]) -> Option<DebtCluster> {
         summary,
         impact,
         files,
+        role_tags,
         evidence,
         inspection_focus,
         signal_families: signal_families.clone(),
@@ -4188,6 +4217,7 @@ fn structural_signal(report: &crate::metrics::v2::StructuralDebtReport) -> DebtS
         summary: report.summary.clone(),
         impact: report.impact.clone(),
         files: report.files.clone(),
+        role_tags: report.role_tags.clone(),
         evidence: report.evidence.clone(),
         inspection_focus: report.inspection_focus.clone(),
         candidate_split_axes: report.candidate_split_axes.clone(),
@@ -4205,6 +4235,8 @@ fn structural_signal(report: &crate::metrics::v2::StructuralDebtReport) -> DebtS
             inbound_reference_count: report.metrics.inbound_reference_count,
             public_surface_count: report.metrics.public_surface_count,
             reachable_from_tests: report.metrics.reachable_from_tests,
+            guardrail_test_count: report.metrics.guardrail_test_count,
+            role_count: report.metrics.role_count,
             max_complexity: report.metrics.max_complexity,
             ..DebtSignalMetrics::default()
         },
@@ -4307,6 +4339,7 @@ fn clone_family_signal(family: &Value) -> Option<DebtSignal> {
         summary,
         impact: "Duplicate logic across related files increases the chance that a fix lands in only one sibling and the family drifts over time.".to_string(),
         files,
+        role_tags: Vec::new(),
         evidence,
         inspection_focus,
         candidate_split_axes: clone_family_candidate_axes(family),
@@ -4371,6 +4404,7 @@ fn clone_group_signal(finding: &Value) -> Option<DebtSignal> {
         summary,
         impact: "Copy-paste maintenance means the same behavior must be kept in sync across multiple files.".to_string(),
         files,
+        role_tags: Vec::new(),
         evidence,
         inspection_focus: vec![
             "inspect whether the repeated logic should stay aligned or collapse behind one abstraction"
@@ -4417,6 +4451,7 @@ fn hotspot_signal(report: &crate::metrics::v2::ConcentrationReport) -> Option<De
         ),
         impact: "Side effects, async branches, and retry logic concentrated in one file increase coordination debt and regression risk.".to_string(),
         files: vec![report.path.clone()],
+        role_tags: Vec::new(),
         evidence: report.reasons.iter().cloned().take(3).collect(),
         inspection_focus: vec![
             "inspect whether orchestration, side effects, and adapters are accumulating in one file"
