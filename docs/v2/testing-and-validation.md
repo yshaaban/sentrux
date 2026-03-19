@@ -109,13 +109,17 @@ Current status:
 - scoped `private-benchmark-repo` goldens now exist in [examples/private-benchmark-repo-golden](./examples/private-benchmark-repo-golden/README.md)
 - `private-benchmark-repo` now has a checked-in benchmark artifact in [examples/private-benchmark-repo-benchmark.md](./examples/private-benchmark-repo-benchmark.md)
 - synthetic touched-concept gate and `session_end` regression scenarios now exist in the MCP handler test suite
-- initial migration/coexistence coverage now verifies that v2 gate and `session_end` still work when only the v2 session baseline is usable
+- migration/coexistence coverage now verifies that `gate` and `session_end` still work when only the v2 session baseline is usable, when the v2 session baseline is missing, and when copied or incompatible baselines are present
 - confidence regression coverage now checks incompatible schema and project-mismatch session baselines
 - session baseline migration coverage now verifies that cross-project v2 baselines are rejected instead of being treated as compatible
 - the benchmark harness now supports versioned artifact comparison and separate warm patch-safety timings
+- benchmark comparison now has an explicit policy:
+  - fail at `>250ms` and `>20%`
+  - warn at `>150ms` and `>10%`
+- a release checklist now exists in [release-checklist.md](./release-checklist.md)
 - the validation loop now has a dedicated one-command runner for checked-in goldens and benchmark regression checks
 - the validation loop now has a multi-repo runner across both benchmark repos
-- full release-grade validation still needs broader regression coverage, stronger migration coverage, and firmer benchmark-threshold policy
+- full release-grade validation still needs broader benchmark-repo unhappy-path coverage and stronger analyzer promotion criteria
 
 ## Layer 5: False-Positive Review
 
@@ -238,8 +242,9 @@ it should have:
 - [x] add analyzer false-positive review checklist
 - [x] capture initial `parallel-code` benchmark artifact
 - [x] capture initial `private-benchmark-repo` benchmark artifact
-- [-] add performance regression benchmarks
-- [-] expand baseline migration tests beyond the current schema and project-mismatch cases
+- [x] add performance regression benchmarks
+- [x] expand baseline migration tests beyond the current schema and project-mismatch cases
 - [x] add a one-command validation loop for real-repo goldens and benchmark regression checks
 - [x] add a multi-repo validation loop for benchmark repos
+- [x] capture a short release checklist for proof artifacts and migration checks
 - [ ] define promotion criteria for gating analyzers

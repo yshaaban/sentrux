@@ -78,6 +78,8 @@ Current implementation:
 - derives the project fingerprint from stable git identity when available, so local clones of the same repo can reuse the same session baseline identity
 - rejects incompatible schema versions
 - rejects cross-project reuse when the stored project fingerprint does not match the current project
+- release-grade handler tests now cover missing-v2, incompatible-v2, and copied-baseline coexistence paths
+- release readiness is now tracked in [release-checklist.md](./release-checklist.md)
 
 ## Upgrade Behavior
 
@@ -182,5 +184,5 @@ If required fields are missing or malformed:
 - [x] keep v2 baseline at a dedicated path separate from v1
 - [x] keep v1 baseline reader unchanged
 - [x] teach v2 to ignore incompatible or missing baselines cleanly
-- [-] add mixed-version and coexistence tests
+- [x] add mixed-version and coexistence tests
 - [x] document baseline update workflow for CI and MCP sessions

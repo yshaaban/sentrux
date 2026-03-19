@@ -32,6 +32,14 @@ That is the relevant distinction for agent workflows:
 - warm patch-safety latency
 - regression visibility across benchmark runs
 
+## Benchmark Policy
+
+Comparison policy defaults:
+
+- fail when a metric regresses by more than `250ms` and `20%`
+- warn when a metric regresses by more than `150ms` and `10%`
+- only fail-tier regressions set a failing exit code when `FAIL_ON_REGRESSION=1`
+
 ## Current Results
 
 Primary captured run:
@@ -85,10 +93,10 @@ The benchmark is part of the broader validation loop:
 
 The next implementation step should focus on two things:
 
-1. release-grade validation
-   - checked-in `session_end` and gate goldens on the case-study repo
-   - false-positive review workflow
-
-2. patch-safety performance
+1. patch-safety performance
    - reduce remaining scan-bound and changed-file bookkeeping work for `gate` and `session_end`
    - preserve the already-good warm semantic path while improving the still-expensive patch-safety tools
+
+2. analyzer promotion criteria
+   - define when warning-tier benchmark drift is acceptable
+   - define when a new analyzer is trusted enough to gate

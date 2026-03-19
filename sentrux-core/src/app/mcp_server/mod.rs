@@ -71,6 +71,14 @@ pub struct ScanCacheIdentity {
     pub working_tree_hashes: BTreeMap<String, u64>,
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct RulesCacheIdentity {
+    pub rules_path: PathBuf,
+    pub exists: bool,
+    pub len: Option<u64>,
+    pub modified_unix_nanos: Option<u128>,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct PatchSafetyAnalysisCache {
     pub scan_identity: Option<ScanCacheIdentity>,
@@ -104,6 +112,9 @@ pub struct McpState {
     pub session_v2: Option<SessionV2Baseline>,
     pub cached_evolution: Option<evolution::EvolutionReport>,
     pub cached_scan_identity: Option<ScanCacheIdentity>,
+    pub cached_rules_identity: Option<RulesCacheIdentity>,
+    pub cached_rules_config: Option<crate::metrics::rules::RulesConfig>,
+    pub cached_rules_error: Option<String>,
     pub cached_patch_safety: Option<PatchSafetyAnalysisCache>,
     pub semantic_bridge: Option<TypeScriptBridgeSupervisor>,
 }
@@ -136,6 +147,9 @@ pub fn run_mcp_server(register_extra: Option<&dyn Fn(&mut registry::ToolRegistry
         session_v2: None,
         cached_evolution: None,
         cached_scan_identity: None,
+        cached_rules_identity: None,
+        cached_rules_config: None,
+        cached_rules_error: None,
         cached_patch_safety: None,
         semantic_bridge: None,
     };

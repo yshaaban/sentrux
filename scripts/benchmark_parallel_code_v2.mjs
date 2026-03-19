@@ -18,8 +18,7 @@ const outputPath =
   process.env.OUTPUT_PATH ?? path.join(repoRoot, 'docs/v2/examples/parallel-code-benchmark.json');
 const compareToPath = process.env.COMPARE_TO ?? outputPath;
 const requestTimeoutMs = Number(process.env.REQUEST_TIMEOUT_MS ?? '120000');
-const maxRegressionMs = Number(process.env.MAX_REGRESSION_MS ?? '250');
-const maxRegressionPercent = Number(process.env.MAX_REGRESSION_PERCENT ?? '20');
+const benchmarkPolicy = buildBenchmarkPolicy();
 const failOnRegression = process.env.FAIL_ON_REGRESSION === '1';
 const benchmarkFormatVersion = 3;
 
@@ -131,6 +130,73 @@ function safePercent(delta, baseline) {
   return Number(((delta / baseline) * 100).toFixed(1));
 }
 
+function readNonNegativeNumber(value, fallback) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return fallback;
+  }
+
+  return parsed;
+}
+
+function buildBenchmarkPolicy() {
+  const fail = {
+    max_regression_ms: readNonNegativeNumber(process.env.MAX_REGRESSION_MS, 250),
+    max_regression_percent: readNonNegativeNumber(process.env.MAX_REGRESSION_PERCENT, 20),
+  };
+  const warn = {
+    max_regression_ms: Math.min(
+      readNonNegativeNumber(process.env.WARN_REGRESSION_MS, 150),
+      fail.max_regression_ms,
+    ),
+    max_regression_percent: Math.min(
+      readNonNegativeNumber(process.env.WARN_REGRESSION_PERCENT, 10),
+      fail.max_regression_percent,
+    ),
+  };
+
+  return {
+    fail,
+    warn,
+  };
+}
+
+function classifyBenchmarkMetric(deltaMs, deltaPercent) {
+  const exceedsFail =
+    deltaMs > benchmarkPolicy.fail.max_regression_ms &&
+    deltaPercent !== null &&
+    deltaPercent > benchmarkPolicy.fail.max_regression_percent;
+  if (exceedsFail) {
+    return 'fail';
+  }
+
+  const exceedsWarn =
+    deltaMs > benchmarkPolicy.warn.max_regression_ms &&
+    deltaPercent !== null &&
+    deltaPercent > benchmarkPolicy.warn.max_regression_percent;
+  if (exceedsWarn) {
+    return 'warn';
+  }
+
+  return 'info';
+}
+
+function summarizeComparisonMetrics(metrics) {
+  return metrics.reduce(
+    (summary, metric) => {
+      summary.total += 1;
+      summary[`${metric.classification}_count`] += 1;
+      return summary;
+    },
+    {
+      total: 0,
+      fail_count: 0,
+      warn_count: 0,
+      info_count: 0,
+    },
+  );
+}
+
 function buildBenchmarkComparison(currentResult, previousResult) {
   if (
     !previousResult?.benchmark ||
@@ -161,10 +227,7 @@ function buildBenchmarkComparison(currentResult, previousResult) {
 
       const deltaMs = Number((currentValue - previousValue).toFixed(1));
       const deltaPercent = safePercent(deltaMs, previousValue);
-      const regressed =
-        deltaMs > maxRegressionMs &&
-        deltaPercent !== null &&
-        deltaPercent > maxRegressionPercent;
+      const classification = classifyBenchmarkMetric(deltaMs, deltaPercent);
 
       return {
         metric: label,
@@ -173,20 +236,24 @@ function buildBenchmarkComparison(currentResult, previousResult) {
         current_ms: currentValue,
         delta_ms: deltaMs,
         delta_percent: deltaPercent,
-        regressed,
+        classification,
       };
     })
     .filter(Boolean);
+  const summary = summarizeComparisonMetrics(metrics);
 
   return {
     compared_to: compareToPath,
     previous_generated_at: previousResult.generated_at ?? null,
-    thresholds: {
-      max_regression_ms: maxRegressionMs,
-      max_regression_percent: maxRegressionPercent,
+    policy: {
+      fail: benchmarkPolicy.fail,
+      warn: benchmarkPolicy.warn,
+      mode: 'delta_ms_and_percent',
     },
     metrics,
-    regressions: metrics.filter((metric) => metric.regressed),
+    summary,
+    regressions: metrics.filter((metric) => metric.classification === 'fail'),
+    warnings: metrics.filter((metric) => metric.classification === 'warn'),
   };
 }
 
@@ -518,17 +585,32 @@ async function main() {
   await writeFile(outputPath, `${JSON.stringify(result, null, 2)}\n`, 'utf8');
   console.log(`Wrote benchmark results to ${outputPath}`);
 
+  if (comparison) {
+    console.log(
+      `Benchmark policy: fail at >${comparison.policy.fail.max_regression_ms}ms and >${comparison.policy.fail.max_regression_percent}%; warn at >${comparison.policy.warn.max_regression_ms}ms and >${comparison.policy.warn.max_regression_percent}%`,
+    );
+  }
+
   if (comparison?.regressions.length) {
-    console.log('\nBenchmark regressions detected:');
+    console.log('\nBenchmark fail regressions detected:');
     for (const regression of comparison.regressions) {
       console.log(
-        `- ${regression.metric}: ${regression.previous_ms}ms -> ${regression.current_ms}ms (${regression.delta_ms}ms, ${regression.delta_percent}%)`,
+        `- [fail] ${regression.metric}: ${regression.previous_ms}ms -> ${regression.current_ms}ms (${regression.delta_ms}ms, ${regression.delta_percent}%)`,
       );
     }
 
     if (failOnRegression) {
       process.exitCode = 1;
     }
+  } else if (comparison?.warnings.length) {
+    console.log('\nBenchmark warning regressions detected:');
+    for (const warning of comparison.warnings) {
+      console.log(
+        `- [warn] ${warning.metric}: ${warning.previous_ms}ms -> ${warning.current_ms}ms (${warning.delta_ms}ms, ${warning.delta_percent}%)`,
+      );
+    }
+  } else if (comparison) {
+    console.log('No benchmark regressions detected.');
   }
 }
 

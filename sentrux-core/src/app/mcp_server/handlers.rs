@@ -8,8 +8,8 @@
 
 use super::registry::ToolDef;
 use super::{
-    session_v2_schema_supported, McpState, PatchSafetyAnalysisCache, ScanCacheIdentity,
-    SessionV2Baseline, SessionV2ConfidenceSnapshot, SESSION_V2_SCHEMA_VERSION,
+    session_v2_schema_supported, McpState, PatchSafetyAnalysisCache, RulesCacheIdentity,
+    ScanCacheIdentity, SessionV2Baseline, SessionV2ConfidenceSnapshot, SESSION_V2_SCHEMA_VERSION,
 };
 use crate::analysis::scanner;
 use crate::analysis::scanner::common::ScanMetadata;
@@ -349,16 +349,63 @@ fn empty_rules_config() -> crate::metrics::rules::RulesConfig {
     }
 }
 
-fn load_v2_rules_config(root: &Path) -> (crate::metrics::rules::RulesConfig, Option<String>) {
+fn current_rules_cache_identity(root: &Path) -> RulesCacheIdentity {
     let rules_path = root.join(".sentrux").join("rules.toml");
-    if !rules_path.exists() {
-        return (empty_rules_config(), None);
+    let metadata = std::fs::metadata(&rules_path).ok();
+
+    RulesCacheIdentity {
+        rules_path,
+        exists: metadata.is_some(),
+        len: metadata.as_ref().map(std::fs::Metadata::len),
+        modified_unix_nanos: metadata
+            .and_then(|metadata| metadata.modified().ok())
+            .and_then(|modified| modified.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|duration| duration.as_nanos()),
+    }
+}
+
+fn load_v2_rules_config(
+    state: &mut McpState,
+    root: &Path,
+) -> (crate::metrics::rules::RulesConfig, Option<String>) {
+    let identity = current_rules_cache_identity(root);
+    if state.cached_rules_identity.as_ref() == Some(&identity) {
+        return (
+            state
+                .cached_rules_config
+                .clone()
+                .unwrap_or_else(empty_rules_config),
+            state.cached_rules_error.clone(),
+        );
     }
 
-    match crate::metrics::rules::RulesConfig::load(&rules_path) {
-        Ok(config) => (config, None),
-        Err(error) => (empty_rules_config(), Some(error)),
+    let (config, error) = if !identity.exists {
+        (empty_rules_config(), None)
+    } else {
+        match crate::metrics::rules::RulesConfig::load(&identity.rules_path) {
+            Ok(config) => (config, None),
+            Err(error) => (empty_rules_config(), Some(error)),
+        }
+    };
+
+    state.cached_rules_identity = Some(identity);
+    state.cached_rules_config = Some(config.clone());
+    state.cached_rules_error = error.clone();
+
+    (config, error)
+}
+
+fn invalidate_rules_cache(state: &mut McpState) {
+    if state.cached_rules_identity.is_none()
+        && state.cached_rules_config.is_none()
+        && state.cached_rules_error.is_none()
+    {
+        return;
     }
+
+    state.cached_rules_identity = None;
+    state.cached_rules_config = None;
+    state.cached_rules_error = None;
 }
 
 fn semantic_rules_loaded(config: &RulesConfig) -> bool {
@@ -444,6 +491,9 @@ fn fresh_mcp_state() -> McpState {
         session_v2: None,
         cached_evolution: None,
         cached_scan_identity: None,
+        cached_rules_identity: None,
+        cached_rules_config: None,
+        cached_rules_error: None,
         cached_patch_safety: None,
         semantic_bridge: None,
     }
@@ -578,6 +628,7 @@ fn update_scan_cache(
         .unwrap_or(false);
     if root_changed {
         state.session_v2 = None;
+        invalidate_rules_cache(state);
     }
     state.baseline = baseline;
     state.scan_root = Some(root);
@@ -1154,7 +1205,7 @@ fn build_patch_safety_analysis(
         &bundle.health,
         bundle.health.duplicate_groups.len(),
     );
-    let (rules_config, rules_error) = load_v2_rules_config(root);
+    let (rules_config, rules_error) = load_v2_rules_config(state, root);
     let semantic = match analyze_semantic_snapshot(state, root) {
         Ok(semantic) => semantic,
         Err(error) => {
@@ -1259,7 +1310,7 @@ fn build_session_v2_baseline(
         crate::metrics::v2::ObligationScope::All,
         &BTreeSet::new(),
     );
-    let (config, _) = load_v2_rules_config(root);
+    let (config, _) = load_v2_rules_config(state, root);
     let suppression_application = apply_suppressions(
         &config,
         finding_values(&clone_payload.exact_findings, &semantic_findings),
@@ -1315,7 +1366,7 @@ fn semantic_analysis_batch(
     scope: crate::metrics::v2::ObligationScope,
     changed_files: &BTreeSet<String>,
 ) -> (SemanticAnalysisBatch, Option<String>) {
-    let (config, config_error) = load_v2_rules_config(root);
+    let (config, config_error) = load_v2_rules_config(state, root);
     match analyze_semantic_snapshot(state, root) {
         Ok(Some(semantic)) => (
             build_semantic_analysis_batch(&config, &semantic, snapshot, scope, changed_files),
@@ -1411,10 +1462,11 @@ fn finding_values(
 }
 
 fn apply_root_suppressions(
+    state: &mut McpState,
     root: &Path,
     findings: Vec<Value>,
 ) -> (SuppressionApplication, Option<String>) {
-    let (config, rules_error) = load_v2_rules_config(root);
+    let (config, rules_error) = load_v2_rules_config(state, root);
     (apply_suppressions(&config, findings), rules_error)
 }
 
@@ -1683,7 +1735,7 @@ fn compute_touched_concept_gate(
         patch_cache_identity,
     );
     let current_finding_payloads = finding_payload_map(&analysis.visible_findings);
-    let (rules_config, _) = load_v2_rules_config(root);
+    let (rules_config, _) = load_v2_rules_config(state, root);
     let missing_obligations = analysis
         .changed_obligations
         .iter()
@@ -1795,7 +1847,7 @@ pub fn cli_save_v2_session(root: &Path) -> Result<Value, String> {
     );
     let session_v2_baseline_path = save_session_v2_baseline(root, &session_v2)?;
     let session_finding_count = session_v2.finding_payloads.len();
-    let (rules_config, _) = load_v2_rules_config(root);
+    let (rules_config, _) = load_v2_rules_config(&mut state, root);
 
     Ok(json!({
         "status": "Baseline saved",
@@ -1874,7 +1926,7 @@ fn handle_scan(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<Value
         Ok(baseline) => (baseline, None),
         Err(error) => (None, Some(error)),
     };
-    let (rules_config, config_error) = load_v2_rules_config(&root);
+    let (rules_config, config_error) = load_v2_rules_config(state, &root);
     let (_, session_v2_status) = load_session_v2_baseline_status(&root);
     let confidence = build_v2_confidence_report(&bundle.metadata, &rules_config, session_v2_status);
 
@@ -1915,7 +1967,7 @@ pub fn health_def() -> ToolDef {
 fn handle_health(_args: &Value, tier: &Tier, state: &mut McpState) -> Result<Value, String> {
     let h = state
         .cached_health
-        .as_ref()
+        .clone()
         .ok_or("No scan data. Call 'scan' first.")?;
     let metadata = state
         .cached_scan_metadata
@@ -1933,8 +1985,8 @@ fn handle_health(_args: &Value, tier: &Tier, state: &mut McpState) -> Result<Val
             Err(error) => (None, Some(error)),
         },
     };
-    let baseline_delta = baseline.as_ref().map(|baseline| baseline.diff(h));
-    let (rules_config, config_error) = load_v2_rules_config(&root);
+    let baseline_delta = baseline.as_ref().map(|baseline| baseline.diff(&h));
+    let (rules_config, config_error) = load_v2_rules_config(state, &root);
     let (_, session_v2_status) = load_session_v2_baseline_status(&root);
     let rc = &h.root_cause_scores;
     let raw = &h.root_cause_raw;
@@ -2055,7 +2107,7 @@ fn handle_findings(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<V
         .and_then(|value| value.as_u64())
         .unwrap_or(10)
         .min(50) as usize;
-    let (rules_config, config_error) = load_v2_rules_config(&root);
+    let (rules_config, config_error) = load_v2_rules_config(state, &root);
     let (_, session_v2_status) = load_session_v2_baseline_status(&root);
     let (clone_payload, clone_error) = clone_findings_for_health(
         state,
@@ -2077,7 +2129,7 @@ fn handle_findings(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<V
         usize::MAX,
     );
     let (suppression_application, suppression_error) =
-        apply_root_suppressions(&root, merged_findings);
+        apply_root_suppressions(state, &root, merged_findings);
     let visible_findings = suppression_application.visible_findings.clone();
     let visible_clone_ids = visible_clone_ids(&visible_findings);
     let semantic_finding_count = visible_findings
@@ -2283,7 +2335,7 @@ fn handle_parity(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<Val
         BTreeSet::new()
     };
 
-    let (config, rules_error) = load_v2_rules_config(&root);
+    let (config, rules_error) = load_v2_rules_config(state, &root);
     let (reports, semantic_error) = match analyze_semantic_snapshot(state, &root) {
         Ok(Some(semantic)) => (
             crate::metrics::v2::build_parity_reports(
@@ -2314,7 +2366,7 @@ fn handle_parity(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<Val
         .collect::<Vec<_>>();
     let findings = crate::metrics::v2::build_parity_findings(&reports);
     let (suppression_application, suppression_rules_error) =
-        apply_root_suppressions(&root, serialized_values(&findings));
+        apply_root_suppressions(state, &root, serialized_values(&findings));
     let missing_cell_count = reports
         .iter()
         .map(|report| report.missing_cells.len())
@@ -2412,7 +2464,7 @@ fn handle_concentration(args: &Value, _tier: &Tier, state: &mut McpState) -> Res
     }
     let complexity_map = crate::app::mcp_server::handlers_evo::build_complexity_map(snapshot);
 
-    let (config, rules_error) = load_v2_rules_config(&root);
+    let (config, rules_error) = load_v2_rules_config(state, &root);
     let (semantic, semantic_error) = match analyze_semantic_snapshot(state, &root) {
         Ok(semantic) => (semantic, None),
         Err(error) => (None, Some(error)),
@@ -2428,7 +2480,7 @@ fn handle_concentration(args: &Value, _tier: &Tier, state: &mut McpState) -> Res
     );
     let findings = crate::metrics::v2::build_concentration_findings(&reports, limit);
     let (suppression_application, suppression_rules_error) =
-        apply_root_suppressions(&root, serialized_values(&findings));
+        apply_root_suppressions(state, &root, serialized_values(&findings));
     let top_reports = reports.iter().take(limit).cloned().collect::<Vec<_>>();
 
     Ok(json!({
@@ -2489,7 +2541,7 @@ fn handle_state(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<Valu
         BTreeSet::new()
     };
 
-    let (config, rules_error) = load_v2_rules_config(&root);
+    let (config, rules_error) = load_v2_rules_config(state, &root);
     let (reports, semantic_error) = match analyze_semantic_snapshot(state, &root) {
         Ok(Some(semantic)) => {
             let obligation_scope = if scope == crate::metrics::v2::StateScope::Changed {
@@ -2533,7 +2585,7 @@ fn handle_state(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<Valu
         .collect::<Vec<_>>();
     let findings = crate::metrics::v2::build_state_integrity_findings(&reports);
     let (suppression_application, suppression_rules_error) =
-        apply_root_suppressions(&root, serialized_values(&findings));
+        apply_root_suppressions(state, &root, serialized_values(&findings));
     let state_integrity_score_0_10000 = if reports.is_empty() {
         None
     } else {
@@ -3361,7 +3413,7 @@ fn quality_opportunity_concentration_reports(
     }
 
     let complexity_map = crate::app::mcp_server::handlers_evo::build_complexity_map(snapshot);
-    let (config, rules_error) = load_v2_rules_config(root);
+    let (config, rules_error) = load_v2_rules_config(state, root);
     let (semantic, semantic_error) = match analyze_semantic_snapshot(state, root) {
         Ok(semantic) => (semantic, None),
         Err(error) => (None, Some(error)),
@@ -3909,6 +3961,9 @@ mod tests {
             session_v2: None,
             cached_evolution: None,
             cached_scan_identity: None,
+            cached_rules_identity: None,
+            cached_rules_config: None,
+            cached_rules_error: None,
             cached_patch_safety: None,
             semantic_bridge: None,
         }
@@ -4518,6 +4573,8 @@ mod tests {
 
         let health = handle_health(&json!({}), &Tier::Free, &mut state).expect("health");
         let gate = handle_gate(&json!({}), &Tier::Free, &mut state).expect("gate");
+        let session_end =
+            handle_session_end(&json!({}), &Tier::Free, &mut state).expect("session end");
 
         assert!(health["confidence"]["session_baseline"]["error"]
             .as_str()
@@ -4528,6 +4585,114 @@ mod tests {
             .as_str()
             .unwrap_or_default()
             .contains("Failed to parse"));
+        assert_eq!(session_end["pass"], true);
+        assert!(session_end["confidence"]["session_baseline"]["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("Failed to parse"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn session_end_uses_legacy_baseline_when_v2_session_is_missing() {
+        let root = closed_domain_gate_fixture_root();
+        cli_save_v2_session(&root).expect("save v2 session");
+        std::fs::remove_file(root.join(".sentrux").join("session-v2.json"))
+            .expect("remove v2 session baseline");
+
+        let mut state = fresh_mcp_state();
+        state.scan_root = Some(root.clone());
+
+        let response =
+            handle_session_end(&json!({}), &Tier::Free, &mut state).expect("session end");
+
+        assert_eq!(response["pass"], true);
+        assert_eq!(response["touched_concept_gate"]["decision"], "pass");
+        assert!(response["confidence"]["session_baseline"]["loaded"]
+            .as_bool()
+            .is_some_and(|loaded| !loaded));
+        assert!(response["baseline_error"].is_null());
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn session_end_reports_incompatible_session_v2_baseline_in_confidence() {
+        let root = closed_domain_gate_fixture_root();
+        cli_save_v2_session(&root).expect("save v2 session");
+        write_file(
+            &root,
+            ".sentrux/session-v2.json",
+            &serde_json::to_string_pretty(&json!({
+                "schema_version": SESSION_V2_SCHEMA_VERSION + 1,
+                "file_hashes": {},
+                "finding_payloads": {}
+            }))
+            .expect("serialize"),
+        );
+
+        let mut state = fresh_mcp_state();
+        state.scan_root = Some(root.clone());
+
+        let response =
+            handle_session_end(&json!({}), &Tier::Free, &mut state).expect("session end");
+
+        assert_eq!(response["pass"], true);
+        assert_eq!(
+            response["confidence"]["session_baseline"]["compatible"],
+            false
+        );
+        assert_eq!(
+            response["confidence"]["session_baseline"]["schema_version"],
+            SESSION_V2_SCHEMA_VERSION + 1
+        );
+        assert!(response["confidence"]["session_baseline"]["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("Unsupported"));
+        assert!(response["baseline_error"].is_null());
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn session_end_reports_project_mismatch_session_v2_baseline_in_confidence() {
+        let root = closed_domain_gate_fixture_root();
+        cli_save_v2_session(&root).expect("save v2 session");
+        write_file(
+            &root,
+            ".sentrux/session-v2.json",
+            &serde_json::to_string_pretty(&json!({
+                "schema_version": SESSION_V2_SCHEMA_VERSION,
+                "project_fingerprint": "different-project",
+                "sentrux_version": env!("CARGO_PKG_VERSION"),
+                "file_hashes": {},
+                "finding_payloads": {}
+            }))
+            .expect("serialize"),
+        );
+
+        let mut state = fresh_mcp_state();
+        state.scan_root = Some(root.clone());
+
+        let response =
+            handle_session_end(&json!({}), &Tier::Free, &mut state).expect("session end");
+
+        assert_eq!(response["pass"], true);
+        assert_eq!(
+            response["confidence"]["session_baseline"]["compatible"],
+            false
+        );
+        assert_eq!(
+            response["confidence"]["session_baseline"]["schema_version"],
+            SESSION_V2_SCHEMA_VERSION
+        );
+        assert!(response["confidence"]["session_baseline"]["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("project fingerprint"));
+        assert!(response["baseline_error"].is_null());
 
         let _ = std::fs::remove_dir_all(root);
     }
@@ -5132,10 +5297,51 @@ mod tests {
         )
         .expect("write broken rules");
 
-        let (config, error) = load_v2_rules_config(&root);
+        let mut state = fresh_mcp_state();
+        let (config, error) = load_v2_rules_config(&mut state, &root);
 
         assert!(config.concept.is_empty());
         assert!(error
+            .as_deref()
+            .unwrap_or_default()
+            .contains("Failed to parse"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn rules_cache_reloads_when_rules_file_changes() {
+        let root = temp_root("rules-cache-reload");
+        write_file(
+            &root,
+            ".sentrux/rules.toml",
+            r#"
+                [[concept]]
+                id = "task_git_status"
+                anchors = ["src/store/core.ts::store.taskGitStatus"]
+                allowed_writers = ["src/app/git-status-sync.ts::*"]
+            "#,
+        );
+
+        let mut state = fresh_mcp_state();
+        let (first_config, first_error) = load_v2_rules_config(&mut state, &root);
+        assert_eq!(first_config.concept.len(), 1);
+        assert!(first_error.is_none());
+
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        write_file(
+            &root,
+            ".sentrux/rules.toml",
+            r#"
+                [[concept]]
+                id = "broken"
+                anchors = [
+            "#,
+        );
+
+        let (second_config, second_error) = load_v2_rules_config(&mut state, &root);
+        assert!(second_config.concept.is_empty());
+        assert!(second_error
             .as_deref()
             .unwrap_or_default()
             .contains("Failed to parse"));
@@ -5600,7 +5806,7 @@ fn handle_session_start(
     let baseline_path = save_baseline(&root, &baseline)?;
     let (session_v2, suppression_application, semantic_error) =
         build_session_v2_baseline(state, &root, &snapshot, &health, &metadata);
-    let (rules_config, _) = load_v2_rules_config(&root);
+    let (rules_config, _) = load_v2_rules_config(state, &root);
 
     state.baseline = Some(baseline);
     let session_v2_baseline_path = save_session_v2_baseline(&root, &session_v2)?;
@@ -5677,7 +5883,7 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         patch_cache_identity,
     );
     let current_finding_payloads = finding_payload_map(&analysis.visible_findings);
-    let (rules_config, _) = load_v2_rules_config(&root);
+    let (rules_config, _) = load_v2_rules_config(state, &root);
     let changed_concepts = analysis
         .changed_touched_concepts
         .iter()
@@ -5938,7 +6144,7 @@ fn handle_concepts(_args: &Value, _tier: &Tier, state: &mut McpState) -> Result<
         .scan_root
         .clone()
         .ok_or("No scan root. Call 'scan' first.")?;
-    let (config, rules_error) = load_v2_rules_config(&root);
+    let (config, rules_error) = load_v2_rules_config(state, &root);
     let graph = crate::analysis::concepts::extract_concept_graph(&config);
     let coverage = config.v2_rule_coverage();
     let guardrail_tests = crate::analysis::concepts::detect_guardrail_tests(&root, &config);
@@ -6038,7 +6244,7 @@ fn handle_explain_concept(
         .filter(|finding| finding.concept_id == concept_id)
         .collect::<Vec<_>>();
     let (suppression_application, rules_error) =
-        apply_root_suppressions(&root, serialized_values(&explain_findings));
+        apply_root_suppressions(state, &root, serialized_values(&explain_findings));
     let explain_obligations = obligations
         .into_iter()
         .filter(|obligation| obligation.concept_id.as_deref() == Some(concept_id))
@@ -6138,7 +6344,7 @@ fn handle_trace_symbol(args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         .get("symbol")
         .and_then(|value| value.as_str())
         .ok_or("Missing 'symbol' argument")?;
-    let (config, rules_error) = load_v2_rules_config(&root);
+    let (config, rules_error) = load_v2_rules_config(state, &root);
     let semantic = analyze_semantic_snapshot(state, &root)
         .map_err(|error| {
             merge_optional_errors(rules_error.clone(), Some(error))
@@ -6248,7 +6454,7 @@ fn handle_trace_symbol(args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         })
         .collect::<Vec<_>>();
     let (suppression_application, suppression_rules_error) =
-        apply_root_suppressions(&root, serialized_values(&findings));
+        apply_root_suppressions(state, &root, serialized_values(&findings));
     let obligations = obligations
         .into_iter()
         .filter(|obligation| {
