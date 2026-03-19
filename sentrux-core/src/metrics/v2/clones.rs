@@ -1007,15 +1007,15 @@ mod tests {
             DuplicateGroup {
                 hash: 12,
                 instances: vec![
-                    ("src/c.ts".to_string(), "dup_e".to_string(), 8),
-                    ("src/d.ts".to_string(), "dup_f".to_string(), 8),
+                    ("src/c.ts".to_string(), "dup_e".to_string(), 10),
+                    ("src/d.ts".to_string(), "dup_f".to_string(), 10),
                 ],
             },
             DuplicateGroup {
                 hash: 13,
                 instances: vec![
-                    ("src/c.ts".to_string(), "dup_g".to_string(), 8),
-                    ("src/d.ts".to_string(), "dup_h".to_string(), 8),
+                    ("src/c.ts".to_string(), "dup_g".to_string(), 10),
+                    ("src/d.ts".to_string(), "dup_h".to_string(), 10),
                 ],
             },
         ];
