@@ -567,7 +567,7 @@
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.projects' is touched from 19 file(s)"
+        "symbol 'store.projects' is touched from 20 file(s)"
       ],
       "id": "store_projects",
       "kind": "store_like_symbol"
@@ -673,6 +673,17 @@
     },
     {
       "anchors": [
+        "src/components/SidebarFooter.test.tsx::store.sidebarSectionCollapsed"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.sidebarSectionCollapsed' is touched from 6 file(s)"
+      ],
+      "id": "store_sidebar_section_collapsed",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
         "src/App.tsx::store.sidebarVisible"
       ],
       "confidence_0_10000": 7500,
@@ -721,9 +732,20 @@
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.taskNotificationsEnabled' is touched from 8 file(s)"
+        "symbol 'store.taskNotificationsEnabled' is touched from 9 file(s)"
       ],
       "id": "store_task_notifications_enabled",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/store/client-session.test.ts::store.taskNotificationsPreferenceInitialized"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.taskNotificationsPreferenceInitialized' is touched from 5 file(s)"
+      ],
+      "id": "store_task_notifications_preference_initialized",
       "kind": "store_like_symbol"
     },
     {
@@ -856,6 +878,17 @@
         "closed domain 'AnyServerStateBootstrapSnapshot' has 1 exhaustiveness site(s)"
       ],
       "id": "any_server_state_bootstrap_snapshot",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/app/app-startup-status.ts::AppStartupPhase"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'AppStartupPhase' has 1 exhaustiveness site(s)"
+      ],
+      "id": "app_startup_phase",
       "kind": "closed_domain"
     },
     {
@@ -1533,7 +1566,7 @@
     "configured_concept_count": 3,
     "contract_count": 1,
     "guardrail_test_count": 7,
-    "inferred_concept_count": 120,
+    "inferred_concept_count": 123,
     "matched_guardrail_test_count": 1,
     "state_model_count": 2
   },

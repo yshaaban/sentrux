@@ -7,13 +7,13 @@ Source report: `docs/v2/examples/parallel-code-head-engineer-report.md`
 ## Category Counts
 
 - `incorrect`: 1
-- `useful`: 6
+- `useful`: 7
 - `useful_watchpoint`: 2
 
 ## Expected Trust Tiers
 
 - `experimental`: 1
-- `trusted`: 7
+- `trusted`: 8
 - `watchpoint`: 1
 
 ## Expected Presentation Classes
@@ -21,7 +21,7 @@ Source report: `docs/v2/examples/parallel-code-head-engineer-report.md`
 - `experimental`: 1
 - `guarded_facade`: 1
 - `hardening_note`: 1
-- `structural_debt`: 4
+- `structural_debt`: 5
 - `tooling_debt`: 1
 - `watchpoint`: 1
 
@@ -31,10 +31,21 @@ Source report: `docs/v2/examples/parallel-code-head-engineer-report.md`
 - `boundary_discipline`: 1
 - `experimental`: 1
 - `hardening_note`: 1
-- `local_refactor_target`: 1
+- `local_refactor_target`: 2
 - `regrowth_watchpoint`: 1
 - `secondary_cleanup`: 1
 - `tooling_debt`: 1
+
+## Expected Summary Presence
+
+- `headline`: 4
+- `section_present`: 5
+- `side_channel`: 1
+
+## Ranking Preferences
+
+- `src/components/TaskPanel.tsx` should rank ahead of `src/components/ReviewPanel.tsx`
+- `src/store/store.ts` should rank ahead of `src/App.tsx`
 
 ## Detailed Verdicts
 
@@ -46,6 +57,8 @@ Source report: `docs/v2/examples/parallel-code-head-engineer-report.md`
 - expected trust tier: `trusted`
 - expected presentation class: `structural_debt`
 - expected leverage class: `architecture_signal`
+- expected summary presence: `headline`
+- preferred over: `src/App.tsx`
 - engineer note: The strongest architecture signal is the component-facing barrel inside the largest mixed subsystem. Fan-in, instability, and cycle position matter more than file size.
 - expected v2 behavior: Keep this as a lead architecture signal and explain it as a boundary hub inside a mixed cycle, not as generic large-file debt.
 
@@ -57,6 +70,7 @@ Source report: `docs/v2/examples/parallel-code-head-engineer-report.md`
 - expected trust tier: `watchpoint`
 - expected presentation class: `watchpoint`
 - expected leverage class: `architecture_signal`
+- expected summary presence: `headline`
 - engineer note: Cycle clustering is the strongest repo-wide architecture metric when it highlights mixed ownership and boundary ambiguity.
 - expected v2 behavior: Keep the cycle prominent as an architecture signal, but frame it as a watchpoint with cut-candidate context rather than a mandatory refactor queue.
 
@@ -68,8 +82,22 @@ Source report: `docs/v2/examples/parallel-code-head-engineer-report.md`
 - expected trust tier: `trusted`
 - expected presentation class: `structural_debt`
 - expected leverage class: `local_refactor_target`
+- expected summary presence: `headline`
+- preferred over: `src/components/ReviewPanel.tsx`
 - engineer note: This is the best contained refactor target because the repo already declares it as a guarded shell with extracted owners.
 - expected v2 behavior: Surface this as a strong local refactor target when dependency breadth overlaps declared extracted-owner boundaries.
+
+### src/components/ReviewPanel.tsx
+
+- kind: `dependency_sprawl`
+- category: `useful`
+- report bucket: `Best Local Refactor Targets`
+- expected trust tier: `trusted`
+- expected presentation class: `structural_debt`
+- expected leverage class: `local_refactor_target`
+- expected summary presence: `section_present`
+- engineer note: This is a credible contained refactor target, but it should rank behind TaskPanel.tsx because the ownership signal is weaker.
+- expected v2 behavior: Keep this visible in the local-refactor bucket without letting it outrank stronger contained surfaces backed by clearer ownership guardrails.
 
 ### src/lib/ipc.ts
 
@@ -79,6 +107,7 @@ Source report: `docs/v2/examples/parallel-code-head-engineer-report.md`
 - expected trust tier: `trusted`
 - expected presentation class: `guarded_facade`
 - expected leverage class: `boundary_discipline`
+- expected summary presence: `headline`
 - engineer note: The useful question is whether domain or lifecycle policy is leaking into transport glue, not whether central fan-in alone is bad.
 - expected v2 behavior: Treat guarded transport facades as boundary-discipline findings and emphasize glue-leakage risk over raw hotspot language.
 
@@ -90,6 +119,7 @@ Source report: `docs/v2/examples/parallel-code-head-engineer-report.md`
 - expected trust tier: `trusted`
 - expected presentation class: `structural_debt`
 - expected leverage class: `regrowth_watchpoint`
+- expected summary presence: `section_present`
 - engineer note: Composition roots naturally have broad fan-out. The value here is to keep shell ownership from regrowing, not to force major surgery.
 - expected v2 behavior: Surface broad composition roots as regrowth watchpoints unless other evidence shows they are the highest-leverage architecture change.
 
@@ -101,6 +131,7 @@ Source report: `docs/v2/examples/parallel-code-head-engineer-report.md`
 - expected trust tier: `trusted`
 - expected presentation class: `structural_debt`
 - expected leverage class: `secondary_cleanup`
+- expected summary presence: `section_present`
 - engineer note: This public lifecycle facade still has meaningful pressure, but it should read as careful secondary cleanup rather than the lead architecture problem.
 - expected v2 behavior: Keep extracted-owner lifecycle facades visible as secondary cleanup when they overlap several real signals without being the highest-leverage target.
 
@@ -112,6 +143,7 @@ Source report: `docs/v2/examples/parallel-code-head-engineer-report.md`
 - expected trust tier: `trusted`
 - expected presentation class: `hardening_note`
 - expected leverage class: `hardening_note`
+- expected summary presence: `section_present`
 - engineer note: The missing exhaustiveness is real, but it belongs in targeted hardening because the lifecycle model already exists elsewhere.
 - expected v2 behavior: Keep narrow exhaustiveness findings visible as hardening notes and do not let them lead the architecture summary.
 
@@ -123,6 +155,7 @@ Source report: `docs/v2/examples/parallel-code-head-engineer-report.md`
 - expected trust tier: `trusted`
 - expected presentation class: `tooling_debt`
 - expected leverage class: `tooling_debt`
+- expected summary presence: `section_present`
 - engineer note: The script is a real maintenance burden, but it should not compete directly with app/runtime architecture priorities.
 - expected v2 behavior: Separate script and tooling pressure into tooling debt so it stays visible without distorting the main architectural story.
 
@@ -134,6 +167,7 @@ Source report: `docs/v2/examples/parallel-code-head-engineer-report.md`
 - expected trust tier: `experimental`
 - expected presentation class: `experimental`
 - expected leverage class: `experimental`
+- expected summary presence: `side_channel`
 - engineer note: This detector still claims live helpers are stale, so it should not influence maintainer-facing prioritization.
 - expected v2 behavior: Keep this detector quarantined as experimental until same-file and TSX helper usage are reliable.
 

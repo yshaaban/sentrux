@@ -1,8 +1,8 @@
 {
   "baseline_delta": {
     "available": true,
-    "coupling_after": 0.47384774728120144,
-    "coupling_before": 0.47384774728120144,
+    "coupling_after": 0.4743263853584138,
+    "coupling_before": 0.4743263853584138,
     "cycles_after": 2,
     "cycles_before": 2,
     "degraded": false,
@@ -17,7 +17,7 @@
   "concept_summary_count": 0,
   "confidence": {
     "rule_coverage_0_10000": 10000,
-    "scan_confidence_0_10000": 8264,
+    "scan_confidence_0_10000": 8282,
     "semantic_rules_loaded": true,
     "session_baseline": {
       "compatible": true,
@@ -27,8 +27,8 @@
     }
   },
   "coupling_change": [
-    0.47384774728120144,
-    0.47384774728120144
+    0.4743263853584138,
+    0.4743263853584138
   ],
   "cycles_change": [
     2,
@@ -147,6 +147,57 @@
         "dependency_sprawl"
       ],
       "summary": "Files src/store/store.ts, src/app/agent-catalog.ts, src/app/remote-access.ts, and 47 more intersect 6 debt signals: unstable_hotspot, cycle_cluster, large_file, dependency_sprawl",
+      "trust_tier": "trusted"
+    },
+    {
+      "evidence": [
+        "overlapping signals: 2",
+        "signal kinds: dependency_sprawl, cycle_cluster",
+        "affected files: 2",
+        "dependency_sprawl: File 'electron/ipc/handlers.ts' depends on 16 real surfaces, above the typescript threshold of 15",
+        "cycle_cluster: Files electron/ipc/handlers.ts, electron/ipc/notification-handlers.ts form a dependency cycle"
+      ],
+      "files": [
+        "electron/ipc/handlers.ts",
+        "electron/ipc/notification-handlers.ts"
+      ],
+      "impact": "Multiple overlapping debt signals in the same surface increase change cost and make regressions harder to isolate.",
+      "inspection_focus": [
+        "inspect whether orchestration and policy code can move behind narrower helpers",
+        "inspect whether unrelated adapter dependencies are accumulating in one module",
+        "inspect whether one back-edge can be removed by splitting contracts from implementations",
+        "inspect whether shared types can move to a lower-dependency seam"
+      ],
+      "leverage_class": "architecture_signal",
+      "leverage_reasons": [
+        "contained_dependency_pressure",
+        "mixed_cycle_pressure",
+        "high_leverage_cycle_cut"
+      ],
+      "metrics": {
+        "clone_family_count": 0,
+        "concept_count": 0,
+        "file_count": 2,
+        "hotspot_count": 0,
+        "signal_count": 2,
+        "structural_signal_count": 2
+      },
+      "presentation_class": "structural_debt",
+      "role_tags": [],
+      "scope": "cluster:electron/ipc/handlers.ts|electron/ipc/notification-handlers.ts",
+      "score_0_10000": 7329,
+      "severity": "high",
+      "signal_families": [
+        "coupling",
+        "coordination",
+        "dependency",
+        "layering"
+      ],
+      "signal_kinds": [
+        "dependency_sprawl",
+        "cycle_cluster"
+      ],
+      "summary": "Files electron/ipc/handlers.ts, electron/ipc/notification-handlers.ts intersect 2 debt signals: dependency_sprawl, cycle_cluster",
       "trust_tier": "trusted"
     },
     {
@@ -299,57 +350,6 @@
       ],
       "summary": "File 'electron/ipc/system-handlers.ts' intersects 2 debt signals: dependency_sprawl, large_file",
       "trust_tier": "trusted"
-    },
-    {
-      "evidence": [
-        "overlapping signals: 2",
-        "signal kinds: dependency_sprawl, cycle_cluster",
-        "affected files: 2",
-        "dependency_sprawl: File 'electron/ipc/handlers.ts' depends on 16 real surfaces, above the typescript threshold of 15",
-        "cycle_cluster: Files electron/ipc/handlers.ts, electron/ipc/notification-handlers.ts form a dependency cycle"
-      ],
-      "files": [
-        "electron/ipc/handlers.ts",
-        "electron/ipc/notification-handlers.ts"
-      ],
-      "impact": "Multiple overlapping debt signals in the same surface increase change cost and make regressions harder to isolate.",
-      "inspection_focus": [
-        "inspect whether orchestration and policy code can move behind narrower helpers",
-        "inspect whether unrelated adapter dependencies are accumulating in one module",
-        "inspect whether one back-edge can be removed by splitting contracts from implementations",
-        "inspect whether shared types can move to a lower-dependency seam"
-      ],
-      "leverage_class": "architecture_signal",
-      "leverage_reasons": [
-        "contained_dependency_pressure",
-        "mixed_cycle_pressure",
-        "high_leverage_cycle_cut"
-      ],
-      "metrics": {
-        "clone_family_count": 0,
-        "concept_count": 0,
-        "file_count": 2,
-        "hotspot_count": 0,
-        "signal_count": 2,
-        "structural_signal_count": 2
-      },
-      "presentation_class": "structural_debt",
-      "role_tags": [],
-      "scope": "cluster:electron/ipc/handlers.ts|electron/ipc/notification-handlers.ts",
-      "score_0_10000": 5571,
-      "severity": "medium",
-      "signal_families": [
-        "coupling",
-        "coordination",
-        "dependency",
-        "layering"
-      ],
-      "signal_kinds": [
-        "dependency_sprawl",
-        "cycle_cluster"
-      ],
-      "summary": "Files electron/ipc/handlers.ts, electron/ipc/notification-handlers.ts intersect 2 debt signals: dependency_sprawl, cycle_cluster",
-      "trust_tier": "trusted"
     }
   ],
   "debt_context_error": null,
@@ -362,11 +362,11 @@
         "app dependency boundary"
       ],
       "evidence": [
-        "fan-out: 32",
+        "fan-out: 33",
         "fan-out threshold: 15",
         "instability: 0.97",
-        "dominant dependency categories: components(16), lib(5), app(3)",
-        "sample dependencies: src/app/app-action-keys.ts, src/app/desktop-session.ts, src/app/task-command-lease.ts",
+        "dominant dependency categories: components(16), lib(5), app(4)",
+        "sample dependencies: src/app/app-action-keys.ts, src/app/app-startup-status.ts, src/app/desktop-session.ts",
         "guardrail tests: src/app/store-boundary.architecture.test.ts"
       ],
       "files": [
@@ -385,20 +385,20 @@
       ],
       "metrics": {
         "fan_in": 1,
-        "fan_out": 32,
+        "fan_out": 33,
         "file_count": 1,
         "function_count": 29,
         "guardrail_test_count": 1,
-        "instability_0_10000": 9697,
-        "line_count": 398,
+        "instability_0_10000": 9706,
+        "line_count": 403,
         "max_complexity": 2,
         "role_count": 2
       },
       "presentation_class": "structural_debt",
       "related_surfaces": [
         "src/app/app-action-keys.ts",
+        "src/app/app-startup-status.ts",
         "src/app/desktop-session.ts",
-        "src/app/task-command-lease.ts",
         "src/app/store-boundary.architecture.test.ts"
       ],
       "role_tags": [
@@ -406,14 +406,14 @@
         "composition_root"
       ],
       "scope": "src/App.tsx",
-      "score_0_10000": 8424,
+      "score_0_10000": 8426,
       "severity": "high",
       "signal_class": "debt",
       "signal_families": [
         "coupling",
         "coordination"
       ],
-      "summary": "Composition root 'src/App.tsx' depends on 32 real surfaces, above the typescript threshold of 15",
+      "summary": "Composition root 'src/App.tsx' depends on 33 real surfaces, above the typescript threshold of 15",
       "trust_tier": "trusted"
     },
     {
@@ -444,6 +444,7 @@
       "leverage_reasons": [
         "extracted_owner_shell_pressure",
         "guardrail_backed_refactor_surface",
+        "contained_refactor_surface",
         "contained_dependency_pressure"
       ],
       "metrics": {
@@ -754,7 +755,7 @@
       "evidence": [
         "dead private functions: 21",
         "dead private lines: 115",
-        "sample dead functions: handleCustomExpose, getAvailablePortsFallbackMessage, openPreviewInNewTab",
+        "sample dead functions: getAvailablePortsFallbackMessage, handleCustomExpose, OpenTabIcon",
         "total file lines: 895"
       ],
       "files": [
@@ -903,7 +904,7 @@
       "concept_id": "cycle:src/app/agent-catalog.ts|src/app/remote-access.ts|src/app/task-attention.ts|src/app/task-close-state.ts|src/app/task-command-dispatch.ts|src/app/task-command-lease-runtime-subscriptions.ts|src/app/task-command-lease-runtime.ts|src/app/task-command-lease-session.ts|src/app/task-command-lease-takeover.ts|src/app/task-command-lease.ts|src/app/task-convergence.ts|src/app/task-lifecycle-workflows.ts|src/app/task-presentation-status.ts|src/app/task-prompt-workflows.ts|src/app/task-review-state.ts|src/app/task-shell-workflows.ts|src/app/task-workflows.ts|src/lib/runtime-client-id.ts|src/store/agent-output-activity.ts|src/store/agents.ts|src/store/auto-trust.ts|src/store/client-session.ts|src/store/completion.ts|src/store/core.ts|src/store/focus.ts|src/store/keyed-snapshot-record.ts|src/store/navigation.ts|src/store/notification.ts|src/store/peer-presence.ts|src/store/persistence-codecs.ts|src/store/persistence-load-context.ts|src/store/persistence-load.ts|src/store/persistence-projects.ts|src/store/persistence-save.ts|src/store/persistence-terminal-restore.ts|src/store/persistence.ts|src/store/projects.ts|src/store/remote.ts|src/store/review.ts|src/store/sidebar-order.ts|src/store/state.ts|src/store/store.ts|src/store/task-command-controllers.ts|src/store/task-command-takeovers.ts|src/store/task-git-status.ts|src/store/task-state-cleanup.ts|src/store/taskStatus.ts|src/store/tasks.ts|src/store/terminals.ts|src/store/ui.ts",
       "evidence": [
         "cycle size: 50",
-        "total lines in cycle: 6942",
+        "total lines in cycle: 6963",
         "peak function complexity inside cycle: 72",
         "candidate cuts: 3",
         "best cut candidate: src/store/core.ts -> src/store/store.ts (removes 14 cyclic files)",
@@ -989,8 +990,8 @@
       ],
       "hotspot_count": 0,
       "missing_site_count": 0,
-      "score_0_10000": 5071,
-      "severity": "medium",
+      "score_0_10000": 6829,
+      "severity": "high",
       "suggested_actions": [
         "inspect whether one back-edge can be removed by splitting contracts from implementations",
         "inspect whether shared types can move to a lower-dependency seam"
@@ -1003,11 +1004,11 @@
   "quality_opportunities": [
     {
       "evidence": [
-        "fan-out: 32",
+        "fan-out: 33",
         "fan-out threshold: 15",
         "instability: 0.97",
-        "dominant dependency categories: components(16), lib(5), app(3)",
-        "sample dependencies: src/app/app-action-keys.ts, src/app/desktop-session.ts, src/app/task-command-lease.ts",
+        "dominant dependency categories: components(16), lib(5), app(4)",
+        "sample dependencies: src/app/app-action-keys.ts, src/app/app-startup-status.ts, src/app/desktop-session.ts",
         "guardrail tests: src/app/store-boundary.architecture.test.ts"
       ],
       "files": [
@@ -1016,13 +1017,13 @@
       "impact": "Broad dependency fan-out in a composition root makes shell wiring and runtime ownership harder to keep separate.",
       "kind": "dependency_sprawl",
       "scope": "src/App.tsx",
-      "score_0_10000": 8424,
+      "score_0_10000": 8426,
       "severity": "high",
       "suggested_actions": [
         "inspect whether view composition can stay separate from runtime or session wiring",
         "inspect whether shell responsibilities are spreading across too many direct imports"
       ],
-      "summary": "Composition root 'src/App.tsx' depends on 32 real surfaces, above the typescript threshold of 15"
+      "summary": "Composition root 'src/App.tsx' depends on 33 real surfaces, above the typescript threshold of 15"
     },
     {
       "evidence": [
@@ -1123,7 +1124,7 @@
   "resolved_findings": [],
   "rules_error": null,
   "scan_trust": {
-    "candidate_files": 772,
+    "candidate_files": 780,
     "exclusions": {
       "bucketed": {
         "build": 12,
@@ -1138,19 +1139,19 @@
       "total": 134
     },
     "fallback_reason": null,
-    "kept_files": 638,
+    "kept_files": 646,
     "mode": "git",
-    "overall_confidence_0_10000": 8264,
+    "overall_confidence_0_10000": 8282,
     "partial": false,
     "resolution": {
       "internal_confidence_0_10000": 9995,
-      "resolved": 1932,
-      "unresolved_external": 523,
+      "resolved": 1968,
+      "unresolved_external": 528,
       "unresolved_internal": 1,
-      "unresolved_unknown": 83
+      "unresolved_unknown": 85
     },
-    "scope_coverage_0_10000": 8264,
-    "tracked_candidates": 772,
+    "scope_coverage_0_10000": 8282,
+    "tracked_candidates": 780,
     "truncated": false,
     "untracked_candidates": 0
   },
@@ -1177,7 +1178,7 @@
       "clone_family_count": 0,
       "evidence": [
         "cycle size: 50",
-        "total lines in cycle: 6942",
+        "total lines in cycle: 6963",
         "peak function complexity inside cycle: 72",
         "candidate cuts: 3",
         "best cut candidate: src/store/core.ts -> src/store/store.ts (removes 14 cyclic files)",
@@ -1314,8 +1315,8 @@
       ],
       "role_tags": [],
       "scope": "cycle:electron/ipc/handlers.ts|electron/ipc/notification-handlers.ts",
-      "score_0_10000": 5071,
-      "severity": "medium",
+      "score_0_10000": 6829,
+      "severity": "high",
       "signal_families": [
         "dependency",
         "layering"

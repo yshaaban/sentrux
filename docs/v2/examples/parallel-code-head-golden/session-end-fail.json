@@ -1,8 +1,8 @@
 {
   "baseline_delta": {
     "available": true,
-    "coupling_after": 0.47384774728120144,
-    "coupling_before": 0.47384774728120144,
+    "coupling_after": 0.4743263853584138,
+    "coupling_before": 0.4743263853584138,
     "cycles_after": 2,
     "cycles_before": 2,
     "degraded": false,
@@ -44,7 +44,7 @@
   "concept_summary_count": 1,
   "confidence": {
     "rule_coverage_0_10000": 10000,
-    "scan_confidence_0_10000": 8264,
+    "scan_confidence_0_10000": 8282,
     "semantic_rules_loaded": true,
     "session_baseline": {
       "compatible": true,
@@ -54,8 +54,8 @@
     }
   },
   "coupling_change": [
-    0.47384774728120144,
-    0.47384774728120144
+    0.4743263853584138,
+    0.4743263853584138
   ],
   "cycles_change": [
     2,
@@ -284,7 +284,7 @@
       "trust_tier": "experimental"
     }
   ],
-  "experimental_finding_count": 3,
+  "experimental_finding_count": 2,
   "experimental_findings": [
     {
       "evidence": [
@@ -332,13 +332,13 @@
     },
     {
       "evidence": [
-        "dead private functions: 21",
-        "dead private lines: 115",
-        "sample dead functions: getAvailablePortsFallbackMessage, handleCustomExpose, openPreviewInNewTab",
-        "total file lines: 895"
+        "dead private functions: 4",
+        "dead private lines: 57",
+        "sample dead functions: countMatches, getTotalRemoved, getTotalAdded",
+        "total file lines: 335"
       ],
       "files": [
-        "src/components/PreviewPanel.tsx"
+        "src/components/DiffViewerDialog.tsx"
       ],
       "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
       "inspection_focus": [
@@ -351,53 +351,12 @@
         "detector_under_evaluation"
       ],
       "metrics": {
-        "dead_line_count": 115,
-        "dead_symbol_count": 21,
+        "dead_line_count": 57,
+        "dead_symbol_count": 4,
         "file_count": 1,
-        "function_count": 39,
-        "line_count": 895,
-        "max_complexity": 11,
-        "role_count": 0
-      },
-      "presentation_class": "experimental",
-      "scope": "src/components/PreviewPanel.tsx",
-      "score_0_10000": 7170,
-      "severity": "high",
-      "signal_class": "watchpoint",
-      "signal_families": [
-        "staleness",
-        "maintainability"
-      ],
-      "summary": "File 'src/components/PreviewPanel.tsx' contains 21 uncalled private functions totaling 115 lines",
-      "trust_tier": "experimental"
-    },
-    {
-      "evidence": [
-        "dead private functions: 6",
-        "dead private lines: 20",
-        "sample dead functions: getReviewStateColor, handleScrollToAnnotation, convergence",
-        "total file lines: 388"
-      ],
-      "files": [
-        "src/components/ReviewPanel.tsx"
-      ],
-      "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
-      "inspection_focus": [
-        "inspect whether the dead helpers should be deleted or intentionally reconnected",
-        "inspect whether the file still reflects the supported control flow"
-      ],
-      "kind": "dead_private_code_cluster",
-      "leverage_class": "experimental",
-      "leverage_reasons": [
-        "detector_under_evaluation"
-      ],
-      "metrics": {
-        "dead_line_count": 20,
-        "dead_symbol_count": 6,
-        "file_count": 1,
-        "function_count": 28,
-        "line_count": 388,
-        "max_complexity": 13,
+        "function_count": 11,
+        "line_count": 335,
+        "max_complexity": 17,
         "role_count": 2
       },
       "presentation_class": "experimental",
@@ -405,15 +364,15 @@
         "guarded_seam",
         "facade_with_extracted_owners"
       ],
-      "scope": "src/components/ReviewPanel.tsx",
-      "score_0_10000": 5460,
+      "scope": "src/components/DiffViewerDialog.tsx",
+      "score_0_10000": 6126,
       "severity": "medium",
       "signal_class": "watchpoint",
       "signal_families": [
         "staleness",
         "maintainability"
       ],
-      "summary": "File 'src/components/ReviewPanel.tsx' contains 6 uncalled private functions totaling 20 lines",
+      "summary": "File 'src/components/DiffViewerDialog.tsx' contains 4 uncalled private functions totaling 57 lines",
       "trust_tier": "experimental"
     }
   ],
@@ -801,7 +760,7 @@
   ],
   "rules_error": null,
   "scan_trust": {
-    "candidate_files": 772,
+    "candidate_files": 780,
     "exclusions": {
       "bucketed": {
         "build": 12,
@@ -816,19 +775,19 @@
       "total": 134
     },
     "fallback_reason": null,
-    "kept_files": 638,
+    "kept_files": 646,
     "mode": "git",
-    "overall_confidence_0_10000": 8264,
+    "overall_confidence_0_10000": 8282,
     "partial": false,
     "resolution": {
       "internal_confidence_0_10000": 9995,
-      "resolved": 1932,
-      "unresolved_external": 523,
+      "resolved": 1968,
+      "unresolved_external": 528,
       "unresolved_internal": 1,
-      "unresolved_unknown": 83
+      "unresolved_unknown": 85
     },
-    "scope_coverage_0_10000": 8264,
-    "tracked_candidates": 772,
+    "scope_coverage_0_10000": 8282,
+    "tracked_candidates": 780,
     "truncated": false,
     "untracked_candidates": 0
   },

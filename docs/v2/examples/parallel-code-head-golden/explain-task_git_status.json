@@ -86,25 +86,25 @@
         "symbol_name": "store.taskGitStatus"
       },
       {
-        "line": 855,
+        "line": 888,
         "path": "src/store/persistence.test.ts",
         "read_kind": "element_access",
         "symbol_name": "store.taskGitStatus.task-1"
       },
       {
-        "line": 855,
+        "line": 888,
         "path": "src/store/persistence.test.ts",
         "read_kind": "property_access",
         "symbol_name": "store.taskGitStatus"
       },
       {
-        "line": 1094,
+        "line": 1127,
         "path": "src/store/persistence.test.ts",
         "read_kind": "element_access",
         "symbol_name": "store.taskGitStatus.task-1"
       },
       {
-        "line": 1094,
+        "line": 1127,
         "path": "src/store/persistence.test.ts",
         "read_kind": "property_access",
         "symbol_name": "store.taskGitStatus"
@@ -142,13 +142,13 @@
         "write_kind": "store_call"
       },
       {
-        "line": 813,
+        "line": 846,
         "path": "src/store/persistence.test.ts",
         "symbol_name": "store.taskGitStatus",
         "write_kind": "store_call"
       },
       {
-        "line": 1058,
+        "line": 1091,
         "path": "src/store/persistence.test.ts",
         "symbol_name": "store.taskGitStatus",
         "write_kind": "store_call"

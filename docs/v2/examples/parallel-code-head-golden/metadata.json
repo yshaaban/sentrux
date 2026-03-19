@@ -1,62 +1,21 @@
 {
-  "generated_at": "2026-03-19T22:37:49Z",
+  "generated_at": "2026-03-19T23:26:10Z",
   "parallel_code_root": "<parallel-code-root>",
   "analysis_mode": "head_clone",
   "source_tree_identity": {
-    "commit": "76772b8a37d5de0d0ffba06130218c5f12e40511",
-    "dirty_paths": [
-      "docs/ARCHITECTURE.md",
-      "docs/TESTING.md",
-      "docs/UPSTREAM-DIVERGENCE.md",
-      "src/App.test.tsx",
-      "src/App.tsx",
-      "src/app/desktop-session-startup.ts",
-      "src/app/desktop-session.test.ts",
-      "src/app/desktop-session.ts",
-      "src/app/task-notification-capabilities.test.tsx",
-      "src/app/task-notification-capabilities.ts",
-      "src/app/task-notification-runtime.test.tsx",
-      "src/components/DisplayNameDialog.tsx",
-      "src/components/IconButton.tsx",
-      "src/components/SettingsDialog.test.tsx",
-      "src/components/SettingsDialog.tsx",
-      "src/components/Sidebar.test.tsx",
-      "src/components/Sidebar.tsx",
-      "src/components/SidebarFooter.test.tsx",
-      "src/components/SidebarFooter.tsx",
-      "src/components/TerminalStartupChip.test.tsx",
-      "src/components/TerminalStartupChip.tsx",
-      "src/components/sidebar/SidebarProjectsSection.tsx",
-      "src/domain/task-notification.ts",
-      "src/store/client-session.test.ts",
-      "src/store/client-session.ts",
-      "src/store/core.ts",
-      "src/store/persistence-codecs.ts",
-      "src/store/persistence-legacy-state.ts",
-      "src/store/persistence-load.ts",
-      "src/store/persistence.test.ts",
-      "src/store/types.ts",
-      "src/store/ui.ts",
-      "src/test/store-test-helpers.ts",
-      "src/app/app-startup-status.test.ts",
-      "src/app/app-startup-status.ts",
-      "src/components/DisplayNameDialog.test.tsx",
-      "src/components/sidebar/SidebarProjectsSection.test.tsx",
-      "src/components/sidebar/SidebarSectionHeader.tsx",
-      "src/store/sidebar-sections.ts",
-      "src/store/task-notification-preference.ts"
-    ],
-    "dirty_paths_count": 40,
-    "dirty_paths_fingerprint": "162e0a2b31f06fc89cd46ae27a65c66e3ae1d6fb203e1bfde5dd56e9d1b00c89",
-    "tree_fingerprint": "eb4e0b159a20846aaa3b02cf14ada52f6ac461aa3d344d37f40b319a7cdd6af3",
-    "analysis_mode": "head_clone"
-  },
-  "analyzed_tree_identity": {
-    "commit": "76772b8a37d5de0d0ffba06130218c5f12e40511",
+    "commit": "ba6954bbd37c4bc2a2147672335bab3f51530b44",
     "dirty_paths": [],
     "dirty_paths_count": 0,
     "dirty_paths_fingerprint": "53c1562521679823f3ee3c10c2585dec4c3ecd862d145f868947047fd32725ac",
-    "tree_fingerprint": "a92bdf85a885d7fc99990337410748282da77ca0f14adcc122b474c15922d78b",
+    "tree_fingerprint": "d40dadfe68e7261ef2d8911f450c38de8e14e78791d015580de50ac28bdf3b24",
+    "analysis_mode": "head_clone"
+  },
+  "analyzed_tree_identity": {
+    "commit": "ba6954bbd37c4bc2a2147672335bab3f51530b44",
+    "dirty_paths": [],
+    "dirty_paths_count": 0,
+    "dirty_paths_fingerprint": "53c1562521679823f3ee3c10c2585dec4c3ecd862d145f868947047fd32725ac",
+    "tree_fingerprint": "d40dadfe68e7261ef2d8911f450c38de8e14e78791d015580de50ac28bdf3b24",
     "analysis_mode": "head_clone"
   },
   "regression_mutation": {
@@ -73,6 +32,6 @@
   "binary_identity": {
     "path": "<sentrux-root>/target/debug/sentrux",
     "exists": true,
-    "sha256": "3abb8a24a18351ba28557c8a5eaff7e7131e6bff9f86c4965a5d1ff9d994ce06"
+    "sha256": "a20f59ee9ec7cfcb8c235eae2631c58b8d72e63ab6b513b548633ca6c19d8334"
   }
 }

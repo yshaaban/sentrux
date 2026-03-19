@@ -12,6 +12,10 @@
       "expected_trust_tier": "trusted",
       "expected_presentation_class": "structural_debt",
       "expected_leverage_class": "architecture_signal",
+      "expected_summary_presence": "headline",
+      "preferred_over": [
+        "src/App.tsx"
+      ],
       "engineer_note": "The strongest architecture signal is the component-facing barrel inside the largest mixed subsystem. Fan-in, instability, and cycle position matter more than file size.",
       "expected_v2_behavior": "Keep this as a lead architecture signal and explain it as a boundary hub inside a mixed cycle, not as generic large-file debt."
     },
@@ -23,6 +27,7 @@
       "expected_trust_tier": "watchpoint",
       "expected_presentation_class": "watchpoint",
       "expected_leverage_class": "architecture_signal",
+      "expected_summary_presence": "headline",
       "engineer_note": "Cycle clustering is the strongest repo-wide architecture metric when it highlights mixed ownership and boundary ambiguity.",
       "expected_v2_behavior": "Keep the cycle prominent as an architecture signal, but frame it as a watchpoint with cut-candidate context rather than a mandatory refactor queue."
     },
@@ -34,8 +39,24 @@
       "expected_trust_tier": "trusted",
       "expected_presentation_class": "structural_debt",
       "expected_leverage_class": "local_refactor_target",
+      "expected_summary_presence": "headline",
+      "preferred_over": [
+        "src/components/ReviewPanel.tsx"
+      ],
       "engineer_note": "This is the best contained refactor target because the repo already declares it as a guarded shell with extracted owners.",
       "expected_v2_behavior": "Surface this as a strong local refactor target when dependency breadth overlaps declared extracted-owner boundaries."
+    },
+    {
+      "scope": "src/components/ReviewPanel.tsx",
+      "kind": "dependency_sprawl",
+      "report_bucket": "Best Local Refactor Targets",
+      "category": "useful",
+      "expected_trust_tier": "trusted",
+      "expected_presentation_class": "structural_debt",
+      "expected_leverage_class": "local_refactor_target",
+      "expected_summary_presence": "section_present",
+      "engineer_note": "This is a credible contained refactor target, but it should rank behind TaskPanel.tsx because the ownership signal is weaker.",
+      "expected_v2_behavior": "Keep this visible in the local-refactor bucket without letting it outrank stronger contained surfaces backed by clearer ownership guardrails."
     },
     {
       "scope": "src/lib/ipc.ts",
@@ -45,6 +66,7 @@
       "expected_trust_tier": "trusted",
       "expected_presentation_class": "guarded_facade",
       "expected_leverage_class": "boundary_discipline",
+      "expected_summary_presence": "headline",
       "engineer_note": "The useful question is whether domain or lifecycle policy is leaking into transport glue, not whether central fan-in alone is bad.",
       "expected_v2_behavior": "Treat guarded transport facades as boundary-discipline findings and emphasize glue-leakage risk over raw hotspot language."
     },
@@ -56,6 +78,7 @@
       "expected_trust_tier": "trusted",
       "expected_presentation_class": "structural_debt",
       "expected_leverage_class": "regrowth_watchpoint",
+      "expected_summary_presence": "section_present",
       "engineer_note": "Composition roots naturally have broad fan-out. The value here is to keep shell ownership from regrowing, not to force major surgery.",
       "expected_v2_behavior": "Surface broad composition roots as regrowth watchpoints unless other evidence shows they are the highest-leverage architecture change."
     },
@@ -67,6 +90,7 @@
       "expected_trust_tier": "trusted",
       "expected_presentation_class": "structural_debt",
       "expected_leverage_class": "secondary_cleanup",
+      "expected_summary_presence": "section_present",
       "engineer_note": "This public lifecycle facade still has meaningful pressure, but it should read as careful secondary cleanup rather than the lead architecture problem.",
       "expected_v2_behavior": "Keep extracted-owner lifecycle facades visible as secondary cleanup when they overlap several real signals without being the highest-leverage target."
     },
@@ -78,6 +102,7 @@
       "expected_trust_tier": "trusted",
       "expected_presentation_class": "hardening_note",
       "expected_leverage_class": "hardening_note",
+      "expected_summary_presence": "section_present",
       "engineer_note": "The missing exhaustiveness is real, but it belongs in targeted hardening because the lifecycle model already exists elsewhere.",
       "expected_v2_behavior": "Keep narrow exhaustiveness findings visible as hardening notes and do not let them lead the architecture summary."
     },
@@ -89,6 +114,7 @@
       "expected_trust_tier": "trusted",
       "expected_presentation_class": "tooling_debt",
       "expected_leverage_class": "tooling_debt",
+      "expected_summary_presence": "section_present",
       "engineer_note": "The script is a real maintenance burden, but it should not compete directly with app/runtime architecture priorities.",
       "expected_v2_behavior": "Separate script and tooling pressure into tooling debt so it stays visible without distorting the main architectural story."
     },
@@ -100,6 +126,7 @@
       "expected_trust_tier": "experimental",
       "expected_presentation_class": "experimental",
       "expected_leverage_class": "experimental",
+      "expected_summary_presence": "side_channel",
       "engineer_note": "This detector still claims live helpers are stale, so it should not influence maintainer-facing prioritization.",
       "expected_v2_behavior": "Keep this detector quarantined as experimental until same-file and TSX helper usage are reliable."
     }

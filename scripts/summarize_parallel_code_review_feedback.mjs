@@ -56,8 +56,30 @@ function summarizeLeverageClassCounts(verdicts) {
   return [...counts.entries()].sort(([left], [right]) => left.localeCompare(right));
 }
 
+function summarizeSummaryPresenceCounts(verdicts) {
+  const counts = new Map();
+  for (const verdict of verdicts) {
+    const presence = verdict.expected_summary_presence ?? 'unspecified';
+    counts.set(presence, (counts.get(presence) ?? 0) + 1);
+  }
+  return [...counts.entries()].sort(([left], [right]) => left.localeCompare(right));
+}
+
+function summarizePreferredPairs(verdicts) {
+  const pairs = [];
+  for (const verdict of verdicts) {
+    for (const preferredScope of verdict.preferred_over ?? []) {
+      pairs.push([verdict.scope, preferredScope]);
+    }
+  }
+  return pairs.sort(([leftScope, leftPreferred], [rightScope, rightPreferred]) => {
+    return leftScope.localeCompare(rightScope) || leftPreferred.localeCompare(rightPreferred);
+  });
+}
+
 function buildMarkdown(payload) {
   const lines = [];
+  const preferredPairs = summarizePreferredPairs(payload.verdicts ?? []);
   lines.push('# Parallel-Code Review Verdicts');
   lines.push('');
   lines.push(`Repo: \`${payload.repo}\``);
@@ -88,6 +110,21 @@ function buildMarkdown(payload) {
     lines.push(`- \`${leverageClass}\`: ${count}`);
   }
   lines.push('');
+  lines.push('## Expected Summary Presence');
+  lines.push('');
+  for (const [presence, count] of summarizeSummaryPresenceCounts(payload.verdicts ?? [])) {
+    lines.push(`- \`${presence}\`: ${count}`);
+  }
+  lines.push('');
+  lines.push('## Ranking Preferences');
+  lines.push('');
+  for (const [scope, preferredScope] of preferredPairs) {
+    lines.push(`- \`${scope}\` should rank ahead of \`${preferredScope}\``);
+  }
+  if (preferredPairs.length === 0) {
+    lines.push('- none');
+  }
+  lines.push('');
   lines.push('## Detailed Verdicts');
   lines.push('');
   for (const verdict of payload.verdicts ?? []) {
@@ -101,6 +138,10 @@ function buildMarkdown(payload) {
       `- expected presentation class: \`${verdict.expected_presentation_class ?? 'unspecified'}\``,
     );
     lines.push(`- expected leverage class: \`${verdict.expected_leverage_class ?? 'unspecified'}\``);
+    lines.push(`- expected summary presence: \`${verdict.expected_summary_presence ?? 'unspecified'}\``);
+    if ((verdict.preferred_over ?? []).length > 0) {
+      lines.push(`- preferred over: \`${verdict.preferred_over.join(', ')}\``);
+    }
     lines.push(`- engineer note: ${verdict.engineer_note}`);
     lines.push(`- expected v2 behavior: ${verdict.expected_v2_behavior}`);
     lines.push('');

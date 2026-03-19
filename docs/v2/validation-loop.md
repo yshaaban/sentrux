@@ -179,6 +179,13 @@ For each reviewed finding class, capture:
   - `hardening_note`
   - `tooling_debt`
   - `experimental`
+- `expected_summary_presence`
+  - `headline`
+  - `section_present`
+  - `side_channel`
+- optional ranking preferences such as:
+  - `preferred_over`
+    - use this when the class is right but the within-bucket order still matters
 
 This loop should drive product changes such as:
 
@@ -187,6 +194,7 @@ This loop should drive product changes such as:
 - quarantining a detector as experimental
 - adding fixability metadata when a finding is real but not design-actionable yet
 - adjusting leverage classification when the raw finding is right but the engineering meaning is wrong
+- improving within-bucket ranking when two valid findings should not be treated as peers
 
 ## Relationship To Migration
 
@@ -197,3 +205,15 @@ The validation loop is intentionally separate from baseline migration, but it de
 - missing or incompatible baselines should be surfaced clearly rather than hidden
 
 For the detailed migration rules, see [Baseline Migration](./baseline-migration.md).
+
+## Second Repo Cross-Check
+
+Ranking heuristics should be validated on a second repo shape before they are treated as stable.
+
+Use:
+
+```bash
+node scripts/validate_h1_sdk_v2.mjs --goldens-only
+```
+
+This does not provide an engineer-report corpus like `parallel-code`, but it does verify that generic ranking-oriented analyzer changes do not accidentally destabilize the second checked-in benchmark repo shape.
