@@ -734,6 +734,15 @@ fn structural_leverage_reasons(report: &StructuralDebtReport) -> Vec<String> {
             if report.metrics.guardrail_test_count.unwrap_or(0) > 0 {
                 reasons.push("guardrail_backed_refactor_surface".to_string());
             }
+            if is_contained_refactor_surface(
+                &report.role_tags,
+                report.metrics.fan_in.or(report.metrics.inbound_reference_count),
+                report.metrics.fan_out,
+                report.metrics.cycle_size,
+                report.metrics.guardrail_test_count,
+            ) {
+                reasons.push("contained_refactor_surface".to_string());
+            }
             if report.metrics.fan_out.unwrap_or(0) > 0 {
                 reasons.push("contained_dependency_pressure".to_string());
             }
@@ -776,6 +785,25 @@ fn extracted_owner_facade_needs_secondary_cleanup(
         return true;
     }
     fan_in.unwrap_or(0) >= 20
+}
+
+fn is_contained_refactor_surface(
+    role_tags: &[String],
+    fan_in: Option<usize>,
+    fan_out: Option<usize>,
+    cycle_size: Option<usize>,
+    guardrail_test_count: Option<usize>,
+) -> bool {
+    let has_extracted_owner_surface = has_role_tag(role_tags, "facade_with_extracted_owners");
+    let guardrail_count = guardrail_test_count.unwrap_or(0);
+    let inbound_pressure = fan_in.unwrap_or(0);
+    let dependency_breadth = fan_out.unwrap_or(0);
+    let cycle_span = cycle_size.unwrap_or(0);
+
+    (has_extracted_owner_surface || guardrail_count > 0)
+        && dependency_breadth >= 3
+        && (inbound_pressure == 0 || inbound_pressure <= 12)
+        && (cycle_span == 0 || cycle_span <= 6)
 }
 
 fn annotate_structural_leverage(mut report: StructuralDebtReport) -> StructuralDebtReport {
@@ -2403,11 +2431,11 @@ fn cycle_cluster_score(
     role_tags: &[String],
     cut_candidates: &[CycleCutCandidate],
 ) -> u32 {
-    let size_bonus = (file_count as u32 * 900).min(3600);
-    let line_bonus = (total_lines as u32 / 12).min(2200);
+    let size_bonus = (file_count as u32 * 800).min(3200);
+    let line_bonus = (total_lines as u32 / 14).min(1800);
     let role_bonus = [
-        ("component_barrel", 1500),
-        ("guarded_boundary", 1300),
+        ("component_barrel", 1700),
+        ("guarded_boundary", 1500),
         ("composition_root", 500),
         ("entry_surface", 400),
     ]
@@ -2415,25 +2443,37 @@ fn cycle_cluster_score(
     .filter(|(tag, _)| has_role_tag(role_tags, tag))
     .map(|(_, bonus)| bonus)
     .sum::<u32>()
-    .min(2400);
+    .min(2800);
     let cut_bonus = cut_candidates
         .first()
         .map(|candidate| {
             let seam_bonus = match candidate.seam_kind.as_str() {
-                "guarded_app_store_boundary" => 1200,
-                "guarded_boundary_cut" => 1000,
-                "facade_owner_boundary" => 800,
+                "guarded_app_store_boundary" => 1300,
+                "guarded_boundary_cut" => 1100,
+                "facade_owner_boundary" => 900,
                 "app_store_boundary" => 700,
                 "contract_or_type_extraction" => 600,
                 "cross_layer_boundary" => 500,
                 _ => 300,
             };
-            let reduction_bonus = (candidate.reduction_file_count as u32 * 180).min(1200);
-            let cleanup_bonus = (candidate.remaining_cycle_size as u32 * 80).min(600);
-            seam_bonus + reduction_bonus + cleanup_bonus
+            let reduction_bonus = (candidate.reduction_file_count as u32 * 160).min(1100);
+            let reduction_ratio_bonus = if file_count == 0 {
+                0
+            } else {
+                ((candidate.reduction_file_count as f64 / file_count as f64) * 1500.0).round()
+                    as u32
+            };
+            let remainder_penalty = if file_count == 0 {
+                0
+            } else {
+                ((candidate.remaining_cycle_size as f64 / file_count as f64) * 700.0).round()
+                    as u32
+            };
+            let contained_remainder_bonus = 700u32.saturating_sub(remainder_penalty);
+            seam_bonus + reduction_bonus + reduction_ratio_bonus + contained_remainder_bonus
         })
         .unwrap_or(0);
-    (2600 + size_bonus + line_bonus + role_bonus + cut_bonus).min(10_000)
+    (2400 + size_bonus + line_bonus + role_bonus + cut_bonus).min(10_000)
 }
 
 fn dead_private_cluster_score(dead_symbol_count: usize, dead_line_count: usize) -> u32 {
@@ -3026,6 +3066,10 @@ mod tests {
             .leverage_reasons
             .iter()
             .any(|reason| reason == "guardrail_backed_refactor_surface"));
+        assert!(report
+            .leverage_reasons
+            .iter()
+            .any(|reason| reason == "contained_refactor_surface"));
         let _ = std::fs::remove_dir_all(root);
     }
 
@@ -3374,6 +3418,34 @@ mod tests {
         );
 
         assert!(boosted_score > base_score);
+    }
+
+    #[test]
+    fn cycle_cluster_score_prefers_stronger_cut_reduction_over_weaker_remainder() {
+        let stronger_cut = cycle_cluster_score(
+            10,
+            1_400,
+            &["guarded_boundary".to_string()],
+            &[CycleCutCandidate {
+                seam_kind: "guarded_boundary_cut".to_string(),
+                reduction_file_count: 6,
+                remaining_cycle_size: 3,
+                ..CycleCutCandidate::default()
+            }],
+        );
+        let weaker_cut = cycle_cluster_score(
+            10,
+            1_400,
+            &["guarded_boundary".to_string()],
+            &[CycleCutCandidate {
+                seam_kind: "guarded_boundary_cut".to_string(),
+                reduction_file_count: 2,
+                remaining_cycle_size: 8,
+                ..CycleCutCandidate::default()
+            }],
+        );
+
+        assert!(stronger_cut > weaker_cut);
     }
 
     #[test]

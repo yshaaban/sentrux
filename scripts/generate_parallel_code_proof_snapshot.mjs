@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { assertPathExists } from './lib/disposable-repo.mjs';
 import {
   compactSelectedCandidate,
+  scoreBandLabel,
   selectLeverageBuckets,
 } from './lib/v2-report-selection.mjs';
 
@@ -43,6 +44,7 @@ function compactFinding(finding) {
     scope: finding.scope ?? null,
     severity: finding.severity ?? null,
     concept_id: finding.concept_id ?? null,
+    score_band: scoreBandLabel(finding.score_0_10000 ?? 0),
     score_0_10000: finding.score_0_10000 ?? null,
     impact: finding.impact ?? null,
     summary: finding.summary ?? null,
@@ -52,6 +54,7 @@ function compactFinding(finding) {
 function compactConceptSummary(summary) {
   return {
     concept_id: summary.concept_id ?? null,
+    score_band: scoreBandLabel(summary.score_0_10000 ?? 0),
     score_0_10000: summary.score_0_10000 ?? null,
     summary: summary.summary ?? null,
     dominant_kinds: summary.dominant_kinds ?? [],
@@ -70,6 +73,7 @@ function compactDebtSignal(signal) {
     signal_class: signal.signal_class ?? null,
     signal_families: signal.signal_families ?? [],
     severity: signal.severity ?? null,
+    score_band: scoreBandLabel(signal.score_0_10000 ?? 0),
     score_0_10000: signal.score_0_10000 ?? null,
     summary: signal.summary ?? null,
     candidate_split_axes: signal.candidate_split_axes ?? [],
@@ -84,6 +88,7 @@ function compactDebtCluster(cluster) {
     presentation_class: cluster.presentation_class ?? null,
     leverage_class: cluster.leverage_class ?? null,
     severity: cluster.severity ?? null,
+    score_band: scoreBandLabel(cluster.score_0_10000 ?? 0),
     score_0_10000: cluster.score_0_10000 ?? null,
     summary: cluster.summary ?? null,
     signal_kinds: cluster.signal_kinds ?? [],
@@ -116,6 +121,7 @@ function compactWatchpoint(watchpoint) {
     scope: watchpoint.scope ?? watchpoint.concept_id ?? null,
     signal_families: watchpoint.signal_families ?? [],
     severity: watchpoint.severity ?? null,
+    score_band: scoreBandLabel(watchpoint.score_0_10000 ?? 0),
     score_0_10000: watchpoint.score_0_10000 ?? null,
     summary: watchpoint.summary ?? null,
     impact: watchpoint.impact ?? null,
@@ -228,8 +234,11 @@ function buildMarkdown(snapshot) {
   lines.push('');
   for (const finding of snapshot.top_findings) {
     lines.push(
-      `- \`${finding.trust_tier ?? 'trusted'}\` \`${finding.presentation_class ?? 'structural_debt'}\` \`${finding.leverage_class ?? 'secondary_cleanup'}\` \`${finding.severity}\` \`${finding.kind}\` ${finding.concept_id ? `(${finding.concept_id}) ` : ''}${finding.summary}`,
+      `- \`${finding.trust_tier ?? 'trusted'}\` \`${finding.presentation_class ?? 'structural_debt'}\` \`${finding.leverage_class ?? 'secondary_cleanup'}\` \`${finding.score_band ?? 'supporting_signal'}\` \`${finding.kind}\` ${finding.concept_id ? `(${finding.concept_id}) ` : ''}${finding.summary}`,
     );
+    if ((finding.ranking_reasons ?? []).length > 0) {
+      lines.push(`  - ranking reasons: \`${finding.ranking_reasons.join(', ')}\``);
+    }
   }
   lines.push('');
   lines.push('## Experimental Findings');
@@ -247,7 +256,7 @@ function buildMarkdown(snapshot) {
   lines.push('');
   for (const summary of snapshot.concept_summaries) {
     lines.push(
-      `- \`${summary.concept_id}\` score ${summary.score_0_10000}: ${summary.summary}`,
+      `- \`${summary.concept_id}\` \`${summary.score_band ?? 'supporting_signal'}\`: ${summary.summary}`,
     );
   }
   lines.push('');
@@ -264,7 +273,7 @@ function buildMarkdown(snapshot) {
   lines.push('');
   for (const signal of snapshot.debt_signals) {
     lines.push(
-      `- \`${signal.trust_tier}\` \`${signal.kind}\` \`${signal.scope}\` score ${signal.score_0_10000}: ${signal.summary}`,
+      `- \`${signal.trust_tier}\` \`${signal.kind}\` \`${signal.scope}\` \`${signal.score_band ?? 'supporting_signal'}\`: ${signal.summary}`,
     );
   }
   lines.push('');
@@ -272,7 +281,7 @@ function buildMarkdown(snapshot) {
   lines.push('');
   for (const signal of snapshot.experimental_debt_signals) {
     lines.push(
-      `- \`${signal.kind}\` \`${signal.scope}\` score ${signal.score_0_10000}: ${signal.summary}`,
+      `- \`${signal.kind}\` \`${signal.scope}\` \`${signal.score_band ?? 'supporting_signal'}\`: ${signal.summary}`,
     );
   }
   if (snapshot.experimental_debt_signals.length === 0) {
@@ -283,7 +292,7 @@ function buildMarkdown(snapshot) {
   lines.push('');
   for (const cluster of snapshot.debt_clusters) {
     lines.push(
-      `- \`${cluster.trust_tier}\` \`${cluster.scope}\` score ${cluster.score_0_10000}: ${cluster.summary}`,
+      `- \`${cluster.trust_tier}\` \`${cluster.scope}\` \`${cluster.score_band ?? 'supporting_signal'}\`: ${cluster.summary}`,
     );
   }
   lines.push('');
@@ -291,7 +300,7 @@ function buildMarkdown(snapshot) {
   lines.push('');
   for (const watchpoint of snapshot.watchpoints) {
     lines.push(
-      `- \`${watchpoint.trust_tier ?? 'watchpoint'}\` \`${watchpoint.scope}\` score ${watchpoint.score_0_10000}: ${watchpoint.summary}`,
+      `- \`${watchpoint.trust_tier ?? 'watchpoint'}\` \`${watchpoint.scope}\` \`${watchpoint.score_band ?? 'supporting_signal'}\`: ${watchpoint.summary}`,
     );
   }
   lines.push('');

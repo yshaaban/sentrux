@@ -66,6 +66,19 @@ function fallbackScore(severity) {
   }
 }
 
+export function scoreBandLabel(score) {
+  if (score >= 8500) {
+    return 'very_high_signal';
+  }
+  if (score >= 6500) {
+    return 'high_signal';
+  }
+  if (score >= 4000) {
+    return 'moderate_signal';
+  }
+  return 'supporting_signal';
+}
+
 function defaultLeverageClass(presentationClass) {
   switch (presentationClass) {
     case 'guarded_facade':
@@ -87,6 +100,315 @@ function signalMatchesScope(signal, scope) {
   }
 
   return (signal.files ?? []).includes(scope);
+}
+
+function normalizeMetricKey(key) {
+  return String(key ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+function normalizeMetrics(metrics) {
+  if (Array.isArray(metrics)) {
+    return Object.fromEntries(
+      metrics
+        .filter((metric) => metric && metric.label)
+        .map((metric) => [normalizeMetricKey(metric.label), metric.value]),
+    );
+  }
+
+  if (metrics && typeof metrics === 'object') {
+    return Object.fromEntries(
+      Object.entries(metrics).map(([key, value]) => [normalizeMetricKey(key), value]),
+    );
+  }
+
+  return {};
+}
+
+function metricValue(candidate, key) {
+  const normalizedKey = normalizeMetricKey(key);
+  const metric = candidate.metrics?.[normalizedKey];
+  if (typeof metric === 'number') {
+    return metric;
+  }
+
+  const directValue = candidate[normalizedKey];
+  if (typeof directValue === 'number') {
+    return directValue;
+  }
+
+  return 0;
+}
+
+function hasRoleTag(candidate, roleTag) {
+  return (candidate.role_tags ?? []).includes(roleTag);
+}
+
+function bestCutCandidate(candidate) {
+  return (candidate.cut_candidates ?? [])[0] ?? null;
+}
+
+function cappedBonus(value, unit, maxBonus) {
+  return Math.min(value * unit, maxBonus);
+}
+
+function containsReason(candidate, reason) {
+  return (candidate.leverage_reasons ?? []).includes(reason);
+}
+
+function isContainedRefactorSurface(candidate) {
+  const fanIn = metricValue(candidate, 'fan_in') || metricValue(candidate, 'inbound_reference_count');
+  const fanOut = metricValue(candidate, 'fan_out');
+  const cycleSize = metricValue(candidate, 'cycle_size');
+  const guardrailCount = metricValue(candidate, 'guardrail_test_count');
+  const hasExtractedOwnerShell =
+    hasRoleTag(candidate, 'facade_with_extracted_owners') ||
+    containsReason(candidate, 'extracted_owner_shell_pressure');
+
+  return (
+    (hasExtractedOwnerShell || guardrailCount > 0) &&
+    fanOut >= 3 &&
+    (fanIn === 0 || fanIn <= 12) &&
+    (cycleSize === 0 || cycleSize <= 6)
+  );
+}
+
+function architectureSignalRanking(candidate) {
+  const reasons = [];
+  let strength = 2200;
+  const fanIn = metricValue(candidate, 'fan_in') || metricValue(candidate, 'inbound_reference_count');
+  const cycleSize = metricValue(candidate, 'cycle_size');
+  const cutCount = metricValue(candidate, 'cut_candidate_count');
+  const bestCut = bestCutCandidate(candidate);
+
+  if (hasRoleTag(candidate, 'component_barrel')) {
+    strength += 2200;
+    reasons.push('shared_barrel_boundary_hub');
+  }
+  if (
+    hasRoleTag(candidate, 'guarded_boundary') ||
+    containsReason(candidate, 'guardrail_backed_boundary_pressure')
+  ) {
+    strength += 1900;
+    reasons.push('guardrail_backed_boundary_hub');
+  }
+  if (candidate.kind === 'cycle_cluster' || containsReason(candidate, 'mixed_cycle_pressure')) {
+    strength += 1700;
+    reasons.push('mixed_cycle_architecture_pressure');
+  }
+  if (cutCount > 0 || bestCut || containsReason(candidate, 'high_leverage_cycle_cut')) {
+    strength += 900;
+    reasons.push('high_leverage_cut_candidate');
+  }
+  if (bestCut) {
+    strength += cappedBonus(bestCut.reduction_file_count ?? 0, 170, 1200);
+    if ((bestCut.reduction_file_count ?? 0) > 0) {
+      reasons.push('material_cycle_reduction');
+    }
+    if (typeof bestCut.remaining_cycle_size === 'number' && cycleSize > 0) {
+      const containedRemainder = Math.max(0, cycleSize - bestCut.remaining_cycle_size);
+      strength += cappedBonus(containedRemainder, 110, 700);
+    }
+  }
+  if (fanIn > 0) {
+    strength += cappedBonus(fanIn, 90, 1400);
+    if (fanIn >= 12) {
+      reasons.push('high_fan_in_boundary_pressure');
+    }
+  }
+  if (cycleSize > 0) {
+    strength += cappedBonus(cycleSize, 110, 1300);
+  }
+  if (candidate.cluster_signal_count > 0) {
+    strength += cappedBonus(candidate.cluster_signal_count, 220, 900);
+  }
+  if (candidate.hotspot_overlap) {
+    strength += 350;
+  }
+
+  return {
+    strength,
+    reasons: reasons.slice(0, 3),
+  };
+}
+
+function localRefactorRanking(candidate) {
+  const reasons = [];
+  let strength = 1800;
+  const fanOut = metricValue(candidate, 'fan_out');
+  const fanIn = metricValue(candidate, 'fan_in') || metricValue(candidate, 'inbound_reference_count');
+  const maxComplexity = metricValue(candidate, 'max_complexity');
+  const cycleSize = metricValue(candidate, 'cycle_size');
+  const guardrailCount = metricValue(candidate, 'guardrail_test_count');
+
+  if (
+    hasRoleTag(candidate, 'facade_with_extracted_owners') ||
+    containsReason(candidate, 'extracted_owner_shell_pressure')
+  ) {
+    strength += 1700;
+    reasons.push('extracted_owner_shell');
+  }
+  if (guardrailCount > 0 || containsReason(candidate, 'guardrail_backed_refactor_surface')) {
+    strength += 1400;
+    reasons.push('guardrail_backed_refactor_surface');
+  }
+  if (isContainedRefactorSurface(candidate) || containsReason(candidate, 'contained_refactor_surface')) {
+    strength += 1500;
+    reasons.push('contained_refactor_surface');
+  }
+  if (fanOut > 0) {
+    strength += cappedBonus(fanOut, 95, 1100);
+    if (fanOut >= 10) {
+      reasons.push('broad_dependency_surface');
+    }
+  }
+  if (candidate.cluster_signal_count > 0) {
+    strength += cappedBonus(candidate.cluster_signal_count, 180, 720);
+  }
+  if (candidate.hotspot_overlap) {
+    strength += 500;
+    reasons.push('coordination_overlap');
+  }
+  if (maxComplexity > 0) {
+    strength += cappedBonus(maxComplexity, 35, 700);
+  }
+  if (fanIn >= 18 || cycleSize >= 10) {
+    strength = Math.max(0, strength - 850);
+  }
+
+  return {
+    strength,
+    reasons: reasons.slice(0, 3),
+  };
+}
+
+function boundaryDisciplineRanking(candidate) {
+  const reasons = [];
+  let strength = 1900;
+  const fanIn = metricValue(candidate, 'fan_in') || metricValue(candidate, 'inbound_reference_count');
+  const fanOut = metricValue(candidate, 'fan_out');
+
+  if (
+    hasRoleTag(candidate, 'transport_facade') ||
+    candidate.presentation_class === 'guarded_facade' ||
+    containsReason(candidate, 'guarded_or_transport_facade') ||
+    containsReason(candidate, 'boundary_or_facade_seam_pressure')
+  ) {
+    strength += 1800;
+    reasons.push('facade_boundary_surface');
+  }
+  if (fanIn > 0) {
+    strength += cappedBonus(fanIn, 110, 1800);
+    reasons.push('cross_surface_inbound_pressure');
+  }
+  if (fanOut > 0) {
+    strength += cappedBonus(fanOut, 45, 500);
+  }
+  if (candidate.cluster_signal_count > 0 || candidate.hotspot_overlap) {
+    strength += 800;
+    reasons.push('boundary_overlap_pressure');
+  }
+
+  return {
+    strength,
+    reasons: reasons.slice(0, 3),
+  };
+}
+
+function regrowthWatchpointRanking(candidate) {
+  const reasons = [];
+  let strength = 1700;
+  const fanOut = metricValue(candidate, 'fan_out');
+
+  if (hasRoleTag(candidate, 'composition_root') || containsReason(candidate, 'intentionally_central_surface')) {
+    strength += 1800;
+    reasons.push('composition_root_breadth');
+  }
+  if (hasRoleTag(candidate, 'entry_surface')) {
+    strength += 900;
+    reasons.push('entry_surface_pressure');
+  }
+  if (fanOut > 0) {
+    strength += cappedBonus(fanOut, 100, 1500);
+    if (fanOut >= 12) {
+      reasons.push('growing_dependency_surface');
+    }
+  }
+  if (candidate.cluster_signal_count > 0) {
+    strength += cappedBonus(candidate.cluster_signal_count, 170, 700);
+  }
+
+  return {
+    strength,
+    reasons: reasons.slice(0, 3),
+  };
+}
+
+function secondaryCleanupRanking(candidate) {
+  const reasons = [];
+  let strength = 1500;
+  const fanIn = metricValue(candidate, 'fan_in') || metricValue(candidate, 'inbound_reference_count');
+  const maxComplexity = metricValue(candidate, 'max_complexity');
+
+  if (
+    hasRoleTag(candidate, 'facade_with_extracted_owners') ||
+    containsReason(candidate, 'secondary_facade_cleanup')
+  ) {
+    strength += 900;
+    reasons.push('secondary_facade_pressure');
+  }
+  if (candidate.hotspot_overlap) {
+    strength += 900;
+    reasons.push('hotspot_overlap');
+  }
+  if (candidate.cluster_signal_count > 0) {
+    strength += cappedBonus(candidate.cluster_signal_count, 220, 900);
+    reasons.push('multi_signal_cleanup_overlap');
+  }
+  if (fanIn > 0) {
+    strength += cappedBonus(fanIn, 50, 500);
+  }
+  if (maxComplexity > 0) {
+    strength += cappedBonus(maxComplexity, 30, 500);
+  }
+
+  return {
+    strength,
+    reasons: reasons.slice(0, 3),
+  };
+}
+
+function neutralRanking(candidate, reason) {
+  return {
+    strength: 1200 + (candidate.cluster_signal_count > 0 ? 300 : 0),
+    reasons: reason ? [reason] : [],
+  };
+}
+
+function rankingProfile(candidate) {
+  switch (candidate.leverage_class) {
+    case 'architecture_signal':
+      return architectureSignalRanking(candidate);
+    case 'local_refactor_target':
+      return localRefactorRanking(candidate);
+    case 'boundary_discipline':
+      return boundaryDisciplineRanking(candidate);
+    case 'regrowth_watchpoint':
+      return regrowthWatchpointRanking(candidate);
+    case 'secondary_cleanup':
+      return secondaryCleanupRanking(candidate);
+    case 'hardening_note':
+      return neutralRanking(candidate, 'narrow_surface_hardening');
+    case 'tooling_debt':
+      return neutralRanking(candidate, 'tooling_maintenance_surface');
+    case 'experimental':
+      return neutralRanking(candidate, 'experimental_detector_surface');
+    default:
+      return neutralRanking(candidate, null);
+  }
 }
 
 function clustersForScope(debtClusters, scope) {
@@ -117,9 +439,12 @@ function normalizeCandidate(candidate, sourceType, debtSignals, debtClusters) {
     ...matchingClusters.map((cluster) => cluster.metrics?.signal_count ?? 0),
   );
   const presentationClass = candidate.presentation_class ?? 'structural_debt';
-
-  return {
+  const metrics = normalizeMetrics(candidate.metrics);
+  const normalizedCandidate = {
     ...candidate,
+    metrics,
+    role_tags: candidate.role_tags ?? [],
+    cut_candidates: candidate.cut_candidates ?? [],
     source_type: sourceType,
     presentation_class: presentationClass,
     leverage_class: candidate.leverage_class ?? defaultLeverageClass(presentationClass),
@@ -131,11 +456,20 @@ function normalizeCandidate(candidate, sourceType, debtSignals, debtClusters) {
     cluster_signal_count: clusterSignalCount,
     hotspot_overlap: hasHotspotOverlap(matchingSignal, matchingClusters),
   };
+  const ranking = rankingProfile(normalizedCandidate);
+
+  return {
+    ...normalizedCandidate,
+    score_band: scoreBandLabel(normalizedCandidate.score_0_10000),
+    within_bucket_strength_0_10000: Math.min(ranking.strength, 10_000),
+    ranking_reasons: [...new Set(ranking.reasons)].slice(0, 3),
+  };
 }
 
 function compareCandidates(left, right) {
   return (
     leverageClassPriority(left.leverage_class) - leverageClassPriority(right.leverage_class) ||
+    right.within_bucket_strength_0_10000 - left.within_bucket_strength_0_10000 ||
     severityPriority(left.severity) - severityPriority(right.severity) ||
     presentationClassPriority(left.presentation_class) -
       presentationClassPriority(right.presentation_class) ||
@@ -276,9 +610,12 @@ export function compactSelectedCandidate(candidate) {
     presentation_class: candidate.presentation_class ?? null,
     leverage_class: candidate.leverage_class ?? null,
     leverage_reasons: candidate.leverage_reasons ?? [],
+    ranking_reasons: candidate.ranking_reasons ?? [],
     scope: candidate.scope ?? null,
     severity: candidate.severity ?? null,
+    score_band: candidate.score_band ?? null,
     score_0_10000: candidate.score_0_10000 ?? null,
+    within_bucket_strength_0_10000: candidate.within_bucket_strength_0_10000 ?? null,
     summary: candidate.summary ?? null,
     impact: candidate.impact ?? null,
     candidate_split_axes: candidate.candidate_split_axes ?? [],

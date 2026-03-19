@@ -1861,6 +1861,25 @@ fn extracted_owner_facade_needs_secondary_cleanup(
     fan_in.unwrap_or(0) >= 20
 }
 
+fn is_contained_refactor_surface(
+    role_tags: &[String],
+    fan_in: Option<usize>,
+    fan_out: Option<usize>,
+    cycle_size: Option<usize>,
+    guardrail_test_count: Option<usize>,
+) -> bool {
+    let has_extracted_owner_surface = role_tags_include(role_tags, "facade_with_extracted_owners");
+    let guardrail_count = guardrail_test_count.unwrap_or(0);
+    let inbound_pressure = fan_in.unwrap_or(0);
+    let dependency_breadth = fan_out.unwrap_or(0);
+    let cycle_span = cycle_size.unwrap_or(0);
+
+    (has_extracted_owner_surface || guardrail_count > 0)
+        && dependency_breadth >= 3
+        && (inbound_pressure == 0 || inbound_pressure <= 12)
+        && (cycle_span == 0 || cycle_span <= 6)
+}
+
 #[allow(clippy::too_many_arguments)]
 fn classify_leverage_reasons(
     kind: &str,
@@ -1915,6 +1934,15 @@ fn classify_leverage_reasons(
             }
             if guardrail_test_count.unwrap_or(0) > 0 {
                 reasons.push("guardrail_backed_refactor_surface".to_string());
+            }
+            if is_contained_refactor_surface(
+                role_tags,
+                fan_in,
+                fan_out,
+                cycle_size,
+                guardrail_test_count,
+            ) {
+                reasons.push("contained_refactor_surface".to_string());
             }
             if fan_out.unwrap_or(0) > 0 {
                 reasons.push("contained_dependency_pressure".to_string());
@@ -5236,14 +5264,15 @@ mod tests {
     use super::{
         annotate_debt_signal, annotate_finding_detail, annotate_inspection_watchpoint,
         apply_suppressions, build_exact_clone_findings, build_session_v2_baseline,
-        changed_files_from_session_context, classify_leverage_class, classify_presentation_class,
-        cli_evaluate_v2_gate, cli_save_v2_session, current_session_v2_baseline_with_status,
-        distinct_file_count, do_scan, fresh_mcp_state, handle_concepts, handle_explain_concept,
-        handle_findings, handle_gate, handle_health, handle_obligations, handle_scan,
-        handle_session_end, handle_session_start, handle_state, handle_trace_symbol,
-        load_persisted_session_v2, load_session_v2_baseline_status, load_v2_rules_config,
-        overall_confidence_0_10000, prepare_patch_check_context, project_fingerprint,
-        save_session_v2_baseline, state_model_ids_from_findings, state_model_ids_from_reports,
+        changed_files_from_session_context, classify_leverage_class, classify_leverage_reasons,
+        classify_presentation_class, cli_evaluate_v2_gate, cli_save_v2_session,
+        current_session_v2_baseline_with_status, distinct_file_count, do_scan, fresh_mcp_state,
+        handle_concepts, handle_explain_concept, handle_findings, handle_gate, handle_health,
+        handle_obligations, handle_scan, handle_session_end, handle_session_start, handle_state,
+        handle_trace_symbol, load_persisted_session_v2, load_session_v2_baseline_status,
+        load_v2_rules_config, overall_confidence_0_10000, prepare_patch_check_context,
+        project_fingerprint, save_session_v2_baseline, state_model_ids_from_findings,
+        state_model_ids_from_reports,
         update_scan_cache, DebtSignal, DebtSignalMetrics, FindingDetail, FindingDetailMetrics,
         InspectionWatchpoint,
     };
@@ -6197,6 +6226,31 @@ mod tests {
             ),
             "secondary_cleanup"
         );
+    }
+
+    #[test]
+    fn leverage_reasons_mark_contained_refactor_surfaces() {
+        let reasons = classify_leverage_reasons(
+            "dependency_sprawl",
+            "trusted",
+            "structural_debt",
+            "local_refactor_target",
+            &[
+                "facade_with_extracted_owners".to_string(),
+                "guarded_seam".to_string(),
+            ],
+            Some(4),
+            Some(14),
+            Some(0),
+            None,
+            Some(1),
+            0,
+            0,
+        );
+
+        assert!(reasons
+            .iter()
+            .any(|reason| reason == "contained_refactor_surface"));
     }
 
     #[test]

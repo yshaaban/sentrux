@@ -136,6 +136,7 @@ function appendCandidateBlock(lines, candidate, repoRoot) {
   appendCodeBullet(lines, 'trust tier', candidate.trust_tier ?? 'trusted');
   appendCodeBullet(lines, 'class', candidate.presentation_class ?? 'structural_debt');
   appendCodeBullet(lines, 'leverage', candidate.leverage_class ?? 'secondary_cleanup');
+  appendCodeBullet(lines, 'signal band', candidate.score_band ?? 'supporting_signal');
   appendCodeBullet(lines, 'kind', candidate.kind ?? 'unknown');
   appendCodeBullet(lines, 'severity', candidate.severity ?? 'unknown');
   lines.push(`- summary: ${candidate.summary}`);
@@ -143,6 +144,7 @@ function appendCandidateBlock(lines, candidate, repoRoot) {
     lines.push(`- impact: ${candidate.impact}`);
   }
   appendCodeList(lines, 'leverage reasons', candidate.leverage_reasons);
+  appendCodeList(lines, 'ranking reasons', candidate.ranking_reasons);
   appendCodeList(lines, 'candidate split axes', candidate.candidate_split_axes);
   appendRepoLinkList(lines, 'related surfaces', repoRoot, candidate.related_surfaces, 5);
   lines.push('');
@@ -336,7 +338,7 @@ function buildLiveEngineerReport({
   lines.push('');
   for (const candidate of summaryCandidates) {
     lines.push(
-      `- \`${candidate.leverage_class}\` \`${candidate.kind}\` ${candidate.summary}`,
+      `- \`${candidate.leverage_class}\` \`${candidate.score_band ?? 'supporting_signal'}\` \`${candidate.kind}\` ${candidate.summary}`,
     );
   }
   if (summaryCandidates.length === 0) {
@@ -381,7 +383,7 @@ function buildLiveEngineerReport({
   const watchpoints = leverageBuckets.trusted_watchpoints;
   for (const watchpoint of watchpoints) {
     lines.push(
-      `- \`${watchpoint.trust_tier ?? 'watchpoint'}\` \`${watchpoint.leverage_class ?? 'secondary_cleanup'}\` \`${watchpoint.kind}\` ${watchpoint.summary}`,
+      `- \`${watchpoint.trust_tier ?? 'watchpoint'}\` \`${watchpoint.leverage_class ?? 'secondary_cleanup'}\` \`${watchpoint.score_band ?? 'supporting_signal'}\` \`${watchpoint.kind}\` ${watchpoint.summary}`,
     );
   }
   if (watchpoints.length === 0) {
@@ -495,10 +497,12 @@ function buildLiveEngineerAppendix({
     lines.push(`- \`${candidate.trust_tier ?? 'trusted'}\``);
     lines.push(`- class: \`${candidate.presentation_class}\``);
     lines.push(`- leverage: \`${candidate.leverage_class}\``);
+    lines.push(`- signal band: \`${candidate.score_band ?? 'supporting_signal'}\``);
     lines.push(`- \`${candidate.kind}\``);
     lines.push(`- summary: \`${candidate.summary}\``);
     lines.push(`- impact: ${candidate.impact}`);
     appendCodeList(lines, 'leverage reasons', candidate.leverage_reasons);
+    appendCodeList(lines, 'ranking reasons', candidate.ranking_reasons);
     const detail = findings.finding_details.find((entry) => entry.scope === candidate.scope && entry.kind === candidate.kind);
     lines.push('- evidence:');
     if ((detail?.role_tags ?? []).length > 0) {
@@ -526,7 +530,7 @@ function buildLiveEngineerAppendix({
     lines.push('');
     for (const candidate of candidates) {
       lines.push(
-        `- \`${candidate.scope}\` \`${candidate.leverage_class}\` ${candidate.summary}`,
+        `- \`${candidate.scope}\` \`${candidate.leverage_class}\` \`${candidate.score_band ?? 'supporting_signal'}\` ${candidate.summary}`,
       );
     }
     if (candidates.length === 0) {
@@ -563,8 +567,10 @@ function buildLiveEngineerAppendix({
     lines.push('');
     lines.push(`- \`${watchpoint.trust_tier ?? 'watchpoint'}\``);
     lines.push(`- leverage: \`${watchpoint.leverage_class ?? 'secondary_cleanup'}\``);
+    lines.push(`- signal band: \`${watchpoint.score_band ?? 'supporting_signal'}\``);
     lines.push(`- \`${watchpoint.kind}\``);
     lines.push(`- summary: \`${watchpoint.summary}\``);
+    appendCodeList(lines, 'ranking reasons', watchpoint.ranking_reasons);
     if (watchpoint.metrics?.length > 0) {
       lines.push('- evidence:');
       for (const metric of watchpoint.metrics) {
