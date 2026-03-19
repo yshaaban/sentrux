@@ -63,6 +63,7 @@ pub struct CycleCutCandidate {
 pub struct StructuralDebtReport {
     pub kind: String,
     pub trust_tier: String,
+    pub presentation_class: String,
     pub scope: String,
     pub signal_class: String,
     pub signal_families: Vec<String>,
@@ -604,6 +605,40 @@ fn looks_like_entry_surface_path(path: &str) -> bool {
         || path.ends_with("/main.tsx")
 }
 
+fn looks_like_tooling_path(path: &str) -> bool {
+    path.starts_with("scripts/")
+}
+
+fn looks_like_transport_facade_path(path: &str) -> bool {
+    path.contains("/ipc.")
+        || path.contains("-ipc.")
+        || path.ends_with("/ipc.ts")
+        || path.ends_with("/ipc.tsx")
+        || path.contains("/browser-http-ipc.")
+}
+
+fn structural_presentation_class(
+    kind: &str,
+    path: &str,
+    trust_tier: &str,
+    role_tags: &[String],
+) -> String {
+    if trust_tier == "experimental" {
+        return "experimental".to_string();
+    }
+    if trust_tier == "watchpoint" || matches!(kind, "cycle_cluster" | "dead_island") {
+        return "watchpoint".to_string();
+    }
+    if looks_like_tooling_path(path) {
+        return "tooling_debt".to_string();
+    }
+    if has_role_tag(role_tags, "transport_facade") {
+        return "guarded_facade".to_string();
+    }
+
+    "structural_debt".to_string()
+}
+
 fn contextual_role_tags(
     path: &str,
     facts: &FileFacts,
@@ -611,6 +646,10 @@ fn contextual_role_tags(
     file_facts: &BTreeMap<String, FileFacts>,
 ) -> Vec<String> {
     let mut role_tags = facts.role_tags.clone();
+
+    if looks_like_transport_facade_path(path) {
+        role_tags.push("transport_facade".to_string());
+    }
 
     let imported_by_entry_surface = graph
         .import_incoming
@@ -728,6 +767,12 @@ fn dependency_sprawl_summary(
     threshold: usize,
     role_tags: &[String],
 ) -> String {
+    if has_role_tag(role_tags, "transport_facade") {
+        return format!(
+            "Guarded transport facade '{}' depends on {} real surfaces, above the {} threshold of {}",
+            path, fan_out, lang, threshold
+        );
+    }
     if has_role_tag(role_tags, "component_barrel") {
         return format!(
             "Component-facing barrel '{}' depends on {} real surfaces, above the {} threshold of {}",
@@ -753,6 +798,9 @@ fn dependency_sprawl_summary(
 }
 
 fn dependency_sprawl_impact(role_tags: &[String]) -> String {
+    if has_role_tag(role_tags, "transport_facade") {
+        return "A broad transport facade makes it harder to keep lifecycle and domain policy out of glue code.".to_string();
+    }
     if has_role_tag(role_tags, "component_barrel") {
         return "A broad component-facing barrel can stay intentional, but it still needs narrow boundaries so app and runtime layers do not grow back through it.".to_string();
     }
@@ -766,6 +814,12 @@ fn dependency_sprawl_impact(role_tags: &[String]) -> String {
 }
 
 fn dependency_sprawl_focus(role_tags: &[String]) -> Vec<String> {
+    if has_role_tag(role_tags, "transport_facade") {
+        return vec![
+            "inspect whether transport glue is accumulating lifecycle or domain policy".to_string(),
+            "inspect whether callers can depend on narrower transport contracts instead of the broad facade".to_string(),
+        ];
+    }
     if has_role_tag(role_tags, "component_barrel") {
         return vec![
             "inspect whether component-facing access is staying narrow while app and runtime imports remain outside the barrel".to_string(),
@@ -791,6 +845,12 @@ fn dependency_sprawl_focus(role_tags: &[String]) -> Vec<String> {
 }
 
 fn unstable_hotspot_summary(path: &str, fan_in: usize, role_tags: &[String]) -> String {
+    if has_role_tag(role_tags, "transport_facade") {
+        return format!(
+            "Guarded transport facade '{}' has {} inbound references and remains unstable",
+            path, fan_in
+        );
+    }
     if has_role_tag(role_tags, "component_barrel") {
         return format!(
             "Component-facing barrel '{}' has {} inbound references and remains unstable",
@@ -813,6 +873,9 @@ fn unstable_hotspot_summary(path: &str, fan_in: usize, role_tags: &[String]) -> 
 }
 
 fn unstable_hotspot_impact(role_tags: &[String]) -> String {
+    if has_role_tag(role_tags, "transport_facade") {
+        return "A transport facade with heavy fan-in needs clear ownership boundaries so lifecycle or domain logic does not leak into transport glue.".to_string();
+    }
     if has_role_tag(role_tags, "component_barrel") {
         return "A volatile component-facing barrel makes it harder to keep presentation access broad while keeping deeper orchestration changes contained.".to_string();
     }
@@ -826,6 +889,12 @@ fn unstable_hotspot_impact(role_tags: &[String]) -> String {
 }
 
 fn unstable_hotspot_focus(role_tags: &[String]) -> Vec<String> {
+    if has_role_tag(role_tags, "transport_facade") {
+        return vec![
+            "inspect whether lifecycle or domain policy is accumulating inside transport glue".to_string(),
+            "inspect whether callers or owner modules can take decisions outside the facade".to_string(),
+        ];
+    }
     if has_role_tag(role_tags, "component_barrel") {
         return vec![
             "inspect which component-facing reads really need the shared barrel and which can move behind narrower selectors".to_string(),
@@ -939,6 +1008,12 @@ fn build_large_file_reports(
             Some(StructuralDebtReport {
                 kind: "large_file".to_string(),
                 trust_tier: "trusted".to_string(),
+                presentation_class: structural_presentation_class(
+                    "large_file",
+                    &file_metric.path,
+                    "trusted",
+                    &role_tags,
+                ),
                 scope: file_metric.path.clone(),
                 signal_class: "debt".to_string(),
                 signal_families: vec!["size".to_string(), "coordination".to_string()],
@@ -1012,6 +1087,12 @@ fn build_dependency_sprawl_reports(
             Some(StructuralDebtReport {
                 kind: "dependency_sprawl".to_string(),
                 trust_tier: "trusted".to_string(),
+                presentation_class: structural_presentation_class(
+                    "dependency_sprawl",
+                    &file_metric.path,
+                    "trusted",
+                    &role_tags,
+                ),
                 scope: file_metric.path.clone(),
                 signal_class: "debt".to_string(),
                 signal_families: vec!["coupling".to_string(), "coordination".to_string()],
@@ -1092,6 +1173,12 @@ fn build_unstable_hotspot_reports(
             Some(StructuralDebtReport {
                 kind: "unstable_hotspot".to_string(),
                 trust_tier: "trusted".to_string(),
+                presentation_class: structural_presentation_class(
+                    "unstable_hotspot",
+                    &file_metric.path,
+                    "trusted",
+                    &role_tags,
+                ),
                 scope: file_metric.path.clone(),
                 signal_class: "debt".to_string(),
                 signal_families: vec!["coupling".to_string(), "blast_radius".to_string()],
@@ -1181,6 +1268,12 @@ fn build_cycle_cluster_reports(
             StructuralDebtReport {
                 kind: "cycle_cluster".to_string(),
                 trust_tier: "watchpoint".to_string(),
+                presentation_class: structural_presentation_class(
+                    "cycle_cluster",
+                    files.first().map(String::as_str).unwrap_or_default(),
+                    "watchpoint",
+                    &role_tags,
+                ),
                 scope,
                 signal_class: "watchpoint".to_string(),
                 signal_families: vec!["dependency".to_string(), "layering".to_string()],
@@ -1251,6 +1344,12 @@ fn build_dead_private_code_cluster_reports(
             Some(StructuralDebtReport {
                 kind: "dead_private_code_cluster".to_string(),
                 trust_tier: "experimental".to_string(),
+                presentation_class: structural_presentation_class(
+                    "dead_private_code_cluster",
+                    &path,
+                    "experimental",
+                    &facts.role_tags,
+                ),
                 scope: path.clone(),
                 signal_class: "watchpoint".to_string(),
                 signal_families: vec!["staleness".to_string(), "maintainability".to_string()],
@@ -1383,6 +1482,12 @@ fn build_dead_island_reports(
             Some(StructuralDebtReport {
                 kind: "dead_island".to_string(),
                 trust_tier: "watchpoint".to_string(),
+                presentation_class: structural_presentation_class(
+                    "dead_island",
+                    component.first().map(String::as_str).unwrap_or_default(),
+                    "watchpoint",
+                    &Vec::new(),
+                ),
                 scope,
                 signal_class: if reachable_from_tests {
                     "watchpoint".to_string()

@@ -11,6 +11,7 @@ import {
   collectRepoIdentity,
 } from './lib/repo-identity.mjs';
 import { assertPathExists } from './lib/disposable-repo.mjs';
+import { selectPresentationBuckets } from './lib/parallel-code-reporting.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -98,6 +99,25 @@ function appendRepoLinkList(lines, title, repoPath, surfaces, limit = 5) {
   for (const surface of surfaces.slice(0, limit)) {
     lines.push(`  - ${formatRepoPathMarkdown(repoPath, surface)}`);
   }
+}
+
+function appendCandidateBlock(lines, candidate, repoRoot) {
+  if (looksLikeRepoPath(candidate.scope)) {
+    lines.push(`### ${formatRepoPathMarkdown(repoRoot, candidate.scope)}`);
+  } else {
+    lines.push(`### ${candidate.scope}`);
+  }
+  lines.push('');
+  appendCodeBullet(lines, 'class', candidate.presentation_class ?? 'structural_debt');
+  appendCodeBullet(lines, 'kind', candidate.kind ?? 'unknown');
+  appendCodeBullet(lines, 'severity', candidate.severity ?? 'unknown');
+  lines.push(`- summary: ${candidate.summary}`);
+  if (candidate.impact) {
+    lines.push(`- impact: ${candidate.impact}`);
+  }
+  appendCodeList(lines, 'candidate split axes', candidate.candidate_split_axes);
+  appendRepoLinkList(lines, 'related surfaces', repoRoot, candidate.related_surfaces, 5);
+  lines.push('');
 }
 
 function appendScanCoverage(lines, scan, { includeBuckets = false, includeSessionBaseline = false } = {}) {
@@ -221,7 +241,7 @@ function buildProofSnapshotMarkdown(snapshot) {
   lines.push('');
   for (const finding of snapshot.top_findings) {
     lines.push(
-      `- \`${finding.trust_tier ?? 'trusted'}\` \`${finding.severity}\` \`${finding.kind}\` ${
+      `- \`${finding.trust_tier ?? 'trusted'}\` \`${finding.presentation_class ?? 'structural_debt'}\` \`${finding.severity}\` \`${finding.kind}\` ${
         finding.concept_id ? `(${finding.concept_id}) ` : ''
       }${finding.summary}`,
     );
@@ -317,6 +337,7 @@ function buildProofSnapshotMarkdown(snapshot) {
 
 function buildLiveEngineerReport({
   snapshot,
+  findings,
   scan,
   benchmark,
   metadata,
@@ -324,6 +345,11 @@ function buildLiveEngineerReport({
   allowStale,
 }) {
   const freshness = formatIdentity(metadata);
+  const presentationBuckets = selectPresentationBuckets(findings);
+  const leadCandidates = presentationBuckets.lead_candidates;
+  const secondaryHotspots = presentationBuckets.secondary_hotspots;
+  const hardeningNotes = presentationBuckets.hardening_notes;
+  const toolingDebt = presentationBuckets.tooling_debt;
   const lines = [];
   lines.push('# Parallel Code: Live Analysis Report For Engineers');
   lines.push('');
@@ -395,32 +421,55 @@ function buildLiveEngineerReport({
   lines.push('');
   lines.push('## Executive Summary');
   lines.push('');
-  lines.push(
-    'The current live repo surfaces the same core architecture pressure points as the proof snapshot:',
-  );
+  lines.push('The current live repo surfaces these primary pressure points:');
   lines.push('');
-  const trustedFindings = snapshot.top_findings.filter((finding) => finding.trust_tier === 'trusted');
-  for (const finding of trustedFindings.slice(0, 5)) {
+  for (const candidate of leadCandidates) {
     lines.push(
-      `- \`${finding.kind}\` ${finding.concept_id ? `(${finding.concept_id}) ` : ''}${finding.summary}`,
+      `- \`${candidate.presentation_class}\` \`${candidate.kind}\` ${candidate.summary}`,
     );
   }
-  if (trustedFindings.length === 0) {
+  if (secondaryHotspots.length > 0) {
+    lines.push(
+      `- \`secondary_hotspot\` ${secondaryHotspots[0].summary}`,
+    );
+  }
+  if (leadCandidates.length === 0 && secondaryHotspots.length === 0) {
     lines.push('- none');
   }
   lines.push('');
   lines.push('## Strongest Trusted Debt Signals');
   lines.push('');
-  const trustedDetails = snapshot.finding_details.filter((detail) => detail.trust_tier === 'trusted');
-  for (const detail of trustedDetails.slice(0, 4)) {
-    lines.push(`### ${detail.scope}`);
+  for (const candidate of leadCandidates) {
+    appendCandidateBlock(lines, candidate, metadata.parallel_code_root);
+  }
+
+  lines.push('## Secondary Hotspots');
+  lines.push('');
+  for (const candidate of secondaryHotspots) {
+    appendCandidateBlock(lines, candidate, metadata.parallel_code_root);
+  }
+  if (secondaryHotspots.length === 0) {
+    lines.push('- none');
     lines.push('');
-    lines.push(`- kind: \`${detail.kind}\``);
-    lines.push(`- severity: \`${detail.severity}\``);
-    lines.push(`- summary: ${detail.summary}`);
-    lines.push(`- impact: ${detail.impact}`);
-    appendCodeList(lines, 'candidate split axes', detail.candidate_split_axes);
-    appendCodeList(lines, 'related surfaces', detail.related_surfaces.slice(0, 4));
+  }
+
+  lines.push('## Targeted Hardening Notes');
+  lines.push('');
+  for (const candidate of hardeningNotes) {
+    appendCandidateBlock(lines, candidate, metadata.parallel_code_root);
+  }
+  if (hardeningNotes.length === 0) {
+    lines.push('- none');
+    lines.push('');
+  }
+
+  lines.push('## Tooling Debt');
+  lines.push('');
+  for (const candidate of toolingDebt) {
+    appendCandidateBlock(lines, candidate, metadata.parallel_code_root);
+  }
+  if (toolingDebt.length === 0) {
+    lines.push('- none');
     lines.push('');
   }
 
@@ -478,7 +527,11 @@ function buildLiveEngineerAppendix({
   metadata,
 }) {
   const lines = [];
-  const trustedDetails = findings.finding_details.filter((detail) => detail.trust_tier === 'trusted');
+  const presentationBuckets = selectPresentationBuckets(findings);
+  const leadCandidates = presentationBuckets.lead_candidates;
+  const secondaryHotspots = presentationBuckets.secondary_hotspots;
+  const hardeningNotes = presentationBuckets.hardening_notes;
+  const toolingDebt = presentationBuckets.tooling_debt;
   const watchpoints = snapshot.watchpoints.slice(0, 6);
   const trustedClusters = snapshot.debt_clusters.filter((cluster) => cluster.trust_tier === 'trusted');
   const experimentalSignals = findings.experimental_debt_signals ?? snapshot.experimental_debt_signals ?? [];
@@ -515,32 +568,65 @@ function buildLiveEngineerAppendix({
   lines.push('');
   appendScanCoverage(lines, scan, { includeBuckets: true, includeSessionBaseline: true });
   lines.push('');
-  lines.push('## Top Trusted Findings');
+  lines.push('## Lead Trusted Debt Signals');
   lines.push('');
-  for (const detail of trustedDetails.slice(0, 6)) {
-    if (looksLikeRepoPath(detail.scope)) {
-      lines.push(`### [${path.basename(detail.scope)}](${path.join(metadata.parallel_code_root, detail.scope)})`);
+  for (const candidate of leadCandidates) {
+    if (looksLikeRepoPath(candidate.scope)) {
+      lines.push(`### ${formatRepoPathMarkdown(metadata.parallel_code_root, candidate.scope)}`);
     } else {
-      lines.push(`### ${detail.scope}`);
+      lines.push(`### ${candidate.scope}`);
     }
     lines.push('');
     lines.push('- `trusted`');
-    lines.push(`- \`${detail.kind}\``);
-    lines.push(`- summary: \`${detail.summary}\``);
+    lines.push(`- class: \`${candidate.presentation_class}\``);
+    lines.push(`- \`${candidate.kind}\``);
+    lines.push(`- summary: \`${candidate.summary}\``);
+    lines.push(`- impact: ${candidate.impact}`);
+    const detail = findings.finding_details.find((entry) => entry.scope === candidate.scope && entry.kind === candidate.kind);
     lines.push('- evidence:');
-    if ((detail.role_tags ?? []).length > 0) {
+    if ((detail?.role_tags ?? []).length > 0) {
       lines.push(`  - role tags: \`${detail.role_tags.join(', ')}\``);
     }
-    for (const [metric, value] of Object.entries(detail.metrics ?? {})) {
+    for (const [metric, value] of Object.entries(detail?.metrics ?? {})) {
       lines.push(`  - ${metric.replaceAll('_', ' ')}: \`${value}\``);
     }
-    for (const evidence of detail.evidence ?? []) {
+    for (const evidence of detail?.evidence ?? []) {
       lines.push(`  - ${evidence}`);
     }
-    appendCodeList(lines, 'candidate split axes', detail.candidate_split_axes);
-    appendRepoLinkList(lines, 'related surfaces', metadata.parallel_code_root, detail.related_surfaces, 5);
+    appendCodeList(lines, 'candidate split axes', candidate.candidate_split_axes);
+    appendRepoLinkList(lines, 'related surfaces', metadata.parallel_code_root, candidate.related_surfaces, 5);
     lines.push('');
   }
+
+  lines.push('## Secondary Hotspots');
+  lines.push('');
+  for (const candidate of secondaryHotspots) {
+    lines.push(`- \`${candidate.scope}\` ${candidate.summary}`);
+  }
+  if (secondaryHotspots.length === 0) {
+    lines.push('- none');
+  }
+  lines.push('');
+
+  lines.push('## Targeted Hardening Notes');
+  lines.push('');
+  for (const candidate of hardeningNotes) {
+    lines.push(`- \`${candidate.scope}\` ${candidate.summary}`);
+  }
+  if (hardeningNotes.length === 0) {
+    lines.push('- none');
+  }
+  lines.push('');
+
+  lines.push('## Tooling Debt');
+  lines.push('');
+  for (const candidate of toolingDebt) {
+    lines.push(`- ${formatRepoPathMarkdown(metadata.parallel_code_root, candidate.scope)} ${candidate.summary}`);
+  }
+  if (toolingDebt.length === 0) {
+    lines.push('- none');
+  }
+  lines.push('');
   lines.push('## Top Watchpoints');
   lines.push('');
   for (const watchpoint of watchpoints) {
@@ -695,6 +781,7 @@ async function main() {
     reportMarkdownPath,
     buildLiveEngineerReport({
       snapshot,
+      findings,
       scan,
       benchmark,
       metadata,

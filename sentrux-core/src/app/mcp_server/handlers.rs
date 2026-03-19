@@ -1665,6 +1665,105 @@ fn finding_trust_tier(finding: &Value) -> String {
         .unwrap_or_else(|| trust_tier_for_kind(finding_kind(finding), "trusted"))
 }
 
+fn looks_like_tooling_scope(scope: &str) -> bool {
+    scope.starts_with("scripts/")
+}
+
+fn looks_like_transport_facade_scope(scope: &str) -> bool {
+    scope.contains("/ipc.")
+        || scope.contains("-ipc.")
+        || scope.ends_with("/ipc.ts")
+        || scope.ends_with("/ipc.tsx")
+        || scope.contains("/browser-http-ipc.")
+}
+
+fn is_watchpoint_presentation_kind(kind: &str) -> bool {
+    matches!(
+        kind,
+        "cycle_cluster" | "dead_island" | "clone_family" | "clone_group" | "exact_clone_group"
+    )
+}
+
+fn is_hardening_note_kind(kind: &str) -> bool {
+    matches!(kind, "closed_domain_exhaustiveness" | "contract_surface_completeness")
+}
+
+fn classify_presentation_class(
+    kind: &str,
+    trust_tier: &str,
+    scope: &str,
+    files: &[String],
+    role_tags: &[String],
+    evidence_count: usize,
+    finding_count: usize,
+    boundary_pressure_count: usize,
+    missing_site_count: usize,
+) -> String {
+    if trust_tier == "experimental" {
+        return "experimental".to_string();
+    }
+    if trust_tier == "watchpoint" || is_watchpoint_presentation_kind(kind) {
+        return "watchpoint".to_string();
+    }
+    if looks_like_tooling_scope(scope)
+        || (!files.is_empty() && files.iter().all(|path| looks_like_tooling_scope(path)))
+    {
+        return "tooling_debt".to_string();
+    }
+    if role_tags.iter().any(|tag| tag == "transport_facade")
+        || looks_like_transport_facade_scope(scope)
+    {
+        return "guarded_facade".to_string();
+    }
+    if is_hardening_note_kind(kind)
+        && files.len() <= 2
+        && evidence_count <= 2
+        && finding_count <= 1
+        && boundary_pressure_count == 0
+        && missing_site_count <= 1
+    {
+        return "hardening_note".to_string();
+    }
+
+    "structural_debt".to_string()
+}
+
+fn finding_presentation_class(finding: &Value) -> String {
+    if let Some(classification) = finding
+        .get("presentation_class")
+        .and_then(|value| value.as_str())
+    {
+        return classification.to_string();
+    }
+
+    let files = dedupe_strings_preserve_order(finding_files(finding));
+    let role_tags = finding_string_values(finding, "role_tags");
+    let evidence_count = finding_string_values(finding, "evidence").len();
+    classify_presentation_class(
+        finding_kind(finding),
+        &finding_trust_tier(finding),
+        &finding_scope(finding),
+        &files,
+        &role_tags,
+        evidence_count,
+        1,
+        0,
+        0,
+    )
+}
+
+fn decorate_finding_with_presentation_class(finding: &Value) -> Value {
+    let presentation_class = finding_presentation_class(finding);
+    let mut finding = finding.clone();
+    if let Some(object) = finding.as_object_mut() {
+        object.insert(
+            "presentation_class".to_string(),
+            Value::String(presentation_class),
+        );
+    }
+    finding
+}
+
 fn is_experimental_finding(finding: &Value) -> bool {
     finding_trust_tier(finding) == "experimental"
 }
@@ -1707,6 +1806,7 @@ fn finding_detail(finding: &Value) -> FindingDetail {
     FindingDetail {
         kind: kind.clone(),
         trust_tier: finding_trust_tier(finding),
+        presentation_class: finding_presentation_class(finding),
         scope: finding_scope(finding),
         severity: finding
             .get("severity")
@@ -2360,6 +2460,14 @@ fn handle_findings(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<V
         apply_root_suppressions(state, &root, merged_findings);
     let (visible_findings, experimental_findings) =
         partition_experimental_findings(&suppression_application.visible_findings, limit);
+    let visible_findings = visible_findings
+        .into_iter()
+        .map(|finding| decorate_finding_with_presentation_class(&finding))
+        .collect::<Vec<_>>();
+    let experimental_findings = experimental_findings
+        .into_iter()
+        .map(|finding| decorate_finding_with_presentation_class(&finding))
+        .collect::<Vec<_>>();
     let visible_clone_ids = visible_clone_ids(&visible_findings);
     let semantic_finding_count = visible_findings
         .iter()
@@ -3013,6 +3121,7 @@ struct ConceptDebtSummary {
 struct DebtSignal {
     kind: String,
     trust_tier: String,
+    presentation_class: String,
     scope: String,
     signal_class: String,
     signal_families: Vec<String>,
@@ -3033,6 +3142,7 @@ struct DebtSignal {
 struct FindingDetail {
     kind: String,
     trust_tier: String,
+    presentation_class: String,
     scope: String,
     severity: String,
     summary: String,
@@ -3050,6 +3160,7 @@ struct FindingDetail {
 struct InspectionWatchpoint {
     kind: String,
     trust_tier: String,
+    presentation_class: String,
     scope: String,
     severity: String,
     score_0_10000: u32,
@@ -3071,6 +3182,7 @@ struct InspectionWatchpoint {
 #[derive(Debug, Clone, serde::Serialize, Default)]
 struct DebtCluster {
     trust_tier: String,
+    presentation_class: String,
     scope: String,
     severity: String,
     score_0_10000: u32,
@@ -3459,6 +3571,17 @@ fn collect_debt_signals(
             DebtSignal {
                 kind: "concept".to_string(),
                 trust_tier: "trusted".to_string(),
+                presentation_class: classify_presentation_class(
+                    "concept",
+                    "trusted",
+                    &summary.concept_id,
+                    &summary.files,
+                    &[],
+                    evidence.len(),
+                    summary.finding_count,
+                    summary.boundary_pressure_count,
+                    summary.missing_site_count,
+                ),
                 scope: summary.concept_id.clone(),
                 signal_class: concept_signal_class(summary).to_string(),
                 signal_families: concept_signal_families(summary),
@@ -3558,6 +3681,7 @@ fn build_inspection_watchpoints(
             Some(InspectionWatchpoint {
                 kind: "concept_watchpoint".to_string(),
                 trust_tier: "watchpoint".to_string(),
+                presentation_class: "watchpoint".to_string(),
                 scope: summary.concept_id.clone(),
                 severity: signal_severity(score_0_10000).to_string(),
                 score_0_10000,
@@ -3611,6 +3735,7 @@ fn debt_signal_watchpoints(signals: &[DebtSignal], limit: usize) -> Vec<Inspecti
         .map(|signal| InspectionWatchpoint {
             kind: signal.kind.clone(),
             trust_tier: signal.trust_tier.clone(),
+            presentation_class: signal.presentation_class.clone(),
             scope: signal.scope.clone(),
             severity: signal.severity.clone(),
             score_0_10000: signal.score_0_10000,
@@ -3804,6 +3929,7 @@ fn debt_cluster(signals: &[DebtSignal]) -> Option<DebtCluster> {
 
     Some(DebtCluster {
         trust_tier: trust_tier.to_string(),
+        presentation_class: cluster_presentation_class(signals),
         scope: format!("cluster:{}", files.join("|")),
         severity: signal_severity(score_0_10000).to_string(),
         score_0_10000,
@@ -3849,6 +3975,27 @@ fn cluster_trust_tier(signals: &[DebtSignal]) -> &'static str {
     } else {
         "experimental"
     }
+}
+
+fn presentation_class_rank(classification: &str) -> usize {
+    match classification {
+        "structural_debt" => 0,
+        "guarded_facade" => 1,
+        "tooling_debt" => 2,
+        "hardening_note" => 3,
+        "watchpoint" => 4,
+        "experimental" => 5,
+        _ => 6,
+    }
+}
+
+fn cluster_presentation_class(signals: &[DebtSignal]) -> String {
+    signals
+        .iter()
+        .map(|signal| signal.presentation_class.as_str())
+        .min_by_key(|classification| presentation_class_rank(classification))
+        .unwrap_or("structural_debt")
+        .to_string()
 }
 
 fn is_structural_debt_signal_kind(kind: &str) -> bool {
@@ -4209,6 +4356,7 @@ fn structural_signal(report: &crate::metrics::v2::StructuralDebtReport) -> DebtS
     DebtSignal {
         kind: report.kind.clone(),
         trust_tier: report.trust_tier.clone(),
+        presentation_class: report.presentation_class.clone(),
         scope: report.scope.clone(),
         signal_class: report.signal_class.clone(),
         signal_families: report.signal_families.clone(),
@@ -4327,6 +4475,7 @@ fn clone_family_signal(family: &Value) -> Option<DebtSignal> {
         } else {
             "watchpoint".to_string()
         },
+        presentation_class: "watchpoint".to_string(),
         scope,
         signal_class: if score_0_10000 >= 6500 {
             "debt".to_string()
@@ -4392,6 +4541,7 @@ fn clone_group_signal(finding: &Value) -> Option<DebtSignal> {
         } else {
             "watchpoint".to_string()
         },
+        presentation_class: "watchpoint".to_string(),
         scope,
         signal_class: if score_0_10000 >= 6500 {
             "debt".to_string()
@@ -4436,6 +4586,21 @@ fn hotspot_signal(report: &crate::metrics::v2::ConcentrationReport) -> Option<De
         } else {
             "watchpoint".to_string()
         },
+        presentation_class: classify_presentation_class(
+            "hotspot",
+            if report.score_0_10000 >= 6500 {
+                "trusted"
+            } else {
+                "watchpoint"
+            },
+            &report.path,
+            std::slice::from_ref(&report.path),
+            &[],
+            report.reasons.len(),
+            1,
+            0,
+            0,
+        ),
         scope: report.path.clone(),
         signal_class: if report.score_0_10000 >= 6500 {
             "debt".to_string()
@@ -4600,14 +4765,14 @@ fn distinct_file_count(group: &crate::metrics::DuplicateGroup) -> usize {
 mod tests {
     use super::{
         apply_suppressions, build_exact_clone_findings, build_session_v2_baseline,
-        changed_files_from_session_context, cli_evaluate_v2_gate, cli_save_v2_session,
-        current_session_v2_baseline_with_status, distinct_file_count, do_scan, fresh_mcp_state,
-        handle_concepts, handle_explain_concept, handle_findings, handle_gate, handle_health,
-        handle_obligations, handle_scan, handle_session_end, handle_session_start, handle_state,
-        handle_trace_symbol, load_persisted_session_v2, load_session_v2_baseline_status,
-        load_v2_rules_config, overall_confidence_0_10000, prepare_patch_check_context,
-        project_fingerprint, save_session_v2_baseline, state_model_ids_from_findings,
-        state_model_ids_from_reports, update_scan_cache,
+        changed_files_from_session_context, classify_presentation_class, cli_evaluate_v2_gate,
+        cli_save_v2_session, current_session_v2_baseline_with_status, distinct_file_count,
+        do_scan, fresh_mcp_state, handle_concepts, handle_explain_concept, handle_findings,
+        handle_gate, handle_health, handle_obligations, handle_scan, handle_session_end,
+        handle_session_start, handle_state, handle_trace_symbol, load_persisted_session_v2,
+        load_session_v2_baseline_status, load_v2_rules_config, overall_confidence_0_10000,
+        prepare_patch_check_context, project_fingerprint, save_session_v2_baseline,
+        state_model_ids_from_findings, state_model_ids_from_reports, update_scan_cache,
     };
     use crate::analysis::scanner::common::{ScanMetadata, ScanMode};
     use crate::analysis::semantic::typescript::default_bridge_config;
@@ -5446,6 +5611,73 @@ mod tests {
             }));
 
         let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn presentation_class_demotes_narrow_hardening_notes_and_tooling_surfaces() {
+        assert_eq!(
+            classify_presentation_class(
+                "closed_domain_exhaustiveness",
+                "trusted",
+                "ConnectionBannerState",
+                &[
+                    "src/components/app-shell/AppConnectionBanner.tsx".to_string(),
+                    "src/runtime/browser-session.ts".to_string(),
+                ],
+                &[],
+                1,
+                1,
+                0,
+                1,
+            ),
+            "hardening_note"
+        );
+        assert_eq!(
+            classify_presentation_class(
+                "large_file",
+                "trusted",
+                "scripts/session-stress.mjs",
+                &["scripts/session-stress.mjs".to_string()],
+                &[],
+                5,
+                1,
+                0,
+                0,
+            ),
+            "tooling_debt"
+        );
+        assert_eq!(
+            classify_presentation_class(
+                "unstable_hotspot",
+                "trusted",
+                "src/lib/ipc.ts",
+                &["src/lib/ipc.ts".to_string()],
+                &["transport_facade".to_string()],
+                6,
+                1,
+                0,
+                0,
+            ),
+            "guarded_facade"
+        );
+    }
+
+    #[test]
+    fn presentation_class_marks_exact_clone_groups_as_watchpoints() {
+        assert_eq!(
+            classify_presentation_class(
+                "exact_clone_group",
+                "trusted",
+                "src/a.ts|src/b.ts",
+                &["src/a.ts".to_string(), "src/b.ts".to_string()],
+                &[],
+                0,
+                1,
+                0,
+                0,
+            ),
+            "watchpoint"
+        );
     }
 
     #[test]
@@ -7531,6 +7763,7 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
     let resolved_findings = resolved_findings
         .into_iter()
         .filter(|finding| !is_experimental_finding(finding))
+        .map(|finding| decorate_finding_with_presentation_class(&finding))
         .collect::<Vec<_>>();
     let gate_decision = if !missing_obligations.is_empty() || !blocking_findings.is_empty() {
         "fail"
@@ -7546,11 +7779,23 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         baseline_error =
             Some("Legacy baseline unavailable; structural delta fields were omitted".to_string());
     }
+    let introduced_findings = visible_introduced_findings
+        .iter()
+        .map(decorate_finding_with_presentation_class)
+        .collect::<Vec<_>>();
     let (opportunity_findings, experimental_findings) = if session_v2.is_some() {
         (visible_introduced_findings.clone(), experimental_findings)
     } else {
         partition_experimental_findings(&analysis.changed_visible_findings, 10)
     };
+    let opportunity_findings = opportunity_findings
+        .into_iter()
+        .map(|finding| decorate_finding_with_presentation_class(&finding))
+        .collect::<Vec<_>>();
+    let experimental_findings = experimental_findings
+        .into_iter()
+        .map(|finding| decorate_finding_with_presentation_class(&finding))
+        .collect::<Vec<_>>();
     let finding_details = build_finding_details(&opportunity_findings, 10);
     let debt_outputs = build_debt_report_outputs(
         state,
@@ -7625,7 +7870,7 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
     result.insert("changed_concepts".to_string(), json!(changed_concepts));
     result.insert(
         "introduced_findings".to_string(),
-        json!(visible_introduced_findings),
+        json!(introduced_findings),
     );
     result.insert("resolved_findings".to_string(), json!(resolved_findings));
     result.insert(
