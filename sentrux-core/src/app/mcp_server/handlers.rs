@@ -2125,6 +2125,8 @@ fn handle_findings(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<V
         "concept_summaries": quality_outputs.concept_summaries,
         "quality_opportunity_count": quality_outputs.quality_opportunities.len(),
         "quality_opportunities": quality_outputs.quality_opportunities,
+        "optimization_priority_count": quality_outputs.optimization_priorities.len(),
+        "optimization_priorities": quality_outputs.optimization_priorities,
         "semantic_finding_count": semantic_finding_count,
         "rules_error": merge_optional_errors(config_error, suppression_error),
         "semantic_error": merge_optional_errors(semantic_error, clone_error),
@@ -2611,6 +2613,7 @@ struct ConceptOpportunitySummary {
     score_0_10000: u32,
     finding_count: usize,
     high_severity_count: usize,
+    boundary_pressure_count: usize,
     obligation_count: usize,
     missing_site_count: usize,
     context_burden: usize,
@@ -2632,10 +2635,26 @@ struct QualityImprovementOpportunity {
     suggested_actions: Vec<String>,
 }
 
+#[derive(Debug, Clone, serde::Serialize, Default)]
+struct RefactorPriority {
+    concept_id: String,
+    severity: String,
+    score_0_10000: u32,
+    summary: String,
+    files: Vec<String>,
+    evidence: Vec<String>,
+    suggested_actions: Vec<String>,
+    clone_family_count: usize,
+    hotspot_count: usize,
+    missing_site_count: usize,
+    boundary_pressure_count: usize,
+}
+
 #[derive(Default)]
 struct ConceptOpportunityAggregate {
     finding_count: usize,
     high_severity_count: usize,
+    boundary_pressure_count: usize,
     obligation_count: usize,
     missing_site_count: usize,
     context_burden: usize,
@@ -2647,6 +2666,7 @@ struct ConceptOpportunityAggregate {
 struct QualityOpportunityOutputs {
     concept_summaries: Vec<ConceptOpportunitySummary>,
     quality_opportunities: Vec<QualityImprovementOpportunity>,
+    optimization_priorities: Vec<RefactorPriority>,
     context_error: Option<String>,
 }
 
@@ -2692,10 +2712,17 @@ fn build_quality_opportunity_outputs(
         &concentration_reports,
         limit,
     );
+    let optimization_priorities = build_refactor_priorities(
+        &concept_summaries,
+        clone_families,
+        &concentration_reports,
+        limit,
+    );
 
     QualityOpportunityOutputs {
         concept_summaries: concept_summaries.into_iter().take(limit).collect(),
         quality_opportunities,
+        optimization_priorities,
         context_error,
     }
 }
@@ -2711,13 +2738,25 @@ fn build_concept_opportunity_summaries(
             continue;
         };
         let entry = aggregates.entry(concept_id.to_string()).or_default();
+        let kind = finding_kind(finding).to_string();
         entry.finding_count += 1;
         if severity_of_value(finding) == "high" {
             entry.high_severity_count += 1;
         }
+        if matches!(
+            kind.as_str(),
+            "multi_writer_concept"
+                | "forbidden_writer"
+                | "writer_outside_allowlist"
+                | "forbidden_raw_read"
+                | "authoritative_import_bypass"
+                | "concept_boundary_pressure"
+        ) {
+            entry.boundary_pressure_count += 1;
+        }
         entry
             .kinds
-            .entry(finding_kind(finding).to_string())
+            .entry(kind)
             .and_modify(|count| *count += 1)
             .or_insert(1);
         entry.files.extend(finding_files(finding));
@@ -2740,6 +2779,7 @@ fn build_concept_opportunity_summaries(
             let ConceptOpportunityAggregate {
                 finding_count,
                 high_severity_count,
+                boundary_pressure_count,
                 obligation_count,
                 missing_site_count,
                 context_burden,
@@ -2757,6 +2797,7 @@ fn build_concept_opportunity_summaries(
             let score_0_10000 = concept_opportunity_score(
                 finding_count,
                 high_severity_count,
+                boundary_pressure_count,
                 missing_site_count,
                 context_burden,
             );
@@ -2769,11 +2810,13 @@ fn build_concept_opportunity_summaries(
                     finding_count,
                     missing_site_count,
                     high_severity_count,
+                    boundary_pressure_count,
                 ),
                 concept_id,
                 score_0_10000,
                 finding_count,
                 high_severity_count,
+                boundary_pressure_count,
                 obligation_count,
                 missing_site_count,
                 context_burden,
@@ -2889,18 +2932,226 @@ fn build_quality_improvement_opportunities(
     opportunities
 }
 
+fn build_refactor_priorities(
+    concept_summaries: &[ConceptOpportunitySummary],
+    clone_families: &[Value],
+    concentration_reports: &[crate::metrics::v2::ConcentrationReport],
+    limit: usize,
+) -> Vec<RefactorPriority> {
+    let mut priorities = concept_summaries
+        .iter()
+        .filter_map(|summary| {
+            let matching_clone_families = related_clone_families(summary, clone_families);
+            let matching_hotspots = related_hotspots(summary, concentration_reports);
+            if summary.score_0_10000 < 3000
+                && matching_clone_families.is_empty()
+                && matching_hotspots.is_empty()
+                && summary.boundary_pressure_count == 0
+            {
+                return None;
+            }
+
+            let score_0_10000 = refactor_priority_score(
+                summary,
+                matching_clone_families.len(),
+                matching_hotspots.len(),
+            );
+
+            Some(RefactorPriority {
+                concept_id: summary.concept_id.clone(),
+                severity: opportunity_severity(score_0_10000).to_string(),
+                score_0_10000,
+                summary: refactor_priority_summary(
+                    summary,
+                    matching_clone_families.len(),
+                    matching_hotspots.len(),
+                ),
+                files: summary.files.clone(),
+                evidence: refactor_priority_evidence(
+                    summary,
+                    matching_clone_families.as_slice(),
+                    matching_hotspots.as_slice(),
+                ),
+                suggested_actions: refactor_priority_actions(
+                    summary,
+                    matching_clone_families.as_slice(),
+                    matching_hotspots.as_slice(),
+                ),
+                clone_family_count: matching_clone_families.len(),
+                hotspot_count: matching_hotspots.len(),
+                missing_site_count: summary.missing_site_count,
+                boundary_pressure_count: summary.boundary_pressure_count,
+            })
+        })
+        .collect::<Vec<_>>();
+
+    priorities.sort_by(|left, right| {
+        severity_priority(&right.severity)
+            .cmp(&severity_priority(&left.severity))
+            .then_with(|| right.score_0_10000.cmp(&left.score_0_10000))
+            .then_with(|| left.concept_id.cmp(&right.concept_id))
+    });
+    priorities.truncate(limit);
+    priorities
+}
+
+fn related_clone_families<'a>(
+    summary: &ConceptOpportunitySummary,
+    clone_families: &'a [Value],
+) -> Vec<&'a Value> {
+    clone_families
+        .iter()
+        .filter(|family| files_overlap(&summary.files, &finding_files(family)))
+        .collect()
+}
+
+fn related_hotspots<'a>(
+    summary: &ConceptOpportunitySummary,
+    concentration_reports: &'a [crate::metrics::v2::ConcentrationReport],
+) -> Vec<&'a crate::metrics::v2::ConcentrationReport> {
+    concentration_reports
+        .iter()
+        .filter(|report| summary.files.iter().any(|path| path == &report.path))
+        .collect()
+}
+
+fn files_overlap(left: &[String], right: &[String]) -> bool {
+    let right_files = right.iter().collect::<BTreeSet<_>>();
+    left.iter().any(|path| right_files.contains(path))
+}
+
+fn refactor_priority_score(
+    summary: &ConceptOpportunitySummary,
+    clone_family_count: usize,
+    hotspot_count: usize,
+) -> u32 {
+    let clone_pressure = (clone_family_count as u32 * 900).min(1800);
+    let hotspot_pressure = (hotspot_count as u32 * 700).min(1400);
+    let compound_bonus = if summary.boundary_pressure_count > 0 && summary.missing_site_count > 0 {
+        900
+    } else {
+        0
+    };
+
+    (summary.score_0_10000 + clone_pressure + hotspot_pressure + compound_bonus).min(10_000)
+}
+
+fn refactor_priority_summary(
+    summary: &ConceptOpportunitySummary,
+    clone_family_count: usize,
+    hotspot_count: usize,
+) -> String {
+    if summary.boundary_pressure_count > 0 && summary.missing_site_count > 0 {
+        return format!(
+            "Stabilize concept '{}' before adding more change surface: boundary bypasses are compounding incomplete propagation",
+            summary.concept_id
+        );
+    }
+    if clone_family_count > 0 && summary.boundary_pressure_count > 0 {
+        return format!(
+            "Consolidate concept '{}' before the repeated clone surfaces drift further",
+            summary.concept_id
+        );
+    }
+    if clone_family_count > 0 {
+        return format!(
+            "Deduplicate concept '{}' after aligning the repeated clone surfaces around it",
+            summary.concept_id
+        );
+    }
+    if hotspot_count > 0 {
+        return format!(
+            "Split concept '{}' responsibilities before the coordination hotspot grows",
+            summary.concept_id
+        );
+    }
+
+    summary.summary.clone()
+}
+
+fn refactor_priority_evidence(
+    summary: &ConceptOpportunitySummary,
+    clone_families: &[&Value],
+    hotspots: &[&crate::metrics::v2::ConcentrationReport],
+) -> Vec<String> {
+    let mut evidence = Vec::new();
+    if summary.boundary_pressure_count > 0 {
+        evidence.push(format!(
+            "boundary and ownership findings: {}",
+            summary.boundary_pressure_count
+        ));
+    }
+    if summary.missing_site_count > 0 {
+        evidence.push(format!(
+            "missing update sites: {}",
+            summary.missing_site_count
+        ));
+    }
+    if summary.context_burden > 0 {
+        evidence.push(format!("context burden: {}", summary.context_burden));
+    }
+    if !clone_families.is_empty() {
+        evidence.push(format!("related clone families: {}", clone_families.len()));
+        evidence.extend(
+            clone_families
+                .iter()
+                .take(2)
+                .filter_map(|family| family.get("summary").and_then(|value| value.as_str()))
+                .map(str::to_string),
+        );
+    }
+    if !hotspots.is_empty() {
+        evidence.push(format!("related hotspots: {}", hotspots.len()));
+        evidence.extend(
+            hotspots
+                .iter()
+                .take(2)
+                .map(|report| format!("hotspot file: {}", report.path)),
+        );
+    }
+
+    evidence
+}
+
+fn refactor_priority_actions(
+    summary: &ConceptOpportunitySummary,
+    clone_families: &[&Value],
+    hotspots: &[&crate::metrics::v2::ConcentrationReport],
+) -> Vec<String> {
+    let mut actions = summary.suggested_actions.clone();
+    if !clone_families.is_empty() {
+        actions.push(
+            "deduplicate the repeated clone surfaces after aligning shared behavior".to_string(),
+        );
+    }
+    if !hotspots.is_empty() {
+        actions.push("split orchestration from storage and adapter responsibilities".to_string());
+    }
+    if summary.boundary_pressure_count > 0 && summary.missing_site_count > 0 {
+        actions.push(
+            "tighten the concept boundary before extending the propagation chain".to_string(),
+        );
+    }
+    actions = dedupe_strings_preserve_order(actions);
+    actions.truncate(4);
+    actions
+}
+
 fn concept_opportunity_score(
     finding_count: usize,
     high_severity_count: usize,
+    boundary_pressure_count: usize,
     missing_site_count: usize,
     context_burden: usize,
 ) -> u32 {
     let high_pressure = (high_severity_count as u32 * 2200).min(4400);
+    let boundary_pressure = (boundary_pressure_count as u32 * 1100).min(3300);
     let finding_pressure = (finding_count as u32 * 900).min(2700);
     let missing_pressure = (missing_site_count as u32 * 700).min(2800);
     let context_pressure = (context_burden as u32 * 80).min(1600);
 
-    (high_pressure + finding_pressure + missing_pressure + context_pressure).min(10_000)
+    (high_pressure + boundary_pressure + finding_pressure + missing_pressure + context_pressure)
+        .min(10_000)
 }
 
 fn concept_opportunity_summary(
@@ -2908,7 +3159,14 @@ fn concept_opportunity_summary(
     finding_count: usize,
     missing_site_count: usize,
     high_severity_count: usize,
+    boundary_pressure_count: usize,
 ) -> String {
+    if boundary_pressure_count > 0 && missing_site_count > 0 {
+        return format!(
+            "Concept '{}' combines boundary pressure with {} missing update sites",
+            concept_id, missing_site_count
+        );
+    }
     if high_severity_count > 0 && missing_site_count > 0 {
         return format!(
             "Concept '{}' combines architecture violations with {} missing update sites",
@@ -2937,7 +3195,10 @@ fn concept_opportunity_actions(dominant_kinds: &[String], has_missing_sites: boo
     let mut actions = Vec::new();
     for kind in dominant_kinds {
         match kind.as_str() {
-            "multi_writer_concept" | "forbidden_writer" | "writer_outside_allowlist" => {
+            "multi_writer_concept"
+            | "forbidden_writer"
+            | "writer_outside_allowlist"
+            | "concept_boundary_pressure" => {
                 actions.push("centralize writes behind a single owner".to_string());
             }
             "forbidden_raw_read" | "authoritative_import_bypass" => {
@@ -2956,9 +3217,17 @@ fn concept_opportunity_actions(dominant_kinds: &[String], has_missing_sites: boo
     if actions.is_empty() {
         actions.push("review the concept boundary before adding more change surface".to_string());
     }
-    actions.dedup();
+    actions = dedupe_strings_preserve_order(actions);
     actions.truncate(3);
     actions
+}
+
+fn dedupe_strings_preserve_order(values: Vec<String>) -> Vec<String> {
+    let mut seen = BTreeSet::new();
+    values
+        .into_iter()
+        .filter(|value| seen.insert(value.clone()))
+        .collect()
 }
 
 fn opportunity_severity(score_0_10000: u32) -> &'static str {
@@ -3879,6 +4148,11 @@ mod tests {
             .any(|opportunity| {
                 opportunity["kind"] == "concept" && opportunity["scope"] == "task_git_status"
             }));
+        assert!(response["optimization_priorities"]
+            .as_array()
+            .expect("optimization priorities")
+            .iter()
+            .any(|priority| priority["concept_id"] == "task_git_status"));
 
         let _ = std::fs::remove_dir_all(root);
     }
@@ -4657,6 +4931,11 @@ mod tests {
             .expect("quality opportunities")
             .iter()
             .any(|opportunity| opportunity["scope"] == "app_state"));
+        assert!(response["optimization_priorities"]
+            .as_array()
+            .expect("optimization priorities")
+            .iter()
+            .any(|priority| priority["concept_id"] == "app_state"));
 
         let _ = std::fs::remove_dir_all(root);
     }
@@ -5524,6 +5803,8 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         "concept_summaries": quality_outputs.concept_summaries,
         "quality_opportunity_count": quality_outputs.quality_opportunities.len(),
         "quality_opportunities": quality_outputs.quality_opportunities,
+        "optimization_priority_count": quality_outputs.optimization_priorities.len(),
+        "optimization_priorities": quality_outputs.optimization_priorities,
         "obligation_completeness_0_10000": crate::metrics::v2::obligation_score_0_10000(&analysis.changed_obligations),
         "touched_concept_gate": {
             "decision": gate_decision,
