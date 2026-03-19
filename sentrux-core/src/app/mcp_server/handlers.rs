@@ -674,6 +674,15 @@ fn git_output(root: &Path, args: &[&str]) -> Option<String> {
     String::from_utf8(output.stdout).ok()
 }
 
+fn trimmed_git_output(root: &Path, args: &[&str]) -> Option<String> {
+    let output = git_output(root, args)?;
+    let output = output.trim();
+    if output.is_empty() {
+        return None;
+    }
+    Some(output.to_string())
+}
+
 fn working_tree_changed_files(root: &Path) -> Option<BTreeSet<String>> {
     let stdout = git_output(root, &["status", "--porcelain", "--untracked-files=all"])?;
     Some(
@@ -704,12 +713,7 @@ fn parse_porcelain_paths(line: &str) -> Vec<String> {
 }
 
 fn current_git_head(root: &Path) -> Option<String> {
-    let head = git_output(root, &["rev-parse", "HEAD"])?;
-    let head = head.trim();
-    if head.is_empty() {
-        return None;
-    }
-    Some(head.to_string())
+    trimmed_git_output(root, &["rev-parse", "HEAD"])
 }
 
 fn git_root_commit(root: &Path) -> Option<String> {
@@ -722,12 +726,8 @@ fn git_root_commit(root: &Path) -> Option<String> {
 }
 
 fn git_origin_url(root: &Path) -> Option<String> {
-    let origin = git_output(root, &["config", "--get", "remote.origin.url"])?;
-    let origin = origin.trim();
-    if origin.is_empty() {
-        return None;
-    }
-    Some(origin.replace('\\', "/"))
+    trimmed_git_output(root, &["config", "--get", "remote.origin.url"])
+        .map(|origin| origin.replace('\\', "/"))
 }
 
 fn project_fingerprint(root: &Path) -> String {
