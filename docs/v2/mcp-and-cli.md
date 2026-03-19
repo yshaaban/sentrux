@@ -9,7 +9,7 @@ That means:
 - keep existing tools working
 - add patch-safety-first v2 tools
 - make `session_end` the primary agent touchpoint
-- return findings and obligations before score summaries
+- return objective findings, debt signals, watchpoints, and patch risks before score summaries
 
 ## Product Surface Priority
 
@@ -22,7 +22,7 @@ For v2 integrations, the preferred order is:
 5. `scorecard`
 6. concept and parity inspection tools
 
-This ordering should shape both MCP and CLI design.
+This ordering should shape both MCP and CLI design. Any ranking or optimization-like output is a sorting aid, not the final decision.
 
 ## Existing Tools To Preserve
 
@@ -48,6 +48,7 @@ For v2:
 - `health` and CLI `check` should explicitly present themselves as legacy structural context, not as the primary v2 quality narrative
 - the desktop metrics panel and export flow should also present structural scores as supporting context
 - `findings`, `obligations`, `session_end`, and `gate` should carry the actionable v2 diagnostics
+- any `quality_opportunities` or `optimization_priorities` fields should be treated as evidence-backed inspection candidates rather than engineer-owned prioritization
 - `health` may eventually link to the presence of v2 data, but it should not duplicate full v2 finding lists
 
 Agents should use v2 tools for patch-safety decisions.
@@ -58,7 +59,7 @@ Agents should use v2 tools for patch-safety decisions.
 
 Purpose:
 
-- return concrete patch-safety findings with evidence
+- return concrete patch-safety findings, debt signals, watchpoints, and patch risks with evidence
 
 Arguments:
 
@@ -74,8 +75,8 @@ Returns:
 - evidence
 - likely fix sites
 - concept summaries for repeated concept pressure
-- ranked quality-improvement opportunities
-- ranked optimization priorities for higher-leverage refactors
+- quality-improvement opportunities as inspection candidates
+- optimization candidates as sorting aids
 - top-level confidence summary
 
 ## `obligations`
@@ -129,8 +130,8 @@ It should add:
 - resolved findings
 - missing obligations
 - concept summaries for changed concepts
-- patch-scoped quality-improvement opportunities
-- patch-scoped optimization priorities for higher-leverage structural cleanup
+- patch-scoped quality-improvement opportunities as inspection candidates
+- patch-scoped optimization candidates for structural cleanup
 - track deltas
 - touched-concept regression verdict
 - confidence delta if coverage changed
@@ -221,31 +222,36 @@ Arguments:
   "concept_summaries": [
     {
       "concept_id": "task_git_status",
-      "summary": "Concept 'task_git_status' combines architecture violations with 2 missing update sites",
+      "summary": "Concept 'task_git_status' shows 2 boundary/ownership findings and 2 missing update sites",
       "score_0_10000": 7800
     }
   ],
-  "quality_opportunities": [
+  "debt_signals": [
     {
       "kind": "concept",
       "scope": "task_git_status",
+      "signal_class": "debt",
+      "signal_families": [
+        "ownership",
+        "boundary",
+        "propagation"
+      ],
       "severity": "high",
-      "summary": "Concept 'task_git_status' combines architecture violations with 2 missing update sites",
-      "suggested_actions": [
-        "centralize writes behind a single owner",
-        "complete the propagation chain before extending the concept further"
+      "summary": "Concept 'task_git_status' shows 2 boundary/ownership findings and 2 missing update sites",
+      "inspection_focus": [
+        "inspect write ownership and boundary enforcement",
+        "inspect the explicit propagation sites and completeness tests for this concept"
       ]
     }
   ],
-  "optimization_priorities": [
+  "watchpoints": [
     {
-      "concept_id": "task_git_status",
+      "scope": "task_git_status",
       "severity": "high",
-      "summary": "Stabilize concept 'task_git_status' before adding more change surface: boundary bypasses are compounding incomplete propagation",
-      "suggested_actions": [
-        "centralize writes behind a single owner",
-        "complete the propagation chain before extending the concept further",
-        "tighten the concept boundary before extending the propagation chain"
+      "summary": "Concept 'task_git_status' intersects boundary pressure, propagation burden",
+      "inspection_focus": [
+        "inspect write ownership and boundary enforcement",
+        "inspect whether boundary erosion is making the propagation chain easier to miss"
       ]
     }
   ],
@@ -286,22 +292,27 @@ Arguments:
         "multi_writer_concept",
         "forbidden_writer"
       ],
-      "summary": "Concept 'task_git_status' has repeated high-severity ownership or access issues"
+      "summary": "Concept 'task_git_status' has 2 high-severity ownership or access findings"
     }
   ],
-  "quality_opportunities": [
+  "debt_signals": [
     {
       "kind": "concept",
       "scope": "task_git_status",
+      "signal_class": "debt",
+      "signal_families": [
+        "ownership",
+        "boundary"
+      ],
       "severity": "high",
-      "summary": "Concept 'task_git_status' has repeated high-severity ownership or access issues"
+      "summary": "Concept 'task_git_status' has 2 high-severity ownership or access findings"
     }
   ],
-  "optimization_priorities": [
+  "watchpoints": [
     {
-      "concept_id": "task_git_status",
+      "scope": "task_git_status",
       "severity": "high",
-      "summary": "Consolidate concept 'task_git_status' before the repeated clone surfaces drift further"
+      "summary": "Concept 'task_git_status' intersects boundary pressure and clone overlap"
     }
   ],
   "findings": [
@@ -429,7 +440,7 @@ Baseline coexistence and migration rules are defined in `baseline-migration.md`.
 - [ ] keep dedicated v2 handler extraction optional; current handlers carry v2 successfully
 - [x] add `findings` tool
 - [x] add `obligations` tool
-- [x] upgrade `session_end` for v2 delta, gate, quality opportunities, and optimization priorities
+- [x] upgrade `session_end` for v2 delta, gate, quality opportunities, and inspection candidates
 - [x] add `gate` tool
 - [ ] add `scorecard` tool
 - [x] add `concepts` tool

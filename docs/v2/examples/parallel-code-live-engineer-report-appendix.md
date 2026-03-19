@@ -20,6 +20,8 @@ The analysis was run against a disposable clone of the live `~/parallel-code` ch
 
 This was a **live** run, but the rules came from Sentrux’s example config, not from a project-owned `.sentrux/rules.toml` inside `parallel-code`.
 
+The output is evidence-first. Any optimization-style fields should be read as inspection aids, not as final prioritization.
+
 ## Scan Scope And Confidence
 
 Current scan:

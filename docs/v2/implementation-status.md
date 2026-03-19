@@ -42,8 +42,8 @@ The strongest completed work is:
 - shared patch-safety analysis reuse across `gate` and `session_end`
 - broader contract-driven obligation triggers beyond closed-domain changes
 - stronger boundary-bypass and concept-boundary pressure findings
-- concept-scoped quality summaries and ranked improvement opportunities in `findings` and `session_end`
-- ranked optimization priorities that combine concept pressure, clone families, and hotspots
+- concept-scoped quality summaries and debt signals in `findings` and `session_end`
+- inspection candidates that combine concept pressure, clone families, and hotspots
 - parity and concentration context
 - conservative state-integrity analysis
 - session baseline project-fingerprint validation and confidence regression coverage
@@ -69,7 +69,7 @@ The strongest completed work is:
 | Tier 1F | Mostly complete | `session_end` and `gate` now work in MCP and CLI on the same touched-concept model, including suppression-aware decisions and shared patch-safety analysis reuse | release-grade gate validation is still incomplete |
 | Tier 2A | Mostly complete | parity analyzer, MCP tool, and real proof now exist on more than one repo shape | broader contract families still need more false-positive review and non-happy-path validation |
 | Tier 2B | Mostly complete | concentration analysis exists and is tested | not yet benchmarked or validated on the real case-study repo |
-| Tier 2C | Mostly complete | inspection tools, adoption helpers, quality-guidance summaries, optimization priorities, and two real benchmark repos now exist | broader onboarding proof and ranking validation are still incomplete |
+| Tier 2C | Mostly complete | inspection tools, adoption helpers, quality-guidance summaries, debt signals, and two real benchmark repos now exist | broader onboarding proof and evidence-quality validation are still incomplete |
 | Tier 3 | Partial | conservative state-integrity slice is in place and now validated on real `parallel-code` controllers | transition modeling and implicit lifecycle heuristics are not built |
 | Validation | Mostly complete | unit tests, synthetic gate/session regression scenarios, two real benchmark repos, multi-repo goldens, versioned benchmark comparison, explicit benchmark policy, and confidence/migration checks now exist | no full migration suite and benchmark-repo unhappy-path coverage is still incomplete |
 
@@ -261,9 +261,9 @@ Delivered:
 - conservative concept inference
 - onboarding docs
 - concept-scoped quality summaries in `findings`
-- ranked quality-improvement opportunities in `findings` and `session_end`
-- concentration-backed opportunity scoring for concept-level refactor candidates
-- optimization priorities that combine boundary pressure, clone families, hotspots, and missing-site pressure
+- debt signals in `findings` and `session_end`
+- concentration-backed inspection scoring for concept-level refactor candidates
+- inspection candidates that combine boundary pressure, clone families, hotspots, and missing-site pressure
 
 Still missing:
 
@@ -335,7 +335,7 @@ It is not enough to say:
 
 1. remaining warm-path performance work is still dominated by structural scan and changed-file bookkeeping
 2. benchmark-repo unhappy-path validation and analyzer promotion criteria are still thinner than the main happy-path proof loop
-3. GUI wording is aligned, but the desktop surface still lacks first-class v2 findings, obligations, and optimization-priority panels
+3. GUI wording is aligned, but the desktop surface still lacks first-class v2 findings, obligations, and debt-signal panels
 4. richer contract-driven obligations are materially better, but true field-diff precision is still incomplete
 5. Tier 3 is still only an initial conservative slice
 
@@ -345,7 +345,7 @@ It is not enough to say:
 2. expand benchmark-repo unhappy-path validation and formal analyzer promotion criteria
 3. decide whether the desktop product needs first-class v2 panels instead of doctrinal alignment only
 4. deepen contract-field precision only where real repo feedback still shows misses
-5. validate parity, concentration, and optimization ranking against more non-happy-path repo scenarios
+5. validate parity, concentration, and debt-signal quality against more non-happy-path repo scenarios
 
 ## Beta Readiness
 

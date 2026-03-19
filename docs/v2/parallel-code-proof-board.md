@@ -65,7 +65,7 @@ Expected proof output:
 
 - a small set of trusted findings
 - a small set of trusted concept summaries
-- a small set of trusted optimization priorities
+- a small set of trusted debt signals and watchpoints
 
 Current review artifact:
 
@@ -195,7 +195,7 @@ Every proof run should record:
 
 - current top findings
 - current top concept summaries
-- current optimization priorities
+- current debt signals and watchpoints
 - the proof target selected
 - the before-state evidence
 - the after-state evidence

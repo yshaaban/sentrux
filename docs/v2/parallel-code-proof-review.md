@@ -10,13 +10,13 @@ It exists to keep the proof board honest:
 
 ## Trusted Current Signals
 
-These are the current `parallel-code` signals worth acting on:
+These are the current `parallel-code` signals worth inspecting:
 
-- `task_presentation_status` still carries a real `closed_domain_exhaustiveness` obligation on `TaskDotStatus`
-- `ConnectionBannerState` is still a real closed-domain and hotspot-adjacent pressure surface
+- `task_presentation_status` still carries a real `closed_domain_exhaustiveness` hardening opportunity on `TaskDotStatus`
+- `ConnectionBannerState` is still a real presentation hardening opportunity
 - the `AgentGlyph` / `RemoteAgentGlyph` pair is still a real production clone family
-- the `ws-server` / `browser-websocket` pair is still a real production clone family
-- `server/browser-control-plane.ts` and `electron/ipc/hydra-adapter.ts` are still real coordination hotspots
+- the `ws-server` / `browser-websocket` pair is still a real production clone family, but it should be treated as a lower-confidence watchpoint
+- `server/browser-control-plane.ts` and `electron/ipc/hydra-adapter.ts` are still real coordination watchpoints
 
 ## Reviewed Overstatements
 
@@ -34,7 +34,7 @@ Fix:
 
 Result:
 
-- `task_git_status` no longer appears as a current top ownership problem in the reviewed baseline
+- `task_git_status` no longer appears as a current ownership problem in the reviewed baseline
 
 ### 2. `server_state_bootstrap` runtime-contract import bypass
 
@@ -49,7 +49,15 @@ Fix:
 
 Result:
 
-- `server_state_bootstrap` no longer appears as a current top ownership or access issue in the reviewed baseline
+- `server_state_bootstrap` no longer appears as a current ownership or access issue in the reviewed baseline
+
+## Signals To Treat As Hardening, Not Roadmap Truth
+
+These signals are real, but they are better treated as hardening or watchpoint outputs than as top architectural priorities:
+
+- `task_presentation_status`
+- `ConnectionBannerState`
+- `ws-server` / `browser-websocket`
 
 ## What This Means For The Proof Loop
 

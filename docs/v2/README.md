@@ -29,6 +29,7 @@ The next version should answer questions like:
 - Do browser and Electron implement the same restore/bootstrap contract?
 - Is stateful logic explicit and exhaustive, or implicit and drifting?
 - Which modules have become risky coordination hotspots?
+- Which modules are accumulating technical debt through duplication, drift, or boundary erosion?
 
 ## V2 Principles
 
@@ -39,6 +40,7 @@ The next version should answer questions like:
 5. Confidence is part of the product.
 6. V1 compatibility is preserved during rollout.
 7. Patch safety comes before repo-wide scoring.
+8. Engineers own final prioritization.
 
 ## Document Map
 
@@ -86,7 +88,7 @@ to:
 
 > What did this patch change, what obligations did that create, and what did the agent fail to update?
 
-V2 now also exposes ranked optimization priorities so the same analysis can drive project-improvement work, not only patch blocking.
+V2 now also exposes debt signals, watchpoints, and patch risks. Any compatibility fields that still mention quality opportunities or optimization-style sorting should be treated as legacy aliases for inspection candidates only. Engineers own the final prioritization.
 
 ## Core Wedge
 
@@ -139,7 +141,7 @@ Current reality:
 
 1. the patch-safety wedge is working in MCP and CLI
 2. proof artifacts now exist for `parallel-code` and `private-benchmark-repo`
-3. findings and `session_end` now include concept summaries, quality opportunities, and ranked optimization priorities
+3. findings and `session_end` now include concept summaries, debt signals, and watchpoints
 4. the remaining gaps are warm-path performance follow-through, broader unhappy-path validation, and deeper Tier 3 analysis
 
 ## Exit Criteria For V2 Beta

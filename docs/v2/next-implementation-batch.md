@@ -2,9 +2,9 @@
 
 Last updated: 2026-03-19
 
-This document defines the next execution block for v2 after the current wedge is working in MCP and CLI, the second benchmark repo proof loop on `private-benchmark-repo`, the boundary and contract expansions, and the new optimization-priority surface.
+This document defines the next execution block for v2 after the current wedge is working in MCP and CLI, the second benchmark repo proof loop on `private-benchmark-repo`, the boundary and contract expansions, and the current evidence-first debt-signal surface.
 
-The goal of this batch is not to add broad new analyzer scope. It is to finish the remaining work that makes v2 dependable enough to drive real code-quality improvement on repos like `parallel-code`.
+The goal of this batch is not to add broad new analyzer scope. It is to finish the remaining work that makes v2 dependable enough to surface objective technical-debt evidence on repos like `parallel-code`, while leaving final prioritization to engineers.
 
 ## Why This Batch Exists
 
@@ -12,8 +12,8 @@ The current v2 implementation can already:
 
 - catch touched-concept regressions
 - surface clone drift, authority/access violations, and incomplete propagation
-- rank concept-level quality opportunities
-- rank optimization priorities that combine boundary pressure, clone families, hotspots, and missing-site pressure
+- surface concept-level quality opportunities
+- surface debt signals that combine boundary pressure, clone families, hotspots, and missing-site pressure
 - prove the core workflow on `parallel-code` and `private-benchmark-repo`
 
 That is enough for a strong beta wedge.
@@ -40,7 +40,7 @@ Explicitly excluded from this batch:
 
 - broad new Tier 3 implicit-state heuristics
 - third benchmark repo onboarding unless current proof breaks down
-- new dashboard work unrelated to v2 patch safety or project-optimization output
+- new dashboard work unrelated to v2 patch safety or evidence-first debt output
 
 ## Current Baseline
 
@@ -51,7 +51,7 @@ At the start of this batch:
 - `findings` and `session_end` include:
   - concept summaries
   - quality opportunities
-  - optimization priorities
+  - debt signals
 - clone findings are git-aware and family-clustered
 - obligations cover closed-domain changes plus initial contract-driven triggers
 
@@ -75,7 +75,7 @@ This batch is successful when all of the following are true:
 2. migration and non-happy-path validation cover the remaining release-risk edges
 3. GUI and legacy surfaces no longer tell a different product story than MCP and CLI
 4. contract-driven obligation triggers cover more real propagation failures without adding noisy overreach
-5. the top optimization priorities remain useful on real repos after the added precision and validation work
+5. the debt signals remain useful on real repos after the added precision and validation work
 
 ## Work Package A: Benchmark Policy And Warm-Path Performance
 
@@ -152,7 +152,7 @@ Goal:
 Deliverables:
 
 - legacy structural surfaces clearly framed as supporting context
-- GUI wording aligned with findings, obligations, and optimization priorities
+- GUI wording aligned with findings, obligations, and debt signals
 - confidence and suppression state visible where it matters
 
 Tasks:
@@ -167,7 +167,7 @@ Acceptance criteria:
 
 Open gap:
 
-- the desktop GUI now labels structural context honestly, but it still does not expose native v2 findings, obligations, or optimization-priority panels
+- the desktop GUI now labels structural context honestly, but it still does not expose native v2 findings, obligations, or debt-signal panels
 
 ## Work Package D: Richer Contract-Driven Obligation Precision
 
@@ -181,13 +181,13 @@ Deliverables:
 
 - richer contract trigger families
 - better changed-symbol precision
-- stronger prioritization of contract-related missing sites
+- stronger surfacing of contract-related missing sites
 
 Tasks:
 
 - [x] extend contract triggers beyond the current symbol/file surface set
 - [-] improve changed-symbol precision for field-level contract changes
-- [x] prioritize contract-related missing sites by boundary crossing and runtime risk
+- [x] surface contract-related missing sites by boundary crossing and runtime risk
 - [-] validate the new triggers against the benchmark repos before broadening further
 
 Acceptance criteria:

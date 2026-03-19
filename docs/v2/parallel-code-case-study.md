@@ -20,6 +20,8 @@ That makes it a good target for static conformance metrics.
 
 The proof-and-improvement workflow for this repo is tracked in [Parallel-Code Proof Board](./parallel-code-proof-board.md).
 
+This case study is evidence-first. It reports objective findings, debt signals, watchpoints, and patch risks. Engineers should use the repo's own architecture docs and tests to decide final prioritization.
+
 ## Repo Signals That Matter For V2
 
 The repo's own architecture plan emphasizes:
@@ -43,7 +45,7 @@ That means the first successful v2 story on this repo should be:
 
 Parity and concentration matter, but they should be treated as secondary context until the wedge is working.
 
-After the wedge is working, the same proof lab should be used to turn the findings into concrete refactors and record the before/after delta.
+After the wedge is working, the same proof lab should be used to turn the findings into concrete refactors and record the before/after delta. The refactor choice remains an engineering decision, not a v2 decision.
 
 ## Verified Current-Repo Signals
 
@@ -77,7 +79,7 @@ What did not hold up cleanly:
 - clone findings need distinct-file accounting and deterministic ordering; counting recent activity per file and sorting clone instances stabilizes the case-study goldens and session deltas
 - the `task_git_status` self-writer finding was a rules-modeling issue, not a repo defect; the reviewed rules now allow the concept's own store module
 - the `server_state_bootstrap` import-bypass finding was an analyzer overstatement; runtime-contract anchors are no longer treated as authoritative boundaries by default
-- the remaining clone gap is prioritization: a few related production clone families can still crowd the top list, which argues for family-level collapse rather than more raw clone rows
+- the remaining clone gap is inspection quality: a few related production clone families can still crowd the top list, which argues for family-level collapse rather than more raw clone rows
 
 This means `parallel-code` is already doing its job as a benchmark repo: it is showing where v2 is useful and where the next analyzer corrections belong.
 
@@ -201,8 +203,8 @@ V2 should use these as evidence that projects often already encode architectural
 
 Once the first v2 analyzers land, this repo should plausibly produce findings such as:
 
-- `TaskDotStatus` is missing an explicit exhaustive mapping site
-- `ConnectionBannerState` has missing closed-domain coverage in the runtime/session surface
+- `TaskDotStatus` is a real hardening opportunity in the canonical presentation model
+- `ConnectionBannerState` is a real presentation hardening opportunity in the runtime/session surface
 - clone-drift candidates in `AgentGlyph` / `RemoteAgentGlyph`
 - clone-drift candidates in `ws-server` / `browser-websocket`
 - `server/browser-control-plane.ts` is a concentrated coordination hotspot
@@ -230,7 +232,7 @@ Once the first v2 analyzers land, this repo should plausibly produce findings su
   - current result: clone findings now carry stable ids, churn/code-age context, and better production-first ranking on the real repo
 - [x] run disposable-clone proof scenarios for ownership, propagation, and clone cleanup
   - current outputs: [examples/parallel-code-proof-runs](./examples/parallel-code-proof-runs/README.md)
-- [ ] add divergence detection and family-level prioritization for related clone clusters
+- [ ] add divergence detection and family-level collapse for related clone clusters
 - [ ] defer `task_command_controller` and `task_convergence` until Tier 2
 - [ ] verify concentration analysis on lease and restore controllers
 - [ ] verify session delta output on a synthetic closed-domain change
@@ -247,7 +249,7 @@ The three proof targets are:
 
 For each target:
 
-1. capture the current findings and optimization priorities
+1. capture the current findings, debt signals, and watchpoints
 2. make one disposable-clone change
 3. rerun the proof loop
 4. record the before/after delta
@@ -256,10 +258,11 @@ The proof board in [Parallel-Code Proof Board](./parallel-code-proof-board.md) i
 
 ## Success Condition
 
-The case study is successful when v2 tells a coherent patch-safety story about `parallel-code` without relying on v1 depth and cycle penalties as the primary signal.
+The case study is successful when v2 tells a coherent patch-safety and technical-debt story about `parallel-code` without relying on v1 depth and cycle penalties as the primary signal.
 
 For beta, that means:
 
 1. it catches clone drift, authority drift, and incomplete propagation in changed concepts
 2. it produces a useful `session_end` report for agent patches
 3. it uses parity and concentration as supporting context rather than the primary narrative
+4. engineers can still choose what to fix first using repo-owned context

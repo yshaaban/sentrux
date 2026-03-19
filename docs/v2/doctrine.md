@@ -8,11 +8,11 @@ If a roadmap item, metric, or analyzer conflicts with this doctrine, the doctrin
 
 ## Primary Job
 
-Sentrux v2 exists to reduce agentic entropy by catching patch-level architectural regressions before they land.
+Sentrux v2 exists to reduce agentic entropy by catching patch-level architectural regressions and technical-debt signals before they land.
 
 The core product question is:
 
-> What did this patch change, what architectural obligations did that create, and what did the agent fail to update?
+> What did this patch change, what architectural obligations did that create, what objective debt signals or watchpoints did it expose, and what did the agent fail to update?
 
 ## Priority Order
 
@@ -27,7 +27,8 @@ This means:
 
 - a patch-scoped missing obligation matters more than a repo-wide depth penalty
 - a new multi-writer regression matters more than a low modularity score
-- actionable findings matter more than elegant composite math
+- objective findings matter more than elegant composite math
+- engineers own final prioritization; v2 supplies evidence, debt signals, and watchpoints
 
 ## Primary User
 
@@ -49,7 +50,7 @@ The product surface must be ordered like this:
 4. scorecard
 5. confidence
 
-The scorecard is useful, but it is not the core wedge.
+The scorecard is useful, but it is not the core wedge. Any optimization-like output is a sorting aid, not a roadmap decision.
 
 ## Core Wedge
 
@@ -64,6 +65,7 @@ These directly address the most expensive static failure modes in agentic coding
 - copy-paste divergence
 - ownership drift across layers
 - incomplete propagation of closed-domain changes
+- boundary erosion and brittle coordination hotspots
 
 For beta, concept-level findings in this wedge should rely on explicit critical concept rules.
 
@@ -79,7 +81,7 @@ These analyzers are valuable, but they are not the first wedge:
 1. contract parity
 2. concentration risk
 
-They help with prioritization, architecture review, and longer-term repo quality, but they should not delay the patch-safety engine.
+They help with inspection, architecture review, and longer-term repo quality, but they should not delay the patch-safety engine or become the primary source of prioritization.
 
 ## Later Analysis
 
@@ -152,5 +154,5 @@ V2 is succeeding when:
 1. agents get fixable findings at `session_end`
 2. touched-concept regressions can fail CI with high trust
 3. important architectural rules become machine-checkable
-4. `parallel-code` gets meaningful findings that match its own architecture docs and tests
+4. `parallel-code` gets meaningful debt signals and watchpoints that match its own architecture docs and tests
 5. the score is no longer the primary product narrative

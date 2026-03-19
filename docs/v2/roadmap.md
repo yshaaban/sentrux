@@ -20,10 +20,10 @@ Build order for v2:
 
 1. trust and output framing
 2. patch-safety wedge
-3. context and adoption
+3. debt signals and watchpoints
 4. advanced static analysis
 
-If work does not improve one of the first two tiers, it is not on the critical path.
+If work does not improve one of the first two tiers, it is not on the critical path. Engineers own final prioritization; v2 should keep the evidence objective.
 
 ## Tier 0: Trust And Output Foundation
 
@@ -99,7 +99,7 @@ Tasks:
 - [x] correlate clone groups with git recency and churn
 - [ ] detect recently diverged clone families
 - [-] expose clone-drift findings via MCP and CLI
-- [ ] collapse repeated clone-family findings into higher-level prioritization where appropriate
+- [ ] collapse repeated clone-family findings into higher-level inspection candidates where appropriate
 
 Exit criteria:
 
@@ -236,7 +236,7 @@ Status: mostly complete in code and initial multi-repo proof
 
 Goal:
 
-- add prioritization context and make the wedge easier to adopt across repos
+- add evidence context and make the wedge easier to adopt across repos
 
 Deliverables:
 
@@ -323,8 +323,8 @@ Tasks:
 - [x] rank quality-improvement opportunities from current findings and obligations
 - [x] surface suggested structural improvements in `findings`
 - [x] surface patch-scoped quality opportunities in `session_end`
-- [x] add ranked optimization priorities that combine boundary pressure, clone families, hotspots, and missing-site pressure
-- [-] validate the prioritization on more than one real repo
+- [x] add debt signals that combine boundary pressure, clone families, hotspots, and missing-site pressure
+- [-] validate the evidence quality on more than one real repo
 
 Exit criteria:
 
@@ -333,7 +333,7 @@ Exit criteria:
 
 Open gap:
 
-- the prioritization lane is implemented, but it still needs more real-repo proof and tuning so the top optimization priorities consistently reflect the highest-payoff fixes
+- the debt-signal lane is implemented, but it still needs more real-repo proof and tuning so the outputs consistently surface interesting technical-debt patterns
 
 ## Tier 3: Advanced Static Analysis
 
@@ -416,7 +416,7 @@ By the end of Tier 2, v2 should additionally show:
 - concentration hotspots worth architectural attention
 - inspectable concept models and rule coverage
 - ranked concept-level quality-improvement opportunities
-- ranked optimization priorities for structural cleanup
+- debt signals and inspection candidates for structural cleanup
 - expansion into `task_command_controller` and `task_convergence`
 
 Tier 3 should improve the repo story, but it is not required for the wedge to be useful.

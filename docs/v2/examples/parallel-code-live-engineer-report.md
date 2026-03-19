@@ -8,8 +8,8 @@ This report is for an engineer who does not already know `parallel-code` or Sent
 
 It answers two questions:
 
-1. what current code-quality or maintainability issues look worth fixing
-2. which areas do **not** currently look like priority problems
+1. what current code-quality or maintainability issues look worth inspecting
+2. which areas do **not** currently look like current debt hotspots
 
 ## What Was Analyzed
 
@@ -52,24 +52,33 @@ That means the most expensive defects are likely to be:
 
 ## Executive Summary
 
-The current live run surfaces **five useful issues** and **two areas that currently do not look like problems**.
+The current live run surfaces **two strong debt signals**, **two hardening/watchpoint signals**, **one coordination watchpoint**, and **two areas that currently do not look like problems**.
 
-### Most useful current issues
+### Strong debt signals
 
-1. `ConnectionBannerState` is missing exhaustive UI/runtime coverage
-2. `task_presentation_status` is missing one explicit exhaustive mapping/update site
-3. `AgentGlyph.tsx` and `RemoteAgentGlyph.tsx` contain a real duplicate-maintenance cluster
-4. `electron/remote/ws-server.ts` and `server/browser-websocket.ts` contain duplicated transport-control logic
-5. `server/browser-control-plane.ts` and `electron/ipc/hydra-adapter.ts` are coordination hotspots worth splitting before they grow further
+1. `AgentGlyph.tsx` and `RemoteAgentGlyph.tsx` contain a real duplicate-maintenance cluster
+2. `server/browser-control-plane.ts` is a coordination hotspot worth watching closely
+
+### Hardening and watchpoints
+
+1. `ConnectionBannerState` has a real presentation hardening opportunity
+2. `task_presentation_status` has a real canonical-model hardening opportunity
+3. `electron/remote/ws-server.ts` and `server/browser-websocket.ts` are a lower-confidence transport watchpoint
+
+### Coordination watchpoint
+
+1. `electron/ipc/hydra-adapter.ts` is a coordination watchpoint, but it is less compelling than `server/browser-control-plane.ts`
 
 ### Areas that currently look healthy
 
 1. `task_git_status` does **not** currently look like an ownership problem in the live baseline
 2. `server_state_bootstrap` currently looks healthy on parity and configured state-integrity checks
 
-## Priority Recommendations
+## Inspection Notes
 
-### 1. Fix `task_presentation_status` first
+The report does **not** assign final priority. The repo's own architecture docs should be used for that. In particular, the current repo plan points to startup/session/restore alignment as the active architecture workstream.
+
+### 1. Inspect `task_presentation_status` as a hardening opportunity
 
 Files:
 
@@ -82,9 +91,9 @@ Current signal:
 
 Why this matters:
 
-- this is a change-propagation problem, not a cosmetic issue
+- this is a change-propagation hardening opportunity, not a cosmetic issue
 - if `TaskDotStatus` evolves, there is no single explicit exhaustive mapping proving all states are handled
-- this is exactly the kind of issue that causes subtle UI drift later
+- this is the kind of issue that can cause subtle UI drift later
 
 What Sentrux is saying:
 
@@ -102,7 +111,7 @@ Expected payoff:
 - easier future edits to task presentation state
 - lower chance of “new status added, one display path forgotten”
 
-### 2. Make `ConnectionBannerState` exhaustive and centralized
+### 2. Inspect `ConnectionBannerState` as a presentation hardening opportunity
 
 Files:
 
@@ -168,7 +177,7 @@ Expected payoff:
 - less duplicated UI logic
 - much lower drift risk between local and remote app surfaces
 
-### 4. Review and likely deduplicate websocket pause/resume behavior
+### 4. Treat websocket pause/resume behavior as a watchpoint, not a top refactor target
 
 Files:
 
@@ -186,11 +195,11 @@ Current signal:
 Why this matters:
 
 - this is transport/control behavior duplicated across Electron and browser/server runtime code
-- this kind of duplication is expensive because drift here tends to break orchestration and reconnection behavior, not just UI
+- the surfaces are no longer symmetric shells, so this should be treated carefully
 
 Recommended action:
 
-- decide whether these two files are meant to stay behaviorally identical
+- decide whether these two files are meant to stay behaviorally aligned
 - if yes, extract shared pause/resume framing and sibling helpers
 - if no, document and intentionally split the behavior instead of letting them look accidentally duplicated
 
@@ -234,7 +243,7 @@ Expected payoff:
 - easier reasoning about side effects
 - fewer “god-file” style regressions later
 
-## What Does **Not** Look Like A Current Priority
+## What Does **Not** Look Like A Current Debt Hotspot
 
 These are useful because they tell the engineer where **not** to spend time first.
 
