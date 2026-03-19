@@ -4,7 +4,9 @@ use crate::metrics::evolution::EvolutionReport;
 use crate::metrics::testgap::is_test_file;
 use crate::metrics::DuplicateGroup;
 use std::cmp::Ordering;
+use std::collections::hash_map::DefaultHasher;
 use std::collections::{BTreeMap, BTreeSet};
+use std::hash::{Hash, Hasher};
 
 const MIN_CLONE_LINES: u32 = 3;
 const RECENT_AGE_DAYS: u32 = 30;
@@ -38,18 +40,57 @@ pub struct CloneDriftFinding {
     pub instances: Vec<CloneDriftInstance>,
 }
 
+#[derive(Debug, Clone, serde::Serialize, Default)]
+pub struct CloneFamilySummary {
+    pub kind: String,
+    pub family_id: String,
+    pub severity: String,
+    pub family_score: u32,
+    pub member_count: usize,
+    pub file_count: usize,
+    pub representative_clone_id: String,
+    pub clone_ids: Vec<String>,
+    pub recently_touched_file_count: usize,
+    pub asymmetric_recent_change: bool,
+    pub files: Vec<String>,
+    pub reasons: Vec<String>,
+    pub summary: String,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct CloneDriftReport {
+    pub findings: Vec<CloneDriftFinding>,
+    pub prioritized_findings: Vec<CloneDriftFinding>,
+    pub families: Vec<CloneFamilySummary>,
+}
+
 pub fn build_clone_drift_findings(
     groups: &[DuplicateGroup],
     evolution: Option<&EvolutionReport>,
     limit: usize,
 ) -> Vec<CloneDriftFinding> {
+    let mut report = build_clone_drift_report(groups, evolution);
+    report.findings.truncate(limit);
+    report.findings
+}
+
+pub fn build_clone_drift_report(
+    groups: &[DuplicateGroup],
+    evolution: Option<&EvolutionReport>,
+) -> CloneDriftReport {
     let mut findings = groups
         .iter()
         .filter_map(|group| clone_drift_finding(group, evolution))
         .collect::<Vec<_>>();
     findings.sort_by(compare_clone_findings);
-    findings.truncate(limit);
-    findings
+    let families = build_clone_family_summaries(&findings);
+    let prioritized_findings = prioritize_clone_findings(&findings, &families);
+
+    CloneDriftReport {
+        findings,
+        prioritized_findings,
+        families,
+    }
 }
 
 fn clone_drift_finding(
@@ -162,6 +203,13 @@ fn compare_clone_findings(left: &CloneDriftFinding, right: &CloneDriftFinding) -
         .then_with(|| left.clone_id.cmp(&right.clone_id))
 }
 
+fn compare_clone_families(left: &CloneFamilySummary, right: &CloneFamilySummary) -> Ordering {
+    severity_priority(&right.severity)
+        .cmp(&severity_priority(&left.severity))
+        .then_with(|| right.family_score.cmp(&left.family_score))
+        .then_with(|| left.family_id.cmp(&right.family_id))
+}
+
 fn severity_priority(severity: &str) -> u8 {
     match severity {
         "high" => 3,
@@ -227,6 +275,187 @@ fn clone_summary(
         );
     }
     format!("{instance_count} functions share an identical normalized body")
+}
+
+fn build_clone_family_summaries(findings: &[CloneDriftFinding]) -> Vec<CloneFamilySummary> {
+    let mut families = findings
+        .iter()
+        .fold(
+            BTreeMap::<Vec<String>, Vec<&CloneDriftFinding>>::new(),
+            |mut map, finding| {
+                map.entry(finding.files.clone()).or_default().push(finding);
+                map
+            },
+        )
+        .into_iter()
+        .filter_map(|(files, members)| clone_family_summary(files, members))
+        .collect::<Vec<_>>();
+    families.sort_by(compare_clone_families);
+    families
+}
+
+fn clone_family_summary(
+    files: Vec<String>,
+    members: Vec<&CloneDriftFinding>,
+) -> Option<CloneFamilySummary> {
+    if members.len() < 2 {
+        return None;
+    }
+
+    let mut members = members;
+    members.sort_by(|left, right| compare_clone_findings(left, right));
+    let representative = members.first()?;
+    let family_id = clone_family_id(&files);
+    let clone_ids = members
+        .iter()
+        .map(|finding| finding.clone_id.clone())
+        .collect::<Vec<_>>();
+    let file_summaries = clone_family_file_summaries(&members);
+    let recently_touched_file_count = file_summaries
+        .values()
+        .filter(|summary| is_recent_age(summary.age_days))
+        .count();
+    let active_files = file_summaries
+        .values()
+        .filter(|summary| file_summary_has_recent_activity(summary))
+        .count();
+    let inactive_files = file_summaries.len().saturating_sub(active_files);
+    let asymmetric_recent_change = active_files > 0 && inactive_files > 0;
+    let family_score = representative
+        .risk_score
+        .saturating_add(4 * ((members.len() - 1).min(3) as u32))
+        .saturating_add((recently_touched_file_count as u32).saturating_mul(3))
+        .saturating_add(if asymmetric_recent_change { 12 } else { 0 });
+    let reasons = clone_family_reasons(
+        members.len(),
+        files.len(),
+        representative.risk_score,
+        recently_touched_file_count,
+        asymmetric_recent_change,
+    );
+    let summary = clone_family_summary_text(members.len(), files.len(), asymmetric_recent_change);
+
+    Some(CloneFamilySummary {
+        kind: "clone_family".to_string(),
+        family_id,
+        severity: representative.severity.clone(),
+        family_score,
+        member_count: members.len(),
+        file_count: files.len(),
+        representative_clone_id: representative.clone_id.clone(),
+        clone_ids,
+        recently_touched_file_count,
+        asymmetric_recent_change,
+        files,
+        reasons,
+        summary,
+    })
+}
+
+fn clone_family_id(files: &[String]) -> String {
+    let mut hasher = DefaultHasher::new();
+    files.hash(&mut hasher);
+    format!("clone-family-{:#016x}", hasher.finish())
+}
+
+fn clone_family_file_summaries(
+    findings: &[&CloneDriftFinding],
+) -> BTreeMap<String, CloneFileSummary> {
+    let mut summaries = BTreeMap::new();
+    for finding in findings {
+        for instance in &finding.instances {
+            summaries
+                .entry(instance.file.clone())
+                .and_modify(|summary: &mut CloneFileSummary| {
+                    summary.commit_count = Some(
+                        summary
+                            .commit_count
+                            .unwrap_or(0)
+                            .max(instance.commit_count.unwrap_or(0)),
+                    );
+                    summary.age_days = match (summary.age_days, instance.age_days) {
+                        (Some(current), Some(next)) => Some(current.min(next)),
+                        (Some(current), None) => Some(current),
+                        (None, Some(next)) => Some(next),
+                        (None, None) => None,
+                    };
+                })
+                .or_insert(CloneFileSummary {
+                    commit_count: instance.commit_count,
+                    age_days: instance.age_days,
+                });
+        }
+    }
+    summaries
+}
+
+fn clone_family_reasons(
+    member_count: usize,
+    file_count: usize,
+    representative_risk_score: u32,
+    recently_touched_file_count: usize,
+    asymmetric_recent_change: bool,
+) -> Vec<String> {
+    let mut reasons = vec![
+        format!("{member_count} exact clone groups repeat across {file_count} files"),
+        format!(
+            "highest-risk representative exact clone scores {}",
+            representative_risk_score
+        ),
+    ];
+    if recently_touched_file_count > 0 {
+        reasons.push(format!(
+            "{} family file(s) changed within the last {} day(s)",
+            recently_touched_file_count, RECENT_AGE_DAYS
+        ));
+    }
+    if asymmetric_recent_change {
+        reasons.push("recent activity is uneven across the clone family".to_string());
+    }
+    reasons
+}
+
+fn clone_family_summary_text(
+    member_count: usize,
+    file_count: usize,
+    asymmetric_recent_change: bool,
+) -> String {
+    if asymmetric_recent_change {
+        return format!(
+            "{member_count} exact clone groups repeat across {file_count} files and recent edits are uneven across the family"
+        );
+    }
+
+    format!("{member_count} exact clone groups repeat across {file_count} files")
+}
+
+fn prioritize_clone_findings(
+    findings: &[CloneDriftFinding],
+    families: &[CloneFamilySummary],
+) -> Vec<CloneDriftFinding> {
+    let finding_by_id = findings
+        .iter()
+        .map(|finding| (finding.clone_id.as_str(), finding))
+        .collect::<BTreeMap<_, _>>();
+    let representative_ids = families
+        .iter()
+        .map(|family| family.representative_clone_id.clone())
+        .collect::<BTreeSet<_>>();
+    let mut prioritized = Vec::new();
+
+    for family in families {
+        if let Some(finding) = finding_by_id.get(family.representative_clone_id.as_str()) {
+            prioritized.push((*finding).clone());
+        }
+    }
+
+    prioritized.extend(
+        findings
+            .iter()
+            .filter(|finding| !representative_ids.contains(&finding.clone_id))
+            .cloned(),
+    );
+    prioritized
 }
 
 fn clone_reasons(
@@ -352,7 +581,7 @@ fn production_instance_count(group: &DuplicateGroup) -> usize {
 
 #[cfg(test)]
 mod tests {
-    use super::build_clone_drift_findings;
+    use super::{build_clone_drift_findings, build_clone_drift_report};
     use crate::metrics::evolution::{
         AuthorInfo, CouplingPair, EvolutionReport, FileChurn, TemporalHotspot,
     };
@@ -458,5 +687,76 @@ mod tests {
         assert_eq!(findings[0].instances[0].file, "src/a.ts");
         assert_eq!(findings[0].instances[1].file, "src/a.ts");
         assert_eq!(findings[0].instances[2].file, "src/b.ts");
+    }
+
+    #[test]
+    fn clone_drift_report_groups_same_file_set_into_families() {
+        let groups = vec![
+            DuplicateGroup {
+                hash: 7,
+                instances: vec![
+                    ("src/a.ts".to_string(), "dup_a".to_string(), 12),
+                    ("src/b.ts".to_string(), "dup_b".to_string(), 12),
+                ],
+            },
+            DuplicateGroup {
+                hash: 8,
+                instances: vec![
+                    ("src/a.ts".to_string(), "dup_c".to_string(), 9),
+                    ("src/b.ts".to_string(), "dup_d".to_string(), 9),
+                ],
+            },
+        ];
+
+        let report = build_clone_drift_report(&groups, Some(&test_evolution()));
+
+        assert_eq!(report.findings.len(), 2);
+        assert_eq!(report.families.len(), 1);
+        assert_eq!(report.families[0].member_count, 2);
+        assert_eq!(report.families[0].file_count, 2);
+        assert_eq!(report.families[0].clone_ids.len(), 2);
+        assert_eq!(
+            report.prioritized_findings[0].clone_id,
+            report.families[0].representative_clone_id
+        );
+    }
+
+    #[test]
+    fn clone_drift_report_prioritizes_family_representatives_before_siblings() {
+        let groups = vec![
+            DuplicateGroup {
+                hash: 10,
+                instances: vec![
+                    ("src/a.ts".to_string(), "dup_a".to_string(), 12),
+                    ("src/b.ts".to_string(), "dup_b".to_string(), 12),
+                ],
+            },
+            DuplicateGroup {
+                hash: 11,
+                instances: vec![
+                    ("src/a.ts".to_string(), "dup_c".to_string(), 10),
+                    ("src/b.ts".to_string(), "dup_d".to_string(), 10),
+                ],
+            },
+            DuplicateGroup {
+                hash: 12,
+                instances: vec![
+                    ("src/c.ts".to_string(), "dup_e".to_string(), 8),
+                    ("src/d.ts".to_string(), "dup_f".to_string(), 8),
+                ],
+            },
+        ];
+
+        let report = build_clone_drift_report(&groups, Some(&test_evolution()));
+
+        assert_eq!(report.families.len(), 1);
+        assert_eq!(report.prioritized_findings.len(), 3);
+        assert_eq!(
+            report.prioritized_findings[0].clone_id,
+            report.families[0].representative_clone_id
+        );
+        assert!(
+            report.prioritized_findings[1].clone_id != report.families[0].representative_clone_id
+        );
     }
 }

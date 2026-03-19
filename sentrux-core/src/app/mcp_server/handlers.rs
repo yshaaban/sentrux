@@ -691,6 +691,7 @@ fn merge_optional_errors(left: Option<String>, right: Option<String>) -> Option<
     }
 }
 
+#[cfg(test)]
 fn build_clone_drift_finding_values(
     groups: &[crate::metrics::DuplicateGroup],
     evolution: Option<&crate::metrics::evo::EvolutionReport>,
@@ -701,16 +702,39 @@ fn build_clone_drift_finding_values(
     ))
 }
 
+struct CloneFindingPayload {
+    exact_findings: Vec<Value>,
+    prioritized_findings: Vec<Value>,
+    families: Vec<Value>,
+    clone_group_count: usize,
+    clone_family_count: usize,
+}
+
 fn clone_findings_for_health(
     state: &mut McpState,
     root: &Path,
     snapshot: &Snapshot,
     health: &metrics::HealthReport,
     limit: usize,
-) -> (Vec<Value>, Option<String>) {
+) -> (CloneFindingPayload, Option<String>) {
     let (evolution, evolution_error) = evolution_report_for_snapshot(state, root, snapshot);
+    let report =
+        crate::metrics::v2::build_clone_drift_report(&health.duplicate_groups, evolution.as_ref());
+    let prioritized_findings = report
+        .prioritized_findings
+        .iter()
+        .take(limit)
+        .cloned()
+        .collect::<Vec<_>>();
+
     (
-        build_clone_drift_finding_values(&health.duplicate_groups, evolution.as_ref(), limit),
+        CloneFindingPayload {
+            clone_group_count: report.findings.len(),
+            clone_family_count: report.families.len(),
+            exact_findings: serialized_values(&report.findings),
+            prioritized_findings: serialized_values(&prioritized_findings),
+            families: serialized_values(&report.families),
+        },
         evolution_error,
     )
 }
@@ -724,7 +748,7 @@ fn build_session_v2_baseline(
     let file_hashes = snapshot_file_hashes(root, snapshot);
     let git_head = current_git_head(root);
     let working_tree_paths = working_tree_changed_files(root).unwrap_or_default();
-    let (clone_findings, clone_error) =
+    let (clone_payload, clone_error) =
         clone_findings_for_health(state, root, snapshot, health, health.duplicate_groups.len());
     let (semantic_findings, _, semantic_error) = semantic_findings_and_obligations(
         state,
@@ -733,8 +757,10 @@ fn build_session_v2_baseline(
         &BTreeSet::new(),
     );
     let (config, _) = load_v2_rules_config(root);
-    let suppression_application =
-        apply_suppressions(&config, finding_values(&clone_findings, &semantic_findings));
+    let suppression_application = apply_suppressions(
+        &config,
+        finding_values(&clone_payload.exact_findings, &semantic_findings),
+    );
     let finding_payloads = finding_payload_map(&suppression_application.visible_findings);
 
     (
@@ -1110,7 +1136,7 @@ fn compute_touched_concept_gate(
         state.cached_semantic = None;
         state.cached_evolution = None;
     }
-    let (current_clone_findings, clone_error) = clone_findings_for_health(
+    let (current_clone_payload, clone_error) = clone_findings_for_health(
         state,
         root,
         &bundle.snapshot,
@@ -1125,7 +1151,10 @@ fn compute_touched_concept_gate(
     );
     let (suppression_application, rules_error) = apply_root_suppressions(
         root,
-        finding_values(&current_clone_findings, &all_semantic_findings),
+        finding_values(
+            &current_clone_payload.exact_findings,
+            &all_semantic_findings,
+        ),
     );
     let current_finding_payloads = finding_payload_map(&suppression_application.visible_findings);
     let (rules_config, _) = load_v2_rules_config(root);
@@ -1455,35 +1484,41 @@ fn handle_findings(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<V
         .and_then(|value| value.as_u64())
         .unwrap_or(10)
         .min(50) as usize;
-    let (clone_findings, clone_error) = clone_findings_for_health(
+    let (clone_payload, clone_error) = clone_findings_for_health(
         state,
         &root,
         &snapshot,
         &health,
         health.duplicate_groups.len(),
     );
-    let clone_group_count = health
-        .duplicate_groups
-        .iter()
-        .filter(|group| distinct_file_count(group) > 1)
-        .count();
     let (semantic_findings, _, semantic_error) = semantic_findings_and_obligations(
         state,
         &root,
         crate::metrics::v2::ObligationScope::All,
         &BTreeSet::new(),
     );
-    let merged_findings = merge_findings(clone_findings, semantic_findings, usize::MAX);
+    let merged_findings = merge_findings(
+        clone_payload.prioritized_findings.clone(),
+        semantic_findings,
+        usize::MAX,
+    );
     let (suppression_application, rules_error) = apply_root_suppressions(&root, merged_findings);
     let findings = suppression_application
         .visible_findings
         .into_iter()
         .take(limit)
         .collect::<Vec<_>>();
+    let clone_families = clone_payload
+        .families
+        .into_iter()
+        .take(limit.min(10))
+        .collect::<Vec<_>>();
 
     Ok(json!({
         "kind": "mixed_findings",
-        "clone_group_count": clone_group_count,
+        "clone_group_count": clone_payload.clone_group_count,
+        "clone_family_count": clone_payload.clone_family_count,
+        "clone_families": clone_families,
         "semantic_finding_count": findings.iter().filter(|finding| finding.get("concept_id").is_some()).count(),
         "rules_error": rules_error,
         "semantic_error": merge_optional_errors(semantic_error, clone_error),
@@ -1965,6 +2000,7 @@ fn build_exact_clone_findings(
     build_clone_drift_finding_values(groups, None, limit)
 }
 
+#[cfg(test)]
 fn distinct_file_count(group: &crate::metrics::DuplicateGroup) -> usize {
     use std::collections::HashSet;
 
@@ -1982,10 +2018,11 @@ mod tests {
         apply_suppressions, build_exact_clone_findings, build_session_v2_baseline,
         changed_files_from_session_context, cli_evaluate_v2_gate, cli_save_v2_session,
         distinct_file_count, do_scan, fresh_mcp_state, handle_concepts, handle_explain_concept,
-        handle_gate, handle_obligations, handle_scan, handle_session_end, handle_session_start,
-        handle_state, handle_trace_symbol, load_persisted_session_v2, load_v2_rules_config,
-        overall_confidence_0_10000, prepare_patch_check_context, save_session_v2_baseline,
-        state_model_ids_from_findings, state_model_ids_from_reports, update_scan_cache,
+        handle_findings, handle_gate, handle_obligations, handle_scan, handle_session_end,
+        handle_session_start, handle_state, handle_trace_symbol, load_persisted_session_v2,
+        load_v2_rules_config, overall_confidence_0_10000, prepare_patch_check_context,
+        save_session_v2_baseline, state_model_ids_from_findings, state_model_ids_from_reports,
+        update_scan_cache,
     };
     use crate::analysis::scanner::common::{ScanMetadata, ScanMode};
     use crate::analysis::semantic::{
@@ -2509,6 +2546,68 @@ mod tests {
         assert_eq!(findings[0]["max_lines"], 8);
         assert_eq!(findings[0]["severity"], "medium");
         assert_eq!(findings[0]["files"].as_array().map(Vec::len), Some(2));
+    }
+
+    #[test]
+    fn findings_surface_clone_families_and_representative_groups() {
+        let root = cli_gate_fixture_root();
+        write_file(
+            &root,
+            "src/a.ts",
+            "export function duplicateAlpha(): number { return 1; }\n",
+        );
+        write_file(
+            &root,
+            "src/b.ts",
+            "export function duplicateBeta(): number { return 1; }\n",
+        );
+
+        let mut state = fresh_mcp_state();
+        handle_scan(
+            &json!({"path": root.to_string_lossy().to_string()}),
+            &Tier::Free,
+            &mut state,
+        )
+        .expect("scan fixture");
+        state
+            .cached_health
+            .as_mut()
+            .expect("cached health")
+            .duplicate_groups = vec![
+            DuplicateGroup {
+                hash: 41,
+                instances: vec![
+                    ("src/a.ts".into(), "duplicateAlpha".into(), 12),
+                    ("src/b.ts".into(), "duplicateBeta".into(), 12),
+                ],
+            },
+            DuplicateGroup {
+                hash: 42,
+                instances: vec![
+                    ("src/a.ts".into(), "duplicateGamma".into(), 10),
+                    ("src/b.ts".into(), "duplicateDelta".into(), 10),
+                ],
+            },
+        ];
+
+        let response =
+            handle_findings(&json!({"limit": 10}), &Tier::Free, &mut state).expect("findings");
+
+        assert_eq!(response["clone_group_count"], 2);
+        assert_eq!(response["clone_family_count"], 1);
+        assert_eq!(
+            response["clone_families"]
+                .as_array()
+                .map(|families| families.len()),
+            Some(1)
+        );
+        assert!(response["findings"]
+            .as_array()
+            .expect("findings array")
+            .iter()
+            .any(|finding| finding["kind"] == "exact_clone_group"));
+
+        let _ = std::fs::remove_dir_all(root);
     }
 
     #[test]
@@ -3326,7 +3425,7 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         state.cached_semantic = None;
         state.cached_evolution = None;
     }
-    let (current_clone_findings, clone_error) = clone_findings_for_health(
+    let (current_clone_payload, clone_error) = clone_findings_for_health(
         state,
         &root,
         &bundle.snapshot,
@@ -3341,7 +3440,10 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
     );
     let (suppression_application, rules_error) = apply_root_suppressions(
         &root,
-        finding_values(&current_clone_findings, &all_semantic_findings),
+        finding_values(
+            &current_clone_payload.exact_findings,
+            &all_semantic_findings,
+        ),
     );
     let current_finding_payloads = finding_payload_map(&suppression_application.visible_findings);
     let (rules_config, _) = load_v2_rules_config(&root);

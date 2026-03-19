@@ -11,7 +11,10 @@ use crate::metrics::rules::{self, ConceptRule, RulesConfig};
 use crate::metrics::testgap::is_test_file;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
-pub use clones::{build_clone_drift_findings, CloneDriftFinding, CloneDriftInstance};
+pub use clones::{
+    build_clone_drift_findings, build_clone_drift_report, CloneDriftFinding, CloneDriftInstance,
+    CloneDriftReport, CloneFamilySummary,
+};
 pub use concentration::{
     build_concentration_findings, build_concentration_reports, ConcentrationFinding,
     ConcentrationHistory, ConcentrationReport,
