@@ -67,6 +67,24 @@ pub struct ScanCacheIdentity {
     pub working_tree_hashes: BTreeMap<String, u64>,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct PatchSafetyAnalysisCache {
+    pub scan_identity: Option<ScanCacheIdentity>,
+    pub session_signature: Option<u64>,
+    pub visible_findings: Vec<Value>,
+    pub suppression_hits: Vec<Value>,
+    pub suppressed_finding_count: usize,
+    pub expired_suppressions: Vec<Value>,
+    pub expired_suppression_match_count: usize,
+    pub changed_visible_findings: Vec<Value>,
+    pub changed_obligations: Vec<crate::metrics::v2::ObligationReport>,
+    pub changed_touched_concepts: BTreeSet<String>,
+    pub clone_error: Option<String>,
+    pub all_semantic_error: Option<String>,
+    pub changed_semantic_error: Option<String>,
+    pub rules_error: Option<String>,
+}
+
 /// Mutable state shared across MCP requests.
 /// Handlers receive `&mut McpState` directly — no more exploded parameters.
 /// Public so external crates (private-integration-crate) can access cached data.
@@ -82,6 +100,7 @@ pub struct McpState {
     pub session_v2: Option<SessionV2Baseline>,
     pub cached_evolution: Option<evolution::EvolutionReport>,
     pub cached_scan_identity: Option<ScanCacheIdentity>,
+    pub cached_patch_safety: Option<PatchSafetyAnalysisCache>,
     pub semantic_bridge: Option<TypeScriptBridgeSupervisor>,
 }
 
@@ -113,6 +132,7 @@ pub fn run_mcp_server(register_extra: Option<&dyn Fn(&mut registry::ToolRegistry
         session_v2: None,
         cached_evolution: None,
         cached_scan_identity: None,
+        cached_patch_safety: None,
         semantic_bridge: None,
     };
 

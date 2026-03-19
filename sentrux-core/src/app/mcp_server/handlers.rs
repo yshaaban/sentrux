@@ -8,8 +8,8 @@
 
 use super::registry::ToolDef;
 use super::{
-    session_v2_schema_supported, McpState, ScanCacheIdentity, SessionV2Baseline,
-    SessionV2ConfidenceSnapshot, SESSION_V2_SCHEMA_VERSION,
+    session_v2_schema_supported, McpState, PatchSafetyAnalysisCache, ScanCacheIdentity,
+    SessionV2Baseline, SessionV2ConfidenceSnapshot, SESSION_V2_SCHEMA_VERSION,
 };
 use crate::analysis::scanner;
 use crate::analysis::scanner::common::ScanMetadata;
@@ -410,6 +410,7 @@ fn fresh_mcp_state() -> McpState {
         session_v2: None,
         cached_evolution: None,
         cached_scan_identity: None,
+        cached_patch_safety: None,
         semantic_bridge: None,
     }
 }
@@ -553,6 +554,7 @@ fn update_scan_cache(
     state.cached_arch = Some(bundle.arch_report);
     state.cached_evolution = None;
     state.cached_scan_identity = identity;
+    state.cached_patch_safety = None;
 }
 
 fn cached_scan_bundle(state: &McpState, root: &Path) -> Option<ScanBundle> {
@@ -1000,6 +1002,172 @@ fn filter_clone_values_by_visible_clone_ids(
         .collect()
 }
 
+fn session_v2_analysis_signature(session_v2: Option<&SessionV2Baseline>) -> Option<u64> {
+    let session_v2 = session_v2?;
+    let mut hasher = DefaultHasher::new();
+    session_v2.schema_version.hash(&mut hasher);
+    session_v2.git_head.hash(&mut hasher);
+    for path in &session_v2.working_tree_paths {
+        path.hash(&mut hasher);
+    }
+    for (path, file_hash) in &session_v2.file_hashes {
+        path.hash(&mut hasher);
+        file_hash.hash(&mut hasher);
+    }
+    Some(hasher.finish())
+}
+
+fn current_patch_safety_cache_identity(
+    state: &McpState,
+    context: &PatchCheckContext,
+) -> Option<ScanCacheIdentity> {
+    if context.reused_cached_scan {
+        state.cached_scan_identity.clone()
+    } else {
+        context.scan_identity.clone()
+    }
+}
+
+fn cached_patch_safety_analysis(
+    state: &McpState,
+    scan_identity: Option<&ScanCacheIdentity>,
+    session_signature: Option<u64>,
+) -> Option<PatchSafetyAnalysisCache> {
+    let scan_identity = scan_identity?;
+    let cached = state.cached_patch_safety.as_ref()?;
+    if cached.scan_identity.as_ref() == Some(scan_identity)
+        && cached.session_signature == session_signature
+    {
+        return Some(cached.clone());
+    }
+
+    None
+}
+
+fn cache_patch_safety_analysis(state: &mut McpState, analysis: &PatchSafetyAnalysisCache) {
+    if analysis.scan_identity.is_some() {
+        state.cached_patch_safety = Some(analysis.clone());
+    }
+}
+
+fn patch_safety_semantic_error(analysis: &PatchSafetyAnalysisCache) -> Option<String> {
+    merge_optional_errors(
+        analysis
+            .changed_semantic_error
+            .clone()
+            .or(analysis.all_semantic_error.clone()),
+        analysis.clone_error.clone(),
+    )
+}
+
+fn build_patch_safety_analysis(
+    state: &mut McpState,
+    root: &Path,
+    bundle: &ScanBundle,
+    changed_files: &BTreeSet<String>,
+    session_v2: Option<&SessionV2Baseline>,
+    cache_identity: Option<ScanCacheIdentity>,
+) -> PatchSafetyAnalysisCache {
+    let session_signature = session_v2_analysis_signature(session_v2);
+    if let Some(cached) =
+        cached_patch_safety_analysis(state, cache_identity.as_ref(), session_signature)
+    {
+        return cached;
+    }
+
+    let (clone_payload, clone_error) = clone_findings_for_health(
+        state,
+        root,
+        &bundle.snapshot,
+        &bundle.health,
+        bundle.health.duplicate_groups.len(),
+    );
+    let (rules_config, rules_error) = load_v2_rules_config(root);
+    let semantic = match analyze_semantic_snapshot(state, root) {
+        Ok(semantic) => semantic,
+        Err(error) => {
+            let suppression_application = apply_suppressions(
+                &rules_config,
+                finding_values(&clone_payload.exact_findings, &[]),
+            );
+            let analysis = PatchSafetyAnalysisCache {
+                scan_identity: cache_identity.clone(),
+                session_signature,
+                visible_findings: suppression_application.visible_findings,
+                suppression_hits: serialized_values(&suppression_application.active_matches),
+                suppressed_finding_count: suppression_match_count(
+                    &suppression_application.active_matches,
+                ),
+                expired_suppressions: serialized_values(&suppression_application.expired_matches),
+                expired_suppression_match_count: suppression_match_count(
+                    &suppression_application.expired_matches,
+                ),
+                clone_error,
+                all_semantic_error: merge_optional_errors(rules_error.clone(), Some(error.clone())),
+                changed_semantic_error: merge_optional_errors(rules_error.clone(), Some(error)),
+                rules_error,
+                ..PatchSafetyAnalysisCache::default()
+            };
+            cache_patch_safety_analysis(state, &analysis);
+            return analysis;
+        }
+    };
+
+    let all_analysis = semantic
+        .as_ref()
+        .map(|semantic| {
+            build_semantic_analysis_batch(
+                &rules_config,
+                semantic,
+                Some(&bundle.snapshot),
+                crate::metrics::v2::ObligationScope::All,
+                &BTreeSet::new(),
+            )
+        })
+        .unwrap_or_default();
+    let suppression_application = apply_suppressions(
+        &rules_config,
+        finding_values(&clone_payload.exact_findings, &all_analysis.findings),
+    );
+    let changed_scope = analyze_changed_patch_scope(
+        state,
+        root,
+        &rules_config,
+        Some(&bundle.snapshot),
+        semantic.as_ref(),
+        changed_files,
+    );
+
+    let analysis = PatchSafetyAnalysisCache {
+        scan_identity: cache_identity,
+        session_signature,
+        visible_findings: suppression_application.visible_findings,
+        suppression_hits: serialized_values(&suppression_application.active_matches),
+        suppressed_finding_count: suppression_match_count(&suppression_application.active_matches),
+        expired_suppressions: serialized_values(&suppression_application.expired_matches),
+        expired_suppression_match_count: suppression_match_count(
+            &suppression_application.expired_matches,
+        ),
+        changed_visible_findings: changed_scope
+            .suppression_application
+            .visible_findings
+            .clone(),
+        changed_obligations: changed_scope.obligations.clone(),
+        changed_touched_concepts: changed_scope.touched_concepts.clone(),
+        clone_error,
+        all_semantic_error: rules_error.clone(),
+        changed_semantic_error: merge_optional_errors(
+            rules_error.clone(),
+            changed_scope.semantic_error.clone(),
+        ),
+        rules_error,
+    };
+
+    cache_patch_safety_analysis(state, &analysis);
+
+    analysis
+}
+
 fn build_session_v2_baseline(
     state: &mut McpState,
     root: &Path,
@@ -1055,39 +1223,70 @@ fn semantic_findings_and_obligations(
     Vec<crate::metrics::v2::ObligationReport>,
     Option<String>,
 ) {
+    let (analysis, error) = semantic_analysis_batch(state, root, snapshot, scope, changed_files);
+    (analysis.findings, analysis.obligations, error)
+}
+
+#[derive(Default)]
+struct SemanticAnalysisBatch {
+    findings: Vec<crate::metrics::v2::SemanticFinding>,
+    obligations: Vec<crate::metrics::v2::ObligationReport>,
+    state_reports: Vec<crate::metrics::v2::StateIntegrityReport>,
+}
+
+fn semantic_analysis_batch(
+    state: &mut McpState,
+    root: &Path,
+    snapshot: Option<&Snapshot>,
+    scope: crate::metrics::v2::ObligationScope,
+    changed_files: &BTreeSet<String>,
+) -> (SemanticAnalysisBatch, Option<String>) {
     let (config, config_error) = load_v2_rules_config(root);
     match analyze_semantic_snapshot(state, root) {
-        Ok(Some(semantic)) => {
-            let mut findings =
-                crate::metrics::v2::build_authority_and_access_findings_with_snapshot(
-                    &config, &semantic, snapshot,
-                );
-            let obligations =
-                crate::metrics::v2::build_obligations(&config, &semantic, scope, changed_files);
-            findings.extend(crate::metrics::v2::build_obligation_findings(&obligations));
-            let state_scope = if scope == crate::metrics::v2::ObligationScope::Changed {
-                crate::metrics::v2::StateScope::Changed
-            } else {
-                crate::metrics::v2::StateScope::All
-            };
-            let state_reports = crate::metrics::v2::build_state_integrity_reports(
-                &config,
-                &semantic,
-                &obligations,
-                state_scope,
-                changed_files,
-            );
-            findings.extend(crate::metrics::v2::build_state_integrity_findings(
-                &state_reports,
-            ));
-            (findings, obligations, config_error)
-        }
-        Ok(None) => (Vec::new(), Vec::new(), config_error),
+        Ok(Some(semantic)) => (
+            build_semantic_analysis_batch(&config, &semantic, snapshot, scope, changed_files),
+            config_error,
+        ),
+        Ok(None) => (SemanticAnalysisBatch::default(), config_error),
         Err(error) => (
-            Vec::new(),
-            Vec::new(),
+            SemanticAnalysisBatch::default(),
             merge_optional_errors(config_error, Some(error)),
         ),
+    }
+}
+
+fn build_semantic_analysis_batch(
+    config: &crate::metrics::rules::RulesConfig,
+    semantic: &SemanticSnapshot,
+    snapshot: Option<&Snapshot>,
+    scope: crate::metrics::v2::ObligationScope,
+    changed_files: &BTreeSet<String>,
+) -> SemanticAnalysisBatch {
+    let mut findings = crate::metrics::v2::build_authority_and_access_findings_with_snapshot(
+        config, semantic, snapshot,
+    );
+    let obligations = crate::metrics::v2::build_obligations(config, semantic, scope, changed_files);
+    findings.extend(crate::metrics::v2::build_obligation_findings(&obligations));
+    let state_scope = if scope == crate::metrics::v2::ObligationScope::Changed {
+        crate::metrics::v2::StateScope::Changed
+    } else {
+        crate::metrics::v2::StateScope::All
+    };
+    let state_reports = crate::metrics::v2::build_state_integrity_reports(
+        config,
+        semantic,
+        &obligations,
+        state_scope,
+        changed_files,
+    );
+    findings.extend(crate::metrics::v2::build_state_integrity_findings(
+        &state_reports,
+    ));
+
+    SemanticAnalysisBatch {
+        findings,
+        obligations,
+        state_reports,
     }
 }
 
@@ -1335,24 +1534,33 @@ fn analyze_changed_patch_scope(
     state: &mut McpState,
     root: &Path,
     config: &crate::metrics::rules::RulesConfig,
+    snapshot: Option<&Snapshot>,
+    semantic: Option<&SemanticSnapshot>,
     changed_files: &BTreeSet<String>,
 ) -> ChangedPatchScope {
     if changed_files.is_empty() {
         return ChangedPatchScope::default();
     }
 
-    state.cached_semantic = None;
-    let cached_snapshot = state.cached_snapshot.clone();
-    let (changed_semantic_findings, obligations, semantic_error) =
-        semantic_findings_and_obligations(
+    let (analysis, semantic_error) = match semantic {
+        Some(semantic) => (
+            build_semantic_analysis_batch(
+                config,
+                semantic,
+                snapshot,
+                crate::metrics::v2::ObligationScope::Changed,
+                changed_files,
+            ),
+            None,
+        ),
+        None => semantic_analysis_batch(
             state,
             root,
-            cached_snapshot.as_deref(),
+            snapshot,
             crate::metrics::v2::ObligationScope::Changed,
             changed_files,
-        );
-    let changed_state_reports =
-        changed_state_integrity_reports(state, root, config, &obligations, changed_files);
+        ),
+    };
     let mut touched_concepts =
         crate::metrics::v2::changed_concept_ids_from_files(config, changed_files)
             .into_iter()
@@ -1362,37 +1570,18 @@ fn analyze_changed_patch_scope(
         changed_files,
     ));
     touched_concepts.extend(crate::metrics::v2::changed_concepts_from_obligations(
-        &obligations,
+        &analysis.obligations,
     ));
-    touched_concepts.extend(state_model_ids_from_reports(&changed_state_reports));
-    touched_concepts.extend(state_model_ids_from_findings(&changed_semantic_findings));
-    let changed_findings = serialized_values(&changed_semantic_findings);
+    touched_concepts.extend(state_model_ids_from_reports(&analysis.state_reports));
+    touched_concepts.extend(state_model_ids_from_findings(&analysis.findings));
+    let changed_findings = serialized_values(&analysis.findings);
     let suppression_application = apply_suppressions(config, changed_findings);
 
     ChangedPatchScope {
-        obligations,
+        obligations: analysis.obligations,
         semantic_error,
         suppression_application,
         touched_concepts,
-    }
-}
-
-fn changed_state_integrity_reports(
-    state: &mut McpState,
-    root: &Path,
-    config: &crate::metrics::rules::RulesConfig,
-    changed_obligations: &[crate::metrics::v2::ObligationReport],
-    changed_files: &BTreeSet<String>,
-) -> Vec<crate::metrics::v2::StateIntegrityReport> {
-    match analyze_semantic_snapshot(state, root) {
-        Ok(Some(semantic)) => crate::metrics::v2::build_state_integrity_reports(
-            config,
-            &semantic,
-            changed_obligations,
-            crate::metrics::v2::StateScope::Changed,
-            changed_files,
-        ),
-        Ok(None) | Err(_) => Vec::new(),
     }
 }
 
@@ -1403,6 +1592,7 @@ fn compute_touched_concept_gate(
 ) -> Result<Value, String> {
     let (session_v2, session_v2_status) = current_session_v2_baseline_with_status(state, root)?;
     let context = prepare_patch_check_context(state, root, session_v2.as_ref())?;
+    let patch_cache_identity = current_patch_safety_cache_identity(state, &context);
     let bundle = context.bundle;
     let changed_files = context.changed_files;
 
@@ -1410,30 +1600,22 @@ fn compute_touched_concept_gate(
         state.cached_semantic = None;
         state.cached_evolution = None;
     }
-    let (current_clone_payload, clone_error) = clone_findings_for_health(
+    let analysis = build_patch_safety_analysis(
         state,
         root,
-        &bundle.snapshot,
-        &bundle.health,
-        bundle.health.duplicate_groups.len(),
+        &bundle,
+        &changed_files,
+        session_v2.as_ref(),
+        patch_cache_identity,
     );
-    let (all_semantic_findings, _, all_semantic_error) = semantic_findings_and_obligations(
-        state,
-        root,
-        Some(&bundle.snapshot),
-        crate::metrics::v2::ObligationScope::All,
-        &BTreeSet::new(),
-    );
-    let (suppression_application, rules_error) = apply_root_suppressions(
-        root,
-        finding_values(
-            &current_clone_payload.exact_findings,
-            &all_semantic_findings,
-        ),
-    );
-    let current_finding_payloads = finding_payload_map(&suppression_application.visible_findings);
+    let current_finding_payloads = finding_payload_map(&analysis.visible_findings);
     let (rules_config, _) = load_v2_rules_config(root);
-    let changed_scope = analyze_changed_patch_scope(state, root, &rules_config, &changed_files);
+    let missing_obligations = analysis
+        .changed_obligations
+        .iter()
+        .filter(|obligation| !obligation.missing_sites.is_empty())
+        .cloned()
+        .collect::<Vec<_>>();
 
     let introduced_findings = session_v2
         .as_ref()
@@ -1445,24 +1627,17 @@ fn compute_touched_concept_gate(
                 .collect::<Vec<_>>()
         })
         .unwrap_or_else(|| {
-            changed_scope
-                .suppression_application
-                .visible_findings
+            analysis
+                .changed_visible_findings
                 .iter()
                 .filter(|finding| {
                     let concept_id = finding_concept_id(finding).unwrap_or_default();
-                    changed_scope.touched_concepts.is_empty()
-                        || changed_scope.touched_concepts.contains(concept_id)
+                    analysis.changed_touched_concepts.is_empty()
+                        || analysis.changed_touched_concepts.contains(concept_id)
                 })
                 .cloned()
                 .collect::<Vec<_>>()
         });
-    let missing_obligations = changed_scope
-        .obligations
-        .iter()
-        .filter(|obligation| !obligation.missing_sites.is_empty())
-        .cloned()
-        .collect::<Vec<_>>();
     let blocking_findings = introduced_findings
         .iter()
         .filter(|finding| {
@@ -1476,10 +1651,7 @@ fn compute_touched_concept_gate(
     } else {
         "pass"
     };
-    let semantic_error = merge_optional_errors(
-        changed_scope.semantic_error.or(all_semantic_error),
-        clone_error,
-    );
+    let semantic_error = patch_safety_semantic_error(&analysis);
     let summary = if decision == "fail" {
         "Touched-concept regressions detected"
     } else if changed_files.is_empty() {
@@ -1494,7 +1666,7 @@ fn compute_touched_concept_gate(
         .map(|baseline| baseline.diff(&bundle.health));
     let preserved_semantic = state.cached_semantic.clone();
     let preserved_evolution = state.cached_evolution.clone();
-    let (rules_config, _) = load_v2_rules_config(root);
+    let preserved_patch_safety = state.cached_patch_safety.clone();
 
     let response = json!({
         "decision": decision,
@@ -1504,12 +1676,12 @@ fn compute_touched_concept_gate(
         "introduced_findings": introduced_findings,
         "blocking_findings": blocking_findings,
         "missing_obligations": missing_obligations,
-        "obligation_completeness_0_10000": crate::metrics::v2::obligation_score_0_10000(&changed_scope.obligations),
-        "suppression_hits": suppression_application.active_matches,
-        "suppressed_finding_count": suppression_match_count(&suppression_application.active_matches),
-        "expired_suppressions": suppression_application.expired_matches,
-        "expired_suppression_match_count": suppression_match_count(&suppression_application.expired_matches),
-        "rules_error": rules_error,
+        "obligation_completeness_0_10000": crate::metrics::v2::obligation_score_0_10000(&analysis.changed_obligations),
+        "suppression_hits": analysis.suppression_hits,
+        "suppressed_finding_count": analysis.suppressed_finding_count,
+        "expired_suppressions": analysis.expired_suppressions,
+        "expired_suppression_match_count": analysis.expired_suppression_match_count,
+        "rules_error": analysis.rules_error,
         "semantic_error": semantic_error,
         "scan_trust": scan_trust_json(&bundle.metadata),
         "confidence": build_v2_confidence_report(&bundle.metadata, &rules_config, session_v2_status),
@@ -1526,6 +1698,7 @@ fn compute_touched_concept_gate(
         );
         state.cached_semantic = preserved_semantic;
         state.cached_evolution = preserved_evolution;
+        state.cached_patch_safety = preserved_patch_safety;
     } else if persisted_baseline.is_some() {
         state.baseline = persisted_baseline;
     }
@@ -2360,10 +2533,12 @@ mod tests {
         state_model_ids_from_findings, state_model_ids_from_reports, update_scan_cache,
     };
     use crate::analysis::scanner::common::{ScanMetadata, ScanMode};
+    use crate::analysis::semantic::typescript::default_bridge_config;
     use crate::analysis::semantic::{
         ClosedDomain, ExhaustivenessSite, ProjectModel, ReadFact, SemanticCapability,
         SemanticSnapshot, SymbolFact, WriteFact,
     };
+    use crate::app::bridge::TypeScriptBridgeSupervisor;
     use crate::app::mcp_server::{
         McpState, SessionV2Baseline, SessionV2ConfidenceSnapshot, SESSION_V2_SCHEMA_VERSION,
     };
@@ -2837,6 +3012,7 @@ mod tests {
             session_v2: None,
             cached_evolution: None,
             cached_scan_identity: None,
+            cached_patch_safety: None,
             semantic_bridge: None,
         }
     }
@@ -3638,6 +3814,98 @@ mod tests {
     }
 
     #[test]
+    fn gate_and_session_end_preserve_patch_safety_cache_on_changed_tree() {
+        let root = closed_domain_gate_fixture_root();
+        init_git_repo(&root);
+        commit_all(&root, "initial");
+        let mut state = fresh_mcp_state();
+        handle_scan(
+            &json!({"path": root.to_string_lossy().to_string()}),
+            &Tier::Free,
+            &mut state,
+        )
+        .expect("scan fixture");
+        handle_session_start(&json!({}), &Tier::Free, &mut state).expect("session start");
+        write_file(
+            &root,
+            "src/domain/state.ts",
+            "export type AppState = 'idle' | 'busy' | 'error';\n",
+        );
+
+        let gate = handle_gate(&json!({}), &Tier::Free, &mut state).expect("gate");
+        assert!(gate["changed_files"]
+            .as_array()
+            .expect("changed files")
+            .iter()
+            .any(|value| value == "src/domain/state.ts"));
+        assert!(state.cached_patch_safety.is_some());
+
+        let session_end =
+            handle_session_end(&json!({}), &Tier::Free, &mut state).expect("session end");
+        assert!(session_end["changed_files"]
+            .as_array()
+            .expect("changed files")
+            .iter()
+            .any(|value| value == "src/domain/state.ts"));
+        assert!(state.cached_patch_safety.is_some());
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn gate_keeps_clone_findings_when_semantic_analysis_fails() {
+        let root = cli_gate_fixture_root();
+        write_file(
+            &root,
+            "src/a.ts",
+            "export function duplicateAlpha(): number { return 1; }\n",
+        );
+        write_file(
+            &root,
+            "src/b.ts",
+            "export function duplicateBeta(): number { return 1; }\n",
+        );
+
+        let mut state = fresh_mcp_state();
+        handle_scan(
+            &json!({"path": root.to_string_lossy().to_string()}),
+            &Tier::Free,
+            &mut state,
+        )
+        .expect("scan fixture");
+        handle_session_start(&json!({}), &Tier::Free, &mut state).expect("session start");
+        state
+            .cached_health
+            .as_mut()
+            .expect("cached health")
+            .duplicate_groups = vec![DuplicateGroup {
+            hash: 41,
+            instances: vec![
+                ("src/a.ts".into(), "duplicateAlpha".into(), 12),
+                ("src/b.ts".into(), "duplicateBeta".into(), 12),
+            ],
+        }];
+        state.cached_semantic = None;
+        let mut broken_config = default_bridge_config();
+        broken_config.entrypoint = "/definitely/missing-sentrux-bridge.js".to_string();
+        state.semantic_bridge = Some(TypeScriptBridgeSupervisor::new(broken_config));
+
+        let gate = handle_gate(&json!({}), &Tier::Free, &mut state).expect("gate");
+
+        assert!(gate["semantic_error"]
+            .as_str()
+            .expect("semantic error")
+            .contains("Semantic analysis unavailable"));
+        assert!(gate["introduced_findings"]
+            .as_array()
+            .expect("introduced findings")
+            .iter()
+            .any(|finding| finding["kind"] == "exact_clone_group"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
     fn cli_v2_gate_fails_on_closed_domain_regression() {
         let root = closed_domain_gate_fixture_root();
         cli_save_v2_session(&root).expect("save v2 session");
@@ -4249,6 +4517,7 @@ fn handle_session_start(
     state.baseline = Some(baseline);
     let session_v2_baseline_path = save_session_v2_baseline(&root, &session_v2)?;
     state.session_v2 = Some(session_v2);
+    state.cached_patch_safety = None;
 
     Ok(json!({
         "status": "Baseline saved",
@@ -4301,6 +4570,7 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
     };
 
     let context = prepare_patch_check_context(state, &root, session_v2.as_ref())?;
+    let patch_cache_identity = current_patch_safety_cache_identity(state, &context);
     let bundle = context.bundle;
     let legacy_diff = baseline
         .as_ref()
@@ -4310,37 +4580,23 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         state.cached_semantic = None;
         state.cached_evolution = None;
     }
-    let (current_clone_payload, clone_error) = clone_findings_for_health(
+    let analysis = build_patch_safety_analysis(
         state,
         &root,
-        &bundle.snapshot,
-        &bundle.health,
-        bundle.health.duplicate_groups.len(),
+        &bundle,
+        &changed_files,
+        session_v2.as_ref(),
+        patch_cache_identity,
     );
-    let (all_semantic_findings, _, all_semantic_error) = semantic_findings_and_obligations(
-        state,
-        &root,
-        Some(&bundle.snapshot),
-        crate::metrics::v2::ObligationScope::All,
-        &BTreeSet::new(),
-    );
-    let (suppression_application, rules_error) = apply_root_suppressions(
-        &root,
-        finding_values(
-            &current_clone_payload.exact_findings,
-            &all_semantic_findings,
-        ),
-    );
-    let current_finding_payloads = finding_payload_map(&suppression_application.visible_findings);
+    let current_finding_payloads = finding_payload_map(&analysis.visible_findings);
     let (rules_config, _) = load_v2_rules_config(&root);
-    let changed_scope = analyze_changed_patch_scope(state, &root, &rules_config, &changed_files);
-    let changed_concepts = changed_scope
-        .touched_concepts
+    let changed_concepts = analysis
+        .changed_touched_concepts
         .iter()
         .cloned()
         .collect::<Vec<_>>();
-    let missing_obligations = changed_scope
-        .obligations
+    let missing_obligations = analysis
+        .changed_obligations
         .iter()
         .filter(|obligation| !obligation.missing_sites.is_empty())
         .cloned()
@@ -4362,9 +4618,8 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         .collect::<Vec<_>>();
     if session_v2.is_none() {
         blocking_findings.extend(
-            changed_scope
-                .suppression_application
-                .visible_findings
+            analysis
+                .changed_visible_findings
                 .iter()
                 .filter(|finding| severity_of_value(finding) == "high")
                 .cloned(),
@@ -4390,17 +4645,14 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
     } else {
         "pass"
     };
-    let semantic_error = merge_optional_errors(
-        changed_scope.semantic_error.or(all_semantic_error),
-        clone_error,
-    );
-    let (rules_config, _) = load_v2_rules_config(&root);
+    let semantic_error = patch_safety_semantic_error(&analysis);
     if baseline.is_none() && baseline_error.is_none() {
         baseline_error =
             Some("Legacy baseline unavailable; structural delta fields were omitted".to_string());
     }
     let preserved_semantic = state.cached_semantic.clone();
     let preserved_evolution = state.cached_evolution.clone();
+    let preserved_patch_safety = state.cached_patch_safety.clone();
 
     let signal_before = legacy_diff
         .as_ref()
@@ -4444,16 +4696,16 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         "introduced_findings": introduced_findings,
         "resolved_findings": resolved_findings,
         "missing_obligations": missing_obligations,
-        "obligation_completeness_0_10000": crate::metrics::v2::obligation_score_0_10000(&changed_scope.obligations),
+        "obligation_completeness_0_10000": crate::metrics::v2::obligation_score_0_10000(&analysis.changed_obligations),
         "touched_concept_gate": {
             "decision": gate_decision,
             "blocking_findings": blocking_findings,
         },
-        "suppression_hits": suppression_application.active_matches,
-        "suppressed_finding_count": suppression_match_count(&suppression_application.active_matches),
-        "expired_suppressions": suppression_application.expired_matches,
-        "expired_suppression_match_count": suppression_match_count(&suppression_application.expired_matches),
-        "rules_error": rules_error,
+        "suppression_hits": analysis.suppression_hits,
+        "suppressed_finding_count": analysis.suppressed_finding_count,
+        "expired_suppressions": analysis.expired_suppressions,
+        "expired_suppression_match_count": analysis.expired_suppression_match_count,
+        "rules_error": analysis.rules_error,
         "scan_trust": scan_trust_json(&bundle.metadata),
         "confidence": build_v2_confidence_report(&bundle.metadata, &rules_config, session_v2_status),
         "baseline_delta": legacy_baseline_delta_json(legacy_diff.as_ref()),
@@ -4465,6 +4717,7 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         update_scan_cache(state, root, bundle, baseline, context.scan_identity);
         state.cached_semantic = preserved_semantic;
         state.cached_evolution = preserved_evolution;
+        state.cached_patch_safety = preserved_patch_safety;
     } else {
         state.baseline = baseline;
     }
