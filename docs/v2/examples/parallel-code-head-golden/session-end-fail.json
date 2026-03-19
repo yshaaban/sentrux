@@ -1,13 +1,13 @@
 {
   "baseline_delta": {
     "available": true,
-    "coupling_after": 0.4604090194022024,
-    "coupling_before": 0.4604090194022024,
+    "coupling_after": 0.47384774728120144,
+    "coupling_before": 0.47384774728120144,
     "cycles_after": 2,
     "cycles_before": 2,
     "degraded": false,
-    "signal_after": 4400,
-    "signal_before": 4400,
+    "signal_after": 4399,
+    "signal_before": 4399,
     "signal_delta": 0
   },
   "baseline_error": null,
@@ -44,7 +44,7 @@
   "concept_summary_count": 1,
   "confidence": {
     "rule_coverage_0_10000": 10000,
-    "scan_confidence_0_10000": 8248,
+    "scan_confidence_0_10000": 8264,
     "semantic_rules_loaded": true,
     "session_baseline": {
       "compatible": true,
@@ -54,8 +54,8 @@
     }
   },
   "coupling_change": [
-    0.4604090194022024,
-    0.4604090194022024
+    0.47384774728120144,
+    0.47384774728120144
   ],
   "cycles_change": [
     2,
@@ -70,7 +70,7 @@
         "affected files: 2",
         "role tags: guarded_seam",
         "concept: Concept 'task_presentation_status' shows 1 boundary/ownership findings and 5 missing update sites",
-        "large_file: File 'src/components/SidebarTaskRow.tsx' is 539 lines, above the typescript threshold of 500"
+        "large_file: File 'src/components/SidebarTaskRow.tsx' is 545 lines, above the typescript threshold of 500"
       ],
       "files": [
         "src/app/task-presentation-status.ts",
@@ -82,6 +82,12 @@
         "inspect the explicit propagation sites and completeness tests for this concept",
         "inspect whether orchestration, adapters, and data shaping are accumulating in one file",
         "inspect whether the file can be split along responsibility boundaries instead of line-count slices"
+      ],
+      "leverage_class": "architecture_signal",
+      "leverage_reasons": [
+        "ownership_boundary_erosion",
+        "propagation_burden",
+        "supporting_size_pressure"
       ],
       "metrics": {
         "clone_family_count": 0,
@@ -136,6 +142,11 @@
         "inspect the explicit propagation sites and completeness tests for this concept"
       ],
       "kind": "concept",
+      "leverage_class": "architecture_signal",
+      "leverage_reasons": [
+        "ownership_boundary_erosion",
+        "propagation_burden"
+      ],
       "metrics": {
         "boundary_pressure_count": 1,
         "context_burden": 5,
@@ -171,10 +182,10 @@
         "private helper surface split"
       ],
       "evidence": [
-        "line count: 539",
+        "line count: 545",
         "large-file threshold: 500",
-        "function count: 43",
-        "peak function complexity: 4",
+        "function count: 40",
+        "peak function complexity: 5",
         "outbound dependencies: 11",
         "guardrail tests: src/components/SidebarTaskRow.architecture.test.ts"
       ],
@@ -187,13 +198,17 @@
         "inspect whether the file can be split along responsibility boundaries instead of line-count slices"
       ],
       "kind": "large_file",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "supporting_size_pressure"
+      ],
       "metrics": {
         "fan_out": 11,
         "file_count": 1,
-        "function_count": 43,
+        "function_count": 40,
         "guardrail_test_count": 1,
-        "line_count": 539,
-        "max_complexity": 4,
+        "line_count": 545,
+        "max_complexity": 5,
         "role_count": 1
       },
       "presentation_class": "structural_debt",
@@ -209,14 +224,14 @@
         "guarded_seam"
       ],
       "scope": "src/components/SidebarTaskRow.tsx",
-      "score_0_10000": 2681,
+      "score_0_10000": 2724,
       "severity": "low",
       "signal_class": "debt",
       "signal_families": [
         "size",
         "coordination"
       ],
-      "summary": "File 'src/components/SidebarTaskRow.tsx' is 539 lines, above the typescript threshold of 500",
+      "summary": "File 'src/components/SidebarTaskRow.tsx' is 545 lines, above the typescript threshold of 500",
       "trust_tier": "trusted"
     }
   ],
@@ -225,10 +240,10 @@
     {
       "candidate_split_axes": [],
       "evidence": [
-        "dead private functions: 16",
-        "dead private lines: 101",
+        "dead private functions: 17",
+        "dead private lines: 104",
         "sample dead functions: InlineAttentionIndicator, boxShadow, getPrimaryTaskAgentDef",
-        "total file lines: 539"
+        "total file lines: 545"
       ],
       "files": [
         "src/components/SidebarTaskRow.tsx"
@@ -239,13 +254,17 @@
         "inspect whether the file still reflects the supported control flow"
       ],
       "kind": "dead_private_code_cluster",
+      "leverage_class": "experimental",
+      "leverage_reasons": [
+        "detector_under_evaluation"
+      ],
       "metrics": {
-        "dead_line_count": 101,
-        "dead_symbol_count": 16,
+        "dead_line_count": 104,
+        "dead_symbol_count": 17,
         "file_count": 1,
-        "function_count": 43,
-        "line_count": 539,
-        "max_complexity": 4,
+        "function_count": 40,
+        "line_count": 545,
+        "max_complexity": 5,
         "role_count": 1
       },
       "presentation_class": "experimental",
@@ -254,25 +273,25 @@
         "guarded_seam"
       ],
       "scope": "src/components/SidebarTaskRow.tsx",
-      "score_0_10000": 6918,
+      "score_0_10000": 6972,
       "severity": "high",
       "signal_class": "watchpoint",
       "signal_families": [
         "staleness",
         "maintainability"
       ],
-      "summary": "File 'src/components/SidebarTaskRow.tsx' contains 16 uncalled private functions totaling 101 lines",
+      "summary": "File 'src/components/SidebarTaskRow.tsx' contains 17 uncalled private functions totaling 104 lines",
       "trust_tier": "experimental"
     }
   ],
-  "experimental_finding_count": 1,
+  "experimental_finding_count": 3,
   "experimental_findings": [
     {
       "evidence": [
-        "dead private functions: 16",
-        "dead private lines: 101",
+        "dead private functions: 17",
+        "dead private lines: 104",
         "sample dead functions: InlineAttentionIndicator, boxShadow, getPrimaryTaskAgentDef",
-        "total file lines: 539"
+        "total file lines: 545"
       ],
       "files": [
         "src/components/SidebarTaskRow.tsx"
@@ -283,13 +302,17 @@
         "inspect whether the file still reflects the supported control flow"
       ],
       "kind": "dead_private_code_cluster",
+      "leverage_class": "experimental",
+      "leverage_reasons": [
+        "detector_under_evaluation"
+      ],
       "metrics": {
-        "dead_line_count": 101,
-        "dead_symbol_count": 16,
+        "dead_line_count": 104,
+        "dead_symbol_count": 17,
         "file_count": 1,
-        "function_count": 43,
-        "line_count": 539,
-        "max_complexity": 4,
+        "function_count": 40,
+        "line_count": 545,
+        "max_complexity": 5,
         "role_count": 1
       },
       "presentation_class": "experimental",
@@ -297,14 +320,100 @@
         "guarded_seam"
       ],
       "scope": "src/components/SidebarTaskRow.tsx",
-      "score_0_10000": 6918,
+      "score_0_10000": 6972,
       "severity": "high",
       "signal_class": "watchpoint",
       "signal_families": [
         "staleness",
         "maintainability"
       ],
-      "summary": "File 'src/components/SidebarTaskRow.tsx' contains 16 uncalled private functions totaling 101 lines",
+      "summary": "File 'src/components/SidebarTaskRow.tsx' contains 17 uncalled private functions totaling 104 lines",
+      "trust_tier": "experimental"
+    },
+    {
+      "evidence": [
+        "dead private functions: 21",
+        "dead private lines: 115",
+        "sample dead functions: getAvailablePortsFallbackMessage, handleCustomExpose, openPreviewInNewTab",
+        "total file lines: 895"
+      ],
+      "files": [
+        "src/components/PreviewPanel.tsx"
+      ],
+      "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
+      "inspection_focus": [
+        "inspect whether the dead helpers should be deleted or intentionally reconnected",
+        "inspect whether the file still reflects the supported control flow"
+      ],
+      "kind": "dead_private_code_cluster",
+      "leverage_class": "experimental",
+      "leverage_reasons": [
+        "detector_under_evaluation"
+      ],
+      "metrics": {
+        "dead_line_count": 115,
+        "dead_symbol_count": 21,
+        "file_count": 1,
+        "function_count": 39,
+        "line_count": 895,
+        "max_complexity": 11,
+        "role_count": 0
+      },
+      "presentation_class": "experimental",
+      "scope": "src/components/PreviewPanel.tsx",
+      "score_0_10000": 7170,
+      "severity": "high",
+      "signal_class": "watchpoint",
+      "signal_families": [
+        "staleness",
+        "maintainability"
+      ],
+      "summary": "File 'src/components/PreviewPanel.tsx' contains 21 uncalled private functions totaling 115 lines",
+      "trust_tier": "experimental"
+    },
+    {
+      "evidence": [
+        "dead private functions: 6",
+        "dead private lines: 20",
+        "sample dead functions: getReviewStateColor, handleScrollToAnnotation, convergence",
+        "total file lines: 388"
+      ],
+      "files": [
+        "src/components/ReviewPanel.tsx"
+      ],
+      "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
+      "inspection_focus": [
+        "inspect whether the dead helpers should be deleted or intentionally reconnected",
+        "inspect whether the file still reflects the supported control flow"
+      ],
+      "kind": "dead_private_code_cluster",
+      "leverage_class": "experimental",
+      "leverage_reasons": [
+        "detector_under_evaluation"
+      ],
+      "metrics": {
+        "dead_line_count": 20,
+        "dead_symbol_count": 6,
+        "file_count": 1,
+        "function_count": 28,
+        "line_count": 388,
+        "max_complexity": 13,
+        "role_count": 2
+      },
+      "presentation_class": "experimental",
+      "role_tags": [
+        "guarded_seam",
+        "facade_with_extracted_owners"
+      ],
+      "scope": "src/components/ReviewPanel.tsx",
+      "score_0_10000": 5460,
+      "severity": "medium",
+      "signal_class": "watchpoint",
+      "signal_families": [
+        "staleness",
+        "maintainability"
+      ],
+      "summary": "File 'src/components/ReviewPanel.tsx' contains 6 uncalled private functions totaling 20 lines",
       "trust_tier": "experimental"
     }
   ],
@@ -320,10 +429,10 @@
         "private helper surface split"
       ],
       "evidence": [
-        "line count: 539",
+        "line count: 545",
         "large-file threshold: 500",
-        "function count: 43",
-        "peak function complexity: 4",
+        "function count: 40",
+        "peak function complexity: 5",
         "outbound dependencies: 11",
         "guardrail tests: src/components/SidebarTaskRow.architecture.test.ts"
       ],
@@ -336,6 +445,10 @@
         "inspect whether the file can be split along responsibility boundaries instead of line-count slices"
       ],
       "kind": "large_file",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "supporting_size_pressure"
+      ],
       "metrics": {
         "evidence_count": 6,
         "file_count": 1
@@ -354,7 +467,7 @@
       ],
       "scope": "src/components/SidebarTaskRow.tsx",
       "severity": "low",
-      "summary": "File 'src/components/SidebarTaskRow.tsx' is 539 lines, above the typescript threshold of 500",
+      "summary": "File 'src/components/SidebarTaskRow.tsx' is 545 lines, above the typescript threshold of 500",
       "trust_tier": "trusted"
     },
     {
@@ -370,6 +483,10 @@
         "inspect whether reads should move behind the canonical accessor or public boundary"
       ],
       "kind": "forbidden_raw_read",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "real_but_lower_leverage_cleanup"
+      ],
       "metrics": {
         "evidence_count": 1,
         "file_count": 1
@@ -394,10 +511,10 @@
         "private helper surface split"
       ],
       "evidence": [
-        "line count: 539",
+        "line count: 545",
         "large-file threshold: 500",
-        "function count: 43",
-        "peak function complexity: 4",
+        "function count: 40",
+        "peak function complexity: 5",
         "outbound dependencies: 11",
         "guardrail tests: src/components/SidebarTaskRow.architecture.test.ts"
       ],
@@ -410,13 +527,17 @@
         "inspect whether the file can be split along responsibility boundaries instead of line-count slices"
       ],
       "kind": "large_file",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "supporting_size_pressure"
+      ],
       "metrics": {
         "fan_out": 11,
         "file_count": 1,
-        "function_count": 43,
+        "function_count": 40,
         "guardrail_test_count": 1,
-        "line_count": 539,
-        "max_complexity": 4,
+        "line_count": 545,
+        "max_complexity": 5,
         "role_count": 1
       },
       "presentation_class": "structural_debt",
@@ -432,14 +553,14 @@
         "guarded_seam"
       ],
       "scope": "src/components/SidebarTaskRow.tsx",
-      "score_0_10000": 2681,
+      "score_0_10000": 2724,
       "severity": "low",
       "signal_class": "debt",
       "signal_families": [
         "size",
         "coordination"
       ],
-      "summary": "File 'src/components/SidebarTaskRow.tsx' is 539 lines, above the typescript threshold of 500",
+      "summary": "File 'src/components/SidebarTaskRow.tsx' is 545 lines, above the typescript threshold of 500",
       "trust_tier": "trusted"
     },
     {
@@ -451,6 +572,10 @@
         "src/components/SidebarTaskRow.tsx"
       ],
       "kind": "forbidden_raw_read",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "real_but_lower_leverage_cleanup"
+      ],
       "presentation_class": "structural_debt",
       "severity": "medium",
       "summary": "Concept 'task_presentation_status' is read from a forbidden raw access path at src/components/SidebarTaskRow.tsx"
@@ -589,10 +714,10 @@
     },
     {
       "evidence": [
-        "line count: 539",
+        "line count: 545",
         "large-file threshold: 500",
-        "function count: 43",
-        "peak function complexity: 4",
+        "function count: 40",
+        "peak function complexity: 5",
         "outbound dependencies: 11",
         "guardrail tests: src/components/SidebarTaskRow.architecture.test.ts"
       ],
@@ -602,13 +727,13 @@
       "impact": "Responsibility concentration increases review friction and makes later splits harder to isolate.",
       "kind": "large_file",
       "scope": "src/components/SidebarTaskRow.tsx",
-      "score_0_10000": 2681,
+      "score_0_10000": 2724,
       "severity": "low",
       "suggested_actions": [
         "inspect whether orchestration, adapters, and data shaping are accumulating in one file",
         "inspect whether the file can be split along responsibility boundaries instead of line-count slices"
       ],
-      "summary": "File 'src/components/SidebarTaskRow.tsx' is 539 lines, above the typescript threshold of 500"
+      "summary": "File 'src/components/SidebarTaskRow.tsx' is 545 lines, above the typescript threshold of 500"
     }
   ],
   "quality_opportunity_count": 2,
@@ -621,10 +746,10 @@
         "private helper surface split"
       ],
       "evidence": [
-        "line count: 538",
+        "line count: 544",
         "large-file threshold: 500",
-        "function count: 43",
-        "peak function complexity: 4",
+        "function count: 40",
+        "peak function complexity: 5",
         "outbound dependencies: 11",
         "guardrail tests: src/components/SidebarTaskRow.architecture.test.ts"
       ],
@@ -637,13 +762,17 @@
         "inspect whether the file can be split along responsibility boundaries instead of line-count slices"
       ],
       "kind": "large_file",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "supporting_size_pressure"
+      ],
       "metrics": {
         "fan_out": 11,
         "file_count": 1,
-        "function_count": 43,
+        "function_count": 40,
         "guardrail_test_count": 1,
-        "line_count": 538,
-        "max_complexity": 4,
+        "line_count": 544,
+        "max_complexity": 5,
         "role_count": 1
       },
       "presentation_class": "structural_debt",
@@ -659,20 +788,20 @@
         "guarded_seam"
       ],
       "scope": "src/components/SidebarTaskRow.tsx",
-      "score_0_10000": 2674,
+      "score_0_10000": 2717,
       "severity": "low",
       "signal_class": "debt",
       "signal_families": [
         "size",
         "coordination"
       ],
-      "summary": "File 'src/components/SidebarTaskRow.tsx' is 538 lines, above the typescript threshold of 500",
+      "summary": "File 'src/components/SidebarTaskRow.tsx' is 544 lines, above the typescript threshold of 500",
       "trust_tier": "trusted"
     }
   ],
   "rules_error": null,
   "scan_trust": {
-    "candidate_files": 765,
+    "candidate_files": 772,
     "exclusions": {
       "bucketed": {
         "build": 12,
@@ -687,25 +816,25 @@
       "total": 134
     },
     "fallback_reason": null,
-    "kept_files": 631,
+    "kept_files": 638,
     "mode": "git",
-    "overall_confidence_0_10000": 8248,
+    "overall_confidence_0_10000": 8264,
     "partial": false,
     "resolution": {
       "internal_confidence_0_10000": 9995,
-      "resolved": 1908,
-      "unresolved_external": 518,
+      "resolved": 1932,
+      "unresolved_external": 523,
       "unresolved_internal": 1,
       "unresolved_unknown": 83
     },
-    "scope_coverage_0_10000": 8248,
-    "tracked_candidates": 765,
+    "scope_coverage_0_10000": 8264,
+    "tracked_candidates": 772,
     "truncated": false,
     "untracked_candidates": 0
   },
   "semantic_error": null,
-  "signal_after": 4400,
-  "signal_before": 4400,
+  "signal_after": 4399,
+  "signal_before": 4399,
   "signal_delta": 0,
   "summary": "Touched-concept regressions detected",
   "suppressed_finding_count": 0,
@@ -741,6 +870,11 @@
         "inspect whether boundary erosion is making the propagation chain easier to miss"
       ],
       "kind": "concept_watchpoint",
+      "leverage_class": "architecture_signal",
+      "leverage_reasons": [
+        "ownership_boundary_erosion",
+        "propagation_burden"
+      ],
       "missing_site_count": 5,
       "presentation_class": "watchpoint",
       "related_surfaces": [

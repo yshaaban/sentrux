@@ -1,6 +1,6 @@
 # Sentrux V2 Implementation Status
 
-Last audited: 2026-03-19
+Last audited: 2026-03-20
 
 ## Overall Verdict
 
@@ -47,8 +47,10 @@ The strongest completed work is:
 - overlap-aware debt clusters that connect related structural and concept signals
 - normalized finding-detail rows with explicit impact and inspection focus
 - explicit trust tiers across findings, debt signals, debt clusters, and watchpoints
+- generic leverage classes and leverage reasons across findings, debt signals, debt clusters, and watchpoints
 - cycle-cluster cut-candidate evidence with candidate seam hints and estimated cycle reduction
 - quarantine of experimental finding classes from default `findings`, `session_end`, and `gate` outputs
+- leverage-aware report selection now lives in a generic shared selector rather than the `parallel-code` renderer
 - inspection candidates that combine concept pressure, clone families, and hotspots
 - parity and concentration context
 - conservative state-integrity analysis
@@ -102,7 +104,7 @@ Still missing or partial:
 - the composite score is demoted in MCP, but CLI and GUI are not yet fully aligned
 - confidence exists as MCP payload shape, but not as a fully unified first-class v2 type across product surfaces
 - proof-run markdown and GUI surfaces still lag the newer debt-cluster and finding-detail shapes
-- proof-run markdown and evaluator artifacts still need regular refresh against the newer trust-tier schema
+- proof-run markdown and evaluator artifacts still need regular refresh against the newer trust-tier and leverage schema
 
 ## Tier 1A: Clone Drift Fast Lane
 

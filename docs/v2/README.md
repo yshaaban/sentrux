@@ -97,6 +97,7 @@ V2 now also exposes:
 - normalized finding details
 - patch risks
 - trust tiers
+- leverage classes and leverage reasons for engineering meaning
 - candidate split axes and related surfaces for fix-oriented inspection
 
 Any compatibility fields that still mention quality opportunities or optimization-style sorting should be treated as legacy aliases for inspection candidates only. Engineers own the final prioritization.

@@ -1,6 +1,6 @@
 # Sentrux V2 Roadmap
 
-Last audited: 2026-03-19
+Last audited: 2026-03-20
 
 Status legend:
 
@@ -41,6 +41,7 @@ Deliverables:
 - confidence reporting
 - bottleneck-first and delta-first output framing
 - trust-tiered finding presentation
+- leverage-aware finding interpretation
 
 Tasks:
 
@@ -57,6 +58,8 @@ Tasks:
 - [-] demote the single composite score in CLI, MCP, and GUI output
 - [x] add trust tiers for trusted findings, watchpoints, and experimental detectors
 - [x] keep experimental detectors out of default `findings`, `session_end`, and `gate` lists
+- [x] add leverage classes and leverage reasons to engineer-facing v2 outputs
+- [-] validate leverage-aware report composition across benchmark repos
 
 Exit criteria:
 
@@ -66,7 +69,7 @@ Exit criteria:
 
 Open gap:
 
-- MCP and CLI are now largely aligned here; GUI and `health` delta surfacing still lag, and proof/evaluator artifacts still need regular trust-tier refreshes
+- MCP and CLI are now largely aligned here; GUI and `health` delta surfacing still lag, and proof/evaluator artifacts still need regular trust-tier and leverage refreshes
 
 This tier should ship independently of the semantic frontend.
 

@@ -30,6 +30,16 @@ Finding trust model:
 - `watchpoint`: real structural pressure or incomplete interpretation; useful for inspection, not for overconfident automation
 - `experimental`: detector is still under evaluation and must not quietly influence top-level findings or CI decisions
 
+Engineering leverage model:
+
+- `architecture_signal`: repo-wide ownership or layering pressure with broad consequences
+- `local_refactor_target`: a contained seam that is ready for tightening
+- `boundary_discipline`: a facade or boundary where glue is at risk of absorbing policy logic
+- `regrowth_watchpoint`: an intentionally central surface that should not broaden further
+- `secondary_cleanup`: real cleanup worth tracking, but not the highest-leverage improvement target
+- `hardening_note`: narrow completeness or exhaustiveness follow-up
+- `tooling_debt`: maintenance burden on scripts and tooling surfaces
+
 ## Existing Tools To Preserve
 
 Keep these unchanged during the initial v2 rollout:
@@ -83,7 +93,7 @@ Returns:
 - likely fix sites
 - concept summaries for repeated concept pressure
 - debt signals, debt clusters, and watchpoints
-- trust tiers, impact, candidate split axes, and related surfaces
+- trust tiers, leverage classes, impact, candidate split axes, and related surfaces
 - quality-improvement opportunities as inspection candidates
 - optimization candidates as legacy watchpoint aliases only
 - top-level confidence summary

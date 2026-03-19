@@ -135,6 +135,7 @@ V2 must always expose:
 - what had deep semantic coverage
 - what confidence the result deserves
 - what trust tier each finding belongs to: `trusted`, `watchpoint`, or `experimental`
+- what engineering leverage class each finding belongs to: `architecture_signal`, `local_refactor_target`, `boundary_discipline`, `regrowth_watchpoint`, `secondary_cleanup`, `hardening_note`, or `tooling_debt`
 
 Do not hide uncertainty behind precise scores.
 
@@ -143,6 +144,7 @@ Engineer-facing defaults should:
 - lead with trusted findings
 - separate watchpoints from trusted debt signals
 - quarantine experimental detectors from default ratchets and top finding lists
+- separate trust from leverage: reliability is not the same as improvement leverage
 - preserve fixability metadata such as impact, inspection focus, and candidate split axes
 
 ## Anti-Goals

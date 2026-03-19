@@ -38,6 +38,24 @@ function summarizeTrustTierCounts(verdicts) {
   return [...counts.entries()].sort(([left], [right]) => left.localeCompare(right));
 }
 
+function summarizePresentationClassCounts(verdicts) {
+  const counts = new Map();
+  for (const verdict of verdicts) {
+    const presentationClass = verdict.expected_presentation_class ?? 'unspecified';
+    counts.set(presentationClass, (counts.get(presentationClass) ?? 0) + 1);
+  }
+  return [...counts.entries()].sort(([left], [right]) => left.localeCompare(right));
+}
+
+function summarizeLeverageClassCounts(verdicts) {
+  const counts = new Map();
+  for (const verdict of verdicts) {
+    const leverageClass = verdict.expected_leverage_class ?? 'unspecified';
+    counts.set(leverageClass, (counts.get(leverageClass) ?? 0) + 1);
+  }
+  return [...counts.entries()].sort(([left], [right]) => left.localeCompare(right));
+}
+
 function buildMarkdown(payload) {
   const lines = [];
   lines.push('# Parallel-Code Review Verdicts');
@@ -58,6 +76,18 @@ function buildMarkdown(payload) {
     lines.push(`- \`${tier}\`: ${count}`);
   }
   lines.push('');
+  lines.push('## Expected Presentation Classes');
+  lines.push('');
+  for (const [presentationClass, count] of summarizePresentationClassCounts(payload.verdicts ?? [])) {
+    lines.push(`- \`${presentationClass}\`: ${count}`);
+  }
+  lines.push('');
+  lines.push('## Expected Leverage Classes');
+  lines.push('');
+  for (const [leverageClass, count] of summarizeLeverageClassCounts(payload.verdicts ?? [])) {
+    lines.push(`- \`${leverageClass}\`: ${count}`);
+  }
+  lines.push('');
   lines.push('## Detailed Verdicts');
   lines.push('');
   for (const verdict of payload.verdicts ?? []) {
@@ -67,6 +97,10 @@ function buildMarkdown(payload) {
     lines.push(`- category: \`${verdict.category}\``);
     lines.push(`- report bucket: \`${verdict.report_bucket}\``);
     lines.push(`- expected trust tier: \`${verdict.expected_trust_tier ?? 'unspecified'}\``);
+    lines.push(
+      `- expected presentation class: \`${verdict.expected_presentation_class ?? 'unspecified'}\``,
+    );
+    lines.push(`- expected leverage class: \`${verdict.expected_leverage_class ?? 'unspecified'}\``);
     lines.push(`- engineer note: ${verdict.engineer_note}`);
     lines.push(`- expected v2 behavior: ${verdict.expected_v2_behavior}`);
     lines.push('');

@@ -163,6 +163,22 @@ For each reviewed finding class, capture:
   - `trusted`
   - `watchpoint`
   - `experimental`
+- `expected_presentation_class`
+  - `structural_debt`
+  - `guarded_facade`
+  - `watchpoint`
+  - `hardening_note`
+  - `tooling_debt`
+  - `experimental`
+- `expected_leverage_class`
+  - `architecture_signal`
+  - `local_refactor_target`
+  - `boundary_discipline`
+  - `regrowth_watchpoint`
+  - `secondary_cleanup`
+  - `hardening_note`
+  - `tooling_debt`
+  - `experimental`
 
 This loop should drive product changes such as:
 
@@ -170,6 +186,7 @@ This loop should drive product changes such as:
 - keeping a detector as a watchpoint
 - quarantining a detector as experimental
 - adding fixability metadata when a finding is real but not design-actionable yet
+- adjusting leverage classification when the raw finding is right but the engineering meaning is wrong
 
 ## Relationship To Migration
 

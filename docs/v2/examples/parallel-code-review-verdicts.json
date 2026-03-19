@@ -1,80 +1,107 @@
 {
   "repo": "parallel-code",
-  "captured_at": "2026-03-19",
-  "source_report": "docs/v2/examples/parallel-code-live-engineer-report.md",
-  "source_feedback": "Engineer feedback captured after reviewing the live report against the current parallel-code tree and architecture docs.",
+  "captured_at": "2026-03-20T00:00:00Z",
+  "source_report": "docs/v2/examples/parallel-code-head-engineer-report.md",
+  "source_feedback": "Committed-HEAD maintainer review of the generic leverage-classified v2 outputs. This corpus is for evaluating trust, presentation, and leverage meaning against a real maintainer reading, not for repo-specific analyzer logic.",
   "verdicts": [
     {
-      "scope": "task_presentation_status",
-      "kind": "closed_domain_exhaustiveness",
-      "category": "real_but_overstated",
-      "report_bucket": "hardening",
+      "scope": "src/store/store.ts",
+      "kind": "unstable_hotspot",
+      "report_bucket": "Architecture Signals",
+      "category": "useful",
       "expected_trust_tier": "trusted",
-      "engineer_note": "The file is already the canonical task presentation model with direct tests. An explicit total mapping could still help, but it is not a top architecture issue.",
-      "expected_v2_behavior": "Keep as an objective hardening signal and avoid ranking it as repo-roadmap-critical."
+      "expected_presentation_class": "structural_debt",
+      "expected_leverage_class": "architecture_signal",
+      "engineer_note": "The strongest architecture signal is the component-facing barrel inside the largest mixed subsystem. Fan-in, instability, and cycle position matter more than file size.",
+      "expected_v2_behavior": "Keep this as a lead architecture signal and explain it as a boundary hub inside a mixed cycle, not as generic large-file debt."
+    },
+    {
+      "scope": "store-app mixed cycle",
+      "kind": "cycle_cluster",
+      "report_bucket": "Watchpoints",
+      "category": "useful_watchpoint",
+      "expected_trust_tier": "watchpoint",
+      "expected_presentation_class": "watchpoint",
+      "expected_leverage_class": "architecture_signal",
+      "engineer_note": "Cycle clustering is the strongest repo-wide architecture metric when it highlights mixed ownership and boundary ambiguity.",
+      "expected_v2_behavior": "Keep the cycle prominent as an architecture signal, but frame it as a watchpoint with cut-candidate context rather than a mandatory refactor queue."
+    },
+    {
+      "scope": "src/components/TaskPanel.tsx",
+      "kind": "dependency_sprawl",
+      "report_bucket": "Best Local Refactor Targets",
+      "category": "useful",
+      "expected_trust_tier": "trusted",
+      "expected_presentation_class": "structural_debt",
+      "expected_leverage_class": "local_refactor_target",
+      "engineer_note": "This is the best contained refactor target because the repo already declares it as a guarded shell with extracted owners.",
+      "expected_v2_behavior": "Surface this as a strong local refactor target when dependency breadth overlaps declared extracted-owner boundaries."
+    },
+    {
+      "scope": "src/lib/ipc.ts",
+      "kind": "unstable_hotspot",
+      "report_bucket": "Boundary Discipline",
+      "category": "useful",
+      "expected_trust_tier": "trusted",
+      "expected_presentation_class": "guarded_facade",
+      "expected_leverage_class": "boundary_discipline",
+      "engineer_note": "The useful question is whether domain or lifecycle policy is leaking into transport glue, not whether central fan-in alone is bad.",
+      "expected_v2_behavior": "Treat guarded transport facades as boundary-discipline findings and emphasize glue-leakage risk over raw hotspot language."
+    },
+    {
+      "scope": "src/App.tsx",
+      "kind": "dependency_sprawl",
+      "report_bucket": "Regrowth Watchpoints",
+      "category": "useful_watchpoint",
+      "expected_trust_tier": "trusted",
+      "expected_presentation_class": "structural_debt",
+      "expected_leverage_class": "regrowth_watchpoint",
+      "engineer_note": "Composition roots naturally have broad fan-out. The value here is to keep shell ownership from regrowing, not to force major surgery.",
+      "expected_v2_behavior": "Surface broad composition roots as regrowth watchpoints unless other evidence shows they are the highest-leverage architecture change."
+    },
+    {
+      "scope": "src/components/terminal-view/terminal-session.ts",
+      "kind": "dependency_sprawl",
+      "report_bucket": "Secondary Cleanup",
+      "category": "useful",
+      "expected_trust_tier": "trusted",
+      "expected_presentation_class": "structural_debt",
+      "expected_leverage_class": "secondary_cleanup",
+      "engineer_note": "This public lifecycle facade still has meaningful pressure, but it should read as careful secondary cleanup rather than the lead architecture problem.",
+      "expected_v2_behavior": "Keep extracted-owner lifecycle facades visible as secondary cleanup when they overlap several real signals without being the highest-leverage target."
     },
     {
       "scope": "ConnectionBannerState",
       "kind": "closed_domain_exhaustiveness",
-      "category": "real_but_overstated",
-      "report_bucket": "hardening",
-      "expected_trust_tier": "trusted",
-      "engineer_note": "Runtime handling is already exhaustive. The remaining gap is presentation grouping in App.tsx rather than a high-severity lifecycle bug.",
-      "expected_v2_behavior": "Keep as presentation hardening evidence instead of a high-severity architecture signal."
-    },
-    {
-      "scope": "electron/remote/ws-server.ts :: server/browser-websocket.ts",
-      "kind": "clone_family",
-      "category": "useful_watchpoint",
-      "report_bucket": "watchpoint",
-      "expected_trust_tier": "watchpoint",
-      "engineer_note": "The pair is no longer symmetric enough to recommend helper extraction by default. Shared contract tests are a better first response.",
-      "expected_v2_behavior": "Surface as clone drift evidence with a watchpoint classification, not as a top dedupe target."
-    },
-    {
-      "scope": "src/components/AgentGlyph.tsx :: src/remote/RemoteAgentGlyph.tsx",
-      "kind": "clone_family",
+      "report_bucket": "Targeted Hardening Notes",
       "category": "useful",
-      "report_bucket": "debt_signal",
       "expected_trust_tier": "trusted",
-      "engineer_note": "This is real duplication and a strong maintainability cleanup candidate.",
-      "expected_v2_behavior": "Keep as a high-confidence duplication debt signal."
+      "expected_presentation_class": "hardening_note",
+      "expected_leverage_class": "hardening_note",
+      "engineer_note": "The missing exhaustiveness is real, but it belongs in targeted hardening because the lifecycle model already exists elsewhere.",
+      "expected_v2_behavior": "Keep narrow exhaustiveness findings visible as hardening notes and do not let them lead the architecture summary."
     },
     {
-      "scope": "server/browser-control-plane.ts",
-      "kind": "coordination_hotspot",
-      "category": "useful_watchpoint",
-      "report_bucket": "watchpoint",
-      "expected_trust_tier": "watchpoint",
-      "engineer_note": "This seam already has architecture tests and is worth watching closely as behavior grows.",
-      "expected_v2_behavior": "Keep as an evidence-backed coordination watchpoint."
+      "scope": "scripts/session-stress.mjs",
+      "kind": "large_file",
+      "report_bucket": "Tooling Debt",
+      "category": "useful",
+      "expected_trust_tier": "trusted",
+      "expected_presentation_class": "tooling_debt",
+      "expected_leverage_class": "tooling_debt",
+      "engineer_note": "The script is a real maintenance burden, but it should not compete directly with app/runtime architecture priorities.",
+      "expected_v2_behavior": "Separate script and tooling pressure into tooling debt so it stays visible without distorting the main architectural story."
     },
     {
-      "scope": "electron/ipc/hydra-adapter.ts",
-      "kind": "coordination_hotspot",
-      "category": "low_value",
-      "report_bucket": "watchpoint",
-      "expected_trust_tier": "watchpoint",
-      "engineer_note": "Less compelling than browser-control-plane as a top hotspot target in the current architecture state.",
-      "expected_v2_behavior": "Downrank relative to stronger hotspot evidence without suppressing the factual hotspot metrics."
-    },
-    {
-      "scope": "dead_private_code_cluster",
+      "scope": "dead private code clusters",
       "kind": "dead_private_code_cluster",
+      "report_bucket": "Experimental Side Channel",
       "category": "incorrect",
-      "report_bucket": "experimental",
       "expected_trust_tier": "experimental",
-      "engineer_note": "The reported stale private helpers included plainly live functions in ScrollingDiffView.tsx, review.ts, and SidebarTaskRow.tsx. The detector is not accurate enough for engineer-facing guidance yet.",
-      "expected_v2_behavior": "Keep the detector quarantined as experimental until the call/reference model is fixed."
-    },
-    {
-      "scope": "store/app cycle cluster",
-      "kind": "cycle_cluster",
-      "category": "useful_watchpoint",
-      "report_bucket": "watchpoint",
-      "expected_trust_tier": "watchpoint",
-      "engineer_note": "The large cycle is directionally plausible, but engineers still need seam-aware interpretation and a likely back-edge to cut before it becomes design guidance.",
-      "expected_v2_behavior": "Keep as a watchpoint and surface cut candidates instead of implying an obvious refactor queue."
+      "expected_presentation_class": "experimental",
+      "expected_leverage_class": "experimental",
+      "engineer_note": "This detector still claims live helpers are stale, so it should not influence maintainer-facing prioritization.",
+      "expected_v2_behavior": "Keep this detector quarantined as experimental until same-file and TSX helper usage are reliable."
     }
   ]
 }

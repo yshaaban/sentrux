@@ -3,7 +3,7 @@
 Generated on March 19, 2026 from a committed HEAD clone of `<parallel-code-root>`.
 
 This appendix contains the evidence behind
-[parallel-code-live-engineer-report.md](<sentrux-root>/docs/v2/examples/parallel-code-head-engineer-report.md).
+[parallel-code-head-engineer-report.md](<sentrux-root>/docs/v2/examples/parallel-code-head-engineer-report.md).
 
 ## Method
 
@@ -25,9 +25,9 @@ Scope caveat:
 
 Current scan:
 
-- scanned files: `631`
-- scanned lines: `139806`
-- kept files from git candidate set: `631 / 765`
+- scanned files: `638`
+- scanned lines: `141131`
+- kept files from git candidate set: `638 / 772`
 - excluded files: `134`
 - excluded buckets:
   - build: `12`
@@ -35,24 +35,29 @@ Current scan:
   - fixture: `7`
   - generated: `0`
   - vendor: `102`
-- resolved imports: `1908`
+- resolved imports: `1932`
 - unresolved internal imports: `1`
-- unresolved external imports: `518`
+- unresolved external imports: `523`
 - unresolved unknown imports: `83`
-- scan confidence: `8248 / 10000`
+- scan confidence: `8264 / 10000`
 - rule coverage: `10000 / 10000`
 - semantic rules loaded: `true`
 - session baseline loaded in `findings`: `false`
 
-## Lead Trusted Debt Signals
+## Leverage Summary
 
 ### [store.ts](<parallel-code-root>/src/store/store.ts)
 
 - `trusted`
 - class: `structural_debt`
+- leverage: `architecture_signal`
 - `unstable_hotspot`
 - summary: `Component-facing barrel 'src/store/store.ts' has 48 inbound references and remains unstable`
 - impact: A volatile component-facing barrel makes it harder to keep presentation access broad while keeping deeper orchestration changes contained.
+- leverage reasons:
+  - `shared_barrel_boundary_hub`
+  - `guardrail_backed_boundary_pressure`
+  - `high_inbound_dependency_pressure`
 - evidence:
   - role tags: `guarded_seam, guarded_boundary, component_barrel`
   - evidence count: `8`
@@ -76,40 +81,18 @@ Current scan:
   - [store-boundary.architecture.test.ts](<parallel-code-root>/src/app/store-boundary.architecture.test.ts)
   - [TaskPanel.architecture.test.ts](<parallel-code-root>/src/components/TaskPanel.architecture.test.ts)
 
-### [App.tsx](<parallel-code-root>/src/App.tsx)
-
-- `trusted`
-- class: `structural_debt`
-- `dependency_sprawl`
-- summary: `Composition root 'src/App.tsx' depends on 32 real surfaces, above the typescript threshold of 15`
-- impact: Broad dependency fan-out in a composition root makes shell wiring and runtime ownership harder to keep separate.
-- evidence:
-  - role tags: `guarded_seam, composition_root`
-  - evidence count: `6`
-  - file count: `1`
-  - fan-out: 32
-  - fan-out threshold: 15
-  - instability: 0.97
-  - dominant dependency categories: components(16), lib(5), app(3)
-  - sample dependencies: src/app/app-action-keys.ts, src/app/desktop-session.ts, src/app/task-command-lease.ts
-  - guardrail tests: src/app/store-boundary.architecture.test.ts
-- candidate split axes:
-  - `components dependency boundary`
-  - `lib dependency boundary`
-  - `app dependency boundary`
-- related surfaces:
-  - [app-action-keys.ts](<parallel-code-root>/src/app/app-action-keys.ts)
-  - [desktop-session.ts](<parallel-code-root>/src/app/desktop-session.ts)
-  - [task-command-lease.ts](<parallel-code-root>/src/app/task-command-lease.ts)
-  - [store-boundary.architecture.test.ts](<parallel-code-root>/src/app/store-boundary.architecture.test.ts)
-
 ### [TaskPanel.tsx](<parallel-code-root>/src/components/TaskPanel.tsx)
 
 - `trusted`
 - class: `structural_debt`
+- leverage: `local_refactor_target`
 - `dependency_sprawl`
 - summary: `File 'src/components/TaskPanel.tsx' depends on 28 real surfaces, above the typescript threshold of 15`
 - impact: Broad dependency fan-out expands change surface and makes orchestration drift harder to localize.
+- leverage reasons:
+  - `extracted_owner_shell_pressure`
+  - `guardrail_backed_refactor_surface`
+  - `contained_dependency_pressure`
 - evidence:
   - role tags: `guarded_seam, facade_with_extracted_owners`
   - evidence count: `7`
@@ -135,19 +118,23 @@ Current scan:
 
 - `trusted`
 - class: `guarded_facade`
+- leverage: `boundary_discipline`
 - `unstable_hotspot`
-- summary: `Guarded transport facade 'src/lib/ipc.ts' has 67 inbound references and remains unstable`
+- summary: `Guarded transport facade 'src/lib/ipc.ts' has 68 inbound references and remains unstable`
 - impact: A transport facade with heavy fan-in needs clear ownership boundaries so lifecycle or domain logic does not leak into transport glue.
+- leverage reasons:
+  - `guarded_or_transport_facade`
+  - `heavy_inbound_seam_pressure`
 - evidence:
   - role tags: `transport_facade`
   - evidence count: `6`
   - file count: `1`
-  - fan-in: 67
+  - fan-in: 68
   - hotspot threshold: 20
   - fan-out: 12
   - instability: 0.15
-  - dominant dependent categories: app(19), components(13), store(13)
-  - sample dependents: src/App.tsx, src/app/agent-catalog.ts, src/app/desktop-notification-runtime.ts
+  - dominant dependent categories: app(20), components(13), store(13)
+  - sample dependents: src/App.tsx, src/app/agent-catalog.ts, src/app/desktop-session-startup.ts
 - candidate split axes:
   - `app caller boundary`
   - `components caller boundary`
@@ -155,11 +142,93 @@ Current scan:
 - related surfaces:
   - [App.tsx](<parallel-code-root>/src/App.tsx)
   - [agent-catalog.ts](<parallel-code-root>/src/app/agent-catalog.ts)
-  - [desktop-notification-runtime.ts](<parallel-code-root>/src/app/desktop-notification-runtime.ts)
+  - [desktop-session-startup.ts](<parallel-code-root>/src/app/desktop-session-startup.ts)
 
-## Secondary Hotspots
+### [App.tsx](<parallel-code-root>/src/App.tsx)
 
-- `src/components/terminal-view/terminal-session.ts` File 'src/components/terminal-view/terminal-session.ts' depends on 22 real surfaces, above the typescript threshold of 15
+- `trusted`
+- class: `structural_debt`
+- leverage: `regrowth_watchpoint`
+- `dependency_sprawl`
+- summary: `Composition root 'src/App.tsx' depends on 32 real surfaces, above the typescript threshold of 15`
+- impact: Broad dependency fan-out in a composition root makes shell wiring and runtime ownership harder to keep separate.
+- leverage reasons:
+  - `intentionally_central_surface`
+  - `fan_out_regrowth_pressure`
+- evidence:
+  - role tags: `guarded_seam, composition_root`
+  - evidence count: `6`
+  - file count: `1`
+  - fan-out: 32
+  - fan-out threshold: 15
+  - instability: 0.97
+  - dominant dependency categories: components(16), lib(5), app(3)
+  - sample dependencies: src/app/app-action-keys.ts, src/app/desktop-session.ts, src/app/task-command-lease.ts
+  - guardrail tests: src/app/store-boundary.architecture.test.ts
+- candidate split axes:
+  - `components dependency boundary`
+  - `lib dependency boundary`
+  - `app dependency boundary`
+- related surfaces:
+  - [app-action-keys.ts](<parallel-code-root>/src/app/app-action-keys.ts)
+  - [desktop-session.ts](<parallel-code-root>/src/app/desktop-session.ts)
+  - [task-command-lease.ts](<parallel-code-root>/src/app/task-command-lease.ts)
+  - [store-boundary.architecture.test.ts](<parallel-code-root>/src/app/store-boundary.architecture.test.ts)
+
+### [terminal-session.ts](<parallel-code-root>/src/components/terminal-view/terminal-session.ts)
+
+- `trusted`
+- class: `structural_debt`
+- leverage: `secondary_cleanup`
+- `dependency_sprawl`
+- summary: `File 'src/components/terminal-view/terminal-session.ts' depends on 22 real surfaces, above the typescript threshold of 15`
+- impact: Broad dependency fan-out expands change surface and makes orchestration drift harder to localize.
+- leverage reasons:
+  - `secondary_facade_cleanup`
+- evidence:
+  - role tags: `guarded_seam, facade_with_extracted_owners`
+  - evidence count: `7`
+  - file count: `1`
+  - fan-out: 22
+  - fan-out threshold: 15
+  - instability: 0.96
+  - dominant dependency categories: lib(13), components(4), store(3)
+  - sample dependencies: electron/ipc/channels.ts, src/components/terminal-view/terminal-input-pipeline.ts, src/components/terminal-view/terminal-output-pipeline.ts
+  - guardrail tests: src/components/terminal-view/terminal-session.architecture.test.ts
+  - extracted owner factories: createTerminalInputPipeline, createTerminalOutputPipeline, createTerminalRecoveryRuntime
+- candidate split axes:
+  - `lib dependency boundary`
+  - `components dependency boundary`
+  - `store dependency boundary`
+- related surfaces:
+  - [channels.ts](<parallel-code-root>/electron/ipc/channels.ts)
+  - [terminal-input-pipeline.ts](<parallel-code-root>/src/components/terminal-view/terminal-input-pipeline.ts)
+  - [terminal-output-pipeline.ts](<parallel-code-root>/src/components/terminal-view/terminal-output-pipeline.ts)
+  - [terminal-session.architecture.test.ts](<parallel-code-root>/src/components/terminal-view/terminal-session.architecture.test.ts)
+
+## Architecture Signals
+
+- `src/store/store.ts` `architecture_signal` Component-facing barrel 'src/store/store.ts' has 48 inbound references and remains unstable
+- `cycle:src/app/agent-catalog.ts|src/app/remote-access.ts|src/app/task-attention.ts|src/app/task-close-state.ts|src/app/task-command-dispatch.ts|src/app/task-command-lease-runtime-subscriptions.ts|src/app/task-command-lease-runtime.ts|src/app/task-command-lease-session.ts|src/app/task-command-lease-takeover.ts|src/app/task-command-lease.ts|src/app/task-convergence.ts|src/app/task-lifecycle-workflows.ts|src/app/task-presentation-status.ts|src/app/task-prompt-workflows.ts|src/app/task-review-state.ts|src/app/task-shell-workflows.ts|src/app/task-workflows.ts|src/lib/runtime-client-id.ts|src/store/agent-output-activity.ts|src/store/agents.ts|src/store/auto-trust.ts|src/store/client-session.ts|src/store/completion.ts|src/store/core.ts|src/store/focus.ts|src/store/keyed-snapshot-record.ts|src/store/navigation.ts|src/store/notification.ts|src/store/peer-presence.ts|src/store/persistence-codecs.ts|src/store/persistence-load-context.ts|src/store/persistence-load.ts|src/store/persistence-projects.ts|src/store/persistence-save.ts|src/store/persistence-terminal-restore.ts|src/store/persistence.ts|src/store/projects.ts|src/store/remote.ts|src/store/review.ts|src/store/sidebar-order.ts|src/store/state.ts|src/store/store.ts|src/store/task-command-controllers.ts|src/store/task-command-takeovers.ts|src/store/task-git-status.ts|src/store/task-state-cleanup.ts|src/store/taskStatus.ts|src/store/tasks.ts|src/store/terminals.ts|src/store/ui.ts` `architecture_signal` Files src/app/agent-catalog.ts, src/app/remote-access.ts, src/app/task-attention.ts, src/app/task-close-state.ts, src/app/task-command-dispatch.ts, src/app/task-command-lease-runtime-subscriptions.ts, src/app/task-command-lease-runtime.ts, src/app/task-command-lease-session.ts, src/app/task-command-lease-takeover.ts, src/app/task-command-lease.ts, src/app/task-convergence.ts, src/app/task-lifecycle-workflows.ts, src/app/task-presentation-status.ts, src/app/task-prompt-workflows.ts, src/app/task-review-state.ts, src/app/task-shell-workflows.ts, src/app/task-workflows.ts, src/lib/runtime-client-id.ts, src/store/agent-output-activity.ts, src/store/agents.ts, src/store/auto-trust.ts, src/store/client-session.ts, src/store/completion.ts, src/store/core.ts, src/store/focus.ts, src/store/keyed-snapshot-record.ts, src/store/navigation.ts, src/store/notification.ts, src/store/peer-presence.ts, src/store/persistence-codecs.ts, src/store/persistence-load-context.ts, src/store/persistence-load.ts, src/store/persistence-projects.ts, src/store/persistence-save.ts, src/store/persistence-terminal-restore.ts, src/store/persistence.ts, src/store/projects.ts, src/store/remote.ts, src/store/review.ts, src/store/sidebar-order.ts, src/store/state.ts, src/store/store.ts, src/store/task-command-controllers.ts, src/store/task-command-takeovers.ts, src/store/task-git-status.ts, src/store/task-state-cleanup.ts, src/store/taskStatus.ts, src/store/tasks.ts, src/store/terminals.ts, src/store/ui.ts form a dependency cycle
+
+## Best Local Refactor Targets
+
+- `src/components/TaskPanel.tsx` `local_refactor_target` File 'src/components/TaskPanel.tsx' depends on 28 real surfaces, above the typescript threshold of 15
+- `src/components/ReviewPanel.tsx` `local_refactor_target` File 'src/components/ReviewPanel.tsx' depends on 22 real surfaces, above the typescript threshold of 15
+
+## Boundary Discipline
+
+- `src/lib/ipc.ts` `boundary_discipline` Guarded transport facade 'src/lib/ipc.ts' has 68 inbound references and remains unstable
+
+## Regrowth Watchpoints
+
+- `src/App.tsx` `regrowth_watchpoint` Composition root 'src/App.tsx' depends on 32 real surfaces, above the typescript threshold of 15
+
+## Secondary Cleanup
+
+- `src/components/terminal-view/terminal-session.ts` `secondary_cleanup` File 'src/components/terminal-view/terminal-session.ts' depends on 22 real surfaces, above the typescript threshold of 15
+- `electron/remote/ws-server.ts|server/browser-websocket.ts` `secondary_cleanup` 2 functions share an identical normalized body across recently changed files
+- `src/components/AgentGlyph.tsx|src/remote/RemoteAgentGlyph.tsx` `secondary_cleanup` 2 functions share an identical normalized body across recently changed files
 
 ## Targeted Hardening Notes
 
@@ -171,35 +240,33 @@ Current scan:
 
 ## Top Watchpoints
 
-### cycle:src/app/agent-catalog.ts|src/app/remote-access.ts|src/app/task-attention.ts|src/app/task-close-state.ts|src/app/task-command-dispatch.ts|src/app/task-command-lease-runtime-subscriptions.ts|src/app/task-command-lease-runtime.ts|src/app/task-command-lease-session.ts|src/app/task-command-lease-takeover.ts|src/app/task-command-lease.ts|src/app/task-convergence.ts|src/app/task-lifecycle-workflows.ts|src/app/task-presentation-status.ts|src/app/task-prompt-workflows.ts|src/app/task-review-state.ts|src/app/task-shell-workflows.ts|src/app/task-workflows.ts|src/lib/runtime-client-id.ts|src/store/agent-output-activity.ts|src/store/agents.ts|src/store/auto-trust.ts|src/store/client-session.ts|src/store/completion.ts|src/store/core.ts|src/store/focus.ts|src/store/keyed-snapshot-record.ts|src/store/navigation.ts|src/store/notification.ts|src/store/peer-presence.ts|src/store/persistence-codecs.ts|src/store/persistence-load-context.ts|src/store/persistence-load.ts|src/store/persistence-projects.ts|src/store/persistence-save.ts|src/store/persistence-terminal-restore.ts|src/store/persistence.ts|src/store/projects.ts|src/store/remote.ts|src/store/review.ts|src/store/sidebar-order.ts|src/store/state.ts|src/store/store.ts|src/store/task-command-controllers.ts|src/store/task-command-takeovers.ts|src/store/task-git-status.ts|src/store/task-state-cleanup.ts|src/store/taskStatus.ts|src/store/tasks.ts|src/store/terminals.ts|src/store/ui.ts
-
-- `watchpoint`
-- `cycle_cluster`
-- summary: `Files src/app/agent-catalog.ts, src/app/remote-access.ts, src/app/task-attention.ts, src/app/task-close-state.ts, src/app/task-command-dispatch.ts, src/app/task-command-lease-runtime-subscriptions.ts, src/app/task-command-lease-runtime.ts, src/app/task-command-lease-session.ts, src/app/task-command-lease-takeover.ts, src/app/task-command-lease.ts, src/app/task-convergence.ts, src/app/task-lifecycle-workflows.ts, src/app/task-presentation-status.ts, src/app/task-prompt-workflows.ts, src/app/task-review-state.ts, src/app/task-shell-workflows.ts, src/app/task-workflows.ts, src/lib/runtime-client-id.ts, src/store/agent-output-activity.ts, src/store/agents.ts, src/store/auto-trust.ts, src/store/client-session.ts, src/store/completion.ts, src/store/core.ts, src/store/focus.ts, src/store/keyed-snapshot-record.ts, src/store/navigation.ts, src/store/notification.ts, src/store/peer-presence.ts, src/store/persistence-codecs.ts, src/store/persistence-load-context.ts, src/store/persistence-load.ts, src/store/persistence-projects.ts, src/store/persistence-save.ts, src/store/persistence-terminal-restore.ts, src/store/persistence.ts, src/store/projects.ts, src/store/remote.ts, src/store/review.ts, src/store/sidebar-order.ts, src/store/state.ts, src/store/store.ts, src/store/task-command-controllers.ts, src/store/task-command-takeovers.ts, src/store/task-git-status.ts, src/store/task-state-cleanup.ts, src/store/taskStatus.ts, src/store/tasks.ts, src/store/terminals.ts, src/store/ui.ts form a dependency cycle`
-
-### clone-family-0x7e50d49dc16ef925
-
-- `watchpoint`
-- `clone_family`
-- summary: `4 exact clone groups repeat across 2 files and churn differs by 0 recent commit(s) across siblings; sibling file age spans 1 day(s)`
-
-### clone-family-0x9ebb8dad5cafb9c0
-
-- `watchpoint`
-- `clone_family`
-- summary: `4 exact clone groups repeat across 2 files and churn differs by 3 recent commit(s) across siblings; sibling file age spans 0 day(s)`
-
 ### server/browser-channels.ts
 
 - `watchpoint`
+- leverage: `local_refactor_target`
 - `hotspot`
 - summary: `File 'server/browser-channels.ts' is carrying coordination hotspot pressure`
 
 ### src/lib/browser-http-ipc.ts
 
 - `watchpoint`
+- leverage: `local_refactor_target`
 - `hotspot`
 - summary: `File 'src/lib/browser-http-ipc.ts' is carrying coordination hotspot pressure`
+
+### clone-family-0x7e50d49dc16ef925
+
+- `watchpoint`
+- leverage: `secondary_cleanup`
+- `clone_family`
+- summary: `4 exact clone groups repeat across 2 files and churn differs by 0 recent commit(s) across siblings; sibling file age spans 1 day(s)`
+
+### clone-family-0x9ebb8dad5cafb9c0
+
+- `watchpoint`
+- leverage: `secondary_cleanup`
+- `clone_family`
+- summary: `4 exact clone groups repeat across 2 files and churn differs by 3 recent commit(s) across siblings; sibling file age spans 0 day(s)`
 
 ## Trusted Debt Clusters
 
