@@ -15,9 +15,9 @@ Current assessment:
 
 Working estimate:
 
-- core wedge completion: about 85-90%
-- full roadmap completion: about 65-70%
-- validation and proof completion: about 65-70%
+- core wedge completion: about 90%
+- full roadmap completion: about 75-80%
+- validation and proof completion: about 70-75%
 
 ## What Is True Today
 
@@ -40,7 +40,10 @@ The strongest completed work is:
 - upgraded `session_end`
 - touched-concept `gate` in MCP and CLI
 - shared patch-safety analysis reuse across `gate` and `session_end`
+- broader contract-driven obligation triggers beyond closed-domain changes
+- stronger boundary-bypass and concept-boundary pressure findings
 - concept-scoped quality summaries and ranked improvement opportunities in `findings` and `session_end`
+- ranked optimization priorities that combine concept pressure, clone families, and hotspots
 - parity and concentration context
 - conservative state-integrity analysis
 - session baseline project-fingerprint validation and confidence regression coverage
@@ -54,15 +57,15 @@ The strongest completed work is:
 | Tier | Status | Assessment | Main Gap |
 | --- | --- | --- | --- |
 | Tier 0 | Mostly complete | Trust foundation is real in MCP and CLI | GUI productization and `health` inline delta surfacing are still uneven |
-| Tier 1A | Mostly complete | Clone drift findings now have stable ids, git-aware risk context, deterministic instance ordering, and cleaner production-first ranking | no divergent-clone lane or family-level prioritization yet |
+| Tier 1A | Mostly complete | Clone drift findings now have stable ids, git-aware risk context, divergence-aware family clustering, remediation hints, and cleaner production-first ranking | no history-aware rename/copy tracing and no dedicated clone-drift CLI surface yet |
 | Tier 1B | Mostly complete | TS bridge, semantic facts, and proof artifacts now exist across `parallel-code` and `private-benchmark-repo` | no mature persisted cache story and benchmark-threshold policy is still incomplete |
 | Tier 1C | Mostly complete | v2 rules, concept graph, and suppression enforcement now exist | broader policy UX and validation are still incomplete |
-| Tier 1D | Mostly complete | authority/access findings work | no full scorecard track and limited generic bypass detection |
-| Tier 1E | Mostly complete | obligation engine is one of the strongest pieces | no full contract-driven obligations or scorecard surface |
+| Tier 1D | Mostly complete | authority/access findings now include stronger public-boundary bypass and concept-boundary pressure summaries | no full scorecard track and limited generic public-entry inference |
+| Tier 1E | Mostly complete | obligation engine now handles closed-domain and initial contract-driven triggers | richer contract families and finer changed-symbol precision are still incomplete |
 | Tier 1F | Mostly complete | `session_end` and `gate` now work in MCP and CLI on the same touched-concept model, including suppression-aware decisions and shared patch-safety analysis reuse | release-grade gate validation is still incomplete |
 | Tier 2A | Mostly complete | parity analyzer, MCP tool, and real proof now exist on more than one repo shape | broader contract families still need more false-positive review and non-happy-path validation |
 | Tier 2B | Mostly complete | concentration analysis exists and is tested | not yet benchmarked or validated on the real case-study repo |
-| Tier 2C | Mostly complete | inspection tools, adoption helpers, quality-guidance summaries, and two real benchmark repos now exist | broader onboarding proof and ranking validation are still incomplete |
+| Tier 2C | Mostly complete | inspection tools, adoption helpers, quality-guidance summaries, optimization priorities, and two real benchmark repos now exist | broader onboarding proof and ranking validation are still incomplete |
 | Tier 3 | Partial | conservative state-integrity slice is in place and now validated on real `parallel-code` controllers | transition modeling and implicit lifecycle heuristics are not built |
 | Validation | Mostly complete | unit tests, synthetic gate/session regression scenarios, two real benchmark repos, multi-repo goldens, versioned benchmark comparison, and confidence/migration checks now exist | no full migration suite and benchmark-threshold policy is still incomplete |
 
@@ -103,8 +106,7 @@ Delivered:
 
 Still missing:
 
-- recently diverged clone family detection
-- family-level prioritization and collapse when the same subsystem emits several adjacent clone findings
+- history-aware rename/copy tracing for clone families
 - a dedicated CLI clone-drift surface beyond the general findings and gate flows
 
 ## Tier 1B: TypeScript Semantic Substrate
@@ -176,11 +178,13 @@ Delivered:
 - missing vs satisfied site computation
 - obligation findings
 - closed-domain exhaustiveness support
+- contract-driven trigger symbols and file surfaces
+- semantically related contract trigger paths
 - obligation count and context burden summaries
 
 Still missing:
 
-- obligations are primarily closed-domain driven, not fully contract-driven
+- richer contract families beyond the current trigger surface
 - changed-symbol precision is still coarser than the full design ambition
 - no full scorecard surface for obligation completeness
 
@@ -255,6 +259,7 @@ Delivered:
 - concept-scoped quality summaries in `findings`
 - ranked quality-improvement opportunities in `findings` and `session_end`
 - concentration-backed opportunity scoring for concept-level refactor candidates
+- optimization priorities that combine boundary pressure, clone families, hotspots, and missing-site pressure
 
 Still missing:
 
@@ -324,23 +329,23 @@ It is not enough to say:
 
 ## Biggest Remaining Gaps
 
-1. the roadmap document had fallen behind the code and needed an explicit audit
-2. clone drift is still missing divergence-aware prioritization
-3. release-grade gate/session proof is still thinner than the analyzer surface
-4. broader contract-driven obligations are still incomplete
-5. Tier 3 is only an initial conservative slice
+1. benchmark-threshold policy and remaining warm-path performance work are still incomplete
+2. full migration and release-grade validation coverage are still thinner than the analyzer surface
+3. GUI and legacy surface alignment still trail MCP and CLI
+4. richer contract-driven obligations and changed-symbol precision are still incomplete
+5. Tier 3 is still only an initial conservative slice
 
 ## Recommended Next Execution Order
 
-1. add confidence-report and migration regression coverage
-2. expand clone drift with divergence-aware prioritization
-3. deepen contract-driven obligations
-4. reduce remaining scan-bound patch-safety cost
-5. validate parity and concentration against more non-happy-path repo scenarios
+1. define and enforce benchmark-threshold policy while reducing remaining scan-bound patch-safety cost
+2. expand migration and release-grade validation coverage
+3. align the remaining GUI and legacy surfaces with the v2 doctrine
+4. deepen richer contract-driven obligations and changed-symbol precision
+5. validate parity, concentration, and optimization ranking against more non-happy-path repo scenarios
 
 ## Beta Readiness
 
-The implementation is close to a useful **MCP beta**, but not yet to a fully proven **v2 beta release**.
+The implementation is past a useful **MCP beta** and close to a broader **MCP/CLI v2 beta**, but not yet to a fully proven **v2 beta release**.
 
 The missing bar is mostly not new analysis code. It is:
 

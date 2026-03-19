@@ -74,6 +74,7 @@ Returns:
 - likely fix sites
 - concept summaries for repeated concept pressure
 - ranked quality-improvement opportunities
+- ranked optimization priorities for higher-leverage refactors
 - top-level confidence summary
 
 ## `obligations`
@@ -128,6 +129,7 @@ It should add:
 - missing obligations
 - concept summaries for changed concepts
 - patch-scoped quality-improvement opportunities
+- patch-scoped optimization priorities for higher-leverage structural cleanup
 - track deltas
 - touched-concept regression verdict
 - confidence delta if coverage changed
@@ -234,6 +236,18 @@ Arguments:
       ]
     }
   ],
+  "optimization_priorities": [
+    {
+      "concept_id": "task_git_status",
+      "severity": "high",
+      "summary": "Stabilize concept 'task_git_status' before adding more change surface: boundary bypasses are compounding incomplete propagation",
+      "suggested_actions": [
+        "centralize writes behind a single owner",
+        "complete the propagation chain before extending the concept further",
+        "tighten the concept boundary before extending the propagation chain"
+      ]
+    }
+  ],
   "introduced_findings": [
     {
       "id": "multi_writer:task_git_status",
@@ -250,7 +264,7 @@ Arguments:
       "site": "src/app/task-presentation-status.ts"
     }
   ],
-  "gate": {
+  "touched_concept_gate": {
     "decision": "warn",
     "reason": "high-confidence regression on touched concept"
   }
@@ -261,6 +275,9 @@ Arguments:
 
 ```json
 {
+  "confidence": {
+    "analysis_coverage_0_10000": 9200
+  },
   "concept_summaries": [
     {
       "concept_id": "task_git_status",
@@ -277,6 +294,13 @@ Arguments:
       "scope": "task_git_status",
       "severity": "high",
       "summary": "Concept 'task_git_status' has repeated high-severity ownership or access issues"
+    }
+  ],
+  "optimization_priorities": [
+    {
+      "concept_id": "task_git_status",
+      "severity": "high",
+      "summary": "Consolidate concept 'task_git_status' before the repeated clone surfaces drift further"
     }
   ],
   "findings": [
@@ -400,15 +424,16 @@ Baseline coexistence and migration rules are defined in `baseline-migration.md`.
 
 ## Implementation Tasks
 
-- [ ] add `cached_v2` to MCP state
-- [ ] add `handlers_v2.rs`
-- [ ] add `findings` tool
-- [ ] add `obligations` tool
-- [ ] upgrade `session_end` for v2 delta and gate data
-- [ ] add `gate` tool
+- [x] add `cached_v2`-style MCP state and patch-safety caches
+- [ ] keep dedicated v2 handler extraction optional; current handlers carry v2 successfully
+- [x] add `findings` tool
+- [x] add `obligations` tool
+- [x] upgrade `session_end` for v2 delta, gate, quality opportunities, and optimization priorities
+- [x] add `gate` tool
 - [ ] add `scorecard` tool
-- [ ] add `concepts` tool
-- [ ] add `explain_concept` tool
-- [ ] add `trace_symbol` tool
-- [ ] add `parity` tool
-- [ ] add CLI wrappers after MCP stabilizes
+- [x] add `concepts` tool
+- [x] add `explain_concept` tool
+- [x] add `trace_symbol` tool
+- [x] add `parity` tool
+- [x] add CLI wrappers for the core v2 patch-safety flow
+- [ ] finish GUI and remaining legacy-surface alignment

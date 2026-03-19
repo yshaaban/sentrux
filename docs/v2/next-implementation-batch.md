@@ -2,25 +2,28 @@
 
 Last updated: 2026-03-19
 
-This document defines the next execution block for v2 after the `parallel-code` proof loop, the `private-benchmark-repo` second benchmark proof loop, and the first output-coherence pass.
+This document defines the next execution block for v2 after the current wedge is working in MCP and CLI, the second benchmark repo proof loop on `private-benchmark-repo`, the boundary and contract expansions, and the new optimization-priority surface.
 
-The goal of this batch is not to broaden v2. It is to make the current wedge reliably useful for improving code quality in real workflows.
+The goal of this batch is not to add broad new analyzer scope. It is to finish the remaining work that makes v2 dependable enough to drive real code-quality improvement on repos like `parallel-code`.
 
 ## Why This Batch Exists
 
-The current v2 implementation is already good enough to surface useful quality findings on `parallel-code`:
+The current v2 implementation can already:
 
-- authority drift on scoped concepts
-- obligation completeness for closed domains
-- scoped contract parity
-- explicit state-model validation
-- cleaner clone findings than before
+- catch touched-concept regressions
+- surface clone drift, authority/access violations, and incomplete propagation
+- rank concept-level quality opportunities
+- rank optimization priorities that combine boundary pressure, clone families, hotspots, and missing-site pressure
+- prove the core workflow on `parallel-code` and `private-benchmark-repo`
 
-But there are still three gaps between “useful diagnostics” and “reliable quality improvement loop”:
+That is enough for a strong beta wedge.
 
-1. clone drift is git-aware now, but it still lacks divergence detection and family-level prioritization
-2. validation still trails the breadth of the analyzer surface
-3. the new prioritization lane still needs broader real-repo tuning
+The remaining gaps are narrower and more operational:
+
+1. benchmark-threshold policy and warm-path performance are not yet strong enough for release-grade confidence
+2. migration and non-happy-path validation still trail the analyzer surface
+3. GUI and legacy surfaces still lag the v2 doctrine
+4. richer contract-driven obligations and changed-symbol precision are still incomplete
 
 This batch closes those gaps in ROI order.
 
@@ -28,307 +31,170 @@ This batch closes those gaps in ROI order.
 
 Included:
 
-1. git-aware clone drift completion
-2. validation hardening
-3. quality-guidance validation and tuning
+1. benchmark-threshold policy and warm-path performance work
+2. migration and release-grade validation hardening
+3. GUI and remaining legacy-surface alignment
+4. richer contract-driven obligation precision
 
 Explicitly excluded from this batch:
 
-- broader Tier 3 implicit-state heuristics
-- more parity generalization beyond the current scoped proof
-- new dashboard or GUI work
-- a third benchmark repo before the operational wedge is closed
+- broad new Tier 3 implicit-state heuristics
+- third benchmark repo onboarding unless current proof breaks down
+- new dashboard work unrelated to v2 patch safety or project-optimization output
 
 ## Current Baseline
 
 At the start of this batch:
 
-- the core wedge is mostly implemented in MCP
-- suppressions are enforced across findings, gate, session, and concept-inspection outputs
-- clone findings now have stable ids, git-aware risk context, and deterministic ordering
-- `parallel-code` now has real scoped pass/fail goldens and a cold/warm benchmark
-
-Recent learning:
-
-- the real-repo proof loop is stronger now because a deterministic fail-path mutation exists in the golden harness
-- the warm no-change patch-safety path improved once cached scan reuse and the empty-change semantic short-circuit landed
-- the remaining performance uncertainty is now mostly cold-path noise and residual file-hash/structural work
+- the core wedge is working in MCP and CLI
+- the proof loop spans `parallel-code` and `private-benchmark-repo`
+- `findings` and `session_end` include:
+  - concept summaries
+  - quality opportunities
+  - optimization priorities
+- clone findings are git-aware and family-clustered
+- obligations cover closed-domain changes plus initial contract-driven triggers
 
 Relevant references:
 
 - [Implementation Status](./implementation-status.md)
 - [Roadmap](./roadmap.md)
+- [Testing And Validation](./testing-and-validation.md)
+- [MCP And CLI](./mcp-and-cli.md)
 - [Parallel-Code Case Study](./parallel-code-case-study.md)
 - [Parallel-Code Scoped Goldens](./examples/parallel-code-golden/README.md)
 - [Parallel-Code Benchmark](./examples/parallel-code-benchmark.md)
+- [Private Benchmark Repo Scoped Goldens](./examples/private-benchmark-repo-golden/README.md)
+- [Private Benchmark Repo Benchmark](./examples/private-benchmark-repo-benchmark.md)
 
 ## Success Criteria
 
 This batch is successful when all of the following are true:
 
-1. suppressions can hide known findings, and expired suppressions become visible again
-2. the top findings surface contains fewer repeated/noisy entries and more actionable ones
-3. clone findings can prioritize risky copied code using git recency/churn
-4. `session_end` and `gate` have golden scenarios and benchmark regression coverage
-5. clone-family clustering and concept pressure summaries are stable enough that the next prioritization pass has a clear target
+1. warm patch-safety runs have an explicit threshold policy and stable comparison flow
+2. migration and non-happy-path validation cover the remaining release-risk edges
+3. GUI and legacy surfaces no longer tell a different product story than MCP and CLI
+4. contract-driven obligation triggers cover more real propagation failures without adding noisy overreach
+5. the top optimization priorities remain useful on real repos after the added precision and validation work
 
-## Work Package A: CLI Gate Parity
+## Work Package A: Benchmark Policy And Warm-Path Performance
 
-Status: complete
-
-Goal:
-
-- make the v2 patch-safety wedge usable in CI and non-MCP workflows
-
-Why now:
-
-- this is the highest-leverage product gap
-- MCP already has the right model
-- the current CLI gate still enforces v1 structural deltas
-
-Current references:
-
-- MCP gate: [handlers.rs](<sentrux-root>/sentrux-core/src/app/mcp_server/handlers.rs#L2277)
-- CLI gate: [main_impl.rs](<sentrux-root>/sentrux-bin/src/main_impl.rs#L357)
-
-Deliverables:
-
-- shared touched-concept gate computation reusable by MCP and CLI
-- CLI `gate` path that uses v2 findings, obligations, and session/baseline context
-- CLI output that explains:
-  - changed files
-  - introduced findings
-  - missing obligations
-  - pass/fail decision
-- CLI exit codes consistent with MCP gate semantics
-
-Tasks:
-
-- [x] extract gate decision logic into shared v2 helper used by MCP and CLI
-- [x] add CLI path for v2 gate computation
-- [x] preserve existing structural gate as compatibility mode or fallback
-- [x] add CLI output formatting for introduced findings and missing obligations
-- [-] add focused CLI tests for pass/fail behavior
-
-Acceptance criteria:
-
-- the same synthetic patch should produce the same gate verdict in MCP and CLI
-- `sentrux gate` can be used in CI without MCP
-
-What we expect to learn:
-
-- whether the v2 gate is stable enough to be used outside exploratory MCP sessions
-
-## Work Package B: Suppressions And Trust Controls
-
-Status: mostly complete
+Status: not started
 
 Goal:
 
-- make v2 findings governable enough for adoption
-
-Why now:
-
-- findings are now strong enough that teams will want to ratchet them
-- without suppressions, CI rollout will stall
-
-Current references:
-
-- schema: [v2.rs](<sentrux-root>/sentrux-core/src/metrics/rules/v2.rs#L70)
-- docs: [Rules V2](./rules-v2.md)
+- make performance confidence good enough for release gating and habitual use
 
 Deliverables:
 
-- finding suppression matching by:
-  - kind
-  - concept
-  - file
-- expiry handling
-- visibility for active and expired suppressions
-- finding dedupe for repeated same-file/same-kind evidence
+- explicit cold and warm benchmark-threshold policy
+- benchmark regression classification:
+  - fail
+  - warn
+  - informational
+- targeted reduction in remaining scan-bound warm-path cost
 
 Tasks:
 
-- [x] implement suppression matcher shared across analyzer outputs
-- [x] apply suppressions to findings before gate/session presentation
-- [x] treat expired suppressions as findings or explicit warnings
-- [x] dedupe repeated authority findings from the same file/concept/kind
-- [x] expose suppression hits and expiry state in MCP/CLI responses
+- [ ] define benchmark-threshold policy for `parallel-code` and `private-benchmark-repo`
+- [ ] classify which benchmark regressions should fail CI versus warn only
+- [ ] profile remaining warm-path scan/evolution cost in `gate` and `session_end`
+- [ ] remove the next highest scan-bound bottleneck
+- [ ] document the expected warm-path budget in the validation docs
 
 Acceptance criteria:
 
-- a configured suppression can hide a matching finding
-- an expired suppression becomes visible automatically
-- repeated same-file forbidden-writer evidence collapses into a cleaner top-level finding
+- performance regressions are explicit and reviewable
+- warm patch-safety latency improves without correctness regressions
 
-Open gap:
+## Work Package B: Migration And Release-Grade Validation
 
-- the enforcement layer is in place, but it still needs broader golden coverage and real-repo adoption feedback
-
-What we expect to learn:
-
-- whether the remaining noise is primarily a policy issue or still an analyzer-quality issue
-
-## Work Package C: Clone Drift Depth
-
-Status: mostly complete
+Status: not started
 
 Goal:
 
-- turn clone drift from a useful exact-clone fast lane into a real entropy sensor
-
-Why now:
-
-- clone drift is one of the three core wedge lanes
-- current clone support is still shallower than the plan intended
-
-Current references:
-
-- current exact clone findings: [handlers.rs](<sentrux-root>/sentrux-core/src/app/mcp_server/handlers.rs#L1231)
-- roadmap status: [Roadmap](./roadmap.md)
+- close the remaining validation gap between “good beta wedge” and “release-grade proof”
 
 Deliverables:
 
-- stable clone ids
-- git recency/churn correlation
-- divergent-clone candidate ranking
-- better distinction between:
-  - harmless duplication
-  - risky copied logic
-  - likely copy-paste drift
+- fuller v1/v2 migration suite
+- broader schema/version mismatch coverage
+- broader non-happy-path proof for benchmark repos
 
 Tasks:
 
-- [x] assign stable clone ids in finding payloads
-- [x] correlate clone groups with commit recency and churn
-- [x] rank clones by production presence, size, recency, and asymmetry
-- [ ] add divergent-clone candidate detection using git/file-history signals
-- [-] expose clone-drift detail in MCP and CLI surfaces
-- [ ] collapse repeated same-family clone findings into higher-level prioritization
+- [ ] add explicit schema/version mismatch migration tests
+- [ ] add more malformed or stale session-baseline scenarios
+- [ ] add more non-happy-path golden validation for benchmark repos
+- [ ] capture a short release checklist for proof artifacts and migration checks
 
 Acceptance criteria:
 
-- clone findings can explain why a group is risky, not just that it exists
-- `parallel-code` clone results prioritize meaningful production clones over trivia
+- migration and baseline compatibility failures are predictable and tested
+- the proof loop covers both happy and unhappy paths
 
-What we learned:
+## Work Package C: GUI And Legacy Surface Alignment
 
-- git-aware clone context materially improves the `parallel-code` findings surface
-- the remaining clone gap is prioritization: repeated clone families can still dominate the top list even when the per-finding ranking is better
-
-## Work Package D: Validation Hardening
-
-Status: in progress
+Status: not started
 
 Goal:
 
-- turn the current proof artifacts into a release-grade validation loop
-
-Why now:
-
-- implementation is ahead of proof
-- the wedge should become harder to regress as we operationalize it
-
-Current references:
-
-- benchmark script: [benchmark_parallel_code_v2.mjs](<sentrux-root>/scripts/benchmark_parallel_code_v2.mjs)
-- golden script: [refresh_parallel_code_goldens.sh](<sentrux-root>/scripts/refresh_parallel_code_goldens.sh)
-- validation doc: [Testing And Validation](./testing-and-validation.md)
+- make the product story consistent across the remaining surfaces
 
 Deliverables:
 
-- `session_end` goldens
-- `gate` goldens
-- synthetic patch scenarios for obligation and gate behavior
-- regression benchmark suite
-- false-positive review checklist
-- v1/v2 migration tests
+- legacy structural surfaces clearly framed as supporting context
+- GUI wording aligned with findings, obligations, and optimization priorities
+- confidence and suppression state visible where it matters
 
 Tasks:
 
-- [-] add `session_end` golden scenarios
-- [-] add touched-concept gate golden scenarios
-- [-] add synthetic patch fixtures for closed-domain propagation
-- [-] turn one-off benchmark script into a comparable regression benchmark flow
-- [x] add false-positive review checklist and sample set
-- [-] add baseline migration coexistence tests
+- [ ] audit remaining GUI and legacy CLI surfaces for score-first framing
+- [ ] align wording with MCP and CLI patch-safety surfaces
+- [ ] surface confidence and suppression context in the remaining high-traffic views
 
 Acceptance criteria:
 
-- new analyzer changes can be checked against stable gate/session expectations
-- cold/warm regressions are visible over time
+- users do not get a different quality narrative depending on which surface they open
 
-What we learned so far:
+## Work Package D: Richer Contract-Driven Obligation Precision
 
-- the current touched-concept gate is stable on a real closed-domain regression fixture
-- `session_end` was too tightly coupled to the legacy structural baseline and now needs to degrade gracefully for v2-only workflows
-- synthetic regression fixtures are the right first layer, but they do not replace checked-in real-repo goldens
-- the warm semantic path is already fast, but `gate` and `session_end` are still scan-bound on the real repo and need their own performance attention
-- checked-in real-repo no-change `gate` and `session_end` goldens now exist; the remaining golden gap is real-repo regression scenarios
-
-## Work Package E: Quality Improvement Prioritization
-
-Status: mostly complete
+Status: not started
 
 Goal:
 
-- make v2 better at pointing to the highest-leverage code-quality work, not just reporting raw findings
-
-Why this is after A-D:
-
-- prioritization only matters once outputs are operational and trusted
+- catch more real incomplete propagation failures without widening into noisy heuristics
 
 Deliverables:
 
-- concept-scoped summaries for repeated findings
-- clearer “top refactor opportunities” from:
-  - multi-writer concepts
-  - repeated raw-access violations
-  - high context-burden obligations
-  - concentrated hotspots combined with policy violations
+- richer contract trigger families
+- better changed-symbol precision
+- stronger prioritization of contract-related missing sites
 
 Tasks:
 
-- [x] add concept-level grouping for repeated findings
-- [x] rank top-quality-improvement opportunities from current findings and obligations
-- [x] surface suggested structural improvements in `findings`
-- [x] surface patch-scoped quality opportunities in `session_end`
-- [-] validate and tune the opportunity ranking on more than one real repo
+- [ ] extend contract triggers beyond the current symbol/file surface set
+- [ ] improve changed-symbol precision for field-level contract changes
+- [ ] prioritize contract-related missing sites by boundary crossing and runtime risk
+- [ ] validate the new triggers against the benchmark repos before broadening further
 
 Acceptance criteria:
 
-- the tool can point to a small set of high-value quality improvements on an existing repo
-
-What we learned:
-
-- grouping repeated concept pressure makes the `findings` surface materially easier to scan than a flat list of violations
-- concentration context is useful as a score boost, but it should stay supporting evidence instead of becoming a separate top-level queue for already-covered concepts
-- the next gap is proof quality, not another round of raw ranking logic
+- more real contract or field changes produce useful missing-site output
+- obligation noise stays low enough for continued gating
 
 ## Recommended Execution Order
 
-1. Work Package A: CLI Gate Parity
-2. Work Package B: Suppressions And Trust Controls
-3. Work Package C: Clone Drift Depth
-4. Work Package D: Validation Hardening
-5. Work Package E: Quality Improvement Prioritization
-
-## Why This Order
-
-This order matches the current product bottlenecks:
-
-- first operationalize the wedge
-- then make it trustworthy
-- then deepen a still-underbuilt core lane
-- then harden the proof loop
-- then validate and tune prioritization for repo-improvement work
+1. Work Package A: Benchmark Policy And Warm-Path Performance
+2. Work Package B: Migration And Release-Grade Validation
+3. Work Package C: GUI And Legacy Surface Alignment
+4. Work Package D: Richer Contract-Driven Obligation Precision
 
 ## Batch Exit Criteria
 
 The batch is done when:
 
-1. the CLI can enforce the v2 gate
-2. suppressions and expiry work
-3. clone drift is git-aware
-4. `session_end` and `gate` have stable goldens
-5. the top findings and opportunities on `parallel-code` are clean enough that a human would use them to drive quality work without heavy manual filtering
+1. performance regressions have a stable policy
+2. migration and non-happy-path validation are materially broader
+3. the remaining user-facing surfaces match the v2 doctrine
+4. contract-driven obligations catch more real propagation misses without degrading trust

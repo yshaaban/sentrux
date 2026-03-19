@@ -27,7 +27,7 @@ If work does not improve one of the first two tiers, it is not on the critical p
 
 ## Tier 0: Trust And Output Foundation
 
-Status: mostly complete
+Status: partial
 
 Goal:
 
@@ -107,7 +107,7 @@ Exit criteria:
 
 Open gap:
 
-- current clone drift is now git-aware, but it is still exact-clone-first and not yet divergence-aware or family-collapsed
+- current clone drift is now git-aware and family-clustered, but it still lacks deeper history-aware rename/copy tracing and a dedicated clone-drift surface
 
 ## Tier 1B: TypeScript Semantic Substrate
 
@@ -206,7 +206,7 @@ Exit criteria:
 
 Open gap:
 
-- obligations are strong for closed domains, but not yet as complete for contracts and richer change triggers
+- obligations are now useful for closed domains plus initial contract triggers, but richer contract families and finer changed-symbol precision are still incomplete
 
 ## Tier 1F: Session Delta And CI Gate
 
@@ -323,6 +323,7 @@ Tasks:
 - [x] rank quality-improvement opportunities from current findings and obligations
 - [x] surface suggested structural improvements in `findings`
 - [x] surface patch-scoped quality opportunities in `session_end`
+- [x] add ranked optimization priorities that combine boundary pressure, clone families, hotspots, and missing-site pressure
 - [-] validate the prioritization on more than one real repo
 
 Exit criteria:
@@ -332,11 +333,11 @@ Exit criteria:
 
 Open gap:
 
-- the prioritization lane is implemented, but it still needs more real-repo proof and tuning so the top opportunities consistently reflect the highest-payoff fixes
+- the prioritization lane is implemented, but it still needs more real-repo proof and tuning so the top optimization priorities consistently reflect the highest-payoff fixes
 
 ## Tier 3: Advanced Static Analysis
 
-Status: partial
+Status: mostly complete
 
 Goal:
 
@@ -375,6 +376,7 @@ Status: partial
 - [x] expand `parallel-code` goldens to cover `session_end` and touched-concept gate scenarios
 - [x] add synthetic touched-concept gate and `session_end` regression scenarios
 - [x] add second benchmark repo proof loop (`private-benchmark-repo`)
+- [x] add checked-in scoped goldens for `private-benchmark-repo`
 - [-] add fixture repos for semantic frontends
 - [-] add bridge contract tests for the persistent Node subprocess
 - [x] capture initial `parallel-code` benchmark artifact
@@ -385,10 +387,11 @@ Status: partial
 - [x] add confidence-report regression tests
 - [-] add v1/v2 baseline migration tests
 - [x] verify case-study examples against the current target repo before docs or demos cite them
+- [ ] define release-grade benchmark-threshold policy
 
 Open gap:
 
-- implementation is still ahead of release-grade validation, but the proof loop now spans `parallel-code` and `private-benchmark-repo`, includes multi-repo golden validation, and has versioned benchmark artifacts for both repos
+- implementation is still ahead of release-grade validation, but the proof loop now spans `parallel-code` and `private-benchmark-repo`, includes multi-repo golden validation, and has versioned benchmark artifacts for both repos; the remaining gap is mostly threshold policy, fuller migration coverage, and broader non-happy-path validation
 
 ## Target Outcome On `parallel-code`
 
@@ -412,13 +415,15 @@ By the end of Tier 2, v2 should additionally show:
 - concentration hotspots worth architectural attention
 - inspectable concept models and rule coverage
 - ranked concept-level quality-improvement opportunities
+- ranked optimization priorities for structural cleanup
 - expansion into `task_command_controller` and `task_convergence`
 
 Tier 3 should improve the repo story, but it is not required for the wedge to be useful.
 
 Current reality:
 
-- the codebase is close to a useful MCP beta
+- the codebase is past a useful MCP beta and close to a broader MCP/CLI v2 beta
+- MCP and CLI now both expose the core patch-safety wedge with quality-guidance summaries
 - the real proof loop now includes checked-in pass and fail goldens for `parallel-code` and scoped goldens plus a benchmark artifact for `private-benchmark-repo`
 - warm patch-safety is improving, but the remaining performance gap is still scan-bound structural work
 - broader validation coverage, richer migration coverage, and better benchmark-threshold policy are the next proof gaps

@@ -1,6 +1,6 @@
 # Sentrux V2
 
-Status: active implementation with partial roadmap completion
+Status: active implementation with a strong core wedge and multi-repo proof loop
 
 Current implementation audit: [Implementation Status](./implementation-status.md)
 
@@ -81,6 +81,8 @@ to:
 
 > What did this patch change, what obligations did that create, and what did the agent fail to update?
 
+V2 now also exposes ranked optimization priorities so the same analysis can drive project-improvement work, not only patch blocking.
+
 ## Core Wedge
 
 The highest-ROI v2 wedge is deliberately narrow:
@@ -127,6 +129,13 @@ The shortest path to usefulness is:
 6. obligation completeness
 7. upgraded `session_end` and CI ratchet
 8. parity and concentration as secondary context
+
+Current reality:
+
+1. the patch-safety wedge is working in MCP and CLI
+2. proof artifacts now exist for `parallel-code` and `private-benchmark-repo`
+3. findings and `session_end` now include concept summaries, quality opportunities, and ranked optimization priorities
+4. the remaining gaps are release hardening, broader migration coverage, and deeper Tier 3 analysis
 
 ## Exit Criteria For V2 Beta
 
