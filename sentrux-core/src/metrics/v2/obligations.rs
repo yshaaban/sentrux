@@ -928,11 +928,12 @@ fn contract_site_has_boundary_risk(site: &ObligationSite) -> bool {
 }
 
 fn summarize_contract_missing_sites(missing_sites: &[ObligationSite]) -> String {
-    let labels = missing_sites
+    let labels = dedup_labels_preserving_order(
+        missing_sites
         .iter()
         .map(contract_site_summary_label)
-        .collect::<Vec<_>>();
-    let labels = stable_dedup_labels(labels);
+        .collect::<Vec<_>>(),
+    );
     if labels.len() == 1 {
         return format!("the {} surface", labels[0]);
     }
@@ -961,7 +962,7 @@ fn contract_site_summary_label(site: &ObligationSite) -> &'static str {
     }
 }
 
-fn stable_dedup_labels(labels: Vec<&'static str>) -> Vec<&'static str> {
+fn dedup_labels_preserving_order(labels: Vec<&'static str>) -> Vec<&'static str> {
     let mut seen = BTreeSet::new();
     let mut deduped = Vec::new();
     for label in labels {

@@ -257,6 +257,39 @@ function buildBenchmarkComparison(currentResult, previousResult) {
   };
 }
 
+function printBenchmarkPolicy(policy) {
+  console.log(
+    `Benchmark policy: fail at >${policy.fail.max_regression_ms}ms and >${policy.fail.max_regression_percent}%; warn at >${policy.warn.max_regression_ms}ms and >${policy.warn.max_regression_percent}%`,
+  );
+}
+
+function printComparisonMetrics(heading, severity, metrics) {
+  if (!metrics.length) {
+    return;
+  }
+
+  console.log(`\n${heading}`);
+  for (const metric of metrics) {
+    console.log(
+      `- [${severity}] ${metric.metric}: ${metric.previous_ms}ms -> ${metric.current_ms}ms (${metric.delta_ms}ms, ${metric.delta_percent}%)`,
+    );
+  }
+}
+
+function printBenchmarkComparison(comparison) {
+  if (!comparison) {
+    return;
+  }
+
+  printBenchmarkPolicy(comparison.policy);
+  printComparisonMetrics('Benchmark fail regressions detected:', 'fail', comparison.regressions);
+  printComparisonMetrics('Benchmark warning regressions detected:', 'warn', comparison.warnings);
+
+  if (comparison.regressions.length === 0 && comparison.warnings.length === 0) {
+    console.log('No benchmark regressions detected.');
+  }
+}
+
 async function loadPreviousBenchmark(comparePath) {
   if (!existsSync(comparePath)) {
     return null;
@@ -585,40 +618,9 @@ async function main() {
   await writeFile(outputPath, `${JSON.stringify(result, null, 2)}\n`, 'utf8');
   console.log(`Wrote benchmark results to ${outputPath}`);
 
-  if (comparison) {
-    console.log(
-      `Benchmark policy: fail at >${comparison.policy.fail.max_regression_ms}ms and >${comparison.policy.fail.max_regression_percent}%; warn at >${comparison.policy.warn.max_regression_ms}ms and >${comparison.policy.warn.max_regression_percent}%`,
-    );
-  }
-
-  if (comparison?.regressions.length) {
-    console.log('\nBenchmark fail regressions detected:');
-    for (const regression of comparison.regressions) {
-      console.log(
-        `- [fail] ${regression.metric}: ${regression.previous_ms}ms -> ${regression.current_ms}ms (${regression.delta_ms}ms, ${regression.delta_percent}%)`,
-      );
-    }
-
-    if (failOnRegression) {
-      process.exitCode = 1;
-    }
-  }
-
-  if (comparison?.warnings.length) {
-    console.log('\nBenchmark warning regressions detected:');
-    for (const warning of comparison.warnings) {
-      console.log(
-        `- [warn] ${warning.metric}: ${warning.previous_ms}ms -> ${warning.current_ms}ms (${warning.delta_ms}ms, ${warning.delta_percent}%)`,
-      );
-    }
-  }
-
-  if (
-    comparison &&
-    comparison.regressions.length === 0 &&
-    comparison.warnings.length === 0
-  ) {
-    console.log('No benchmark regressions detected.');
+  printBenchmarkComparison(comparison);
+  if (comparison?.regressions.length && failOnRegression) {
+    process.exitCode = 1;
   }
 }
 
