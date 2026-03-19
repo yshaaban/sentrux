@@ -45,6 +45,7 @@ Keep these unchanged during the initial v2 rollout:
 For v2:
 
 - `health` should keep its legacy role as a lightweight structural summary
+- `health` and CLI `check` should explicitly present themselves as legacy structural context, not as the primary v2 quality narrative
 - `findings`, `obligations`, `session_end`, and `gate` should carry the actionable v2 diagnostics
 - `health` may eventually link to the presence of v2 data, but it should not duplicate full v2 finding lists
 
@@ -73,7 +74,7 @@ Returns:
 - likely fix sites
 - concept summaries for repeated concept pressure
 - ranked quality-improvement opportunities
-- confidence
+- top-level confidence summary
 
 ## `obligations`
 

@@ -2,7 +2,7 @@
 
 Last updated: 2026-03-19
 
-This document defines the next execution block for v2 after the recent `parallel-code` validation loop and the first quality-guidance surfacing pass.
+This document defines the next execution block for v2 after the `parallel-code` proof loop, the `private-benchmark-repo` second benchmark proof loop, and the first output-coherence pass.
 
 The goal of this batch is not to broaden v2. It is to make the current wedge reliably useful for improving code quality in real workflows.
 
@@ -19,8 +19,8 @@ The current v2 implementation is already good enough to surface useful quality f
 But there are still three gaps between “useful diagnostics” and “reliable quality improvement loop”:
 
 1. clone drift is git-aware now, but it still lacks divergence detection and family-level prioritization
-2. validation is behind implementation
-3. the new prioritization lane still needs broader real-repo proof and tuning
+2. validation still trails the breadth of the analyzer surface
+3. the new prioritization lane still needs broader real-repo tuning
 
 This batch closes those gaps in ROI order.
 
@@ -37,7 +37,7 @@ Explicitly excluded from this batch:
 - broader Tier 3 implicit-state heuristics
 - more parity generalization beyond the current scoped proof
 - new dashboard or GUI work
-- second benchmark repo before the operational wedge is closed
+- a third benchmark repo before the operational wedge is closed
 
 ## Current Baseline
 

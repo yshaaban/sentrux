@@ -60,6 +60,8 @@ The next version should answer questions like:
 - [Parallel-Code Case Study](./parallel-code-case-study.md)
 - [Parallel-Code Scoped Goldens](./examples/parallel-code-golden/README.md)
 - [Parallel-Code Benchmark](./examples/parallel-code-benchmark.md)
+- [Private Benchmark Repo Scoped Goldens](./examples/private-benchmark-repo-golden/README.md)
+- [Private Benchmark Repo Benchmark](./examples/private-benchmark-repo-benchmark.md)
 
 ## Deliverable Shape
 

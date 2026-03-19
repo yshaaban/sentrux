@@ -11,13 +11,13 @@ Current assessment:
 - doctrine alignment: strong
 - core patch-safety wedge: strongly implemented
 - full roadmap: partially implemented
-- cross-cutting proof and validation: still behind implementation
+- cross-cutting proof and validation: materially improved, still behind the full roadmap
 
 Working estimate:
 
 - core wedge completion: about 85-90%
 - full roadmap completion: about 65-70%
-- validation and proof completion: about 50-55%
+- validation and proof completion: about 65-70%
 
 ## What Is True Today
 
@@ -44,23 +44,27 @@ The strongest completed work is:
 - parity and concentration context
 - conservative state-integrity analysis
 - session baseline project-fingerprint validation and confidence regression coverage
+- second benchmark repo proof loop on `private-benchmark-repo`
+- multi-repo golden validation runner
+- legacy MCP and CLI surfaces now frame structural output as context rather than the main v2 story
+- `findings` now includes a top-level confidence summary
 
 ## Overall Status By Tier
 
 | Tier | Status | Assessment | Main Gap |
 | --- | --- | --- | --- |
-| Tier 0 | Mostly complete | Trust foundation is real in MCP | health/CLI/GUI productization is still uneven |
+| Tier 0 | Mostly complete | Trust foundation is real in MCP and CLI | GUI productization and `health` inline delta surfacing are still uneven |
 | Tier 1A | Mostly complete | Clone drift findings now have stable ids, git-aware risk context, deterministic instance ordering, and cleaner production-first ranking | no divergent-clone lane or family-level prioritization yet |
-| Tier 1B | Mostly complete | TS bridge, semantic facts, and initial `parallel-code` benchmark proof are real | no regression benchmark suite and no mature persisted cache story yet |
+| Tier 1B | Mostly complete | TS bridge, semantic facts, and proof artifacts now exist across `parallel-code` and `private-benchmark-repo` | no mature persisted cache story and benchmark-threshold policy is still incomplete |
 | Tier 1C | Mostly complete | v2 rules, concept graph, and suppression enforcement now exist | broader policy UX and validation are still incomplete |
 | Tier 1D | Mostly complete | authority/access findings work | no full scorecard track and limited generic bypass detection |
 | Tier 1E | Mostly complete | obligation engine is one of the strongest pieces | no full contract-driven obligations or scorecard surface |
 | Tier 1F | Mostly complete | `session_end` and `gate` now work in MCP and CLI on the same touched-concept model, including suppression-aware decisions and shared patch-safety analysis reuse | release-grade gate validation is still incomplete |
-| Tier 2A | Mostly complete | parity analyzer, MCP tool, and real `parallel-code` bootstrap proof now exist | broader contract families still need more than one benchmark repo |
+| Tier 2A | Mostly complete | parity analyzer, MCP tool, and real proof now exist on more than one repo shape | broader contract families still need more false-positive review and non-happy-path validation |
 | Tier 2B | Mostly complete | concentration analysis exists and is tested | not yet benchmarked or validated on the real case-study repo |
-| Tier 2C | Mostly complete | inspection tools, adoption helpers, and quality-guidance summaries now exist | real-repo validation has started, but the proof loop is not closed |
+| Tier 2C | Mostly complete | inspection tools, adoption helpers, quality-guidance summaries, and two real benchmark repos now exist | broader onboarding proof and ranking validation are still incomplete |
 | Tier 3 | Partial | conservative state-integrity slice is in place and now validated on real `parallel-code` controllers | transition modeling and implicit lifecycle heuristics are not built |
-| Validation | Partial | unit tests, synthetic gate/session regression scenarios, scoped real-repo goldens, versioned `parallel-code` benchmark comparison, and confidence/migration checks now exist | no second benchmark repo or full migration suite |
+| Validation | Mostly complete | unit tests, synthetic gate/session regression scenarios, two real benchmark repos, multi-repo goldens, versioned benchmark comparison, and confidence/migration checks now exist | no full migration suite and benchmark-threshold policy is still incomplete |
 
 ## Tier-By-Tier Status
 
@@ -300,10 +304,9 @@ Delivered:
 
 Still missing:
 
-- confidence-report regression tests
 - full v1/v2 migration suite, including schema/version mismatch cases
-- second-repo benchmark and validation coverage
 - remaining patch-safety performance work beyond the shared-analysis reuse work, especially file-hash walk cost and cold-path variance
+- broader benchmark-threshold enforcement for release gating
 
 ## Where We Are Relative To The Plan
 
@@ -322,18 +325,18 @@ It is not enough to say:
 ## Biggest Remaining Gaps
 
 1. the roadmap document had fallen behind the code and needed an explicit audit
-2. the real `parallel-code` validation loop is only partially closed
-3. clone drift is still missing divergence-aware prioritization
-4. release-grade gate/session proof is still thinner than the analyzer surface
+2. clone drift is still missing divergence-aware prioritization
+3. release-grade gate/session proof is still thinner than the analyzer surface
+4. broader contract-driven obligations are still incomplete
 5. Tier 3 is only an initial conservative slice
 
 ## Recommended Next Execution Order
 
-1. turn the existing `parallel-code` proof loop into a second-repo validation pass
-2. add confidence-report and migration regression coverage
-3. expand clone drift with divergence-aware prioritization
+1. add confidence-report and migration regression coverage
+2. expand clone drift with divergence-aware prioritization
+3. deepen contract-driven obligations
 4. reduce remaining scan-bound patch-safety cost
-5. validate parity and concentration against a second real repo
+5. validate parity and concentration against more non-happy-path repo scenarios
 
 ## Beta Readiness
 

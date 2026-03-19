@@ -89,8 +89,8 @@ Purpose:
 Required golden targets:
 
 1. `parallel-code`
-2. one smaller TS app fixture
-3. one TypeScript library fixture
+2. `private-benchmark-repo`
+3. one additional TS fixture with a different architecture shape
 
 Golden outputs should include:
 
@@ -106,13 +106,16 @@ Current status:
 - checked-in real-repo pass goldens now include `session_start`, `gate`, and `session_end` captured from a temporary local clone of `parallel-code`
 - checked-in real-repo regression goldens now include deterministic fail-path `gate` and `session_end` cases on a temporary local clone of `parallel-code`
 - initial benchmark notes exist in [examples/parallel-code-benchmark.md](./examples/parallel-code-benchmark.md)
+- scoped `private-benchmark-repo` goldens now exist in [examples/private-benchmark-repo-golden](./examples/private-benchmark-repo-golden/README.md)
+- `private-benchmark-repo` now has a checked-in benchmark artifact in [examples/private-benchmark-repo-benchmark.md](./examples/private-benchmark-repo-benchmark.md)
 - synthetic touched-concept gate and `session_end` regression scenarios now exist in the MCP handler test suite
 - initial migration/coexistence coverage now verifies that v2 gate and `session_end` still work when only the v2 session baseline is usable
 - confidence regression coverage now checks incompatible schema and project-mismatch session baselines
 - session baseline migration coverage now verifies that cross-project v2 baselines are rejected instead of being treated as compatible
 - the benchmark harness now supports versioned artifact comparison and separate warm patch-safety timings
 - the validation loop now has a dedicated one-command runner for checked-in goldens and benchmark regression checks
-- full release-grade validation still needs broader regression coverage beyond the current single real-repo fail path and a wider benchmark-repo set
+- the validation loop now has a multi-repo runner across both benchmark repos
+- full release-grade validation still needs broader regression coverage, stronger migration coverage, and firmer benchmark-threshold policy
 
 ## Layer 5: False-Positive Review
 
@@ -229,11 +232,14 @@ it should have:
 - [ ] add bridge contract tests for the Node subprocess
 - [ ] create semantic fixture repos for wedge analyzers
 - [x] create initial scoped golden outputs for `parallel-code`
-- [-] expand `parallel-code` goldens to include `session_end` and gate-oriented regression cases
-- [-] add synthetic gate/session regression scenarios for closed-domain changes
+- [x] expand `parallel-code` goldens to include `session_end` and gate-oriented regression cases
+- [x] add synthetic gate/session regression scenarios for closed-domain changes
+- [x] add second benchmark repo proof loop (`private-benchmark-repo`)
 - [x] add analyzer false-positive review checklist
-- [-] capture initial `parallel-code` benchmark artifact
+- [x] capture initial `parallel-code` benchmark artifact
+- [x] capture initial `private-benchmark-repo` benchmark artifact
 - [-] add performance regression benchmarks
 - [-] expand baseline migration tests beyond the current schema and project-mismatch cases
 - [x] add a one-command validation loop for real-repo goldens and benchmark regression checks
+- [x] add a multi-repo validation loop for benchmark repos
 - [ ] define promotion criteria for gating analyzers

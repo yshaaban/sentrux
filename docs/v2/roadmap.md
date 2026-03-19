@@ -63,7 +63,7 @@ Exit criteria:
 
 Open gap:
 
-- MCP is ahead of CLI and GUI here
+- MCP and CLI are now largely aligned here; GUI and `health` delta surfacing still lag
 
 This tier should ship independently of the semantic frontend.
 
@@ -137,7 +137,7 @@ Exit criteria:
 
 Open gap:
 
-- initial benchmark proof exists, but long-lived cache maturity and a regression benchmark suite are still missing
+- semantic proof now spans `parallel-code` and `private-benchmark-repo`, but long-lived cache maturity and benchmark-threshold policy are still missing
 
 ## Tier 1C: Minimal Concept Graph And Rules
 
@@ -232,7 +232,7 @@ Open gap:
 
 ## Tier 2: Context And Adoption
 
-Status: mostly complete in code, partially complete in real-world adoption
+Status: mostly complete in code and initial multi-repo proof
 
 Goal:
 
@@ -374,18 +374,21 @@ Status: partial
 - [x] create initial scoped golden outputs for `parallel-code`
 - [x] expand `parallel-code` goldens to cover `session_end` and touched-concept gate scenarios
 - [x] add synthetic touched-concept gate and `session_end` regression scenarios
+- [x] add second benchmark repo proof loop (`private-benchmark-repo`)
 - [-] add fixture repos for semantic frontends
 - [-] add bridge contract tests for the persistent Node subprocess
 - [x] capture initial `parallel-code` benchmark artifact
+- [x] capture initial `private-benchmark-repo` benchmark artifact
 - [x] add versioned performance regression benchmark comparison for `parallel-code`
+- [x] add multi-repo golden validation runner
 - [x] add false-positive review process for new heuristics
-- [-] add confidence-report regression tests
+- [x] add confidence-report regression tests
 - [-] add v1/v2 baseline migration tests
 - [x] verify case-study examples against the current target repo before docs or demos cite them
 
 Open gap:
 
-- implementation is still ahead of proof and release-grade validation, but the `parallel-code` pass/fail golden loop, versioned benchmark comparison, shared patch-safety reuse work, and session-baseline compatibility checks are now in place
+- implementation is still ahead of release-grade validation, but the proof loop now spans `parallel-code` and `private-benchmark-repo`, includes multi-repo golden validation, and has versioned benchmark artifacts for both repos
 
 ## Target Outcome On `parallel-code`
 
@@ -416,6 +419,6 @@ Tier 3 should improve the repo story, but it is not required for the wedge to be
 Current reality:
 
 - the codebase is close to a useful MCP beta
-- the real `parallel-code` proof loop now includes checked-in pass and fail goldens plus a versioned warm patch-safety benchmark loop
+- the real proof loop now includes checked-in pass and fail goldens for `parallel-code` and scoped goldens plus a benchmark artifact for `private-benchmark-repo`
 - warm patch-safety is improving, but the remaining performance gap is still scan-bound structural work
-- broader validation coverage and a second benchmark repo are the next proof gaps
+- broader validation coverage, richer migration coverage, and better benchmark-threshold policy are the next proof gaps
