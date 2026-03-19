@@ -1,0 +1,61 @@
+{
+  "changed_files": [],
+  "expired_suppression_match_count": 0,
+  "expired_suppressions": [],
+  "finding_count": 0,
+  "findings": [],
+  "kind": "state",
+  "missing_site_count": 0,
+  "missing_variant_count": 0,
+  "reports": [
+    {
+      "context_burden": 0,
+      "domain_symbol_names": [
+        "BrowserStateSyncStatus"
+      ],
+      "explicitness_score_0_10000": 10000,
+      "files": [
+        "src/runtime/browser-state-sync-controller.ts"
+      ],
+      "id": "browser_state_sync",
+      "kind": "explicit",
+      "missing_assert_never_domains": [],
+      "missing_exhaustive_switch_domains": [],
+      "missing_sites": [],
+      "missing_variants": [],
+      "required_sites": [],
+      "roots": [
+        "src/runtime/browser-state-sync-controller.ts"
+      ],
+      "satisfied_sites": []
+    },
+    {
+      "context_burden": 0,
+      "domain_symbol_names": [
+        "ServerStateBootstrapGateState"
+      ],
+      "explicitness_score_0_10000": 10000,
+      "files": [
+        "src/app/server-state-bootstrap.ts"
+      ],
+      "id": "server_state_bootstrap_gate",
+      "kind": "explicit",
+      "missing_assert_never_domains": [],
+      "missing_exhaustive_switch_domains": [],
+      "missing_sites": [],
+      "missing_variants": [],
+      "required_sites": [],
+      "roots": [
+        "src/app/server-state-bootstrap.ts"
+      ],
+      "satisfied_sites": []
+    }
+  ],
+  "rules_error": null,
+  "scope": "all",
+  "semantic_error": null,
+  "state_integrity_score_0_10000": 10000,
+  "state_model_count": 2,
+  "suppressed_finding_count": 0,
+  "suppression_hits": []
+}

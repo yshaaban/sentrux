@@ -1,0 +1,44 @@
+{
+  "changed_concepts": [
+    "task_presentation_status"
+  ],
+  "changed_files": [],
+  "context_burden": 1,
+  "kind": "obligations",
+  "missing_site_count": 1,
+  "obligation_completeness_0_10000": 0,
+  "obligation_count": 1,
+  "obligations": [
+    {
+      "concept_id": "task_presentation_status",
+      "context_burden": 1,
+      "domain_symbol_name": "TaskDotStatus",
+      "files": [
+        "src/app/task-presentation-status.ts"
+      ],
+      "id": "task_presentation_status::TaskDotStatus",
+      "kind": "closed_domain_exhaustiveness",
+      "missing_sites": [
+        {
+          "detail": "no exhaustive mapping or switch site found for 'TaskDotStatus'",
+          "kind": "closed_domain",
+          "line": 12,
+          "path": "src/app/task-presentation-status.ts"
+        }
+      ],
+      "missing_variants": [],
+      "required_sites": [
+        {
+          "detail": "no exhaustive mapping or switch site found for 'TaskDotStatus'",
+          "kind": "closed_domain",
+          "line": 12,
+          "path": "src/app/task-presentation-status.ts"
+        }
+      ],
+      "satisfied_sites": [],
+      "summary": "Closed domain 'task_presentation_status' is missing required update sites"
+    }
+  ],
+  "scope": "all",
+  "semantic_error": null
+}

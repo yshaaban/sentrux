@@ -1,0 +1,79 @@
+{
+  "generated_at": "2026-03-19T21:50:40Z",
+  "parallel_code_root": "<parallel-code-root>",
+  "analysis_mode": "head_clone",
+  "source_tree_identity": {
+    "commit": "94d010d3b0b7ccc815b74430fed6e3284b809113",
+    "dirty_paths": [
+      "electron/ipc/channels.ts",
+      "electron/ipc/handlers.notifications.test.ts",
+      "electron/ipc/notification-handlers.ts",
+      "electron/preload.cjs",
+      "src/app/desktop-browser-runtime.ts",
+      "src/app/desktop-notification-runtime.test.tsx",
+      "src/app/desktop-notification-runtime.ts",
+      "src/app/desktop-session-startup.ts",
+      "src/app/desktop-session-types.ts",
+      "src/app/desktop-session.test.ts",
+      "src/app/desktop-session.ts",
+      "src/components/SettingsDialog.test.tsx",
+      "src/components/SettingsDialog.tsx",
+      "src/components/Sidebar.tsx",
+      "src/components/SidebarTaskRow.test.tsx",
+      "src/components/SidebarTaskRow.tsx",
+      "src/components/sidebar/SidebarTaskList.test.tsx",
+      "src/components/sidebar/SidebarTaskList.tsx",
+      "src/domain/renderer-invoke.ts",
+      "src/runtime/browser-session.runtime.test.ts",
+      "src/runtime/browser-session.ts",
+      "src/store/client-session.test.ts",
+      "src/store/client-session.ts",
+      "src/store/core.ts",
+      "src/store/persistence-codecs.ts",
+      "src/store/persistence-legacy-state.ts",
+      "src/store/persistence-load.ts",
+      "src/store/persistence.test.ts",
+      "src/store/sidebar-order.ts",
+      "src/store/store.ts",
+      "src/store/tasks.ts",
+      "src/store/types.ts",
+      "src/store/ui.ts",
+      "src/app/task-notification-capabilities.ts",
+      "src/app/task-notification-claims.test.tsx",
+      "src/app/task-notification-claims.ts",
+      "src/app/task-notification-runtime.test.tsx",
+      "src/app/task-notification-runtime.ts",
+      "src/app/task-notification-sinks.ts",
+      "src/domain/task-notification.ts",
+      "src/store/sidebar-order.test.ts"
+    ],
+    "dirty_paths_count": 41,
+    "dirty_paths_fingerprint": "4b501d4aed43036ccb7203a6479859141b533e00a9d7e445b14c5f26a427caa6",
+    "tree_fingerprint": "f641e85fabc9d651fabf563df456015ae6a5e0a40a717b84407ef64032263fe4",
+    "analysis_mode": "head_clone"
+  },
+  "analyzed_tree_identity": {
+    "commit": "94d010d3b0b7ccc815b74430fed6e3284b809113",
+    "dirty_paths": [],
+    "dirty_paths_count": 0,
+    "dirty_paths_fingerprint": "53c1562521679823f3ee3c10c2585dec4c3ecd862d145f868947047fd32725ac",
+    "tree_fingerprint": "638a8939223b6aec43a72405ed82aebe88e59b4dabb5b15bc089fdffd758e84d",
+    "analysis_mode": "head_clone"
+  },
+  "regression_mutation": {
+    "path": "src/components/SidebarTaskRow.tsx",
+    "change": "store.taskGitStatus = store.taskGitStatus"
+  },
+  "rules_source": "<sentrux-root>/docs/v2/examples/parallel-code.rules.toml",
+  "sentrux_binary": "<sentrux-root>/target/debug/sentrux",
+  "rules_identity": {
+    "path": "<sentrux-root>/docs/v2/examples/parallel-code.rules.toml",
+    "exists": true,
+    "sha256": "548daed030bff265a920dc8dc68c0665d4bf6d3768127a1668d74887f7d4c6fa"
+  },
+  "binary_identity": {
+    "path": "<sentrux-root>/target/debug/sentrux",
+    "exists": true,
+    "sha256": "627ad03b8d4839ab02d4032e004c16046d4fe8a545342821a709bcf303acd480"
+  }
+}

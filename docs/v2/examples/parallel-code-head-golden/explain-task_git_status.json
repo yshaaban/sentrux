@@ -1,0 +1,161 @@
+{
+  "concept": {
+    "allowed_writers": [
+      "src/app/git-status-sync.ts::store.taskGitStatus.*",
+      "src/store/task-git-status.ts::store.taskGitStatus.*"
+    ],
+    "anchors": [
+      "src/store/core.ts::store.taskGitStatus"
+    ],
+    "authoritative_inputs": [
+      "src/store/core.ts::store.taskGitStatus"
+    ],
+    "canonical_accessors": [
+      "src/store/taskStatus.ts::getTaskDotStatus",
+      "src/store/taskStatus.ts::refreshTaskStatus",
+      "src/store/taskStatus.ts::applyGitStatusFromPush",
+      "src/app/task-presentation-status.ts::getTaskPresentationStatus"
+    ],
+    "forbid_raw_reads": [],
+    "forbid_writers": [
+      "src/store/git-status-polling.ts::store.taskGitStatus.*"
+    ],
+    "id": "task_git_status",
+    "kind": "authoritative_state",
+    "priority": "critical",
+    "related_tests": [
+      "src/app/git-status-sync.test.ts",
+      "src/domain/git-status.test.ts",
+      "src/store/taskStatus.test.ts",
+      "src/components/SidebarTaskRow.architecture.test.ts"
+    ]
+  },
+  "expired_suppression_match_count": 0,
+  "expired_suppressions": [],
+  "findings": [],
+  "obligations": [],
+  "parity": [],
+  "related_contract_ids": [],
+  "related_tests": [
+    {
+      "exists": false,
+      "matched_files": [],
+      "pattern": "src/app/git-status-sync.test.ts"
+    },
+    {
+      "exists": true,
+      "matched_files": [
+        "src/domain/git-status.test.ts"
+      ],
+      "pattern": "src/domain/git-status.test.ts"
+    },
+    {
+      "exists": true,
+      "matched_files": [
+        "src/store/taskStatus.test.ts"
+      ],
+      "pattern": "src/store/taskStatus.test.ts"
+    },
+    {
+      "exists": true,
+      "matched_files": [
+        "src/components/SidebarTaskRow.architecture.test.ts"
+      ],
+      "pattern": "src/components/SidebarTaskRow.architecture.test.ts"
+    }
+  ],
+  "rules_error": null,
+  "semantic": {
+    "reads": [
+      {
+        "line": 201,
+        "path": "src/app/task-presentation-status.ts",
+        "read_kind": "property_access",
+        "symbol_name": "store.taskGitStatus"
+      },
+      {
+        "line": 295,
+        "path": "src/app/task-workflows.control.test.ts",
+        "read_kind": "element_access",
+        "symbol_name": "store.taskGitStatus.task-1"
+      },
+      {
+        "line": 295,
+        "path": "src/app/task-workflows.control.test.ts",
+        "read_kind": "property_access",
+        "symbol_name": "store.taskGitStatus"
+      },
+      {
+        "line": 855,
+        "path": "src/store/persistence.test.ts",
+        "read_kind": "element_access",
+        "symbol_name": "store.taskGitStatus.task-1"
+      },
+      {
+        "line": 855,
+        "path": "src/store/persistence.test.ts",
+        "read_kind": "property_access",
+        "symbol_name": "store.taskGitStatus"
+      },
+      {
+        "line": 1094,
+        "path": "src/store/persistence.test.ts",
+        "read_kind": "element_access",
+        "symbol_name": "store.taskGitStatus.task-1"
+      },
+      {
+        "line": 1094,
+        "path": "src/store/persistence.test.ts",
+        "read_kind": "property_access",
+        "symbol_name": "store.taskGitStatus"
+      }
+    ],
+    "writes": [
+      {
+        "line": 97,
+        "path": "src/store/task-git-status.ts",
+        "symbol_name": "store.taskGitStatus.*",
+        "write_kind": "store_call"
+      },
+      {
+        "line": 114,
+        "path": "src/store/task-git-status.ts",
+        "symbol_name": "store.taskGitStatus.*",
+        "write_kind": "store_call"
+      },
+      {
+        "line": 142,
+        "path": "src/store/task-git-status.ts",
+        "symbol_name": "store.taskGitStatus",
+        "write_kind": "store_call"
+      },
+      {
+        "line": 175,
+        "path": "src/app/task-presentation-status.test.ts",
+        "symbol_name": "store.taskGitStatus",
+        "write_kind": "store_call"
+      },
+      {
+        "line": 237,
+        "path": "src/app/task-workflows.control.test.ts",
+        "symbol_name": "store.taskGitStatus",
+        "write_kind": "store_call"
+      },
+      {
+        "line": 813,
+        "path": "src/store/persistence.test.ts",
+        "symbol_name": "store.taskGitStatus",
+        "write_kind": "store_call"
+      },
+      {
+        "line": 1058,
+        "path": "src/store/persistence.test.ts",
+        "symbol_name": "store.taskGitStatus",
+        "write_kind": "store_call"
+      }
+    ]
+  },
+  "semantic_error": null,
+  "suppressed_finding_count": 0,
+  "suppression_hits": []
+}

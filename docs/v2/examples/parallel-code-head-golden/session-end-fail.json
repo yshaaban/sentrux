@@ -1,0 +1,763 @@
+{
+  "baseline_delta": {
+    "available": true,
+    "coupling_after": 0.4604090194022024,
+    "coupling_before": 0.4604090194022024,
+    "cycles_after": 2,
+    "cycles_before": 2,
+    "degraded": false,
+    "signal_after": 4400,
+    "signal_before": 4400,
+    "signal_delta": 0
+  },
+  "baseline_error": null,
+  "changed_concepts": [
+    "task_presentation_status"
+  ],
+  "changed_files": [
+    "src/components/SidebarTaskRow.tsx"
+  ],
+  "concept_summaries": [
+    {
+      "boundary_pressure_count": 1,
+      "concept_id": "task_presentation_status",
+      "context_burden": 5,
+      "dominant_kinds": [
+        "forbidden_raw_read"
+      ],
+      "files": [
+        "src/app/task-presentation-status.ts",
+        "src/components/SidebarTaskRow.tsx"
+      ],
+      "finding_count": 1,
+      "high_severity_count": 0,
+      "inspection_focus": [
+        "inspect whether reads bypass the canonical accessor or public boundary",
+        "inspect the explicit propagation sites and completeness tests for this concept"
+      ],
+      "missing_site_count": 5,
+      "obligation_count": 1,
+      "score_0_10000": 5200,
+      "summary": "Concept 'task_presentation_status' shows 1 boundary/ownership findings and 5 missing update sites"
+    }
+  ],
+  "concept_summary_count": 1,
+  "confidence": {
+    "rule_coverage_0_10000": 10000,
+    "scan_confidence_0_10000": 8248,
+    "semantic_rules_loaded": true,
+    "session_baseline": {
+      "compatible": true,
+      "error": null,
+      "loaded": true,
+      "schema_version": 3
+    }
+  },
+  "coupling_change": [
+    0.4604090194022024,
+    0.4604090194022024
+  ],
+  "cycles_change": [
+    2,
+    2
+  ],
+  "debt_cluster_count": 1,
+  "debt_clusters": [
+    {
+      "evidence": [
+        "overlapping signals: 2",
+        "signal kinds: concept, large_file",
+        "affected files: 2",
+        "role tags: guarded_seam",
+        "concept: Concept 'task_presentation_status' shows 1 boundary/ownership findings and 5 missing update sites",
+        "large_file: File 'src/components/SidebarTaskRow.tsx' is 539 lines, above the typescript threshold of 500"
+      ],
+      "files": [
+        "src/app/task-presentation-status.ts",
+        "src/components/SidebarTaskRow.tsx"
+      ],
+      "impact": "Overlapping ownership drift and propagation burden make partial edits easier to miss and harder to validate.",
+      "inspection_focus": [
+        "inspect whether reads bypass the canonical accessor or public boundary",
+        "inspect the explicit propagation sites and completeness tests for this concept",
+        "inspect whether orchestration, adapters, and data shaping are accumulating in one file",
+        "inspect whether the file can be split along responsibility boundaries instead of line-count slices"
+      ],
+      "metrics": {
+        "clone_family_count": 0,
+        "concept_count": 1,
+        "file_count": 2,
+        "hotspot_count": 0,
+        "signal_count": 2,
+        "structural_signal_count": 1
+      },
+      "presentation_class": "structural_debt",
+      "role_tags": [
+        "guarded_seam"
+      ],
+      "scope": "cluster:src/app/task-presentation-status.ts|src/components/SidebarTaskRow.tsx",
+      "score_0_10000": 5700,
+      "severity": "medium",
+      "signal_families": [
+        "ownership",
+        "boundary",
+        "propagation",
+        "size",
+        "coordination"
+      ],
+      "signal_kinds": [
+        "concept",
+        "large_file"
+      ],
+      "summary": "Files src/app/task-presentation-status.ts, src/components/SidebarTaskRow.tsx intersect 2 debt signals: concept, large_file",
+      "trust_tier": "trusted"
+    }
+  ],
+  "debt_context_error": null,
+  "debt_signal_count": 2,
+  "debt_signals": [
+    {
+      "candidate_split_axes": [
+        "ownership boundary",
+        "propagation surface"
+      ],
+      "evidence": [
+        "finding kind: forbidden_raw_read",
+        "missing update sites: 5",
+        "context burden: 5"
+      ],
+      "files": [
+        "src/app/task-presentation-status.ts",
+        "src/components/SidebarTaskRow.tsx"
+      ],
+      "impact": "Split ownership and incomplete propagation make this concept easier to regress through partial edits.",
+      "inspection_focus": [
+        "inspect whether reads bypass the canonical accessor or public boundary",
+        "inspect the explicit propagation sites and completeness tests for this concept"
+      ],
+      "kind": "concept",
+      "metrics": {
+        "boundary_pressure_count": 1,
+        "context_burden": 5,
+        "file_count": 2,
+        "finding_count": 1,
+        "high_severity_count": 0,
+        "missing_site_count": 5,
+        "obligation_count": 1
+      },
+      "presentation_class": "structural_debt",
+      "related_surfaces": [
+        "src/app/task-presentation-status.ts",
+        "src/components/SidebarTaskRow.tsx"
+      ],
+      "role_tags": [],
+      "scope": "task_presentation_status",
+      "score_0_10000": 5200,
+      "severity": "medium",
+      "signal_class": "debt",
+      "signal_families": [
+        "ownership",
+        "boundary",
+        "propagation"
+      ],
+      "summary": "Concept 'task_presentation_status' shows 1 boundary/ownership findings and 5 missing update sites",
+      "trust_tier": "trusted"
+    },
+    {
+      "candidate_split_axes": [
+        "components dependency boundary",
+        "app dependency boundary",
+        "lib dependency boundary",
+        "private helper surface split"
+      ],
+      "evidence": [
+        "line count: 539",
+        "large-file threshold: 500",
+        "function count: 43",
+        "peak function complexity: 4",
+        "outbound dependencies: 11",
+        "guardrail tests: src/components/SidebarTaskRow.architecture.test.ts"
+      ],
+      "files": [
+        "src/components/SidebarTaskRow.tsx"
+      ],
+      "impact": "Responsibility concentration increases review friction and makes later splits harder to isolate.",
+      "inspection_focus": [
+        "inspect whether orchestration, adapters, and data shaping are accumulating in one file",
+        "inspect whether the file can be split along responsibility boundaries instead of line-count slices"
+      ],
+      "kind": "large_file",
+      "metrics": {
+        "fan_out": 11,
+        "file_count": 1,
+        "function_count": 43,
+        "guardrail_test_count": 1,
+        "line_count": 539,
+        "max_complexity": 4,
+        "role_count": 1
+      },
+      "presentation_class": "structural_debt",
+      "related_surfaces": [
+        "src/app/task-convergence.ts",
+        "src/app/task-presentation-status.ts",
+        "src/components/AgentGlyph.tsx",
+        "src/components/StatusDot.tsx",
+        "src/components/task-review-presentation.ts",
+        "src/components/SidebarTaskRow.architecture.test.ts"
+      ],
+      "role_tags": [
+        "guarded_seam"
+      ],
+      "scope": "src/components/SidebarTaskRow.tsx",
+      "score_0_10000": 2681,
+      "severity": "low",
+      "signal_class": "debt",
+      "signal_families": [
+        "size",
+        "coordination"
+      ],
+      "summary": "File 'src/components/SidebarTaskRow.tsx' is 539 lines, above the typescript threshold of 500",
+      "trust_tier": "trusted"
+    }
+  ],
+  "experimental_debt_signal_count": 1,
+  "experimental_debt_signals": [
+    {
+      "candidate_split_axes": [],
+      "evidence": [
+        "dead private functions: 16",
+        "dead private lines: 101",
+        "sample dead functions: InlineAttentionIndicator, boxShadow, getPrimaryTaskAgentDef",
+        "total file lines: 539"
+      ],
+      "files": [
+        "src/components/SidebarTaskRow.tsx"
+      ],
+      "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
+      "inspection_focus": [
+        "inspect whether the dead helpers should be deleted or intentionally reconnected",
+        "inspect whether the file still reflects the supported control flow"
+      ],
+      "kind": "dead_private_code_cluster",
+      "metrics": {
+        "dead_line_count": 101,
+        "dead_symbol_count": 16,
+        "file_count": 1,
+        "function_count": 43,
+        "line_count": 539,
+        "max_complexity": 4,
+        "role_count": 1
+      },
+      "presentation_class": "experimental",
+      "related_surfaces": [],
+      "role_tags": [
+        "guarded_seam"
+      ],
+      "scope": "src/components/SidebarTaskRow.tsx",
+      "score_0_10000": 6918,
+      "severity": "high",
+      "signal_class": "watchpoint",
+      "signal_families": [
+        "staleness",
+        "maintainability"
+      ],
+      "summary": "File 'src/components/SidebarTaskRow.tsx' contains 16 uncalled private functions totaling 101 lines",
+      "trust_tier": "experimental"
+    }
+  ],
+  "experimental_finding_count": 1,
+  "experimental_findings": [
+    {
+      "evidence": [
+        "dead private functions: 16",
+        "dead private lines: 101",
+        "sample dead functions: InlineAttentionIndicator, boxShadow, getPrimaryTaskAgentDef",
+        "total file lines: 539"
+      ],
+      "files": [
+        "src/components/SidebarTaskRow.tsx"
+      ],
+      "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
+      "inspection_focus": [
+        "inspect whether the dead helpers should be deleted or intentionally reconnected",
+        "inspect whether the file still reflects the supported control flow"
+      ],
+      "kind": "dead_private_code_cluster",
+      "metrics": {
+        "dead_line_count": 101,
+        "dead_symbol_count": 16,
+        "file_count": 1,
+        "function_count": 43,
+        "line_count": 539,
+        "max_complexity": 4,
+        "role_count": 1
+      },
+      "presentation_class": "experimental",
+      "role_tags": [
+        "guarded_seam"
+      ],
+      "scope": "src/components/SidebarTaskRow.tsx",
+      "score_0_10000": 6918,
+      "severity": "high",
+      "signal_class": "watchpoint",
+      "signal_families": [
+        "staleness",
+        "maintainability"
+      ],
+      "summary": "File 'src/components/SidebarTaskRow.tsx' contains 16 uncalled private functions totaling 101 lines",
+      "trust_tier": "experimental"
+    }
+  ],
+  "expired_suppression_match_count": 0,
+  "expired_suppressions": [],
+  "finding_detail_count": 2,
+  "finding_details": [
+    {
+      "candidate_split_axes": [
+        "components dependency boundary",
+        "app dependency boundary",
+        "lib dependency boundary",
+        "private helper surface split"
+      ],
+      "evidence": [
+        "line count: 539",
+        "large-file threshold: 500",
+        "function count: 43",
+        "peak function complexity: 4",
+        "outbound dependencies: 11",
+        "guardrail tests: src/components/SidebarTaskRow.architecture.test.ts"
+      ],
+      "files": [
+        "src/components/SidebarTaskRow.tsx"
+      ],
+      "impact": "Responsibility concentration increases review friction and makes later splits harder to isolate.",
+      "inspection_focus": [
+        "inspect whether orchestration, adapters, and data shaping are accumulating in one file",
+        "inspect whether the file can be split along responsibility boundaries instead of line-count slices"
+      ],
+      "kind": "large_file",
+      "metrics": {
+        "evidence_count": 6,
+        "file_count": 1
+      },
+      "presentation_class": "structural_debt",
+      "related_surfaces": [
+        "src/app/task-convergence.ts",
+        "src/app/task-presentation-status.ts",
+        "src/components/AgentGlyph.tsx",
+        "src/components/StatusDot.tsx",
+        "src/components/task-review-presentation.ts",
+        "src/components/SidebarTaskRow.architecture.test.ts"
+      ],
+      "role_tags": [
+        "guarded_seam"
+      ],
+      "scope": "src/components/SidebarTaskRow.tsx",
+      "severity": "low",
+      "summary": "File 'src/components/SidebarTaskRow.tsx' is 539 lines, above the typescript threshold of 500",
+      "trust_tier": "trusted"
+    },
+    {
+      "candidate_split_axes": [],
+      "evidence": [
+        "src/components/SidebarTaskRow.tsx::store.taskGitStatus"
+      ],
+      "files": [
+        "src/components/SidebarTaskRow.tsx"
+      ],
+      "impact": "Bypassing the intended read boundary weakens architectural contracts and can create stale or inconsistent views.",
+      "inspection_focus": [
+        "inspect whether reads should move behind the canonical accessor or public boundary"
+      ],
+      "kind": "forbidden_raw_read",
+      "metrics": {
+        "evidence_count": 1,
+        "file_count": 1
+      },
+      "presentation_class": "structural_debt",
+      "related_surfaces": [
+        "src/components/SidebarTaskRow.tsx"
+      ],
+      "role_tags": [],
+      "scope": "task_presentation_status",
+      "severity": "medium",
+      "summary": "Concept 'task_presentation_status' is read from a forbidden raw access path at src/components/SidebarTaskRow.tsx",
+      "trust_tier": "trusted"
+    }
+  ],
+  "introduced_findings": [
+    {
+      "candidate_split_axes": [
+        "components dependency boundary",
+        "app dependency boundary",
+        "lib dependency boundary",
+        "private helper surface split"
+      ],
+      "evidence": [
+        "line count: 539",
+        "large-file threshold: 500",
+        "function count: 43",
+        "peak function complexity: 4",
+        "outbound dependencies: 11",
+        "guardrail tests: src/components/SidebarTaskRow.architecture.test.ts"
+      ],
+      "files": [
+        "src/components/SidebarTaskRow.tsx"
+      ],
+      "impact": "Responsibility concentration increases review friction and makes later splits harder to isolate.",
+      "inspection_focus": [
+        "inspect whether orchestration, adapters, and data shaping are accumulating in one file",
+        "inspect whether the file can be split along responsibility boundaries instead of line-count slices"
+      ],
+      "kind": "large_file",
+      "metrics": {
+        "fan_out": 11,
+        "file_count": 1,
+        "function_count": 43,
+        "guardrail_test_count": 1,
+        "line_count": 539,
+        "max_complexity": 4,
+        "role_count": 1
+      },
+      "presentation_class": "structural_debt",
+      "related_surfaces": [
+        "src/app/task-convergence.ts",
+        "src/app/task-presentation-status.ts",
+        "src/components/AgentGlyph.tsx",
+        "src/components/StatusDot.tsx",
+        "src/components/task-review-presentation.ts",
+        "src/components/SidebarTaskRow.architecture.test.ts"
+      ],
+      "role_tags": [
+        "guarded_seam"
+      ],
+      "scope": "src/components/SidebarTaskRow.tsx",
+      "score_0_10000": 2681,
+      "severity": "low",
+      "signal_class": "debt",
+      "signal_families": [
+        "size",
+        "coordination"
+      ],
+      "summary": "File 'src/components/SidebarTaskRow.tsx' is 539 lines, above the typescript threshold of 500",
+      "trust_tier": "trusted"
+    },
+    {
+      "concept_id": "task_presentation_status",
+      "evidence": [
+        "src/components/SidebarTaskRow.tsx::store.taskGitStatus"
+      ],
+      "files": [
+        "src/components/SidebarTaskRow.tsx"
+      ],
+      "kind": "forbidden_raw_read",
+      "presentation_class": "structural_debt",
+      "severity": "medium",
+      "summary": "Concept 'task_presentation_status' is read from a forbidden raw access path at src/components/SidebarTaskRow.tsx"
+    }
+  ],
+  "missing_obligations": [
+    {
+      "concept_id": "task_presentation_status",
+      "context_burden": 5,
+      "domain_symbol_name": "TaskDotStatus",
+      "files": [
+        "src/app/task-presentation-status.ts"
+      ],
+      "id": "task_presentation_status::TaskDotStatus",
+      "kind": "closed_domain_exhaustiveness",
+      "missing_sites": [
+        {
+          "detail": "related test coverage for changed concept",
+          "kind": "related_test",
+          "line": null,
+          "path": "src/app/task-attention.test.ts"
+        },
+        {
+          "detail": "related test coverage for changed concept",
+          "kind": "related_test",
+          "line": null,
+          "path": "src/app/task-presentation-status.test.ts"
+        },
+        {
+          "detail": "no exhaustive mapping or switch site found for 'TaskDotStatus'",
+          "kind": "closed_domain",
+          "line": 12,
+          "path": "src/app/task-presentation-status.ts"
+        },
+        {
+          "detail": "related test coverage for changed concept",
+          "kind": "related_test",
+          "line": null,
+          "path": "src/components/SidebarTaskRow.architecture.test.ts"
+        },
+        {
+          "detail": "related test coverage for changed concept",
+          "kind": "related_test",
+          "line": null,
+          "path": "src/components/SidebarTaskRow.test.tsx"
+        }
+      ],
+      "missing_variants": [],
+      "required_sites": [
+        {
+          "detail": "related test coverage for changed concept",
+          "kind": "related_test",
+          "line": null,
+          "path": "src/app/task-attention.test.ts"
+        },
+        {
+          "detail": "related test coverage for changed concept",
+          "kind": "related_test",
+          "line": null,
+          "path": "src/app/task-presentation-status.test.ts"
+        },
+        {
+          "detail": "no exhaustive mapping or switch site found for 'TaskDotStatus'",
+          "kind": "closed_domain",
+          "line": 12,
+          "path": "src/app/task-presentation-status.ts"
+        },
+        {
+          "detail": "related test coverage for changed concept",
+          "kind": "related_test",
+          "line": null,
+          "path": "src/components/SidebarTaskRow.architecture.test.ts"
+        },
+        {
+          "detail": "related test coverage for changed concept",
+          "kind": "related_test",
+          "line": null,
+          "path": "src/components/SidebarTaskRow.test.tsx"
+        }
+      ],
+      "satisfied_sites": [],
+      "summary": "Closed domain 'task_presentation_status' is missing required update sites"
+    }
+  ],
+  "obligation_completeness_0_10000": 0,
+  "opportunity_context_error": null,
+  "optimization_priorities": [
+    {
+      "boundary_pressure_count": 1,
+      "clone_family_count": 0,
+      "concept_id": "task_presentation_status",
+      "evidence": [
+        "boundary and ownership findings: 1",
+        "missing update sites: 5",
+        "context burden: 5"
+      ],
+      "files": [
+        "src/app/task-presentation-status.ts",
+        "src/components/SidebarTaskRow.tsx"
+      ],
+      "hotspot_count": 0,
+      "missing_site_count": 5,
+      "score_0_10000": 6100,
+      "severity": "medium",
+      "suggested_actions": [
+        "inspect whether reads bypass the canonical accessor or public boundary",
+        "inspect the explicit propagation sites and completeness tests for this concept",
+        "inspect whether boundary erosion is making the propagation chain easier to miss"
+      ],
+      "summary": "Concept 'task_presentation_status' intersects boundary pressure, propagation burden"
+    }
+  ],
+  "optimization_priority_count": 1,
+  "pass": false,
+  "quality_opportunities": [
+    {
+      "evidence": [
+        "finding kind: forbidden_raw_read",
+        "missing update sites: 5",
+        "context burden: 5"
+      ],
+      "files": [
+        "src/app/task-presentation-status.ts",
+        "src/components/SidebarTaskRow.tsx"
+      ],
+      "impact": "Split ownership and incomplete propagation make this concept easier to regress through partial edits.",
+      "kind": "concept",
+      "scope": "task_presentation_status",
+      "score_0_10000": 5200,
+      "severity": "medium",
+      "suggested_actions": [
+        "inspect whether reads bypass the canonical accessor or public boundary",
+        "inspect the explicit propagation sites and completeness tests for this concept"
+      ],
+      "summary": "Concept 'task_presentation_status' shows 1 boundary/ownership findings and 5 missing update sites"
+    },
+    {
+      "evidence": [
+        "line count: 539",
+        "large-file threshold: 500",
+        "function count: 43",
+        "peak function complexity: 4",
+        "outbound dependencies: 11",
+        "guardrail tests: src/components/SidebarTaskRow.architecture.test.ts"
+      ],
+      "files": [
+        "src/components/SidebarTaskRow.tsx"
+      ],
+      "impact": "Responsibility concentration increases review friction and makes later splits harder to isolate.",
+      "kind": "large_file",
+      "scope": "src/components/SidebarTaskRow.tsx",
+      "score_0_10000": 2681,
+      "severity": "low",
+      "suggested_actions": [
+        "inspect whether orchestration, adapters, and data shaping are accumulating in one file",
+        "inspect whether the file can be split along responsibility boundaries instead of line-count slices"
+      ],
+      "summary": "File 'src/components/SidebarTaskRow.tsx' is 539 lines, above the typescript threshold of 500"
+    }
+  ],
+  "quality_opportunity_count": 2,
+  "resolved_findings": [
+    {
+      "candidate_split_axes": [
+        "components dependency boundary",
+        "app dependency boundary",
+        "lib dependency boundary",
+        "private helper surface split"
+      ],
+      "evidence": [
+        "line count: 538",
+        "large-file threshold: 500",
+        "function count: 43",
+        "peak function complexity: 4",
+        "outbound dependencies: 11",
+        "guardrail tests: src/components/SidebarTaskRow.architecture.test.ts"
+      ],
+      "files": [
+        "src/components/SidebarTaskRow.tsx"
+      ],
+      "impact": "Responsibility concentration increases review friction and makes later splits harder to isolate.",
+      "inspection_focus": [
+        "inspect whether orchestration, adapters, and data shaping are accumulating in one file",
+        "inspect whether the file can be split along responsibility boundaries instead of line-count slices"
+      ],
+      "kind": "large_file",
+      "metrics": {
+        "fan_out": 11,
+        "file_count": 1,
+        "function_count": 43,
+        "guardrail_test_count": 1,
+        "line_count": 538,
+        "max_complexity": 4,
+        "role_count": 1
+      },
+      "presentation_class": "structural_debt",
+      "related_surfaces": [
+        "src/app/task-convergence.ts",
+        "src/app/task-presentation-status.ts",
+        "src/components/AgentGlyph.tsx",
+        "src/components/StatusDot.tsx",
+        "src/components/task-review-presentation.ts",
+        "src/components/SidebarTaskRow.architecture.test.ts"
+      ],
+      "role_tags": [
+        "guarded_seam"
+      ],
+      "scope": "src/components/SidebarTaskRow.tsx",
+      "score_0_10000": 2674,
+      "severity": "low",
+      "signal_class": "debt",
+      "signal_families": [
+        "size",
+        "coordination"
+      ],
+      "summary": "File 'src/components/SidebarTaskRow.tsx' is 538 lines, above the typescript threshold of 500",
+      "trust_tier": "trusted"
+    }
+  ],
+  "rules_error": null,
+  "scan_trust": {
+    "candidate_files": 765,
+    "exclusions": {
+      "bucketed": {
+        "build": 12,
+        "cache": 0,
+        "fixture": 7,
+        "generated": 0,
+        "vendor": 102
+      },
+      "ignored_extension": 11,
+      "metadata_error": 0,
+      "too_large": 2,
+      "total": 134
+    },
+    "fallback_reason": null,
+    "kept_files": 631,
+    "mode": "git",
+    "overall_confidence_0_10000": 8248,
+    "partial": false,
+    "resolution": {
+      "internal_confidence_0_10000": 9995,
+      "resolved": 1908,
+      "unresolved_external": 518,
+      "unresolved_internal": 1,
+      "unresolved_unknown": 83
+    },
+    "scope_coverage_0_10000": 8248,
+    "tracked_candidates": 765,
+    "truncated": false,
+    "untracked_candidates": 0
+  },
+  "semantic_error": null,
+  "signal_after": 4400,
+  "signal_before": 4400,
+  "signal_delta": 0,
+  "summary": "Touched-concept regressions detected",
+  "suppressed_finding_count": 0,
+  "suppression_hits": [],
+  "touched_concept_gate": {
+    "blocking_findings": [],
+    "decision": "fail"
+  },
+  "violations": [],
+  "watchpoint_count": 1,
+  "watchpoints": [
+    {
+      "boundary_pressure_count": 1,
+      "candidate_split_axes": [
+        "ownership boundary",
+        "propagation surface"
+      ],
+      "clone_family_count": 0,
+      "evidence": [
+        "boundary and ownership findings: 1",
+        "missing update sites: 5",
+        "context burden: 5"
+      ],
+      "files": [
+        "src/app/task-presentation-status.ts",
+        "src/components/SidebarTaskRow.tsx"
+      ],
+      "hotspot_count": 0,
+      "impact": "Split ownership and incomplete propagation make this concept easier to regress through partial edits.",
+      "inspection_focus": [
+        "inspect whether reads bypass the canonical accessor or public boundary",
+        "inspect the explicit propagation sites and completeness tests for this concept",
+        "inspect whether boundary erosion is making the propagation chain easier to miss"
+      ],
+      "kind": "concept_watchpoint",
+      "missing_site_count": 5,
+      "presentation_class": "watchpoint",
+      "related_surfaces": [
+        "src/app/task-presentation-status.ts",
+        "src/components/SidebarTaskRow.tsx"
+      ],
+      "role_tags": [],
+      "scope": "task_presentation_status",
+      "score_0_10000": 6100,
+      "severity": "medium",
+      "signal_families": [
+        "ownership",
+        "boundary",
+        "propagation"
+      ],
+      "summary": "Concept 'task_presentation_status' intersects boundary pressure, propagation burden",
+      "trust_tier": "watchpoint"
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "baseline_delta": {
+    "available": true,
+    "coupling_after": 0.4604090194022024,
+    "coupling_before": 0.4604090194022024,
+    "cycles_after": 2,
+    "cycles_before": 2,
+    "degraded": false,
+    "signal_after": 4400,
+    "signal_before": 4400,
+    "signal_delta": 0
+  },
+  "blocking_findings": [],
+  "changed_files": [],
+  "confidence": {
+    "rule_coverage_0_10000": 10000,
+    "scan_confidence_0_10000": 8248,
+    "semantic_rules_loaded": true,
+    "session_baseline": {
+      "compatible": true,
+      "error": null,
+      "loaded": true,
+      "schema_version": 3
+    }
+  },
+  "decision": "pass",
+  "experimental_finding_count": 0,
+  "experimental_findings": [],
+  "expired_suppression_match_count": 0,
+  "expired_suppressions": [],
+  "introduced_findings": [],
+  "missing_obligations": [],
+  "obligation_completeness_0_10000": 10000,
+  "rules_error": null,
+  "scan_trust": {
+    "candidate_files": 765,
+    "exclusions": {
+      "bucketed": {
+        "build": 12,
+        "cache": 0,
+        "fixture": 7,
+        "generated": 0,
+        "vendor": 102
+      },
+      "ignored_extension": 11,
+      "metadata_error": 0,
+      "too_large": 2,
+      "total": 134
+    },
+    "fallback_reason": null,
+    "kept_files": 631,
+    "mode": "git",
+    "overall_confidence_0_10000": 8248,
+    "partial": false,
+    "resolution": {
+      "internal_confidence_0_10000": 9995,
+      "resolved": 1908,
+      "unresolved_external": 518,
+      "unresolved_internal": 1,
+      "unresolved_unknown": 83
+    },
+    "scope_coverage_0_10000": 8248,
+    "tracked_candidates": 765,
+    "truncated": false,
+    "untracked_candidates": 0
+  },
+  "semantic_error": null,
+  "strict": false,
+  "summary": "No working-tree changes detected",
+  "suppressed_finding_count": 0,
+  "suppression_hits": []
+}

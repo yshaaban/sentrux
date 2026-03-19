@@ -1,0 +1,242 @@
+{
+  "concept": {
+    "allowed_writers": [],
+    "anchors": [
+      "src/domain/server-state-bootstrap.ts::SERVER_STATE_BOOTSTRAP_CATEGORIES",
+      "src/domain/server-state-bootstrap.ts::ServerStateBootstrapCategory",
+      "src/domain/server-state-bootstrap.ts::ServerStateBootstrapPayloadMap",
+      "src/app/server-state-bootstrap-registry.ts::SERVER_STATE_BOOTSTRAP_REGISTRY",
+      "src/app/server-state-bootstrap.ts::replaceServerStateBootstrap",
+      "src/app/server-state-bootstrap.ts::createServerStateBootstrapGate"
+    ],
+    "authoritative_inputs": [],
+    "canonical_accessors": [
+      "src/app/server-state-bootstrap.ts::replaceServerStateBootstrap",
+      "src/app/server-state-bootstrap-registry.ts::createServerStateBootstrapCategoryDescriptors",
+      "src/app/server-state-bootstrap-registry.ts::getServerStateListenerScope"
+    ],
+    "forbid_raw_reads": [],
+    "forbid_writers": [],
+    "id": "server_state_bootstrap",
+    "kind": "runtime_contract",
+    "priority": "critical",
+    "related_tests": [
+      "src/app/server-state-bootstrap.test.ts",
+      "src/app/server-state-bootstrap-registry.test.ts",
+      "src/app/session-bootstrap-controller.test.ts"
+    ]
+  },
+  "expired_suppression_match_count": 0,
+  "expired_suppressions": [],
+  "findings": [],
+  "obligations": [],
+  "parity": [
+    {
+      "files": [
+        "src/app/desktop-session.ts",
+        "src/app/server-state-bootstrap-registry.ts",
+        "src/domain/server-state-bootstrap.ts",
+        "src/runtime/browser-session.ts"
+      ],
+      "id": "server_state_bootstrap",
+      "kind": "runtime_parity",
+      "missing_cells": [],
+      "priority": "critical",
+      "satisfied_cells": [
+        {
+          "detail": "browser entry present: src/runtime/browser-session.ts",
+          "kind": "browser_entry",
+          "path": "src/runtime/browser-session.ts",
+          "status": "satisfied"
+        },
+        {
+          "detail": "runtime entry references contract-family symbols: src/runtime/browser-session.ts",
+          "kind": "browser_live_update_binding",
+          "path": "src/runtime/browser-session.ts",
+          "status": "satisfied"
+        },
+        {
+          "detail": "categories symbol declared: src/domain/server-state-bootstrap.ts::SERVER_STATE_BOOTSTRAP_CATEGORIES",
+          "kind": "categories_symbol",
+          "path": "src/domain/server-state-bootstrap.ts",
+          "status": "satisfied"
+        },
+        {
+          "detail": "electron entry present: src/app/desktop-session.ts",
+          "kind": "electron_entry",
+          "path": "src/app/desktop-session.ts",
+          "status": "satisfied"
+        },
+        {
+          "detail": "runtime entry references contract-family symbols: src/app/desktop-session.ts",
+          "kind": "electron_live_update_binding",
+          "path": "src/app/desktop-session.ts",
+          "status": "satisfied"
+        },
+        {
+          "detail": "payload map symbol declared: src/domain/server-state-bootstrap.ts::ServerStateBootstrapPayloadMap",
+          "kind": "payload_map_symbol",
+          "path": "src/domain/server-state-bootstrap.ts",
+          "status": "satisfied"
+        },
+        {
+          "detail": "registry symbol declared: src/app/server-state-bootstrap-registry.ts::SERVER_STATE_BOOTSTRAP_REGISTRY",
+          "kind": "registry_symbol",
+          "path": "src/app/server-state-bootstrap-registry.ts",
+          "status": "satisfied"
+        },
+        {
+          "detail": "version marker present in contract paths",
+          "kind": "versioning",
+          "path": "src/domain/server-state-bootstrap.ts",
+          "status": "satisfied"
+        }
+      ],
+      "score_0_10000": 10000,
+      "summary": "Contract 'server_state_bootstrap' satisfied 8 parity cells"
+    }
+  ],
+  "related_contract_ids": [
+    "server_state_bootstrap"
+  ],
+  "related_tests": [
+    {
+      "exists": true,
+      "matched_files": [
+        "src/app/server-state-bootstrap.test.ts"
+      ],
+      "pattern": "src/app/server-state-bootstrap.test.ts"
+    },
+    {
+      "exists": true,
+      "matched_files": [
+        "src/app/server-state-bootstrap-registry.test.ts"
+      ],
+      "pattern": "src/app/server-state-bootstrap-registry.test.ts"
+    },
+    {
+      "exists": true,
+      "matched_files": [
+        "src/app/session-bootstrap-controller.test.ts"
+      ],
+      "pattern": "src/app/session-bootstrap-controller.test.ts"
+    }
+  ],
+  "rules_error": null,
+  "semantic": {
+    "reads": [
+      {
+        "line": 28,
+        "path": "src/app/runtime-diagnostics.ts",
+        "read_kind": "property_access",
+        "symbol_name": "SERVER_STATE_BOOTSTRAP_CATEGORIES.map"
+      },
+      {
+        "line": 199,
+        "path": "src/app/server-state-bootstrap-registry.ts",
+        "read_kind": "property_access",
+        "symbol_name": "SERVER_STATE_BOOTSTRAP_REGISTRY.git-status.createDescriptor"
+      },
+      {
+        "line": 199,
+        "path": "src/app/server-state-bootstrap-registry.ts",
+        "read_kind": "element_access",
+        "symbol_name": "SERVER_STATE_BOOTSTRAP_REGISTRY.git-status"
+      },
+      {
+        "line": 200,
+        "path": "src/app/server-state-bootstrap-registry.ts",
+        "read_kind": "property_access",
+        "symbol_name": "SERVER_STATE_BOOTSTRAP_REGISTRY.remote-status.createDescriptor"
+      },
+      {
+        "line": 200,
+        "path": "src/app/server-state-bootstrap-registry.ts",
+        "read_kind": "element_access",
+        "symbol_name": "SERVER_STATE_BOOTSTRAP_REGISTRY.remote-status"
+      },
+      {
+        "line": 201,
+        "path": "src/app/server-state-bootstrap-registry.ts",
+        "read_kind": "property_access",
+        "symbol_name": "SERVER_STATE_BOOTSTRAP_REGISTRY.peer-presence.createDescriptor"
+      },
+      {
+        "line": 201,
+        "path": "src/app/server-state-bootstrap-registry.ts",
+        "read_kind": "element_access",
+        "symbol_name": "SERVER_STATE_BOOTSTRAP_REGISTRY.peer-presence"
+      },
+      {
+        "line": 203,
+        "path": "src/app/server-state-bootstrap-registry.ts",
+        "read_kind": "property_access",
+        "symbol_name": "SERVER_STATE_BOOTSTRAP_REGISTRY.task-command-controller.createDescriptor"
+      },
+      {
+        "line": 203,
+        "path": "src/app/server-state-bootstrap-registry.ts",
+        "read_kind": "element_access",
+        "symbol_name": "SERVER_STATE_BOOTSTRAP_REGISTRY.task-command-controller"
+      },
+      {
+        "line": 204,
+        "path": "src/app/server-state-bootstrap-registry.ts",
+        "read_kind": "property_access",
+        "symbol_name": "SERVER_STATE_BOOTSTRAP_REGISTRY.agent-supervision.createDescriptor"
+      },
+      {
+        "line": 204,
+        "path": "src/app/server-state-bootstrap-registry.ts",
+        "read_kind": "element_access",
+        "symbol_name": "SERVER_STATE_BOOTSTRAP_REGISTRY.agent-supervision"
+      },
+      {
+        "line": 205,
+        "path": "src/app/server-state-bootstrap-registry.ts",
+        "read_kind": "property_access",
+        "symbol_name": "SERVER_STATE_BOOTSTRAP_REGISTRY.task-convergence.createDescriptor"
+      },
+      {
+        "line": 205,
+        "path": "src/app/server-state-bootstrap-registry.ts",
+        "read_kind": "element_access",
+        "symbol_name": "SERVER_STATE_BOOTSTRAP_REGISTRY.task-convergence"
+      },
+      {
+        "line": 206,
+        "path": "src/app/server-state-bootstrap-registry.ts",
+        "read_kind": "property_access",
+        "symbol_name": "SERVER_STATE_BOOTSTRAP_REGISTRY.task-review.createDescriptor"
+      },
+      {
+        "line": 206,
+        "path": "src/app/server-state-bootstrap-registry.ts",
+        "read_kind": "element_access",
+        "symbol_name": "SERVER_STATE_BOOTSTRAP_REGISTRY.task-review"
+      },
+      {
+        "line": 207,
+        "path": "src/app/server-state-bootstrap-registry.ts",
+        "read_kind": "property_access",
+        "symbol_name": "SERVER_STATE_BOOTSTRAP_REGISTRY.task-ports.createDescriptor"
+      },
+      {
+        "line": 207,
+        "path": "src/app/server-state-bootstrap-registry.ts",
+        "read_kind": "element_access",
+        "symbol_name": "SERVER_STATE_BOOTSTRAP_REGISTRY.task-ports"
+      },
+      {
+        "line": 32,
+        "path": "src/app/server-state-bootstrap-registry.test.ts",
+        "read_kind": "property_access",
+        "symbol_name": "SERVER_STATE_BOOTSTRAP_CATEGORIES.length"
+      }
+    ],
+    "writes": []
+  },
+  "semantic_error": null,
+  "suppressed_finding_count": 0,
+  "suppression_hits": []
+}
