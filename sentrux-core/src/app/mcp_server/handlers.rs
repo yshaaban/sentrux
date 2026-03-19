@@ -1606,8 +1606,9 @@ fn finding_string_values(finding: &Value, field: &str) -> Vec<String> {
 }
 
 fn finding_files(finding: &Value) -> Vec<String> {
-    if let files @ [_, ..] = finding_string_values(finding, "files").as_slice() {
-        return files.to_vec();
+    let files = finding_string_values(finding, "files");
+    if !files.is_empty() {
+        return files;
     }
 
     if let Some(path) = finding.get("path").and_then(|value| value.as_str()) {

@@ -524,11 +524,12 @@ fn build_dead_island_reports(
         .into_iter()
         .filter_map(|component| {
             let component_set = component.iter().cloned().collect::<BTreeSet<_>>();
-            if component.iter().any(|path| app_reachable.contains(path)) {
+            let is_app_reachable = component.iter().any(|path| app_reachable.contains(path));
+            if is_app_reachable {
                 return None;
             }
 
-            let total_public_surface_count = component
+            let public_surface_count = component
                 .iter()
                 .map(|path| {
                     file_facts
@@ -537,14 +538,15 @@ fn build_dead_island_reports(
                         .unwrap_or(0)
                 })
                 .sum::<usize>();
-            if total_public_surface_count > 0 {
+            if public_surface_count > 0 {
                 return None;
             }
-            if component.iter().any(|path| {
+            let has_entry_or_package_surface = component.iter().any(|path| {
                 file_facts
                     .get(path)
                     .is_some_and(|facts| facts.is_package_index || facts.has_entry_tag)
-            }) {
+            });
+            if has_entry_or_package_surface {
                 return None;
             }
 
@@ -625,7 +627,7 @@ fn build_dead_island_reports(
                     line_count: Some(total_lines),
                     cycle_size: Some(cycle_size),
                     inbound_reference_count: Some(inbound_reference_count),
-                    public_surface_count: Some(total_public_surface_count),
+                    public_surface_count: Some(public_surface_count),
                     reachable_from_tests: Some(reachable_from_tests),
                     ..StructuralDebtMetrics::default()
                 },
