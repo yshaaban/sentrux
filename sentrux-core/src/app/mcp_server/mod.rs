@@ -30,7 +30,7 @@ use std::{
     sync::Arc,
 };
 
-pub const SESSION_V2_SCHEMA_VERSION: u32 = 2;
+pub const SESSION_V2_SCHEMA_VERSION: u32 = 3;
 const MIN_SUPPORTED_SESSION_V2_SCHEMA_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
@@ -43,6 +43,10 @@ pub struct SessionV2ConfidenceSnapshot {
 pub struct SessionV2Baseline {
     #[serde(default = "default_session_v2_schema_version")]
     pub schema_version: u32,
+    #[serde(default)]
+    pub project_fingerprint: Option<String>,
+    #[serde(default)]
+    pub sentrux_version: Option<String>,
     pub file_hashes: BTreeMap<String, u64>,
     pub finding_payloads: BTreeMap<String, Value>,
     pub git_head: Option<String>,

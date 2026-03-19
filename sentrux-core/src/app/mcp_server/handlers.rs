@@ -162,6 +162,33 @@ fn incompatible_session_baseline_status(
     }
 }
 
+fn project_mismatch_session_baseline_status(
+    schema_version: u32,
+    baseline_fingerprint: &str,
+    current_fingerprint: &str,
+) -> SessionBaselineStatus {
+    incompatible_session_baseline_status(
+        Some(schema_version),
+        format!(
+            "Session baseline project fingerprint {baseline_fingerprint} does not match current project fingerprint {current_fingerprint}"
+        ),
+    )
+}
+
+fn project_mismatch_status(
+    baseline: &SessionV2Baseline,
+    current_fingerprint: &str,
+) -> Option<SessionBaselineStatus> {
+    let baseline_fingerprint = baseline.project_fingerprint.as_deref()?;
+    (baseline_fingerprint != current_fingerprint).then(|| {
+        project_mismatch_session_baseline_status(
+            baseline.schema_version,
+            baseline_fingerprint,
+            current_fingerprint,
+        )
+    })
+}
+
 fn ratio_score_0_10000(numerator: usize, denominator: usize) -> u32 {
     if denominator == 0 {
         return 10000;
@@ -383,7 +410,11 @@ fn current_session_v2_baseline_with_status(
     state: &mut McpState,
     root: &Path,
 ) -> Result<(Option<SessionV2Baseline>, SessionBaselineStatus), String> {
+    let current_fingerprint = project_fingerprint(root);
     if let Some(session_v2) = &state.session_v2 {
+        if let Some(status) = project_mismatch_status(session_v2, &current_fingerprint) {
+            return Ok((None, status));
+        }
         return Ok((
             Some(session_v2.clone()),
             compatible_session_baseline_status(session_v2.schema_version),
@@ -392,6 +423,9 @@ fn current_session_v2_baseline_with_status(
 
     let (session_v2, status) = load_session_v2_baseline_status(root);
     if let Some(session_v2) = &session_v2 {
+        if let Some(status) = project_mismatch_status(session_v2, &current_fingerprint) {
+            return Ok((None, status));
+        }
         state.session_v2 = Some(session_v2.clone());
     }
     Ok((session_v2, status))
@@ -676,6 +710,17 @@ fn current_git_head(root: &Path) -> Option<String> {
         return None;
     }
     Some(head.to_string())
+}
+
+fn project_fingerprint(root: &Path) -> String {
+    let normalized_root = root
+        .canonicalize()
+        .unwrap_or_else(|_| root.to_path_buf())
+        .to_string_lossy()
+        .replace('\\', "/");
+    let mut hasher = DefaultHasher::new();
+    normalized_root.hash(&mut hasher);
+    format!("{:016x}", hasher.finish())
 }
 
 fn diff_paths_between_heads(
@@ -1006,6 +1051,8 @@ fn session_v2_analysis_signature(session_v2: Option<&SessionV2Baseline>) -> Opti
     let session_v2 = session_v2?;
     let mut hasher = DefaultHasher::new();
     session_v2.schema_version.hash(&mut hasher);
+    session_v2.project_fingerprint.hash(&mut hasher);
+    session_v2.sentrux_version.hash(&mut hasher);
     session_v2.git_head.hash(&mut hasher);
     for path in &session_v2.working_tree_paths {
         path.hash(&mut hasher);
@@ -1201,6 +1248,8 @@ fn build_session_v2_baseline(
     (
         SessionV2Baseline {
             schema_version: SESSION_V2_SCHEMA_VERSION,
+            project_fingerprint: Some(project_fingerprint(root)),
+            sentrux_version: Some(env!("CARGO_PKG_VERSION").to_string()),
             file_hashes,
             finding_payloads,
             git_head,
@@ -3067,12 +3116,13 @@ mod tests {
     use super::{
         apply_suppressions, build_exact_clone_findings, build_session_v2_baseline,
         changed_files_from_session_context, cli_evaluate_v2_gate, cli_save_v2_session,
-        distinct_file_count, do_scan, fresh_mcp_state, handle_concepts, handle_explain_concept,
-        handle_findings, handle_gate, handle_health, handle_obligations, handle_scan,
-        handle_session_end, handle_session_start, handle_state, handle_trace_symbol,
-        load_persisted_session_v2, load_session_v2_baseline_status, load_v2_rules_config,
-        overall_confidence_0_10000, prepare_patch_check_context, save_session_v2_baseline,
-        state_model_ids_from_findings, state_model_ids_from_reports, update_scan_cache,
+        current_session_v2_baseline_with_status, distinct_file_count, do_scan, fresh_mcp_state,
+        handle_concepts, handle_explain_concept, handle_findings, handle_gate, handle_health,
+        handle_obligations, handle_scan, handle_session_end, handle_session_start, handle_state,
+        handle_trace_symbol, load_persisted_session_v2, load_session_v2_baseline_status,
+        load_v2_rules_config, overall_confidence_0_10000, prepare_patch_check_context,
+        project_fingerprint, save_session_v2_baseline, state_model_ids_from_findings,
+        state_model_ids_from_reports, update_scan_cache,
     };
     use crate::analysis::scanner::common::{ScanMetadata, ScanMode};
     use crate::analysis::semantic::typescript::default_bridge_config;
@@ -3985,6 +4035,8 @@ mod tests {
         let root = temp_root("session-v2-roundtrip");
         let baseline = SessionV2Baseline {
             schema_version: SESSION_V2_SCHEMA_VERSION,
+            project_fingerprint: Some(project_fingerprint(&root)),
+            sentrux_version: Some(env!("CARGO_PKG_VERSION").to_string()),
             file_hashes: BTreeMap::from([
                 ("src/a.ts".to_string(), 11),
                 ("src/b.ts".to_string(), 22),
@@ -4012,6 +4064,8 @@ mod tests {
         assert_eq!(loaded.git_head, baseline.git_head);
         assert_eq!(loaded.working_tree_paths, baseline.working_tree_paths);
         assert_eq!(loaded.schema_version, SESSION_V2_SCHEMA_VERSION);
+        assert_eq!(loaded.project_fingerprint, baseline.project_fingerprint);
+        assert_eq!(loaded.sentrux_version, baseline.sentrux_version);
         assert_eq!(
             loaded.confidence.scan_confidence_0_10000,
             baseline.confidence.scan_confidence_0_10000
@@ -4032,6 +4086,8 @@ mod tests {
         assert_eq!(baseline.file_hashes["src/a.ts"], 11);
         assert!(baseline.git_head.is_none());
         assert!(baseline.working_tree_paths.is_empty());
+        assert!(baseline.project_fingerprint.is_none());
+        assert!(baseline.sentrux_version.is_none());
         assert!(baseline.confidence.scan_confidence_0_10000.is_none());
     }
 
@@ -4060,6 +4116,39 @@ mod tests {
             .as_deref()
             .unwrap_or_default()
             .contains("Unsupported"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn session_v2_status_rejects_project_mismatch() {
+        let root = closed_domain_gate_fixture_root();
+        write_file(
+            &root,
+            ".sentrux/session-v2.json",
+            &serde_json::to_string_pretty(&json!({
+                "schema_version": SESSION_V2_SCHEMA_VERSION,
+                "project_fingerprint": "different-project",
+                "sentrux_version": env!("CARGO_PKG_VERSION"),
+                "file_hashes": { "src/domain/state.ts": 11 },
+                "finding_payloads": {}
+            }))
+            .expect("serialize"),
+        );
+
+        let mut state = fresh_mcp_state();
+        let (baseline, status) =
+            current_session_v2_baseline_with_status(&mut state, &root).expect("load status");
+
+        assert!(baseline.is_none());
+        assert!(status.loaded);
+        assert!(!status.compatible);
+        assert_eq!(status.schema_version, Some(SESSION_V2_SCHEMA_VERSION));
+        assert!(status
+            .error
+            .as_deref()
+            .unwrap_or_default()
+            .contains("project fingerprint"));
 
         let _ = std::fs::remove_dir_all(root);
     }
@@ -4151,6 +4240,41 @@ mod tests {
             .as_str()
             .unwrap_or_default()
             .contains("Unsupported"));
+    }
+
+    #[test]
+    fn gate_reports_project_mismatch_session_v2_baseline_in_confidence() {
+        let root = closed_domain_gate_fixture_root();
+        write_file(
+            &root,
+            ".sentrux/session-v2.json",
+            &serde_json::to_string_pretty(&json!({
+                "schema_version": SESSION_V2_SCHEMA_VERSION,
+                "project_fingerprint": "different-project",
+                "sentrux_version": env!("CARGO_PKG_VERSION"),
+                "file_hashes": {},
+                "finding_payloads": {}
+            }))
+            .expect("serialize"),
+        );
+
+        let evaluated = cli_evaluate_v2_gate(&root, false).expect("evaluate v2 gate");
+
+        assert_eq!(evaluated["decision"], "pass");
+        assert_eq!(
+            evaluated["confidence"]["session_baseline"]["compatible"],
+            false
+        );
+        assert_eq!(
+            evaluated["confidence"]["session_baseline"]["schema_version"],
+            SESSION_V2_SCHEMA_VERSION
+        );
+        assert!(evaluated["confidence"]["session_baseline"]["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("project fingerprint"));
+
+        let _ = std::fs::remove_dir_all(root);
     }
 
     #[test]
