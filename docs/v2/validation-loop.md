@@ -136,7 +136,7 @@ If the benchmark fails:
 Use this when the goal is to improve `parallel-code`, not just validate analyzer stability.
 
 1. freeze the current baseline outputs
-2. review the top findings, concept summaries, and optimization priorities
+2. review the top findings, concept summaries, debt signals, and watchpoints
 3. select one ownership/boundary target, one propagation/obligation target, and one duplication/hotspot target
 4. make one refactor at a time in a disposable clone
 5. rerun the proof loop after each refactor
@@ -144,6 +144,7 @@ Use this when the goal is to improve `parallel-code`, not just validate analyzer
 
 The proof board in [Parallel-Code Proof Board](./parallel-code-proof-board.md) is the tracking surface for that loop.
 The reviewed baseline and resolved overstatements are tracked in [Parallel-Code Proof Review](./parallel-code-proof-review.md).
+Maintainer feedback verdicts are tracked in [parallel-code-review-verdicts.json](./examples/parallel-code-review-verdicts.json) and summarized by [summarize_parallel_code_review_feedback.mjs](../../scripts/summarize_parallel_code_review_feedback.mjs).
 
 ## Relationship To Migration
 
