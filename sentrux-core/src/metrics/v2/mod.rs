@@ -65,7 +65,7 @@ pub fn build_authority_and_access_findings_with_snapshot(
         findings.extend(writer_policy_findings(concept, semantic));
         findings.extend(raw_access_findings(concept, semantic));
         if let Some(snapshot) = snapshot {
-            findings.extend(authoritative_import_bypass_findings(concept, snapshot));
+            findings.extend(authoritative_import_bypass_findings(concept, semantic, snapshot));
         }
     }
 
@@ -196,6 +196,7 @@ fn raw_access_findings(concept: &ConceptRule, semantic: &SemanticSnapshot) -> Ve
 
 fn authoritative_import_bypass_findings(
     concept: &ConceptRule,
+    semantic: &SemanticSnapshot,
     snapshot: &Snapshot,
 ) -> Vec<SemanticFinding> {
     let authoritative_paths = concept_internal_boundary_paths(concept);
@@ -208,6 +209,7 @@ fn authoritative_import_bypass_findings(
     }
 
     let allowed_importers = concept_allowed_importer_paths(concept);
+    let usage_paths = concept_boundary_usage_paths(concept, semantic);
     let mut bypasses = BTreeMap::<String, BTreeSet<String>>::new();
 
     for edge in &snapshot.import_graph {
@@ -215,6 +217,9 @@ fn authoritative_import_bypass_findings(
             continue;
         }
         if edge.from_file == edge.to_file || is_test_file(&edge.from_file) {
+            continue;
+        }
+        if !usage_paths.contains(&edge.from_file) {
             continue;
         }
         if allowed_importers
@@ -278,6 +283,21 @@ fn authoritative_import_bypass_findings(
     }
 
     findings
+}
+
+fn concept_boundary_usage_paths(
+    concept: &ConceptRule,
+    semantic: &SemanticSnapshot,
+) -> HashSet<String> {
+    relevant_production_reads(concept, semantic)
+        .into_iter()
+        .map(|read| read.path.clone())
+        .chain(
+            relevant_production_writes(concept, semantic)
+                .into_iter()
+                .map(|write| write.path.clone()),
+        )
+        .collect()
 }
 
 pub(crate) fn relevant_writes<'a>(
@@ -354,19 +374,19 @@ pub(crate) fn concept_targets(concept: &ConceptRule) -> HashSet<String> {
 fn concept_internal_boundary_paths(concept: &ConceptRule) -> HashSet<String> {
     let mut paths = HashSet::new();
 
-    if concept.kind == "projection" && !concept.authoritative_inputs.is_empty() {
+    if !concept.authoritative_inputs.is_empty() {
         for value in &concept.authoritative_inputs {
             insert_scoped_path(&mut paths, value);
         }
-        return paths;
+        if concept.kind == "projection" {
+            return paths;
+        }
     }
 
-    for value in concept
-        .anchors
-        .iter()
-        .chain(concept.authoritative_inputs.iter())
-    {
-        insert_scoped_path(&mut paths, value);
+    if concept.kind == "authoritative_state" {
+        for value in &concept.anchors {
+            insert_scoped_path(&mut paths, value);
+        }
     }
 
     paths
@@ -779,10 +799,15 @@ mod tests {
         let semantic = SemanticSnapshot {
             project: ProjectModel::default(),
             analyzed_files: 0,
-            capabilities: vec![SemanticCapability::Writes],
+            capabilities: vec![SemanticCapability::Reads],
             files: Vec::new(),
             symbols: Vec::new(),
-            reads: Vec::new(),
+            reads: vec![ReadFact {
+                path: "src/app/task-workflows.ts".to_string(),
+                symbol_name: "store.taskGitStatus".to_string(),
+                read_kind: "property_access".to_string(),
+                line: 21,
+            }],
             writes: Vec::new(),
             closed_domains: Vec::new(),
             closed_domain_sites: Vec::new(),
@@ -821,6 +846,55 @@ mod tests {
     }
 
     #[test]
+    fn ignores_internal_imports_without_matching_concept_usage() {
+        let config: RulesConfig = toml::from_str(
+            r#"
+                [[concept]]
+                id = "task_git_status"
+                kind = "authoritative_state"
+                priority = "critical"
+                anchors = ["src/store/core.ts::store.taskGitStatus"]
+                canonical_accessors = ["src/store/store.ts::getTaskGitStatus"]
+            "#,
+        )
+        .expect("rules config");
+        let semantic = SemanticSnapshot {
+            project: ProjectModel::default(),
+            analyzed_files: 0,
+            capabilities: vec![SemanticCapability::Reads],
+            files: Vec::new(),
+            symbols: Vec::new(),
+            reads: vec![ReadFact {
+                path: "src/app/sidebar.ts".to_string(),
+                symbol_name: "store.otherValue".to_string(),
+                read_kind: "property_access".to_string(),
+                line: 14,
+            }],
+            writes: Vec::new(),
+            closed_domains: Vec::new(),
+            closed_domain_sites: Vec::new(),
+        };
+        let snapshot = snap_with_edges(
+            vec![
+                edge("src/app/sidebar.ts", "src/store/core.ts"),
+                edge("src/store/store.ts", "src/store/core.ts"),
+            ],
+            vec![
+                file("src/app/sidebar.ts"),
+                file("src/store/core.ts"),
+                file("src/store/store.ts"),
+            ],
+        );
+
+        let findings =
+            build_authority_and_access_findings_with_snapshot(&config, &semantic, Some(&snapshot));
+
+        assert!(findings
+            .iter()
+            .all(|finding| finding.kind != "authoritative_import_bypass"));
+    }
+
+    #[test]
     fn reports_projection_import_bypass_through_authoritative_inputs() {
         let config: RulesConfig = toml::from_str(
             r#"
@@ -842,7 +916,12 @@ mod tests {
             capabilities: vec![SemanticCapability::Reads],
             files: Vec::new(),
             symbols: Vec::new(),
-            reads: Vec::new(),
+            reads: vec![ReadFact {
+                path: "src/components/SidebarTaskRow.tsx".to_string(),
+                symbol_name: "store.taskGitStatus".to_string(),
+                read_kind: "property_access".to_string(),
+                line: 42,
+            }],
             writes: Vec::new(),
             closed_domains: Vec::new(),
             closed_domain_sites: Vec::new(),
@@ -873,6 +952,74 @@ mod tests {
     }
 
     #[test]
+    fn runtime_contract_concepts_do_not_treat_domain_anchors_as_boundary_bypasses() {
+        let config: RulesConfig = toml::from_str(
+            r#"
+                [[concept]]
+                id = "server_state_bootstrap"
+                kind = "runtime_contract"
+                priority = "critical"
+                anchors = [
+                  "src/domain/server-state-bootstrap.ts::SERVER_STATE_BOOTSTRAP_CATEGORIES",
+                  "src/domain/server-state-bootstrap.ts::ServerStateBootstrapCategory",
+                ]
+                canonical_accessors = [
+                  "src/app/server-state-bootstrap.ts::replaceServerStateBootstrap",
+                  "src/app/server-state-bootstrap-registry.ts::createServerStateBootstrapCategoryDescriptors",
+                ]
+            "#,
+        )
+        .expect("rules config");
+        let semantic = SemanticSnapshot {
+            project: ProjectModel::default(),
+            analyzed_files: 0,
+            capabilities: vec![SemanticCapability::Reads],
+            files: Vec::new(),
+            symbols: Vec::new(),
+            reads: vec![ReadFact {
+                path: "src/app/runtime-diagnostics.ts".to_string(),
+                symbol_name:
+                    "src/domain/server-state-bootstrap.ts::SERVER_STATE_BOOTSTRAP_CATEGORIES"
+                        .to_string(),
+                read_kind: "identifier".to_string(),
+                line: 3,
+            }],
+            writes: Vec::new(),
+            closed_domains: Vec::new(),
+            closed_domain_sites: Vec::new(),
+        };
+        let snapshot = snap_with_edges(
+            vec![
+                edge("src/app/runtime-diagnostics.ts", "src/domain/server-state-bootstrap.ts"),
+                edge(
+                    "src/app/server-state-bootstrap.ts",
+                    "src/domain/server-state-bootstrap.ts",
+                ),
+                edge(
+                    "src/app/server-state-bootstrap-registry.ts",
+                    "src/domain/server-state-bootstrap.ts",
+                ),
+            ],
+            vec![
+                file("src/app/runtime-diagnostics.ts"),
+                file("src/app/server-state-bootstrap.ts"),
+                file("src/app/server-state-bootstrap-registry.ts"),
+                file("src/domain/server-state-bootstrap.ts"),
+            ],
+        );
+
+        let findings = build_authority_and_access_findings_with_snapshot(
+            &config,
+            &semantic,
+            Some(&snapshot),
+        );
+
+        assert!(findings
+            .iter()
+            .all(|finding| finding.kind != "authoritative_import_bypass"));
+    }
+
+    #[test]
     fn reports_concept_boundary_pressure_when_multiple_files_bypass_same_boundary() {
         let config: RulesConfig = toml::from_str(
             r#"
@@ -888,10 +1035,23 @@ mod tests {
         let semantic = SemanticSnapshot {
             project: ProjectModel::default(),
             analyzed_files: 0,
-            capabilities: vec![SemanticCapability::Writes],
+            capabilities: vec![SemanticCapability::Reads],
             files: Vec::new(),
             symbols: Vec::new(),
-            reads: Vec::new(),
+            reads: vec![
+                ReadFact {
+                    path: "src/app/task-workflows.ts".to_string(),
+                    symbol_name: "store.taskGitStatus".to_string(),
+                    read_kind: "property_access".to_string(),
+                    line: 21,
+                },
+                ReadFact {
+                    path: "src/app/sidebar.ts".to_string(),
+                    symbol_name: "store.taskGitStatus".to_string(),
+                    read_kind: "property_access".to_string(),
+                    line: 33,
+                },
+            ],
             writes: Vec::new(),
             closed_domains: Vec::new(),
             closed_domain_sites: Vec::new(),
@@ -900,12 +1060,14 @@ mod tests {
             vec![
                 edge("src/app/task-workflows.ts", "src/store/core.ts"),
                 edge("src/app/sidebar.ts", "src/store/core.ts"),
+                edge("src/store/internal-status.ts", "src/store/core.ts"),
                 edge("src/store/store.ts", "src/store/core.ts"),
             ],
             vec![
                 file("src/app/task-workflows.ts"),
                 file("src/app/sidebar.ts"),
                 file("src/store/core.ts"),
+                file("src/store/internal-status.ts"),
                 file("src/store/store.ts"),
             ],
         );
@@ -916,7 +1078,8 @@ mod tests {
         let pressure = findings
             .iter()
             .find(|finding| finding.kind == "concept_boundary_pressure")
-            .expect("boundary pressure finding");
+            .expect("concept boundary pressure finding");
+        assert_eq!(pressure.severity, "medium");
         assert_eq!(
             pressure.files,
             vec!["src/app/sidebar.ts", "src/app/task-workflows.ts"]

@@ -8,7 +8,10 @@ kind = "authoritative_state"
 priority = "critical"
 anchors = ["src/store/core.ts::store.taskGitStatus"]
 authoritative_inputs = ["src/store/core.ts::store.taskGitStatus"]
-allowed_writers = ["src/app/git-status-sync.ts::store.taskGitStatus.*"]
+allowed_writers = [
+  "src/app/git-status-sync.ts::store.taskGitStatus.*",
+  "src/store/task-git-status.ts::store.taskGitStatus.*",
+]
 canonical_accessors = [
   "src/store/taskStatus.ts::getTaskDotStatus",
   "src/store/taskStatus.ts::refreshTaskStatus",
