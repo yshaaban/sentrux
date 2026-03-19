@@ -602,14 +602,22 @@ async function main() {
     if (failOnRegression) {
       process.exitCode = 1;
     }
-  } else if (comparison?.warnings.length) {
+  }
+
+  if (comparison?.warnings.length) {
     console.log('\nBenchmark warning regressions detected:');
     for (const warning of comparison.warnings) {
       console.log(
         `- [warn] ${warning.metric}: ${warning.previous_ms}ms -> ${warning.current_ms}ms (${warning.delta_ms}ms, ${warning.delta_percent}%)`,
       );
     }
-  } else if (comparison) {
+  }
+
+  if (
+    comparison &&
+    comparison.regressions.length === 0 &&
+    comparison.warnings.length === 0
+  ) {
     console.log('No benchmark regressions detected.');
   }
 }

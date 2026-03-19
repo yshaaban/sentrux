@@ -928,11 +928,11 @@ fn contract_site_has_boundary_risk(site: &ObligationSite) -> bool {
 }
 
 fn summarize_contract_missing_sites(missing_sites: &[ObligationSite]) -> String {
-    let mut labels = missing_sites
+    let labels = missing_sites
         .iter()
         .map(contract_site_summary_label)
         .collect::<Vec<_>>();
-    labels.dedup();
+    let labels = stable_dedup_labels(labels);
     if labels.len() == 1 {
         return format!("the {} surface", labels[0]);
     }
@@ -961,6 +961,17 @@ fn contract_site_summary_label(site: &ObligationSite) -> &'static str {
     }
 }
 
+fn stable_dedup_labels(labels: Vec<&'static str>) -> Vec<&'static str> {
+    let mut seen = BTreeSet::new();
+    let mut deduped = Vec::new();
+    for label in labels {
+        if seen.insert(label) {
+            deduped.push(label);
+        }
+    }
+    deduped
+}
+
 fn path_matches(pattern: &str, path: &str) -> bool {
     if rules::glob_match(pattern, path) {
         return true;
@@ -970,11 +981,15 @@ fn path_matches(pattern: &str, path: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{build_obligations, obligation_score_0_10000, ObligationScope};
+    use super::{
+        build_obligations, obligation_score_0_10000, summarize_contract_missing_sites,
+        ObligationScope,
+    };
     use crate::analysis::semantic::{
         ClosedDomain, ExhaustivenessSite, ProjectModel, ReadFact, SemanticCapability,
         SemanticFileFact, SemanticSnapshot, SymbolFact,
     };
+    use crate::metrics::v2::ObligationSite;
     use crate::metrics::rules::RulesConfig;
     use std::collections::BTreeSet;
 
@@ -1693,6 +1708,35 @@ mod tests {
         assert_eq!(
             contract.missing_sites.get(2).map(|site| site.kind.as_str()),
             Some("required_file")
+        );
+    }
+
+    #[test]
+    fn contract_missing_site_summary_dedupes_non_adjacent_labels() {
+        let summary = summarize_contract_missing_sites(&[
+            ObligationSite {
+                path: "src/app/bootstrap-adapter.ts".to_string(),
+                kind: "required_symbol".to_string(),
+                line: None,
+                detail: "update adapter".to_string(),
+            },
+            ObligationSite {
+                path: "src/runtime/browser-session.ts".to_string(),
+                kind: "browser_entry".to_string(),
+                line: None,
+                detail: "update browser runtime entry".to_string(),
+            },
+            ObligationSite {
+                path: "src/app/bootstrap-persist.ts".to_string(),
+                kind: "required_symbol".to_string(),
+                line: None,
+                detail: "update required contract symbol".to_string(),
+            },
+        ]);
+
+        assert_eq!(
+            summary,
+            "the required symbol and browser runtime entry surfaces"
         );
     }
 }
