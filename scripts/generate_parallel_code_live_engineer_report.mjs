@@ -111,6 +111,14 @@ function isSingleRepoPath(value) {
   return looksLikeRepoPath(value) && !value.includes('|');
 }
 
+function formatScopeHeading(repoPath, scope) {
+  return isSingleRepoPath(scope) ? formatRepoPathMarkdown(repoPath, scope) : scope;
+}
+
+function formatScopeBullet(repoPath, scope) {
+  return isSingleRepoPath(scope) ? formatRepoPathMarkdown(repoPath, scope) : `\`${scope}\``;
+}
+
 function appendRepoLinkList(lines, title, repoPath, surfaces, limit = 5) {
   if ((surfaces ?? []).length === 0) {
     return;
@@ -123,11 +131,7 @@ function appendRepoLinkList(lines, title, repoPath, surfaces, limit = 5) {
 }
 
 function appendCandidateBlock(lines, candidate, repoRoot) {
-  if (isSingleRepoPath(candidate.scope)) {
-    lines.push(`### ${formatRepoPathMarkdown(repoRoot, candidate.scope)}`);
-  } else {
-    lines.push(`### ${candidate.scope}`);
-  }
+  lines.push(`### ${formatScopeHeading(repoRoot, candidate.scope)}`);
   lines.push('');
   appendCodeBullet(lines, 'trust tier', candidate.trust_tier ?? 'trusted');
   appendCodeBullet(lines, 'class', candidate.presentation_class ?? 'structural_debt');
@@ -486,11 +490,7 @@ function buildLiveEngineerAppendix({
   lines.push('## Leverage Summary');
   lines.push('');
   for (const candidate of leadCandidates) {
-    if (isSingleRepoPath(candidate.scope)) {
-      lines.push(`### ${formatRepoPathMarkdown(metadata.parallel_code_root, candidate.scope)}`);
-    } else {
-      lines.push(`### ${candidate.scope}`);
-    }
+    lines.push(`### ${formatScopeHeading(metadata.parallel_code_root, candidate.scope)}`);
     lines.push('');
     lines.push(`- \`${candidate.trust_tier ?? 'trusted'}\``);
     lines.push(`- class: \`${candidate.presentation_class}\``);
@@ -548,13 +548,9 @@ function buildLiveEngineerAppendix({
   lines.push('## Tooling Debt');
   lines.push('');
   for (const candidate of toolingDebt) {
-    if (isSingleRepoPath(candidate.scope)) {
-      lines.push(
-        `- ${formatRepoPathMarkdown(metadata.parallel_code_root, candidate.scope)} ${candidate.summary}`,
-      );
-    } else {
-      lines.push(`- \`${candidate.scope}\` ${candidate.summary}`);
-    }
+    lines.push(
+      `- ${formatScopeBullet(metadata.parallel_code_root, candidate.scope)} ${candidate.summary}`,
+    );
   }
   if (toolingDebt.length === 0) {
     lines.push('- none');
@@ -617,11 +613,7 @@ function buildLiveEngineerAppendix({
     lines.push('Representative examples:');
     lines.push('');
     for (const signal of experimentalSignals.slice(0, 5)) {
-      if (isSingleRepoPath(signal.scope)) {
-        lines.push(`- ${formatRepoPathMarkdown(metadata.parallel_code_root, signal.scope)}`);
-      } else {
-        lines.push(`- \`${signal.scope}\``);
-      }
+      lines.push(`- ${formatScopeBullet(metadata.parallel_code_root, signal.scope)}`);
     }
     lines.push('');
   }
