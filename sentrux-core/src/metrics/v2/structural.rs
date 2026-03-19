@@ -64,6 +64,7 @@ pub struct StructuralDebtReport {
     pub kind: String,
     pub trust_tier: String,
     pub presentation_class: String,
+    pub leverage_class: String,
     pub scope: String,
     pub signal_class: String,
     pub signal_families: Vec<String>,
@@ -74,6 +75,8 @@ pub struct StructuralDebtReport {
     pub files: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub role_tags: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub leverage_reasons: Vec<String>,
     pub evidence: Vec<String>,
     pub inspection_focus: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -224,9 +227,7 @@ fn file_facts(
             role_tags.push("guarded_boundary".to_string());
         }
     }
-    if file.path.contains("store/store.")
-        && role_tags.iter().any(|tag| tag == "guarded_boundary")
-    {
+    if file.path.contains("store/store.") && role_tags.iter().any(|tag| tag == "guarded_boundary") {
         role_tags.push("component_barrel".to_string());
     }
 
@@ -388,12 +389,10 @@ fn detect_architecture_guardrails(
             dedupe_strings_preserve_order(std::mem::take(&mut evidence.required_literals));
         evidence.forbidden_literals =
             dedupe_strings_preserve_order(std::mem::take(&mut evidence.forbidden_literals));
-        evidence.facade_owner_factories = dedupe_strings_preserve_order(std::mem::take(
-            &mut evidence.facade_owner_factories,
-        ));
-        evidence.boundary_guard_literals = dedupe_strings_preserve_order(std::mem::take(
-            &mut evidence.boundary_guard_literals,
-        ));
+        evidence.facade_owner_factories =
+            dedupe_strings_preserve_order(std::mem::take(&mut evidence.facade_owner_factories));
+        evidence.boundary_guard_literals =
+            dedupe_strings_preserve_order(std::mem::take(&mut evidence.boundary_guard_literals));
     }
 
     evidence_by_file
@@ -639,6 +638,152 @@ fn structural_presentation_class(
     "structural_debt".to_string()
 }
 
+fn structural_leverage_class(report: &StructuralDebtReport) -> String {
+    if report.trust_tier == "experimental" {
+        return "experimental".to_string();
+    }
+    if report.presentation_class == "tooling_debt" {
+        return "tooling_debt".to_string();
+    }
+    if report.presentation_class == "hardening_note" {
+        return "hardening_note".to_string();
+    }
+    if report.presentation_class == "guarded_facade" {
+        return "boundary_discipline".to_string();
+    }
+    if report.kind == "cycle_cluster" {
+        if has_role_tag(&report.role_tags, "component_barrel")
+            || has_role_tag(&report.role_tags, "guarded_boundary")
+            || report.metrics.cut_candidate_count.unwrap_or(0) > 0
+                && report.metrics.cycle_size.unwrap_or(0)
+                    > report.metrics.largest_cycle_after_best_cut.unwrap_or(0)
+        {
+            return "architecture_signal".to_string();
+        }
+        return "secondary_cleanup".to_string();
+    }
+    if report.kind == "dead_island" {
+        return "secondary_cleanup".to_string();
+    }
+    if has_role_tag(&report.role_tags, "component_barrel")
+        || has_role_tag(&report.role_tags, "guarded_boundary")
+    {
+        return "architecture_signal".to_string();
+    }
+    if has_role_tag(&report.role_tags, "composition_root")
+        || has_role_tag(&report.role_tags, "entry_surface")
+    {
+        return "regrowth_watchpoint".to_string();
+    }
+    if has_role_tag(&report.role_tags, "facade_with_extracted_owners") {
+        if extracted_owner_facade_needs_secondary_cleanup(
+            report.kind.as_str(),
+            &report.role_tags,
+            report.metrics.line_count,
+            report.metrics.max_complexity,
+            report.metrics.fan_in,
+        ) {
+            return "secondary_cleanup".to_string();
+        }
+        return "local_refactor_target".to_string();
+    }
+    match report.kind.as_str() {
+        "clone_family" | "clone_group" | "exact_clone_group" => "secondary_cleanup".to_string(),
+        "dependency_sprawl" | "unstable_hotspot" | "hotspot" => "local_refactor_target".to_string(),
+        _ => "secondary_cleanup".to_string(),
+    }
+}
+
+fn structural_leverage_reasons(report: &StructuralDebtReport) -> Vec<String> {
+    let mut reasons = Vec::new();
+    match structural_leverage_class(report).as_str() {
+        "experimental" => reasons.push("detector_under_evaluation".to_string()),
+        "tooling_debt" => reasons.push("tooling_surface_maintenance_burden".to_string()),
+        "hardening_note" => reasons.push("narrow_completeness_gap".to_string()),
+        "boundary_discipline" => {
+            reasons.push("guarded_or_transport_facade".to_string());
+            if report.metrics.fan_in.unwrap_or(0) > 0 {
+                reasons.push("heavy_inbound_seam_pressure".to_string());
+            }
+        }
+        "architecture_signal" => {
+            if has_role_tag(&report.role_tags, "component_barrel") {
+                reasons.push("shared_barrel_boundary_hub".to_string());
+            }
+            if has_role_tag(&report.role_tags, "guarded_boundary") {
+                reasons.push("guardrail_backed_boundary_pressure".to_string());
+            }
+            if report.kind == "cycle_cluster" {
+                reasons.push("mixed_cycle_pressure".to_string());
+                if report.metrics.cut_candidate_count.unwrap_or(0) > 0 {
+                    reasons.push("high_leverage_cycle_cut".to_string());
+                }
+            }
+            if report.metrics.fan_in.unwrap_or(0) > 0 {
+                reasons.push("high_inbound_dependency_pressure".to_string());
+            }
+        }
+        "regrowth_watchpoint" => {
+            reasons.push("intentionally_central_surface".to_string());
+            reasons.push("fan_out_regrowth_pressure".to_string());
+        }
+        "local_refactor_target" => {
+            if has_role_tag(&report.role_tags, "facade_with_extracted_owners") {
+                reasons.push("extracted_owner_shell_pressure".to_string());
+            }
+            if report.metrics.guardrail_test_count.unwrap_or(0) > 0 {
+                reasons.push("guardrail_backed_refactor_surface".to_string());
+            }
+            if report.metrics.fan_out.unwrap_or(0) > 0 {
+                reasons.push("contained_dependency_pressure".to_string());
+            }
+        }
+        "secondary_cleanup" => {
+            if report.kind == "dead_island" {
+                reasons.push("disconnected_internal_component".to_string());
+            } else if report.kind == "cycle_cluster" {
+                reasons.push("smaller_cycle_watchpoint".to_string());
+            } else if has_role_tag(&report.role_tags, "facade_with_extracted_owners") {
+                reasons.push("secondary_facade_cleanup".to_string());
+            } else if report.kind == "large_file" {
+                reasons.push("supporting_size_pressure".to_string());
+            } else {
+                reasons.push("real_but_lower_leverage_cleanup".to_string());
+            }
+        }
+        _ => {}
+    }
+    dedupe_strings_preserve_order(reasons)
+}
+
+fn extracted_owner_facade_needs_secondary_cleanup(
+    kind: &str,
+    role_tags: &[String],
+    line_count: Option<usize>,
+    max_complexity: Option<u32>,
+    fan_in: Option<usize>,
+) -> bool {
+    if has_role_tag(role_tags, "entry_surface") {
+        return true;
+    }
+    if kind == "large_file" {
+        return true;
+    }
+    if line_count.unwrap_or(0) >= 500 {
+        return true;
+    }
+    if max_complexity.unwrap_or(0) >= 20 {
+        return true;
+    }
+    fan_in.unwrap_or(0) >= 20
+}
+
+fn annotate_structural_leverage(mut report: StructuralDebtReport) -> StructuralDebtReport {
+    report.leverage_class = structural_leverage_class(&report);
+    report.leverage_reasons = structural_leverage_reasons(&report);
+    report
+}
+
 fn contextual_role_tags(
     path: &str,
     facts: &FileFacts,
@@ -651,20 +796,15 @@ fn contextual_role_tags(
         role_tags.push("transport_facade".to_string());
     }
 
-    let imported_by_entry_surface = graph
-        .import_incoming
-        .get(path)
-        .is_some_and(|sources| {
-            sources.iter().any(|source| {
-                file_facts
-                    .get(source)
-                    .is_some_and(|source_facts| {
-                        has_role(source_facts, "entry_surface")
-                            || source_facts.has_entry_tag
-                            || looks_like_entry_surface_path(source)
-                    })
+    let imported_by_entry_surface = graph.import_incoming.get(path).is_some_and(|sources| {
+        sources.iter().any(|source| {
+            file_facts.get(source).is_some_and(|source_facts| {
+                has_role(source_facts, "entry_surface")
+                    || source_facts.has_entry_tag
+                    || looks_like_entry_surface_path(source)
             })
-        });
+        })
+    });
     if imported_by_entry_surface && path.starts_with("src/") {
         role_tags.push("composition_root".to_string());
     }
@@ -834,12 +974,15 @@ fn dependency_sprawl_focus(role_tags: &[String]) -> Vec<String> {
     }
     if has_role_tag(role_tags, "composition_root") || has_role_tag(role_tags, "entry_surface") {
         return vec![
-            "inspect whether view composition can stay separate from runtime or session wiring".to_string(),
-            "inspect whether shell responsibilities are spreading across too many direct imports".to_string(),
+            "inspect whether view composition can stay separate from runtime or session wiring"
+                .to_string(),
+            "inspect whether shell responsibilities are spreading across too many direct imports"
+                .to_string(),
         ];
     }
     vec![
-        "inspect whether orchestration and policy code can move behind narrower helpers".to_string(),
+        "inspect whether orchestration and policy code can move behind narrower helpers"
+            .to_string(),
         "inspect whether unrelated adapter dependencies are accumulating in one module".to_string(),
     ]
 }
@@ -869,7 +1012,10 @@ fn unstable_hotspot_summary(path: &str, fan_in: usize, role_tags: &[String]) -> 
             path, fan_in
         );
     }
-    format!("File '{}' has {} inbound references and remains unstable", path, fan_in)
+    format!(
+        "File '{}' has {} inbound references and remains unstable",
+        path, fan_in
+    )
 }
 
 fn unstable_hotspot_impact(role_tags: &[String]) -> String {
@@ -885,14 +1031,17 @@ fn unstable_hotspot_impact(role_tags: &[String]) -> String {
     if has_role_tag(role_tags, "facade_with_extracted_owners") {
         return "A volatile public facade can hide whether the real extracted owners are taking the intended load or whether coordination is flowing back uphill.".to_string();
     }
-    "High fan-in plus instability increases blast radius and makes small edits harder to contain.".to_string()
+    "High fan-in plus instability increases blast radius and makes small edits harder to contain."
+        .to_string()
 }
 
 fn unstable_hotspot_focus(role_tags: &[String]) -> Vec<String> {
     if has_role_tag(role_tags, "transport_facade") {
         return vec![
-            "inspect whether lifecycle or domain policy is accumulating inside transport glue".to_string(),
-            "inspect whether callers or owner modules can take decisions outside the facade".to_string(),
+            "inspect whether lifecycle or domain policy is accumulating inside transport glue"
+                .to_string(),
+            "inspect whether callers or owner modules can take decisions outside the facade"
+                .to_string(),
         ];
     }
     if has_role_tag(role_tags, "component_barrel") {
@@ -904,13 +1053,16 @@ fn unstable_hotspot_focus(role_tags: &[String]) -> Vec<String> {
     if has_role_tag(role_tags, "guarded_boundary") {
         return vec![
             "inspect whether a narrower public boundary can serve the common consumers".to_string(),
-            "inspect whether intended callers are mixed with broader orchestration traffic".to_string(),
+            "inspect whether intended callers are mixed with broader orchestration traffic"
+                .to_string(),
         ];
     }
     if has_role_tag(role_tags, "facade_with_extracted_owners") {
         return vec![
-            "inspect whether volatile logic belongs in extracted owners instead of the facade".to_string(),
-            "inspect whether too many callers still depend on coordination-heavy facade behavior".to_string(),
+            "inspect whether volatile logic belongs in extracted owners instead of the facade"
+                .to_string(),
+            "inspect whether too many callers still depend on coordination-heavy facade behavior"
+                .to_string(),
         ];
     }
     vec![
@@ -927,7 +1079,8 @@ fn cycle_role_tags(
     graph: &StructuralGraph,
 ) -> Vec<String> {
     dedupe_strings_preserve_order(
-        files.iter()
+        files
+            .iter()
             .filter_map(|path| {
                 file_facts
                     .get(path)
@@ -1001,11 +1154,13 @@ fn build_large_file_reports(
         .filter_map(|file_metric| {
             let facts = file_facts.get(&file_metric.path)?;
             let role_tags = contextual_role_tags(&file_metric.path, facts, graph, file_facts);
-            let threshold = lang_registry::profile(&facts.lang).thresholds.large_file_lines;
+            let threshold = lang_registry::profile(&facts.lang)
+                .thresholds
+                .large_file_lines;
             let score_0_10000 =
                 large_file_score(file_metric.value, threshold, facts.max_complexity);
 
-            Some(StructuralDebtReport {
+            Some(annotate_structural_leverage(StructuralDebtReport {
                 kind: "large_file".to_string(),
                 trust_tier: "trusted".to_string(),
                 presentation_class: structural_presentation_class(
@@ -1014,6 +1169,7 @@ fn build_large_file_reports(
                     "trusted",
                     &role_tags,
                 ),
+                leverage_class: String::new(),
                 scope: file_metric.path.clone(),
                 signal_class: "debt".to_string(),
                 signal_families: vec!["size".to_string(), "coordination".to_string()],
@@ -1029,18 +1185,23 @@ fn build_large_file_reports(
                 impact: large_file_impact(&file_metric.path, &role_tags),
                 files: vec![file_metric.path.clone()],
                 role_tags: role_tags.clone(),
+                leverage_reasons: Vec::new(),
                 evidence: dedupe_strings_preserve_order(with_guardrail_evidence(
                     facts,
                     vec![
-                    format!("line count: {}", file_metric.value),
-                    format!("large-file threshold: {}", threshold),
-                    format!("function count: {}", facts.function_count),
-                    format!("peak function complexity: {}", facts.max_complexity),
-                    format!(
-                        "outbound dependencies: {}",
-                        graph.outgoing.get(&file_metric.path).map(|paths| paths.len()).unwrap_or(0)
-                    ),
-                ],
+                        format!("line count: {}", file_metric.value),
+                        format!("large-file threshold: {}", threshold),
+                        format!("function count: {}", facts.function_count),
+                        format!("peak function complexity: {}", facts.max_complexity),
+                        format!(
+                            "outbound dependencies: {}",
+                            graph
+                                .outgoing
+                                .get(&file_metric.path)
+                                .map(|paths| paths.len())
+                                .unwrap_or(0)
+                        ),
+                    ],
                 )),
                 inspection_focus: large_file_inspection_focus(&file_metric.path, &role_tags),
                 candidate_split_axes: large_file_split_axes(facts, graph, &file_metric.path),
@@ -1054,14 +1215,18 @@ fn build_large_file_reports(
                     line_count: Some(file_metric.value),
                     function_count: Some(facts.function_count),
                     fan_out: Some(
-                        graph.outgoing.get(&file_metric.path).map(|paths| paths.len()).unwrap_or(0),
+                        graph
+                            .outgoing
+                            .get(&file_metric.path)
+                            .map(|paths| paths.len())
+                            .unwrap_or(0),
                     ),
                     max_complexity: Some(facts.max_complexity),
                     guardrail_test_count: Some(facts.guardrail_tests.len()),
                     role_count: Some(role_tags.len()),
                     ..StructuralDebtMetrics::default()
                 },
-            })
+            }))
         })
         .collect()
 }
@@ -1077,14 +1242,22 @@ fn build_dependency_sprawl_reports(
         .filter_map(|file_metric| {
             let facts = file_facts.get(&file_metric.path)?;
             let role_tags = contextual_role_tags(&file_metric.path, facts, graph, file_facts);
-            let fan_in = graph.incoming.get(&file_metric.path).map(|paths| paths.len()).unwrap_or(0);
-            let fan_out = graph.outgoing.get(&file_metric.path).map(|paths| paths.len()).unwrap_or(0);
+            let fan_in = graph
+                .incoming
+                .get(&file_metric.path)
+                .map(|paths| paths.len())
+                .unwrap_or(0);
+            let fan_out = graph
+                .outgoing
+                .get(&file_metric.path)
+                .map(|paths| paths.len())
+                .unwrap_or(0);
             let threshold = lang_registry::profile(&facts.lang).thresholds.fan_out;
             let instability = instability_0_10000(fan_in, fan_out);
             let score_0_10000 = dependency_sprawl_score(fan_out, threshold, instability);
             let dependency_examples = sample_paths(graph.outgoing.get(&file_metric.path), 3);
 
-            Some(StructuralDebtReport {
+            Some(annotate_structural_leverage(StructuralDebtReport {
                 kind: "dependency_sprawl".to_string(),
                 trust_tier: "trusted".to_string(),
                 presentation_class: structural_presentation_class(
@@ -1093,6 +1266,7 @@ fn build_dependency_sprawl_reports(
                     "trusted",
                     &role_tags,
                 ),
+                leverage_class: String::new(),
                 scope: file_metric.path.clone(),
                 signal_class: "debt".to_string(),
                 signal_families: vec!["coupling".to_string(), "coordination".to_string()],
@@ -1108,25 +1282,26 @@ fn build_dependency_sprawl_reports(
                 impact: dependency_sprawl_impact(&role_tags),
                 files: vec![file_metric.path.clone()],
                 role_tags: role_tags.clone(),
+                leverage_reasons: Vec::new(),
                 evidence: dedupe_strings_preserve_order(with_guardrail_evidence(
                     facts,
                     vec![
-                    format!("fan-out: {}", fan_out),
-                    format!("fan-out threshold: {}", threshold),
-                    format!("instability: {:.2}", instability as f64 / 10_000.0),
-                    format!(
-                        "dominant dependency categories: {}",
-                        join_or_none(&dependency_category_summaries(
-                            graph.outgoing.get(&file_metric.path),
-                            3,
-                        ))
-                    ),
-                    if dependency_examples.is_empty() {
-                        "sample dependencies: none".to_string()
-                    } else {
-                        format!("sample dependencies: {}", dependency_examples.join(", "))
-                    },
-                ],
+                        format!("fan-out: {}", fan_out),
+                        format!("fan-out threshold: {}", threshold),
+                        format!("instability: {:.2}", instability as f64 / 10_000.0),
+                        format!(
+                            "dominant dependency categories: {}",
+                            join_or_none(&dependency_category_summaries(
+                                graph.outgoing.get(&file_metric.path),
+                                3,
+                            ))
+                        ),
+                        if dependency_examples.is_empty() {
+                            "sample dependencies: none".to_string()
+                        } else {
+                            format!("sample dependencies: {}", dependency_examples.join(", "))
+                        },
+                    ],
                 )),
                 inspection_focus: dependency_sprawl_focus(&role_tags),
                 candidate_split_axes: dependency_category_axes(
@@ -1147,7 +1322,7 @@ fn build_dependency_sprawl_reports(
                     role_count: Some(role_tags.len()),
                     ..StructuralDebtMetrics::default()
                 },
-            })
+            }))
         })
         .collect()
 }
@@ -1163,14 +1338,22 @@ fn build_unstable_hotspot_reports(
         .filter_map(|file_metric| {
             let facts = file_facts.get(&file_metric.path)?;
             let role_tags = contextual_role_tags(&file_metric.path, facts, graph, file_facts);
-            let fan_in = graph.incoming.get(&file_metric.path).map(|paths| paths.len()).unwrap_or(0);
-            let fan_out = graph.outgoing.get(&file_metric.path).map(|paths| paths.len()).unwrap_or(0);
+            let fan_in = graph
+                .incoming
+                .get(&file_metric.path)
+                .map(|paths| paths.len())
+                .unwrap_or(0);
+            let fan_out = graph
+                .outgoing
+                .get(&file_metric.path)
+                .map(|paths| paths.len())
+                .unwrap_or(0);
             let threshold = lang_registry::profile(&facts.lang).thresholds.fan_in;
             let instability = instability_0_10000(fan_in, fan_out);
             let score_0_10000 = unstable_hotspot_score(fan_in, threshold, instability);
             let dependent_examples = sample_paths(graph.incoming.get(&file_metric.path), 3);
 
-            Some(StructuralDebtReport {
+            Some(annotate_structural_leverage(StructuralDebtReport {
                 kind: "unstable_hotspot".to_string(),
                 trust_tier: "trusted".to_string(),
                 presentation_class: structural_presentation_class(
@@ -1179,6 +1362,7 @@ fn build_unstable_hotspot_reports(
                     "trusted",
                     &role_tags,
                 ),
+                leverage_class: String::new(),
                 scope: file_metric.path.clone(),
                 signal_class: "debt".to_string(),
                 signal_families: vec!["coupling".to_string(), "blast_radius".to_string()],
@@ -1188,26 +1372,27 @@ fn build_unstable_hotspot_reports(
                 impact: unstable_hotspot_impact(&role_tags),
                 files: vec![file_metric.path.clone()],
                 role_tags: role_tags.clone(),
+                leverage_reasons: Vec::new(),
                 evidence: dedupe_strings_preserve_order(with_guardrail_evidence(
                     facts,
                     vec![
-                    format!("fan-in: {}", fan_in),
-                    format!("hotspot threshold: {}", threshold),
-                    format!("fan-out: {}", fan_out),
-                    format!("instability: {:.2}", instability as f64 / 10_000.0),
-                    format!(
-                        "dominant dependent categories: {}",
-                        join_or_none(&dependency_category_summaries(
-                            graph.incoming.get(&file_metric.path),
-                            3,
-                        ))
-                    ),
-                    if dependent_examples.is_empty() {
-                        "sample dependents: none".to_string()
-                    } else {
-                        format!("sample dependents: {}", dependent_examples.join(", "))
-                    },
-                ],
+                        format!("fan-in: {}", fan_in),
+                        format!("hotspot threshold: {}", threshold),
+                        format!("fan-out: {}", fan_out),
+                        format!("instability: {:.2}", instability as f64 / 10_000.0),
+                        format!(
+                            "dominant dependent categories: {}",
+                            join_or_none(&dependency_category_summaries(
+                                graph.incoming.get(&file_metric.path),
+                                3,
+                            ))
+                        ),
+                        if dependent_examples.is_empty() {
+                            "sample dependents: none".to_string()
+                        } else {
+                            format!("sample dependents: {}", dependent_examples.join(", "))
+                        },
+                    ],
                 )),
                 inspection_focus: unstable_hotspot_focus(&role_tags),
                 candidate_split_axes: hotspot_split_axes(
@@ -1230,7 +1415,7 @@ fn build_unstable_hotspot_reports(
                     role_count: Some(role_tags.len()),
                     ..StructuralDebtMetrics::default()
                 },
-            })
+            }))
         })
         .collect()
 }
@@ -1255,8 +1440,9 @@ fn build_cycle_cluster_reports(
                 .max()
                 .unwrap_or(0);
             let role_tags = cycle_role_tags(files, file_facts, graph);
-            let score_0_10000 = cycle_cluster_score(files.len(), total_lines);
             let cut_candidates = cycle_cut_candidates(files, file_facts, graph);
+            let score_0_10000 =
+                cycle_cluster_score(files.len(), total_lines, &role_tags, &cut_candidates);
             let cut_candidate_count = cut_candidates.len();
             let largest_cycle_after_best_cut = cut_candidates
                 .first()
@@ -1265,7 +1451,7 @@ fn build_cycle_cluster_reports(
             let related_surfaces = cycle_related_surfaces(files, &cut_candidates);
             let candidate_split_axes = cycle_split_axes(&cut_candidates);
 
-            StructuralDebtReport {
+            annotate_structural_leverage(StructuralDebtReport {
                 kind: "cycle_cluster".to_string(),
                 trust_tier: "watchpoint".to_string(),
                 presentation_class: structural_presentation_class(
@@ -1274,18 +1460,17 @@ fn build_cycle_cluster_reports(
                     "watchpoint",
                     &role_tags,
                 ),
+                leverage_class: String::new(),
                 scope,
                 signal_class: "watchpoint".to_string(),
                 signal_families: vec!["dependency".to_string(), "layering".to_string()],
                 severity: signal_severity(score_0_10000).to_string(),
                 score_0_10000,
-                summary: format!(
-                    "Files {} form a dependency cycle",
-                    files.join(", ")
-                ),
+                summary: format!("Files {} form a dependency cycle", files.join(", ")),
                 impact: cycle_cluster_impact(&role_tags),
                 files: files.clone(),
                 role_tags: role_tags.clone(),
+                leverage_reasons: Vec::new(),
                 evidence: dedupe_strings_preserve_order(vec![
                     format!("cycle size: {}", files.len()),
                     format!("total lines in cycle: {}", total_lines),
@@ -1308,7 +1493,7 @@ fn build_cycle_cluster_reports(
                     role_count: Some(role_tags.len()),
                     ..StructuralDebtMetrics::default()
                 },
-            }
+            })
         })
         .collect()
 }
@@ -1341,7 +1526,7 @@ fn build_dead_private_code_cluster_reports(
                 .map(|function| function.func.clone())
                 .collect::<Vec<_>>();
 
-            Some(StructuralDebtReport {
+            Some(annotate_structural_leverage(StructuralDebtReport {
                 kind: "dead_private_code_cluster".to_string(),
                 trust_tier: "experimental".to_string(),
                 presentation_class: structural_presentation_class(
@@ -1350,6 +1535,7 @@ fn build_dead_private_code_cluster_reports(
                     "experimental",
                     &facts.role_tags,
                 ),
+                leverage_class: String::new(),
                 scope: path.clone(),
                 signal_class: "watchpoint".to_string(),
                 signal_families: vec!["staleness".to_string(), "maintainability".to_string()],
@@ -1362,6 +1548,7 @@ fn build_dead_private_code_cluster_reports(
                 impact: "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.".to_string(),
                 files: vec![path.clone()],
                 role_tags: facts.role_tags.clone(),
+                leverage_reasons: Vec::new(),
                 evidence: dedupe_strings_preserve_order(vec![
                     format!("dead private functions: {}", dead_symbol_count),
                     format!("dead private lines: {}", dead_line_count),
@@ -1385,7 +1572,7 @@ fn build_dead_private_code_cluster_reports(
                     role_count: Some(facts.role_tags.len()),
                     ..StructuralDebtMetrics::default()
                 },
-            })
+            }))
         })
         .collect()
 }
@@ -1479,7 +1666,7 @@ fn build_dead_island_reports(
                 format!("sample files: {}", sample_files),
             ]);
 
-            Some(StructuralDebtReport {
+            Some(annotate_structural_leverage(StructuralDebtReport {
                 kind: "dead_island".to_string(),
                 trust_tier: "watchpoint".to_string(),
                 presentation_class: structural_presentation_class(
@@ -1488,6 +1675,7 @@ fn build_dead_island_reports(
                     "watchpoint",
                     &Vec::new(),
                 ),
+                leverage_class: String::new(),
                 scope,
                 signal_class: if reachable_from_tests {
                     "watchpoint".to_string()
@@ -1515,6 +1703,7 @@ fn build_dead_island_reports(
                 },
                 files: component.clone(),
                 role_tags: Vec::new(),
+                leverage_reasons: Vec::new(),
                 evidence,
                 inspection_focus: vec![
                     "inspect whether this component is intentionally disconnected or stale".to_string(),
@@ -1537,7 +1726,7 @@ fn build_dead_island_reports(
                     largest_cycle_after_best_cut: Some(cycle_size),
                     ..StructuralDebtMetrics::default()
                 },
-            })
+            }))
         })
         .collect()
 }
@@ -2208,10 +2397,43 @@ fn unstable_hotspot_score(fan_in: usize, threshold: usize, instability_0_10000: 
     (3200 + over_threshold + instability_bonus).min(10_000)
 }
 
-fn cycle_cluster_score(file_count: usize, total_lines: usize) -> u32 {
+fn cycle_cluster_score(
+    file_count: usize,
+    total_lines: usize,
+    role_tags: &[String],
+    cut_candidates: &[CycleCutCandidate],
+) -> u32 {
     let size_bonus = (file_count as u32 * 900).min(3600);
     let line_bonus = (total_lines as u32 / 12).min(2200);
-    (3000 + size_bonus + line_bonus).min(10_000)
+    let role_bonus = [
+        ("component_barrel", 1500),
+        ("guarded_boundary", 1300),
+        ("composition_root", 500),
+        ("entry_surface", 400),
+    ]
+    .into_iter()
+    .filter(|(tag, _)| has_role_tag(role_tags, tag))
+    .map(|(_, bonus)| bonus)
+    .sum::<u32>()
+    .min(2400);
+    let cut_bonus = cut_candidates
+        .first()
+        .map(|candidate| {
+            let seam_bonus = match candidate.seam_kind.as_str() {
+                "guarded_app_store_boundary" => 1200,
+                "guarded_boundary_cut" => 1000,
+                "facade_owner_boundary" => 800,
+                "app_store_boundary" => 700,
+                "contract_or_type_extraction" => 600,
+                "cross_layer_boundary" => 500,
+                _ => 300,
+            };
+            let reduction_bonus = (candidate.reduction_file_count as u32 * 180).min(1200);
+            let cleanup_bonus = (candidate.remaining_cycle_size as u32 * 80).min(600);
+            seam_bonus + reduction_bonus + cleanup_bonus
+        })
+        .unwrap_or(0);
+    (2600 + size_bonus + line_bonus + role_bonus + cut_bonus).min(10_000)
 }
 
 fn dead_private_cluster_score(dead_symbol_count: usize, dead_line_count: usize) -> u32 {
@@ -2284,8 +2506,8 @@ mod tests {
     use crate::metrics::root_causes::{RootCauseRaw, RootCauseScores};
     use crate::metrics::{FileMetric, FuncMetric};
     use std::collections::HashMap;
-    use std::time::{SystemTime, UNIX_EPOCH};
     use std::sync::Arc;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
     fn reports_large_files_sprawl_hotspots_cycles_and_dead_private_clusters() {
@@ -2647,7 +2869,11 @@ mod tests {
                 expect(source).toContain('createTerminalOutputPipeline');\n\
             ",
         );
-        write_file(&root, "src/components/terminal-session.ts", "export function main() {}\n");
+        write_file(
+            &root,
+            "src/components/terminal-session.ts",
+            "export function main() {}\n",
+        );
 
         let snapshot = Snapshot {
             root: Arc::new(FileNode {
@@ -2696,6 +2922,11 @@ mod tests {
             .role_tags
             .iter()
             .any(|tag| tag == "facade_with_extracted_owners"));
+        assert_eq!(report.leverage_class, "secondary_cleanup");
+        assert!(report
+            .leverage_reasons
+            .iter()
+            .any(|reason| reason == "secondary_facade_cleanup"));
         assert!(report.summary.contains("Guarded facade file"));
         assert!(report
             .evidence
@@ -2709,6 +2940,96 @@ mod tests {
     }
 
     #[test]
+    fn dependency_sprawl_marks_contained_extracted_owner_shell_as_local_refactor_target() {
+        let root = temp_root("extracted-owner-shell");
+        write_file(
+            &root,
+            "src/components/TaskPanel.architecture.test.ts",
+            "\
+                expect(source).toContain('createTaskPanelFocusRuntime');\n\
+                expect(source).toContain('createTaskPanelPreviewController');\n\
+                expect(source).toContain('createTaskPanelDialogState');\n\
+            ",
+        );
+        write_file(
+            &root,
+            "src/components/TaskPanel.tsx",
+            "export function TaskPanel() {}\n",
+        );
+
+        let snapshot = Snapshot {
+            root: Arc::new(FileNode {
+                path: ".".to_string(),
+                name: ".".to_string(),
+                is_dir: true,
+                lines: 0,
+                logic: 0,
+                comments: 0,
+                blanks: 0,
+                funcs: 0,
+                mtime: 0.0,
+                gs: String::new(),
+                lang: String::new(),
+                sa: None,
+                children: Some(vec![
+                    test_file("src/components/TaskPanel.tsx", 423, 59, 4),
+                    test_file("src/app/task-ports.ts", 40, 2, 3),
+                    test_file("src/components/CloseTaskDialog.tsx", 60, 3, 4),
+                    test_file("src/components/DiffViewerDialog.tsx", 70, 4, 4),
+                ]),
+            }),
+            total_files: 4,
+            total_lines: 593,
+            total_dirs: 1,
+            import_graph: vec![
+                ImportEdge {
+                    from_file: "src/components/TaskPanel.tsx".into(),
+                    to_file: "src/app/task-ports.ts".into(),
+                },
+                ImportEdge {
+                    from_file: "src/components/TaskPanel.tsx".into(),
+                    to_file: "src/components/CloseTaskDialog.tsx".into(),
+                },
+                ImportEdge {
+                    from_file: "src/components/TaskPanel.tsx".into(),
+                    to_file: "src/components/DiffViewerDialog.tsx".into(),
+                },
+            ],
+            call_graph: Vec::new(),
+            inherit_graph: Vec::new(),
+            entry_points: Vec::new(),
+            exec_depth: HashMap::new(),
+        };
+        let mut health = empty_health_report();
+        health.god_files = vec![FileMetric {
+            path: "src/components/TaskPanel.tsx".into(),
+            value: 28,
+        }];
+
+        let reports = build_structural_debt_reports_with_root(&root, &snapshot, &health);
+        let report = reports
+            .iter()
+            .find(|report| report.scope == "src/components/TaskPanel.tsx")
+            .expect("task-panel dependency-sprawl report");
+
+        assert!(report.role_tags.iter().any(|tag| tag == "guarded_seam"));
+        assert!(report
+            .role_tags
+            .iter()
+            .any(|tag| tag == "facade_with_extracted_owners"));
+        assert_eq!(report.leverage_class, "local_refactor_target");
+        assert!(report
+            .leverage_reasons
+            .iter()
+            .any(|reason| reason == "extracted_owner_shell_pressure"));
+        assert!(report
+            .leverage_reasons
+            .iter()
+            .any(|reason| reason == "guardrail_backed_refactor_surface"));
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
     fn dependency_sprawl_reports_guarded_boundary_role_from_architecture_test_literal() {
         let root = temp_root("guarded-boundary");
         write_file(
@@ -2716,7 +3037,11 @@ mod tests {
             "src/app/store-boundary.architecture.test.ts",
             "expect(source).not.toContain('store/store');\n",
         );
-        write_file(&root, "src/store/store.ts", "export function selectStore() {}\n");
+        write_file(
+            &root,
+            "src/store/store.ts",
+            "export function selectStore() {}\n",
+        );
 
         let snapshot = Snapshot {
             root: Arc::new(FileNode {
@@ -2770,6 +3095,15 @@ mod tests {
 
         assert!(report.role_tags.iter().any(|tag| tag == "component_barrel"));
         assert!(report.role_tags.iter().any(|tag| tag == "guarded_boundary"));
+        assert_eq!(report.leverage_class, "architecture_signal");
+        assert!(report
+            .leverage_reasons
+            .iter()
+            .any(|reason| reason == "shared_barrel_boundary_hub"));
+        assert!(report
+            .leverage_reasons
+            .iter()
+            .any(|reason| reason == "guardrail_backed_boundary_pressure"));
         assert!(report.summary.contains("Component-facing barrel"));
         assert!(report
             .evidence
@@ -2841,10 +3175,13 @@ mod tests {
             .expect("dependency-sprawl report");
 
         assert!(report.role_tags.iter().any(|tag| tag == "composition_root"));
-        assert!(report.summary.contains("Composition root"));
+        assert_eq!(report.leverage_class, "regrowth_watchpoint");
         assert!(report
-            .impact
-            .contains("composition root"));
+            .leverage_reasons
+            .iter()
+            .any(|reason| reason == "intentionally_central_surface"));
+        assert!(report.summary.contains("Composition root"));
+        assert!(report.impact.contains("composition root"));
     }
 
     #[test]
@@ -2947,8 +3284,96 @@ mod tests {
             .find(|report| report.kind == "large_file")
             .expect("large-file report");
 
-        assert!(report.summary.starts_with("File 'scripts/session-stress.mjs'"));
+        assert_eq!(report.leverage_class, "tooling_debt");
+        assert!(report
+            .leverage_reasons
+            .iter()
+            .any(|reason| reason == "tooling_surface_maintenance_burden"));
+        assert!(report
+            .summary
+            .starts_with("File 'scripts/session-stress.mjs'"));
         assert!(!report.impact.contains("composition root"));
+    }
+
+    #[test]
+    fn unstable_hotspot_marks_transport_facades_as_boundary_discipline() {
+        let snapshot = Snapshot {
+            root: Arc::new(FileNode {
+                path: ".".to_string(),
+                name: ".".to_string(),
+                is_dir: true,
+                lines: 0,
+                logic: 0,
+                comments: 0,
+                blanks: 0,
+                funcs: 0,
+                mtime: 0.0,
+                gs: String::new(),
+                lang: String::new(),
+                sa: None,
+                children: Some(vec![
+                    test_file("src/lib/ipc.ts", 180, 5, 12),
+                    test_file("src/app/browser-session.ts", 90, 2, 5),
+                    test_file("src/app/electron-session.ts", 90, 2, 5),
+                ]),
+            }),
+            total_files: 3,
+            total_lines: 360,
+            total_dirs: 1,
+            import_graph: vec![
+                ImportEdge {
+                    from_file: "src/app/browser-session.ts".into(),
+                    to_file: "src/lib/ipc.ts".into(),
+                },
+                ImportEdge {
+                    from_file: "src/app/electron-session.ts".into(),
+                    to_file: "src/lib/ipc.ts".into(),
+                },
+            ],
+            call_graph: Vec::new(),
+            inherit_graph: Vec::new(),
+            entry_points: Vec::new(),
+            exec_depth: HashMap::new(),
+        };
+        let mut health = empty_health_report();
+        health.hotspot_files = vec![FileMetric {
+            path: "src/lib/ipc.ts".into(),
+            value: 24,
+        }];
+
+        let reports = build_structural_debt_reports(&snapshot, &health);
+        let report = reports
+            .iter()
+            .find(|report| report.kind == "unstable_hotspot")
+            .expect("unstable-hotspot report");
+
+        assert!(report.role_tags.iter().any(|tag| tag == "transport_facade"));
+        assert_eq!(report.leverage_class, "boundary_discipline");
+        assert!(report
+            .leverage_reasons
+            .iter()
+            .any(|reason| reason == "guarded_or_transport_facade"));
+    }
+
+    #[test]
+    fn cycle_cluster_score_boosts_boundary_hubs_and_cut_leverage() {
+        let base_score = cycle_cluster_score(6, 900, &[], &[]);
+        let boosted_score = cycle_cluster_score(
+            6,
+            900,
+            &[
+                "component_barrel".to_string(),
+                "guarded_boundary".to_string(),
+            ],
+            &[CycleCutCandidate {
+                seam_kind: "guarded_boundary_cut".to_string(),
+                reduction_file_count: 3,
+                remaining_cycle_size: 2,
+                ..CycleCutCandidate::default()
+            }],
+        );
+
+        assert!(boosted_score > base_score);
     }
 
     #[test]
@@ -2959,7 +3384,11 @@ mod tests {
             "src/app/store-boundary.architecture.test.ts",
             "expect(source).not.toContain('store/store');\n",
         );
-        write_file(&root, "src/store/store.ts", "export function selectStore() {}\n");
+        write_file(
+            &root,
+            "src/store/store.ts",
+            "export function selectStore() {}\n",
+        );
 
         let snapshot = Snapshot {
             root: Arc::new(FileNode {
@@ -3023,6 +3452,15 @@ mod tests {
         let best_cut = report.cut_candidates.first().expect("best cut");
 
         assert_eq!(best_cut.seam_kind, "guarded_app_store_boundary");
+        assert_eq!(report.leverage_class, "architecture_signal");
+        assert!(report
+            .leverage_reasons
+            .iter()
+            .any(|reason| reason == "mixed_cycle_pressure"));
+        assert!(report
+            .leverage_reasons
+            .iter()
+            .any(|reason| reason == "high_leverage_cycle_cut"));
         let _ = std::fs::remove_dir_all(root);
     }
 

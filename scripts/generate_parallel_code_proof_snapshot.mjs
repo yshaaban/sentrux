@@ -7,8 +7,8 @@ import { fileURLToPath } from 'node:url';
 import { assertPathExists } from './lib/disposable-repo.mjs';
 import {
   compactSelectedCandidate,
-  selectPresentationBuckets,
-} from './lib/parallel-code-reporting.mjs';
+  selectLeverageBuckets,
+} from './lib/v2-report-selection.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -39,6 +39,7 @@ function compactFinding(finding) {
     kind: finding.kind ?? null,
     trust_tier: finding.trust_tier ?? null,
     presentation_class: finding.presentation_class ?? null,
+    leverage_class: finding.leverage_class ?? null,
     scope: finding.scope ?? null,
     severity: finding.severity ?? null,
     concept_id: finding.concept_id ?? null,
@@ -64,6 +65,7 @@ function compactDebtSignal(signal) {
     kind: signal.kind ?? null,
     trust_tier: signal.trust_tier ?? null,
     presentation_class: signal.presentation_class ?? null,
+    leverage_class: signal.leverage_class ?? null,
     scope: signal.scope ?? null,
     signal_class: signal.signal_class ?? null,
     signal_families: signal.signal_families ?? [],
@@ -80,6 +82,7 @@ function compactDebtCluster(cluster) {
     scope: cluster.scope ?? null,
     trust_tier: cluster.trust_tier ?? null,
     presentation_class: cluster.presentation_class ?? null,
+    leverage_class: cluster.leverage_class ?? null,
     severity: cluster.severity ?? null,
     score_0_10000: cluster.score_0_10000 ?? null,
     summary: cluster.summary ?? null,
@@ -93,6 +96,7 @@ function compactFindingDetail(detail) {
     kind: detail.kind ?? null,
     trust_tier: detail.trust_tier ?? null,
     presentation_class: detail.presentation_class ?? null,
+    leverage_class: detail.leverage_class ?? null,
     scope: detail.scope ?? null,
     severity: detail.severity ?? null,
     summary: detail.summary ?? null,
@@ -108,6 +112,7 @@ function compactWatchpoint(watchpoint) {
     kind: watchpoint.kind ?? null,
     trust_tier: watchpoint.trust_tier ?? null,
     presentation_class: watchpoint.presentation_class ?? null,
+    leverage_class: watchpoint.leverage_class ?? null,
     scope: watchpoint.scope ?? watchpoint.concept_id ?? null,
     signal_families: watchpoint.signal_families ?? [],
     severity: watchpoint.severity ?? null,
@@ -223,7 +228,7 @@ function buildMarkdown(snapshot) {
   lines.push('');
   for (const finding of snapshot.top_findings) {
     lines.push(
-      `- \`${finding.trust_tier ?? 'trusted'}\` \`${finding.presentation_class ?? 'structural_debt'}\` \`${finding.severity}\` \`${finding.kind}\` ${finding.concept_id ? `(${finding.concept_id}) ` : ''}${finding.summary}`,
+      `- \`${finding.trust_tier ?? 'trusted'}\` \`${finding.presentation_class ?? 'structural_debt'}\` \`${finding.leverage_class ?? 'secondary_cleanup'}\` \`${finding.severity}\` \`${finding.kind}\` ${finding.concept_id ? `(${finding.concept_id}) ` : ''}${finding.summary}`,
     );
   }
   lines.push('');
@@ -340,12 +345,11 @@ async function main() {
   const obligations = readJson(obligationsPath);
   const metadata = readJson(metadataPath);
   const benchmark = readJson(benchmarkPath);
-  const presentationBuckets = selectPresentationBuckets(findings);
+  const leverageBuckets = selectLeverageBuckets(findings);
   const topFindings = [
-    ...presentationBuckets.lead_candidates,
-    ...presentationBuckets.secondary_hotspots,
-    ...presentationBuckets.hardening_notes.slice(0, 1),
-    ...presentationBuckets.tooling_debt.slice(0, 1),
+    ...leverageBuckets.summary_candidates,
+    ...leverageBuckets.hardening_notes.slice(0, 1),
+    ...leverageBuckets.tooling_debt.slice(0, 1),
   ];
 
   const snapshot = {

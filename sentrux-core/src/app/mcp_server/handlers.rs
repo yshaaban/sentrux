@@ -1685,7 +1685,14 @@ fn is_watchpoint_presentation_kind(kind: &str) -> bool {
 }
 
 fn is_hardening_note_kind(kind: &str) -> bool {
-    matches!(kind, "closed_domain_exhaustiveness" | "contract_surface_completeness")
+    matches!(
+        kind,
+        "closed_domain_exhaustiveness" | "contract_surface_completeness"
+    )
+}
+
+fn role_tags_include(role_tags: &[String], tag: &str) -> bool {
+    role_tags.iter().any(|role_tag| role_tag == tag)
 }
 
 fn classify_presentation_class(
@@ -1752,14 +1759,270 @@ fn finding_presentation_class(finding: &Value) -> String {
     )
 }
 
-fn decorate_finding_with_presentation_class(finding: &Value) -> Value {
+fn classify_leverage_class(
+    kind: &str,
+    trust_tier: &str,
+    presentation_class: &str,
+    role_tags: &[String],
+    fan_in: Option<usize>,
+    fan_out: Option<usize>,
+    line_count: Option<usize>,
+    max_complexity: Option<usize>,
+    cycle_size: Option<usize>,
+    cut_candidate_count: Option<usize>,
+    guardrail_test_count: Option<usize>,
+    boundary_pressure_count: usize,
+    missing_site_count: usize,
+) -> String {
+    if trust_tier == "experimental" || presentation_class == "experimental" {
+        return "experimental".to_string();
+    }
+    if presentation_class == "tooling_debt" {
+        return "tooling_debt".to_string();
+    }
+    if presentation_class == "hardening_note" {
+        return "hardening_note".to_string();
+    }
+    if presentation_class == "guarded_facade" {
+        return "boundary_discipline".to_string();
+    }
+    if kind == "cycle_cluster" {
+        if role_tags_include(role_tags, "component_barrel")
+            || role_tags_include(role_tags, "guarded_boundary")
+            || cycle_size.unwrap_or(0) >= 10
+            || cut_candidate_count.unwrap_or(0) > 0
+        {
+            return "architecture_signal".to_string();
+        }
+        return "secondary_cleanup".to_string();
+    }
+    if kind == "dead_island" {
+        return "secondary_cleanup".to_string();
+    }
+    if boundary_pressure_count > 0 && missing_site_count > 0 {
+        return "architecture_signal".to_string();
+    }
+    if role_tags_include(role_tags, "component_barrel")
+        || role_tags_include(role_tags, "guarded_boundary")
+    {
+        return "architecture_signal".to_string();
+    }
+    if role_tags_include(role_tags, "composition_root")
+        || role_tags_include(role_tags, "entry_surface")
+    {
+        return "regrowth_watchpoint".to_string();
+    }
+    if role_tags_include(role_tags, "facade_with_extracted_owners") {
+        if extracted_owner_facade_needs_secondary_cleanup(
+            kind,
+            role_tags,
+            line_count,
+            max_complexity,
+            fan_in,
+        ) {
+            return "secondary_cleanup".to_string();
+        }
+        return "local_refactor_target".to_string();
+    }
+    if boundary_pressure_count > 0 || missing_site_count > 0 {
+        return "local_refactor_target".to_string();
+    }
+    if matches!(kind, "clone_family" | "clone_group" | "exact_clone_group") {
+        return "secondary_cleanup".to_string();
+    }
+    if matches!(kind, "dependency_sprawl" | "unstable_hotspot" | "hotspot")
+        || guardrail_test_count.unwrap_or(0) > 0
+        || fan_out.unwrap_or(0) > 0
+    {
+        return "local_refactor_target".to_string();
+    }
+    "secondary_cleanup".to_string()
+}
+
+fn extracted_owner_facade_needs_secondary_cleanup(
+    kind: &str,
+    role_tags: &[String],
+    line_count: Option<usize>,
+    max_complexity: Option<usize>,
+    fan_in: Option<usize>,
+) -> bool {
+    if role_tags_include(role_tags, "entry_surface") {
+        return true;
+    }
+    if kind == "large_file" {
+        return true;
+    }
+    if line_count.unwrap_or(0) >= 500 {
+        return true;
+    }
+    if max_complexity.unwrap_or(0) >= 20 {
+        return true;
+    }
+    fan_in.unwrap_or(0) >= 20
+}
+
+#[allow(clippy::too_many_arguments)]
+fn classify_leverage_reasons(
+    kind: &str,
+    trust_tier: &str,
+    presentation_class: &str,
+    leverage_class: &str,
+    role_tags: &[String],
+    fan_in: Option<usize>,
+    fan_out: Option<usize>,
+    cycle_size: Option<usize>,
+    cut_candidate_count: Option<usize>,
+    guardrail_test_count: Option<usize>,
+    boundary_pressure_count: usize,
+    missing_site_count: usize,
+) -> Vec<String> {
+    let mut reasons = Vec::new();
+    if trust_tier == "experimental" || presentation_class == "experimental" {
+        reasons.push("detector_under_evaluation".to_string());
+    }
+    match leverage_class {
+        "tooling_debt" => reasons.push("tooling_surface_maintenance_burden".to_string()),
+        "hardening_note" => reasons.push("narrow_completeness_gap".to_string()),
+        "boundary_discipline" => {
+            reasons.push("boundary_or_facade_seam_pressure".to_string());
+            if fan_in.unwrap_or(0) > 0 {
+                reasons.push("heavy_inbound_seam_pressure".to_string());
+            }
+        }
+        "architecture_signal" => {
+            if role_tags_include(role_tags, "component_barrel") {
+                reasons.push("shared_barrel_boundary_hub".to_string());
+            }
+            if role_tags_include(role_tags, "guarded_boundary") {
+                reasons.push("guardrail_backed_boundary_pressure".to_string());
+            }
+            if kind == "cycle_cluster" {
+                reasons.push("mixed_cycle_pressure".to_string());
+            }
+            if cut_candidate_count.unwrap_or(0) > 0 {
+                reasons.push("high_leverage_cut_candidate".to_string());
+            }
+            if boundary_pressure_count > 0 {
+                reasons.push("ownership_boundary_erosion".to_string());
+            }
+            if missing_site_count > 0 {
+                reasons.push("propagation_burden".to_string());
+            }
+        }
+        "local_refactor_target" => {
+            if role_tags_include(role_tags, "facade_with_extracted_owners") {
+                reasons.push("extracted_owner_shell_pressure".to_string());
+            }
+            if guardrail_test_count.unwrap_or(0) > 0 {
+                reasons.push("guardrail_backed_refactor_surface".to_string());
+            }
+            if fan_out.unwrap_or(0) > 0 {
+                reasons.push("contained_dependency_pressure".to_string());
+            }
+            if boundary_pressure_count > 0 {
+                reasons.push("narrower_ownership_split_available".to_string());
+            }
+            if missing_site_count > 0 {
+                reasons.push("explicit_update_surface".to_string());
+            }
+        }
+        "regrowth_watchpoint" => {
+            reasons.push("intentionally_central_surface".to_string());
+            if fan_out.unwrap_or(0) > 0 {
+                reasons.push("fan_out_regrowth_pressure".to_string());
+            }
+        }
+        "secondary_cleanup" => {
+            if kind == "dead_island" {
+                reasons.push("disconnected_internal_component".to_string());
+            } else if matches!(kind, "clone_family" | "clone_group" | "exact_clone_group") {
+                reasons.push("duplicate_maintenance_pressure".to_string());
+            } else if role_tags_include(role_tags, "facade_with_extracted_owners") {
+                reasons.push("secondary_facade_cleanup".to_string());
+            } else if cycle_size.unwrap_or(0) > 0 {
+                reasons.push("smaller_cycle_watchpoint".to_string());
+            } else {
+                reasons.push("real_but_lower_leverage_cleanup".to_string());
+            }
+        }
+        _ => {}
+    }
+    dedupe_strings_preserve_order(reasons)
+}
+
+fn finding_numeric_metric(finding: &Value, key: &str) -> Option<usize> {
+    finding
+        .get("metrics")
+        .and_then(|value| value.get(key))
+        .or_else(|| finding.get(key))
+        .and_then(|value| value.as_u64())
+        .map(|value| value as usize)
+}
+
+fn finding_leverage_class(finding: &Value) -> String {
+    if let Some(classification) = finding
+        .get("leverage_class")
+        .and_then(|value| value.as_str())
+    {
+        return classification.to_string();
+    }
+
+    let role_tags = finding_string_values(finding, "role_tags");
+    classify_leverage_class(
+        finding_kind(finding),
+        &finding_trust_tier(finding),
+        &finding_presentation_class(finding),
+        &role_tags,
+        finding_numeric_metric(finding, "fan_in")
+            .or_else(|| finding_numeric_metric(finding, "inbound_reference_count")),
+        finding_numeric_metric(finding, "fan_out"),
+        finding_numeric_metric(finding, "line_count"),
+        finding_numeric_metric(finding, "max_complexity"),
+        finding_numeric_metric(finding, "cycle_size"),
+        finding_numeric_metric(finding, "cut_candidate_count"),
+        finding_numeric_metric(finding, "guardrail_test_count"),
+        finding_numeric_metric(finding, "boundary_pressure_count").unwrap_or(0),
+        finding_numeric_metric(finding, "missing_site_count").unwrap_or(0),
+    )
+}
+
+fn finding_leverage_reasons(finding: &Value) -> Vec<String> {
+    let reasons = finding_string_values(finding, "leverage_reasons");
+    if !reasons.is_empty() {
+        return reasons;
+    }
+
+    let role_tags = finding_string_values(finding, "role_tags");
+    let leverage_class = finding_leverage_class(finding);
+    classify_leverage_reasons(
+        finding_kind(finding),
+        &finding_trust_tier(finding),
+        &finding_presentation_class(finding),
+        &leverage_class,
+        &role_tags,
+        finding_numeric_metric(finding, "fan_in")
+            .or_else(|| finding_numeric_metric(finding, "inbound_reference_count")),
+        finding_numeric_metric(finding, "fan_out"),
+        finding_numeric_metric(finding, "cycle_size"),
+        finding_numeric_metric(finding, "cut_candidate_count"),
+        finding_numeric_metric(finding, "guardrail_test_count"),
+        finding_numeric_metric(finding, "boundary_pressure_count").unwrap_or(0),
+        finding_numeric_metric(finding, "missing_site_count").unwrap_or(0),
+    )
+}
+
+fn decorate_finding_with_classification(finding: &Value) -> Value {
     let presentation_class = finding_presentation_class(finding);
+    let leverage_class = finding_leverage_class(finding);
+    let leverage_reasons = finding_leverage_reasons(finding);
     let mut finding = finding.clone();
     if let Some(object) = finding.as_object_mut() {
         object.insert(
             "presentation_class".to_string(),
             Value::String(presentation_class),
         );
+        object.insert("leverage_class".to_string(), Value::String(leverage_class));
+        object.insert("leverage_reasons".to_string(), json!(leverage_reasons));
     }
     finding
 }
@@ -1803,10 +2066,11 @@ fn finding_detail(finding: &Value) -> FindingDetail {
     let evidence = dedupe_strings_preserve_order(finding_string_values(finding, "evidence"));
     let inspection_focus = finding_detail_inspection_focus(finding);
 
-    FindingDetail {
+    annotate_finding_detail(FindingDetail {
         kind: kind.clone(),
         trust_tier: finding_trust_tier(finding),
         presentation_class: finding_presentation_class(finding),
+        leverage_class: finding_leverage_class(finding),
         scope: finding_scope(finding),
         severity: finding
             .get("severity")
@@ -1821,6 +2085,7 @@ fn finding_detail(finding: &Value) -> FindingDetail {
         impact: finding_detail_impact(finding),
         files: files.clone(),
         role_tags: finding_string_values(finding, "role_tags"),
+        leverage_reasons: finding_leverage_reasons(finding),
         evidence: evidence.clone(),
         inspection_focus,
         candidate_split_axes: finding_detail_candidate_split_axes(finding),
@@ -1842,7 +2107,7 @@ fn finding_detail(finding: &Value) -> FindingDetail {
                 .and_then(|value| value.as_u64())
                 .map(|value| value as u32),
         },
-    }
+    })
 }
 
 fn finding_detail_candidate_split_axes(finding: &Value) -> Vec<String> {
@@ -2462,11 +2727,11 @@ fn handle_findings(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<V
         partition_experimental_findings(&suppression_application.visible_findings, limit);
     let visible_findings = visible_findings
         .into_iter()
-        .map(|finding| decorate_finding_with_presentation_class(&finding))
+        .map(|finding| decorate_finding_with_classification(&finding))
         .collect::<Vec<_>>();
     let experimental_findings = experimental_findings
         .into_iter()
-        .map(|finding| decorate_finding_with_presentation_class(&finding))
+        .map(|finding| decorate_finding_with_classification(&finding))
         .collect::<Vec<_>>();
     let visible_clone_ids = visible_clone_ids(&visible_findings);
     let semantic_finding_count = visible_findings
@@ -3122,6 +3387,7 @@ struct DebtSignal {
     kind: String,
     trust_tier: String,
     presentation_class: String,
+    leverage_class: String,
     scope: String,
     signal_class: String,
     signal_families: Vec<String>,
@@ -3131,6 +3397,7 @@ struct DebtSignal {
     impact: String,
     files: Vec<String>,
     role_tags: Vec<String>,
+    leverage_reasons: Vec<String>,
     evidence: Vec<String>,
     inspection_focus: Vec<String>,
     candidate_split_axes: Vec<String>,
@@ -3143,12 +3410,14 @@ struct FindingDetail {
     kind: String,
     trust_tier: String,
     presentation_class: String,
+    leverage_class: String,
     scope: String,
     severity: String,
     summary: String,
     impact: String,
     files: Vec<String>,
     role_tags: Vec<String>,
+    leverage_reasons: Vec<String>,
     evidence: Vec<String>,
     inspection_focus: Vec<String>,
     candidate_split_axes: Vec<String>,
@@ -3161,6 +3430,7 @@ struct InspectionWatchpoint {
     kind: String,
     trust_tier: String,
     presentation_class: String,
+    leverage_class: String,
     scope: String,
     severity: String,
     score_0_10000: u32,
@@ -3168,6 +3438,7 @@ struct InspectionWatchpoint {
     impact: String,
     files: Vec<String>,
     role_tags: Vec<String>,
+    leverage_reasons: Vec<String>,
     evidence: Vec<String>,
     inspection_focus: Vec<String>,
     candidate_split_axes: Vec<String>,
@@ -3183,6 +3454,7 @@ struct InspectionWatchpoint {
 struct DebtCluster {
     trust_tier: String,
     presentation_class: String,
+    leverage_class: String,
     scope: String,
     severity: String,
     score_0_10000: u32,
@@ -3190,6 +3462,7 @@ struct DebtCluster {
     impact: String,
     files: Vec<String>,
     role_tags: Vec<String>,
+    leverage_reasons: Vec<String>,
     evidence: Vec<String>,
     inspection_focus: Vec<String>,
     signal_families: Vec<String>,
@@ -3256,6 +3529,10 @@ struct DebtSignalMetrics {
     #[serde(skip_serializing_if = "Option::is_none")]
     cycle_size: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    cut_candidate_count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    largest_cycle_after_best_cut: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     inbound_reference_count: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     public_surface_count: Option<usize>,
@@ -3303,6 +3580,147 @@ struct FindingDetailMetrics {
     family_score_0_10000: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     divergence_score: Option<u32>,
+}
+
+#[allow(clippy::too_many_arguments)]
+fn backfill_leverage_fields(
+    leverage_class: &mut String,
+    leverage_reasons: &mut Vec<String>,
+    kind: &str,
+    trust_tier: &str,
+    presentation_class: &str,
+    role_tags: &[String],
+    fan_in: Option<usize>,
+    fan_out: Option<usize>,
+    line_count: Option<usize>,
+    max_complexity: Option<usize>,
+    cycle_size: Option<usize>,
+    cut_candidate_count: Option<usize>,
+    guardrail_test_count: Option<usize>,
+    boundary_pressure_count: usize,
+    missing_site_count: usize,
+) {
+    if leverage_class.is_empty() {
+        *leverage_class = classify_leverage_class(
+            kind,
+            trust_tier,
+            presentation_class,
+            role_tags,
+            fan_in,
+            fan_out,
+            line_count,
+            max_complexity,
+            cycle_size,
+            cut_candidate_count,
+            guardrail_test_count,
+            boundary_pressure_count,
+            missing_site_count,
+        );
+    }
+
+    if leverage_reasons.is_empty() {
+        *leverage_reasons = classify_leverage_reasons(
+            kind,
+            trust_tier,
+            presentation_class,
+            leverage_class,
+            role_tags,
+            fan_in,
+            fan_out,
+            cycle_size,
+            cut_candidate_count,
+            guardrail_test_count,
+            boundary_pressure_count,
+            missing_site_count,
+        );
+    }
+}
+
+fn annotate_debt_signal(mut signal: DebtSignal) -> DebtSignal {
+    let fan_in = signal
+        .metrics
+        .fan_in
+        .or(signal.metrics.inbound_reference_count);
+    backfill_leverage_fields(
+        &mut signal.leverage_class,
+        &mut signal.leverage_reasons,
+        &signal.kind,
+        &signal.trust_tier,
+        &signal.presentation_class,
+        &signal.role_tags,
+        fan_in,
+        signal.metrics.fan_out,
+        signal.metrics.line_count,
+        signal.metrics.max_complexity.map(|value| value as usize),
+        signal.metrics.cycle_size,
+        signal.metrics.cut_candidate_count,
+        signal.metrics.guardrail_test_count,
+        signal.metrics.boundary_pressure_count.unwrap_or(0),
+        signal.metrics.missing_site_count.unwrap_or(0),
+    );
+    signal
+}
+
+fn annotate_finding_detail(mut detail: FindingDetail) -> FindingDetail {
+    let fan_in = detail
+        .evidence
+        .iter()
+        .find_map(|entry| entry.strip_prefix("fan-in: "))
+        .and_then(|value| value.parse::<usize>().ok());
+    let fan_out = detail
+        .evidence
+        .iter()
+        .find_map(|entry| entry.strip_prefix("fan-out: "))
+        .and_then(|value| value.parse::<usize>().ok());
+    let cycle_size = detail
+        .evidence
+        .iter()
+        .find_map(|entry| entry.strip_prefix("cycle size: "))
+        .and_then(|value| value.parse::<usize>().ok());
+    let cut_candidate_count = detail
+        .evidence
+        .iter()
+        .find_map(|entry| entry.strip_prefix("candidate cuts: "))
+        .and_then(|value| value.parse::<usize>().ok());
+    backfill_leverage_fields(
+        &mut detail.leverage_class,
+        &mut detail.leverage_reasons,
+        &detail.kind,
+        &detail.trust_tier,
+        &detail.presentation_class,
+        &detail.role_tags,
+        fan_in,
+        fan_out,
+        None,
+        None,
+        cycle_size,
+        cut_candidate_count,
+        None,
+        0,
+        0,
+    );
+    detail
+}
+
+fn annotate_inspection_watchpoint(mut watchpoint: InspectionWatchpoint) -> InspectionWatchpoint {
+    backfill_leverage_fields(
+        &mut watchpoint.leverage_class,
+        &mut watchpoint.leverage_reasons,
+        &watchpoint.kind,
+        &watchpoint.trust_tier,
+        &watchpoint.presentation_class,
+        &watchpoint.role_tags,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        watchpoint.boundary_pressure_count,
+        watchpoint.missing_site_count,
+    );
+    watchpoint
 }
 
 fn debt_signal_candidate_files(
@@ -3568,7 +3986,7 @@ fn collect_debt_signals(
                 evidence.extend(top_hotspot.reasons.iter().cloned().take(2));
             }
 
-            DebtSignal {
+            annotate_debt_signal(DebtSignal {
                 kind: "concept".to_string(),
                 trust_tier: "trusted".to_string(),
                 presentation_class: classify_presentation_class(
@@ -3582,6 +4000,7 @@ fn collect_debt_signals(
                     summary.boundary_pressure_count,
                     summary.missing_site_count,
                 ),
+                leverage_class: String::new(),
                 scope: summary.concept_id.clone(),
                 signal_class: concept_signal_class(summary).to_string(),
                 signal_families: concept_signal_families(summary),
@@ -3591,12 +4010,13 @@ fn collect_debt_signals(
                 impact: concept_signal_impact(summary),
                 files: summary.files.clone(),
                 role_tags: Vec::new(),
+                leverage_reasons: Vec::new(),
                 evidence,
                 inspection_focus: summary.inspection_focus.clone(),
                 candidate_split_axes: concept_candidate_split_axes(summary),
                 related_surfaces: summary.files.iter().take(5).cloned().collect(),
                 metrics: concept_signal_metrics(summary),
-            }
+            })
         })
         .collect::<Vec<_>>();
 
@@ -3678,10 +4098,11 @@ fn build_inspection_watchpoints(
                 matching_hotspots.len(),
             );
 
-            Some(InspectionWatchpoint {
+            Some(annotate_inspection_watchpoint(InspectionWatchpoint {
                 kind: "concept_watchpoint".to_string(),
                 trust_tier: "watchpoint".to_string(),
                 presentation_class: "watchpoint".to_string(),
+                leverage_class: String::new(),
                 scope: summary.concept_id.clone(),
                 severity: signal_severity(score_0_10000).to_string(),
                 score_0_10000,
@@ -3693,6 +4114,7 @@ fn build_inspection_watchpoints(
                 impact: concept_signal_impact(summary),
                 files: summary.files.clone(),
                 role_tags: Vec::new(),
+                leverage_reasons: Vec::new(),
                 evidence: inspection_watchpoint_evidence(
                     summary,
                     matching_clone_families.as_slice(),
@@ -3714,7 +4136,7 @@ fn build_inspection_watchpoints(
                 hotspot_count: matching_hotspots.len(),
                 missing_site_count: summary.missing_site_count,
                 boundary_pressure_count: summary.boundary_pressure_count,
-            })
+            }))
         })
         .collect::<Vec<_>>();
 
@@ -3732,26 +4154,30 @@ fn debt_signal_watchpoints(signals: &[DebtSignal], limit: usize) -> Vec<Inspecti
     let mut watchpoints = signals
         .iter()
         .filter(|signal| signal.trust_tier == "watchpoint")
-        .map(|signal| InspectionWatchpoint {
-            kind: signal.kind.clone(),
-            trust_tier: signal.trust_tier.clone(),
-            presentation_class: signal.presentation_class.clone(),
-            scope: signal.scope.clone(),
-            severity: signal.severity.clone(),
-            score_0_10000: signal.score_0_10000,
-            summary: signal.summary.clone(),
-            impact: signal.impact.clone(),
-            files: signal.files.clone(),
-            role_tags: signal.role_tags.clone(),
-            evidence: signal.evidence.clone(),
-            inspection_focus: signal.inspection_focus.clone(),
-            candidate_split_axes: signal.candidate_split_axes.clone(),
-            related_surfaces: signal.related_surfaces.clone(),
-            signal_families: signal.signal_families.clone(),
-            clone_family_count: usize::from(signal.kind == "clone_family"),
-            hotspot_count: usize::from(signal.kind == "hotspot"),
-            missing_site_count: signal.metrics.missing_site_count.unwrap_or(0),
-            boundary_pressure_count: signal.metrics.boundary_pressure_count.unwrap_or(0),
+        .map(|signal| {
+            annotate_inspection_watchpoint(InspectionWatchpoint {
+                kind: signal.kind.clone(),
+                trust_tier: signal.trust_tier.clone(),
+                presentation_class: signal.presentation_class.clone(),
+                leverage_class: signal.leverage_class.clone(),
+                scope: signal.scope.clone(),
+                severity: signal.severity.clone(),
+                score_0_10000: signal.score_0_10000,
+                summary: signal.summary.clone(),
+                impact: signal.impact.clone(),
+                files: signal.files.clone(),
+                role_tags: signal.role_tags.clone(),
+                leverage_reasons: signal.leverage_reasons.clone(),
+                evidence: signal.evidence.clone(),
+                inspection_focus: signal.inspection_focus.clone(),
+                candidate_split_axes: signal.candidate_split_axes.clone(),
+                related_surfaces: signal.related_surfaces.clone(),
+                signal_families: signal.signal_families.clone(),
+                clone_family_count: usize::from(signal.kind == "clone_family"),
+                hotspot_count: usize::from(signal.kind == "hotspot"),
+                missing_site_count: signal.metrics.missing_site_count.unwrap_or(0),
+                boundary_pressure_count: signal.metrics.boundary_pressure_count.unwrap_or(0),
+            })
         })
         .collect::<Vec<_>>();
 
@@ -3930,6 +4356,7 @@ fn debt_cluster(signals: &[DebtSignal]) -> Option<DebtCluster> {
     Some(DebtCluster {
         trust_tier: trust_tier.to_string(),
         presentation_class: cluster_presentation_class(signals),
+        leverage_class: cluster_leverage_class(signals),
         scope: format!("cluster:{}", files.join("|")),
         severity: signal_severity(score_0_10000).to_string(),
         score_0_10000,
@@ -3937,6 +4364,7 @@ fn debt_cluster(signals: &[DebtSignal]) -> Option<DebtCluster> {
         impact,
         files,
         role_tags,
+        leverage_reasons: cluster_leverage_reasons(signals),
         evidence,
         inspection_focus,
         signal_families: signal_families.clone(),
@@ -3989,6 +4417,20 @@ fn presentation_class_rank(classification: &str) -> usize {
     }
 }
 
+fn leverage_class_rank(classification: &str) -> usize {
+    match classification {
+        "architecture_signal" => 0,
+        "boundary_discipline" => 1,
+        "local_refactor_target" => 2,
+        "regrowth_watchpoint" => 3,
+        "secondary_cleanup" => 4,
+        "hardening_note" => 5,
+        "tooling_debt" => 6,
+        "experimental" => 7,
+        _ => 8,
+    }
+}
+
 fn cluster_presentation_class(signals: &[DebtSignal]) -> String {
     signals
         .iter()
@@ -3996,6 +4438,24 @@ fn cluster_presentation_class(signals: &[DebtSignal]) -> String {
         .min_by_key(|classification| presentation_class_rank(classification))
         .unwrap_or("structural_debt")
         .to_string()
+}
+
+fn cluster_leverage_class(signals: &[DebtSignal]) -> String {
+    signals
+        .iter()
+        .map(|signal| signal.leverage_class.as_str())
+        .min_by_key(|classification| leverage_class_rank(classification))
+        .unwrap_or("secondary_cleanup")
+        .to_string()
+}
+
+fn cluster_leverage_reasons(signals: &[DebtSignal]) -> Vec<String> {
+    dedupe_strings_preserve_order(
+        signals
+            .iter()
+            .flat_map(|signal| signal.leverage_reasons.iter().cloned())
+            .collect(),
+    )
 }
 
 fn is_structural_debt_signal_kind(kind: &str) -> bool {
@@ -4353,10 +4813,11 @@ fn concept_candidate_split_axes(summary: &ConceptDebtSummary) -> Vec<String> {
 }
 
 fn structural_signal(report: &crate::metrics::v2::StructuralDebtReport) -> DebtSignal {
-    DebtSignal {
+    annotate_debt_signal(DebtSignal {
         kind: report.kind.clone(),
         trust_tier: report.trust_tier.clone(),
         presentation_class: report.presentation_class.clone(),
+        leverage_class: report.leverage_class.clone(),
         scope: report.scope.clone(),
         signal_class: report.signal_class.clone(),
         signal_families: report.signal_families.clone(),
@@ -4366,6 +4827,7 @@ fn structural_signal(report: &crate::metrics::v2::StructuralDebtReport) -> DebtS
         impact: report.impact.clone(),
         files: report.files.clone(),
         role_tags: report.role_tags.clone(),
+        leverage_reasons: report.leverage_reasons.clone(),
         evidence: report.evidence.clone(),
         inspection_focus: report.inspection_focus.clone(),
         candidate_split_axes: report.candidate_split_axes.clone(),
@@ -4380,6 +4842,8 @@ fn structural_signal(report: &crate::metrics::v2::StructuralDebtReport) -> DebtS
             dead_symbol_count: report.metrics.dead_symbol_count,
             dead_line_count: report.metrics.dead_line_count,
             cycle_size: report.metrics.cycle_size,
+            cut_candidate_count: report.metrics.cut_candidate_count,
+            largest_cycle_after_best_cut: report.metrics.largest_cycle_after_best_cut,
             inbound_reference_count: report.metrics.inbound_reference_count,
             public_surface_count: report.metrics.public_surface_count,
             reachable_from_tests: report.metrics.reachable_from_tests,
@@ -4388,7 +4852,7 @@ fn structural_signal(report: &crate::metrics::v2::StructuralDebtReport) -> DebtS
             max_complexity: report.metrics.max_complexity,
             ..DebtSignalMetrics::default()
         },
-    }
+    })
 }
 
 fn clone_family_inspection_focus(family: &Value) -> Vec<String> {
@@ -4468,7 +4932,7 @@ fn clone_family_signal(family: &Value) -> Option<DebtSignal> {
         .collect();
     let inspection_focus = clone_family_inspection_focus(family);
 
-    Some(DebtSignal {
+    Some(annotate_debt_signal(DebtSignal {
         kind: "clone_family".to_string(),
         trust_tier: if score_0_10000 >= 6500 {
             "trusted".to_string()
@@ -4476,6 +4940,7 @@ fn clone_family_signal(family: &Value) -> Option<DebtSignal> {
             "watchpoint".to_string()
         },
         presentation_class: "watchpoint".to_string(),
+        leverage_class: String::new(),
         scope,
         signal_class: if score_0_10000 >= 6500 {
             "debt".to_string()
@@ -4489,6 +4954,7 @@ fn clone_family_signal(family: &Value) -> Option<DebtSignal> {
         impact: "Duplicate logic across related files increases the chance that a fix lands in only one sibling and the family drifts over time.".to_string(),
         files,
         role_tags: Vec::new(),
+        leverage_reasons: Vec::new(),
         evidence,
         inspection_focus,
         candidate_split_axes: clone_family_candidate_axes(family),
@@ -4513,7 +4979,7 @@ fn clone_family_signal(family: &Value) -> Option<DebtSignal> {
             family_score_0_10000: Some(score_0_10000),
             ..DebtSignalMetrics::default()
         },
-    })
+    }))
 }
 
 fn clone_group_signal(finding: &Value) -> Option<DebtSignal> {
@@ -4534,7 +5000,7 @@ fn clone_group_signal(finding: &Value) -> Option<DebtSignal> {
         .take(3)
         .collect::<Vec<_>>();
 
-    Some(DebtSignal {
+    Some(annotate_debt_signal(DebtSignal {
         kind: "clone_group".to_string(),
         trust_tier: if score_0_10000 >= 6500 {
             "trusted".to_string()
@@ -4542,6 +5008,7 @@ fn clone_group_signal(finding: &Value) -> Option<DebtSignal> {
             "watchpoint".to_string()
         },
         presentation_class: "watchpoint".to_string(),
+        leverage_class: String::new(),
         scope,
         signal_class: if score_0_10000 >= 6500 {
             "debt".to_string()
@@ -4555,6 +5022,7 @@ fn clone_group_signal(finding: &Value) -> Option<DebtSignal> {
         impact: "Copy-paste maintenance means the same behavior must be kept in sync across multiple files.".to_string(),
         files,
         role_tags: Vec::new(),
+        leverage_reasons: Vec::new(),
         evidence,
         inspection_focus: vec![
             "inspect whether the repeated logic should stay aligned or collapse behind one abstraction"
@@ -4571,7 +5039,7 @@ fn clone_group_signal(finding: &Value) -> Option<DebtSignal> {
             file_count: Some(finding_files(finding).len()),
             ..DebtSignalMetrics::default()
         },
-    })
+    }))
 }
 
 fn hotspot_signal(report: &crate::metrics::v2::ConcentrationReport) -> Option<DebtSignal> {
@@ -4579,7 +5047,7 @@ fn hotspot_signal(report: &crate::metrics::v2::ConcentrationReport) -> Option<De
         return None;
     }
 
-    Some(DebtSignal {
+    Some(annotate_debt_signal(DebtSignal {
         kind: "hotspot".to_string(),
         trust_tier: if report.score_0_10000 >= 6500 {
             "trusted".to_string()
@@ -4601,6 +5069,7 @@ fn hotspot_signal(report: &crate::metrics::v2::ConcentrationReport) -> Option<De
             0,
             0,
         ),
+        leverage_class: String::new(),
         scope: report.path.clone(),
         signal_class: if report.score_0_10000 >= 6500 {
             "debt".to_string()
@@ -4617,6 +5086,7 @@ fn hotspot_signal(report: &crate::metrics::v2::ConcentrationReport) -> Option<De
         impact: "Side effects, async branches, and retry logic concentrated in one file increase coordination debt and regression risk.".to_string(),
         files: vec![report.path.clone()],
         role_tags: Vec::new(),
+        leverage_reasons: Vec::new(),
         evidence: report.reasons.iter().cloned().take(3).collect(),
         inspection_focus: vec![
             "inspect whether orchestration, side effects, and adapters are accumulating in one file"
@@ -4640,7 +5110,7 @@ fn hotspot_signal(report: &crate::metrics::v2::ConcentrationReport) -> Option<De
             churn_commits: Some(report.churn_commits),
             ..DebtSignalMetrics::default()
         },
-    })
+    }))
 }
 
 fn json_string_list(value: Option<&Value>) -> Vec<String> {
@@ -4764,15 +5234,18 @@ fn distinct_file_count(group: &crate::metrics::DuplicateGroup) -> usize {
 #[cfg(test)]
 mod tests {
     use super::{
+        annotate_debt_signal, annotate_finding_detail, annotate_inspection_watchpoint,
         apply_suppressions, build_exact_clone_findings, build_session_v2_baseline,
-        changed_files_from_session_context, classify_presentation_class, cli_evaluate_v2_gate,
-        cli_save_v2_session, current_session_v2_baseline_with_status, distinct_file_count,
-        do_scan, fresh_mcp_state, handle_concepts, handle_explain_concept, handle_findings,
-        handle_gate, handle_health, handle_obligations, handle_scan, handle_session_end,
-        handle_session_start, handle_state, handle_trace_symbol, load_persisted_session_v2,
-        load_session_v2_baseline_status, load_v2_rules_config, overall_confidence_0_10000,
-        prepare_patch_check_context, project_fingerprint, save_session_v2_baseline,
-        state_model_ids_from_findings, state_model_ids_from_reports, update_scan_cache,
+        changed_files_from_session_context, classify_leverage_class, classify_presentation_class,
+        cli_evaluate_v2_gate, cli_save_v2_session, current_session_v2_baseline_with_status,
+        distinct_file_count, do_scan, fresh_mcp_state, handle_concepts, handle_explain_concept,
+        handle_findings, handle_gate, handle_health, handle_obligations, handle_scan,
+        handle_session_end, handle_session_start, handle_state, handle_trace_symbol,
+        load_persisted_session_v2, load_session_v2_baseline_status, load_v2_rules_config,
+        overall_confidence_0_10000, prepare_patch_check_context, project_fingerprint,
+        save_session_v2_baseline, state_model_ids_from_findings, state_model_ids_from_reports,
+        update_scan_cache, DebtSignal, DebtSignalMetrics, FindingDetail, FindingDetailMetrics,
+        InspectionWatchpoint,
     };
     use crate::analysis::scanner::common::{ScanMetadata, ScanMode};
     use crate::analysis::semantic::typescript::default_bridge_config;
@@ -5681,6 +6154,148 @@ mod tests {
     }
 
     #[test]
+    fn leverage_class_uses_size_and_complexity_for_extracted_owner_facades() {
+        assert_eq!(
+            classify_leverage_class(
+                "dependency_sprawl",
+                "trusted",
+                "structural_debt",
+                &[
+                    "facade_with_extracted_owners".to_string(),
+                    "guarded_seam".to_string(),
+                ],
+                Some(2),
+                Some(28),
+                Some(423),
+                Some(4),
+                None,
+                None,
+                Some(1),
+                0,
+                0,
+            ),
+            "local_refactor_target"
+        );
+        assert_eq!(
+            classify_leverage_class(
+                "dependency_sprawl",
+                "trusted",
+                "structural_debt",
+                &[
+                    "facade_with_extracted_owners".to_string(),
+                    "guarded_seam".to_string(),
+                ],
+                Some(1),
+                Some(22),
+                Some(629),
+                Some(82),
+                None,
+                None,
+                Some(1),
+                0,
+                0,
+            ),
+            "secondary_cleanup"
+        );
+    }
+
+    #[test]
+    fn annotate_debt_signal_preserves_explicit_leverage_metadata() {
+        let signal = annotate_debt_signal(DebtSignal {
+            kind: "dependency_sprawl".to_string(),
+            trust_tier: "trusted".to_string(),
+            presentation_class: "structural_debt".to_string(),
+            leverage_class: "local_refactor_target".to_string(),
+            scope: "src/components/terminal-session.ts".to_string(),
+            signal_class: "debt".to_string(),
+            signal_families: vec!["coordination".to_string()],
+            severity: "medium".to_string(),
+            score_0_10000: 7_200,
+            summary: "Facade has broad dependency pressure".to_string(),
+            impact: "Coordination is still too centralized.".to_string(),
+            files: vec!["src/components/terminal-session.ts".to_string()],
+            role_tags: vec!["facade_with_extracted_owners".to_string()],
+            leverage_reasons: vec!["extracted_owner_shell_pressure".to_string()],
+            evidence: vec!["fan-out: 12".to_string()],
+            inspection_focus: vec!["inspect extracted owners".to_string()],
+            candidate_split_axes: vec!["facade owner boundary".to_string()],
+            related_surfaces: vec!["src/components/terminal-session.ts".to_string()],
+            metrics: DebtSignalMetrics {
+                fan_in: Some(30),
+                fan_out: Some(12),
+                ..DebtSignalMetrics::default()
+            },
+        });
+
+        assert_eq!(signal.leverage_class, "local_refactor_target");
+        assert_eq!(
+            signal.leverage_reasons,
+            vec!["extracted_owner_shell_pressure".to_string()]
+        );
+    }
+
+    #[test]
+    fn annotate_finding_detail_preserves_explicit_leverage_metadata() {
+        let detail = annotate_finding_detail(FindingDetail {
+            kind: "unstable_hotspot".to_string(),
+            trust_tier: "trusted".to_string(),
+            presentation_class: "guarded_facade".to_string(),
+            leverage_class: "boundary_discipline".to_string(),
+            scope: "src/lib/ipc.ts".to_string(),
+            severity: "medium".to_string(),
+            summary: "Transport facade is under pressure".to_string(),
+            impact: "Glue can absorb domain logic.".to_string(),
+            files: vec!["src/lib/ipc.ts".to_string()],
+            role_tags: vec!["transport_facade".to_string()],
+            leverage_reasons: vec!["boundary_or_facade_seam_pressure".to_string()],
+            evidence: vec!["fan-in: 42".to_string()],
+            inspection_focus: vec!["inspect policy leakage".to_string()],
+            candidate_split_axes: vec!["transport boundary".to_string()],
+            related_surfaces: vec!["src/lib/ipc.ts".to_string()],
+            metrics: FindingDetailMetrics::default(),
+        });
+
+        assert_eq!(detail.leverage_class, "boundary_discipline");
+        assert_eq!(
+            detail.leverage_reasons,
+            vec!["boundary_or_facade_seam_pressure".to_string()]
+        );
+    }
+
+    #[test]
+    fn annotate_inspection_watchpoint_preserves_explicit_leverage_metadata() {
+        let watchpoint = annotate_inspection_watchpoint(InspectionWatchpoint {
+            kind: "cycle_cluster".to_string(),
+            trust_tier: "watchpoint".to_string(),
+            presentation_class: "watchpoint".to_string(),
+            leverage_class: "architecture_signal".to_string(),
+            scope: "src/store/store.ts".to_string(),
+            severity: "high".to_string(),
+            score_0_10000: 8_900,
+            summary: "Shared barrel sits inside a mixed cycle".to_string(),
+            impact: "Layer boundaries stay ambiguous.".to_string(),
+            files: vec!["src/store/store.ts".to_string()],
+            role_tags: vec!["component_barrel".to_string()],
+            leverage_reasons: vec!["shared_barrel_boundary_hub".to_string()],
+            evidence: vec!["cycle size: 14".to_string()],
+            inspection_focus: vec!["inspect the cut candidate".to_string()],
+            candidate_split_axes: vec!["contract extraction".to_string()],
+            related_surfaces: vec!["src/store/store.ts".to_string()],
+            signal_families: vec!["dependency".to_string()],
+            clone_family_count: 0,
+            hotspot_count: 0,
+            missing_site_count: 0,
+            boundary_pressure_count: 0,
+        });
+
+        assert_eq!(watchpoint.leverage_class, "architecture_signal");
+        assert_eq!(
+            watchpoint.leverage_reasons,
+            vec!["shared_barrel_boundary_hub".to_string()]
+        );
+    }
+
+    #[test]
     fn findings_surface_structural_debt_signals() {
         let root = structural_debt_fixture_root();
         let mut state = fresh_mcp_state();
@@ -5698,7 +6313,16 @@ mod tests {
             .as_array()
             .expect("debt signals")
             .iter()
-            .any(|signal| signal["kind"] == "large_file" && signal["scope"] == "src/app.ts"));
+            .any(|signal| {
+                signal["kind"] == "large_file"
+                    && signal["scope"] == "src/app.ts"
+                    && signal["leverage_class"]
+                        .as_str()
+                        .is_some_and(|value| !value.is_empty())
+                    && signal["leverage_reasons"]
+                        .as_array()
+                        .is_some_and(|reasons| !reasons.is_empty())
+            }));
         assert!(response["watchpoints"]
             .as_array()
             .expect("watchpoints")
@@ -7763,7 +8387,7 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
     let resolved_findings = resolved_findings
         .into_iter()
         .filter(|finding| !is_experimental_finding(finding))
-        .map(|finding| decorate_finding_with_presentation_class(&finding))
+        .map(|finding| decorate_finding_with_classification(&finding))
         .collect::<Vec<_>>();
     let gate_decision = if !missing_obligations.is_empty() || !blocking_findings.is_empty() {
         "fail"
@@ -7781,7 +8405,7 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
     }
     let introduced_findings = visible_introduced_findings
         .iter()
-        .map(decorate_finding_with_presentation_class)
+        .map(decorate_finding_with_classification)
         .collect::<Vec<_>>();
     let (opportunity_findings, experimental_findings) = if session_v2.is_some() {
         (visible_introduced_findings.clone(), experimental_findings)
@@ -7790,11 +8414,11 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
     };
     let opportunity_findings = opportunity_findings
         .into_iter()
-        .map(|finding| decorate_finding_with_presentation_class(&finding))
+        .map(|finding| decorate_finding_with_classification(&finding))
         .collect::<Vec<_>>();
     let experimental_findings = experimental_findings
         .into_iter()
-        .map(|finding| decorate_finding_with_presentation_class(&finding))
+        .map(|finding| decorate_finding_with_classification(&finding))
         .collect::<Vec<_>>();
     let finding_details = build_finding_details(&opportunity_findings, 10);
     let debt_outputs = build_debt_report_outputs(
