@@ -55,6 +55,16 @@ pub struct CloneFamilySummary {
     pub files: Vec<String>,
     pub reasons: Vec<String>,
     pub summary: String,
+    pub remediation_hints: Vec<CloneRemediationHint>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, Default)]
+pub struct CloneRemediationHint {
+    pub kind: String,
+    pub priority: String,
+    pub summary: String,
+    pub files: Vec<String>,
+    pub clone_ids: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -91,6 +101,36 @@ pub fn build_clone_drift_report(
         prioritized_findings,
         families,
     }
+}
+
+pub fn build_clone_remediation_hints(
+    families: &[CloneFamilySummary],
+    limit: usize,
+) -> Vec<CloneRemediationHint> {
+    if limit == 0 || families.is_empty() {
+        return Vec::new();
+    }
+
+    let max_hints = families
+        .iter()
+        .map(|family| family.remediation_hints.len())
+        .max()
+        .unwrap_or(0);
+    let mut hints = Vec::new();
+
+    for hint_index in 0..max_hints {
+        for family in families {
+            let Some(hint) = family.remediation_hints.get(hint_index) else {
+                continue;
+            };
+            hints.push(hint.clone());
+            if hints.len() >= limit {
+                return hints;
+            }
+        }
+    }
+
+    hints
 }
 
 fn clone_drift_finding(
@@ -334,6 +374,15 @@ fn clone_family_summary(
         asymmetric_recent_change,
     );
     let summary = clone_family_summary_text(members.len(), files.len(), asymmetric_recent_change);
+    let remediation_hints = clone_family_remediation_hints(
+        representative,
+        members.len(),
+        files.len(),
+        recently_touched_file_count,
+        asymmetric_recent_change,
+        &files,
+        &clone_ids,
+    );
 
     Some(CloneFamilySummary {
         kind: "clone_family".to_string(),
@@ -349,6 +398,7 @@ fn clone_family_summary(
         files,
         reasons,
         summary,
+        remediation_hints,
     })
 }
 
@@ -427,6 +477,74 @@ fn clone_family_summary_text(
     }
 
     format!("{member_count} exact clone groups repeat across {file_count} files")
+}
+
+fn clone_family_remediation_hints(
+    representative: &CloneDriftFinding,
+    member_count: usize,
+    file_count: usize,
+    recently_touched_file_count: usize,
+    asymmetric_recent_change: bool,
+    files: &[String],
+    clone_ids: &[String],
+) -> Vec<CloneRemediationHint> {
+    let mut hints = Vec::new();
+
+    if asymmetric_recent_change {
+        hints.push(CloneRemediationHint {
+            kind: "sync_recent_divergence".to_string(),
+            priority: "high".to_string(),
+            summary:
+                "Review recent edits across clone siblings and either synchronize the shared behavior or intentionally split the implementations."
+                    .to_string(),
+            files: files.to_vec(),
+            clone_ids: clone_ids.to_vec(),
+        });
+    }
+
+    if member_count >= 2 && file_count >= 2 {
+        hints.push(CloneRemediationHint {
+            kind: "extract_shared_helper".to_string(),
+            priority: if representative.severity == "high" {
+                "high".to_string()
+            } else {
+                "medium".to_string()
+            },
+            summary: format!(
+                "Extract the repeated logic into a shared helper or module used by the {} clone groups across these files.",
+                member_count
+            ),
+            files: files.to_vec(),
+            clone_ids: clone_ids.to_vec(),
+        });
+    }
+
+    if member_count >= 3 || file_count >= 3 {
+        hints.push(CloneRemediationHint {
+            kind: "collapse_clone_family".to_string(),
+            priority: "medium".to_string(),
+            summary: format!(
+                "Collapse the {} repeated clone groups behind one named abstraction instead of maintaining copies in {} files.",
+                member_count, file_count
+            ),
+            files: files.to_vec(),
+            clone_ids: clone_ids.to_vec(),
+        });
+    }
+
+    if representative.severity == "high" && recently_touched_file_count > 0 {
+        hints.push(CloneRemediationHint {
+            kind: "add_shared_behavior_tests".to_string(),
+            priority: "medium".to_string(),
+            summary:
+                "Add focused tests around the shared behavior before deduplicating the clone family so the extraction does not hide drift."
+                    .to_string(),
+            files: files.to_vec(),
+            clone_ids: clone_ids.to_vec(),
+        });
+    }
+
+    hints
 }
 
 fn prioritize_clone_findings(
@@ -581,7 +699,10 @@ fn production_instance_count(group: &DuplicateGroup) -> usize {
 
 #[cfg(test)]
 mod tests {
-    use super::{build_clone_drift_findings, build_clone_drift_report};
+    use super::{
+        build_clone_drift_findings, build_clone_drift_report, build_clone_remediation_hints,
+        CloneFamilySummary, CloneRemediationHint,
+    };
     use crate::metrics::evolution::{
         AuthorInfo, CouplingPair, EvolutionReport, FileChurn, TemporalHotspot,
     };
@@ -715,6 +836,14 @@ mod tests {
         assert_eq!(report.families[0].member_count, 2);
         assert_eq!(report.families[0].file_count, 2);
         assert_eq!(report.families[0].clone_ids.len(), 2);
+        assert!(report.families[0]
+            .remediation_hints
+            .iter()
+            .any(|hint| hint.kind == "sync_recent_divergence"));
+        assert!(report.families[0]
+            .remediation_hints
+            .iter()
+            .any(|hint| hint.kind == "extract_shared_helper"));
         assert_eq!(
             report.prioritized_findings[0].clone_id,
             report.families[0].representative_clone_id
@@ -755,8 +884,56 @@ mod tests {
             report.prioritized_findings[0].clone_id,
             report.families[0].representative_clone_id
         );
+        assert!(report.families[0]
+            .remediation_hints
+            .iter()
+            .any(|hint| hint.kind == "extract_shared_helper"));
         assert!(
             report.prioritized_findings[1].clone_id != report.families[0].representative_clone_id
         );
+    }
+
+    #[test]
+    fn clone_remediation_hints_round_robin_across_families() {
+        let families = vec![
+            CloneFamilySummary {
+                family_id: "family-a".to_string(),
+                remediation_hints: vec![
+                    CloneRemediationHint {
+                        kind: "sync_recent_divergence".to_string(),
+                        priority: "high".to_string(),
+                        summary: "sync".to_string(),
+                        files: vec!["src/a.ts".to_string(), "src/b.ts".to_string()],
+                        clone_ids: vec!["clone-a".to_string()],
+                    },
+                    CloneRemediationHint {
+                        kind: "extract_shared_helper".to_string(),
+                        priority: "medium".to_string(),
+                        summary: "extract".to_string(),
+                        files: vec!["src/a.ts".to_string(), "src/b.ts".to_string()],
+                        clone_ids: vec!["clone-a".to_string()],
+                    },
+                ],
+                ..CloneFamilySummary::default()
+            },
+            CloneFamilySummary {
+                family_id: "family-b".to_string(),
+                remediation_hints: vec![CloneRemediationHint {
+                    kind: "collapse_clone_family".to_string(),
+                    priority: "medium".to_string(),
+                    summary: "collapse".to_string(),
+                    files: vec!["src/c.ts".to_string(), "src/d.ts".to_string()],
+                    clone_ids: vec!["clone-b".to_string()],
+                }],
+                ..CloneFamilySummary::default()
+            },
+        ];
+
+        let hints = build_clone_remediation_hints(&families, 3);
+
+        assert_eq!(hints.len(), 3);
+        assert_eq!(hints[0].kind, "sync_recent_divergence");
+        assert_eq!(hints[1].kind, "collapse_clone_family");
+        assert_eq!(hints[2].kind, "extract_shared_helper");
     }
 }

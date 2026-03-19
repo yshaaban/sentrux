@@ -391,7 +391,9 @@ fn update_scan_cache(
     state.cached_health = Some(bundle.health);
     state.cached_arch = Some(bundle.arch_report);
     state.cached_evolution = None;
-    state.cached_git_head = identity.as_ref().and_then(|identity| identity.git_head.clone());
+    state.cached_git_head = identity
+        .as_ref()
+        .and_then(|identity| identity.git_head.clone());
     state.cached_working_tree_paths = identity
         .map(|identity| identity.working_tree_paths)
         .unwrap_or_default();
@@ -429,8 +431,12 @@ fn prepare_patch_check_context(
 ) -> Result<PatchCheckContext, String> {
     if let Some(bundle) = cached_scan_bundle(state, root) {
         let current_identity = current_scan_identity(root);
-        let changed_files =
-            changed_files_from_session_context(root, &bundle.snapshot, session_v2, current_identity.as_ref());
+        let changed_files = changed_files_from_session_context(
+            root,
+            &bundle.snapshot,
+            session_v2,
+            current_identity.as_ref(),
+        );
         if changed_files.is_empty() || scan_cache_matches_identity(state, current_identity.as_ref())
         {
             return Ok(PatchCheckContext {
@@ -442,7 +448,8 @@ fn prepare_patch_check_context(
     }
 
     let bundle = do_scan(root)?;
-    let changed_files = changed_files_from_session_context(root, &bundle.snapshot, session_v2, None);
+    let changed_files =
+        changed_files_from_session_context(root, &bundle.snapshot, session_v2, None);
 
     Ok(PatchCheckContext {
         bundle,
@@ -451,10 +458,7 @@ fn prepare_patch_check_context(
     })
 }
 
-fn scan_cache_matches_identity(
-    state: &McpState,
-    identity: Option<&ScanCacheIdentity>,
-) -> bool {
+fn scan_cache_matches_identity(state: &McpState, identity: Option<&ScanCacheIdentity>) -> bool {
     let Some(identity) = identity else {
         return false;
     };
@@ -746,6 +750,7 @@ struct CloneFindingPayload {
     exact_findings: Vec<Value>,
     prioritized_findings: Vec<Value>,
     families: Vec<Value>,
+    remediation_hints: Vec<Value>,
     clone_group_count: usize,
     clone_family_count: usize,
 }
@@ -774,6 +779,9 @@ fn clone_findings_for_health(
             exact_findings: serialized_values(&report.findings),
             prioritized_findings: serialized_values(&prioritized_findings),
             families: serialized_values(&report.families),
+            remediation_hints: serialized_values(
+                &crate::metrics::v2::build_clone_remediation_hints(&report.families, limit),
+            ),
         },
         evolution_error,
     )
@@ -1553,12 +1561,18 @@ fn handle_findings(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<V
         .into_iter()
         .take(limit.min(10))
         .collect::<Vec<_>>();
+    let clone_remediations = clone_payload
+        .remediation_hints
+        .into_iter()
+        .take(limit.min(10))
+        .collect::<Vec<_>>();
 
     Ok(json!({
         "kind": "mixed_findings",
         "clone_group_count": clone_payload.clone_group_count,
         "clone_family_count": clone_payload.clone_family_count,
         "clone_families": clone_families,
+        "clone_remediations": clone_remediations,
         "semantic_finding_count": findings.iter().filter(|finding| finding.get("concept_id").is_some()).count(),
         "rules_error": rules_error,
         "semantic_error": merge_optional_errors(semantic_error, clone_error),
@@ -2643,6 +2657,16 @@ mod tests {
                 .map(|families| families.len()),
             Some(1)
         );
+        assert!(response["clone_families"][0]["remediation_hints"]
+            .as_array()
+            .expect("family remediation hints")
+            .iter()
+            .any(|hint| hint["kind"] == "extract_shared_helper"));
+        assert!(response["clone_remediations"]
+            .as_array()
+            .expect("clone remediation hints")
+            .iter()
+            .any(|hint| hint["kind"] == "extract_shared_helper"));
         assert!(response["findings"]
             .as_array()
             .expect("findings array")
@@ -2732,8 +2756,12 @@ mod tests {
         commit_all(&root, "rename state");
 
         let current_scan = do_scan(&root).expect("scan renamed tree");
-        let changed_files =
-            changed_files_from_session_context(&root, &current_scan.snapshot, Some(&session_v2), None);
+        let changed_files = changed_files_from_session_context(
+            &root,
+            &current_scan.snapshot,
+            Some(&session_v2),
+            None,
+        );
 
         assert!(changed_files.contains("src/domain/state.ts"));
         assert!(changed_files.contains("src/domain/app-state.ts"));
@@ -2789,8 +2817,12 @@ mod tests {
         );
 
         let reverted_scan = do_scan(&root).expect("scan reverted tree");
-        let changed_files =
-            changed_files_from_session_context(&root, &reverted_scan.snapshot, Some(&session_v2), None);
+        let changed_files = changed_files_from_session_context(
+            &root,
+            &reverted_scan.snapshot,
+            Some(&session_v2),
+            None,
+        );
 
         assert!(changed_files.contains("src/domain/state.ts"));
 
