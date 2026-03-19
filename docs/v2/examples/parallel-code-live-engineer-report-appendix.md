@@ -41,17 +41,16 @@ Current scan:
 - File 'src/components/terminal-view/terminal-session.ts' is 1856 lines, above the typescript threshold of 500
 - File 'src/App.tsx' depends on 28 real surfaces, above the typescript threshold of 15
 - File 'src/components/TaskPanel.tsx' depends on 28 real surfaces, above the typescript threshold of 15
-- File 'src/components/ScrollingDiffView.tsx' contains 15 uncalled private functions totaling 144 lines
-- File 'src/store/review.ts' contains 10 uncalled private functions totaling 121 lines
-- File 'src/components/PreviewPanel.tsx' contains 21 uncalled private functions totaling 115 lines
-- File 'src/components/SidebarTaskRow.tsx' contains 19 uncalled private functions totaling 109 lines
 - Files src/app/agent-catalog.ts, src/app/remote-access.ts, src/app/task-attention.ts, src/app/task-close-state.ts, src/app/task-command-dispatch.ts, src/app/task-command-lease-runtime-subscriptions.ts, src/app/task-command-lease-runtime.ts, src/app/task-command-lease-session.ts, src/app/task-command-lease-takeover.ts, src/app/task-command-lease.ts, src/app/task-convergence.ts, src/app/task-lifecycle-workflows.ts, src/app/task-presentation-status.ts, src/app/task-prompt-workflows.ts, src/app/task-review-state.ts, src/app/task-shell-workflows.ts, src/app/task-workflows.ts, src/lib/runtime-client-id.ts, src/store/agent-output-activity.ts, src/store/agents.ts, src/store/auto-trust.ts, src/store/client-session.ts, src/store/completion.ts, src/store/core.ts, src/store/focus.ts, src/store/keyed-snapshot-record.ts, src/store/navigation.ts, src/store/notification.ts, src/store/peer-presence.ts, src/store/persistence-codecs.ts, src/store/persistence-load-context.ts, src/store/persistence-load.ts, src/store/persistence-projects.ts, src/store/persistence-save.ts, src/store/persistence-terminal-restore.ts, src/store/persistence.ts, src/store/projects.ts, src/store/remote.ts, src/store/review.ts, src/store/state.ts, src/store/store.ts, src/store/task-command-controllers.ts, src/store/task-command-takeovers.ts, src/store/task-git-status.ts, src/store/task-state-cleanup.ts, src/store/taskStatus.ts, src/store/tasks.ts, src/store/terminals.ts, src/store/ui.ts form a dependency cycle
 - File 'src/store/store.ts' has 56 inbound references and remains unstable
 
 ### Concept finding still present
 
 - Closed domain 'ConnectionBannerState' is missing coverage for variants: connecting, reconnecting, restoring
-- undefined
+
+## Low-Confidence Signal Not Ready For Review Use
+
+The live run also surfaced `dead_private_code_cluster` findings, but spot-checking the sampled symbol names showed obviously live functions in the current repo. Until that detector is fixed, this finding class should not be used in engineer-facing prioritization or cleanup guidance.
 
 ## Top Debt Clusters
 

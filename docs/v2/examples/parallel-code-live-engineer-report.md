@@ -136,30 +136,23 @@ Inspection focus from the live run:
 - look for contract/type extraction seams or runtime-client/state boundaries that can move to a lower-dependency layer
 - treat [store.ts](<parallel-code-root>/src/store/store.ts) as a blast-radius surface because of the current inbound reference count
 
-## High-Confidence Stale Private Code Clusters
+## Lower-Confidence Signal: Dead Private Code Clusters
 
-These are straightforward, objective cleanups rather than speculative architecture advice.
+This finding class is currently **not review-grade** for `parallel-code`.
+
+The live run surfaced dead-private-code clusters in files such as:
 
 - [ScrollingDiffView.tsx](<parallel-code-root>/src/components/ScrollingDiffView.tsx)
-  - `15` uncalled private functions
-  - `144` dead private lines
-  - sample names: `highlightSearchMatches`, `highlightSearchInHtml`, `inlineQuestions`
 - [review.ts](<parallel-code-root>/src/store/review.ts)
-  - `10` uncalled private functions
-  - `121` dead private lines
-  - sample names: `handlePermissionResponse`, `updateReviewComment`, `markCommentsSent`
 - [PreviewPanel.tsx](<parallel-code-root>/src/components/PreviewPanel.tsx)
-  - `21` uncalled private functions
-  - `115` dead private lines
 - [SidebarTaskRow.tsx](<parallel-code-root>/src/components/SidebarTaskRow.tsx)
-  - `19` uncalled private functions
-  - `109` dead private lines
-  - sample names include `getPrimaryTaskAgentDef`
 
-Why this matters:
+But the sampled symbol names include helpers that are plainly referenced in the live repo. That means this detector needs correction before engineers should treat it as trusted maintainer-facing evidence.
 
-- these findings are easy to dismiss as lint, but they are concrete maintenance noise
-- dead private helpers make supported control flow less obvious and inflate future edit surfaces
+For now:
+
+- do not use this section as a cleanup queue
+- treat it as analyzer follow-up, not repo guidance
 
 ## Targeted Concept Hardening Signals
 
