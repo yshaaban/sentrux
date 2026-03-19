@@ -198,12 +198,12 @@ fn authoritative_import_bypass_findings(
     concept: &ConceptRule,
     snapshot: &Snapshot,
 ) -> Vec<SemanticFinding> {
-    if concept.kind == "projection" || concept.canonical_accessors.is_empty() {
+    let authoritative_paths = concept_internal_boundary_paths(concept);
+    if authoritative_paths.is_empty() {
         return Vec::new();
     }
-
-    let authoritative_paths = concept_authoritative_paths(concept);
-    if authoritative_paths.is_empty() {
+    let preferred_entry_paths = concept_preferred_entry_paths(concept);
+    if preferred_entry_paths.is_empty() {
         return Vec::new();
     }
 
@@ -223,11 +223,16 @@ fn authoritative_import_bypass_findings(
         {
             continue;
         }
+        let preference_detail =
+            preferred_entry_detail(&preferred_entry_paths, edge.to_file.as_str());
 
         bypasses
             .entry(edge.from_file.clone())
             .or_default()
-            .insert(format!("{} -> {}", edge.from_file, edge.to_file));
+            .insert(format!(
+                "{} -> {}{}",
+                edge.from_file, edge.to_file, preference_detail
+            ));
     }
 
     let severity = if concept.priority.as_deref() == Some("critical") {
@@ -235,21 +240,44 @@ fn authoritative_import_bypass_findings(
     } else {
         "medium"
     };
-
-    bypasses
-        .into_iter()
+    let preferred_entry_summary = preferred_entry_summary(&preferred_entry_paths);
+    let mut findings = bypasses
+        .iter()
         .map(|(path, evidence)| SemanticFinding {
             kind: "authoritative_import_bypass".to_string(),
             severity: severity.to_string(),
             concept_id: concept.id.clone(),
             summary: format!(
-                "Concept '{}' is imported directly from authoritative internals at {}",
-                concept.id, path
+                "Concept '{}' bypasses {} at {}",
+                concept.id, preferred_entry_summary, path
             ),
-            files: vec![path],
-            evidence: evidence.into_iter().collect(),
+            files: vec![path.clone()],
+            evidence: evidence.iter().cloned().collect(),
         })
-        .collect()
+        .collect::<Vec<_>>();
+
+    if bypasses.len() > 1 {
+        findings.push(SemanticFinding {
+            kind: "concept_boundary_pressure".to_string(),
+            severity: severity.to_string(),
+            concept_id: concept.id.clone(),
+            summary: format!(
+                "Concept '{}' is bypassing {} from {} files",
+                concept.id,
+                preferred_entry_summary,
+                bypasses.len()
+            ),
+            files: bypasses.keys().cloned().collect(),
+            evidence: bypasses
+                .iter()
+                .flat_map(|(_, evidence)| evidence.iter().cloned())
+                .collect::<BTreeSet<_>>()
+                .into_iter()
+                .collect(),
+        });
+    }
+
+    findings
 }
 
 pub(crate) fn relevant_writes<'a>(
@@ -323,13 +351,41 @@ pub(crate) fn concept_targets(concept: &ConceptRule) -> HashSet<String> {
     )
 }
 
-fn concept_authoritative_paths(concept: &ConceptRule) -> HashSet<String> {
-    concept
+fn concept_internal_boundary_paths(concept: &ConceptRule) -> HashSet<String> {
+    let mut paths = HashSet::new();
+
+    if concept.kind == "projection" && !concept.authoritative_inputs.is_empty() {
+        for value in &concept.authoritative_inputs {
+            insert_scoped_path(&mut paths, value);
+        }
+        return paths;
+    }
+
+    for value in concept
         .anchors
         .iter()
         .chain(concept.authoritative_inputs.iter())
-        .filter_map(|value| value.split_once("::").map(|(path, _)| path.to_string()))
-        .collect()
+    {
+        insert_scoped_path(&mut paths, value);
+    }
+
+    paths
+}
+
+fn concept_preferred_entry_paths(concept: &ConceptRule) -> Vec<String> {
+    let mut paths = BTreeSet::new();
+
+    for value in &concept.canonical_accessors {
+        insert_scoped_path(&mut paths, value);
+    }
+
+    if concept.kind == "projection" {
+        for value in &concept.anchors {
+            insert_scoped_path(&mut paths, value);
+        }
+    }
+
+    paths.into_iter().collect()
 }
 
 fn concept_allowed_importer_paths(concept: &ConceptRule) -> Vec<String> {
@@ -353,8 +409,37 @@ fn concept_allowed_importer_paths(concept: &ConceptRule) -> Vec<String> {
     patterns.into_iter().collect()
 }
 
+fn preferred_entry_summary(preferred_entry_paths: &[String]) -> String {
+    match preferred_entry_paths {
+        [] => "canonical boundaries".to_string(),
+        [path] => format!("canonical entrypoint {}", path),
+        _ => format!("canonical entrypoints {}", preferred_entry_paths.join(", ")),
+    }
+}
+
+fn preferred_entry_detail(preferred_entry_paths: &[String], imported_path: &str) -> String {
+    let alternatives = preferred_entry_paths
+        .iter()
+        .filter(|path| path.as_str() != imported_path)
+        .cloned()
+        .collect::<Vec<_>>();
+    if alternatives.is_empty() {
+        return String::new();
+    }
+
+    format!(" (prefer {})", alternatives.join(", "))
+}
+
 fn path_matches_pattern(pattern: &str, path: &str) -> bool {
     rules::glob_match(pattern, path) || pattern == path
+}
+
+fn insert_scoped_path(paths: &mut impl Extend<String>, value: &str) {
+    if let Some((path, _)) = value.split_once("::") {
+        paths.extend(std::iter::once(path.to_string()));
+    } else {
+        paths.extend(std::iter::once(value.to_string()));
+    }
 }
 
 pub(crate) fn symbol_from_scoped_path(value: &str) -> Option<String> {
@@ -728,9 +813,114 @@ mod tests {
         assert_eq!(bypasses.len(), 1);
         assert_eq!(bypasses[0].severity, "high");
         assert_eq!(bypasses[0].files, vec!["src/app/task-workflows.ts"]);
+        assert_eq!(bypasses[0].summary, "Concept 'task_git_status' bypasses canonical entrypoint src/store/store.ts at src/app/task-workflows.ts");
         assert_eq!(
             bypasses[0].evidence,
-            vec!["src/app/task-workflows.ts -> src/store/core.ts"]
+            vec!["src/app/task-workflows.ts -> src/store/core.ts (prefer src/store/store.ts)"]
         );
+    }
+
+    #[test]
+    fn reports_projection_import_bypass_through_authoritative_inputs() {
+        let config: RulesConfig = toml::from_str(
+            r#"
+                [[concept]]
+                id = "task_presentation_status"
+                kind = "projection"
+                anchors = ["src/app/task-presentation-status.ts::getTaskDotStatus"]
+                authoritative_inputs = [
+                    "src/store/core.ts::store.agentSupervision",
+                    "src/store/core.ts::store.taskGitStatus",
+                ]
+                canonical_accessors = ["src/app/task-presentation-status.ts::getTaskDotStatus"]
+            "#,
+        )
+        .expect("rules config");
+        let semantic = SemanticSnapshot {
+            project: ProjectModel::default(),
+            analyzed_files: 0,
+            capabilities: vec![SemanticCapability::Reads],
+            files: Vec::new(),
+            symbols: Vec::new(),
+            reads: Vec::new(),
+            writes: Vec::new(),
+            closed_domains: Vec::new(),
+            closed_domain_sites: Vec::new(),
+        };
+        let snapshot = snap_with_edges(
+            vec![
+                edge("src/components/SidebarTaskRow.tsx", "src/store/core.ts"),
+                edge("src/app/task-presentation-status.ts", "src/store/core.ts"),
+            ],
+            vec![
+                file("src/components/SidebarTaskRow.tsx"),
+                file("src/app/task-presentation-status.ts"),
+                file("src/store/core.ts"),
+            ],
+        );
+
+        let findings =
+            build_authority_and_access_findings_with_snapshot(&config, &semantic, Some(&snapshot));
+
+        let bypass = findings
+            .iter()
+            .find(|finding| finding.kind == "authoritative_import_bypass")
+            .expect("projection bypass finding");
+        assert_eq!(bypass.files, vec!["src/components/SidebarTaskRow.tsx"]);
+        assert!(bypass
+            .summary
+            .contains("canonical entrypoint src/app/task-presentation-status.ts"));
+    }
+
+    #[test]
+    fn reports_concept_boundary_pressure_when_multiple_files_bypass_same_boundary() {
+        let config: RulesConfig = toml::from_str(
+            r#"
+                [[concept]]
+                id = "task_git_status"
+                kind = "authoritative_state"
+                anchors = ["src/store/core.ts::store.taskGitStatus"]
+                authoritative_inputs = ["src/store/internal-status.ts::taskGitStatusSource"]
+                canonical_accessors = ["src/store/store.ts::getTaskGitStatus"]
+            "#,
+        )
+        .expect("rules config");
+        let semantic = SemanticSnapshot {
+            project: ProjectModel::default(),
+            analyzed_files: 0,
+            capabilities: vec![SemanticCapability::Writes],
+            files: Vec::new(),
+            symbols: Vec::new(),
+            reads: Vec::new(),
+            writes: Vec::new(),
+            closed_domains: Vec::new(),
+            closed_domain_sites: Vec::new(),
+        };
+        let snapshot = snap_with_edges(
+            vec![
+                edge("src/app/task-workflows.ts", "src/store/core.ts"),
+                edge("src/app/sidebar.ts", "src/store/core.ts"),
+                edge("src/store/store.ts", "src/store/core.ts"),
+            ],
+            vec![
+                file("src/app/task-workflows.ts"),
+                file("src/app/sidebar.ts"),
+                file("src/store/core.ts"),
+                file("src/store/store.ts"),
+            ],
+        );
+
+        let findings =
+            build_authority_and_access_findings_with_snapshot(&config, &semantic, Some(&snapshot));
+
+        let pressure = findings
+            .iter()
+            .find(|finding| finding.kind == "concept_boundary_pressure")
+            .expect("boundary pressure finding");
+        assert_eq!(
+            pressure.files,
+            vec!["src/app/sidebar.ts", "src/app/task-workflows.ts"]
+        );
+        assert!(pressure.summary.contains("2 files"));
     }
 }
