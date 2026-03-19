@@ -109,6 +109,7 @@ Current status:
 - synthetic touched-concept gate and `session_end` regression scenarios now exist in the MCP handler test suite
 - initial migration/coexistence coverage now verifies that v2 gate and `session_end` still work when only the v2 session baseline is usable
 - the benchmark harness now supports versioned artifact comparison and separate warm patch-safety timings
+- the validation loop now has a dedicated one-command runner for checked-in goldens and benchmark regression checks
 - full release-grade validation still needs broader regression coverage beyond the current single real-repo fail path, plus confidence-report regression checks
 
 ## Layer 5: False-Positive Review
@@ -162,6 +163,19 @@ V2 should track at least these validation metrics:
 The goal is not perfect recall.
 
 The goal is high trust on the findings we choose to surface and gate on.
+
+## Recommended Loop
+
+For the current `parallel-code` proof loop:
+
+1. refresh checked-in goldens when the expected outputs intentionally change with `./scripts/refresh_parallel_code_goldens.sh`
+2. validate checked-in goldens and benchmark behavior with `node scripts/validate_parallel_code_v2.mjs`
+3. run performance-only checks with `node scripts/benchmark_parallel_code_v2.mjs`
+
+The validation loop catches two classes of regressions:
+
+- output drift in the real-repo goldens
+- warm or cold patch-safety regressions in the benchmark artifact
 
 ## Beta Validation Scope
 
@@ -218,4 +232,5 @@ it should have:
 - [-] capture initial `parallel-code` benchmark artifact
 - [-] add performance regression benchmarks
 - [-] add baseline migration tests
+- [x] add a one-command validation loop for real-repo goldens and benchmark regression checks
 - [ ] define promotion criteria for gating analyzers

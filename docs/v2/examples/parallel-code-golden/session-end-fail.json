@@ -7,8 +7,8 @@
     "src/components/SidebarTaskRow.tsx"
   ],
   "coupling_change": [
-    0.47129337539432176,
-    0.47129337539432176
+    0.4681508967223253,
+    0.4681508967223253
   ],
   "cycles_change": [
     1,
@@ -114,7 +114,7 @@
   "resolved_findings": [],
   "rules_error": null,
   "scan_trust": {
-    "candidate_files": 677,
+    "candidate_files": 685,
     "exclusions": {
       "bucketed": {
         "build": 12,
@@ -129,25 +129,25 @@
       "total": 132
     },
     "fallback_reason": null,
-    "kept_files": 545,
+    "kept_files": 553,
     "mode": "git",
-    "overall_confidence_0_10000": 8050,
+    "overall_confidence_0_10000": 8073,
     "partial": false,
     "resolution": {
       "internal_confidence_0_10000": 9994,
-      "resolved": 1586,
-      "unresolved_external": 468,
+      "resolved": 1618,
+      "unresolved_external": 472,
       "unresolved_internal": 1,
       "unresolved_unknown": 73
     },
-    "scope_coverage_0_10000": 8050,
-    "tracked_candidates": 677,
+    "scope_coverage_0_10000": 8073,
+    "tracked_candidates": 685,
     "truncated": false,
     "untracked_candidates": 0
   },
   "semantic_error": null,
-  "signal_after": 4964,
-  "signal_before": 4964,
+  "signal_after": 4973,
+  "signal_before": 4973,
   "signal_delta": 0,
   "summary": "Touched-concept regressions detected",
   "suppressed_finding_count": 0,

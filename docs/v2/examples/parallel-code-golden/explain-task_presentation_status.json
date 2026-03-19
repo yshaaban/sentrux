@@ -139,26 +139,158 @@
         "symbol_name": "store.taskReview"
       },
       {
-        "line": 633,
+        "line": 295,
+        "path": "src/app/task-workflows.control.test.ts",
+        "read_kind": "element_access",
+        "symbol_name": "store.taskGitStatus.task-1"
+      },
+      {
+        "line": 295,
+        "path": "src/app/task-workflows.control.test.ts",
+        "read_kind": "property_access",
+        "symbol_name": "store.taskGitStatus"
+      },
+      {
+        "line": 298,
+        "path": "src/app/task-workflows.control.test.ts",
+        "read_kind": "element_access",
+        "symbol_name": "store.taskReview.task-1"
+      },
+      {
+        "line": 298,
+        "path": "src/app/task-workflows.control.test.ts",
+        "read_kind": "property_access",
+        "symbol_name": "store.taskReview"
+      },
+      {
+        "line": 304,
+        "path": "src/app/task-workflows.control.test.ts",
+        "read_kind": "element_access",
+        "symbol_name": "store.agentSupervision.agent-1"
+      },
+      {
+        "line": 304,
+        "path": "src/app/task-workflows.control.test.ts",
+        "read_kind": "property_access",
+        "symbol_name": "store.agentSupervision"
+      },
+      {
+        "line": 305,
+        "path": "src/app/task-workflows.control.test.ts",
+        "read_kind": "element_access",
+        "symbol_name": "store.agentSupervision.shell-1"
+      },
+      {
+        "line": 305,
+        "path": "src/app/task-workflows.control.test.ts",
+        "read_kind": "property_access",
+        "symbol_name": "store.agentSupervision"
+      },
+      {
+        "line": 374,
+        "path": "src/app/task-workflows.control.test.ts",
+        "read_kind": "element_access",
+        "symbol_name": "store.agentSupervision.agent-1"
+      },
+      {
+        "line": 374,
+        "path": "src/app/task-workflows.control.test.ts",
+        "read_kind": "property_access",
+        "symbol_name": "store.agentSupervision"
+      },
+      {
+        "line": 375,
+        "path": "src/app/task-workflows.control.test.ts",
+        "read_kind": "element_access",
+        "symbol_name": "store.agentSupervision.shell-1"
+      },
+      {
+        "line": 375,
+        "path": "src/app/task-workflows.control.test.ts",
+        "read_kind": "property_access",
+        "symbol_name": "store.agentSupervision"
+      },
+      {
+        "line": 793,
         "path": "src/store/persistence.test.ts",
         "read_kind": "element_access",
         "symbol_name": "store.taskGitStatus.task-1"
       },
       {
-        "line": 633,
+        "line": 793,
         "path": "src/store/persistence.test.ts",
         "read_kind": "property_access",
         "symbol_name": "store.taskGitStatus"
       },
       {
-        "line": 757,
+        "line": 917,
         "path": "src/store/persistence.test.ts",
         "read_kind": "element_access",
         "symbol_name": "store.agentSupervision.terminal-agent-1"
       },
       {
-        "line": 757,
+        "line": 917,
         "path": "src/store/persistence.test.ts",
+        "read_kind": "property_access",
+        "symbol_name": "store.agentSupervision"
+      },
+      {
+        "line": 1025,
+        "path": "src/store/persistence.test.ts",
+        "read_kind": "element_access",
+        "symbol_name": "store.taskGitStatus.task-1"
+      },
+      {
+        "line": 1025,
+        "path": "src/store/persistence.test.ts",
+        "read_kind": "property_access",
+        "symbol_name": "store.taskGitStatus"
+      },
+      {
+        "line": 1028,
+        "path": "src/store/persistence.test.ts",
+        "read_kind": "element_access",
+        "symbol_name": "store.taskReview.task-1"
+      },
+      {
+        "line": 1028,
+        "path": "src/store/persistence.test.ts",
+        "read_kind": "property_access",
+        "symbol_name": "store.taskReview"
+      },
+      {
+        "line": 1034,
+        "path": "src/store/persistence.test.ts",
+        "read_kind": "element_access",
+        "symbol_name": "store.agentSupervision.agent-1"
+      },
+      {
+        "line": 1034,
+        "path": "src/store/persistence.test.ts",
+        "read_kind": "property_access",
+        "symbol_name": "store.agentSupervision"
+      },
+      {
+        "line": 1035,
+        "path": "src/store/persistence.test.ts",
+        "read_kind": "element_access",
+        "symbol_name": "store.agentSupervision.shell-1"
+      },
+      {
+        "line": 1035,
+        "path": "src/store/persistence.test.ts",
+        "read_kind": "property_access",
+        "symbol_name": "store.agentSupervision"
+      },
+      {
+        "line": 79,
+        "path": "src/store/terminals.test.ts",
+        "read_kind": "element_access",
+        "symbol_name": "store.agentSupervision.terminal-agent-1"
+      },
+      {
+        "line": 79,
+        "path": "src/store/terminals.test.ts",
         "read_kind": "property_access",
         "symbol_name": "store.agentSupervision"
       }

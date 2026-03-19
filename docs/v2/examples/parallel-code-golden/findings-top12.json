@@ -1,5 +1,301 @@
 {
-  "clone_group_count": 41,
+  "clone_families": [
+    {
+      "asymmetric_recent_change": false,
+      "clone_ids": [
+        "clone-0xfc51cb7428314a19",
+        "clone-0x220ca1c043f3d29c",
+        "clone-0x1d0ffc9c1f5ac781",
+        "clone-0x31a396cfce0df305"
+      ],
+      "family_id": "clone-family-0x7e50d49dc16ef925",
+      "family_score": 88,
+      "file_count": 2,
+      "files": [
+        "src/components/AgentGlyph.tsx",
+        "src/remote/RemoteAgentGlyph.tsx"
+      ],
+      "kind": "clone_family",
+      "member_count": 4,
+      "reasons": [
+        "4 exact clone groups repeat across 2 files",
+        "highest-risk representative exact clone scores 70",
+        "2 family file(s) changed within the last 30 day(s)"
+      ],
+      "recently_touched_file_count": 2,
+      "remediation_hints": [
+        {
+          "clone_ids": [
+            "clone-0xfc51cb7428314a19",
+            "clone-0x220ca1c043f3d29c",
+            "clone-0x1d0ffc9c1f5ac781",
+            "clone-0x31a396cfce0df305"
+          ],
+          "files": [
+            "src/components/AgentGlyph.tsx",
+            "src/remote/RemoteAgentGlyph.tsx"
+          ],
+          "kind": "extract_shared_helper",
+          "priority": "high",
+          "summary": "Extract the repeated logic into a shared helper or module used by the 4 clone groups across these files."
+        },
+        {
+          "clone_ids": [
+            "clone-0xfc51cb7428314a19",
+            "clone-0x220ca1c043f3d29c",
+            "clone-0x1d0ffc9c1f5ac781",
+            "clone-0x31a396cfce0df305"
+          ],
+          "files": [
+            "src/components/AgentGlyph.tsx",
+            "src/remote/RemoteAgentGlyph.tsx"
+          ],
+          "kind": "collapse_clone_family",
+          "priority": "medium",
+          "summary": "Collapse the 4 repeated clone groups behind one named abstraction instead of maintaining copies in 2 files."
+        },
+        {
+          "clone_ids": [
+            "clone-0xfc51cb7428314a19",
+            "clone-0x220ca1c043f3d29c",
+            "clone-0x1d0ffc9c1f5ac781",
+            "clone-0x31a396cfce0df305"
+          ],
+          "files": [
+            "src/components/AgentGlyph.tsx",
+            "src/remote/RemoteAgentGlyph.tsx"
+          ],
+          "kind": "add_shared_behavior_tests",
+          "priority": "medium",
+          "summary": "Add focused tests around the shared behavior before deduplicating the clone family so the extraction does not hide drift."
+        }
+      ],
+      "representative_clone_id": "clone-0xfc51cb7428314a19",
+      "severity": "high",
+      "summary": "4 exact clone groups repeat across 2 files"
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_ids": [
+        "clone-0x1cb44275b908d532",
+        "clone-0x6de9a148bb69f645",
+        "clone-0x21298edf36100084",
+        "clone-0x491ae0fdd477dfe3"
+      ],
+      "family_id": "clone-family-0x9ebb8dad5cafb9c0",
+      "family_score": 74,
+      "file_count": 2,
+      "files": [
+        "electron/remote/ws-server.ts",
+        "server/browser-websocket.ts"
+      ],
+      "kind": "clone_family",
+      "member_count": 4,
+      "reasons": [
+        "4 exact clone groups repeat across 2 files",
+        "highest-risk representative exact clone scores 56",
+        "2 family file(s) changed within the last 30 day(s)"
+      ],
+      "recently_touched_file_count": 2,
+      "remediation_hints": [
+        {
+          "clone_ids": [
+            "clone-0x1cb44275b908d532",
+            "clone-0x6de9a148bb69f645",
+            "clone-0x21298edf36100084",
+            "clone-0x491ae0fdd477dfe3"
+          ],
+          "files": [
+            "electron/remote/ws-server.ts",
+            "server/browser-websocket.ts"
+          ],
+          "kind": "extract_shared_helper",
+          "priority": "high",
+          "summary": "Extract the repeated logic into a shared helper or module used by the 4 clone groups across these files."
+        },
+        {
+          "clone_ids": [
+            "clone-0x1cb44275b908d532",
+            "clone-0x6de9a148bb69f645",
+            "clone-0x21298edf36100084",
+            "clone-0x491ae0fdd477dfe3"
+          ],
+          "files": [
+            "electron/remote/ws-server.ts",
+            "server/browser-websocket.ts"
+          ],
+          "kind": "collapse_clone_family",
+          "priority": "medium",
+          "summary": "Collapse the 4 repeated clone groups behind one named abstraction instead of maintaining copies in 2 files."
+        },
+        {
+          "clone_ids": [
+            "clone-0x1cb44275b908d532",
+            "clone-0x6de9a148bb69f645",
+            "clone-0x21298edf36100084",
+            "clone-0x491ae0fdd477dfe3"
+          ],
+          "files": [
+            "electron/remote/ws-server.ts",
+            "server/browser-websocket.ts"
+          ],
+          "kind": "add_shared_behavior_tests",
+          "priority": "medium",
+          "summary": "Add focused tests around the shared behavior before deduplicating the clone family so the extraction does not hide drift."
+        }
+      ],
+      "representative_clone_id": "clone-0x1cb44275b908d532",
+      "severity": "high",
+      "summary": "4 exact clone groups repeat across 2 files"
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_ids": [
+        "clone-0x1a2c7f190774e2a3",
+        "clone-0x4bd1c79c8e548667"
+      ],
+      "family_id": "clone-family-0x47e221196ad7e4d",
+      "family_score": 302,
+      "file_count": 2,
+      "files": [
+        "src/App.tsx",
+        "src/remote/App.tsx"
+      ],
+      "kind": "clone_family",
+      "member_count": 2,
+      "reasons": [
+        "2 exact clone groups repeat across 2 files",
+        "highest-risk representative exact clone scores 292",
+        "2 family file(s) changed within the last 30 day(s)"
+      ],
+      "recently_touched_file_count": 2,
+      "remediation_hints": [
+        {
+          "clone_ids": [
+            "clone-0x1a2c7f190774e2a3",
+            "clone-0x4bd1c79c8e548667"
+          ],
+          "files": [
+            "src/App.tsx",
+            "src/remote/App.tsx"
+          ],
+          "kind": "extract_shared_helper",
+          "priority": "medium",
+          "summary": "Extract the repeated logic into a shared helper or module used by the 2 clone groups across these files."
+        }
+      ],
+      "representative_clone_id": "clone-0x1a2c7f190774e2a3",
+      "severity": "low",
+      "summary": "2 exact clone groups repeat across 2 files"
+    }
+  ],
+  "clone_family_count": 3,
+  "clone_group_count": 19,
+  "clone_remediations": [
+    {
+      "clone_ids": [
+        "clone-0xfc51cb7428314a19",
+        "clone-0x220ca1c043f3d29c",
+        "clone-0x1d0ffc9c1f5ac781",
+        "clone-0x31a396cfce0df305"
+      ],
+      "files": [
+        "src/components/AgentGlyph.tsx",
+        "src/remote/RemoteAgentGlyph.tsx"
+      ],
+      "kind": "extract_shared_helper",
+      "priority": "high",
+      "summary": "Extract the repeated logic into a shared helper or module used by the 4 clone groups across these files."
+    },
+    {
+      "clone_ids": [
+        "clone-0x1cb44275b908d532",
+        "clone-0x6de9a148bb69f645",
+        "clone-0x21298edf36100084",
+        "clone-0x491ae0fdd477dfe3"
+      ],
+      "files": [
+        "electron/remote/ws-server.ts",
+        "server/browser-websocket.ts"
+      ],
+      "kind": "extract_shared_helper",
+      "priority": "high",
+      "summary": "Extract the repeated logic into a shared helper or module used by the 4 clone groups across these files."
+    },
+    {
+      "clone_ids": [
+        "clone-0x1a2c7f190774e2a3",
+        "clone-0x4bd1c79c8e548667"
+      ],
+      "files": [
+        "src/App.tsx",
+        "src/remote/App.tsx"
+      ],
+      "kind": "extract_shared_helper",
+      "priority": "medium",
+      "summary": "Extract the repeated logic into a shared helper or module used by the 2 clone groups across these files."
+    },
+    {
+      "clone_ids": [
+        "clone-0xfc51cb7428314a19",
+        "clone-0x220ca1c043f3d29c",
+        "clone-0x1d0ffc9c1f5ac781",
+        "clone-0x31a396cfce0df305"
+      ],
+      "files": [
+        "src/components/AgentGlyph.tsx",
+        "src/remote/RemoteAgentGlyph.tsx"
+      ],
+      "kind": "collapse_clone_family",
+      "priority": "medium",
+      "summary": "Collapse the 4 repeated clone groups behind one named abstraction instead of maintaining copies in 2 files."
+    },
+    {
+      "clone_ids": [
+        "clone-0x1cb44275b908d532",
+        "clone-0x6de9a148bb69f645",
+        "clone-0x21298edf36100084",
+        "clone-0x491ae0fdd477dfe3"
+      ],
+      "files": [
+        "electron/remote/ws-server.ts",
+        "server/browser-websocket.ts"
+      ],
+      "kind": "collapse_clone_family",
+      "priority": "medium",
+      "summary": "Collapse the 4 repeated clone groups behind one named abstraction instead of maintaining copies in 2 files."
+    },
+    {
+      "clone_ids": [
+        "clone-0xfc51cb7428314a19",
+        "clone-0x220ca1c043f3d29c",
+        "clone-0x1d0ffc9c1f5ac781",
+        "clone-0x31a396cfce0df305"
+      ],
+      "files": [
+        "src/components/AgentGlyph.tsx",
+        "src/remote/RemoteAgentGlyph.tsx"
+      ],
+      "kind": "add_shared_behavior_tests",
+      "priority": "medium",
+      "summary": "Add focused tests around the shared behavior before deduplicating the clone family so the extraction does not hide drift."
+    },
+    {
+      "clone_ids": [
+        "clone-0x1cb44275b908d532",
+        "clone-0x6de9a148bb69f645",
+        "clone-0x21298edf36100084",
+        "clone-0x491ae0fdd477dfe3"
+      ],
+      "files": [
+        "electron/remote/ws-server.ts",
+        "server/browser-websocket.ts"
+      ],
+      "kind": "add_shared_behavior_tests",
+      "priority": "medium",
+      "summary": "Add focused tests around the shared behavior before deduplicating the clone family so the extraction does not hide drift."
+    }
+  ],
   "expired_suppression_match_count": 0,
   "expired_suppressions": [],
   "findings": [
@@ -87,48 +383,6 @@
     },
     {
       "asymmetric_recent_change": false,
-      "clone_id": "clone-0x220ca1c043f3d29c",
-      "files": [
-        "src/components/AgentGlyph.tsx",
-        "src/remote/RemoteAgentGlyph.tsx"
-      ],
-      "instance_count": 2,
-      "instances": [
-        {
-          "age_days": 1,
-          "commit_count": 1,
-          "file": "src/components/AgentGlyph.tsx",
-          "func": "ClaudeGlyph",
-          "lines": 25
-        },
-        {
-          "age_days": 0,
-          "commit_count": 1,
-          "file": "src/remote/RemoteAgentGlyph.tsx",
-          "func": "ClaudeGlyph",
-          "lines": 25
-        }
-      ],
-      "kind": "exact_clone_group",
-      "max_commit_count": 1,
-      "max_lines": 25,
-      "production_instance_count": 2,
-      "reasons": [
-        "identical logic spans 2 files",
-        "largest clone instance is 25 lines",
-        "at least one clone file changed in 1 recent commit(s)",
-        "2 clone file(s) changed within the last 30 day(s)",
-        "youngest clone file was touched 0 day(s) ago"
-      ],
-      "recently_touched_file_count": 2,
-      "risk_score": 60,
-      "severity": "high",
-      "summary": "2 functions share an identical normalized body across recently changed files",
-      "total_lines": 50,
-      "youngest_age_days": 0
-    },
-    {
-      "asymmetric_recent_change": false,
       "clone_id": "clone-0x1cb44275b908d532",
       "files": [
         "electron/remote/ws-server.ts",
@@ -167,6 +421,48 @@
       "severity": "high",
       "summary": "2 functions share an identical normalized body across recently changed files",
       "total_lines": 22,
+      "youngest_age_days": 0
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0x220ca1c043f3d29c",
+      "files": [
+        "src/components/AgentGlyph.tsx",
+        "src/remote/RemoteAgentGlyph.tsx"
+      ],
+      "instance_count": 2,
+      "instances": [
+        {
+          "age_days": 1,
+          "commit_count": 1,
+          "file": "src/components/AgentGlyph.tsx",
+          "func": "ClaudeGlyph",
+          "lines": 25
+        },
+        {
+          "age_days": 0,
+          "commit_count": 1,
+          "file": "src/remote/RemoteAgentGlyph.tsx",
+          "func": "ClaudeGlyph",
+          "lines": 25
+        }
+      ],
+      "kind": "exact_clone_group",
+      "max_commit_count": 1,
+      "max_lines": 25,
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 25 lines",
+        "at least one clone file changed in 1 recent commit(s)",
+        "2 clone file(s) changed within the last 30 day(s)",
+        "youngest clone file was touched 0 day(s) ago"
+      ],
+      "recently_touched_file_count": 2,
+      "risk_score": 60,
+      "severity": "high",
+      "summary": "2 functions share an identical normalized body across recently changed files",
+      "total_lines": 50,
       "youngest_age_days": 0
     },
     {
@@ -318,7 +614,7 @@
       "instances": [
         {
           "age_days": 0,
-          "commit_count": 68,
+          "commit_count": 69,
           "file": "src/App.tsx",
           "func": "markBusyTakeoverRequest",
           "lines": 5
@@ -332,18 +628,18 @@
         }
       ],
       "kind": "exact_clone_group",
-      "max_commit_count": 68,
+      "max_commit_count": 69,
       "max_lines": 5,
       "production_instance_count": 2,
       "reasons": [
         "identical logic spans 2 files",
         "largest clone instance is 5 lines",
-        "at least one clone file changed in 68 recent commit(s)",
+        "at least one clone file changed in 69 recent commit(s)",
         "2 clone file(s) changed within the last 30 day(s)",
         "youngest clone file was touched 0 day(s) ago"
       ],
       "recently_touched_file_count": 2,
-      "risk_score": 288,
+      "risk_score": 292,
       "severity": "low",
       "summary": "2 functions share an identical normalized body across recently changed files",
       "total_lines": 10,
@@ -360,7 +656,7 @@
       "instances": [
         {
           "age_days": 0,
-          "commit_count": 68,
+          "commit_count": 69,
           "file": "src/App.tsx",
           "func": "clearBusyTakeoverRequest",
           "lines": 5
@@ -374,18 +670,18 @@
         }
       ],
       "kind": "exact_clone_group",
-      "max_commit_count": 68,
+      "max_commit_count": 69,
       "max_lines": 5,
       "production_instance_count": 2,
       "reasons": [
         "identical logic spans 2 files",
         "largest clone instance is 5 lines",
-        "at least one clone file changed in 68 recent commit(s)",
+        "at least one clone file changed in 69 recent commit(s)",
         "2 clone file(s) changed within the last 30 day(s)",
         "youngest clone file was touched 0 day(s) ago"
       ],
       "recently_touched_file_count": 2,
-      "risk_score": 288,
+      "risk_score": 292,
       "severity": "low",
       "summary": "2 functions share an identical normalized body across recently changed files",
       "total_lines": 10,
@@ -397,5 +693,7 @@
   "semantic_error": null,
   "semantic_finding_count": 4,
   "suppressed_finding_count": 0,
-  "suppression_hits": []
+  "suppression_hits": [],
+  "visible_clone_family_count": 3,
+  "visible_clone_group_count": 19
 }

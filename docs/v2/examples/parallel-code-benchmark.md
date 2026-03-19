@@ -4,6 +4,10 @@ Benchmark artifact:
 
 - [parallel-code-benchmark.json](./parallel-code-benchmark.json)
 
+Validation runner:
+
+- `node scripts/validate_parallel_code_v2.mjs`
+
 ## Method
 
 The benchmark uses a real MCP session against `<parallel-code-root>` with the example v2 rules file installed temporarily.
@@ -67,6 +71,14 @@ Primary captured run:
 6. the benchmark harness now needs stable inputs as well as stable timings
    - the artifact is now format-versioned so regression comparison does not compare incompatible benchmark shapes
    - future regression runs should prefer a controlled repo state or temp copy when possible
+
+## Validation Flow
+
+The benchmark is part of the broader validation loop:
+
+1. refresh the checked-in goldens when the expected outputs intentionally change
+2. run `node scripts/validate_parallel_code_v2.mjs` to compare a fresh temporary run against the checked-in goldens
+3. use the benchmark-only command when you want latency data without golden comparison noise
 
 ## Implication
 

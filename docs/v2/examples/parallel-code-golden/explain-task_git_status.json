@@ -102,13 +102,37 @@
         "symbol_name": "store.taskGitStatus"
       },
       {
-        "line": 633,
+        "line": 295,
+        "path": "src/app/task-workflows.control.test.ts",
+        "read_kind": "element_access",
+        "symbol_name": "store.taskGitStatus.task-1"
+      },
+      {
+        "line": 295,
+        "path": "src/app/task-workflows.control.test.ts",
+        "read_kind": "property_access",
+        "symbol_name": "store.taskGitStatus"
+      },
+      {
+        "line": 793,
         "path": "src/store/persistence.test.ts",
         "read_kind": "element_access",
         "symbol_name": "store.taskGitStatus.task-1"
       },
       {
-        "line": 633,
+        "line": 793,
+        "path": "src/store/persistence.test.ts",
+        "read_kind": "property_access",
+        "symbol_name": "store.taskGitStatus"
+      },
+      {
+        "line": 1025,
+        "path": "src/store/persistence.test.ts",
+        "read_kind": "element_access",
+        "symbol_name": "store.taskGitStatus.task-1"
+      },
+      {
+        "line": 1025,
         "path": "src/store/persistence.test.ts",
         "read_kind": "property_access",
         "symbol_name": "store.taskGitStatus"
@@ -140,7 +164,19 @@
         "write_kind": "store_call"
       },
       {
-        "line": 591,
+        "line": 237,
+        "path": "src/app/task-workflows.control.test.ts",
+        "symbol_name": "store.taskGitStatus",
+        "write_kind": "store_call"
+      },
+      {
+        "line": 751,
+        "path": "src/store/persistence.test.ts",
+        "symbol_name": "store.taskGitStatus",
+        "write_kind": "store_call"
+      },
+      {
+        "line": 996,
         "path": "src/store/persistence.test.ts",
         "symbol_name": "store.taskGitStatus",
         "write_kind": "store_call"

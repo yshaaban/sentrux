@@ -126,6 +126,11 @@
       "path": "src/app/desktop-session.architecture.test.ts"
     },
     {
+      "matched_concepts": [],
+      "matched_symbols": [],
+      "path": "src/app/store-boundary.architecture.test.ts"
+    },
+    {
       "matched_concepts": [
         "task_git_status",
         "task_presentation_status"
@@ -331,9 +336,20 @@
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.activeTaskId' is touched from 23 file(s)"
+        "symbol 'store.activeTaskId' is touched from 24 file(s)"
       ],
       "id": "store_active_task_id",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/task-workflows.control.test.ts::store.agentActive"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.agentActive' is touched from 4 file(s)"
+      ],
+      "id": "store_agent_active",
       "kind": "store_like_symbol"
     },
     {
@@ -342,7 +358,7 @@
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.agents' is touched from 18 file(s)"
+        "symbol 'store.agents' is touched from 19 file(s)"
       ],
       "id": "store_agents",
       "kind": "store_like_symbol"
@@ -386,7 +402,7 @@
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.focusedPanel' is touched from 13 file(s)"
+        "symbol 'store.focusedPanel' is touched from 14 file(s)"
       ],
       "id": "store_focused_panel",
       "kind": "store_like_symbol"
@@ -397,7 +413,7 @@
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.fontScales' is touched from 6 file(s)"
+        "symbol 'store.fontScales' is touched from 7 file(s)"
       ],
       "id": "store_font_scales",
       "kind": "store_like_symbol"
@@ -419,7 +435,7 @@
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.hydraCommand' is touched from 4 file(s)"
+        "symbol 'store.hydraCommand' is touched from 5 file(s)"
       ],
       "id": "store_hydra_command",
       "kind": "store_like_symbol"
@@ -485,7 +501,7 @@
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.panelSizes' is touched from 6 file(s)"
+        "symbol 'store.panelSizes' is touched from 7 file(s)"
       ],
       "id": "store_panel_sizes",
       "kind": "store_like_symbol"
@@ -635,13 +651,35 @@
     },
     {
       "anchors": [
-        "src/app/task-command-lease.ts::store.taskCommandControllers"
+        "src/app/task-workflows.control.test.ts::store.taskCommandControllers.task-1"
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.taskCommandControllers' is touched from 5 file(s)"
+        "symbol 'store.taskCommandControllers.task-1' is touched from 4 file(s)"
       ],
-      "id": "store_task_command_controllers",
+      "id": "store_task_command_controllers_task_1",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/task-convergence.test.ts::store.taskConvergence"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.taskConvergence' is touched from 5 file(s)"
+      ],
+      "id": "store_task_convergence",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/task-convergence.test.ts::store.taskConvergence.task-1"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.taskConvergence.task-1' is touched from 4 file(s)"
+      ],
+      "id": "store_task_convergence_task_1",
       "kind": "store_like_symbol"
     },
     {
@@ -650,7 +688,7 @@
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.taskOrder' is touched from 20 file(s)"
+        "symbol 'store.taskOrder' is touched from 21 file(s)"
       ],
       "id": "store_task_order",
       "kind": "store_like_symbol"
@@ -664,6 +702,17 @@
         "symbol 'store.taskOrder.length' is touched from 5 file(s)"
       ],
       "id": "store_task_order_length",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/task-ports.ts::store.taskPorts"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.taskPorts' is touched from 4 file(s)"
+      ],
+      "id": "store_task_ports",
       "kind": "store_like_symbol"
     },
     {
@@ -694,7 +743,7 @@
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.terminals' is touched from 8 file(s)"
+        "symbol 'store.terminals' is touched from 9 file(s)"
       ],
       "id": "store_terminals",
       "kind": "store_like_symbol"
@@ -844,6 +893,17 @@
     },
     {
       "anchors": [
+        "src/components/PromptInput.test.tsx::store.focusedPanel.task-1"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "symbol 'store.focusedPanel.task-1' is touched from 3 file(s)"
+      ],
+      "id": "store_focused_panel_task_1",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
         "src/App.tsx::store.hasSeenDesktopIntro"
       ],
       "confidence_0_10000": 7000,
@@ -932,24 +992,13 @@
     },
     {
       "anchors": [
-        "src/app/task-convergence.test.ts::store.taskConvergence"
+        "src/app/task-workflows.control.test.ts::store.taskCommandControllers"
       ],
       "confidence_0_10000": 7000,
       "evidence": [
-        "symbol 'store.taskConvergence' is touched from 3 file(s)"
+        "symbol 'store.taskCommandControllers' is touched from 3 file(s)"
       ],
-      "id": "store_task_convergence",
-      "kind": "store_like_symbol"
-    },
-    {
-      "anchors": [
-        "src/app/task-ports.ts::store.taskPorts"
-      ],
-      "confidence_0_10000": 7000,
-      "evidence": [
-        "symbol 'store.taskPorts' is touched from 3 file(s)"
-      ],
-      "id": "store_task_ports",
+      "id": "store_task_command_controllers",
       "kind": "store_like_symbol"
     },
     {
@@ -1009,13 +1058,101 @@
     },
     {
       "anchors": [
-        "src/store/persistence.test.ts::store.agentActive"
+        "src/app/task-workflows.control.test.ts::store.agentActive.agent-1"
       ],
       "confidence_0_10000": 6500,
       "evidence": [
-        "symbol 'store.agentActive' is touched from 2 file(s)"
+        "symbol 'store.agentActive.agent-1' is touched from 2 file(s)"
       ],
-      "id": "store_agent_active",
+      "id": "store_agent_active_agent_1",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/task-workflows.control.test.ts::store.agentActive.shell-1"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.agentActive.shell-1' is touched from 2 file(s)"
+      ],
+      "id": "store_agent_active_shell_1",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/store/persistence.test.ts::store.agentActive.terminal-agent-1"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.agentActive.terminal-agent-1' is touched from 2 file(s)"
+      ],
+      "id": "store_agent_active_terminal_agent_1",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/task-workflows.control.test.ts::store.agentSupervision.agent-1"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.agentSupervision.agent-1' is touched from 2 file(s)"
+      ],
+      "id": "store_agent_supervision_agent_1",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/task-workflows.control.test.ts::store.agentSupervision.shell-1"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.agentSupervision.shell-1' is touched from 2 file(s)"
+      ],
+      "id": "store_agent_supervision_shell_1",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/store/persistence.test.ts::store.agentSupervision.terminal-agent-1"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.agentSupervision.terminal-agent-1' is touched from 2 file(s)"
+      ],
+      "id": "store_agent_supervision_terminal_agent_1",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/task-workflows.control.test.ts::store.agents.agent-1"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.agents.agent-1' is touched from 2 file(s)"
+      ],
+      "id": "store_agents_agent_1",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/task-workflows.control.test.ts::store.agents.shell-1"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.agents.shell-1' is touched from 2 file(s)"
+      ],
+      "id": "store_agents_shell_1",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/store/persistence.test.ts::store.agents.terminal-agent-1"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.agents.terminal-agent-1' is touched from 2 file(s)"
+      ],
+      "id": "store_agents_terminal_agent_1",
       "kind": "store_like_symbol"
     },
     {
@@ -1053,13 +1190,35 @@
     },
     {
       "anchors": [
-        "src/components/PromptInput.test.tsx::store.focusedPanel.task-1"
+        "src/store/persistence.test.ts::store.focusedPanel.terminal-1"
       ],
       "confidence_0_10000": 6500,
       "evidence": [
-        "symbol 'store.focusedPanel.task-1' is touched from 2 file(s)"
+        "symbol 'store.focusedPanel.terminal-1' is touched from 2 file(s)"
       ],
-      "id": "store_focused_panel_task_1",
+      "id": "store_focused_panel_terminal_1",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/store/persistence.test.ts::store.fontScales.terminal-1"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.fontScales.terminal-1' is touched from 2 file(s)"
+      ],
+      "id": "store_font_scales_terminal_1",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/store/persistence.test.ts::store.fontScales.terminal-1:terminal"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.fontScales.terminal-1:terminal' is touched from 2 file(s)"
+      ],
+      "id": "store_font_scales_terminal_1_terminal",
       "kind": "store_like_symbol"
     },
     {
@@ -1119,6 +1278,17 @@
     },
     {
       "anchors": [
+        "src/store/persistence.test.ts::store.panelSizes.terminal-1:terminal"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.panelSizes.terminal-1:terminal' is touched from 2 file(s)"
+      ],
+      "id": "store_panel_sizes_terminal_1_terminal",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
         "src/components/TaskPanel.tsx::store.pendingAction"
       ],
       "confidence_0_10000": 6500,
@@ -1163,24 +1333,13 @@
     },
     {
       "anchors": [
-        "src/components/PromptInput.test.tsx::store.taskCommandControllers.task-1"
+        "src/app/task-workflows.control.test.ts::store.taskGitStatus.task-1"
       ],
       "confidence_0_10000": 6500,
       "evidence": [
-        "symbol 'store.taskCommandControllers.task-1' is touched from 2 file(s)"
+        "symbol 'store.taskGitStatus.task-1' is touched from 2 file(s)"
       ],
-      "id": "store_task_command_controllers_task_1",
-      "kind": "store_like_symbol"
-    },
-    {
-      "anchors": [
-        "src/app/task-convergence.test.ts::store.taskConvergence.task-1"
-      ],
-      "confidence_0_10000": 6500,
-      "evidence": [
-        "symbol 'store.taskConvergence.task-1' is touched from 2 file(s)"
-      ],
-      "id": "store_task_convergence_task_1",
+      "id": "store_task_git_status_task_1",
       "kind": "store_like_symbol"
     },
     {
@@ -1192,6 +1351,28 @@
         "symbol 'store.taskOrder.filter' is touched from 2 file(s)"
       ],
       "id": "store_task_order_filter",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/task-workflows.control.test.ts::store.taskPorts.task-1"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.taskPorts.task-1' is touched from 2 file(s)"
+      ],
+      "id": "store_task_ports_task_1",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/task-workflows.control.test.ts::store.taskReview.task-1"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.taskReview.task-1' is touched from 2 file(s)"
+      ],
+      "id": "store_task_review_task_1",
       "kind": "store_like_symbol"
     },
     {
@@ -1214,6 +1395,28 @@
         "symbol 'store.tasks.task-1' is touched from 2 file(s)"
       ],
       "id": "store_tasks_task_1",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/task-workflows.control.test.ts::store.tasks.task-1.collapsed"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.tasks.task-1.collapsed' is touched from 2 file(s)"
+      ],
+      "id": "store_tasks_task_1_collapsed",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/store/persistence.test.ts::store.terminals.terminal-1"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.terminals.terminal-1' is touched from 2 file(s)"
+      ],
+      "id": "store_terminals_terminal_1",
       "kind": "store_like_symbol"
     }
   ],
@@ -1263,8 +1466,8 @@
   "summary": {
     "configured_concept_count": 3,
     "contract_count": 1,
-    "guardrail_test_count": 4,
-    "inferred_concept_count": 97,
+    "guardrail_test_count": 5,
+    "inferred_concept_count": 115,
     "matched_guardrail_test_count": 1,
     "state_model_count": 2
   },

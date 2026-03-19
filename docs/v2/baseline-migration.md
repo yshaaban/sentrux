@@ -120,6 +120,11 @@ V2 binary behavior:
 - read v2 baseline for v2 outputs
 - optionally read v1 baseline only to populate legacy structural context, never to synthesize v2 findings or obligations
 
+The validation loop in [Validation Loop](./validation-loop.md) uses this split directly:
+
+- goldens are regenerated against a temporary clone and compared back to the checked-in v2 proof artifacts
+- the benchmark runner compares against the checked-in benchmark artifact with a versioned format guard
+
 ## Baseline Creation
 
 Recommended behavior:
@@ -164,4 +169,4 @@ If fields are missing:
 - [x] keep v1 baseline reader unchanged
 - [-] teach v2 to ignore incompatible or missing baselines cleanly
 - [-] add mixed-version and coexistence tests
-- [ ] document baseline update workflow for CI and MCP sessions
+- [x] document baseline update workflow for CI and MCP sessions

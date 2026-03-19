@@ -57,6 +57,20 @@ Those are not reasons to hide the outputs. They are reasons to keep them version
 ./scripts/refresh_parallel_code_goldens.sh
 ```
 
+## Validation Command
+
+Use the one-command validation loop to compare fresh outputs against the checked-in goldens:
+
+```bash
+node scripts/validate_parallel_code_v2.mjs
+```
+
+Use the benchmark-only path when you just want timing data:
+
+```bash
+node scripts/benchmark_parallel_code_v2.mjs
+```
+
 Optional environment overrides:
 
 - `PARALLEL_CODE_ROOT=/path/to/parallel-code`

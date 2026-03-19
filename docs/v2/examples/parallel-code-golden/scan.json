@@ -2,12 +2,12 @@
   "baseline_error": null,
   "baseline_loaded": false,
   "baseline_path": "<parallel-code-root>/.sentrux/baseline.json",
-  "files": 545,
-  "import_edges": 1585,
-  "lines": 133483,
-  "quality_signal": 4964,
+  "files": 553,
+  "import_edges": 1617,
+  "lines": 134320,
+  "quality_signal": 4973,
   "scan_trust": {
-    "candidate_files": 677,
+    "candidate_files": 685,
     "exclusions": {
       "bucketed": {
         "build": 12,
@@ -22,19 +22,19 @@
       "total": 132
     },
     "fallback_reason": null,
-    "kept_files": 545,
+    "kept_files": 553,
     "mode": "git",
-    "overall_confidence_0_10000": 8050,
+    "overall_confidence_0_10000": 8073,
     "partial": false,
     "resolution": {
       "internal_confidence_0_10000": 9994,
-      "resolved": 1586,
-      "unresolved_external": 468,
+      "resolved": 1618,
+      "unresolved_external": 472,
       "unresolved_internal": 1,
       "unresolved_unknown": 73
     },
-    "scope_coverage_0_10000": 8050,
-    "tracked_candidates": 677,
+    "scope_coverage_0_10000": 8073,
+    "tracked_candidates": 685,
     "truncated": false,
     "untracked_candidates": 0
   },
