@@ -7,10 +7,10 @@ This report is for an engineer who does not already know `parallel-code` or Sent
 ## Freshness Gate
 
 - analysis mode: `working_tree`
-- commit: `cf21f8733a9d800ec2a41239500e01e01ab8cc4b`
-- dirty paths: `2`
-- dirty-path fingerprint: `f1d370a4de031e83ee00b998f24ac88ff9f4d1338a336da4d92f7dd165c14541`
-- tree fingerprint: `3c54adb61f586d027b231a19a49fe87cc64be8957098769c0447c353883d26fa`
+- commit: `94d010d3b0b7ccc815b74430fed6e3284b809113`
+- dirty paths: `0`
+- dirty-path fingerprint: `53c1562521679823f3ee3c10c2585dec4c3ecd862d145f868947047fd32725ac`
+- tree fingerprint: `638a8939223b6aec43a72405ed82aebe88e59b4dabb5b15bc089fdffd758e84d`
 - stale goldens: refused by default unless the goldens are fresh
 
 ## What Was Analyzed
@@ -22,42 +22,51 @@ This report is for an engineer who does not already know `parallel-code` or Sent
 
 ## Scan Coverage
 
-- scanned source files: `622`
-- scanned lines: `137959`
-- git candidate files kept: `622 / 756`
+- scanned source files: `631`
+- scanned lines: `139806`
+- git candidate files kept: `631 / 765`
 - excluded files: `134`
-- resolved import edges: `1871`
+- resolved import edges: `1908`
 - unresolved internal imports: `1`
-- unresolved external imports: `508`
-- unresolved unknown imports: `79`
-- scan confidence: `8228 / 10000`
+- unresolved external imports: `518`
+- unresolved unknown imports: `83`
+- scan confidence: `8248 / 10000`
 - rule coverage: `10000 / 10000`
 - semantic rules loaded: `true`
 
 ## Executive Summary
 
-The current live repo surfaces the same core architecture pressure points as the proof snapshot:
+The current live repo surfaces these primary pressure points:
 
-- `dependency_sprawl` Composition root 'src/App.tsx' depends on 32 real surfaces, above the typescript threshold of 15
-- `dependency_sprawl` File 'src/components/TaskPanel.tsx' depends on 28 real surfaces, above the typescript threshold of 15
-- `unstable_hotspot` Component-facing barrel 'src/store/store.ts' has 47 inbound references and remains unstable
-- `large_file` File 'scripts/session-stress.mjs' is 2048 lines, above the javascript threshold of 500
-- `unstable_hotspot` File 'src/lib/ipc.ts' has 66 inbound references and remains unstable
+- `structural_debt` `unstable_hotspot` Component-facing barrel 'src/store/store.ts' has 48 inbound references and remains unstable
+- `structural_debt` `dependency_sprawl` Composition root 'src/App.tsx' depends on 32 real surfaces, above the typescript threshold of 15
+- `structural_debt` `dependency_sprawl` File 'src/components/TaskPanel.tsx' depends on 28 real surfaces, above the typescript threshold of 15
+- `guarded_facade` `unstable_hotspot` Guarded transport facade 'src/lib/ipc.ts' has 67 inbound references and remains unstable
+- `secondary_hotspot` File 'src/components/terminal-view/terminal-session.ts' depends on 22 real surfaces, above the typescript threshold of 15
 
 ## Strongest Trusted Debt Signals
 
-### ConnectionBannerState
+### [store.ts](<parallel-code-root>/src/store/store.ts)
 
-- kind: `closed_domain_exhaustiveness`
+- class: `structural_debt`
+- kind: `unstable_hotspot`
 - severity: `high`
-- summary: Closed domain 'ConnectionBannerState' is missing coverage for variants: connecting, reconnecting, restoring
-- impact: Finite-domain changes can silently miss one surface unless all required cases stay in sync.
+- summary: Component-facing barrel 'src/store/store.ts' has 48 inbound references and remains unstable
+- impact: A volatile component-facing barrel makes it harder to keep presentation access broad while keeping deeper orchestration changes contained.
+- candidate split axes:
+  - `components caller boundary`
+  - `store caller boundary`
+  - `store dependency boundary`
 - related surfaces:
-  - `src/components/app-shell/AppConnectionBanner.tsx`
-  - `src/runtime/browser-session.ts`
+  - [App.tsx](<parallel-code-root>/src/App.tsx)
+  - [ConfigScreen.tsx](<parallel-code-root>/src/arena/ConfigScreen.tsx)
+  - [ResultsScreen.tsx](<parallel-code-root>/src/arena/ResultsScreen.tsx)
+  - [store-boundary.architecture.test.ts](<parallel-code-root>/src/app/store-boundary.architecture.test.ts)
+  - [TaskPanel.architecture.test.ts](<parallel-code-root>/src/components/TaskPanel.architecture.test.ts)
 
-### src/App.tsx
+### [App.tsx](<parallel-code-root>/src/App.tsx)
 
+- class: `structural_debt`
 - kind: `dependency_sprawl`
 - severity: `high`
 - summary: Composition root 'src/App.tsx' depends on 32 real surfaces, above the typescript threshold of 15
@@ -67,13 +76,14 @@ The current live repo surfaces the same core architecture pressure points as the
   - `lib dependency boundary`
   - `app dependency boundary`
 - related surfaces:
-  - `src/app/app-action-keys.ts`
-  - `src/app/desktop-session.ts`
-  - `src/app/task-command-lease.ts`
-  - `src/app/store-boundary.architecture.test.ts`
+  - [app-action-keys.ts](<parallel-code-root>/src/app/app-action-keys.ts)
+  - [desktop-session.ts](<parallel-code-root>/src/app/desktop-session.ts)
+  - [task-command-lease.ts](<parallel-code-root>/src/app/task-command-lease.ts)
+  - [store-boundary.architecture.test.ts](<parallel-code-root>/src/app/store-boundary.architecture.test.ts)
 
-### src/components/TaskPanel.tsx
+### [TaskPanel.tsx](<parallel-code-root>/src/components/TaskPanel.tsx)
 
+- class: `structural_debt`
 - kind: `dependency_sprawl`
 - severity: `high`
 - summary: File 'src/components/TaskPanel.tsx' depends on 28 real surfaces, above the typescript threshold of 15
@@ -83,30 +93,79 @@ The current live repo surfaces the same core architecture pressure points as the
   - `lib dependency boundary`
   - `store dependency boundary`
 - related surfaces:
-  - `src/app/task-ports.ts`
-  - `src/components/CloseTaskDialog.tsx`
-  - `src/components/DiffViewerDialog.tsx`
-  - `src/components/TaskPanel.architecture.test.ts`
+  - [task-ports.ts](<parallel-code-root>/src/app/task-ports.ts)
+  - [CloseTaskDialog.tsx](<parallel-code-root>/src/components/CloseTaskDialog.tsx)
+  - [DiffViewerDialog.tsx](<parallel-code-root>/src/components/DiffViewerDialog.tsx)
+  - [TaskPanel.architecture.test.ts](<parallel-code-root>/src/components/TaskPanel.architecture.test.ts)
 
-### src/store/store.ts
+### [ipc.ts](<parallel-code-root>/src/lib/ipc.ts)
 
+- class: `guarded_facade`
 - kind: `unstable_hotspot`
 - severity: `high`
-- summary: Component-facing barrel 'src/store/store.ts' has 47 inbound references and remains unstable
-- impact: A volatile component-facing barrel makes it harder to keep presentation access broad while keeping deeper orchestration changes contained.
+- summary: Guarded transport facade 'src/lib/ipc.ts' has 67 inbound references and remains unstable
+- impact: A transport facade with heavy fan-in needs clear ownership boundaries so lifecycle or domain logic does not leak into transport glue.
 - candidate split axes:
+  - `app caller boundary`
   - `components caller boundary`
-  - `store caller boundary`
+  - `lib dependency boundary`
+- related surfaces:
+  - [App.tsx](<parallel-code-root>/src/App.tsx)
+  - [agent-catalog.ts](<parallel-code-root>/src/app/agent-catalog.ts)
+  - [desktop-notification-runtime.ts](<parallel-code-root>/src/app/desktop-notification-runtime.ts)
+
+## Secondary Hotspots
+
+### [terminal-session.ts](<parallel-code-root>/src/components/terminal-view/terminal-session.ts)
+
+- class: `structural_debt`
+- kind: `dependency_sprawl`
+- severity: `high`
+- summary: File 'src/components/terminal-view/terminal-session.ts' depends on 22 real surfaces, above the typescript threshold of 15
+- impact: Broad dependency fan-out expands change surface and makes orchestration drift harder to localize.
+- candidate split axes:
+  - `lib dependency boundary`
+  - `components dependency boundary`
   - `store dependency boundary`
 - related surfaces:
-  - `src/App.tsx`
-  - `src/arena/ConfigScreen.tsx`
-  - `src/arena/ResultsScreen.tsx`
-  - `src/app/store-boundary.architecture.test.ts`
+  - [channels.ts](<parallel-code-root>/electron/ipc/channels.ts)
+  - [terminal-input-pipeline.ts](<parallel-code-root>/src/components/terminal-view/terminal-input-pipeline.ts)
+  - [terminal-output-pipeline.ts](<parallel-code-root>/src/components/terminal-view/terminal-output-pipeline.ts)
+  - [terminal-session.architecture.test.ts](<parallel-code-root>/src/components/terminal-view/terminal-session.architecture.test.ts)
+
+## Targeted Hardening Notes
+
+### ConnectionBannerState
+
+- class: `hardening_note`
+- kind: `closed_domain_exhaustiveness`
+- severity: `high`
+- summary: Closed domain 'ConnectionBannerState' is missing coverage for variants: connecting, reconnecting, restoring
+- impact: Finite-domain changes can silently miss one surface unless all required cases stay in sync.
+- related surfaces:
+  - [AppConnectionBanner.tsx](<parallel-code-root>/src/components/app-shell/AppConnectionBanner.tsx)
+  - [browser-session.ts](<parallel-code-root>/src/runtime/browser-session.ts)
+
+## Tooling Debt
+
+### [session-stress.mjs](<parallel-code-root>/scripts/session-stress.mjs)
+
+- class: `tooling_debt`
+- kind: `large_file`
+- severity: `high`
+- summary: File 'scripts/session-stress.mjs' is 2048 lines, above the javascript threshold of 500
+- impact: Responsibility concentration increases review friction and makes later splits harder to isolate.
+- candidate split axes:
+  - `scripts dependency boundary`
+  - `entry surface split`
+  - `private helper surface split`
+- related surfaces:
+  - [browser-server-client.mjs](<parallel-code-root>/scripts/browser-server-client.mjs)
+  - [session-stress-profiles.mjs](<parallel-code-root>/scripts/session-stress-profiles.mjs)
 
 ## Watchpoints
 
-- `watchpoint` `cycle_cluster` Files src/app/agent-catalog.ts, src/app/remote-access.ts, src/app/task-attention.ts, src/app/task-close-state.ts, src/app/task-command-dispatch.ts, src/app/task-command-lease-runtime-subscriptions.ts, src/app/task-command-lease-runtime.ts, src/app/task-command-lease-session.ts, src/app/task-command-lease-takeover.ts, src/app/task-command-lease.ts, src/app/task-convergence.ts, src/app/task-lifecycle-workflows.ts, src/app/task-presentation-status.ts, src/app/task-prompt-workflows.ts, src/app/task-review-state.ts, src/app/task-shell-workflows.ts, src/app/task-workflows.ts, src/lib/runtime-client-id.ts, src/store/agent-output-activity.ts, src/store/agents.ts, src/store/auto-trust.ts, src/store/client-session.ts, src/store/completion.ts, src/store/core.ts, src/store/focus.ts, src/store/keyed-snapshot-record.ts, src/store/navigation.ts, src/store/notification.ts, src/store/peer-presence.ts, src/store/persistence-codecs.ts, src/store/persistence-load-context.ts, src/store/persistence-load.ts, src/store/persistence-projects.ts, src/store/persistence-save.ts, src/store/persistence-terminal-restore.ts, src/store/persistence.ts, src/store/projects.ts, src/store/remote.ts, src/store/review.ts, src/store/state.ts, src/store/store.ts, src/store/task-command-controllers.ts, src/store/task-command-takeovers.ts, src/store/task-git-status.ts, src/store/task-state-cleanup.ts, src/store/taskStatus.ts, src/store/tasks.ts, src/store/terminals.ts, src/store/ui.ts form a dependency cycle
+- `watchpoint` `cycle_cluster` Files src/app/agent-catalog.ts, src/app/remote-access.ts, src/app/task-attention.ts, src/app/task-close-state.ts, src/app/task-command-dispatch.ts, src/app/task-command-lease-runtime-subscriptions.ts, src/app/task-command-lease-runtime.ts, src/app/task-command-lease-session.ts, src/app/task-command-lease-takeover.ts, src/app/task-command-lease.ts, src/app/task-convergence.ts, src/app/task-lifecycle-workflows.ts, src/app/task-presentation-status.ts, src/app/task-prompt-workflows.ts, src/app/task-review-state.ts, src/app/task-shell-workflows.ts, src/app/task-workflows.ts, src/lib/runtime-client-id.ts, src/store/agent-output-activity.ts, src/store/agents.ts, src/store/auto-trust.ts, src/store/client-session.ts, src/store/completion.ts, src/store/core.ts, src/store/focus.ts, src/store/keyed-snapshot-record.ts, src/store/navigation.ts, src/store/notification.ts, src/store/peer-presence.ts, src/store/persistence-codecs.ts, src/store/persistence-load-context.ts, src/store/persistence-load.ts, src/store/persistence-projects.ts, src/store/persistence-save.ts, src/store/persistence-terminal-restore.ts, src/store/persistence.ts, src/store/projects.ts, src/store/remote.ts, src/store/review.ts, src/store/sidebar-order.ts, src/store/state.ts, src/store/store.ts, src/store/task-command-controllers.ts, src/store/task-command-takeovers.ts, src/store/task-git-status.ts, src/store/task-state-cleanup.ts, src/store/taskStatus.ts, src/store/tasks.ts, src/store/terminals.ts, src/store/ui.ts form a dependency cycle
 - `watchpoint` `clone_family` 4 exact clone groups repeat across 2 files and churn differs by 0 recent commit(s) across siblings; sibling file age spans 1 day(s)
 - `watchpoint` `clone_family` 4 exact clone groups repeat across 2 files and churn differs by 3 recent commit(s) across siblings; sibling file age spans 0 day(s)
 - `watchpoint` `hotspot` File 'server/browser-channels.ts' is carrying coordination hotspot pressure
@@ -119,10 +178,10 @@ The current live repo surfaces the same core architecture pressure points as the
 
 ## Freshness Check Result
 
-- live commit: `cf21f8733a9d800ec2a41239500e01e01ab8cc4b`
-- live dirty paths: `2`
-- live dirty-path fingerprint: `f1d370a4de031e83ee00b998f24ac88ff9f4d1338a336da4d92f7dd165c14541`
-- live tree fingerprint: `3c54adb61f586d027b231a19a49fe87cc64be8957098769c0447c353883d26fa`
+- live commit: `94d010d3b0b7ccc815b74430fed6e3284b809113`
+- live dirty paths: `0`
+- live dirty-path fingerprint: `53c1562521679823f3ee3c10c2585dec4c3ecd862d145f868947047fd32725ac`
+- live tree fingerprint: `638a8939223b6aec43a72405ed82aebe88e59b4dabb5b15bc089fdffd758e84d`
 - freshness comparison: goldens matched and report generation was allowed
 
 ## Source Documents

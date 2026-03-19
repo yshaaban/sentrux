@@ -24,9 +24,9 @@ Scope caveat:
 
 Current scan:
 
-- scanned files: `622`
-- scanned lines: `137959`
-- kept files from git candidate set: `622 / 756`
+- scanned files: `631`
+- scanned lines: `139806`
+- kept files from git candidate set: `631 / 765`
 - excluded files: `134`
 - excluded buckets:
   - build: `12`
@@ -34,35 +34,54 @@ Current scan:
   - fixture: `7`
   - generated: `0`
   - vendor: `102`
-- resolved imports: `1871`
+- resolved imports: `1908`
 - unresolved internal imports: `1`
-- unresolved external imports: `508`
-- unresolved unknown imports: `79`
-- scan confidence: `8228 / 10000`
+- unresolved external imports: `518`
+- unresolved unknown imports: `83`
+- scan confidence: `8248 / 10000`
 - rule coverage: `10000 / 10000`
 - semantic rules loaded: `true`
 - session baseline loaded in `findings`: `false`
 
-## Top Trusted Findings
+## Lead Trusted Debt Signals
 
-### ConnectionBannerState
+### [store.ts](<parallel-code-root>/src/store/store.ts)
 
 - `trusted`
-- `closed_domain_exhaustiveness`
-- summary: `Closed domain 'ConnectionBannerState' is missing coverage for variants: connecting, reconnecting, restoring`
+- class: `structural_debt`
+- `unstable_hotspot`
+- summary: `Component-facing barrel 'src/store/store.ts' has 48 inbound references and remains unstable`
+- impact: A volatile component-facing barrel makes it harder to keep presentation access broad while keeping deeper orchestration changes contained.
 - evidence:
-  - evidence count: `1`
-  - file count: `2`
-  - src/components/app-shell/AppConnectionBanner.tsx [missing variants: connecting, reconnecting, restoring]
+  - role tags: `guarded_seam, guarded_boundary, component_barrel`
+  - evidence count: `8`
+  - file count: `1`
+  - fan-in: 48
+  - hotspot threshold: 20
+  - fan-out: 20
+  - instability: 0.29
+  - dominant dependent categories: components(34), store(11), arena(2)
+  - sample dependents: src/App.tsx, src/arena/ConfigScreen.tsx, src/arena/ResultsScreen.tsx
+  - guardrail tests: src/app/store-boundary.architecture.test.ts, src/components/TaskPanel.architecture.test.ts
+  - guarded boundary literals: store/core, store/store, store.taskCommandControllers, store.focusedPanel[, setTaskFocusedPanel
+- candidate split axes:
+  - `components caller boundary`
+  - `store caller boundary`
+  - `store dependency boundary`
 - related surfaces:
-  - [AppConnectionBanner.tsx](<parallel-code-root>/src/components/app-shell/AppConnectionBanner.tsx)
-  - [browser-session.ts](<parallel-code-root>/src/runtime/browser-session.ts)
+  - [App.tsx](<parallel-code-root>/src/App.tsx)
+  - [ConfigScreen.tsx](<parallel-code-root>/src/arena/ConfigScreen.tsx)
+  - [ResultsScreen.tsx](<parallel-code-root>/src/arena/ResultsScreen.tsx)
+  - [store-boundary.architecture.test.ts](<parallel-code-root>/src/app/store-boundary.architecture.test.ts)
+  - [TaskPanel.architecture.test.ts](<parallel-code-root>/src/components/TaskPanel.architecture.test.ts)
 
 ### [App.tsx](<parallel-code-root>/src/App.tsx)
 
 - `trusted`
+- class: `structural_debt`
 - `dependency_sprawl`
 - summary: `Composition root 'src/App.tsx' depends on 32 real surfaces, above the typescript threshold of 15`
+- impact: Broad dependency fan-out in a composition root makes shell wiring and runtime ownership harder to keep separate.
 - evidence:
   - role tags: `guarded_seam, composition_root`
   - evidence count: `6`
@@ -86,8 +105,10 @@ Current scan:
 ### [TaskPanel.tsx](<parallel-code-root>/src/components/TaskPanel.tsx)
 
 - `trusted`
+- class: `structural_debt`
 - `dependency_sprawl`
 - summary: `File 'src/components/TaskPanel.tsx' depends on 28 real surfaces, above the typescript threshold of 15`
+- impact: Broad dependency fan-out expands change surface and makes orchestration drift harder to localize.
 - evidence:
   - role tags: `guarded_seam, facade_with_extracted_owners`
   - evidence count: `7`
@@ -109,70 +130,23 @@ Current scan:
   - [DiffViewerDialog.tsx](<parallel-code-root>/src/components/DiffViewerDialog.tsx)
   - [TaskPanel.architecture.test.ts](<parallel-code-root>/src/components/TaskPanel.architecture.test.ts)
 
-### [store.ts](<parallel-code-root>/src/store/store.ts)
-
-- `trusted`
-- `unstable_hotspot`
-- summary: `Component-facing barrel 'src/store/store.ts' has 47 inbound references and remains unstable`
-- evidence:
-  - role tags: `guarded_seam, guarded_boundary, component_barrel`
-  - evidence count: `8`
-  - file count: `1`
-  - fan-in: 47
-  - hotspot threshold: 20
-  - fan-out: 20
-  - instability: 0.30
-  - dominant dependent categories: components(33), store(11), arena(2)
-  - sample dependents: src/App.tsx, src/arena/ConfigScreen.tsx, src/arena/ResultsScreen.tsx
-  - guardrail tests: src/app/store-boundary.architecture.test.ts, src/components/TaskPanel.architecture.test.ts
-  - guarded boundary literals: store/core, store/store, store.taskCommandControllers, store.focusedPanel[, setTaskFocusedPanel
-- candidate split axes:
-  - `components caller boundary`
-  - `store caller boundary`
-  - `store dependency boundary`
-- related surfaces:
-  - [App.tsx](<parallel-code-root>/src/App.tsx)
-  - [ConfigScreen.tsx](<parallel-code-root>/src/arena/ConfigScreen.tsx)
-  - [ResultsScreen.tsx](<parallel-code-root>/src/arena/ResultsScreen.tsx)
-  - [store-boundary.architecture.test.ts](<parallel-code-root>/src/app/store-boundary.architecture.test.ts)
-  - [TaskPanel.architecture.test.ts](<parallel-code-root>/src/components/TaskPanel.architecture.test.ts)
-
-### [session-stress.mjs](<parallel-code-root>/scripts/session-stress.mjs)
-
-- `trusted`
-- `large_file`
-- summary: `File 'scripts/session-stress.mjs' is 2048 lines, above the javascript threshold of 500`
-- evidence:
-  - role tags: `entry_surface`
-  - evidence count: `5`
-  - file count: `1`
-  - line count: 2048
-  - large-file threshold: 500
-  - function count: 91
-  - peak function complexity: 26
-  - outbound dependencies: 2
-- candidate split axes:
-  - `scripts dependency boundary`
-  - `entry surface split`
-  - `private helper surface split`
-- related surfaces:
-  - [browser-server-client.mjs](<parallel-code-root>/scripts/browser-server-client.mjs)
-  - [session-stress-profiles.mjs](<parallel-code-root>/scripts/session-stress-profiles.mjs)
-
 ### [ipc.ts](<parallel-code-root>/src/lib/ipc.ts)
 
 - `trusted`
+- class: `guarded_facade`
 - `unstable_hotspot`
-- summary: `File 'src/lib/ipc.ts' has 66 inbound references and remains unstable`
+- summary: `Guarded transport facade 'src/lib/ipc.ts' has 67 inbound references and remains unstable`
+- impact: A transport facade with heavy fan-in needs clear ownership boundaries so lifecycle or domain logic does not leak into transport glue.
 - evidence:
+  - role tags: `transport_facade`
   - evidence count: `6`
   - file count: `1`
-  - fan-in: 66
+  - fan-in: 67
   - hotspot threshold: 20
   - fan-out: 12
   - instability: 0.15
-  - dominant dependent categories: app(18), components(13), store(13)
-  - sample dependents: src/App.tsx, src/app/agent-catalog.ts, src/app/desktop-session-startup.ts
+  - dominant dependent categories: app(19), components(13), store(13)
+  - sample dependents: src/App.tsx, src/app/agent-catalog.ts, src/app/desktop-notification-runtime.ts
 - candidate split axes:
   - `app caller boundary`
   - `components caller boundary`
@@ -180,15 +154,27 @@ Current scan:
 - related surfaces:
   - [App.tsx](<parallel-code-root>/src/App.tsx)
   - [agent-catalog.ts](<parallel-code-root>/src/app/agent-catalog.ts)
-  - [desktop-session-startup.ts](<parallel-code-root>/src/app/desktop-session-startup.ts)
+  - [desktop-notification-runtime.ts](<parallel-code-root>/src/app/desktop-notification-runtime.ts)
+
+## Secondary Hotspots
+
+- `src/components/terminal-view/terminal-session.ts` File 'src/components/terminal-view/terminal-session.ts' depends on 22 real surfaces, above the typescript threshold of 15
+
+## Targeted Hardening Notes
+
+- `ConnectionBannerState` Closed domain 'ConnectionBannerState' is missing coverage for variants: connecting, reconnecting, restoring
+
+## Tooling Debt
+
+- [session-stress.mjs](<parallel-code-root>/scripts/session-stress.mjs) File 'scripts/session-stress.mjs' is 2048 lines, above the javascript threshold of 500
 
 ## Top Watchpoints
 
-### cycle:src/app/agent-catalog.ts|src/app/remote-access.ts|src/app/task-attention.ts|src/app/task-close-state.ts|src/app/task-command-dispatch.ts|src/app/task-command-lease-runtime-subscriptions.ts|src/app/task-command-lease-runtime.ts|src/app/task-command-lease-session.ts|src/app/task-command-lease-takeover.ts|src/app/task-command-lease.ts|src/app/task-convergence.ts|src/app/task-lifecycle-workflows.ts|src/app/task-presentation-status.ts|src/app/task-prompt-workflows.ts|src/app/task-review-state.ts|src/app/task-shell-workflows.ts|src/app/task-workflows.ts|src/lib/runtime-client-id.ts|src/store/agent-output-activity.ts|src/store/agents.ts|src/store/auto-trust.ts|src/store/client-session.ts|src/store/completion.ts|src/store/core.ts|src/store/focus.ts|src/store/keyed-snapshot-record.ts|src/store/navigation.ts|src/store/notification.ts|src/store/peer-presence.ts|src/store/persistence-codecs.ts|src/store/persistence-load-context.ts|src/store/persistence-load.ts|src/store/persistence-projects.ts|src/store/persistence-save.ts|src/store/persistence-terminal-restore.ts|src/store/persistence.ts|src/store/projects.ts|src/store/remote.ts|src/store/review.ts|src/store/state.ts|src/store/store.ts|src/store/task-command-controllers.ts|src/store/task-command-takeovers.ts|src/store/task-git-status.ts|src/store/task-state-cleanup.ts|src/store/taskStatus.ts|src/store/tasks.ts|src/store/terminals.ts|src/store/ui.ts
+### cycle:src/app/agent-catalog.ts|src/app/remote-access.ts|src/app/task-attention.ts|src/app/task-close-state.ts|src/app/task-command-dispatch.ts|src/app/task-command-lease-runtime-subscriptions.ts|src/app/task-command-lease-runtime.ts|src/app/task-command-lease-session.ts|src/app/task-command-lease-takeover.ts|src/app/task-command-lease.ts|src/app/task-convergence.ts|src/app/task-lifecycle-workflows.ts|src/app/task-presentation-status.ts|src/app/task-prompt-workflows.ts|src/app/task-review-state.ts|src/app/task-shell-workflows.ts|src/app/task-workflows.ts|src/lib/runtime-client-id.ts|src/store/agent-output-activity.ts|src/store/agents.ts|src/store/auto-trust.ts|src/store/client-session.ts|src/store/completion.ts|src/store/core.ts|src/store/focus.ts|src/store/keyed-snapshot-record.ts|src/store/navigation.ts|src/store/notification.ts|src/store/peer-presence.ts|src/store/persistence-codecs.ts|src/store/persistence-load-context.ts|src/store/persistence-load.ts|src/store/persistence-projects.ts|src/store/persistence-save.ts|src/store/persistence-terminal-restore.ts|src/store/persistence.ts|src/store/projects.ts|src/store/remote.ts|src/store/review.ts|src/store/sidebar-order.ts|src/store/state.ts|src/store/store.ts|src/store/task-command-controllers.ts|src/store/task-command-takeovers.ts|src/store/task-git-status.ts|src/store/task-state-cleanup.ts|src/store/taskStatus.ts|src/store/tasks.ts|src/store/terminals.ts|src/store/ui.ts
 
 - `watchpoint`
 - `cycle_cluster`
-- summary: `Files src/app/agent-catalog.ts, src/app/remote-access.ts, src/app/task-attention.ts, src/app/task-close-state.ts, src/app/task-command-dispatch.ts, src/app/task-command-lease-runtime-subscriptions.ts, src/app/task-command-lease-runtime.ts, src/app/task-command-lease-session.ts, src/app/task-command-lease-takeover.ts, src/app/task-command-lease.ts, src/app/task-convergence.ts, src/app/task-lifecycle-workflows.ts, src/app/task-presentation-status.ts, src/app/task-prompt-workflows.ts, src/app/task-review-state.ts, src/app/task-shell-workflows.ts, src/app/task-workflows.ts, src/lib/runtime-client-id.ts, src/store/agent-output-activity.ts, src/store/agents.ts, src/store/auto-trust.ts, src/store/client-session.ts, src/store/completion.ts, src/store/core.ts, src/store/focus.ts, src/store/keyed-snapshot-record.ts, src/store/navigation.ts, src/store/notification.ts, src/store/peer-presence.ts, src/store/persistence-codecs.ts, src/store/persistence-load-context.ts, src/store/persistence-load.ts, src/store/persistence-projects.ts, src/store/persistence-save.ts, src/store/persistence-terminal-restore.ts, src/store/persistence.ts, src/store/projects.ts, src/store/remote.ts, src/store/review.ts, src/store/state.ts, src/store/store.ts, src/store/task-command-controllers.ts, src/store/task-command-takeovers.ts, src/store/task-git-status.ts, src/store/task-state-cleanup.ts, src/store/taskStatus.ts, src/store/tasks.ts, src/store/terminals.ts, src/store/ui.ts form a dependency cycle`
+- summary: `Files src/app/agent-catalog.ts, src/app/remote-access.ts, src/app/task-attention.ts, src/app/task-close-state.ts, src/app/task-command-dispatch.ts, src/app/task-command-lease-runtime-subscriptions.ts, src/app/task-command-lease-runtime.ts, src/app/task-command-lease-session.ts, src/app/task-command-lease-takeover.ts, src/app/task-command-lease.ts, src/app/task-convergence.ts, src/app/task-lifecycle-workflows.ts, src/app/task-presentation-status.ts, src/app/task-prompt-workflows.ts, src/app/task-review-state.ts, src/app/task-shell-workflows.ts, src/app/task-workflows.ts, src/lib/runtime-client-id.ts, src/store/agent-output-activity.ts, src/store/agents.ts, src/store/auto-trust.ts, src/store/client-session.ts, src/store/completion.ts, src/store/core.ts, src/store/focus.ts, src/store/keyed-snapshot-record.ts, src/store/navigation.ts, src/store/notification.ts, src/store/peer-presence.ts, src/store/persistence-codecs.ts, src/store/persistence-load-context.ts, src/store/persistence-load.ts, src/store/persistence-projects.ts, src/store/persistence-save.ts, src/store/persistence-terminal-restore.ts, src/store/persistence.ts, src/store/projects.ts, src/store/remote.ts, src/store/review.ts, src/store/sidebar-order.ts, src/store/state.ts, src/store/store.ts, src/store/task-command-controllers.ts, src/store/task-command-takeovers.ts, src/store/task-git-status.ts, src/store/task-state-cleanup.ts, src/store/taskStatus.ts, src/store/tasks.ts, src/store/terminals.ts, src/store/ui.ts form a dependency cycle`
 
 ### clone-family-0x7e50d49dc16ef925
 
@@ -216,14 +202,15 @@ Current scan:
 
 ## Trusted Debt Clusters
 
-### cluster:src/store/store.ts|src/app/agent-catalog.ts|src/app/remote-access.ts|src/app/task-attention.ts|src/app/task-close-state.ts|src/app/task-command-dispatch.ts|src/app/task-command-lease-runtime-subscriptions.ts|src/app/task-command-lease-runtime.ts|src/app/task-command-lease-session.ts|src/app/task-command-lease-takeover.ts|src/app/task-command-lease.ts|src/app/task-convergence.ts|src/app/task-lifecycle-workflows.ts|src/app/task-presentation-status.ts|src/app/task-prompt-workflows.ts|src/app/task-review-state.ts|src/app/task-shell-workflows.ts|src/app/task-workflows.ts|src/lib/runtime-client-id.ts|src/store/agent-output-activity.ts|src/store/agents.ts|src/store/auto-trust.ts|src/store/client-session.ts|src/store/completion.ts|src/store/core.ts|src/store/focus.ts|src/store/keyed-snapshot-record.ts|src/store/navigation.ts|src/store/notification.ts|src/store/peer-presence.ts|src/store/persistence-codecs.ts|src/store/persistence-load-context.ts|src/store/persistence-load.ts|src/store/persistence-projects.ts|src/store/persistence-save.ts|src/store/persistence-terminal-restore.ts|src/store/persistence.ts|src/store/projects.ts|src/store/remote.ts|src/store/review.ts|src/store/state.ts|src/store/task-command-controllers.ts|src/store/task-command-takeovers.ts|src/store/task-git-status.ts|src/store/task-state-cleanup.ts|src/store/taskStatus.ts|src/store/tasks.ts|src/store/terminals.ts|src/store/ui.ts
+### cluster:src/store/store.ts|src/app/agent-catalog.ts|src/app/remote-access.ts|src/app/task-attention.ts|src/app/task-close-state.ts|src/app/task-command-dispatch.ts|src/app/task-command-lease-runtime-subscriptions.ts|src/app/task-command-lease-runtime.ts|src/app/task-command-lease-session.ts|src/app/task-command-lease-takeover.ts|src/app/task-command-lease.ts|src/app/task-convergence.ts|src/app/task-lifecycle-workflows.ts|src/app/task-presentation-status.ts|src/app/task-prompt-workflows.ts|src/app/task-review-state.ts|src/app/task-shell-workflows.ts|src/app/task-workflows.ts|src/lib/runtime-client-id.ts|src/store/agent-output-activity.ts|src/store/agents.ts|src/store/auto-trust.ts|src/store/client-session.ts|src/store/completion.ts|src/store/core.ts|src/store/focus.ts|src/store/keyed-snapshot-record.ts|src/store/navigation.ts|src/store/notification.ts|src/store/peer-presence.ts|src/store/persistence-codecs.ts|src/store/persistence-load-context.ts|src/store/persistence-load.ts|src/store/persistence-projects.ts|src/store/persistence-save.ts|src/store/persistence-terminal-restore.ts|src/store/persistence.ts|src/store/projects.ts|src/store/remote.ts|src/store/review.ts|src/store/sidebar-order.ts|src/store/state.ts|src/store/task-command-controllers.ts|src/store/task-command-takeovers.ts|src/store/task-git-status.ts|src/store/task-state-cleanup.ts|src/store/taskStatus.ts|src/store/tasks.ts|src/store/terminals.ts|src/store/ui.ts
 
-- summary: `Files src/store/store.ts, src/app/agent-catalog.ts, src/app/remote-access.ts, and 46 more intersect 9 debt signals: unstable_hotspot, cycle_cluster, hotspot, dependency_sprawl`
+- summary: `Files src/store/store.ts, src/app/agent-catalog.ts, src/app/remote-access.ts, and 47 more intersect 10 debt signals: unstable_hotspot, cycle_cluster, hotspot, large_file, dependency_sprawl`
 - trust tier: `trusted`
 - signal kinds:
   - `unstable_hotspot`
   - `cycle_cluster`
   - `hotspot`
+  - `large_file`
   - `dependency_sprawl`
 
 ### cluster:src/App.tsx|src/remote/App.tsx
@@ -271,8 +258,8 @@ Representative examples:
 - [ScrollingDiffView.tsx](<parallel-code-root>/src/components/ScrollingDiffView.tsx)
 - [review.ts](<parallel-code-root>/src/store/review.ts)
 - [PreviewPanel.tsx](<parallel-code-root>/src/components/PreviewPanel.tsx)
-- [SidebarTaskRow.tsx](<parallel-code-root>/src/components/SidebarTaskRow.tsx)
 - [server.ts](<parallel-code-root>/electron/remote/server.ts)
+- [SidebarTaskRow.tsx](<parallel-code-root>/src/components/SidebarTaskRow.tsx)
 
 Current rule:
 

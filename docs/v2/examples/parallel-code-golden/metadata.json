@@ -1,27 +1,21 @@
 {
-  "generated_at": "2026-03-19T19:05:31Z",
+  "generated_at": "2026-03-19T21:27:01Z",
   "parallel_code_root": "<parallel-code-root>",
   "analysis_mode": "working_tree",
   "source_tree_identity": {
-    "commit": "cf21f8733a9d800ec2a41239500e01e01ab8cc4b",
-    "dirty_paths": [
-      "docs/UPSTREAM-DIVERGENCE.md",
-      "docs/UPSTREAM-CATCHUP-2026-03-19.md"
-    ],
-    "dirty_paths_count": 2,
-    "dirty_paths_fingerprint": "f1d370a4de031e83ee00b998f24ac88ff9f4d1338a336da4d92f7dd165c14541",
-    "tree_fingerprint": "3c54adb61f586d027b231a19a49fe87cc64be8957098769c0447c353883d26fa",
+    "commit": "94d010d3b0b7ccc815b74430fed6e3284b809113",
+    "dirty_paths": [],
+    "dirty_paths_count": 0,
+    "dirty_paths_fingerprint": "53c1562521679823f3ee3c10c2585dec4c3ecd862d145f868947047fd32725ac",
+    "tree_fingerprint": "638a8939223b6aec43a72405ed82aebe88e59b4dabb5b15bc089fdffd758e84d",
     "analysis_mode": "working_tree"
   },
   "analyzed_tree_identity": {
-    "commit": "cf21f8733a9d800ec2a41239500e01e01ab8cc4b",
-    "dirty_paths": [
-      "docs/UPSTREAM-DIVERGENCE.md",
-      "docs/UPSTREAM-CATCHUP-2026-03-19.md"
-    ],
-    "dirty_paths_count": 2,
-    "dirty_paths_fingerprint": "f1d370a4de031e83ee00b998f24ac88ff9f4d1338a336da4d92f7dd165c14541",
-    "tree_fingerprint": "3c54adb61f586d027b231a19a49fe87cc64be8957098769c0447c353883d26fa",
+    "commit": "94d010d3b0b7ccc815b74430fed6e3284b809113",
+    "dirty_paths": [],
+    "dirty_paths_count": 0,
+    "dirty_paths_fingerprint": "53c1562521679823f3ee3c10c2585dec4c3ecd862d145f868947047fd32725ac",
+    "tree_fingerprint": "638a8939223b6aec43a72405ed82aebe88e59b4dabb5b15bc089fdffd758e84d",
     "analysis_mode": "working_tree"
   },
   "regression_mutation": {
@@ -38,6 +32,6 @@
   "binary_identity": {
     "path": "<sentrux-root>/target/debug/sentrux",
     "exists": true,
-    "sha256": "2bb225f8ca21343aabfb928a7cee4189c07b1384b98409726496db07c77c9706"
+    "sha256": "627ad03b8d4839ab02d4032e004c16046d4fe8a545342821a709bcf303acd480"
   }
 }

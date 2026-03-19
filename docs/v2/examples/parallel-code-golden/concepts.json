@@ -332,11 +332,11 @@
     },
     {
       "anchors": [
-        "src/app/task-lifecycle-workflows.ts::store.activeTaskId"
+        "src/app/desktop-notification-runtime.test.tsx::store.activeTaskId"
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.activeTaskId' is touched from 23 file(s)"
+        "symbol 'store.activeTaskId' is touched from 24 file(s)"
       ],
       "id": "store_active_task_id",
       "kind": "store_like_symbol"
@@ -387,11 +387,11 @@
     },
     {
       "anchors": [
-        "src/app/desktop-session-startup.ts::store.collapsedTaskOrder"
+        "src/app/desktop-notification-runtime.ts::store.collapsedTaskOrder"
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.collapsedTaskOrder' is touched from 6 file(s)"
+        "symbol 'store.collapsedTaskOrder' is touched from 9 file(s)"
       ],
       "id": "store_collapsed_task_order",
       "kind": "store_like_symbol"
@@ -405,6 +405,17 @@
         "symbol 'store.customAgents' is touched from 4 file(s)"
       ],
       "id": "store_custom_agents",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/desktop-notification-runtime.test.tsx::store.desktopNotificationsEnabled"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.desktopNotificationsEnabled' is touched from 6 file(s)"
+      ],
+      "id": "store_desktop_notifications_enabled",
       "kind": "store_like_symbol"
     },
     {
@@ -567,7 +578,7 @@
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.projects' is touched from 16 file(s)"
+        "symbol 'store.projects' is touched from 18 file(s)"
       ],
       "id": "store_projects",
       "kind": "store_like_symbol"
@@ -644,7 +655,7 @@
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.sidebarFocused' is touched from 12 file(s)"
+        "symbol 'store.sidebarFocused' is touched from 13 file(s)"
       ],
       "id": "store_sidebar_focused",
       "kind": "store_like_symbol"
@@ -655,7 +666,7 @@
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.sidebarFocusedProjectId' is touched from 7 file(s)"
+        "symbol 'store.sidebarFocusedProjectId' is touched from 8 file(s)"
       ],
       "id": "store_sidebar_focused_project_id",
       "kind": "store_like_symbol"
@@ -666,7 +677,7 @@
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.sidebarFocusedTaskId' is touched from 8 file(s)"
+        "symbol 'store.sidebarFocusedTaskId' is touched from 10 file(s)"
       ],
       "id": "store_sidebar_focused_task_id",
       "kind": "store_like_symbol"
@@ -717,11 +728,11 @@
     },
     {
       "anchors": [
-        "src/app/desktop-session-startup.ts::store.taskOrder"
+        "src/app/desktop-notification-runtime.test.tsx::store.taskOrder"
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.taskOrder' is touched from 21 file(s)"
+        "symbol 'store.taskOrder' is touched from 25 file(s)"
       ],
       "id": "store_task_order",
       "kind": "store_like_symbol"
@@ -750,11 +761,11 @@
     },
     {
       "anchors": [
-        "src/app/desktop-session-startup.ts::store.tasks"
+        "src/app/desktop-notification-runtime.ts::store.tasks"
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.tasks' is touched from 33 file(s)"
+        "symbol 'store.tasks' is touched from 36 file(s)"
       ],
       "id": "store_tasks",
       "kind": "store_like_symbol"
@@ -915,17 +926,6 @@
     },
     {
       "anchors": [
-        "src/components/Sidebar.tsx::store.collapsedTaskOrder.filter"
-      ],
-      "confidence_0_10000": 7000,
-      "evidence": [
-        "symbol 'store.collapsedTaskOrder.filter' is touched from 3 file(s)"
-      ],
-      "id": "store_collapsed_task_order_filter",
-      "kind": "store_like_symbol"
-    },
-    {
-      "anchors": [
         "src/App.tsx::store.hasSeenDesktopIntro"
       ],
       "confidence_0_10000": 7000,
@@ -959,7 +959,7 @@
     },
     {
       "anchors": [
-        "src/components/Sidebar.tsx::store.projects.map"
+        "src/store/persistence-codecs.ts::store.projects.map"
       ],
       "confidence_0_10000": 7000,
       "evidence": [
@@ -1212,6 +1212,17 @@
     },
     {
       "anchors": [
+        "src/store/persistence-codecs.ts::store.collapsedTaskOrder.filter"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.collapsedTaskOrder.filter' is touched from 2 file(s)"
+      ],
+      "id": "store_collapsed_task_order_filter",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
         "src/store/completion.ts::store.completedTaskCount"
       ],
       "confidence_0_10000": 6500,
@@ -1377,6 +1388,17 @@
     },
     {
       "anchors": [
+        "src/components/sidebar/SidebarTaskList.test.tsx::store.taskOrder.indexOf"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.taskOrder.indexOf' is touched from 2 file(s)"
+      ],
+      "id": "store_task_order_index_of",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
         "src/app/task-workflows.control.test.ts::store.taskPorts.task-1"
       ],
       "confidence_0_10000": 6500,
@@ -1489,7 +1511,7 @@
     "configured_concept_count": 3,
     "contract_count": 1,
     "guardrail_test_count": 7,
-    "inferred_concept_count": 116,
+    "inferred_concept_count": 118,
     "matched_guardrail_test_count": 1,
     "state_model_count": 2
   },
