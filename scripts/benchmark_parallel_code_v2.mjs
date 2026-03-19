@@ -2,10 +2,11 @@
 
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { cp, mkdir, readFile, rename, rm, unlink, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
+import { assertPathExists, createDisposableRepoClone } from './lib/disposable-repo.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,25 +16,12 @@ const sentruxBin = process.env.SENTRUX_BIN ?? path.join(repoRoot, 'target/debug/
 const rulesSource = path.join(repoRoot, 'docs/v2/examples/parallel-code.rules.toml');
 const outputPath =
   process.env.OUTPUT_PATH ?? path.join(repoRoot, 'docs/v2/examples/parallel-code-benchmark.json');
-const parallelSentruxDir = path.join(parallelCodeRoot, '.sentrux');
-const parallelRulesPath = path.join(parallelSentruxDir, 'rules.toml');
-const parallelRulesBackupPath = path.join(parallelSentruxDir, 'rules.toml.bak_sentrux_benchmark');
-const parallelBaselinePath = path.join(parallelSentruxDir, 'baseline.json');
-const parallelBaselineBackupPath = path.join(
-  parallelSentruxDir,
-  'baseline.json.bak_sentrux_benchmark',
-);
-const parallelSessionV2Path = path.join(parallelSentruxDir, 'session-v2.json');
-const parallelSessionV2BackupPath = path.join(
-  parallelSentruxDir,
-  'session-v2.json.bak_sentrux_benchmark',
-);
 const compareToPath = process.env.COMPARE_TO ?? outputPath;
 const requestTimeoutMs = Number(process.env.REQUEST_TIMEOUT_MS ?? '120000');
 const maxRegressionMs = Number(process.env.MAX_REGRESSION_MS ?? '250');
 const maxRegressionPercent = Number(process.env.MAX_REGRESSION_PERCENT ?? '20');
 const failOnRegression = process.env.FAIL_ON_REGRESSION === '1';
-const benchmarkFormatVersion = 2;
+const benchmarkFormatVersion = 3;
 
 function roundMs(value) {
   return Number(value.toFixed(1));
@@ -41,12 +29,6 @@ function roundMs(value) {
 
 function nowMs() {
   return Number(process.hrtime.bigint()) / 1_000_000;
-}
-
-function assertPathExists(targetPath, label) {
-  if (!existsSync(targetPath)) {
-    throw new Error(`Missing ${label}: ${targetPath}`);
-  }
 }
 
 function summarizeScan(payload) {
@@ -217,26 +199,6 @@ async function loadPreviousBenchmark(comparePath) {
   return JSON.parse(raw);
 }
 
-async function backupFileIfExists(targetPath, backupPath) {
-  if (!existsSync(targetPath)) {
-    return false;
-  }
-
-  await cp(targetPath, backupPath);
-  return true;
-}
-
-async function restoreManagedFile(targetPath, backupPath, existedBefore) {
-  if (existedBefore) {
-    await rename(backupPath, targetPath);
-    return;
-  }
-
-  if (existsSync(targetPath)) {
-    await rm(targetPath, { force: true });
-  }
-}
-
 function parseToolPayload(response) {
   if (response.result?.isError) {
     const message = response.result.content?.[0]?.text ?? 'Unknown MCP tool error';
@@ -379,7 +341,7 @@ async function measureRequest(session, label, name, args, summarize) {
   };
 }
 
-async function runBenchmarkSession() {
+async function runBenchmarkSession(parallelCodeWorkRoot) {
   const session = createSession(sentruxBin);
   const cold = {};
   const warm = {};
@@ -391,7 +353,7 @@ async function runBenchmarkSession() {
       session,
       'scan',
       'scan',
-      { path: parallelCodeRoot },
+      { path: parallelCodeWorkRoot },
       summarizeScan,
     );
     cold.concepts = await measureRequest(
@@ -522,57 +484,28 @@ async function runBenchmarkSession() {
   }
 }
 
-async function withInstalledRules(run) {
-  await mkdir(parallelSentruxDir, { recursive: true });
-  const rulesPreviouslyExisted = existsSync(parallelRulesPath);
-  const baselinePreviouslyExisted = await backupFileIfExists(
-    parallelBaselinePath,
-    parallelBaselineBackupPath,
-  );
-  const sessionV2PreviouslyExisted = await backupFileIfExists(
-    parallelSessionV2Path,
-    parallelSessionV2BackupPath,
-  );
-
-  if (rulesPreviouslyExisted) {
-    await cp(parallelRulesPath, parallelRulesBackupPath);
-  }
-
-  await cp(rulesSource, parallelRulesPath);
-
-  try {
-    return await run();
-  } finally {
-    if (existsSync(parallelRulesBackupPath)) {
-      await rename(parallelRulesBackupPath, parallelRulesPath);
-    } else if (existsSync(parallelRulesPath)) {
-      await unlink(parallelRulesPath);
-    }
-
-    await restoreManagedFile(
-      parallelBaselinePath,
-      parallelBaselineBackupPath,
-      baselinePreviouslyExisted,
-    );
-    await restoreManagedFile(
-      parallelSessionV2Path,
-      parallelSessionV2BackupPath,
-      sessionV2PreviouslyExisted,
-    );
-  }
-}
-
 async function main() {
   assertPathExists(sentruxBin, 'sentrux binary');
   assertPathExists(rulesSource, 'parallel-code rules source');
   assertPathExists(parallelCodeRoot, 'parallel-code repo');
 
   const previousResult = await loadPreviousBenchmark(compareToPath);
-  const benchmark = await withInstalledRules(runBenchmarkSession);
+  const clone = await createDisposableRepoClone({
+    sourceRoot: parallelCodeRoot,
+    label: 'parallel-code-benchmark',
+    rulesSource,
+  });
+  let benchmark;
+  try {
+    benchmark = await runBenchmarkSession(clone.workRoot);
+  } finally {
+    await clone.cleanup();
+  }
   const result = {
     benchmark_format_version: benchmarkFormatVersion,
     generated_at: new Date().toISOString(),
     parallel_code_root: parallelCodeRoot,
+    analysis_mode: 'temporary_local_clone',
     sentrux_binary: sentruxBin,
     benchmark,
   };
@@ -601,10 +534,5 @@ async function main() {
 
 main().catch(async (error) => {
   console.error(error instanceof Error ? error.message : String(error));
-  try {
-    if (existsSync(parallelRulesBackupPath)) {
-      await rename(parallelRulesBackupPath, parallelRulesPath);
-    }
-  } catch {}
   process.exitCode = 1;
 });
