@@ -1653,6 +1653,43 @@ fn finding_scope(finding: &Value) -> String {
     files.join("|")
 }
 
+fn finding_trust_tier(finding: &Value) -> String {
+    finding
+        .get("trust_tier")
+        .and_then(|value| value.as_str())
+        .map(str::to_string)
+        .unwrap_or_else(|| trust_tier_for_kind(finding_kind(finding), "trusted"))
+}
+
+fn is_experimental_finding(finding: &Value) -> bool {
+    finding_trust_tier(finding) == "experimental"
+}
+
+fn partition_experimental_findings(findings: &[Value], limit: usize) -> (Vec<Value>, Vec<Value>) {
+    let mut visible = Vec::new();
+    let mut experimental = Vec::new();
+
+    for finding in findings {
+        if is_experimental_finding(finding) {
+            if experimental.len() < limit {
+                experimental.push(finding.clone());
+            }
+            continue;
+        }
+        visible.push(finding.clone());
+    }
+
+    (visible, experimental)
+}
+
+fn trust_tier_for_kind(kind: &str, default: &str) -> String {
+    match kind {
+        "cycle_cluster" | "dead_island" => "watchpoint".to_string(),
+        "dead_private_code_cluster" => "experimental".to_string(),
+        _ => default.to_string(),
+    }
+}
+
 fn build_finding_details(findings: &[Value], limit: usize) -> Vec<FindingDetail> {
     findings.iter().take(limit).map(finding_detail).collect()
 }
@@ -1665,6 +1702,7 @@ fn finding_detail(finding: &Value) -> FindingDetail {
 
     FindingDetail {
         kind: kind.clone(),
+        trust_tier: finding_trust_tier(finding),
         scope: finding_scope(finding),
         severity: finding
             .get("severity")
@@ -1680,6 +1718,8 @@ fn finding_detail(finding: &Value) -> FindingDetail {
         files: files.clone(),
         evidence: evidence.clone(),
         inspection_focus,
+        candidate_split_axes: finding_detail_candidate_split_axes(finding),
+        related_surfaces: finding_detail_related_surfaces(finding),
         metrics: FindingDetailMetrics {
             file_count: files.len(),
             evidence_count: evidence.len(),
@@ -1698,6 +1738,29 @@ fn finding_detail(finding: &Value) -> FindingDetail {
                 .map(|value| value as u32),
         },
     }
+}
+
+fn finding_detail_candidate_split_axes(finding: &Value) -> Vec<String> {
+    let axes = finding_string_values(finding, "candidate_split_axes");
+    if !axes.is_empty() {
+        return axes;
+    }
+
+    match finding_kind(finding) {
+        "cycle_cluster" => vec!["contract boundary".to_string()],
+        "dependency_sprawl" => vec!["dependency boundary".to_string()],
+        "unstable_hotspot" => vec!["stable contract boundary".to_string()],
+        _ => Vec::new(),
+    }
+}
+
+fn finding_detail_related_surfaces(finding: &Value) -> Vec<String> {
+    let related = finding_string_values(finding, "related_surfaces");
+    if !related.is_empty() {
+        return related;
+    }
+
+    finding_files(finding).into_iter().take(5).collect()
 }
 
 fn finding_detail_impact(finding: &Value) -> String {
@@ -1917,7 +1980,9 @@ fn compute_touched_concept_gate(
                 .cloned()
                 .collect::<Vec<_>>()
         });
-    let blocking_findings = introduced_findings
+    let (visible_introduced_findings, experimental_findings) =
+        partition_experimental_findings(&introduced_findings, 10);
+    let blocking_findings = visible_introduced_findings
         .iter()
         .filter(|finding| {
             let severity = severity_of_value(finding);
@@ -1952,7 +2017,9 @@ fn compute_touched_concept_gate(
         "strict": strict,
         "summary": summary,
         "changed_files": changed_files.iter().cloned().collect::<Vec<_>>(),
-        "introduced_findings": introduced_findings,
+        "introduced_findings": visible_introduced_findings,
+        "experimental_finding_count": experimental_findings.len(),
+        "experimental_findings": experimental_findings,
         "blocking_findings": blocking_findings,
         "missing_obligations": missing_obligations,
         "obligation_completeness_0_10000": crate::metrics::v2::obligation_score_0_10000(&analysis.changed_obligations),
@@ -2285,7 +2352,8 @@ fn handle_findings(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<V
     );
     let (suppression_application, suppression_error) =
         apply_root_suppressions(state, &root, merged_findings);
-    let visible_findings = suppression_application.visible_findings.clone();
+    let (visible_findings, experimental_findings) =
+        partition_experimental_findings(&suppression_application.visible_findings, limit);
     let visible_clone_ids = visible_clone_ids(&visible_findings);
     let semantic_finding_count = visible_findings
         .iter()
@@ -2322,50 +2390,133 @@ fn handle_findings(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<V
     );
     let concept_summary_count = debt_outputs.concept_summaries.len();
     let debt_signal_count = debt_outputs.debt_signals.len();
+    let experimental_debt_signal_count = debt_outputs.experimental_debt_signals.len();
     let debt_cluster_count = debt_outputs.debt_clusters.len();
     let watchpoint_count = debt_outputs.watchpoints.len();
     let concept_summaries = debt_outputs.concept_summaries;
     let debt_signals = debt_outputs.debt_signals;
+    let experimental_debt_signals = debt_outputs.experimental_debt_signals;
     let debt_clusters = debt_outputs.debt_clusters;
     let watchpoints = debt_outputs.watchpoints;
     let legacy_quality_opportunities = legacy_quality_opportunity_values(&debt_signals);
     let legacy_optimization_priorities = legacy_optimization_priority_values(&watchpoints);
     let debt_context_error = debt_outputs.context_error;
 
-    Ok(json!({
-        "kind": "mixed_findings",
-        "confidence": build_v2_confidence_report(&metadata, &rules_config, session_v2_status),
-        "clone_group_count": clone_payload.clone_group_count,
-        "clone_family_count": clone_payload.clone_family_count,
-        "visible_clone_group_count": visible_clone_ids.len(),
-        "visible_clone_family_count": clone_families.len(),
-        "clone_families": clone_families,
-        "clone_remediations": clone_remediations,
-        "concept_summary_count": concept_summary_count,
-        "concept_summaries": concept_summaries,
-        "debt_signal_count": debt_signal_count,
-        "debt_signals": debt_signals,
-        "debt_cluster_count": debt_cluster_count,
-        "debt_clusters": debt_clusters,
-        "watchpoint_count": watchpoint_count,
-        "watchpoints": watchpoints,
-        "quality_opportunity_count": debt_signal_count,
-        "quality_opportunities": legacy_quality_opportunities,
-        "optimization_priority_count": watchpoint_count,
-        "optimization_priorities": legacy_optimization_priorities,
-        "semantic_finding_count": semantic_finding_count,
-        "finding_detail_count": finding_details.len(),
-        "finding_details": finding_details,
-        "rules_error": merge_optional_errors(config_error, suppression_error),
-        "semantic_error": merge_optional_errors(semantic_error, clone_error),
-        "debt_context_error": debt_context_error,
-        "opportunity_context_error": debt_context_error,
-        "suppression_hits": suppression_application.active_matches,
-        "suppressed_finding_count": suppression_match_count(&suppression_application.active_matches),
-        "expired_suppressions": suppression_application.expired_matches,
-        "expired_suppression_match_count": suppression_match_count(&suppression_application.expired_matches),
-        "findings": findings
-    }))
+    let mut result = serde_json::Map::new();
+    result.insert("kind".to_string(), json!("mixed_findings"));
+    result.insert(
+        "confidence".to_string(),
+        json!(build_v2_confidence_report(
+            &metadata,
+            &rules_config,
+            session_v2_status
+        )),
+    );
+    result.insert(
+        "clone_group_count".to_string(),
+        json!(clone_payload.clone_group_count),
+    );
+    result.insert(
+        "clone_family_count".to_string(),
+        json!(clone_payload.clone_family_count),
+    );
+    result.insert(
+        "visible_clone_group_count".to_string(),
+        json!(visible_clone_ids.len()),
+    );
+    result.insert(
+        "visible_clone_family_count".to_string(),
+        json!(clone_families.len()),
+    );
+    result.insert("clone_families".to_string(), json!(clone_families));
+    result.insert("clone_remediations".to_string(), json!(clone_remediations));
+    result.insert(
+        "concept_summary_count".to_string(),
+        json!(concept_summary_count),
+    );
+    result.insert("concept_summaries".to_string(), json!(concept_summaries));
+    result.insert("debt_signal_count".to_string(), json!(debt_signal_count));
+    result.insert("debt_signals".to_string(), json!(debt_signals));
+    result.insert(
+        "experimental_debt_signal_count".to_string(),
+        json!(experimental_debt_signal_count),
+    );
+    result.insert(
+        "experimental_debt_signals".to_string(),
+        json!(experimental_debt_signals),
+    );
+    result.insert("debt_cluster_count".to_string(), json!(debt_cluster_count));
+    result.insert("debt_clusters".to_string(), json!(debt_clusters));
+    result.insert("watchpoint_count".to_string(), json!(watchpoint_count));
+    result.insert("watchpoints".to_string(), json!(watchpoints));
+    result.insert(
+        "quality_opportunity_count".to_string(),
+        json!(debt_signal_count),
+    );
+    result.insert(
+        "quality_opportunities".to_string(),
+        json!(legacy_quality_opportunities),
+    );
+    result.insert(
+        "optimization_priority_count".to_string(),
+        json!(watchpoint_count),
+    );
+    result.insert(
+        "optimization_priorities".to_string(),
+        json!(legacy_optimization_priorities),
+    );
+    result.insert(
+        "semantic_finding_count".to_string(),
+        json!(semantic_finding_count),
+    );
+    result.insert(
+        "finding_detail_count".to_string(),
+        json!(finding_details.len()),
+    );
+    result.insert("finding_details".to_string(), json!(finding_details));
+    result.insert(
+        "experimental_finding_count".to_string(),
+        json!(experimental_findings.len()),
+    );
+    result.insert(
+        "experimental_findings".to_string(),
+        json!(experimental_findings),
+    );
+    result.insert(
+        "rules_error".to_string(),
+        json!(merge_optional_errors(config_error, suppression_error)),
+    );
+    result.insert(
+        "semantic_error".to_string(),
+        json!(merge_optional_errors(semantic_error, clone_error)),
+    );
+    result.insert("debt_context_error".to_string(), json!(debt_context_error));
+    result.insert(
+        "opportunity_context_error".to_string(),
+        json!(debt_context_error),
+    );
+    result.insert(
+        "suppression_hits".to_string(),
+        json!(suppression_application.active_matches),
+    );
+    result.insert(
+        "suppressed_finding_count".to_string(),
+        json!(suppression_match_count(
+            &suppression_application.active_matches
+        )),
+    );
+    result.insert(
+        "expired_suppressions".to_string(),
+        json!(suppression_application.expired_matches),
+    );
+    result.insert(
+        "expired_suppression_match_count".to_string(),
+        json!(suppression_match_count(
+            &suppression_application.expired_matches
+        )),
+    );
+    result.insert("findings".to_string(), json!(findings));
+    Ok(Value::Object(result))
 }
 
 pub fn obligations_def() -> ToolDef {
@@ -2855,6 +3006,7 @@ struct ConceptDebtSummary {
 #[derive(Debug, Clone, serde::Serialize, Default)]
 struct DebtSignal {
     kind: String,
+    trust_tier: String,
     scope: String,
     signal_class: String,
     signal_families: Vec<String>,
@@ -2865,12 +3017,15 @@ struct DebtSignal {
     files: Vec<String>,
     evidence: Vec<String>,
     inspection_focus: Vec<String>,
+    candidate_split_axes: Vec<String>,
+    related_surfaces: Vec<String>,
     metrics: DebtSignalMetrics,
 }
 
 #[derive(Debug, Clone, serde::Serialize, Default)]
 struct FindingDetail {
     kind: String,
+    trust_tier: String,
     scope: String,
     severity: String,
     summary: String,
@@ -2878,18 +3033,25 @@ struct FindingDetail {
     files: Vec<String>,
     evidence: Vec<String>,
     inspection_focus: Vec<String>,
+    candidate_split_axes: Vec<String>,
+    related_surfaces: Vec<String>,
     metrics: FindingDetailMetrics,
 }
 
 #[derive(Debug, Clone, serde::Serialize, Default)]
 struct InspectionWatchpoint {
+    kind: String,
+    trust_tier: String,
     scope: String,
     severity: String,
     score_0_10000: u32,
     summary: String,
+    impact: String,
     files: Vec<String>,
     evidence: Vec<String>,
     inspection_focus: Vec<String>,
+    candidate_split_axes: Vec<String>,
+    related_surfaces: Vec<String>,
     signal_families: Vec<String>,
     clone_family_count: usize,
     hotspot_count: usize,
@@ -2899,6 +3061,7 @@ struct InspectionWatchpoint {
 
 #[derive(Debug, Clone, serde::Serialize, Default)]
 struct DebtCluster {
+    trust_tier: String,
     scope: String,
     severity: String,
     score_0_10000: u32,
@@ -2928,6 +3091,7 @@ struct ConceptDebtAggregate {
 struct DebtReportOutputs {
     concept_summaries: Vec<ConceptDebtSummary>,
     debt_signals: Vec<DebtSignal>,
+    experimental_debt_signals: Vec<DebtSignal>,
     debt_clusters: Vec<DebtCluster>,
     watchpoints: Vec<InspectionWatchpoint>,
     context_error: Option<String>,
@@ -3059,18 +3223,44 @@ fn build_debt_report_outputs(
         clone_families,
         &concentration_reports,
     );
-    let debt_signals = truncate_debt_signals(all_debt_signals.clone(), limit);
-    let debt_clusters = build_debt_clusters(&all_debt_signals, limit);
-    let watchpoints = build_inspection_watchpoints(
+    let trusted_debt_signals = all_debt_signals
+        .iter()
+        .filter(|signal| signal.trust_tier == "trusted")
+        .cloned()
+        .collect::<Vec<_>>();
+    let watchpoint_signals = all_debt_signals
+        .iter()
+        .filter(|signal| signal.trust_tier == "watchpoint")
+        .cloned()
+        .collect::<Vec<_>>();
+    let experimental_debt_signals = all_debt_signals
+        .iter()
+        .filter(|signal| signal.trust_tier == "experimental")
+        .cloned()
+        .collect::<Vec<_>>();
+    let debt_signals = truncate_debt_signals(trusted_debt_signals.clone(), limit);
+    let cluster_sources = trusted_debt_signals
+        .iter()
+        .chain(watchpoint_signals.iter())
+        .cloned()
+        .collect::<Vec<_>>();
+    let debt_clusters = build_debt_clusters(&cluster_sources, limit);
+    let concept_watchpoints = build_inspection_watchpoints(
         &concept_summaries,
         clone_families,
         &concentration_reports,
+        limit,
+    );
+    let watchpoints = merge_watchpoints(
+        concept_watchpoints,
+        debt_signal_watchpoints(&watchpoint_signals, limit),
         limit,
     );
 
     DebtReportOutputs {
         concept_summaries: concept_summaries.into_iter().take(limit).collect(),
         debt_signals,
+        experimental_debt_signals: truncate_debt_signals(experimental_debt_signals, limit),
         debt_clusters,
         watchpoints,
         context_error,
@@ -3252,6 +3442,7 @@ fn collect_debt_signals(
 
             DebtSignal {
                 kind: "concept".to_string(),
+                trust_tier: "trusted".to_string(),
                 scope: summary.concept_id.clone(),
                 signal_class: concept_signal_class(summary).to_string(),
                 signal_families: concept_signal_families(summary),
@@ -3262,6 +3453,8 @@ fn collect_debt_signals(
                 files: summary.files.clone(),
                 evidence,
                 inspection_focus: summary.inspection_focus.clone(),
+                candidate_split_axes: concept_candidate_split_axes(summary),
+                related_surfaces: summary.files.iter().take(5).cloned().collect(),
                 metrics: concept_signal_metrics(summary),
             }
         })
@@ -3346,6 +3539,8 @@ fn build_inspection_watchpoints(
             );
 
             Some(InspectionWatchpoint {
+                kind: "concept_watchpoint".to_string(),
+                trust_tier: "watchpoint".to_string(),
                 scope: summary.concept_id.clone(),
                 severity: signal_severity(score_0_10000).to_string(),
                 score_0_10000,
@@ -3354,6 +3549,7 @@ fn build_inspection_watchpoints(
                     matching_clone_families.len(),
                     matching_hotspots.len(),
                 ),
+                impact: concept_signal_impact(summary),
                 files: summary.files.clone(),
                 evidence: inspection_watchpoint_evidence(
                     summary,
@@ -3365,6 +3561,8 @@ fn build_inspection_watchpoints(
                     matching_clone_families.as_slice(),
                     matching_hotspots.as_slice(),
                 ),
+                candidate_split_axes: concept_candidate_split_axes(summary),
+                related_surfaces: summary.files.iter().take(5).cloned().collect(),
                 signal_families: inspection_watchpoint_signal_families(
                     summary,
                     matching_clone_families.len(),
@@ -3378,6 +3576,58 @@ fn build_inspection_watchpoints(
         })
         .collect::<Vec<_>>();
 
+    watchpoints.sort_by(|left, right| {
+        severity_priority(&right.severity)
+            .cmp(&severity_priority(&left.severity))
+            .then_with(|| right.score_0_10000.cmp(&left.score_0_10000))
+            .then_with(|| left.scope.cmp(&right.scope))
+    });
+    watchpoints.truncate(limit);
+    watchpoints
+}
+
+fn debt_signal_watchpoints(signals: &[DebtSignal], limit: usize) -> Vec<InspectionWatchpoint> {
+    let mut watchpoints = signals
+        .iter()
+        .filter(|signal| signal.trust_tier == "watchpoint")
+        .map(|signal| InspectionWatchpoint {
+            kind: signal.kind.clone(),
+            trust_tier: signal.trust_tier.clone(),
+            scope: signal.scope.clone(),
+            severity: signal.severity.clone(),
+            score_0_10000: signal.score_0_10000,
+            summary: signal.summary.clone(),
+            impact: signal.impact.clone(),
+            files: signal.files.clone(),
+            evidence: signal.evidence.clone(),
+            inspection_focus: signal.inspection_focus.clone(),
+            candidate_split_axes: signal.candidate_split_axes.clone(),
+            related_surfaces: signal.related_surfaces.clone(),
+            signal_families: signal.signal_families.clone(),
+            clone_family_count: usize::from(signal.kind == "clone_family"),
+            hotspot_count: usize::from(signal.kind == "hotspot"),
+            missing_site_count: signal.metrics.missing_site_count.unwrap_or(0),
+            boundary_pressure_count: signal.metrics.boundary_pressure_count.unwrap_or(0),
+        })
+        .collect::<Vec<_>>();
+
+    watchpoints.sort_by(|left, right| {
+        severity_priority(&right.severity)
+            .cmp(&severity_priority(&left.severity))
+            .then_with(|| right.score_0_10000.cmp(&left.score_0_10000))
+            .then_with(|| left.scope.cmp(&right.scope))
+    });
+    watchpoints.truncate(limit);
+    watchpoints
+}
+
+fn merge_watchpoints(
+    left: Vec<InspectionWatchpoint>,
+    right: Vec<InspectionWatchpoint>,
+    limit: usize,
+) -> Vec<InspectionWatchpoint> {
+    let mut watchpoints = left;
+    watchpoints.extend(right);
     watchpoints.sort_by(|left, right| {
         severity_priority(&right.severity)
             .cmp(&severity_priority(&left.severity))
@@ -3520,10 +3770,12 @@ fn debt_cluster(signals: &[DebtSignal]) -> Option<DebtCluster> {
         .map(|signal| signal.score_0_10000)
         .max()
         .unwrap_or(0);
+    let trust_tier = cluster_trust_tier(signals);
     let aggregate_bonus = ((signals.len().saturating_sub(1)) as u32 * 500).min(2000);
     let score_0_10000 = (highest_score + aggregate_bonus).min(10_000);
 
     Some(DebtCluster {
+        trust_tier: trust_tier.to_string(),
         scope: format!("cluster:{}", files.join("|")),
         severity: signal_severity(score_0_10000).to_string(),
         score_0_10000,
@@ -3555,6 +3807,19 @@ fn debt_cluster(signals: &[DebtSignal]) -> Option<DebtCluster> {
                 .count(),
         },
     })
+}
+
+fn cluster_trust_tier(signals: &[DebtSignal]) -> &'static str {
+    if signals.iter().any(|signal| signal.trust_tier == "trusted") {
+        "trusted"
+    } else if signals
+        .iter()
+        .any(|signal| signal.trust_tier == "watchpoint")
+    {
+        "watchpoint"
+    } else {
+        "experimental"
+    }
 }
 
 fn is_structural_debt_signal_kind(kind: &str) -> bool {
@@ -3897,9 +4162,24 @@ fn concept_signal_impact(summary: &ConceptDebtSummary) -> String {
     "Repeated structural findings suggest this concept will remain brittle until the boundary and update path are clearer.".to_string()
 }
 
+fn concept_candidate_split_axes(summary: &ConceptDebtSummary) -> Vec<String> {
+    let mut axes = Vec::new();
+    if summary.boundary_pressure_count > 0 {
+        axes.push("ownership boundary".to_string());
+    }
+    if summary.missing_site_count > 0 {
+        axes.push("propagation surface".to_string());
+    }
+    if axes.is_empty() {
+        axes.push("concept boundary".to_string());
+    }
+    axes
+}
+
 fn structural_signal(report: &crate::metrics::v2::StructuralDebtReport) -> DebtSignal {
     DebtSignal {
         kind: report.kind.clone(),
+        trust_tier: report.trust_tier.clone(),
         scope: report.scope.clone(),
         signal_class: report.signal_class.clone(),
         signal_families: report.signal_families.clone(),
@@ -3910,6 +4190,8 @@ fn structural_signal(report: &crate::metrics::v2::StructuralDebtReport) -> DebtS
         files: report.files.clone(),
         evidence: report.evidence.clone(),
         inspection_focus: report.inspection_focus.clone(),
+        candidate_split_axes: report.candidate_split_axes.clone(),
+        related_surfaces: report.related_surfaces.clone(),
         metrics: DebtSignalMetrics {
             file_count: report.metrics.file_count,
             line_count: report.metrics.line_count,
@@ -3964,6 +4246,29 @@ fn clone_family_inspection_focus(family: &Value) -> Vec<String> {
     focus
 }
 
+fn clone_family_candidate_axes(family: &Value) -> Vec<String> {
+    let mut axes = family
+        .get("remediation_hints")
+        .and_then(|value| value.as_array())
+        .map(|hints| {
+            hints
+                .iter()
+                .filter_map(|hint| hint.get("kind").and_then(|value| value.as_str()))
+                .map(|kind| match kind {
+                    "sync_recent_divergence" => "shared behavior boundary".to_string(),
+                    "extract_shared_helper" => "shared helper boundary".to_string(),
+                    "collapse_clone_family" => "duplicate maintenance boundary".to_string(),
+                    "add_shared_behavior_tests" => "shared behavior test boundary".to_string(),
+                    _ => kind.replace('_', " "),
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    axes = dedupe_strings_preserve_order(axes);
+    axes.truncate(3);
+    axes
+}
+
 fn clone_family_signal(family: &Value) -> Option<DebtSignal> {
     let summary = family.get("summary")?.as_str()?.to_string();
     let scope = family.get("family_id")?.as_str()?.to_string();
@@ -3985,6 +4290,11 @@ fn clone_family_signal(family: &Value) -> Option<DebtSignal> {
 
     Some(DebtSignal {
         kind: "clone_family".to_string(),
+        trust_tier: if score_0_10000 >= 6500 {
+            "trusted".to_string()
+        } else {
+            "watchpoint".to_string()
+        },
         scope,
         signal_class: if score_0_10000 >= 6500 {
             "debt".to_string()
@@ -3999,6 +4309,8 @@ fn clone_family_signal(family: &Value) -> Option<DebtSignal> {
         files,
         evidence,
         inspection_focus,
+        candidate_split_axes: clone_family_candidate_axes(family),
+        related_surfaces: finding_files(family),
         metrics: DebtSignalMetrics {
             file_count: family
                 .get("file_count")
@@ -4042,6 +4354,11 @@ fn clone_group_signal(finding: &Value) -> Option<DebtSignal> {
 
     Some(DebtSignal {
         kind: "clone_group".to_string(),
+        trust_tier: if score_0_10000 >= 6500 {
+            "trusted".to_string()
+        } else {
+            "watchpoint".to_string()
+        },
         scope,
         signal_class: if score_0_10000 >= 6500 {
             "debt".to_string()
@@ -4061,6 +4378,11 @@ fn clone_group_signal(finding: &Value) -> Option<DebtSignal> {
             "inspect whether shared behavior tests would make the copies safer to change"
                 .to_string(),
         ],
+        candidate_split_axes: vec![
+            "shared helper boundary".to_string(),
+            "shared behavior test boundary".to_string(),
+        ],
+        related_surfaces: finding_files(finding),
         metrics: DebtSignalMetrics {
             file_count: Some(finding_files(finding).len()),
             ..DebtSignalMetrics::default()
@@ -4075,6 +4397,11 @@ fn hotspot_signal(report: &crate::metrics::v2::ConcentrationReport) -> Option<De
 
     Some(DebtSignal {
         kind: "hotspot".to_string(),
+        trust_tier: if report.score_0_10000 >= 6500 {
+            "trusted".to_string()
+        } else {
+            "watchpoint".to_string()
+        },
         scope: report.path.clone(),
         signal_class: if report.score_0_10000 >= 6500 {
             "debt".to_string()
@@ -4097,6 +4424,12 @@ fn hotspot_signal(report: &crate::metrics::v2::ConcentrationReport) -> Option<De
             "inspect whether complexity is local to one seam or repeated across nearby files"
                 .to_string(),
         ],
+        candidate_split_axes: vec![
+            "orchestration boundary".to_string(),
+            "side-effect boundary".to_string(),
+            "adapter boundary".to_string(),
+        ],
+        related_surfaces: vec![report.path.clone()],
         metrics: DebtSignalMetrics {
             file_count: Some(1),
             authority_breadth: Some(report.authority_breadth),
@@ -4424,6 +4757,31 @@ mod tests {
             &root,
             "src/orphan-b.ts",
             "import { orphanValue } from './orphan-a';\nfunction orphanB(): number { return orphanValue + 1; }\nconst orphanBValue = orphanB();\n",
+        );
+        root
+    }
+
+    fn dead_private_fixture_root() -> std::path::PathBuf {
+        let root = temp_root("dead-private");
+        write_file(
+            &root,
+            "src/app.ts",
+            "export function render(): number { return 1; }\n",
+        );
+        write_file(
+            &root,
+            "src/stale.ts",
+            "function deadAlpha(): number { return 1; }\nfunction deadBeta(): number { return 2; }\nexport const liveValue = 3;\n",
+        );
+        root
+    }
+
+    fn experimental_gate_fixture_root() -> std::path::PathBuf {
+        let root = temp_root("experimental-gate");
+        write_file(
+            &root,
+            "src/app.ts",
+            "export function render(): number { return 1; }\n",
         );
         root
     }
@@ -5074,9 +5432,9 @@ mod tests {
             .expect("debt signals")
             .iter()
             .any(|signal| signal["kind"] == "large_file" && signal["scope"] == "src/app.ts"));
-        assert!(response["debt_signals"]
+        assert!(response["watchpoints"]
             .as_array()
-            .expect("debt signals")
+            .expect("watchpoints")
             .iter()
             .any(|signal| signal["kind"] == "cycle_cluster"));
         assert!(response["findings"]
@@ -5102,9 +5460,9 @@ mod tests {
         let response =
             handle_findings(&json!({"limit": 25}), &Tier::Free, &mut state).expect("findings");
 
-        assert!(response["debt_signals"]
+        assert!(response["watchpoints"]
             .as_array()
-            .expect("debt signals")
+            .expect("watchpoints")
             .iter()
             .any(|signal| signal["kind"] == "dead_island"));
         assert!(response["findings"]
@@ -5112,6 +5470,79 @@ mod tests {
             .expect("findings array")
             .iter()
             .any(|finding| finding["kind"] == "dead_island"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn findings_isolate_experimental_structural_findings() {
+        let root = dead_private_fixture_root();
+        let mut state = fresh_mcp_state();
+        handle_scan(
+            &json!({"path": root.to_string_lossy().to_string()}),
+            &Tier::Free,
+            &mut state,
+        )
+        .expect("scan fixture");
+
+        let response =
+            handle_findings(&json!({"limit": 25}), &Tier::Free, &mut state).expect("findings");
+
+        assert!(response["experimental_debt_signals"]
+            .as_array()
+            .expect("experimental debt signals")
+            .iter()
+            .any(|signal| {
+                signal["kind"] == "dead_private_code_cluster"
+                    && signal["trust_tier"] == "experimental"
+            }));
+        assert!(!response["debt_signals"]
+            .as_array()
+            .expect("debt signals")
+            .iter()
+            .any(|signal| signal["kind"] == "dead_private_code_cluster"));
+        assert!(response["experimental_findings"]
+            .as_array()
+            .expect("experimental findings")
+            .iter()
+            .any(|finding| finding["kind"] == "dead_private_code_cluster"));
+        assert!(!response["finding_details"]
+            .as_array()
+            .expect("finding details")
+            .iter()
+            .any(|detail| detail["kind"] == "dead_private_code_cluster"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn findings_surface_watchpoints_include_trust_tier_and_fixability_fields() {
+        let root = dead_island_fixture_root();
+        let mut state = fresh_mcp_state();
+        handle_scan(
+            &json!({"path": root.to_string_lossy().to_string()}),
+            &Tier::Free,
+            &mut state,
+        )
+        .expect("scan fixture");
+
+        let response =
+            handle_findings(&json!({"limit": 25}), &Tier::Free, &mut state).expect("findings");
+
+        assert!(response["watchpoints"]
+            .as_array()
+            .expect("watchpoints")
+            .iter()
+            .any(|watchpoint| {
+                watchpoint["kind"] == "dead_island"
+                    && watchpoint["trust_tier"] == "watchpoint"
+                    && watchpoint["candidate_split_axes"]
+                        .as_array()
+                        .is_some_and(|axes| !axes.is_empty())
+                    && watchpoint["related_surfaces"]
+                        .as_array()
+                        .is_some_and(|related| !related.is_empty())
+            }));
 
         let _ = std::fs::remove_dir_all(root);
     }
@@ -6114,9 +6545,9 @@ mod tests {
         let response =
             handle_session_end(&json!({}), &Tier::Free, &mut state).expect("session end");
 
-        assert!(response["debt_signals"]
+        assert!(response["watchpoints"]
             .as_array()
-            .expect("debt signals")
+            .expect("watchpoints")
             .iter()
             .any(|signal| signal["kind"] == "dead_island"));
         assert!(response["finding_details"]
@@ -6282,6 +6713,33 @@ mod tests {
     }
 
     #[test]
+    fn cli_v2_gate_quarantines_experimental_findings() {
+        let root = experimental_gate_fixture_root();
+        cli_save_v2_session(&root).expect("save v2 session");
+        write_file(
+            &root,
+            "src/stale.ts",
+            "function deadAlpha(): number { return 1; }\nfunction deadBeta(): number { return 2; }\nexport const liveValue = 3;\n",
+        );
+
+        let evaluated = cli_evaluate_v2_gate(&root, false).expect("evaluate v2 gate");
+
+        assert_eq!(evaluated["decision"], "pass");
+        assert!(evaluated["introduced_findings"]
+            .as_array()
+            .expect("introduced findings")
+            .is_empty());
+        assert_eq!(evaluated["experimental_finding_count"], 1);
+        assert!(evaluated["experimental_findings"]
+            .as_array()
+            .expect("experimental findings")
+            .iter()
+            .any(|value| value["kind"] == "dead_private_code_cluster"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
     fn cli_v2_gate_fails_on_contract_surface_regression() {
         let root = contract_gate_fixture_root();
         cli_save_v2_session(&root).expect("save v2 session");
@@ -6350,6 +6808,41 @@ mod tests {
             .iter()
             .any(|value| value["domain_symbol_name"] == "AppState"));
         assert_eq!(response["touched_concept_gate"]["decision"], "fail");
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn session_end_quarantines_experimental_introduced_findings() {
+        let root = experimental_gate_fixture_root();
+        cli_save_v2_session(&root).expect("save v2 session");
+        let baseline_path = root.join(".sentrux").join("baseline.json");
+        if baseline_path.exists() {
+            std::fs::remove_file(&baseline_path).expect("remove legacy baseline");
+        }
+        write_file(
+            &root,
+            "src/stale.ts",
+            "function deadAlpha(): number { return 1; }\nfunction deadBeta(): number { return 2; }\nexport const liveValue = 3;\n",
+        );
+
+        let mut state = fresh_mcp_state();
+        state.scan_root = Some(root.clone());
+
+        let response = handle_session_end(&json!({}), &Tier::Free, &mut state)
+            .expect("session end for experimental finding");
+
+        assert_eq!(response["touched_concept_gate"]["decision"], "pass");
+        assert!(response["introduced_findings"]
+            .as_array()
+            .expect("introduced findings")
+            .is_empty());
+        assert_eq!(response["experimental_finding_count"], 1);
+        assert!(response["experimental_findings"]
+            .as_array()
+            .expect("experimental findings")
+            .iter()
+            .any(|value| value["kind"] == "dead_private_code_cluster"));
 
         let _ = std::fs::remove_dir_all(root);
     }
@@ -6971,7 +7464,9 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default();
-    let mut blocking_findings = introduced_findings
+    let (visible_introduced_findings, experimental_findings) =
+        partition_experimental_findings(&introduced_findings, 10);
+    let mut blocking_findings = visible_introduced_findings
         .iter()
         .filter(|finding| severity_of_value(finding) == "high")
         .cloned()
@@ -6981,7 +7476,9 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
             analysis
                 .changed_visible_findings
                 .iter()
-                .filter(|finding| severity_of_value(finding) == "high")
+                .filter(|finding| {
+                    !is_experimental_finding(finding) && severity_of_value(finding) == "high"
+                })
                 .cloned(),
         );
     }
@@ -6996,10 +7493,14 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default();
+    let resolved_findings = resolved_findings
+        .into_iter()
+        .filter(|finding| !is_experimental_finding(finding))
+        .collect::<Vec<_>>();
     let gate_decision = if !missing_obligations.is_empty() || !blocking_findings.is_empty() {
         "fail"
     } else if legacy_diff.as_ref().is_some_and(|diff| diff.degraded)
-        || !introduced_findings.is_empty()
+        || !visible_introduced_findings.is_empty()
     {
         "warn"
     } else {
@@ -7010,10 +7511,10 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         baseline_error =
             Some("Legacy baseline unavailable; structural delta fields were omitted".to_string());
     }
-    let opportunity_findings = if session_v2.is_some() {
-        introduced_findings.clone()
+    let (opportunity_findings, experimental_findings) = if session_v2.is_some() {
+        (visible_introduced_findings.clone(), experimental_findings)
     } else {
-        analysis.changed_visible_findings.clone()
+        partition_experimental_findings(&analysis.changed_visible_findings, 10)
     };
     let finding_details = build_finding_details(&opportunity_findings, 10);
     let debt_outputs = build_debt_report_outputs(
@@ -7029,10 +7530,12 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
     );
     let concept_summary_count = debt_outputs.concept_summaries.len();
     let debt_signal_count = debt_outputs.debt_signals.len();
+    let experimental_debt_signal_count = debt_outputs.experimental_debt_signals.len();
     let debt_cluster_count = debt_outputs.debt_clusters.len();
     let watchpoint_count = debt_outputs.watchpoints.len();
     let concept_summaries = debt_outputs.concept_summaries;
     let debt_signals = debt_outputs.debt_signals;
+    let experimental_debt_signals = debt_outputs.experimental_debt_signals;
     let debt_clusters = debt_outputs.debt_clusters;
     let watchpoints = debt_outputs.watchpoints;
     let legacy_quality_opportunities = legacy_quality_opportunity_values(&debt_signals);
@@ -7062,60 +7565,137 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         .map(|diff| diff.violations.clone())
         .unwrap_or_default();
 
-    let result = json!({
-        "pass": gate_decision != "fail",
-        "signal_before": signal_before,
-        "signal_after": signal_after,
-        "signal_delta": signal_delta,
-        "coupling_change": coupling_change,
-        "cycles_change": cycles_change,
-        "violations": legacy_violations,
-        "summary": if gate_decision == "fail" {
-            "Touched-concept regressions detected"
-        } else if legacy_diff.as_ref().is_some_and(|diff| diff.degraded) {
-            "Quality degraded"
-        } else if legacy_diff.is_none() {
-            "Patch safety check complete; legacy structural delta unavailable"
-        } else {
-            "Quality stable or improved"
-        },
-        "changed_files": changed_files.iter().cloned().collect::<Vec<_>>(),
-        "changed_concepts": changed_concepts,
-        "introduced_findings": introduced_findings,
-        "resolved_findings": resolved_findings,
-        "finding_detail_count": finding_details.len(),
-        "finding_details": finding_details,
-        "missing_obligations": missing_obligations,
-        "concept_summary_count": concept_summary_count,
-        "concept_summaries": concept_summaries,
-        "debt_signal_count": debt_signal_count,
-        "debt_signals": debt_signals,
-        "debt_cluster_count": debt_cluster_count,
-        "debt_clusters": debt_clusters,
-        "watchpoint_count": watchpoint_count,
-        "watchpoints": watchpoints,
-        "quality_opportunity_count": debt_signal_count,
-        "quality_opportunities": legacy_quality_opportunities,
-        "optimization_priority_count": watchpoint_count,
-        "optimization_priorities": legacy_optimization_priorities,
-        "obligation_completeness_0_10000": crate::metrics::v2::obligation_score_0_10000(&analysis.changed_obligations),
-        "touched_concept_gate": {
+    let summary = if gate_decision == "fail" {
+        "Touched-concept regressions detected"
+    } else if legacy_diff.as_ref().is_some_and(|diff| diff.degraded) {
+        "Quality degraded"
+    } else if legacy_diff.is_none() {
+        "Patch safety check complete; legacy structural delta unavailable"
+    } else {
+        "Quality stable or improved"
+    };
+    let mut result = serde_json::Map::new();
+    result.insert("pass".to_string(), json!(gate_decision != "fail"));
+    result.insert("signal_before".to_string(), json!(signal_before));
+    result.insert("signal_after".to_string(), json!(signal_after));
+    result.insert("signal_delta".to_string(), json!(signal_delta));
+    result.insert("coupling_change".to_string(), json!(coupling_change));
+    result.insert("cycles_change".to_string(), json!(cycles_change));
+    result.insert("violations".to_string(), json!(legacy_violations));
+    result.insert("summary".to_string(), json!(summary));
+    result.insert(
+        "changed_files".to_string(),
+        json!(changed_files.iter().cloned().collect::<Vec<_>>()),
+    );
+    result.insert("changed_concepts".to_string(), json!(changed_concepts));
+    result.insert(
+        "introduced_findings".to_string(),
+        json!(visible_introduced_findings),
+    );
+    result.insert("resolved_findings".to_string(), json!(resolved_findings));
+    result.insert(
+        "finding_detail_count".to_string(),
+        json!(finding_details.len()),
+    );
+    result.insert("finding_details".to_string(), json!(finding_details));
+    result.insert(
+        "experimental_finding_count".to_string(),
+        json!(experimental_findings.len()),
+    );
+    result.insert(
+        "experimental_findings".to_string(),
+        json!(experimental_findings),
+    );
+    result.insert(
+        "missing_obligations".to_string(),
+        json!(missing_obligations),
+    );
+    result.insert(
+        "concept_summary_count".to_string(),
+        json!(concept_summary_count),
+    );
+    result.insert("concept_summaries".to_string(), json!(concept_summaries));
+    result.insert("debt_signal_count".to_string(), json!(debt_signal_count));
+    result.insert("debt_signals".to_string(), json!(debt_signals));
+    result.insert(
+        "experimental_debt_signal_count".to_string(),
+        json!(experimental_debt_signal_count),
+    );
+    result.insert(
+        "experimental_debt_signals".to_string(),
+        json!(experimental_debt_signals),
+    );
+    result.insert("debt_cluster_count".to_string(), json!(debt_cluster_count));
+    result.insert("debt_clusters".to_string(), json!(debt_clusters));
+    result.insert("watchpoint_count".to_string(), json!(watchpoint_count));
+    result.insert("watchpoints".to_string(), json!(watchpoints));
+    result.insert(
+        "quality_opportunity_count".to_string(),
+        json!(debt_signal_count),
+    );
+    result.insert(
+        "quality_opportunities".to_string(),
+        json!(legacy_quality_opportunities),
+    );
+    result.insert(
+        "optimization_priority_count".to_string(),
+        json!(watchpoint_count),
+    );
+    result.insert(
+        "optimization_priorities".to_string(),
+        json!(legacy_optimization_priorities),
+    );
+    result.insert(
+        "obligation_completeness_0_10000".to_string(),
+        json!(crate::metrics::v2::obligation_score_0_10000(
+            &analysis.changed_obligations
+        )),
+    );
+    result.insert(
+        "touched_concept_gate".to_string(),
+        json!({
             "decision": gate_decision,
             "blocking_findings": blocking_findings,
-        },
-        "suppression_hits": analysis.suppression_hits,
-        "suppressed_finding_count": analysis.suppressed_finding_count,
-        "expired_suppressions": analysis.expired_suppressions,
-        "expired_suppression_match_count": analysis.expired_suppression_match_count,
-        "rules_error": analysis.rules_error,
-        "scan_trust": scan_trust_json(&bundle.metadata),
-        "confidence": build_v2_confidence_report(&bundle.metadata, &rules_config, session_v2_status),
-        "baseline_delta": legacy_baseline_delta_json(legacy_diff.as_ref()),
-        "semantic_error": semantic_error,
-        "debt_context_error": debt_context_error,
-        "opportunity_context_error": debt_context_error,
-        "baseline_error": baseline_error
-    });
+        }),
+    );
+    result.insert(
+        "suppression_hits".to_string(),
+        json!(analysis.suppression_hits),
+    );
+    result.insert(
+        "suppressed_finding_count".to_string(),
+        json!(analysis.suppressed_finding_count),
+    );
+    result.insert(
+        "expired_suppressions".to_string(),
+        json!(analysis.expired_suppressions),
+    );
+    result.insert(
+        "expired_suppression_match_count".to_string(),
+        json!(analysis.expired_suppression_match_count),
+    );
+    result.insert("rules_error".to_string(), json!(analysis.rules_error));
+    result.insert("scan_trust".to_string(), scan_trust_json(&bundle.metadata));
+    result.insert(
+        "confidence".to_string(),
+        json!(build_v2_confidence_report(
+            &bundle.metadata,
+            &rules_config,
+            session_v2_status
+        )),
+    );
+    result.insert(
+        "baseline_delta".to_string(),
+        legacy_baseline_delta_json(legacy_diff.as_ref()),
+    );
+    result.insert("semantic_error".to_string(), json!(semantic_error));
+    result.insert("debt_context_error".to_string(), json!(debt_context_error));
+    result.insert(
+        "opportunity_context_error".to_string(),
+        json!(debt_context_error),
+    );
+    result.insert("baseline_error".to_string(), json!(baseline_error));
+    let result = Value::Object(result);
 
     if !context.reused_cached_scan {
         update_scan_cache(state, root, bundle, baseline, context.scan_identity);

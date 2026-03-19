@@ -35,11 +35,28 @@ pub struct StructuralDebtMetrics {
     pub public_surface_count: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reachable_from_tests: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cut_candidate_count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub largest_cycle_after_best_cut: Option<usize>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, Default)]
+pub struct CycleCutCandidate {
+    pub source: String,
+    pub target: String,
+    pub seam_kind: String,
+    pub score_0_10000: u32,
+    pub summary: String,
+    pub evidence: Vec<String>,
+    pub reduction_file_count: usize,
+    pub remaining_cycle_size: usize,
 }
 
 #[derive(Debug, Clone, serde::Serialize, Default)]
 pub struct StructuralDebtReport {
     pub kind: String,
+    pub trust_tier: String,
     pub scope: String,
     pub signal_class: String,
     pub signal_families: Vec<String>,
@@ -50,6 +67,12 @@ pub struct StructuralDebtReport {
     pub files: Vec<String>,
     pub evidence: Vec<String>,
     pub inspection_focus: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub candidate_split_axes: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub related_surfaces: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub cut_candidates: Vec<CycleCutCandidate>,
     pub metrics: StructuralDebtMetrics,
 }
 
@@ -69,6 +92,8 @@ struct FileFacts {
 struct StructuralGraph {
     outgoing: BTreeMap<String, BTreeSet<String>>,
     incoming: BTreeMap<String, BTreeSet<String>>,
+    import_outgoing: BTreeMap<String, BTreeSet<String>>,
+    import_incoming: BTreeMap<String, BTreeSet<String>>,
 }
 
 pub fn build_structural_debt_reports(
@@ -82,7 +107,7 @@ pub fn build_structural_debt_reports(
     reports.extend(build_large_file_reports(health, &file_facts, &graph));
     reports.extend(build_dependency_sprawl_reports(health, &file_facts, &graph));
     reports.extend(build_unstable_hotspot_reports(health, &file_facts, &graph));
-    reports.extend(build_cycle_cluster_reports(health, &file_facts));
+    reports.extend(build_cycle_cluster_reports(health, &file_facts, &graph));
     reports.extend(build_dead_private_code_cluster_reports(health, &file_facts));
     reports.extend(build_dead_island_reports(
         snapshot,
@@ -156,13 +181,23 @@ fn file_facts(file: &FileNode) -> FileFacts {
 fn build_structural_graph(snapshot: &Snapshot) -> StructuralGraph {
     let mut outgoing = BTreeMap::<String, BTreeSet<String>>::new();
     let mut incoming = BTreeMap::<String, BTreeSet<String>>::new();
+    let mut import_outgoing = BTreeMap::<String, BTreeSet<String>>::new();
+    let mut import_incoming = BTreeMap::<String, BTreeSet<String>>::new();
     let mut seen = HashSet::<(String, String)>::new();
+    let mut import_seen = HashSet::<(String, String)>::new();
 
     for edge in filtered_import_edges(snapshot) {
         record_graph_edge(
             &mut outgoing,
             &mut incoming,
             &mut seen,
+            &edge.from_file,
+            &edge.to_file,
+        );
+        record_graph_edge(
+            &mut import_outgoing,
+            &mut import_incoming,
+            &mut import_seen,
             &edge.from_file,
             &edge.to_file,
         );
@@ -176,8 +211,12 @@ fn build_structural_graph(snapshot: &Snapshot) -> StructuralGraph {
             &edge.to_file,
         );
     }
-
-    StructuralGraph { outgoing, incoming }
+    StructuralGraph {
+        outgoing,
+        incoming,
+        import_outgoing,
+        import_incoming,
+    }
 }
 
 fn filtered_import_edges(snapshot: &Snapshot) -> impl Iterator<Item = &ImportEdge> {
@@ -222,6 +261,7 @@ fn build_large_file_reports(
 
             Some(StructuralDebtReport {
                 kind: "large_file".to_string(),
+                trust_tier: "trusted".to_string(),
                 scope: file_metric.path.clone(),
                 signal_class: "debt".to_string(),
                 signal_families: vec!["size".to_string(), "coordination".to_string()],
@@ -247,6 +287,9 @@ fn build_large_file_reports(
                     "inspect whether orchestration, adapters, and data shaping are accumulating in one file".to_string(),
                     "inspect whether the file can be split along responsibility boundaries instead of line-count slices".to_string(),
                 ],
+                candidate_split_axes: large_file_split_axes(facts, graph, &file_metric.path),
+                related_surfaces: sample_paths(graph.outgoing.get(&file_metric.path), 5),
+                cut_candidates: Vec::new(),
                 metrics: StructuralDebtMetrics {
                     file_count: Some(1),
                     line_count: Some(file_metric.value),
@@ -281,6 +324,7 @@ fn build_dependency_sprawl_reports(
 
             Some(StructuralDebtReport {
                 kind: "dependency_sprawl".to_string(),
+                trust_tier: "trusted".to_string(),
                 scope: file_metric.path.clone(),
                 signal_class: "debt".to_string(),
                 signal_families: vec!["coupling".to_string(), "coordination".to_string()],
@@ -296,6 +340,13 @@ fn build_dependency_sprawl_reports(
                     format!("fan-out: {}", fan_out),
                     format!("fan-out threshold: {}", threshold),
                     format!("instability: {:.2}", instability as f64 / 10_000.0),
+                    format!(
+                        "dominant dependency categories: {}",
+                        join_or_none(&dependency_category_summaries(
+                            graph.outgoing.get(&file_metric.path),
+                            3,
+                        ))
+                    ),
                     if dependency_examples.is_empty() {
                         "sample dependencies: none".to_string()
                     } else {
@@ -306,6 +357,12 @@ fn build_dependency_sprawl_reports(
                     "inspect whether orchestration and policy code can move behind narrower helpers".to_string(),
                     "inspect whether unrelated adapter dependencies are accumulating in one module".to_string(),
                 ],
+                candidate_split_axes: dependency_category_axes(
+                    graph.outgoing.get(&file_metric.path),
+                    3,
+                ),
+                related_surfaces: dependency_examples,
+                cut_candidates: Vec::new(),
                 metrics: StructuralDebtMetrics {
                     file_count: Some(1),
                     line_count: Some(facts.lines),
@@ -340,6 +397,7 @@ fn build_unstable_hotspot_reports(
 
             Some(StructuralDebtReport {
                 kind: "unstable_hotspot".to_string(),
+                trust_tier: "trusted".to_string(),
                 scope: file_metric.path.clone(),
                 signal_class: "debt".to_string(),
                 signal_families: vec!["coupling".to_string(), "blast_radius".to_string()],
@@ -356,6 +414,13 @@ fn build_unstable_hotspot_reports(
                     format!("hotspot threshold: {}", threshold),
                     format!("fan-out: {}", fan_out),
                     format!("instability: {:.2}", instability as f64 / 10_000.0),
+                    format!(
+                        "dominant dependent categories: {}",
+                        join_or_none(&dependency_category_summaries(
+                            graph.incoming.get(&file_metric.path),
+                            3,
+                        ))
+                    ),
                     if dependent_examples.is_empty() {
                         "sample dependents: none".to_string()
                     } else {
@@ -366,6 +431,13 @@ fn build_unstable_hotspot_reports(
                     "inspect whether a stable contract can be split from the volatile implementation".to_string(),
                     "inspect whether too many callers depend directly on an orchestration-heavy file".to_string(),
                 ],
+                candidate_split_axes: hotspot_split_axes(
+                    graph.incoming.get(&file_metric.path),
+                    graph.outgoing.get(&file_metric.path),
+                    3,
+                ),
+                related_surfaces: dependent_examples,
+                cut_candidates: Vec::new(),
                 metrics: StructuralDebtMetrics {
                     file_count: Some(1),
                     line_count: Some(facts.lines),
@@ -384,6 +456,7 @@ fn build_unstable_hotspot_reports(
 fn build_cycle_cluster_reports(
     health: &HealthReport,
     file_facts: &BTreeMap<String, FileFacts>,
+    graph: &StructuralGraph,
 ) -> Vec<StructuralDebtReport> {
     health
         .circular_dep_files
@@ -400,11 +473,20 @@ fn build_cycle_cluster_reports(
                 .max()
                 .unwrap_or(0);
             let score_0_10000 = cycle_cluster_score(files.len(), total_lines);
+            let cut_candidates = cycle_cut_candidates(files, file_facts, graph);
+            let cut_candidate_count = cut_candidates.len();
+            let largest_cycle_after_best_cut = cut_candidates
+                .first()
+                .map(|candidate| candidate.remaining_cycle_size)
+                .unwrap_or(files.len());
+            let related_surfaces = cycle_related_surfaces(files, &cut_candidates);
+            let candidate_split_axes = cycle_split_axes(&cut_candidates);
 
             StructuralDebtReport {
                 kind: "cycle_cluster".to_string(),
+                trust_tier: "watchpoint".to_string(),
                 scope,
-                signal_class: "debt".to_string(),
+                signal_class: "watchpoint".to_string(),
                 signal_families: vec!["dependency".to_string(), "layering".to_string()],
                 severity: signal_severity(score_0_10000).to_string(),
                 score_0_10000,
@@ -418,16 +500,23 @@ fn build_cycle_cluster_reports(
                     format!("cycle size: {}", files.len()),
                     format!("total lines in cycle: {}", total_lines),
                     format!("peak function complexity inside cycle: {}", max_complexity),
+                    format!("candidate cuts: {}", cut_candidates.len()),
+                    best_cycle_cut_evidence(&cut_candidates),
                 ],
                 inspection_focus: vec![
                     "inspect whether one back-edge can be removed by splitting contracts from implementations".to_string(),
                     "inspect whether shared types can move to a lower-dependency seam".to_string(),
                 ],
+                candidate_split_axes,
+                related_surfaces,
+                cut_candidates,
                 metrics: StructuralDebtMetrics {
                     file_count: Some(files.len()),
                     line_count: Some(total_lines),
                     cycle_size: Some(files.len()),
                     max_complexity: Some(max_complexity),
+                    cut_candidate_count: Some(cut_candidate_count),
+                    largest_cycle_after_best_cut: Some(largest_cycle_after_best_cut),
                     ..StructuralDebtMetrics::default()
                 },
             }
@@ -465,8 +554,9 @@ fn build_dead_private_code_cluster_reports(
 
             Some(StructuralDebtReport {
                 kind: "dead_private_code_cluster".to_string(),
+                trust_tier: "experimental".to_string(),
                 scope: path.clone(),
-                signal_class: if dead_line_count >= 80 { "debt" } else { "watchpoint" }.to_string(),
+                signal_class: "watchpoint".to_string(),
                 signal_families: vec!["staleness".to_string(), "maintainability".to_string()],
                 severity: signal_severity(score_0_10000).to_string(),
                 score_0_10000,
@@ -486,6 +576,9 @@ fn build_dead_private_code_cluster_reports(
                     "inspect whether the dead helpers should be deleted or intentionally reconnected".to_string(),
                     "inspect whether the file still reflects the supported control flow".to_string(),
                 ],
+                candidate_split_axes: Vec::new(),
+                related_surfaces: Vec::new(),
+                cut_candidates: Vec::new(),
                 metrics: StructuralDebtMetrics {
                     file_count: Some(1),
                     line_count: Some(facts.lines),
@@ -591,6 +684,7 @@ fn build_dead_island_reports(
 
             Some(StructuralDebtReport {
                 kind: "dead_island".to_string(),
+                trust_tier: "watchpoint".to_string(),
                 scope,
                 signal_class: if reachable_from_tests {
                     "watchpoint".to_string()
@@ -622,6 +716,12 @@ fn build_dead_island_reports(
                     "inspect whether this component is intentionally disconnected or stale".to_string(),
                     "inspect whether it should be deleted, archived, or wired through an explicit root".to_string(),
                 ],
+                candidate_split_axes: vec![
+                    "reachable entry surface".to_string(),
+                    "public contract boundary".to_string(),
+                ],
+                related_surfaces: component.iter().take(5).cloned().collect(),
+                cut_candidates: Vec::new(),
                 metrics: StructuralDebtMetrics {
                     file_count: Some(component.len()),
                     line_count: Some(total_lines),
@@ -629,6 +729,8 @@ fn build_dead_island_reports(
                     inbound_reference_count: Some(inbound_reference_count),
                     public_surface_count: Some(public_surface_count),
                     reachable_from_tests: Some(reachable_from_tests),
+                    cut_candidate_count: Some(0),
+                    largest_cycle_after_best_cut: Some(cycle_size),
                     ..StructuralDebtMetrics::default()
                 },
             })
@@ -801,6 +903,444 @@ fn sample_paths(paths: Option<&BTreeSet<String>>, limit: usize) -> Vec<String> {
     paths
         .map(|paths| paths.iter().take(limit).cloned().collect())
         .unwrap_or_default()
+}
+
+fn join_or_none(values: &[String]) -> String {
+    if values.is_empty() {
+        "none".to_string()
+    } else {
+        values.join(", ")
+    }
+}
+
+fn dependency_category_summaries(paths: Option<&BTreeSet<String>>, limit: usize) -> Vec<String> {
+    let Some(paths) = paths else {
+        return Vec::new();
+    };
+
+    let mut counts = BTreeMap::<String, usize>::new();
+    for path in paths {
+        let category = path_category(path);
+        counts
+            .entry(category)
+            .and_modify(|count| *count += 1)
+            .or_insert(1);
+    }
+
+    let mut categories = counts.into_iter().collect::<Vec<_>>();
+    categories.sort_by(|left, right| right.1.cmp(&left.1).then_with(|| left.0.cmp(&right.0)));
+    categories
+        .into_iter()
+        .take(limit)
+        .map(|(category, count)| format!("{category}({count})"))
+        .collect()
+}
+
+fn dependency_category_axes(paths: Option<&BTreeSet<String>>, limit: usize) -> Vec<String> {
+    let Some(paths) = paths else {
+        return vec!["orchestration boundary".to_string()];
+    };
+
+    let categories = dominant_categories(paths, limit);
+    if categories.is_empty() {
+        return vec!["orchestration boundary".to_string()];
+    }
+
+    categories
+        .into_iter()
+        .map(|category| format!("{category} dependency boundary"))
+        .collect()
+}
+
+fn hotspot_split_axes(
+    incoming: Option<&BTreeSet<String>>,
+    outgoing: Option<&BTreeSet<String>>,
+    limit: usize,
+) -> Vec<String> {
+    let inbound_categories = dominant_categories_from_option(incoming, limit / 2 + 1)
+        .into_iter()
+        .map(|category| format!("{category} caller boundary"))
+        .collect::<Vec<_>>();
+    let outbound_categories = dominant_categories_from_option(outgoing, limit / 2 + 1)
+        .into_iter()
+        .map(|category| format!("{category} dependency boundary"))
+        .collect::<Vec<_>>();
+
+    let mut axes = inbound_categories;
+    axes.extend(outbound_categories);
+    let mut axes = dedupe_strings_preserve_order(axes);
+    axes.truncate(limit.max(1));
+    if axes.is_empty() {
+        axes.push("stable contract boundary".to_string());
+    }
+    axes
+}
+
+fn large_file_split_axes(facts: &FileFacts, graph: &StructuralGraph, path: &str) -> Vec<String> {
+    let mut axes = dependency_category_axes(graph.outgoing.get(path), 3);
+    if facts.max_complexity >= 40 {
+        axes.push("high-complexity helper extraction".to_string());
+    }
+    if facts.function_count >= 20 {
+        axes.push("private helper surface split".to_string());
+    }
+    dedupe_strings_preserve_order(axes)
+}
+
+fn dominant_categories(paths: &BTreeSet<String>, limit: usize) -> Vec<String> {
+    dependency_category_summaries(Some(paths), limit)
+        .into_iter()
+        .filter_map(|summary| {
+            summary
+                .split_once('(')
+                .map(|(category, _)| category.to_string())
+        })
+        .collect()
+}
+
+fn dominant_categories_from_option(paths: Option<&BTreeSet<String>>, limit: usize) -> Vec<String> {
+    paths
+        .map(|paths| dominant_categories(paths, limit))
+        .unwrap_or_default()
+}
+
+fn path_category(path: &str) -> String {
+    let normalized = path.strip_prefix("./").unwrap_or(path);
+    if let Some(rest) = normalized.strip_prefix("src/") {
+        return rest.split('/').next().unwrap_or("src").to_string();
+    }
+    normalized
+        .split('/')
+        .next()
+        .unwrap_or(normalized)
+        .to_string()
+}
+
+fn cycle_cut_candidates(
+    files: &[String],
+    file_facts: &BTreeMap<String, FileFacts>,
+    graph: &StructuralGraph,
+) -> Vec<CycleCutCandidate> {
+    let nodes = files.iter().cloned().collect::<BTreeSet<_>>();
+    let original_cycle_size = nodes.len();
+    let internal_edges = cycle_internal_import_edges(&nodes, graph);
+    if internal_edges.is_empty() {
+        return Vec::new();
+    }
+
+    let mut candidates = internal_edges
+        .into_iter()
+        .filter_map(|(source, target)| {
+            let (remaining_cycle_size, cyclic_node_count) =
+                cyclic_sizes_without_edge(&nodes, graph, (&source, &target));
+            let reduction_file_count = original_cycle_size.saturating_sub(cyclic_node_count);
+            if reduction_file_count == 0 {
+                return None;
+            }
+
+            let seam_kind = cycle_seam_kind(&source, &target);
+            let score_0_10000 = cycle_cut_candidate_score(
+                original_cycle_size,
+                reduction_file_count,
+                remaining_cycle_size,
+                &source,
+                &target,
+                graph,
+            );
+            let source_lines = file_facts
+                .get(&source)
+                .map(|facts| facts.lines)
+                .unwrap_or(0);
+            let target_lines = file_facts
+                .get(&target)
+                .map(|facts| facts.lines)
+                .unwrap_or(0);
+            Some(CycleCutCandidate {
+                source: source.clone(),
+                target: target.clone(),
+                seam_kind: seam_kind.to_string(),
+                score_0_10000,
+                summary: format!(
+                    "Inspect import edge '{}' -> '{}' to reduce the cyclic footprint by {} file(s)",
+                    source, target, reduction_file_count
+                ),
+                evidence: vec![
+                    format!("seam kind: {}", seam_kind),
+                    format!(
+                        "remaining largest cycle after cut: {}",
+                        remaining_cycle_size
+                    ),
+                    format!("cyclic files removed by cut: {}", reduction_file_count),
+                    format!("source lines: {}", source_lines),
+                    format!("target lines: {}", target_lines),
+                ],
+                reduction_file_count,
+                remaining_cycle_size,
+            })
+        })
+        .collect::<Vec<_>>();
+
+    candidates.sort_by(|left, right| {
+        right
+            .score_0_10000
+            .cmp(&left.score_0_10000)
+            .then_with(|| right.reduction_file_count.cmp(&left.reduction_file_count))
+            .then_with(|| left.source.cmp(&right.source))
+            .then_with(|| left.target.cmp(&right.target))
+    });
+    candidates.truncate(3);
+    candidates
+}
+
+fn cycle_internal_import_edges(
+    nodes: &BTreeSet<String>,
+    graph: &StructuralGraph,
+) -> Vec<(String, String)> {
+    let mut edges = Vec::new();
+    for source in nodes {
+        let Some(targets) = graph.import_outgoing.get(source) else {
+            continue;
+        };
+        for target in targets {
+            if nodes.contains(target) {
+                edges.push((source.clone(), target.clone()));
+            }
+        }
+    }
+    edges
+}
+
+fn cyclic_sizes_without_edge(
+    nodes: &BTreeSet<String>,
+    graph: &StructuralGraph,
+    removed_edge: (&str, &str),
+) -> (usize, usize) {
+    let adjacency = cycle_adjacency(nodes, graph, Some(removed_edge));
+    let components = strongly_connected_components(nodes, &adjacency);
+    let cyclic_components = components
+        .iter()
+        .filter(|component| is_cyclic_component(component, &adjacency))
+        .collect::<Vec<_>>();
+    let largest_cycle_size = cyclic_components
+        .iter()
+        .map(|component| component.len())
+        .max()
+        .unwrap_or(0);
+    let cyclic_node_count = cyclic_components
+        .iter()
+        .map(|component| component.len())
+        .sum::<usize>();
+    (largest_cycle_size, cyclic_node_count)
+}
+
+fn cycle_adjacency(
+    nodes: &BTreeSet<String>,
+    graph: &StructuralGraph,
+    removed_edge: Option<(&str, &str)>,
+) -> BTreeMap<String, Vec<String>> {
+    let mut adjacency = BTreeMap::<String, Vec<String>>::new();
+    for node in nodes {
+        let neighbors = graph
+            .import_outgoing
+            .get(node)
+            .map(|targets| {
+                targets
+                    .iter()
+                    .filter(|target| nodes.contains(*target))
+                    .filter(|target| {
+                        removed_edge.is_none_or(|(source, removed_target)| {
+                            !(node == source && target.as_str() == removed_target)
+                        })
+                    })
+                    .cloned()
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        adjacency.insert(node.clone(), neighbors);
+    }
+    adjacency
+}
+
+fn strongly_connected_components(
+    nodes: &BTreeSet<String>,
+    adjacency: &BTreeMap<String, Vec<String>>,
+) -> Vec<Vec<String>> {
+    let mut visited = BTreeSet::new();
+    let mut order = Vec::new();
+    for node in nodes {
+        dfs_order(node, adjacency, &mut visited, &mut order);
+    }
+
+    let reverse = reverse_adjacency(nodes, adjacency);
+    let mut assigned = BTreeSet::new();
+    let mut components = Vec::new();
+    for node in order.into_iter().rev() {
+        if assigned.contains(&node) {
+            continue;
+        }
+        let mut component = Vec::new();
+        dfs_collect(&node, &reverse, &mut assigned, &mut component);
+        component.sort();
+        components.push(component);
+    }
+    components
+}
+
+fn dfs_order(
+    node: &str,
+    adjacency: &BTreeMap<String, Vec<String>>,
+    visited: &mut BTreeSet<String>,
+    order: &mut Vec<String>,
+) {
+    if !visited.insert(node.to_string()) {
+        return;
+    }
+    if let Some(neighbors) = adjacency.get(node) {
+        for neighbor in neighbors {
+            dfs_order(neighbor, adjacency, visited, order);
+        }
+    }
+    order.push(node.to_string());
+}
+
+fn reverse_adjacency(
+    nodes: &BTreeSet<String>,
+    adjacency: &BTreeMap<String, Vec<String>>,
+) -> BTreeMap<String, Vec<String>> {
+    let mut reverse = nodes
+        .iter()
+        .map(|node| (node.clone(), Vec::<String>::new()))
+        .collect::<BTreeMap<_, _>>();
+    for (source, targets) in adjacency {
+        for target in targets {
+            reverse
+                .entry(target.clone())
+                .or_default()
+                .push(source.clone());
+        }
+    }
+    reverse
+}
+
+fn dfs_collect(
+    node: &str,
+    adjacency: &BTreeMap<String, Vec<String>>,
+    visited: &mut BTreeSet<String>,
+    component: &mut Vec<String>,
+) {
+    if !visited.insert(node.to_string()) {
+        return;
+    }
+    component.push(node.to_string());
+    if let Some(neighbors) = adjacency.get(node) {
+        for neighbor in neighbors {
+            dfs_collect(neighbor, adjacency, visited, component);
+        }
+    }
+}
+
+fn is_cyclic_component(component: &[String], adjacency: &BTreeMap<String, Vec<String>>) -> bool {
+    if component.len() > 1 {
+        return true;
+    }
+    component.first().is_some_and(|node| {
+        adjacency
+            .get(node)
+            .is_some_and(|neighbors| neighbors.iter().any(|neighbor| neighbor == node))
+    })
+}
+
+fn cycle_seam_kind(source: &str, target: &str) -> &'static str {
+    let source_category = path_category(source);
+    let target_category = path_category(target);
+    if is_app_store_boundary(&source_category, &target_category) {
+        return "app_store_boundary";
+    }
+    if path_has_contract_hint(source) || path_has_contract_hint(target) {
+        return "contract_or_type_extraction";
+    }
+    if source_category != target_category {
+        return "cross_layer_boundary";
+    }
+    "local_module_split"
+}
+
+fn cycle_cut_candidate_score(
+    original_cycle_size: usize,
+    reduction_file_count: usize,
+    remaining_cycle_size: usize,
+    source: &str,
+    target: &str,
+    graph: &StructuralGraph,
+) -> u32 {
+    let reduction_bonus = if original_cycle_size == 0 {
+        0
+    } else {
+        ((reduction_file_count as f64 / original_cycle_size as f64) * 4500.0).round() as u32
+    };
+    let seam_bonus = match cycle_seam_kind(source, target) {
+        "app_store_boundary" => 1800,
+        "contract_or_type_extraction" => 1500,
+        "cross_layer_boundary" => 1200,
+        _ => 700,
+    };
+    let source_internal_out = graph
+        .import_outgoing
+        .get(source)
+        .map(|targets| targets.len())
+        .unwrap_or(0) as u32;
+    let target_internal_in = graph
+        .import_incoming
+        .get(target)
+        .map(|sources| sources.len())
+        .unwrap_or(0) as u32;
+    let pressure_bonus = ((source_internal_out + target_internal_in) * 180).min(1800);
+    let cleanup_bonus =
+        (original_cycle_size.saturating_sub(remaining_cycle_size) as u32 * 120).min(1200);
+
+    (2000 + reduction_bonus + seam_bonus + pressure_bonus + cleanup_bonus).min(10_000)
+}
+
+fn best_cycle_cut_evidence(cut_candidates: &[CycleCutCandidate]) -> String {
+    match cut_candidates.first() {
+        Some(candidate) => format!(
+            "best cut candidate: {} -> {} (removes {} cyclic files)",
+            candidate.source, candidate.target, candidate.reduction_file_count
+        ),
+        None => "best cut candidate: none".to_string(),
+    }
+}
+
+fn cycle_related_surfaces(files: &[String], cut_candidates: &[CycleCutCandidate]) -> Vec<String> {
+    let mut related = cut_candidates
+        .iter()
+        .flat_map(|candidate| [candidate.source.clone(), candidate.target.clone()])
+        .collect::<Vec<_>>();
+    related.extend(files.iter().take(3).cloned());
+    dedupe_strings_preserve_order(related)
+}
+
+fn cycle_split_axes(cut_candidates: &[CycleCutCandidate]) -> Vec<String> {
+    let mut axes = cut_candidates
+        .iter()
+        .map(|candidate| candidate.seam_kind.replace('_', " "))
+        .collect::<Vec<_>>();
+    if axes.is_empty() {
+        axes.push("contract boundary".to_string());
+    }
+    dedupe_strings_preserve_order(axes)
+}
+
+fn path_has_contract_hint(path: &str) -> bool {
+    let normalized = path.to_ascii_lowercase();
+    ["contract", "schema", "types", "state", "model"]
+        .iter()
+        .any(|segment| normalized.contains(segment))
+}
+
+fn is_app_store_boundary(source_category: &str, target_category: &str) -> bool {
+    (source_category == "app" && target_category == "store")
+        || (source_category == "store" && target_category == "app")
 }
 
 fn large_file_score(line_count: usize, threshold: u32, max_complexity: u32) -> u32 {
