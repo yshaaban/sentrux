@@ -1981,7 +1981,7 @@ fn handle_findings(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<V
         &health,
         health.duplicate_groups.len(),
     );
-    let (semantic_findings, _, semantic_error) = semantic_findings_and_obligations(
+    let (semantic_findings, obligations, semantic_error) = semantic_findings_and_obligations(
         state,
         &root,
         Some(&snapshot),
@@ -1994,11 +1994,16 @@ fn handle_findings(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<V
         usize::MAX,
     );
     let (suppression_application, rules_error) = apply_root_suppressions(&root, merged_findings);
-    let visible_clone_ids = visible_clone_ids(&suppression_application.visible_findings);
-    let findings = suppression_application
-        .visible_findings
-        .into_iter()
+    let visible_findings = suppression_application.visible_findings.clone();
+    let visible_clone_ids = visible_clone_ids(&visible_findings);
+    let semantic_finding_count = visible_findings
+        .iter()
+        .filter(|finding| finding.get("concept_id").is_some())
+        .count();
+    let findings = visible_findings
+        .iter()
         .take(limit)
+        .cloned()
         .collect::<Vec<_>>();
     let clone_families = filter_clone_values_by_visible_clone_ids(
         clone_payload.families,
@@ -2012,6 +2017,16 @@ fn handle_findings(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<V
         "clone_ids",
         limit.min(10),
     );
+    let quality_outputs = build_quality_opportunity_outputs(
+        state,
+        &root,
+        &snapshot,
+        &visible_findings,
+        &obligations,
+        &clone_families,
+        &BTreeSet::new(),
+        limit.min(5),
+    );
 
     Ok(json!({
         "kind": "mixed_findings",
@@ -2021,9 +2036,14 @@ fn handle_findings(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<V
         "visible_clone_family_count": clone_families.len(),
         "clone_families": clone_families,
         "clone_remediations": clone_remediations,
-        "semantic_finding_count": findings.iter().filter(|finding| finding.get("concept_id").is_some()).count(),
+        "concept_summary_count": quality_outputs.concept_summaries.len(),
+        "concept_summaries": quality_outputs.concept_summaries,
+        "quality_opportunity_count": quality_outputs.quality_opportunities.len(),
+        "quality_opportunities": quality_outputs.quality_opportunities,
+        "semantic_finding_count": semantic_finding_count,
         "rules_error": rules_error,
         "semantic_error": merge_optional_errors(semantic_error, clone_error),
+        "opportunity_context_error": quality_outputs.context_error,
         "suppression_hits": suppression_application.active_matches,
         "suppressed_finding_count": suppression_match_count(&suppression_application.active_matches),
         "expired_suppressions": suppression_application.expired_matches,
@@ -2498,6 +2518,528 @@ fn severity_priority(severity: &str) -> u8 {
         "low" => 1,
         _ => 0,
     }
+}
+
+#[derive(Debug, Clone, serde::Serialize, Default)]
+struct ConceptOpportunitySummary {
+    concept_id: String,
+    score_0_10000: u32,
+    finding_count: usize,
+    high_severity_count: usize,
+    obligation_count: usize,
+    missing_site_count: usize,
+    context_burden: usize,
+    dominant_kinds: Vec<String>,
+    files: Vec<String>,
+    summary: String,
+    suggested_actions: Vec<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, Default)]
+struct QualityImprovementOpportunity {
+    kind: String,
+    scope: String,
+    severity: String,
+    score_0_10000: u32,
+    summary: String,
+    files: Vec<String>,
+    evidence: Vec<String>,
+    suggested_actions: Vec<String>,
+}
+
+#[derive(Default)]
+struct ConceptOpportunityAggregate {
+    finding_count: usize,
+    high_severity_count: usize,
+    obligation_count: usize,
+    missing_site_count: usize,
+    context_burden: usize,
+    kinds: BTreeMap<String, usize>,
+    files: BTreeSet<String>,
+}
+
+#[derive(Default)]
+struct QualityOpportunityOutputs {
+    concept_summaries: Vec<ConceptOpportunitySummary>,
+    quality_opportunities: Vec<QualityImprovementOpportunity>,
+    context_error: Option<String>,
+}
+
+fn quality_opportunity_candidate_files(
+    findings: &[Value],
+    obligations: &[crate::metrics::v2::ObligationReport],
+    clone_families: &[Value],
+    extra_files: &BTreeSet<String>,
+) -> BTreeSet<String> {
+    let mut files = BTreeSet::new();
+    for finding in findings {
+        files.extend(finding_files(finding));
+    }
+    for obligation in obligations {
+        files.extend(obligation.files.iter().cloned());
+    }
+    for family in clone_families {
+        files.extend(finding_files(family));
+    }
+    files.extend(extra_files.iter().cloned());
+    files
+}
+
+fn build_quality_opportunity_outputs(
+    state: &mut McpState,
+    root: &Path,
+    snapshot: &Snapshot,
+    findings: &[Value],
+    obligations: &[crate::metrics::v2::ObligationReport],
+    clone_families: &[Value],
+    extra_files: &BTreeSet<String>,
+    limit: usize,
+) -> QualityOpportunityOutputs {
+    let candidate_files =
+        quality_opportunity_candidate_files(findings, obligations, clone_families, extra_files);
+    let (concentration_reports, context_error) =
+        quality_opportunity_concentration_reports(state, root, snapshot, &candidate_files);
+    let concept_summaries = build_concept_opportunity_summaries(findings, obligations);
+    let quality_opportunities = build_quality_improvement_opportunities(
+        &concept_summaries,
+        findings,
+        clone_families,
+        &concentration_reports,
+        limit,
+    );
+
+    QualityOpportunityOutputs {
+        concept_summaries: concept_summaries.into_iter().take(limit).collect(),
+        quality_opportunities,
+        context_error,
+    }
+}
+
+fn build_concept_opportunity_summaries(
+    findings: &[Value],
+    obligations: &[crate::metrics::v2::ObligationReport],
+) -> Vec<ConceptOpportunitySummary> {
+    let mut aggregates = BTreeMap::<String, ConceptOpportunityAggregate>::new();
+
+    for finding in findings {
+        let Some(concept_id) = finding_concept_id(finding) else {
+            continue;
+        };
+        let entry = aggregates.entry(concept_id.to_string()).or_default();
+        entry.finding_count += 1;
+        if severity_of_value(finding) == "high" {
+            entry.high_severity_count += 1;
+        }
+        entry
+            .kinds
+            .entry(finding_kind(finding).to_string())
+            .and_modify(|count| *count += 1)
+            .or_insert(1);
+        entry.files.extend(finding_files(finding));
+    }
+
+    for obligation in obligations {
+        let Some(concept_id) = obligation.concept_id.as_ref() else {
+            continue;
+        };
+        let entry = aggregates.entry(concept_id.clone()).or_default();
+        entry.obligation_count += 1;
+        entry.missing_site_count += obligation.missing_sites.len();
+        entry.context_burden += obligation.context_burden;
+        entry.files.extend(obligation.files.iter().cloned());
+    }
+
+    let mut summaries = aggregates
+        .into_iter()
+        .map(|(concept_id, aggregate)| {
+            let ConceptOpportunityAggregate {
+                finding_count,
+                high_severity_count,
+                obligation_count,
+                missing_site_count,
+                context_burden,
+                kinds,
+                files,
+            } = aggregate;
+            let mut dominant_kinds = kinds.into_iter().collect::<Vec<_>>();
+            dominant_kinds
+                .sort_by(|left, right| right.1.cmp(&left.1).then_with(|| left.0.cmp(&right.0)));
+            let dominant_kinds = dominant_kinds
+                .into_iter()
+                .map(|(kind, _)| kind)
+                .take(3)
+                .collect::<Vec<_>>();
+            let score_0_10000 = concept_opportunity_score(
+                finding_count,
+                high_severity_count,
+                missing_site_count,
+                context_burden,
+            );
+            let suggested_actions =
+                concept_opportunity_actions(&dominant_kinds, missing_site_count > 0);
+
+            ConceptOpportunitySummary {
+                summary: concept_opportunity_summary(
+                    &concept_id,
+                    finding_count,
+                    missing_site_count,
+                    high_severity_count,
+                ),
+                concept_id,
+                score_0_10000,
+                finding_count,
+                high_severity_count,
+                obligation_count,
+                missing_site_count,
+                context_burden,
+                dominant_kinds,
+                files: files.into_iter().collect(),
+                suggested_actions,
+            }
+        })
+        .filter(|summary| summary.finding_count > 0 || summary.missing_site_count > 0)
+        .collect::<Vec<_>>();
+
+    summaries.sort_by(|left, right| {
+        right
+            .score_0_10000
+            .cmp(&left.score_0_10000)
+            .then_with(|| right.high_severity_count.cmp(&left.high_severity_count))
+            .then_with(|| left.concept_id.cmp(&right.concept_id))
+    });
+    summaries
+}
+
+fn build_quality_improvement_opportunities(
+    concept_summaries: &[ConceptOpportunitySummary],
+    findings: &[Value],
+    clone_families: &[Value],
+    concentration_reports: &[crate::metrics::v2::ConcentrationReport],
+    limit: usize,
+) -> Vec<QualityImprovementOpportunity> {
+    let mut covered_hotspot_paths = BTreeSet::new();
+    let mut opportunities = concept_summaries
+        .iter()
+        .filter(|summary| summary.score_0_10000 >= 2500)
+        .map(|summary| {
+            let related_hotspots = concentration_reports
+                .iter()
+                .filter(|report| summary.files.iter().any(|path| path == &report.path))
+                .collect::<Vec<_>>();
+            covered_hotspot_paths.extend(
+                related_hotspots
+                    .iter()
+                    .map(|report| report.path.clone())
+                    .collect::<Vec<_>>(),
+            );
+            let mut score_0_10000 = summary.score_0_10000;
+            if let Some(top_hotspot) = related_hotspots.first() {
+                score_0_10000 = (score_0_10000 + top_hotspot.score_0_10000 / 3).min(10_000);
+            }
+            let mut evidence = summary
+                .dominant_kinds
+                .iter()
+                .map(|kind| format!("finding kind: {kind}"))
+                .collect::<Vec<_>>();
+            if summary.missing_site_count > 0 {
+                evidence.push(format!(
+                    "missing update sites: {}",
+                    summary.missing_site_count
+                ));
+            }
+            if summary.context_burden > 0 {
+                evidence.push(format!("context burden: {}", summary.context_burden));
+            }
+            if let Some(top_hotspot) = related_hotspots.first() {
+                evidence.push(format!("hotspot file: {}", top_hotspot.path));
+                evidence.extend(top_hotspot.reasons.iter().cloned().take(2));
+            }
+
+            QualityImprovementOpportunity {
+                kind: "concept".to_string(),
+                scope: summary.concept_id.clone(),
+                severity: opportunity_severity(score_0_10000).to_string(),
+                score_0_10000,
+                summary: summary.summary.clone(),
+                files: summary.files.clone(),
+                evidence,
+                suggested_actions: summary.suggested_actions.clone(),
+            }
+        })
+        .collect::<Vec<_>>();
+
+    if !clone_families.is_empty() {
+        opportunities.extend(
+            clone_families
+                .iter()
+                .filter_map(clone_family_opportunity)
+                .collect::<Vec<_>>(),
+        );
+    } else {
+        opportunities.extend(
+            findings
+                .iter()
+                .filter(|finding| finding_kind(finding) == "exact_clone_group")
+                .filter_map(clone_group_opportunity)
+                .collect::<Vec<_>>(),
+        );
+    }
+
+    opportunities.extend(
+        concentration_reports
+            .iter()
+            .filter(|report| report.score_0_10000 >= 4000)
+            .filter(|report| !covered_hotspot_paths.contains(&report.path))
+            .filter_map(hotspot_opportunity)
+            .collect::<Vec<_>>(),
+    );
+
+    opportunities.sort_by(|left, right| {
+        severity_priority(&right.severity)
+            .cmp(&severity_priority(&left.severity))
+            .then_with(|| right.score_0_10000.cmp(&left.score_0_10000))
+            .then_with(|| left.scope.cmp(&right.scope))
+    });
+    opportunities.truncate(limit);
+    opportunities
+}
+
+fn concept_opportunity_score(
+    finding_count: usize,
+    high_severity_count: usize,
+    missing_site_count: usize,
+    context_burden: usize,
+) -> u32 {
+    let high_pressure = (high_severity_count as u32 * 2200).min(4400);
+    let finding_pressure = (finding_count as u32 * 900).min(2700);
+    let missing_pressure = (missing_site_count as u32 * 700).min(2800);
+    let context_pressure = (context_burden as u32 * 80).min(1600);
+
+    (high_pressure + finding_pressure + missing_pressure + context_pressure).min(10_000)
+}
+
+fn concept_opportunity_summary(
+    concept_id: &str,
+    finding_count: usize,
+    missing_site_count: usize,
+    high_severity_count: usize,
+) -> String {
+    if high_severity_count > 0 && missing_site_count > 0 {
+        return format!(
+            "Concept '{}' combines architecture violations with {} missing update sites",
+            concept_id, missing_site_count
+        );
+    }
+    if missing_site_count > 0 {
+        return format!(
+            "Concept '{}' has {} missing update sites to complete",
+            concept_id, missing_site_count
+        );
+    }
+    if high_severity_count > 0 {
+        return format!(
+            "Concept '{}' has repeated high-severity ownership or access issues",
+            concept_id
+        );
+    }
+    format!(
+        "Concept '{}' has {} repeated architecture findings worth consolidating",
+        concept_id, finding_count
+    )
+}
+
+fn concept_opportunity_actions(dominant_kinds: &[String], has_missing_sites: bool) -> Vec<String> {
+    let mut actions = Vec::new();
+    for kind in dominant_kinds {
+        match kind.as_str() {
+            "multi_writer_concept" | "forbidden_writer" | "writer_outside_allowlist" => {
+                actions.push("centralize writes behind a single owner".to_string());
+            }
+            "forbidden_raw_read" | "authoritative_import_bypass" => {
+                actions.push(
+                    "route reads through the canonical accessor or public boundary".to_string(),
+                );
+            }
+            _ => {}
+        }
+    }
+    if has_missing_sites {
+        actions.push(
+            "complete the propagation chain before extending the concept further".to_string(),
+        );
+    }
+    if actions.is_empty() {
+        actions.push("review the concept boundary before adding more change surface".to_string());
+    }
+    actions.dedup();
+    actions.truncate(3);
+    actions
+}
+
+fn opportunity_severity(score_0_10000: u32) -> &'static str {
+    match score_0_10000 {
+        6500..=10_000 => "high",
+        3000..=6499 => "medium",
+        _ => "low",
+    }
+}
+
+fn clone_family_opportunity(family: &Value) -> Option<QualityImprovementOpportunity> {
+    let summary = family.get("summary")?.as_str()?.to_string();
+    let scope = family.get("family_id")?.as_str()?.to_string();
+    let severity = family
+        .get("severity")
+        .and_then(|value| value.as_str())
+        .unwrap_or("medium")
+        .to_string();
+    let score_0_10000 = family
+        .get("family_score")
+        .and_then(|value| value.as_u64())
+        .unwrap_or(0) as u32;
+    let files = finding_files(family);
+    let evidence = json_string_list(family.get("reasons"))
+        .into_iter()
+        .take(3)
+        .collect();
+    let suggested_actions = family
+        .get("remediation_hints")
+        .and_then(|value| value.as_array())
+        .map(|hints| {
+            hints
+                .iter()
+                .filter_map(|hint| hint.get("summary").and_then(|value| value.as_str()))
+                .map(str::to_string)
+                .take(3)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+
+    Some(QualityImprovementOpportunity {
+        kind: "clone_family".to_string(),
+        scope,
+        severity,
+        score_0_10000,
+        summary,
+        files,
+        evidence,
+        suggested_actions,
+    })
+}
+
+fn clone_group_opportunity(finding: &Value) -> Option<QualityImprovementOpportunity> {
+    let scope = finding.get("clone_id")?.as_str()?.to_string();
+    let severity = severity_of_value(finding).to_string();
+    let score_0_10000 = finding
+        .get("risk_score")
+        .and_then(|value| value.as_u64())
+        .unwrap_or(0) as u32;
+    let summary = finding
+        .get("summary")
+        .and_then(|value| value.as_str())
+        .unwrap_or("Clone group needs consolidation")
+        .to_string();
+    let files = finding_files(finding);
+    let evidence = json_string_list(finding.get("reasons"))
+        .into_iter()
+        .take(3)
+        .collect::<Vec<_>>();
+
+    Some(QualityImprovementOpportunity {
+        kind: "clone_group".to_string(),
+        scope,
+        severity,
+        score_0_10000,
+        summary,
+        files,
+        evidence,
+        suggested_actions: vec![
+            "extract the shared logic behind one helper or adapter".to_string(),
+            "add shared behavior tests before the copies diverge further".to_string(),
+        ],
+    })
+}
+
+fn hotspot_opportunity(
+    report: &crate::metrics::v2::ConcentrationReport,
+) -> Option<QualityImprovementOpportunity> {
+    if report.score_0_10000 < 4000 {
+        return None;
+    }
+
+    Some(QualityImprovementOpportunity {
+        kind: "hotspot".to_string(),
+        scope: report.path.clone(),
+        severity: opportunity_severity(report.score_0_10000).to_string(),
+        score_0_10000: report.score_0_10000,
+        summary: format!(
+            "File '{}' is a coordination hotspot worth refactoring before adding more behavior",
+            report.path
+        ),
+        files: vec![report.path.clone()],
+        evidence: report.reasons.iter().cloned().take(3).collect(),
+        suggested_actions: vec![
+            "split orchestration from state mutation and side-effect handling".to_string(),
+            "move unrelated responsibilities behind narrower helpers or controllers".to_string(),
+        ],
+    })
+}
+
+fn json_string_list(value: Option<&Value>) -> Vec<String> {
+    value
+        .and_then(|value| value.as_array())
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| item.as_str().map(str::to_string))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default()
+}
+
+fn quality_opportunity_concentration_reports(
+    state: &mut McpState,
+    root: &Path,
+    snapshot: &Snapshot,
+    candidate_files: &BTreeSet<String>,
+) -> (Vec<crate::metrics::v2::ConcentrationReport>, Option<String>) {
+    if candidate_files.is_empty() {
+        return (Vec::new(), None);
+    }
+
+    let complexity_map = crate::app::mcp_server::handlers_evo::build_complexity_map(snapshot);
+    let (config, rules_error) = load_v2_rules_config(root);
+    let (semantic, semantic_error) = match analyze_semantic_snapshot(state, root) {
+        Ok(semantic) => (semantic, None),
+        Err(error) => (None, Some(error)),
+    };
+    let (history, evolution_error) = concentration_history(state, root, None);
+    let reports = crate::metrics::v2::build_concentration_reports(
+        root,
+        candidate_files,
+        &complexity_map,
+        &config,
+        semantic.as_ref(),
+        history.as_ref(),
+    );
+    let findings = crate::metrics::v2::build_concentration_findings(&reports, reports.len());
+    let suppression_application = apply_suppressions(&config, serialized_values(&findings));
+    let visible_paths = suppression_application
+        .visible_findings
+        .iter()
+        .flat_map(finding_files)
+        .collect::<BTreeSet<_>>();
+    let visible_reports = reports
+        .into_iter()
+        .filter(|report| visible_paths.contains(&report.path))
+        .collect::<Vec<_>>();
+
+    (
+        visible_reports,
+        merge_optional_errors(
+            merge_optional_errors(rules_error, semantic_error),
+            evolution_error,
+        ),
+    )
 }
 
 #[cfg(test)]
@@ -3219,6 +3761,37 @@ mod tests {
     }
 
     #[test]
+    fn findings_surface_concept_summaries_and_quality_opportunities() {
+        let root = concept_fixture_root();
+        let mut state = fresh_mcp_state();
+        handle_scan(
+            &json!({"path": root.to_string_lossy().to_string()}),
+            &Tier::Free,
+            &mut state,
+        )
+        .expect("scan fixture");
+        state.cached_semantic = Some(concept_fixture_semantic(&root));
+
+        let response =
+            handle_findings(&json!({"limit": 10}), &Tier::Free, &mut state).expect("findings");
+
+        assert!(response["concept_summaries"]
+            .as_array()
+            .expect("concept summaries")
+            .iter()
+            .any(|summary| summary["concept_id"] == "task_git_status"));
+        assert!(response["quality_opportunities"]
+            .as_array()
+            .expect("quality opportunities")
+            .iter()
+            .any(|opportunity| {
+                opportunity["kind"] == "concept" && opportunity["scope"] == "task_git_status"
+            }));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
     fn findings_hide_suppressed_clone_families_and_remediations() {
         let root = cli_gate_fixture_root();
         write_file(
@@ -3848,6 +4421,42 @@ mod tests {
             .iter()
             .any(|value| value == "src/domain/state.ts"));
         assert!(state.cached_patch_safety.is_some());
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn session_end_surfaces_quality_opportunities_for_changed_concept() {
+        let root = closed_domain_gate_fixture_root();
+        init_git_repo(&root);
+        commit_all(&root, "initial");
+        let mut state = fresh_mcp_state();
+        handle_scan(
+            &json!({"path": root.to_string_lossy().to_string()}),
+            &Tier::Free,
+            &mut state,
+        )
+        .expect("scan fixture");
+        handle_session_start(&json!({}), &Tier::Free, &mut state).expect("session start");
+        write_file(
+            &root,
+            "src/domain/state.ts",
+            "export type AppState = 'idle' | 'busy' | 'error';\n",
+        );
+
+        let response =
+            handle_session_end(&json!({}), &Tier::Free, &mut state).expect("session end");
+
+        assert!(response["concept_summaries"]
+            .as_array()
+            .expect("concept summaries")
+            .iter()
+            .any(|summary| summary["concept_id"] == "app_state"));
+        assert!(response["quality_opportunities"]
+            .as_array()
+            .expect("quality opportunities")
+            .iter()
+            .any(|opportunity| opportunity["scope"] == "app_state"));
 
         let _ = std::fs::remove_dir_all(root);
     }
@@ -4650,6 +5259,21 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         baseline_error =
             Some("Legacy baseline unavailable; structural delta fields were omitted".to_string());
     }
+    let opportunity_findings = if session_v2.is_some() {
+        introduced_findings.clone()
+    } else {
+        analysis.changed_visible_findings.clone()
+    };
+    let quality_outputs = build_quality_opportunity_outputs(
+        state,
+        &root,
+        &bundle.snapshot,
+        &opportunity_findings,
+        &analysis.changed_obligations,
+        &[],
+        &changed_files,
+        5,
+    );
     let preserved_semantic = state.cached_semantic.clone();
     let preserved_evolution = state.cached_evolution.clone();
     let preserved_patch_safety = state.cached_patch_safety.clone();
@@ -4696,6 +5320,10 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         "introduced_findings": introduced_findings,
         "resolved_findings": resolved_findings,
         "missing_obligations": missing_obligations,
+        "concept_summary_count": quality_outputs.concept_summaries.len(),
+        "concept_summaries": quality_outputs.concept_summaries,
+        "quality_opportunity_count": quality_outputs.quality_opportunities.len(),
+        "quality_opportunities": quality_outputs.quality_opportunities,
         "obligation_completeness_0_10000": crate::metrics::v2::obligation_score_0_10000(&analysis.changed_obligations),
         "touched_concept_gate": {
             "decision": gate_decision,
@@ -4710,6 +5338,7 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         "confidence": build_v2_confidence_report(&bundle.metadata, &rules_config, session_v2_status),
         "baseline_delta": legacy_baseline_delta_json(legacy_diff.as_ref()),
         "semantic_error": semantic_error,
+        "opportunity_context_error": quality_outputs.context_error,
         "baseline_error": baseline_error
     });
 
