@@ -46,8 +46,11 @@ pub struct CloneFamilySummary {
     pub family_id: String,
     pub severity: String,
     pub family_score: u32,
+    pub divergence_score: u32,
     pub member_count: usize,
     pub file_count: usize,
+    pub commit_count_gap: Option<u32>,
+    pub age_days_gap: Option<u32>,
     pub representative_clone_id: String,
     pub clone_ids: Vec<String>,
     pub recently_touched_file_count: usize,
@@ -246,6 +249,7 @@ fn compare_clone_findings(left: &CloneDriftFinding, right: &CloneDriftFinding) -
 fn compare_clone_families(left: &CloneFamilySummary, right: &CloneFamilySummary) -> Ordering {
     severity_priority(&right.severity)
         .cmp(&severity_priority(&left.severity))
+        .then_with(|| right.divergence_score.cmp(&left.divergence_score))
         .then_with(|| right.family_score.cmp(&left.family_score))
         .then_with(|| left.family_id.cmp(&right.family_id))
 }
@@ -351,35 +355,23 @@ fn clone_family_summary(
         .map(|finding| finding.clone_id.clone())
         .collect::<Vec<_>>();
     let file_summaries = clone_family_file_summaries(&members);
-    let recently_touched_file_count = file_summaries
-        .values()
-        .filter(|summary| is_recent_age(summary.age_days))
-        .count();
-    let active_files = file_summaries
-        .values()
-        .filter(|summary| file_summary_has_recent_activity(summary))
-        .count();
-    let inactive_files = file_summaries.len().saturating_sub(active_files);
-    let asymmetric_recent_change = active_files > 0 && inactive_files > 0;
+    let family_metrics = clone_family_metrics(&file_summaries);
     let family_score = representative
         .risk_score
         .saturating_add(4 * ((members.len() - 1).min(3) as u32))
-        .saturating_add((recently_touched_file_count as u32).saturating_mul(3))
-        .saturating_add(if asymmetric_recent_change { 12 } else { 0 });
+        .saturating_add(family_metrics.divergence_score);
     let reasons = clone_family_reasons(
         members.len(),
         files.len(),
         representative.risk_score,
-        recently_touched_file_count,
-        asymmetric_recent_change,
+        &family_metrics,
     );
-    let summary = clone_family_summary_text(members.len(), files.len(), asymmetric_recent_change);
+    let summary = clone_family_summary_text(members.len(), files.len(), &family_metrics);
     let remediation_hints = clone_family_remediation_hints(
         representative,
+        &family_metrics,
         members.len(),
         files.len(),
-        recently_touched_file_count,
-        asymmetric_recent_change,
         &files,
         &clone_ids,
     );
@@ -389,12 +381,15 @@ fn clone_family_summary(
         family_id,
         severity: representative.severity.clone(),
         family_score,
+        divergence_score: family_metrics.divergence_score,
         member_count: members.len(),
         file_count: files.len(),
+        commit_count_gap: family_metrics.commit_count_gap,
+        age_days_gap: family_metrics.age_days_gap,
         representative_clone_id: representative.clone_id.clone(),
         clone_ids,
-        recently_touched_file_count,
-        asymmetric_recent_change,
+        recently_touched_file_count: family_metrics.recently_touched_file_count,
+        asymmetric_recent_change: family_metrics.asymmetric_recent_change,
         files,
         reasons,
         summary,
@@ -443,8 +438,7 @@ fn clone_family_reasons(
     member_count: usize,
     file_count: usize,
     representative_risk_score: u32,
-    recently_touched_file_count: usize,
-    asymmetric_recent_change: bool,
+    family_metrics: &CloneFamilyMetrics,
 ) -> Vec<String> {
     let mut reasons = vec![
         format!("{member_count} exact clone groups repeat across {file_count} files"),
@@ -453,14 +447,29 @@ fn clone_family_reasons(
             representative_risk_score
         ),
     ];
-    if recently_touched_file_count > 0 {
+    if family_metrics.recently_touched_file_count > 0 {
         reasons.push(format!(
             "{} family file(s) changed within the last {} day(s)",
-            recently_touched_file_count, RECENT_AGE_DAYS
+            family_metrics.recently_touched_file_count, RECENT_AGE_DAYS
         ));
     }
-    if asymmetric_recent_change {
+    if let Some(gap) = family_metrics.commit_count_gap {
+        reasons.push(format!(
+            "family churn spans a gap of {} recent commit(s)",
+            gap
+        ));
+    }
+    if let Some(gap) = family_metrics.age_days_gap {
+        reasons.push(format!("family file age spans a gap of {} day(s)", gap));
+    }
+    if family_metrics.asymmetric_recent_change {
         reasons.push("recent activity is uneven across the clone family".to_string());
+    }
+    if family_metrics.divergence_score > 0 {
+        reasons.push(format!(
+            "family-level divergence contributes {} risk point(s)",
+            family_metrics.divergence_score
+        ));
     }
     reasons
 }
@@ -468,35 +477,70 @@ fn clone_family_reasons(
 fn clone_family_summary_text(
     member_count: usize,
     file_count: usize,
-    asymmetric_recent_change: bool,
+    family_metrics: &CloneFamilyMetrics,
 ) -> String {
-    if asymmetric_recent_change {
-        return format!(
-            "{member_count} exact clone groups repeat across {file_count} files and recent edits are uneven across the family"
-        );
+    let mut details = Vec::new();
+
+    if family_metrics.asymmetric_recent_change {
+        details.push("recent edits are uneven across the family".to_string());
     }
 
-    format!("{member_count} exact clone groups repeat across {file_count} files")
+    if let Some(gap) = family_metrics.commit_count_gap {
+        details.push(format!(
+            "churn differs by {gap} recent commit(s) across siblings"
+        ));
+    }
+
+    if let Some(gap) = family_metrics.age_days_gap {
+        details.push(format!("sibling file age spans {gap} day(s)"));
+    }
+
+    if details.is_empty() {
+        return format!("{member_count} exact clone groups repeat across {file_count} files");
+    }
+
+    format!(
+        "{member_count} exact clone groups repeat across {file_count} files and {}",
+        details.join("; ")
+    )
 }
 
 fn clone_family_remediation_hints(
     representative: &CloneDriftFinding,
+    family_metrics: &CloneFamilyMetrics,
     member_count: usize,
     file_count: usize,
-    recently_touched_file_count: usize,
-    asymmetric_recent_change: bool,
     files: &[String],
     clone_ids: &[String],
 ) -> Vec<CloneRemediationHint> {
     let mut hints = Vec::new();
 
-    if asymmetric_recent_change {
+    if family_metrics.divergence_score > 0 {
+        let mut detail = Vec::new();
+        if let Some(gap) = family_metrics.commit_count_gap {
+            detail.push(format!(
+                "commit churn spans a gap of {gap} recent commit(s)"
+            ));
+        }
+        if let Some(gap) = family_metrics.age_days_gap {
+            detail.push(format!("file age spans a gap of {gap} day(s)"));
+        }
+        if family_metrics.asymmetric_recent_change {
+            detail.push("recent edits are uneven across the family".to_string());
+        }
+
         hints.push(CloneRemediationHint {
             kind: "sync_recent_divergence".to_string(),
             priority: "high".to_string(),
-            summary:
+            summary: if detail.is_empty() {
                 "Review recent edits across clone siblings and either synchronize the shared behavior or intentionally split the implementations."
-                    .to_string(),
+                    .to_string()
+            } else {
+                format!(
+                    "Review recent edits across clone siblings: {}. Synchronize the shared behavior or intentionally split the implementations.",
+                    detail.join("; ")
+                )
+            },
             files: files.to_vec(),
             clone_ids: clone_ids.to_vec(),
         });
@@ -532,7 +576,7 @@ fn clone_family_remediation_hints(
         });
     }
 
-    if representative.severity == "high" && recently_touched_file_count > 0 {
+    if representative.severity == "high" && family_metrics.recently_touched_file_count > 0 {
         hints.push(CloneRemediationHint {
             kind: "add_shared_behavior_tests".to_string(),
             priority: "medium".to_string(),
@@ -545,6 +589,73 @@ fn clone_family_remediation_hints(
     }
 
     hints
+}
+
+fn clone_family_metrics(file_summaries: &BTreeMap<String, CloneFileSummary>) -> CloneFamilyMetrics {
+    let mut metrics = CloneFamilyMetrics::default();
+    metrics.file_count = file_summaries.len();
+    metrics.recently_touched_file_count = file_summaries
+        .values()
+        .filter(|summary| is_recent_age(summary.age_days))
+        .count();
+    metrics.active_file_count = file_summaries
+        .values()
+        .filter(|summary| file_summary_has_recent_activity(summary))
+        .count();
+    metrics.inactive_file_count = metrics.file_count.saturating_sub(metrics.active_file_count);
+    metrics.asymmetric_recent_change =
+        metrics.active_file_count > 0 && metrics.inactive_file_count > 0;
+
+    let commit_counts = file_summaries
+        .values()
+        .filter_map(|summary| summary.commit_count)
+        .collect::<Vec<_>>();
+    if let (Some(min), Some(max)) = (commit_counts.iter().min(), commit_counts.iter().max()) {
+        metrics.commit_count_gap = Some(max.saturating_sub(*min));
+    }
+
+    let age_days = file_summaries
+        .values()
+        .filter_map(|summary| summary.age_days)
+        .collect::<Vec<_>>();
+    if let (Some(min), Some(max)) = (age_days.iter().min(), age_days.iter().max()) {
+        metrics.age_days_gap = Some(max.saturating_sub(*min));
+    }
+
+    metrics.divergence_score = clone_family_divergence_score(&metrics);
+    metrics
+}
+
+fn clone_family_divergence_score(metrics: &CloneFamilyMetrics) -> u32 {
+    let mut score = 0u32;
+
+    if metrics.asymmetric_recent_change {
+        score = score.saturating_add(18);
+    }
+
+    if let Some(gap) = metrics.commit_count_gap {
+        score = score.saturating_add(match gap {
+            0 | 1 => 0,
+            2..=3 => 6,
+            4..=7 => 10,
+            _ => 14,
+        });
+    }
+
+    if let Some(gap) = metrics.age_days_gap {
+        score = score.saturating_add(match gap {
+            0..=7 => 0,
+            8..=29 => 4,
+            30..=59 => 8,
+            _ => 12,
+        });
+    }
+
+    if metrics.recently_touched_file_count > 0 {
+        score = score.saturating_add((metrics.recently_touched_file_count as u32).min(3) * 2);
+    }
+
+    score.min(36)
 }
 
 fn prioritize_clone_findings(
@@ -671,6 +782,18 @@ fn clone_file_summaries(instances: &[CloneDriftInstance]) -> BTreeMap<&str, Clon
             });
     }
     summaries
+}
+
+#[derive(Debug, Clone, Default)]
+struct CloneFamilyMetrics {
+    file_count: usize,
+    active_file_count: usize,
+    inactive_file_count: usize,
+    recently_touched_file_count: usize,
+    commit_count_gap: Option<u32>,
+    age_days_gap: Option<u32>,
+    asymmetric_recent_change: bool,
+    divergence_score: u32,
 }
 
 fn group_max_lines(group: &DuplicateGroup) -> u32 {
@@ -836,6 +959,20 @@ mod tests {
         assert_eq!(report.families[0].member_count, 2);
         assert_eq!(report.families[0].file_count, 2);
         assert_eq!(report.families[0].clone_ids.len(), 2);
+        assert_eq!(report.families[0].commit_count_gap, Some(4));
+        assert_eq!(report.families[0].age_days_gap, Some(87));
+        assert!(report.families[0].divergence_score > 0);
+        assert!(report.families[0]
+            .summary
+            .contains("churn differs by 4 recent commit(s)"));
+        assert!(report.families[0]
+            .reasons
+            .iter()
+            .any(|reason| reason.contains("family churn spans a gap of 4 recent commit(s)")));
+        assert!(report.families[0]
+            .reasons
+            .iter()
+            .any(|reason| reason.contains("family file age spans a gap of 87 day(s)")));
         assert!(report.families[0]
             .remediation_hints
             .iter()
@@ -851,7 +988,7 @@ mod tests {
     }
 
     #[test]
-    fn clone_drift_report_prioritizes_family_representatives_before_siblings() {
+    fn clone_drift_report_prioritizes_more_divergent_families_first() {
         let groups = vec![
             DuplicateGroup {
                 hash: 10,
@@ -874,12 +1011,62 @@ mod tests {
                     ("src/d.ts".to_string(), "dup_f".to_string(), 8),
                 ],
             },
+            DuplicateGroup {
+                hash: 13,
+                instances: vec![
+                    ("src/c.ts".to_string(), "dup_g".to_string(), 8),
+                    ("src/d.ts".to_string(), "dup_h".to_string(), 8),
+                ],
+            },
         ];
 
-        let report = build_clone_drift_report(&groups, Some(&test_evolution()));
+        let mut evolution = test_evolution();
+        evolution.churn.insert(
+            "src/a.ts".to_string(),
+            crate::metrics::evolution::FileChurn {
+                commit_count: 10,
+                lines_added: 14,
+                lines_removed: 2,
+                total_churn: 16,
+            },
+        );
+        evolution.churn.insert(
+            "src/b.ts".to_string(),
+            crate::metrics::evolution::FileChurn {
+                commit_count: 9,
+                lines_added: 12,
+                lines_removed: 1,
+                total_churn: 13,
+            },
+        );
+        evolution.churn.insert(
+            "src/c.ts".to_string(),
+            crate::metrics::evolution::FileChurn {
+                commit_count: 10,
+                lines_added: 14,
+                lines_removed: 2,
+                total_churn: 16,
+            },
+        );
+        evolution.churn.insert(
+            "src/d.ts".to_string(),
+            crate::metrics::evolution::FileChurn {
+                commit_count: 1,
+                lines_added: 1,
+                lines_removed: 0,
+                total_churn: 1,
+            },
+        );
+        evolution.code_age.insert("src/a.ts".to_string(), 4);
+        evolution.code_age.insert("src/b.ts".to_string(), 5);
+        evolution.code_age.insert("src/c.ts".to_string(), 4);
+        evolution.code_age.insert("src/d.ts".to_string(), 5);
 
-        assert_eq!(report.families.len(), 1);
-        assert_eq!(report.prioritized_findings.len(), 3);
+        let report = build_clone_drift_report(&groups, Some(&evolution));
+
+        assert_eq!(report.families.len(), 2);
+        assert_eq!(report.prioritized_findings.len(), 4);
+        assert!(report.families[0].divergence_score > report.families[1].divergence_score);
         assert_eq!(
             report.prioritized_findings[0].clone_id,
             report.families[0].representative_clone_id
@@ -888,9 +1075,14 @@ mod tests {
             .remediation_hints
             .iter()
             .any(|hint| hint.kind == "extract_shared_helper"));
-        assert!(
-            report.prioritized_findings[1].clone_id != report.families[0].representative_clone_id
-        );
+        assert!(report.families[0]
+            .remediation_hints
+            .iter()
+            .any(|hint| hint.kind == "sync_recent_divergence"));
+        assert!(report.families[0]
+            .summary
+            .contains("churn differs by 9 recent commit(s)"));
+        assert_eq!(report.families[0].commit_count_gap, Some(9));
     }
 
     #[test]
