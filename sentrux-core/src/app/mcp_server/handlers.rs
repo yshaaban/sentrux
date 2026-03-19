@@ -712,14 +712,39 @@ fn current_git_head(root: &Path) -> Option<String> {
     Some(head.to_string())
 }
 
+fn git_root_commit(root: &Path) -> Option<String> {
+    let roots = git_output(root, &["rev-list", "--max-parents=0", "HEAD"])?;
+    roots
+        .lines()
+        .map(str::trim)
+        .find(|line| !line.is_empty())
+        .map(str::to_string)
+}
+
+fn git_origin_url(root: &Path) -> Option<String> {
+    let origin = git_output(root, &["config", "--get", "remote.origin.url"])?;
+    let origin = origin.trim();
+    if origin.is_empty() {
+        return None;
+    }
+    Some(origin.replace('\\', "/"))
+}
+
 fn project_fingerprint(root: &Path) -> String {
-    let normalized_root = root
-        .canonicalize()
-        .unwrap_or_else(|_| root.to_path_buf())
-        .to_string_lossy()
-        .replace('\\', "/");
+    let fingerprint_source = if let Some(root_commit) = git_root_commit(root) {
+        format!("git-root:{root_commit}")
+    } else if let Some(origin_url) = git_origin_url(root) {
+        format!("git-origin:{origin_url}")
+    } else {
+        let normalized_root = root
+            .canonicalize()
+            .unwrap_or_else(|_| root.to_path_buf())
+            .to_string_lossy()
+            .replace('\\', "/");
+        format!("path:{normalized_root}")
+    };
     let mut hasher = DefaultHasher::new();
-    normalized_root.hash(&mut hasher);
+    fingerprint_source.hash(&mut hasher);
     format!("{:016x}", hasher.finish())
 }
 
@@ -4072,6 +4097,40 @@ mod tests {
         );
 
         let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn project_fingerprint_matches_across_local_clone() {
+        let source = temp_root("project-fingerprint-source");
+        write_file(
+            &source,
+            "src/domain/state.ts",
+            "export const state = 'idle';\n",
+        );
+        init_git_repo(&source);
+        commit_all(&source, "initial");
+
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos();
+        let clone = std::env::temp_dir().join(format!(
+            "private-integration-crateject-fingerprint-clone-{}-{unique}",
+            std::process::id()
+        ));
+        let status = Command::new("git")
+            .arg("clone")
+            .arg("--quiet")
+            .arg(&source)
+            .arg(&clone)
+            .status()
+            .expect("clone repo");
+        assert!(status.success(), "git clone failed");
+
+        assert_eq!(project_fingerprint(&source), project_fingerprint(&clone));
+
+        let _ = std::fs::remove_dir_all(source);
+        let _ = std::fs::remove_dir_all(clone);
     }
 
     #[test]
