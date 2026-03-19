@@ -1,20 +1,20 @@
 {
   "benchmark_format_version": 2,
-  "generated_at": "2026-03-19T02:09:08.232Z",
+  "generated_at": "2026-03-19T02:39:25.828Z",
   "parallel_code_root": "<parallel-code-root>",
   "sentrux_binary": "<sentrux-root>/target/debug/sentrux",
   "benchmark": {
-    "cold_process_total_ms": 18619.7,
+    "cold_process_total_ms": 15739.4,
     "cold": {
       "scan": {
         "label": "scan",
         "tool": "scan",
-        "elapsed_ms": 11207.1,
+        "elapsed_ms": 9284.6,
         "summary": {
           "files": 564,
           "import_edges": 1653,
-          "quality_signal": 4861,
-          "overall_confidence_0_10000": 8080,
+          "quality_signal": 4890,
+          "overall_confidence_0_10000": 8103,
           "resolved": 1654,
           "unresolved_internal": 1
         }
@@ -22,29 +22,29 @@
       "concepts": {
         "label": "concepts",
         "tool": "concepts",
-        "elapsed_ms": 3014.4,
+        "elapsed_ms": 2800.3,
         "summary": {
           "configured_concept_count": 3,
           "matched_guardrail_test_count": 1,
-          "inferred_concept_count": 116
+          "inferred_concept_count": 115
         }
       },
       "findings": {
         "label": "findings_top12",
         "tool": "findings",
-        "elapsed_ms": 4069.5,
+        "elapsed_ms": 3394.8,
         "summary": {
           "clone_group_count": 20,
           "finding_count": 12,
-          "semantic_finding_count": 6
+          "semantic_finding_count": 12
         }
       },
       "explain_task_git_status": {
         "label": "explain_task_git_status",
         "tool": "explain_concept",
-        "elapsed_ms": 140.9,
+        "elapsed_ms": 112.1,
         "summary": {
-          "finding_count": 3,
+          "finding_count": 23,
           "obligation_count": 0,
           "read_count": 7,
           "write_count": 7,
@@ -54,7 +54,7 @@
       "explain_task_presentation_status": {
         "label": "explain_task_presentation_status",
         "tool": "explain_concept",
-        "elapsed_ms": 157,
+        "elapsed_ms": 126.3,
         "summary": {
           "finding_count": 1,
           "obligation_count": 1,
@@ -66,7 +66,7 @@
       "parity_server_state_bootstrap": {
         "label": "parity_server_state_bootstrap",
         "tool": "parity",
-        "elapsed_ms": 16.3,
+        "elapsed_ms": 11.2,
         "summary": {
           "contract_count": 1,
           "missing_cell_count": 0,
@@ -77,7 +77,7 @@
       "state": {
         "label": "state",
         "tool": "state",
-        "elapsed_ms": 13.3,
+        "elapsed_ms": 8.7,
         "summary": {
           "state_model_count": 2,
           "finding_count": 0,
@@ -85,34 +85,34 @@
         }
       }
     },
-    "warm_cached_total_ms": 488.8,
+    "warm_cached_total_ms": 369.1,
     "warm_cached": {
       "concepts": {
         "label": "concepts",
         "tool": "concepts",
-        "elapsed_ms": 38.7,
+        "elapsed_ms": 22.6,
         "summary": {
           "configured_concept_count": 3,
           "matched_guardrail_test_count": 1,
-          "inferred_concept_count": 116
+          "inferred_concept_count": 115
         }
       },
       "findings": {
         "label": "findings_top12",
         "tool": "findings",
-        "elapsed_ms": 121.7,
+        "elapsed_ms": 96,
         "summary": {
           "clone_group_count": 20,
           "finding_count": 12,
-          "semantic_finding_count": 6
+          "semantic_finding_count": 12
         }
       },
       "explain_task_git_status": {
         "label": "explain_task_git_status",
         "tool": "explain_concept",
-        "elapsed_ms": 138,
+        "elapsed_ms": 107,
         "summary": {
-          "finding_count": 3,
+          "finding_count": 23,
           "obligation_count": 0,
           "read_count": 7,
           "write_count": 7,
@@ -122,7 +122,7 @@
       "explain_task_presentation_status": {
         "label": "explain_task_presentation_status",
         "tool": "explain_concept",
-        "elapsed_ms": 156.1,
+        "elapsed_ms": 121.4,
         "summary": {
           "finding_count": 1,
           "obligation_count": 1,
@@ -134,7 +134,7 @@
       "parity_server_state_bootstrap": {
         "label": "parity_server_state_bootstrap",
         "tool": "parity",
-        "elapsed_ms": 18.5,
+        "elapsed_ms": 10.9,
         "summary": {
           "contract_count": 1,
           "missing_cell_count": 0,
@@ -145,7 +145,7 @@
       "state": {
         "label": "state",
         "tool": "state",
-        "elapsed_ms": 15.2,
+        "elapsed_ms": 10.8,
         "summary": {
           "state_model_count": 2,
           "finding_count": 0,
@@ -153,21 +153,21 @@
         }
       }
     },
-    "warm_patch_safety_total_ms": 8225.8,
+    "warm_patch_safety_total_ms": 6846.8,
     "warm_patch_safety": {
       "session_start": {
         "label": "session_start",
         "tool": "session_start",
-        "elapsed_ms": 154.5,
+        "elapsed_ms": 124.6,
         "summary": {
-          "session_finding_count": 26,
+          "session_finding_count": 54,
           "suppressed_finding_count": 0
         }
       },
       "gate": {
         "label": "gate",
         "tool": "gate",
-        "elapsed_ms": 4066,
+        "elapsed_ms": 3251,
         "summary": {
           "decision": "pass",
           "changed_file_count": 0,
@@ -179,7 +179,7 @@
       "session_end": {
         "label": "session_end",
         "tool": "session_end",
-        "elapsed_ms": 4005,
+        "elapsed_ms": 3470.8,
         "summary": {
           "pass": true,
           "changed_file_count": 0,
@@ -194,18 +194,18 @@
       "Downloading language grammars for v0.5.6...",
       "(one-time download, ~30MB)",
       "[░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]   0%  50 language grammars ready.",
-      "[build_project_map] 564 files, 31 unique dirs, 30 cache misses, 2.2ms",
+      "[build_project_map] 564 files, 31 unique dirs, 30 cache misses, 2.1ms",
       "[resolve] 1654 resolved, 1 unresolved_internal, 472 unresolved_external, 74 unresolved_unknown (of 2201 total specs)",
-      "[resolve_imports] project_map 3.0ms, suffix_idx 3.7ms, suffix_resolve 24.3ms, total 31.0ms",
-      "[build_graphs] 564 files | maps 5.0ms, imports 31.2ms, calls+inherit 18.4ms, total 54.6ms | 1653 import, 3616 call, 0 inherit edges",
-      "[evolution] walked 811 commits, skipped 90 (oid_err=0, commit_err=0, unparseable=90)",
-      "[evolution] walked 811 commits, skipped 90 (oid_err=0, commit_err=0, unparseable=90)",
-      "[evolution] walked 811 commits, skipped 90 (oid_err=0, commit_err=0, unparseable=90)"
+      "[resolve_imports] project_map 2.8ms, suffix_idx 3.4ms, suffix_resolve 26.6ms, total 32.8ms",
+      "[build_graphs] 564 files | maps 4.5ms, imports 33.0ms, calls+inherit 18.6ms, total 56.1ms | 1653 import, 3618 call, 0 inherit edges",
+      "[evolution] walked 815 commits, skipped 90 (oid_err=0, commit_err=0, unparseable=90)",
+      "[evolution] walked 815 commits, skipped 90 (oid_err=0, commit_err=0, unparseable=90)",
+      "[evolution] walked 815 commits, skipped 90 (oid_err=0, commit_err=0, unparseable=90)"
     ]
   },
   "comparison": {
     "compared_to": "<sentrux-root>/docs/v2/examples/parallel-code-benchmark.json",
-    "previous_generated_at": "2026-03-19T01:38:46.177Z",
+    "previous_generated_at": "2026-03-19T02:32:50.219Z",
     "thresholds": {
       "max_regression_ms": 250,
       "max_regression_percent": 20
@@ -214,82 +214,82 @@
       {
         "metric": "cold process total",
         "path": "cold_process_total_ms",
-        "previous_ms": 17288.3,
-        "current_ms": 18619.7,
-        "delta_ms": 1331.4,
-        "delta_percent": 7.7,
+        "previous_ms": 22082.7,
+        "current_ms": 15739.4,
+        "delta_ms": -6343.3,
+        "delta_percent": -28.7,
         "regressed": false
       },
       {
         "metric": "cold scan",
         "path": "cold.scan.elapsed_ms",
-        "previous_ms": 9725.5,
-        "current_ms": 11207.1,
-        "delta_ms": 1481.6,
-        "delta_percent": 15.2,
+        "previous_ms": 13234,
+        "current_ms": 9284.6,
+        "delta_ms": -3949.4,
+        "delta_percent": -29.8,
         "regressed": false
       },
       {
         "metric": "cold concepts",
         "path": "cold.concepts.elapsed_ms",
-        "previous_ms": 3443.4,
-        "current_ms": 3014.4,
-        "delta_ms": -429,
-        "delta_percent": -12.5,
+        "previous_ms": 4921.1,
+        "current_ms": 2800.3,
+        "delta_ms": -2120.8,
+        "delta_percent": -43.1,
         "regressed": false
       },
       {
         "metric": "warm cached total",
         "path": "warm_cached_total_ms",
-        "previous_ms": 498.3,
-        "current_ms": 488.8,
-        "delta_ms": -9.5,
-        "delta_percent": -1.9,
+        "previous_ms": 409.1,
+        "current_ms": 369.1,
+        "delta_ms": -40,
+        "delta_percent": -9.8,
         "regressed": false
       },
       {
         "metric": "warm findings",
         "path": "warm_cached.findings.elapsed_ms",
-        "previous_ms": 123.5,
-        "current_ms": 121.7,
-        "delta_ms": -1.8,
-        "delta_percent": -1.5,
+        "previous_ms": 94.3,
+        "current_ms": 96,
+        "delta_ms": 1.7,
+        "delta_percent": 1.8,
         "regressed": false
       },
       {
         "metric": "warm patch-safety total",
         "path": "warm_patch_safety_total_ms",
-        "previous_ms": 7995.6,
-        "current_ms": 8225.8,
-        "delta_ms": 230.2,
-        "delta_percent": 2.9,
+        "previous_ms": 6863.4,
+        "current_ms": 6846.8,
+        "delta_ms": -16.6,
+        "delta_percent": -0.2,
         "regressed": false
       },
       {
         "metric": "warm session_start",
         "path": "warm_patch_safety.session_start.elapsed_ms",
-        "previous_ms": 153.3,
-        "current_ms": 154.5,
+        "previous_ms": 123.4,
+        "current_ms": 124.6,
         "delta_ms": 1.2,
-        "delta_percent": 0.8,
+        "delta_percent": 1,
         "regressed": false
       },
       {
         "metric": "warm gate",
         "path": "warm_patch_safety.gate.elapsed_ms",
-        "previous_ms": 3876.6,
-        "current_ms": 4066,
-        "delta_ms": 189.4,
-        "delta_percent": 4.9,
+        "previous_ms": 3377.3,
+        "current_ms": 3251,
+        "delta_ms": -126.3,
+        "delta_percent": -3.7,
         "regressed": false
       },
       {
         "metric": "warm session_end",
         "path": "warm_patch_safety.session_end.elapsed_ms",
-        "previous_ms": 3965.2,
-        "current_ms": 4005,
-        "delta_ms": 39.8,
-        "delta_percent": 1,
+        "previous_ms": 3362.2,
+        "current_ms": 3470.8,
+        "delta_ms": 108.6,
+        "delta_percent": 3.2,
         "regressed": false
       }
     ],

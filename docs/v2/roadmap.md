@@ -228,7 +228,7 @@ Exit criteria:
 
 Open gap:
 
-- CLI parity and suppression-aware gate behavior are in place, but release-grade gate validation is still incomplete
+- CLI parity, suppression-aware gate behavior, and shared patch-safety analysis reuse are in place, but release-grade gate validation is still incomplete and the warm path is still scan-bound
 
 ## Tier 2: Context And Adoption
 
@@ -355,8 +355,8 @@ Status: partial
 - [x] add synthetic touched-concept gate and `session_end` regression scenarios
 - [-] add fixture repos for semantic frontends
 - [-] add bridge contract tests for the persistent Node subprocess
-- [-] capture initial `parallel-code` benchmark artifact
-- [-] add performance regression benchmarks
+- [x] capture initial `parallel-code` benchmark artifact
+- [x] add versioned performance regression benchmark comparison for `parallel-code`
 - [x] add false-positive review process for new heuristics
 - [-] add confidence-report regression tests
 - [-] add v1/v2 baseline migration tests
@@ -364,7 +364,7 @@ Status: partial
 
 Open gap:
 
-- implementation is still ahead of proof and release-grade validation, but the `parallel-code` pass/fail golden loop and warm patch-safety benchmark loop are now in place
+- implementation is still ahead of proof and release-grade validation, but the `parallel-code` pass/fail golden loop, versioned benchmark comparison, and shared patch-safety reuse work are now in place
 
 ## Target Outcome On `parallel-code`
 
@@ -394,5 +394,6 @@ Tier 3 should improve the repo story, but it is not required for the wedge to be
 Current reality:
 
 - the codebase is close to a useful MCP beta
-- the real `parallel-code` proof loop now includes checked-in pass and fail goldens plus a warm patch-safety benchmark loop
-- cold-path benchmark stability and broader validation coverage are still the next proof gaps
+- the real `parallel-code` proof loop now includes checked-in pass and fail goldens plus a versioned warm patch-safety benchmark loop
+- warm patch-safety is improving, but the remaining performance gap is still scan-bound structural work
+- broader validation coverage and a second benchmark repo are the next proof gaps

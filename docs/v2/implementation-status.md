@@ -17,7 +17,7 @@ Working estimate:
 
 - core wedge completion: about 85-90%
 - full roadmap completion: about 65-70%
-- validation and proof completion: about 45-50%
+- validation and proof completion: about 50-55%
 
 ## What Is True Today
 
@@ -39,6 +39,7 @@ The strongest completed work is:
 - obligation engine
 - upgraded `session_end`
 - touched-concept `gate` in MCP and CLI
+- shared patch-safety analysis reuse across `gate` and `session_end`
 - parity and concentration context
 - conservative state-integrity analysis
 
@@ -52,12 +53,12 @@ The strongest completed work is:
 | Tier 1C | Mostly complete | v2 rules, concept graph, and suppression enforcement now exist | broader policy UX and validation are still incomplete |
 | Tier 1D | Mostly complete | authority/access findings work | no full scorecard track and limited generic bypass detection |
 | Tier 1E | Mostly complete | obligation engine is one of the strongest pieces | no full contract-driven obligations or scorecard surface |
-| Tier 1F | Mostly complete | `session_end` and `gate` now work in MCP and CLI on the same touched-concept model, including suppression-aware decisions | release-grade gate validation is still incomplete |
+| Tier 1F | Mostly complete | `session_end` and `gate` now work in MCP and CLI on the same touched-concept model, including suppression-aware decisions and shared patch-safety analysis reuse | release-grade gate validation is still incomplete |
 | Tier 2A | Mostly complete | parity analyzer, MCP tool, and real `parallel-code` bootstrap proof now exist | broader contract families still need more than one benchmark repo |
 | Tier 2B | Mostly complete | concentration analysis exists and is tested | not yet benchmarked or validated on the real case-study repo |
 | Tier 2C | Mostly complete | inspection tools and adoption helpers exist | real-repo validation has started, but the proof loop is not closed |
 | Tier 3 | Partial | conservative state-integrity slice is in place and now validated on real `parallel-code` controllers | transition modeling and implicit lifecycle heuristics are not built |
-| Validation | Partial | unit tests, synthetic gate/session regression scenarios, initial scoped goldens, and an initial `parallel-code` benchmark artifact exist | no regression benchmark suite, release-grade real-repo gate/session goldens, or full migration suite |
+| Validation | Partial | unit tests, synthetic gate/session regression scenarios, scoped real-repo goldens, and a versioned `parallel-code` benchmark comparison loop now exist | no second benchmark repo, release-grade confidence regression suite, or full migration suite |
 
 ## Tier-By-Tier Status
 
@@ -192,11 +193,15 @@ Delivered:
 - CLI `gate --save` now writes the v2 session baseline used by touched-concept comparisons
 - gate and session outputs now respect active suppressions and surface expired suppression matches
 - legacy structural gate remains as the fallback when no v2 rules are configured
+- `gate` and `session_end` now reuse one shared patch-safety analysis pass per working tree state
+- changed-tree cache reuse now keeps the v2 patch-safety cache alive across the normal `gate -> session_end` flow
+- clone-only findings now survive semantic bridge failures instead of disappearing from the patch-safety surface
 
 Still missing:
 
 - release-grade touched-concept gate goldens
 - broader CI ergonomics beyond the current CLI parity step
+- further reduction in scan-bound work inside the warm patch-safety path
 
 ## Tier 2A: Contract Parity
 
@@ -285,14 +290,15 @@ Delivered:
 - initial cold/warm benchmark artifact for `parallel-code`
 - versioned benchmark comparison flow with separate warm patch-safety timings
 - no-change patch-safety reuse for cached scan state plus an empty-change semantic short-circuit
+- shared patch-safety analysis reuse across `gate` and `session_end`
 - false-positive review workflow and promotion checklist
 
 Still missing:
 
 - confidence-report regression tests
 - full v1/v2 migration suite, including schema/version mismatch cases
-- performance regression benchmarks beyond the initial benchmark artifact
-- remaining patch-safety performance work beyond the new no-change fast path, especially file-hash walk cost and cold-path variance
+- second-repo benchmark and validation coverage
+- remaining patch-safety performance work beyond the shared-analysis reuse work, especially file-hash walk cost and cold-path variance
 
 ## Where We Are Relative To The Plan
 
@@ -318,10 +324,10 @@ It is not enough to say:
 
 ## Recommended Next Execution Order
 
-1. expand touched-concept gate and `session_end` proof from synthetic tests into checked-in real-repo goldens
-2. turn the one-off benchmark into a regression benchmark suite
-3. add false-positive review workflow and sample set
-4. expand clone drift with divergence-aware prioritization
+1. turn the existing `parallel-code` proof loop into a second-repo validation pass
+2. add confidence-report and migration regression coverage
+3. expand clone drift with divergence-aware prioritization
+4. reduce remaining scan-bound patch-safety cost
 5. validate parity and concentration against a second real repo
 
 ## Beta Readiness
