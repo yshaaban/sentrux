@@ -4,6 +4,8 @@ This document defines the repeatable proof loop for the v2 wedge on `parallel-co
 
 The goal is not only to generate artifacts. The goal is to make regressions easy to detect, review, and refresh without guessing.
 
+The proof-and-improvement workflow is tracked separately in [Parallel-Code Proof Board](./parallel-code-proof-board.md).
+
 ## What The Loop Covers
 
 The loop validates three separate things:
@@ -11,6 +13,7 @@ The loop validates three separate things:
 1. scoped real-repo goldens
 2. benchmark regression behavior
 3. the baseline and migration story around v1 and v2 coexistence
+4. proof-and-improvement runs on disposable clones
 
 ## Commands
 
@@ -29,6 +32,8 @@ This command:
 - generates the checked-in `parallel-code-golden` JSON outputs
 - writes deterministic fail-path outputs from a temporary mutation
 
+The live `parallel-code` worktree may be dirty, so every proof refresh must go through a disposable clone.
+
 ### Validate Goldens And Benchmark
 
 Use this for the normal proof loop.
@@ -43,6 +48,8 @@ This command:
 - compares them against the checked-in goldens
 - runs the benchmark harness against the checked-in benchmark artifact
 - fails if the benchmark comparison reports a regression
+
+The proof board explains how the outputs from this command should be turned into real refactor targets and before/after proof records.
 
 ### Benchmark Only
 
@@ -107,6 +114,19 @@ If the benchmark fails:
 1. confirm whether the change is a real regression or a noisy run
 2. rerun with the same artifact before changing the baseline
 3. only update the baseline after the change is understood
+
+## Proof-And-Improvement Loop
+
+Use this when the goal is to improve `parallel-code`, not just validate analyzer stability.
+
+1. freeze the current baseline outputs
+2. review the top findings, concept summaries, and optimization priorities
+3. select one ownership/boundary target, one propagation/obligation target, and one duplication/hotspot target
+4. make one refactor at a time in a disposable clone
+5. rerun the proof loop after each refactor
+6. record the before/after delta in the proof board and the case study
+
+The proof board in [Parallel-Code Proof Board](./parallel-code-proof-board.md) is the tracking surface for that loop.
 
 ## Relationship To Migration
 

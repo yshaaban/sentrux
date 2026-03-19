@@ -18,6 +18,8 @@ It is not the product spec. It is the validation target.
 
 That makes it a good target for static conformance metrics.
 
+The proof-and-improvement workflow for this repo is tracked in [Parallel-Code Proof Board](./parallel-code-proof-board.md).
+
 ## Repo Signals That Matter For V2
 
 The repo's own architecture plan emphasizes:
@@ -40,6 +42,8 @@ That means the first successful v2 story on this repo should be:
 3. obligation completeness for changed concepts
 
 Parity and concentration matter, but they should be treated as secondary context until the wedge is working.
+
+After the wedge is working, the same proof lab should be used to turn the findings into concrete refactors and record the before/after delta.
 
 ## Verified Current-Repo Signals
 
@@ -227,6 +231,25 @@ Once the first v2 analyzers land, this repo should plausibly produce findings su
 - [ ] defer `task_command_controller` and `task_convergence` until Tier 2
 - [ ] verify concentration analysis on lease and restore controllers
 - [ ] verify session delta output on a synthetic closed-domain change
+
+## Proof-And-Improvement Plan
+
+The current case-study work should be used to prove that v2 can improve `parallel-code`, not only validate it.
+
+The three proof targets are:
+
+1. `task_git_status` ownership and boundary purity
+2. `task_presentation_status` propagation and obligations
+3. `task_command_controller` plus the diff-parsing/shared-escaping clone family
+
+For each target:
+
+1. capture the current findings and optimization priorities
+2. make one refactor in a disposable clone
+3. rerun the proof loop
+4. record the before/after delta
+
+The proof board in [Parallel-Code Proof Board](./parallel-code-proof-board.md) is the running checklist for that work.
 
 ## Success Condition
 
