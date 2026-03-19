@@ -641,13 +641,14 @@ fn application_root_files(
     file_facts: &BTreeMap<String, FileFacts>,
     graph: &StructuralGraph,
 ) -> BTreeSet<String> {
-    let mut roots = snapshot
+    let explicit_roots = snapshot
         .entry_points
         .iter()
         .map(|entry| entry.file.clone())
         .filter(|path| file_facts.get(path).is_some_and(|facts| !facts.is_test))
         .collect::<BTreeSet<_>>();
 
+    let mut roots = explicit_roots;
     roots.extend(
         file_facts
             .iter()
@@ -655,15 +656,28 @@ fn application_root_files(
             .filter(|(_, facts)| !facts.is_test)
             .map(|(path, _)| path.clone()),
     );
-    roots.extend(
-        file_facts
-            .iter()
-            .filter(|(_, facts)| !facts.is_test)
-            .filter(|(path, facts)| is_zero_inbound_root_candidate(path, facts, file_facts, graph))
-            .map(|(path, _)| path.clone()),
-    );
 
-    roots
+    if !roots.is_empty() {
+        return roots;
+    }
+
+    file_facts
+        .iter()
+        .filter(|(_, facts)| !facts.is_test)
+        .filter(|(path, facts)| is_zero_inbound_root_candidate(path, facts, file_facts, graph))
+        .map(|(path, _)| path.clone())
+        .collect()
+}
+
+#[cfg(test)]
+fn has_dead_island_report(reports: &[StructuralDebtReport], expected_files: &[&str]) -> bool {
+    let expected_files = expected_files
+        .iter()
+        .map(|path| path.to_string())
+        .collect::<Vec<_>>();
+    reports
+        .iter()
+        .any(|report| report.kind == "dead_island" && report.files == expected_files)
 }
 
 fn is_zero_inbound_root_candidate(
@@ -1134,11 +1148,104 @@ mod tests {
         };
 
         let reports = build_structural_debt_reports(&snapshot, &health);
-        assert!(reports.iter().any(|report| {
-            report.kind == "dead_island"
-                && report.files
-                    == vec!["src/orphan-a.ts".to_string(), "src/orphan-b.ts".to_string()]
-        }));
+        assert!(has_dead_island_report(
+            &reports,
+            &["src/orphan-a.ts", "src/orphan-b.ts"]
+        ));
+    }
+
+    #[test]
+    fn reports_dead_island_for_disconnected_non_cycle_component_when_entry_points_exist() {
+        let snapshot = Snapshot {
+            root: Arc::new(FileNode {
+                path: ".".to_string(),
+                name: ".".to_string(),
+                is_dir: true,
+                lines: 0,
+                logic: 0,
+                comments: 0,
+                blanks: 0,
+                funcs: 0,
+                mtime: 0.0,
+                gs: String::new(),
+                lang: String::new(),
+                sa: None,
+                children: Some(vec![
+                    test_file("src/app.ts", 120, 2, 10),
+                    test_file("src/live.ts", 80, 2, 8),
+                    test_file("src/orphan-root.ts", 90, 2, 6),
+                    test_file("src/orphan-leaf.ts", 95, 2, 7),
+                ]),
+            }),
+            total_files: 4,
+            total_lines: 385,
+            total_dirs: 1,
+            import_graph: vec![
+                ImportEdge {
+                    from_file: "src/app.ts".into(),
+                    to_file: "src/live.ts".into(),
+                },
+                ImportEdge {
+                    from_file: "src/orphan-root.ts".into(),
+                    to_file: "src/orphan-leaf.ts".into(),
+                },
+            ],
+            call_graph: Vec::new(),
+            inherit_graph: Vec::new(),
+            entry_points: vec![EntryPoint {
+                file: "src/app.ts".into(),
+                func: "main".into(),
+                lang: "typescript".into(),
+                confidence: "high".into(),
+            }],
+            exec_depth: HashMap::new(),
+        };
+        let health = empty_health_report();
+
+        let reports = build_structural_debt_reports(&snapshot, &health);
+        assert!(has_dead_island_report(
+            &reports,
+            &["src/orphan-leaf.ts", "src/orphan-root.ts"]
+        ));
+    }
+
+    #[test]
+    fn does_not_report_dead_island_for_zero_inbound_root_when_no_entry_points_exist() {
+        let snapshot = Snapshot {
+            root: Arc::new(FileNode {
+                path: ".".to_string(),
+                name: ".".to_string(),
+                is_dir: true,
+                lines: 0,
+                logic: 0,
+                comments: 0,
+                blanks: 0,
+                funcs: 0,
+                mtime: 0.0,
+                gs: String::new(),
+                lang: String::new(),
+                sa: None,
+                children: Some(vec![
+                    test_file("src/root.ts", 120, 2, 10),
+                    test_file("src/helper.ts", 80, 2, 8),
+                ]),
+            }),
+            total_files: 2,
+            total_lines: 200,
+            total_dirs: 1,
+            import_graph: vec![ImportEdge {
+                from_file: "src/root.ts".into(),
+                to_file: "src/helper.ts".into(),
+            }],
+            call_graph: Vec::new(),
+            inherit_graph: Vec::new(),
+            entry_points: Vec::new(),
+            exec_depth: HashMap::new(),
+        };
+        let health = empty_health_report();
+
+        let reports = build_structural_debt_reports(&snapshot, &health);
+        assert!(!reports.iter().any(|report| report.kind == "dead_island"));
     }
 
     fn test_file(path: &str, lines: u32, funcs: u32, max_complexity: u32) -> FileNode {
@@ -1176,6 +1283,59 @@ mod tests {
                 comment_lines: None,
             }),
             children: None,
+        }
+    }
+
+    fn empty_health_report() -> HealthReport {
+        HealthReport {
+            coupling_score: 0.0,
+            circular_dep_count: 0,
+            circular_dep_files: Vec::new(),
+            total_import_edges: 0,
+            cross_module_edges: 0,
+            entropy: 0.0,
+            entropy_bits: 0.0,
+            avg_cohesion: None,
+            max_depth: 0,
+            god_files: Vec::new(),
+            hotspot_files: Vec::new(),
+            most_unstable: Vec::new(),
+            complex_functions: Vec::new(),
+            long_functions: Vec::new(),
+            cog_complex_functions: Vec::new(),
+            high_param_functions: Vec::new(),
+            duplicate_groups: Vec::new(),
+            dead_functions: Vec::new(),
+            long_files: Vec::new(),
+            all_function_ccs: Vec::new(),
+            all_function_lines: Vec::new(),
+            all_file_lines: Vec::new(),
+            god_file_ratio: 0.0,
+            hotspot_ratio: 0.0,
+            complex_fn_ratio: 0.0,
+            long_fn_ratio: 0.0,
+            comment_ratio: None,
+            large_file_count: 0,
+            large_file_ratio: 0.0,
+            duplication_ratio: 0.0,
+            dead_code_ratio: 0.0,
+            high_param_ratio: 0.0,
+            cog_complex_ratio: 0.0,
+            quality_signal: 0.0,
+            root_cause_raw: RootCauseRaw {
+                modularity_q: 0.0,
+                cycle_count: 0,
+                max_depth: 0,
+                complexity_gini: 0.0,
+                redundancy_ratio: 0.0,
+            },
+            root_cause_scores: RootCauseScores {
+                modularity: 0.0,
+                acyclicity: 0.0,
+                depth: 0.0,
+                equality: 0.0,
+                redundancy: 0.0,
+            },
         }
     }
 }
