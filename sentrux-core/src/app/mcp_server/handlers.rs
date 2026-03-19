@@ -7,7 +7,7 @@
 //! Free users see top-3 + total counts. Pro users see everything.
 
 use super::registry::ToolDef;
-use super::{McpState, SessionV2Baseline};
+use super::{McpState, ScanCacheIdentity, SessionV2Baseline};
 use crate::analysis::scanner;
 use crate::analysis::scanner::common::ScanMetadata;
 use crate::analysis::semantic::SemanticSnapshot;
@@ -259,9 +259,7 @@ fn fresh_mcp_state() -> McpState {
         baseline: None,
         session_v2: None,
         cached_evolution: None,
-        cached_git_head: None,
-        cached_working_tree_paths: BTreeSet::new(),
-        cached_working_tree_hashes: BTreeMap::new(),
+        cached_scan_identity: None,
         semantic_bridge: None,
     }
 }
@@ -404,16 +402,7 @@ fn update_scan_cache(
     state.cached_health = Some(bundle.health);
     state.cached_arch = Some(bundle.arch_report);
     state.cached_evolution = None;
-    state.cached_git_head = identity
-        .as_ref()
-        .and_then(|identity| identity.git_head.clone());
-    state.cached_working_tree_paths = identity
-        .as_ref()
-        .map(|identity| identity.working_tree_paths.clone())
-        .unwrap_or_default();
-    state.cached_working_tree_hashes = identity
-        .map(|identity| identity.working_tree_hashes)
-        .unwrap_or_default();
+    state.cached_scan_identity = identity;
 }
 
 fn cached_scan_bundle(state: &McpState, root: &Path) -> Option<ScanBundle> {
@@ -434,13 +423,6 @@ struct PatchCheckContext {
     changed_files: BTreeSet<String>,
     reused_cached_scan: bool,
     scan_identity: Option<ScanCacheIdentity>,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-struct ScanCacheIdentity {
-    git_head: Option<String>,
-    working_tree_paths: BTreeSet<String>,
-    working_tree_hashes: BTreeMap<String, u64>,
 }
 
 fn prepare_patch_check_context(
@@ -480,12 +462,7 @@ fn prepare_patch_check_context(
 }
 
 fn scan_cache_matches_identity(state: &McpState, identity: Option<&ScanCacheIdentity>) -> bool {
-    let Some(identity) = identity else {
-        return false;
-    };
-    state.cached_git_head == identity.git_head
-        && state.cached_working_tree_paths == identity.working_tree_paths
-        && state.cached_working_tree_hashes == identity.working_tree_hashes
+    state.cached_scan_identity.as_ref() == identity
 }
 
 fn current_scan_identity(root: &Path) -> Option<ScanCacheIdentity> {
@@ -2564,9 +2541,7 @@ mod tests {
             baseline: None,
             session_v2: None,
             cached_evolution: None,
-            cached_git_head: None,
-            cached_working_tree_paths: BTreeSet::new(),
-            cached_working_tree_hashes: BTreeMap::new(),
+            cached_scan_identity: None,
             semantic_bridge: None,
         }
     }

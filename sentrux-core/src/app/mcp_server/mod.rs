@@ -36,7 +36,14 @@ pub struct SessionV2Baseline {
     pub finding_payloads: BTreeMap<String, Value>,
     pub git_head: Option<String>,
     #[serde(default)]
-    pub working_tree_paths: std::collections::BTreeSet<String>,
+    pub working_tree_paths: BTreeSet<String>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ScanCacheIdentity {
+    pub git_head: Option<String>,
+    pub working_tree_paths: BTreeSet<String>,
+    pub working_tree_hashes: BTreeMap<String, u64>,
 }
 
 /// Mutable state shared across MCP requests.
@@ -53,9 +60,7 @@ pub struct McpState {
     pub baseline: Option<arch::ArchBaseline>,
     pub session_v2: Option<SessionV2Baseline>,
     pub cached_evolution: Option<evolution::EvolutionReport>,
-    pub cached_git_head: Option<String>,
-    pub cached_working_tree_paths: BTreeSet<String>,
-    pub cached_working_tree_hashes: BTreeMap<String, u64>,
+    pub cached_scan_identity: Option<ScanCacheIdentity>,
     pub semantic_bridge: Option<TypeScriptBridgeSupervisor>,
 }
 
@@ -86,9 +91,7 @@ pub fn run_mcp_server(register_extra: Option<&dyn Fn(&mut registry::ToolRegistry
         baseline: None,
         session_v2: None,
         cached_evolution: None,
-        cached_git_head: None,
-        cached_working_tree_paths: BTreeSet::new(),
-        cached_working_tree_hashes: BTreeMap::new(),
+        cached_scan_identity: None,
         semantic_bridge: None,
     };
 
