@@ -385,7 +385,7 @@ Status: partial
 
 Open gap:
 
-- implementation is still ahead of proof and release-grade validation, but the `parallel-code` pass/fail golden loop, versioned benchmark comparison, and shared patch-safety reuse work are now in place
+- implementation is still ahead of proof and release-grade validation, but the `parallel-code` pass/fail golden loop, versioned benchmark comparison, shared patch-safety reuse work, and session-baseline compatibility checks are now in place
 
 ## Target Outcome On `parallel-code`
 

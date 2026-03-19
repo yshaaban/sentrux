@@ -71,6 +71,13 @@ The v2 baseline should include at least:
 
 It should not try to persist raw TypeScript compiler state.
 
+Current implementation:
+
+- stores the v2 baseline at `.sentrux/session-v2.json`
+- includes schema version, Sentrux version, project fingerprint, file hashes, finding payloads, git state, and confidence snapshot
+- rejects incompatible schema versions
+- rejects cross-project reuse when the stored project fingerprint does not match the current project
+
 ## Upgrade Behavior
 
 ## Case 1: V1 Baseline Exists, No V2 Baseline Exists
@@ -154,19 +161,25 @@ If the project fingerprint differs:
 
 - ignore the baseline
 - surface mismatch in confidence or delta diagnostics
+- keep legacy v1 baseline handling unchanged
 
 ## Partial Baseline
 
-If fields are missing:
+If optional newer fields are missing:
+
+- accept the baseline when the older schema is still supported
+- degrade the confidence context rather than fabricating missing metadata
+
+If required fields are missing or malformed:
 
 - treat the baseline as invalid for delta computation
-- do not silently compute partial patch safety results from incomplete baseline data
+- do not silently compute patch-safety results from incomplete data
 
 ## Implementation Tasks
 
-- [ ] define a richer v2 baseline schema and versioning
+- [-] define and expand a richer v2 baseline schema and versioning
 - [x] keep v2 baseline at a dedicated path separate from v1
 - [x] keep v1 baseline reader unchanged
-- [-] teach v2 to ignore incompatible or missing baselines cleanly
+- [x] teach v2 to ignore incompatible or missing baselines cleanly
 - [-] add mixed-version and coexistence tests
 - [x] document baseline update workflow for CI and MCP sessions

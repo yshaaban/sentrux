@@ -108,9 +108,11 @@ Current status:
 - initial benchmark notes exist in [examples/parallel-code-benchmark.md](./examples/parallel-code-benchmark.md)
 - synthetic touched-concept gate and `session_end` regression scenarios now exist in the MCP handler test suite
 - initial migration/coexistence coverage now verifies that v2 gate and `session_end` still work when only the v2 session baseline is usable
+- confidence regression coverage now checks incompatible schema and project-mismatch session baselines
+- session baseline migration coverage now verifies that cross-project v2 baselines are rejected instead of being treated as compatible
 - the benchmark harness now supports versioned artifact comparison and separate warm patch-safety timings
 - the validation loop now has a dedicated one-command runner for checked-in goldens and benchmark regression checks
-- full release-grade validation still needs broader regression coverage beyond the current single real-repo fail path, plus confidence-report regression checks
+- full release-grade validation still needs broader regression coverage beyond the current single real-repo fail path and a wider benchmark-repo set
 
 ## Layer 5: False-Positive Review
 
@@ -149,6 +151,7 @@ Current learning:
 
 - `gate` already operates correctly from the v2 session baseline alone
 - `session_end` needed an explicit fallback path so missing or unreadable v1 structural baselines do not break the primary v2 patch-safety output
+- v2 session baselines now carry project identity, so confidence can reject copied or cross-project baselines explicitly instead of treating them as compatible
 
 ## Validation Metrics
 
@@ -231,6 +234,6 @@ it should have:
 - [x] add analyzer false-positive review checklist
 - [-] capture initial `parallel-code` benchmark artifact
 - [-] add performance regression benchmarks
-- [-] add baseline migration tests
+- [-] expand baseline migration tests beyond the current schema and project-mismatch cases
 - [x] add a one-command validation loop for real-repo goldens and benchmark regression checks
 - [ ] define promotion criteria for gating analyzers

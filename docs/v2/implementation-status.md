@@ -43,6 +43,7 @@ The strongest completed work is:
 - concept-scoped quality summaries and ranked improvement opportunities in `findings` and `session_end`
 - parity and concentration context
 - conservative state-integrity analysis
+- session baseline project-fingerprint validation and confidence regression coverage
 
 ## Overall Status By Tier
 
@@ -59,7 +60,7 @@ The strongest completed work is:
 | Tier 2B | Mostly complete | concentration analysis exists and is tested | not yet benchmarked or validated on the real case-study repo |
 | Tier 2C | Mostly complete | inspection tools, adoption helpers, and quality-guidance summaries now exist | real-repo validation has started, but the proof loop is not closed |
 | Tier 3 | Partial | conservative state-integrity slice is in place and now validated on real `parallel-code` controllers | transition modeling and implicit lifecycle heuristics are not built |
-| Validation | Partial | unit tests, synthetic gate/session regression scenarios, scoped real-repo goldens, and a versioned `parallel-code` benchmark comparison loop now exist | no second benchmark repo, release-grade confidence regression suite, or full migration suite |
+| Validation | Partial | unit tests, synthetic gate/session regression scenarios, scoped real-repo goldens, versioned `parallel-code` benchmark comparison, and confidence/migration checks now exist | no second benchmark repo or full migration suite |
 
 ## Tier-By-Tier Status
 
