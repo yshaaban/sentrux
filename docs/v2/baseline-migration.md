@@ -75,6 +75,7 @@ Current implementation:
 
 - stores the v2 baseline at `.sentrux/session-v2.json`
 - includes schema version, Sentrux version, project fingerprint, file hashes, finding payloads, git state, and confidence snapshot
+- derives the project fingerprint from stable git identity when available, so local clones of the same repo can reuse the same session baseline identity
 - rejects incompatible schema versions
 - rejects cross-project reuse when the stored project fingerprint does not match the current project
 
