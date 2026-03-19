@@ -21,7 +21,15 @@ Benchmark: `<sentrux-root>/docs/v2/examples/parallel-code-benchmark.json`
 - `ConnectionBannerState` score 3100: Concept 'ConnectionBannerState' has repeated high-severity ownership or access issues
 - `task_presentation_status` score 1680: Concept 'task_presentation_status' has 1 missing update sites to complete
 
-## Optimization Priorities
+## Debt Signals
+
+- `clone_family` `clone-family-0x7e50d49dc16ef925` score 86: 4 exact clone groups repeat across 2 files and churn differs by 0 recent commit(s) across siblings; sibling file age spans 1 day(s)
+- `clone_family` `clone-family-0x9ebb8dad5cafb9c0` score 78: 4 exact clone groups repeat across 2 files and churn differs by 3 recent commit(s) across siblings; sibling file age spans 0 day(s)
+- `hotspot` `server/browser-control-plane.ts` score 5350: File 'server/browser-control-plane.ts' is a coordination hotspot worth refactoring before adding more behavior
+- `hotspot` `electron/ipc/hydra-adapter.ts` score 4827: File 'electron/ipc/hydra-adapter.ts' is a coordination hotspot worth refactoring before adding more behavior
+- `concept` `ConnectionBannerState` score 4305: Concept 'ConnectionBannerState' has repeated high-severity ownership or access issues
+
+## Watchpoints
 
 - `ConnectionBannerState` score 4700: Deduplicate concept 'ConnectionBannerState' after aligning the repeated clone surfaces around it
 

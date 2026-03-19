@@ -13,13 +13,13 @@
       ],
       "finding_count": 1,
       "high_severity_count": 0,
+      "inspection_focus": [
+        "inspect the explicit propagation sites and completeness tests for this concept"
+      ],
       "missing_site_count": 1,
       "obligation_count": 1,
       "score_0_10000": 1680,
-      "suggested_actions": [
-        "complete the propagation chain before extending the concept further"
-      ],
-      "summary": "Concept 'task_presentation_status' has 1 missing update sites to complete"
+      "summary": "Concept 'task_presentation_status' spans 1 obligation reports with 1 missing update sites"
     },
     "obligations": [
       {

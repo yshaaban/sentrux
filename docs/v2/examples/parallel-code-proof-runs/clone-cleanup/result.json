@@ -99,7 +99,7 @@
         "severity": "high",
         "summary": "4 exact clone groups repeat across 2 files and churn differs by 0 recent commit(s) across siblings; sibling file age spans 1 day(s)"
       },
-      "quality_opportunity": {
+      "debt_signal": {
         "evidence": [
           "4 exact clone groups repeat across 2 files",
           "highest-risk representative exact clone scores 70",
@@ -109,14 +109,26 @@
           "src/components/AgentGlyph.tsx",
           "src/remote/RemoteAgentGlyph.tsx"
         ],
+        "inspection_focus": [
+          "inspect whether recent sibling edits should stay synchronized or intentionally diverge",
+          "inspect whether the repeated logic is substantial enough to share behind one helper",
+          "inspect whether the clone family is carrying avoidable duplicate maintenance"
+        ],
         "kind": "clone_family",
+        "metrics": {
+          "divergence_score": 4,
+          "family_score_0_10000": 86,
+          "file_count": 2,
+          "member_count": 4,
+          "recently_touched_file_count": 2
+        },
         "scope": "clone-family-0x7e50d49dc16ef925",
         "score_0_10000": 86,
         "severity": "high",
-        "suggested_actions": [
-          "Review recent edits across clone siblings: commit churn spans a gap of 0 recent commit(s); file age spans a gap of 1 day(s). Synchronize the shared behavior or intentionally split the implementations.",
-          "Extract the repeated logic into a shared helper or module used by the 4 clone groups across these files.",
-          "Collapse the 4 repeated clone groups behind one named abstraction instead of maintaining copies in 2 files."
+        "signal_class": "watchpoint",
+        "signal_families": [
+          "duplication",
+          "drift"
         ],
         "summary": "4 exact clone groups repeat across 2 files and churn differs by 0 recent commit(s) across siblings; sibling file age spans 1 day(s)"
       }
@@ -125,7 +137,7 @@
   "after": {
     "clone": {
       "family": null,
-      "quality_opportunity": null
+      "debt_signal": null
     }
   }
 }

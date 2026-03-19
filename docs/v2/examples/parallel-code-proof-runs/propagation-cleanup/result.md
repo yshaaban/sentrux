@@ -7,7 +7,7 @@ This scenario adds an explicit exhaustive `Record<TaskDotStatus, number>` mappin
 
 ## Before Summary
 
-Concept 'task_presentation_status' has 1 missing update sites to complete
+Concept 'task_presentation_status' spans 1 obligation reports with 1 missing update sites
 
 ## After Summary
 

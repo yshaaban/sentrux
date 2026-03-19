@@ -46,33 +46,36 @@ function compactConceptSummary(summary) {
   };
 }
 
-function compactOpportunity(opportunity) {
+function compactDebtSignal(signal) {
   return {
-    kind: opportunity.kind ?? null,
-    scope: opportunity.scope ?? null,
-    severity: opportunity.severity ?? null,
-    score_0_10000: opportunity.score_0_10000 ?? null,
-    summary: opportunity.summary ?? null,
+    kind: signal.kind ?? null,
+    scope: signal.scope ?? null,
+    signal_class: signal.signal_class ?? null,
+    signal_families: signal.signal_families ?? [],
+    severity: signal.severity ?? null,
+    score_0_10000: signal.score_0_10000 ?? null,
+    summary: signal.summary ?? null,
   };
 }
 
-function compactPriority(priority) {
+function compactWatchpoint(watchpoint) {
   return {
-    concept_id: priority.concept_id ?? null,
-    severity: priority.severity ?? null,
-    score_0_10000: priority.score_0_10000 ?? null,
-    summary: priority.summary ?? null,
-    clone_family_count: priority.clone_family_count ?? 0,
-    hotspot_count: priority.hotspot_count ?? 0,
-    missing_site_count: priority.missing_site_count ?? 0,
-    boundary_pressure_count: priority.boundary_pressure_count ?? 0,
+    scope: watchpoint.scope ?? watchpoint.concept_id ?? null,
+    signal_families: watchpoint.signal_families ?? [],
+    severity: watchpoint.severity ?? null,
+    score_0_10000: watchpoint.score_0_10000 ?? null,
+    summary: watchpoint.summary ?? null,
+    clone_family_count: watchpoint.clone_family_count ?? 0,
+    hotspot_count: watchpoint.hotspot_count ?? 0,
+    missing_site_count: watchpoint.missing_site_count ?? 0,
+    boundary_pressure_count: watchpoint.boundary_pressure_count ?? 0,
   };
 }
 
 function selectOwnershipTarget(snapshot) {
   return (
     snapshot.concept_summaries.find((summary) => summary.concept_id === 'task_git_status') ??
-    snapshot.optimization_priorities.find((priority) => priority.concept_id === 'task_git_status') ??
+    snapshot.watchpoints.find((watchpoint) => watchpoint.scope === 'task_git_status') ??
     null
   );
 }
@@ -94,16 +97,16 @@ function selectPropagationTarget(snapshot, obligationsPayload) {
 }
 
 function selectDuplicationTarget(snapshot) {
-  const cloneOpportunity = snapshot.quality_opportunities.find(
-    (opportunity) => opportunity.kind === 'clone_family',
+  const cloneSignal = snapshot.debt_signals.find(
+    (signal) => signal.kind === 'clone_family',
   );
-  const hotspotOpportunity = snapshot.quality_opportunities.find(
-    (opportunity) => opportunity.kind === 'hotspot',
+  const hotspotSignal = snapshot.debt_signals.find(
+    (signal) => signal.kind === 'hotspot',
   );
 
   return {
-    clone_family: cloneOpportunity ?? null,
-    hotspot: hotspotOpportunity ?? null,
+    clone_family: cloneSignal ?? null,
+    hotspot: hotspotSignal ?? null,
   };
 }
 
@@ -130,11 +133,19 @@ function buildMarkdown(snapshot) {
     );
   }
   lines.push('');
-  lines.push('## Optimization Priorities');
+  lines.push('## Debt Signals');
   lines.push('');
-  for (const priority of snapshot.optimization_priorities) {
+  for (const signal of snapshot.debt_signals) {
     lines.push(
-      `- \`${priority.concept_id}\` score ${priority.score_0_10000}: ${priority.summary}`,
+      `- \`${signal.kind}\` \`${signal.scope}\` score ${signal.score_0_10000}: ${signal.summary}`,
+    );
+  }
+  lines.push('');
+  lines.push('## Watchpoints');
+  lines.push('');
+  for (const watchpoint of snapshot.watchpoints) {
+    lines.push(
+      `- \`${watchpoint.scope}\` score ${watchpoint.score_0_10000}: ${watchpoint.summary}`,
     );
   }
   lines.push('');
@@ -192,12 +203,12 @@ async function main() {
     },
     top_findings: (findings.findings ?? []).slice(0, 10).map(compactFinding),
     concept_summaries: (findings.concept_summaries ?? []).slice(0, 5).map(compactConceptSummary),
-    quality_opportunities: (findings.quality_opportunities ?? [])
+    debt_signals: (findings.debt_signals ?? findings.quality_opportunities ?? [])
       .slice(0, 5)
-      .map(compactOpportunity),
-    optimization_priorities: (findings.optimization_priorities ?? [])
+      .map(compactDebtSignal),
+    watchpoints: (findings.watchpoints ?? findings.optimization_priorities ?? [])
       .slice(0, 5)
-      .map(compactPriority),
+      .map(compactWatchpoint),
     proof_targets: null,
     benchmark: {
       cold_process_total_ms: benchmark.benchmark?.cold_process_total_ms ?? null,

@@ -186,8 +186,8 @@ function summarizeCloneFamily(findingsPayload, expectedFiles) {
 
   return {
     family,
-    quality_opportunity:
-      (findingsPayload.quality_opportunities ?? []).find((entry) => {
+    debt_signal:
+      (findingsPayload.debt_signals ?? findingsPayload.quality_opportunities ?? []).find((entry) => {
         return matchesExpectedFiles(entry.files ?? []);
       }) ?? null,
   };

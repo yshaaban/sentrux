@@ -2067,7 +2067,7 @@ fn handle_health(_args: &Value, tier: &Tier, state: &mut McpState) -> Result<Val
 pub fn findings_def() -> ToolDef {
     ToolDef {
         name: "findings",
-        description: "Return primary v2 actionable findings for the current scan, with clone drift, concept summaries, quality opportunities, and confidence metadata.",
+        description: "Return primary v2 patch-safety and technical-debt findings for the current scan, with clone drift, concept debt summaries, debt signals, watchpoints, and confidence metadata.",
         input_schema: json!({
             "type": "object",
             "properties": {
@@ -2153,7 +2153,7 @@ fn handle_findings(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<V
         "clone_ids",
         limit.min(10),
     );
-    let quality_outputs = build_quality_opportunity_outputs(
+    let debt_outputs = build_debt_report_outputs(
         state,
         &root,
         &snapshot,
@@ -2163,6 +2163,15 @@ fn handle_findings(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<V
         &BTreeSet::new(),
         limit.min(5),
     );
+    let concept_summary_count = debt_outputs.concept_summaries.len();
+    let debt_signal_count = debt_outputs.debt_signals.len();
+    let watchpoint_count = debt_outputs.watchpoints.len();
+    let concept_summaries = debt_outputs.concept_summaries;
+    let debt_signals = debt_outputs.debt_signals;
+    let watchpoints = debt_outputs.watchpoints;
+    let legacy_quality_opportunities = legacy_quality_opportunity_values(&debt_signals);
+    let legacy_optimization_priorities = legacy_optimization_priority_values(&watchpoints);
+    let debt_context_error = debt_outputs.context_error;
 
     Ok(json!({
         "kind": "mixed_findings",
@@ -2173,16 +2182,21 @@ fn handle_findings(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<V
         "visible_clone_family_count": clone_families.len(),
         "clone_families": clone_families,
         "clone_remediations": clone_remediations,
-        "concept_summary_count": quality_outputs.concept_summaries.len(),
-        "concept_summaries": quality_outputs.concept_summaries,
-        "quality_opportunity_count": quality_outputs.quality_opportunities.len(),
-        "quality_opportunities": quality_outputs.quality_opportunities,
-        "optimization_priority_count": quality_outputs.optimization_priorities.len(),
-        "optimization_priorities": quality_outputs.optimization_priorities,
+        "concept_summary_count": concept_summary_count,
+        "concept_summaries": concept_summaries,
+        "debt_signal_count": debt_signal_count,
+        "debt_signals": debt_signals,
+        "watchpoint_count": watchpoint_count,
+        "watchpoints": watchpoints,
+        "quality_opportunity_count": debt_signal_count,
+        "quality_opportunities": legacy_quality_opportunities,
+        "optimization_priority_count": watchpoint_count,
+        "optimization_priorities": legacy_optimization_priorities,
         "semantic_finding_count": semantic_finding_count,
         "rules_error": merge_optional_errors(config_error, suppression_error),
         "semantic_error": merge_optional_errors(semantic_error, clone_error),
-        "opportunity_context_error": quality_outputs.context_error,
+        "debt_context_error": debt_context_error,
+        "opportunity_context_error": debt_context_error,
         "suppression_hits": suppression_application.active_matches,
         "suppressed_finding_count": suppression_match_count(&suppression_application.active_matches),
         "expired_suppressions": suppression_application.expired_matches,
@@ -2660,7 +2674,7 @@ fn severity_priority(severity: &str) -> u8 {
 }
 
 #[derive(Debug, Clone, serde::Serialize, Default)]
-struct ConceptOpportunitySummary {
+struct ConceptDebtSummary {
     concept_id: String,
     score_0_10000: u32,
     finding_count: usize,
@@ -2672,30 +2686,34 @@ struct ConceptOpportunitySummary {
     dominant_kinds: Vec<String>,
     files: Vec<String>,
     summary: String,
-    suggested_actions: Vec<String>,
+    inspection_focus: Vec<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, Default)]
-struct QualityImprovementOpportunity {
+struct DebtSignal {
     kind: String,
+    scope: String,
+    signal_class: String,
+    signal_families: Vec<String>,
+    severity: String,
+    score_0_10000: u32,
+    summary: String,
+    files: Vec<String>,
+    evidence: Vec<String>,
+    inspection_focus: Vec<String>,
+    metrics: DebtSignalMetrics,
+}
+
+#[derive(Debug, Clone, serde::Serialize, Default)]
+struct InspectionWatchpoint {
     scope: String,
     severity: String,
     score_0_10000: u32,
     summary: String,
     files: Vec<String>,
     evidence: Vec<String>,
-    suggested_actions: Vec<String>,
-}
-
-#[derive(Debug, Clone, serde::Serialize, Default)]
-struct RefactorPriority {
-    concept_id: String,
-    severity: String,
-    score_0_10000: u32,
-    summary: String,
-    files: Vec<String>,
-    evidence: Vec<String>,
-    suggested_actions: Vec<String>,
+    inspection_focus: Vec<String>,
+    signal_families: Vec<String>,
     clone_family_count: usize,
     hotspot_count: usize,
     missing_site_count: usize,
@@ -2703,7 +2721,7 @@ struct RefactorPriority {
 }
 
 #[derive(Default)]
-struct ConceptOpportunityAggregate {
+struct ConceptDebtAggregate {
     finding_count: usize,
     high_severity_count: usize,
     boundary_pressure_count: usize,
@@ -2715,14 +2733,52 @@ struct ConceptOpportunityAggregate {
 }
 
 #[derive(Default)]
-struct QualityOpportunityOutputs {
-    concept_summaries: Vec<ConceptOpportunitySummary>,
-    quality_opportunities: Vec<QualityImprovementOpportunity>,
-    optimization_priorities: Vec<RefactorPriority>,
+struct DebtReportOutputs {
+    concept_summaries: Vec<ConceptDebtSummary>,
+    debt_signals: Vec<DebtSignal>,
+    watchpoints: Vec<InspectionWatchpoint>,
     context_error: Option<String>,
 }
 
-fn quality_opportunity_candidate_files(
+#[derive(Debug, Clone, serde::Serialize, Default)]
+struct DebtSignalMetrics {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    finding_count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    high_severity_count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    boundary_pressure_count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    obligation_count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    missing_site_count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    context_burden: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    file_count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    member_count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    recently_touched_file_count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    divergence_score: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    family_score_0_10000: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    authority_breadth: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    side_effect_breadth: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    timer_retry_weight: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    async_branch_weight: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    max_complexity: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    churn_commits: Option<u32>,
+}
+
+fn debt_signal_candidate_files(
     findings: &[Value],
     obligations: &[crate::metrics::v2::ObligationReport],
     clone_families: &[Value],
@@ -2742,7 +2798,7 @@ fn quality_opportunity_candidate_files(
     files
 }
 
-fn build_quality_opportunity_outputs(
+fn build_debt_report_outputs(
     state: &mut McpState,
     root: &Path,
     snapshot: &Snapshot,
@@ -2751,39 +2807,39 @@ fn build_quality_opportunity_outputs(
     clone_families: &[Value],
     extra_files: &BTreeSet<String>,
     limit: usize,
-) -> QualityOpportunityOutputs {
+) -> DebtReportOutputs {
     let candidate_files =
-        quality_opportunity_candidate_files(findings, obligations, clone_families, extra_files);
+        debt_signal_candidate_files(findings, obligations, clone_families, extra_files);
     let (concentration_reports, context_error) =
-        quality_opportunity_concentration_reports(state, root, snapshot, &candidate_files);
-    let concept_summaries = build_concept_opportunity_summaries(findings, obligations);
-    let quality_opportunities = build_quality_improvement_opportunities(
+        debt_signal_concentration_reports(state, root, snapshot, &candidate_files);
+    let concept_summaries = build_concept_debt_summaries(findings, obligations);
+    let debt_signals = build_debt_signals(
         &concept_summaries,
         findings,
         clone_families,
         &concentration_reports,
         limit,
     );
-    let optimization_priorities = build_refactor_priorities(
+    let watchpoints = build_inspection_watchpoints(
         &concept_summaries,
         clone_families,
         &concentration_reports,
         limit,
     );
 
-    QualityOpportunityOutputs {
+    DebtReportOutputs {
         concept_summaries: concept_summaries.into_iter().take(limit).collect(),
-        quality_opportunities,
-        optimization_priorities,
+        debt_signals,
+        watchpoints,
         context_error,
     }
 }
 
-fn build_concept_opportunity_summaries(
+fn build_concept_debt_summaries(
     findings: &[Value],
     obligations: &[crate::metrics::v2::ObligationReport],
-) -> Vec<ConceptOpportunitySummary> {
-    let mut aggregates = BTreeMap::<String, ConceptOpportunityAggregate>::new();
+) -> Vec<ConceptDebtSummary> {
+    let mut aggregates = BTreeMap::<String, ConceptDebtAggregate>::new();
 
     for finding in findings {
         let Some(concept_id) = finding_concept_id(finding) else {
@@ -2828,7 +2884,7 @@ fn build_concept_opportunity_summaries(
     let mut summaries = aggregates
         .into_iter()
         .map(|(concept_id, aggregate)| {
-            let ConceptOpportunityAggregate {
+            let ConceptDebtAggregate {
                 finding_count,
                 high_severity_count,
                 boundary_pressure_count,
@@ -2846,20 +2902,21 @@ fn build_concept_opportunity_summaries(
                 .map(|(kind, _)| kind)
                 .take(3)
                 .collect::<Vec<_>>();
-            let score_0_10000 = concept_opportunity_score(
+            let score_0_10000 = concept_debt_score(
                 finding_count,
                 high_severity_count,
                 boundary_pressure_count,
                 missing_site_count,
                 context_burden,
             );
-            let suggested_actions =
-                concept_opportunity_actions(&dominant_kinds, missing_site_count > 0);
+            let inspection_focus =
+                concept_debt_inspection_focus(&dominant_kinds, missing_site_count > 0);
 
-            ConceptOpportunitySummary {
-                summary: concept_opportunity_summary(
+            ConceptDebtSummary {
+                summary: concept_debt_summary(
                     &concept_id,
                     finding_count,
+                    obligation_count,
                     missing_site_count,
                     high_severity_count,
                     boundary_pressure_count,
@@ -2874,7 +2931,7 @@ fn build_concept_opportunity_summaries(
                 context_burden,
                 dominant_kinds,
                 files: files.into_iter().collect(),
-                suggested_actions,
+                inspection_focus,
             }
         })
         .filter(|summary| summary.finding_count > 0 || summary.missing_site_count > 0)
@@ -2890,15 +2947,15 @@ fn build_concept_opportunity_summaries(
     summaries
 }
 
-fn build_quality_improvement_opportunities(
-    concept_summaries: &[ConceptOpportunitySummary],
+fn build_debt_signals(
+    concept_summaries: &[ConceptDebtSummary],
     findings: &[Value],
     clone_families: &[Value],
     concentration_reports: &[crate::metrics::v2::ConcentrationReport],
     limit: usize,
-) -> Vec<QualityImprovementOpportunity> {
+) -> Vec<DebtSignal> {
     let mut covered_hotspot_paths = BTreeSet::new();
-    let mut opportunities = concept_summaries
+    let mut signals = concept_summaries
         .iter()
         .filter(|summary| summary.score_0_10000 >= 2500)
         .map(|summary| {
@@ -2935,62 +2992,65 @@ fn build_quality_improvement_opportunities(
                 evidence.extend(top_hotspot.reasons.iter().cloned().take(2));
             }
 
-            QualityImprovementOpportunity {
+            DebtSignal {
                 kind: "concept".to_string(),
                 scope: summary.concept_id.clone(),
-                severity: opportunity_severity(score_0_10000).to_string(),
+                signal_class: concept_signal_class(summary).to_string(),
+                signal_families: concept_signal_families(summary),
+                severity: signal_severity(score_0_10000).to_string(),
                 score_0_10000,
                 summary: summary.summary.clone(),
                 files: summary.files.clone(),
                 evidence,
-                suggested_actions: summary.suggested_actions.clone(),
+                inspection_focus: summary.inspection_focus.clone(),
+                metrics: concept_signal_metrics(summary),
             }
         })
         .collect::<Vec<_>>();
 
     if !clone_families.is_empty() {
-        opportunities.extend(
+        signals.extend(
             clone_families
                 .iter()
-                .filter_map(clone_family_opportunity)
+                .filter_map(clone_family_signal)
                 .collect::<Vec<_>>(),
         );
     } else {
-        opportunities.extend(
+        signals.extend(
             findings
                 .iter()
                 .filter(|finding| finding_kind(finding) == "exact_clone_group")
-                .filter_map(clone_group_opportunity)
+                .filter_map(clone_group_signal)
                 .collect::<Vec<_>>(),
         );
     }
 
-    opportunities.extend(
+    signals.extend(
         concentration_reports
             .iter()
             .filter(|report| report.score_0_10000 >= 4000)
             .filter(|report| !covered_hotspot_paths.contains(&report.path))
-            .filter_map(hotspot_opportunity)
+            .filter_map(hotspot_signal)
             .collect::<Vec<_>>(),
     );
 
-    opportunities.sort_by(|left, right| {
+    signals.sort_by(|left, right| {
         severity_priority(&right.severity)
             .cmp(&severity_priority(&left.severity))
             .then_with(|| right.score_0_10000.cmp(&left.score_0_10000))
             .then_with(|| left.scope.cmp(&right.scope))
     });
-    opportunities.truncate(limit);
-    opportunities
+    signals.truncate(limit);
+    signals
 }
 
-fn build_refactor_priorities(
-    concept_summaries: &[ConceptOpportunitySummary],
+fn build_inspection_watchpoints(
+    concept_summaries: &[ConceptDebtSummary],
     clone_families: &[Value],
     concentration_reports: &[crate::metrics::v2::ConcentrationReport],
     limit: usize,
-) -> Vec<RefactorPriority> {
-    let mut priorities = concept_summaries
+) -> Vec<InspectionWatchpoint> {
+    let mut watchpoints = concept_summaries
         .iter()
         .filter_map(|summary| {
             let matching_clone_families = related_clone_families(summary, clone_families);
@@ -3003,31 +3063,36 @@ fn build_refactor_priorities(
                 return None;
             }
 
-            let score_0_10000 = refactor_priority_score(
+            let score_0_10000 = inspection_watchpoint_score(
                 summary,
                 matching_clone_families.len(),
                 matching_hotspots.len(),
             );
 
-            Some(RefactorPriority {
-                concept_id: summary.concept_id.clone(),
-                severity: opportunity_severity(score_0_10000).to_string(),
+            Some(InspectionWatchpoint {
+                scope: summary.concept_id.clone(),
+                severity: signal_severity(score_0_10000).to_string(),
                 score_0_10000,
-                summary: refactor_priority_summary(
+                summary: inspection_watchpoint_summary(
                     summary,
                     matching_clone_families.len(),
                     matching_hotspots.len(),
                 ),
                 files: summary.files.clone(),
-                evidence: refactor_priority_evidence(
+                evidence: inspection_watchpoint_evidence(
                     summary,
                     matching_clone_families.as_slice(),
                     matching_hotspots.as_slice(),
                 ),
-                suggested_actions: refactor_priority_actions(
+                inspection_focus: inspection_watchpoint_focus(
                     summary,
                     matching_clone_families.as_slice(),
                     matching_hotspots.as_slice(),
+                ),
+                signal_families: inspection_watchpoint_signal_families(
+                    summary,
+                    matching_clone_families.len(),
+                    matching_hotspots.len(),
                 ),
                 clone_family_count: matching_clone_families.len(),
                 hotspot_count: matching_hotspots.len(),
@@ -3037,18 +3102,18 @@ fn build_refactor_priorities(
         })
         .collect::<Vec<_>>();
 
-    priorities.sort_by(|left, right| {
+    watchpoints.sort_by(|left, right| {
         severity_priority(&right.severity)
             .cmp(&severity_priority(&left.severity))
             .then_with(|| right.score_0_10000.cmp(&left.score_0_10000))
-            .then_with(|| left.concept_id.cmp(&right.concept_id))
+            .then_with(|| left.scope.cmp(&right.scope))
     });
-    priorities.truncate(limit);
-    priorities
+    watchpoints.truncate(limit);
+    watchpoints
 }
 
 fn related_clone_families<'a>(
-    summary: &ConceptOpportunitySummary,
+    summary: &ConceptDebtSummary,
     clone_families: &'a [Value],
 ) -> Vec<&'a Value> {
     clone_families
@@ -3058,7 +3123,7 @@ fn related_clone_families<'a>(
 }
 
 fn related_hotspots<'a>(
-    summary: &ConceptOpportunitySummary,
+    summary: &ConceptDebtSummary,
     concentration_reports: &'a [crate::metrics::v2::ConcentrationReport],
 ) -> Vec<&'a crate::metrics::v2::ConcentrationReport> {
     concentration_reports
@@ -3072,8 +3137,8 @@ fn files_overlap(left: &[String], right: &[String]) -> bool {
     left.iter().any(|path| right_files.contains(path))
 }
 
-fn refactor_priority_score(
-    summary: &ConceptOpportunitySummary,
+fn inspection_watchpoint_score(
+    summary: &ConceptDebtSummary,
     clone_family_count: usize,
     hotspot_count: usize,
 ) -> u32 {
@@ -3088,41 +3153,38 @@ fn refactor_priority_score(
     (summary.score_0_10000 + clone_pressure + hotspot_pressure + compound_bonus).min(10_000)
 }
 
-fn refactor_priority_summary(
-    summary: &ConceptOpportunitySummary,
+fn inspection_watchpoint_summary(
+    summary: &ConceptDebtSummary,
     clone_family_count: usize,
     hotspot_count: usize,
 ) -> String {
-    if summary.boundary_pressure_count > 0 && summary.missing_site_count > 0 {
-        return format!(
-            "Stabilize concept '{}' before adding more change surface: boundary bypasses are compounding incomplete propagation",
-            summary.concept_id
-        );
+    let mut overlaps = Vec::new();
+    if summary.boundary_pressure_count > 0 {
+        overlaps.push("boundary pressure");
     }
-    if clone_family_count > 0 && summary.boundary_pressure_count > 0 {
-        return format!(
-            "Consolidate concept '{}' before the repeated clone surfaces drift further",
-            summary.concept_id
-        );
+    if summary.missing_site_count > 0 {
+        overlaps.push("propagation burden");
     }
     if clone_family_count > 0 {
-        return format!(
-            "Deduplicate concept '{}' after aligning the repeated clone surfaces around it",
-            summary.concept_id
-        );
+        overlaps.push("clone overlap");
     }
     if hotspot_count > 0 {
-        return format!(
-            "Split concept '{}' responsibilities before the coordination hotspot grows",
-            summary.concept_id
-        );
+        overlaps.push("coordination hotspot overlap");
     }
 
-    summary.summary.clone()
+    if overlaps.is_empty() {
+        return summary.summary.clone();
+    }
+
+    format!(
+        "Concept '{}' intersects {}",
+        summary.concept_id,
+        overlaps.join(", ")
+    )
 }
 
-fn refactor_priority_evidence(
-    summary: &ConceptOpportunitySummary,
+fn inspection_watchpoint_evidence(
+    summary: &ConceptDebtSummary,
     clone_families: &[&Value],
     hotspots: &[&crate::metrics::v2::ConcentrationReport],
 ) -> Vec<String> {
@@ -3165,31 +3227,51 @@ fn refactor_priority_evidence(
     evidence
 }
 
-fn refactor_priority_actions(
-    summary: &ConceptOpportunitySummary,
+fn inspection_watchpoint_focus(
+    summary: &ConceptDebtSummary,
     clone_families: &[&Value],
     hotspots: &[&crate::metrics::v2::ConcentrationReport],
 ) -> Vec<String> {
-    let mut actions = summary.suggested_actions.clone();
+    let mut focus = summary.inspection_focus.clone();
     if !clone_families.is_empty() {
-        actions.push(
-            "deduplicate the repeated clone surfaces after aligning shared behavior".to_string(),
+        focus.push(
+            "inspect whether the repeated clone surfaces represent shared debt or intentional divergence"
+                .to_string(),
         );
     }
     if !hotspots.is_empty() {
-        actions.push("split orchestration from storage and adapter responsibilities".to_string());
-    }
-    if summary.boundary_pressure_count > 0 && summary.missing_site_count > 0 {
-        actions.push(
-            "tighten the concept boundary before extending the propagation chain".to_string(),
+        focus.push(
+            "inspect whether orchestration, storage, and adapter responsibilities are accumulating in one seam"
+                .to_string(),
         );
     }
-    actions = dedupe_strings_preserve_order(actions);
-    actions.truncate(4);
-    actions
+    if summary.boundary_pressure_count > 0 && summary.missing_site_count > 0 {
+        focus.push(
+            "inspect whether boundary erosion is making the propagation chain easier to miss"
+                .to_string(),
+        );
+    }
+    focus = dedupe_strings_preserve_order(focus);
+    focus.truncate(4);
+    focus
 }
 
-fn concept_opportunity_score(
+fn inspection_watchpoint_signal_families(
+    summary: &ConceptDebtSummary,
+    clone_family_count: usize,
+    hotspot_count: usize,
+) -> Vec<String> {
+    let mut families = concept_signal_families(summary);
+    if clone_family_count > 0 {
+        families.push("duplication".to_string());
+    }
+    if hotspot_count > 0 {
+        families.push("coordination".to_string());
+    }
+    dedupe_strings_preserve_order(families)
+}
+
+fn concept_debt_score(
     finding_count: usize,
     high_severity_count: usize,
     boundary_pressure_count: usize,
@@ -3206,72 +3288,78 @@ fn concept_opportunity_score(
         .min(10_000)
 }
 
-fn concept_opportunity_summary(
+fn concept_debt_summary(
     concept_id: &str,
     finding_count: usize,
+    obligation_count: usize,
     missing_site_count: usize,
     high_severity_count: usize,
     boundary_pressure_count: usize,
 ) -> String {
     if boundary_pressure_count > 0 && missing_site_count > 0 {
         return format!(
-            "Concept '{}' combines boundary pressure with {} missing update sites",
-            concept_id, missing_site_count
+            "Concept '{}' shows {} boundary/ownership findings and {} missing update sites",
+            concept_id, boundary_pressure_count, missing_site_count
         );
     }
     if high_severity_count > 0 && missing_site_count > 0 {
         return format!(
-            "Concept '{}' combines architecture violations with {} missing update sites",
-            concept_id, missing_site_count
+            "Concept '{}' shows {} high-severity findings and {} missing update sites",
+            concept_id, high_severity_count, missing_site_count
         );
     }
     if missing_site_count > 0 {
         return format!(
-            "Concept '{}' has {} missing update sites to complete",
-            concept_id, missing_site_count
+            "Concept '{}' spans {} obligation reports with {} missing update sites",
+            concept_id, obligation_count, missing_site_count
         );
     }
     if high_severity_count > 0 {
         return format!(
-            "Concept '{}' has repeated high-severity ownership or access issues",
-            concept_id
+            "Concept '{}' has {} high-severity ownership or access findings",
+            concept_id, high_severity_count
         );
     }
     format!(
-        "Concept '{}' has {} repeated architecture findings worth consolidating",
+        "Concept '{}' has {} repeated structural findings",
         concept_id, finding_count
     )
 }
 
-fn concept_opportunity_actions(dominant_kinds: &[String], has_missing_sites: bool) -> Vec<String> {
-    let mut actions = Vec::new();
+fn concept_debt_inspection_focus(
+    dominant_kinds: &[String],
+    has_missing_sites: bool,
+) -> Vec<String> {
+    let mut focus = Vec::new();
     for kind in dominant_kinds {
         match kind.as_str() {
             "multi_writer_concept"
             | "forbidden_writer"
             | "writer_outside_allowlist"
             | "concept_boundary_pressure" => {
-                actions.push("centralize writes behind a single owner".to_string());
+                focus.push("inspect write ownership and boundary enforcement".to_string());
             }
             "forbidden_raw_read" | "authoritative_import_bypass" => {
-                actions.push(
-                    "route reads through the canonical accessor or public boundary".to_string(),
+                focus.push(
+                    "inspect whether reads bypass the canonical accessor or public boundary"
+                        .to_string(),
                 );
             }
             _ => {}
         }
     }
     if has_missing_sites {
-        actions.push(
-            "complete the propagation chain before extending the concept further".to_string(),
+        focus.push(
+            "inspect the explicit propagation sites and completeness tests for this concept"
+                .to_string(),
         );
     }
-    if actions.is_empty() {
-        actions.push("review the concept boundary before adding more change surface".to_string());
+    if focus.is_empty() {
+        focus.push("inspect the concept boundary and repeated finding kinds".to_string());
     }
-    actions = dedupe_strings_preserve_order(actions);
-    actions.truncate(3);
-    actions
+    focus = dedupe_strings_preserve_order(focus);
+    focus.truncate(3);
+    focus
 }
 
 fn dedupe_strings_preserve_order(values: Vec<String>) -> Vec<String> {
@@ -3282,7 +3370,7 @@ fn dedupe_strings_preserve_order(values: Vec<String>) -> Vec<String> {
         .collect()
 }
 
-fn opportunity_severity(score_0_10000: u32) -> &'static str {
+fn signal_severity(score_0_10000: u32) -> &'static str {
     match score_0_10000 {
         6500..=10_000 => "high",
         3000..=6499 => "medium",
@@ -3290,7 +3378,83 @@ fn opportunity_severity(score_0_10000: u32) -> &'static str {
     }
 }
 
-fn clone_family_opportunity(family: &Value) -> Option<QualityImprovementOpportunity> {
+fn concept_signal_class(summary: &ConceptDebtSummary) -> &'static str {
+    if summary.boundary_pressure_count > 0 || summary.high_severity_count > 0 {
+        "debt"
+    } else if summary.missing_site_count > 0 {
+        "hardening"
+    } else {
+        "watchpoint"
+    }
+}
+
+fn concept_signal_families(summary: &ConceptDebtSummary) -> Vec<String> {
+    let mut families = Vec::new();
+    if summary.boundary_pressure_count > 0 {
+        families.push("ownership".to_string());
+        families.push("boundary".to_string());
+    }
+    if summary.missing_site_count > 0 || summary.obligation_count > 0 {
+        families.push("propagation".to_string());
+    }
+    if summary.high_severity_count > 0 && families.is_empty() {
+        families.push("boundary".to_string());
+    }
+    if families.is_empty() {
+        families.push("consistency".to_string());
+    }
+    dedupe_strings_preserve_order(families)
+}
+
+fn concept_signal_metrics(summary: &ConceptDebtSummary) -> DebtSignalMetrics {
+    DebtSignalMetrics {
+        finding_count: Some(summary.finding_count),
+        high_severity_count: Some(summary.high_severity_count),
+        boundary_pressure_count: Some(summary.boundary_pressure_count),
+        obligation_count: Some(summary.obligation_count),
+        missing_site_count: Some(summary.missing_site_count),
+        context_burden: Some(summary.context_burden),
+        file_count: Some(summary.files.len()),
+        ..DebtSignalMetrics::default()
+    }
+}
+
+fn clone_family_inspection_focus(family: &Value) -> Vec<String> {
+    let mut focus = family
+        .get("remediation_hints")
+        .and_then(|value| value.as_array())
+        .map(|hints| {
+            hints
+                .iter()
+                .filter_map(|hint| hint.get("kind").and_then(|value| value.as_str()))
+                .filter_map(|kind| match kind {
+                    "sync_recent_divergence" => Some(
+                        "inspect whether recent sibling edits should stay synchronized or intentionally diverge"
+                            .to_string(),
+                    ),
+                    "extract_shared_helper" => Some(
+                        "inspect whether the repeated logic is substantial enough to share behind one helper"
+                            .to_string(),
+                    ),
+                    "collapse_clone_family" => Some(
+                        "inspect whether the clone family is carrying avoidable duplicate maintenance"
+                            .to_string(),
+                    ),
+                    "add_shared_behavior_tests" => Some(
+                        "inspect whether shared behavior tests would make the family safer to change"
+                            .to_string(),
+                    ),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    focus = dedupe_strings_preserve_order(focus);
+    focus.truncate(3);
+    focus
+}
+
+fn clone_family_signal(family: &Value) -> Option<DebtSignal> {
     let summary = family.get("summary")?.as_str()?.to_string();
     let scope = family.get("family_id")?.as_str()?.to_string();
     let severity = family
@@ -3307,32 +3471,47 @@ fn clone_family_opportunity(family: &Value) -> Option<QualityImprovementOpportun
         .into_iter()
         .take(3)
         .collect();
-    let suggested_actions = family
-        .get("remediation_hints")
-        .and_then(|value| value.as_array())
-        .map(|hints| {
-            hints
-                .iter()
-                .filter_map(|hint| hint.get("summary").and_then(|value| value.as_str()))
-                .map(str::to_string)
-                .take(3)
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default();
+    let inspection_focus = clone_family_inspection_focus(family);
 
-    Some(QualityImprovementOpportunity {
+    Some(DebtSignal {
         kind: "clone_family".to_string(),
         scope,
+        signal_class: if score_0_10000 >= 6500 {
+            "debt".to_string()
+        } else {
+            "watchpoint".to_string()
+        },
+        signal_families: vec!["duplication".to_string(), "drift".to_string()],
         severity,
         score_0_10000,
         summary,
         files,
         evidence,
-        suggested_actions,
+        inspection_focus,
+        metrics: DebtSignalMetrics {
+            file_count: family
+                .get("file_count")
+                .and_then(|value| value.as_u64())
+                .map(|value| value as usize),
+            member_count: family
+                .get("member_count")
+                .and_then(|value| value.as_u64())
+                .map(|value| value as usize),
+            recently_touched_file_count: family
+                .get("recently_touched_file_count")
+                .and_then(|value| value.as_u64())
+                .map(|value| value as usize),
+            divergence_score: family
+                .get("divergence_score")
+                .and_then(|value| value.as_u64())
+                .map(|value| value as u32),
+            family_score_0_10000: Some(score_0_10000),
+            ..DebtSignalMetrics::default()
+        },
     })
 }
 
-fn clone_group_opportunity(finding: &Value) -> Option<QualityImprovementOpportunity> {
+fn clone_group_signal(finding: &Value) -> Option<DebtSignal> {
     let scope = finding.get("clone_id")?.as_str()?.to_string();
     let severity = severity_of_value(finding).to_string();
     let score_0_10000 = finding
@@ -3350,43 +3529,71 @@ fn clone_group_opportunity(finding: &Value) -> Option<QualityImprovementOpportun
         .take(3)
         .collect::<Vec<_>>();
 
-    Some(QualityImprovementOpportunity {
+    Some(DebtSignal {
         kind: "clone_group".to_string(),
         scope,
+        signal_class: if score_0_10000 >= 6500 {
+            "debt".to_string()
+        } else {
+            "watchpoint".to_string()
+        },
+        signal_families: vec!["duplication".to_string()],
         severity,
         score_0_10000,
         summary,
         files,
         evidence,
-        suggested_actions: vec![
-            "extract the shared logic behind one helper or adapter".to_string(),
-            "add shared behavior tests before the copies diverge further".to_string(),
+        inspection_focus: vec![
+            "inspect whether the repeated logic should stay aligned or collapse behind one abstraction"
+                .to_string(),
+            "inspect whether shared behavior tests would make the copies safer to change"
+                .to_string(),
         ],
+        metrics: DebtSignalMetrics {
+            file_count: Some(finding_files(finding).len()),
+            ..DebtSignalMetrics::default()
+        },
     })
 }
 
-fn hotspot_opportunity(
-    report: &crate::metrics::v2::ConcentrationReport,
-) -> Option<QualityImprovementOpportunity> {
+fn hotspot_signal(report: &crate::metrics::v2::ConcentrationReport) -> Option<DebtSignal> {
     if report.score_0_10000 < 4000 {
         return None;
     }
 
-    Some(QualityImprovementOpportunity {
+    Some(DebtSignal {
         kind: "hotspot".to_string(),
         scope: report.path.clone(),
-        severity: opportunity_severity(report.score_0_10000).to_string(),
+        signal_class: if report.score_0_10000 >= 6500 {
+            "debt".to_string()
+        } else {
+            "watchpoint".to_string()
+        },
+        signal_families: vec!["coordination".to_string()],
+        severity: signal_severity(report.score_0_10000).to_string(),
         score_0_10000: report.score_0_10000,
         summary: format!(
-            "File '{}' is a coordination hotspot worth refactoring before adding more behavior",
+            "File '{}' is carrying coordination hotspot pressure",
             report.path
         ),
         files: vec![report.path.clone()],
         evidence: report.reasons.iter().cloned().take(3).collect(),
-        suggested_actions: vec![
-            "split orchestration from state mutation and side-effect handling".to_string(),
-            "move unrelated responsibilities behind narrower helpers or controllers".to_string(),
+        inspection_focus: vec![
+            "inspect whether orchestration, side effects, and adapters are accumulating in one file"
+                .to_string(),
+            "inspect whether complexity is local to one seam or repeated across nearby files"
+                .to_string(),
         ],
+        metrics: DebtSignalMetrics {
+            file_count: Some(1),
+            authority_breadth: Some(report.authority_breadth),
+            side_effect_breadth: Some(report.side_effect_breadth),
+            timer_retry_weight: Some(report.timer_retry_weight),
+            async_branch_weight: Some(report.async_branch_weight),
+            max_complexity: Some(report.max_complexity),
+            churn_commits: Some(report.churn_commits),
+            ..DebtSignalMetrics::default()
+        },
     })
 }
 
@@ -3402,7 +3609,46 @@ fn json_string_list(value: Option<&Value>) -> Vec<String> {
         .unwrap_or_default()
 }
 
-fn quality_opportunity_concentration_reports(
+fn legacy_quality_opportunity_values(signals: &[DebtSignal]) -> Vec<Value> {
+    signals
+        .iter()
+        .map(|signal| {
+            json!({
+                "kind": signal.kind,
+                "scope": signal.scope,
+                "severity": signal.severity,
+                "score_0_10000": signal.score_0_10000,
+                "summary": signal.summary,
+                "files": signal.files,
+                "evidence": signal.evidence,
+                "suggested_actions": signal.inspection_focus,
+            })
+        })
+        .collect()
+}
+
+fn legacy_optimization_priority_values(watchpoints: &[InspectionWatchpoint]) -> Vec<Value> {
+    watchpoints
+        .iter()
+        .map(|watchpoint| {
+            json!({
+                "concept_id": watchpoint.scope,
+                "severity": watchpoint.severity,
+                "score_0_10000": watchpoint.score_0_10000,
+                "summary": watchpoint.summary,
+                "files": watchpoint.files,
+                "evidence": watchpoint.evidence,
+                "suggested_actions": watchpoint.inspection_focus,
+                "clone_family_count": watchpoint.clone_family_count,
+                "hotspot_count": watchpoint.hotspot_count,
+                "missing_site_count": watchpoint.missing_site_count,
+                "boundary_pressure_count": watchpoint.boundary_pressure_count,
+            })
+        })
+        .collect()
+}
+
+fn debt_signal_concentration_reports(
     state: &mut McpState,
     root: &Path,
     snapshot: &Snapshot,
@@ -4171,7 +4417,7 @@ mod tests {
     }
 
     #[test]
-    fn findings_surface_concept_summaries_and_quality_opportunities() {
+    fn findings_surface_concept_summaries_debt_signals_and_watchpoints() {
         let root = concept_fixture_root();
         let mut state = fresh_mcp_state();
         handle_scan(
@@ -4196,18 +4442,24 @@ mod tests {
             .expect("concept summaries")
             .iter()
             .any(|summary| summary["concept_id"] == "task_git_status"));
-        assert!(response["quality_opportunities"]
+        assert!(response["debt_signals"]
             .as_array()
-            .expect("quality opportunities")
+            .expect("debt signals")
             .iter()
-            .any(|opportunity| {
-                opportunity["kind"] == "concept" && opportunity["scope"] == "task_git_status"
+            .any(|signal| {
+                signal["kind"] == "concept"
+                    && signal["scope"] == "task_git_status"
+                    && signal["signal_families"]
+                        .as_array()
+                        .expect("signal families")
+                        .iter()
+                        .any(|family| family == "ownership")
             }));
-        assert!(response["optimization_priorities"]
+        assert!(response["watchpoints"]
             .as_array()
-            .expect("optimization priorities")
+            .expect("watchpoints")
             .iter()
-            .any(|priority| priority["concept_id"] == "task_git_status"));
+            .any(|watchpoint| watchpoint["scope"] == "task_git_status"));
 
         let _ = std::fs::remove_dir_all(root);
     }
@@ -5065,7 +5317,7 @@ mod tests {
     }
 
     #[test]
-    fn session_end_surfaces_quality_opportunities_for_changed_concept() {
+    fn session_end_surfaces_debt_signals_for_changed_concept() {
         let root = closed_domain_gate_fixture_root();
         init_git_repo(&root);
         commit_all(&root, "initial");
@@ -5091,16 +5343,21 @@ mod tests {
             .expect("concept summaries")
             .iter()
             .any(|summary| summary["concept_id"] == "app_state"));
-        assert!(response["quality_opportunities"]
+        assert!(response["debt_signals"]
             .as_array()
-            .expect("quality opportunities")
+            .expect("debt signals")
             .iter()
-            .any(|opportunity| opportunity["scope"] == "app_state"));
-        assert!(response["optimization_priorities"]
+            .any(|signal| {
+                signal["scope"] == "app_state"
+                    && signal["signal_class"]
+                        .as_str()
+                        .is_some_and(|class| class == "hardening" || class == "debt")
+            }));
+        assert!(response["watchpoints"]
             .as_array()
-            .expect("optimization priorities")
+            .expect("watchpoints")
             .iter()
-            .any(|priority| priority["concept_id"] == "app_state"));
+            .any(|watchpoint| watchpoint["scope"] == "app_state"));
 
         let _ = std::fs::remove_dir_all(root);
     }
@@ -5949,7 +6206,7 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
     } else {
         analysis.changed_visible_findings.clone()
     };
-    let quality_outputs = build_quality_opportunity_outputs(
+    let debt_outputs = build_debt_report_outputs(
         state,
         &root,
         &bundle.snapshot,
@@ -5959,6 +6216,15 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         &changed_files,
         5,
     );
+    let concept_summary_count = debt_outputs.concept_summaries.len();
+    let debt_signal_count = debt_outputs.debt_signals.len();
+    let watchpoint_count = debt_outputs.watchpoints.len();
+    let concept_summaries = debt_outputs.concept_summaries;
+    let debt_signals = debt_outputs.debt_signals;
+    let watchpoints = debt_outputs.watchpoints;
+    let legacy_quality_opportunities = legacy_quality_opportunity_values(&debt_signals);
+    let legacy_optimization_priorities = legacy_optimization_priority_values(&watchpoints);
+    let debt_context_error = debt_outputs.context_error;
     let preserved_semantic = state.cached_semantic.clone();
     let preserved_evolution = state.cached_evolution.clone();
     let preserved_patch_safety = state.cached_patch_safety.clone();
@@ -6005,12 +6271,16 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         "introduced_findings": introduced_findings,
         "resolved_findings": resolved_findings,
         "missing_obligations": missing_obligations,
-        "concept_summary_count": quality_outputs.concept_summaries.len(),
-        "concept_summaries": quality_outputs.concept_summaries,
-        "quality_opportunity_count": quality_outputs.quality_opportunities.len(),
-        "quality_opportunities": quality_outputs.quality_opportunities,
-        "optimization_priority_count": quality_outputs.optimization_priorities.len(),
-        "optimization_priorities": quality_outputs.optimization_priorities,
+        "concept_summary_count": concept_summary_count,
+        "concept_summaries": concept_summaries,
+        "debt_signal_count": debt_signal_count,
+        "debt_signals": debt_signals,
+        "watchpoint_count": watchpoint_count,
+        "watchpoints": watchpoints,
+        "quality_opportunity_count": debt_signal_count,
+        "quality_opportunities": legacy_quality_opportunities,
+        "optimization_priority_count": watchpoint_count,
+        "optimization_priorities": legacy_optimization_priorities,
         "obligation_completeness_0_10000": crate::metrics::v2::obligation_score_0_10000(&analysis.changed_obligations),
         "touched_concept_gate": {
             "decision": gate_decision,
@@ -6025,7 +6295,8 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         "confidence": build_v2_confidence_report(&bundle.metadata, &rules_config, session_v2_status),
         "baseline_delta": legacy_baseline_delta_json(legacy_diff.as_ref()),
         "semantic_error": semantic_error,
-        "opportunity_context_error": quality_outputs.context_error,
+        "debt_context_error": debt_context_error,
+        "opportunity_context_error": debt_context_error,
         "baseline_error": baseline_error
     });
 
