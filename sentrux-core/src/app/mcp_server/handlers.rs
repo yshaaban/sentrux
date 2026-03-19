@@ -2796,6 +2796,12 @@ struct DebtSignalMetrics {
     #[serde(skip_serializing_if = "Option::is_none")]
     cycle_size: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    inbound_reference_count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    public_surface_count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reachable_from_tests: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     divergence_score: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     family_score_0_10000: Option<u32>,
@@ -3524,6 +3530,9 @@ fn structural_signal(report: &crate::metrics::v2::StructuralDebtReport) -> DebtS
             dead_symbol_count: report.metrics.dead_symbol_count,
             dead_line_count: report.metrics.dead_line_count,
             cycle_size: report.metrics.cycle_size,
+            inbound_reference_count: report.metrics.inbound_reference_count,
+            public_surface_count: report.metrics.public_surface_count,
+            reachable_from_tests: report.metrics.reachable_from_tests,
             max_complexity: report.metrics.max_complexity,
             ..DebtSignalMetrics::default()
         },
@@ -4000,6 +4009,31 @@ mod tests {
             &root,
             "src/b.ts",
             "import { alpha } from './a';\nexport function beta(): number { return alpha() + 1; }\n",
+        );
+        root
+    }
+
+    fn dead_island_fixture_root() -> std::path::PathBuf {
+        let root = temp_root("dead-island");
+        write_file(
+            &root,
+            "src/app.ts",
+            "import { live } from './live';\nexport function render(): number { return live(); }\n",
+        );
+        write_file(
+            &root,
+            "src/live.ts",
+            "export function live(): number { return 1; }\n",
+        );
+        write_file(
+            &root,
+            "src/orphan-a.ts",
+            "import { orphanB } from './orphan-b';\nfunction orphanA(): number { return orphanB(); }\nexport const orphanValue = orphanA();\n",
+        );
+        write_file(
+            &root,
+            "src/orphan-b.ts",
+            "import { orphanValue } from './orphan-a';\nfunction orphanB(): number { return orphanValue + 1; }\nconst orphanBValue = orphanB();\n",
         );
         root
     }
@@ -4628,6 +4662,34 @@ mod tests {
             .expect("findings array")
             .iter()
             .any(|finding| finding["kind"] == "large_file"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn findings_surface_dead_island_signals() {
+        let root = dead_island_fixture_root();
+        let mut state = fresh_mcp_state();
+        handle_scan(
+            &json!({"path": root.to_string_lossy().to_string()}),
+            &Tier::Free,
+            &mut state,
+        )
+        .expect("scan fixture");
+
+        let response =
+            handle_findings(&json!({"limit": 25}), &Tier::Free, &mut state).expect("findings");
+
+        assert!(response["debt_signals"]
+            .as_array()
+            .expect("debt signals")
+            .iter()
+            .any(|signal| signal["kind"] == "dead_island"));
+        assert!(response["findings"]
+            .as_array()
+            .expect("findings array")
+            .iter()
+            .any(|finding| finding["kind"] == "dead_island"));
 
         let _ = std::fs::remove_dir_all(root);
     }
@@ -5569,6 +5631,38 @@ mod tests {
             .expect("debt signals")
             .iter()
             .any(|signal| signal["kind"] == "large_file" && signal["scope"] == "src/app.ts"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn session_end_surfaces_dead_island_signals_for_changed_component_file() {
+        let root = dead_island_fixture_root();
+        init_git_repo(&root);
+        commit_all(&root, "initial");
+
+        let mut state = fresh_mcp_state();
+        handle_scan(
+            &json!({"path": root.to_string_lossy().to_string()}),
+            &Tier::Free,
+            &mut state,
+        )
+        .expect("scan fixture");
+        handle_session_start(&json!({}), &Tier::Free, &mut state).expect("session start");
+        append_file(
+            &root,
+            "src/orphan-a.ts",
+            "\nexport const orphanMarker = 1;\n",
+        );
+
+        let response =
+            handle_session_end(&json!({}), &Tier::Free, &mut state).expect("session end");
+
+        assert!(response["debt_signals"]
+            .as_array()
+            .expect("debt signals")
+            .iter()
+            .any(|signal| signal["kind"] == "dead_island"));
 
         let _ = std::fs::remove_dir_all(root);
     }

@@ -3,7 +3,8 @@
 use crate::analysis::lang_registry;
 use crate::core::snapshot::{flatten_files_ref, Snapshot};
 use crate::core::types::{FileNode, ImportEdge};
-use crate::metrics::{is_mod_declaration_edge, HealthReport};
+use crate::metrics::testgap::is_test_file;
+use crate::metrics::{is_mod_declaration_edge, is_package_index_for_path, HealthReport};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 #[derive(Debug, Clone, serde::Serialize, Default)]
@@ -28,6 +29,12 @@ pub struct StructuralDebtMetrics {
     pub cycle_size: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_complexity: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub inbound_reference_count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub public_surface_count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reachable_from_tests: Option<bool>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, Default)]
@@ -52,6 +59,10 @@ struct FileFacts {
     lines: usize,
     function_count: u32,
     max_complexity: u32,
+    is_test: bool,
+    is_package_index: bool,
+    has_entry_tag: bool,
+    public_function_count: usize,
 }
 
 #[derive(Debug, Default)]
@@ -73,6 +84,12 @@ pub fn build_structural_debt_reports(
     reports.extend(build_unstable_hotspot_reports(health, &file_facts, &graph));
     reports.extend(build_cycle_cluster_reports(health, &file_facts));
     reports.extend(build_dead_private_code_cluster_reports(health, &file_facts));
+    reports.extend(build_dead_island_reports(
+        snapshot,
+        health,
+        &file_facts,
+        &graph,
+    ));
 
     reports.sort_by(|left, right| {
         severity_priority(&right.severity)
@@ -110,6 +127,29 @@ fn file_facts(file: &FileNode) -> FileFacts {
         lines: file.lines as usize,
         function_count: file.funcs,
         max_complexity,
+        is_test: file
+            .sa
+            .as_ref()
+            .and_then(|analysis| analysis.tags.as_ref())
+            .is_some_and(|tags| tags.iter().any(|tag| tag.contains("test")))
+            || is_test_file(&file.path),
+        is_package_index: is_package_index_for_path(&file.path),
+        has_entry_tag: file
+            .sa
+            .as_ref()
+            .and_then(|analysis| analysis.tags.as_ref())
+            .is_some_and(|tags| tags.iter().any(|tag| tag == "entry")),
+        public_function_count: file
+            .sa
+            .as_ref()
+            .and_then(|analysis| analysis.functions.as_ref())
+            .map(|functions| {
+                functions
+                    .iter()
+                    .filter(|function| function.is_public)
+                    .count()
+            })
+            .unwrap_or(0),
     }
 }
 
@@ -460,6 +500,287 @@ fn build_dead_private_code_cluster_reports(
         .collect()
 }
 
+fn build_dead_island_reports(
+    snapshot: &Snapshot,
+    health: &HealthReport,
+    file_facts: &BTreeMap<String, FileFacts>,
+    graph: &StructuralGraph,
+) -> Vec<StructuralDebtReport> {
+    let app_roots = application_root_files(snapshot, file_facts, graph);
+    if app_roots.is_empty() {
+        return Vec::new();
+    }
+
+    let test_roots = file_facts
+        .iter()
+        .filter(|(_, facts)| facts.is_test)
+        .map(|(path, _)| path.clone())
+        .collect::<BTreeSet<_>>();
+    let app_reachable = reachable_files(graph, &app_roots);
+    let test_reachable = reachable_files(graph, &test_roots);
+    let cycle_size_by_file = cycle_size_by_file(health);
+
+    weak_components(file_facts, graph)
+        .into_iter()
+        .filter_map(|component| {
+            let component_set = component.iter().cloned().collect::<BTreeSet<_>>();
+            if component.iter().any(|path| app_reachable.contains(path)) {
+                return None;
+            }
+
+            let total_public_surface_count = component
+                .iter()
+                .map(|path| {
+                    file_facts
+                        .get(path)
+                        .map(|facts| facts.public_function_count)
+                        .unwrap_or(0)
+                })
+                .sum::<usize>();
+            if total_public_surface_count > 0 {
+                return None;
+            }
+            if component.iter().any(|path| {
+                file_facts
+                    .get(path)
+                    .is_some_and(|facts| facts.is_package_index || facts.has_entry_tag)
+            }) {
+                return None;
+            }
+
+            let inbound_reference_count =
+                external_non_test_inbound_count(&component_set, file_facts, graph);
+            if inbound_reference_count > 0 {
+                return None;
+            }
+
+            let cycle_size = component
+                .iter()
+                .filter_map(|path| cycle_size_by_file.get(path).copied())
+                .max()
+                .unwrap_or(0);
+            let total_lines = component
+                .iter()
+                .map(|path| file_facts.get(path).map(|facts| facts.lines).unwrap_or(0))
+                .sum::<usize>();
+            let reachable_from_tests = component.iter().any(|path| test_reachable.contains(path));
+
+            if component.len() < 2 && cycle_size < 2 {
+                return None;
+            }
+
+            let score_0_10000 =
+                dead_island_score(component.len(), total_lines, cycle_size, reachable_from_tests);
+            let scope = format!("dead_island:{}", component.join("|"));
+            let sample_files = component
+                .iter()
+                .take(3)
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(", ");
+            let evidence = dedupe_strings_preserve_order(vec![
+                format!("component file count: {}", component.len()),
+                format!("component lines: {}", total_lines),
+                format!("largest internal cycle: {}", cycle_size),
+                format!("external inbound references from app graph: {}", inbound_reference_count),
+                format!("reachable from tests: {}", reachable_from_tests),
+                format!("sample files: {}", sample_files),
+            ]);
+
+            Some(StructuralDebtReport {
+                kind: "dead_island".to_string(),
+                scope,
+                signal_class: if reachable_from_tests {
+                    "watchpoint".to_string()
+                } else {
+                    "debt".to_string()
+                },
+                signal_families: vec!["reachability".to_string(), "staleness".to_string()],
+                severity: signal_severity(score_0_10000).to_string(),
+                score_0_10000,
+                summary: if reachable_from_tests {
+                    format!(
+                        "Files {} form an internally connected component that is not reachable from app roots",
+                        component.join(", ")
+                    )
+                } else {
+                    format!(
+                        "Files {} form an internally connected component that is disconnected from the app-reachable graph",
+                        component.join(", ")
+                    )
+                },
+                impact: if reachable_from_tests {
+                    "A test-only internal component may be stale production code or an accidentally disconnected subsystem.".to_string()
+                } else {
+                    "A disconnected internal component adds maintenance noise and can hide obsolete or unsupported code paths.".to_string()
+                },
+                files: component.clone(),
+                evidence,
+                inspection_focus: vec![
+                    "inspect whether this component is intentionally disconnected or stale".to_string(),
+                    "inspect whether it should be deleted, archived, or wired through an explicit root".to_string(),
+                ],
+                metrics: StructuralDebtMetrics {
+                    file_count: Some(component.len()),
+                    line_count: Some(total_lines),
+                    cycle_size: Some(cycle_size),
+                    inbound_reference_count: Some(inbound_reference_count),
+                    public_surface_count: Some(total_public_surface_count),
+                    reachable_from_tests: Some(reachable_from_tests),
+                    ..StructuralDebtMetrics::default()
+                },
+            })
+        })
+        .collect()
+}
+
+fn application_root_files(
+    snapshot: &Snapshot,
+    file_facts: &BTreeMap<String, FileFacts>,
+    graph: &StructuralGraph,
+) -> BTreeSet<String> {
+    let mut roots = snapshot
+        .entry_points
+        .iter()
+        .map(|entry| entry.file.clone())
+        .filter(|path| file_facts.get(path).is_some_and(|facts| !facts.is_test))
+        .collect::<BTreeSet<_>>();
+
+    roots.extend(
+        file_facts
+            .iter()
+            .filter(|(_, facts)| facts.has_entry_tag || facts.is_package_index)
+            .filter(|(_, facts)| !facts.is_test)
+            .map(|(path, _)| path.clone()),
+    );
+    roots.extend(
+        file_facts
+            .iter()
+            .filter(|(_, facts)| !facts.is_test)
+            .filter(|(path, facts)| is_zero_inbound_root_candidate(path, facts, file_facts, graph))
+            .map(|(path, _)| path.clone()),
+    );
+
+    roots
+}
+
+fn is_zero_inbound_root_candidate(
+    path: &str,
+    facts: &FileFacts,
+    file_facts: &BTreeMap<String, FileFacts>,
+    graph: &StructuralGraph,
+) -> bool {
+    let inbound_only_from_tests = graph.incoming.get(path).is_none_or(|sources| {
+        sources.iter().all(|source| {
+            file_facts
+                .get(source)
+                .is_some_and(|source_facts| source_facts.is_test)
+        })
+    });
+    let has_surface = graph
+        .outgoing
+        .get(path)
+        .is_some_and(|targets| !targets.is_empty())
+        || facts.public_function_count > 0;
+
+    inbound_only_from_tests && has_surface
+}
+
+fn reachable_files(graph: &StructuralGraph, roots: &BTreeSet<String>) -> BTreeSet<String> {
+    let mut visited = roots.clone();
+    let mut queue = roots.iter().cloned().collect::<Vec<_>>();
+
+    while let Some(path) = queue.pop() {
+        if let Some(targets) = graph.outgoing.get(&path) {
+            for target in targets {
+                if visited.insert(target.clone()) {
+                    queue.push(target.clone());
+                }
+            }
+        }
+    }
+
+    visited
+}
+
+fn weak_components(
+    file_facts: &BTreeMap<String, FileFacts>,
+    graph: &StructuralGraph,
+) -> Vec<Vec<String>> {
+    let relevant_files = file_facts
+        .iter()
+        .filter(|(_, facts)| !facts.is_test)
+        .map(|(path, _)| path.clone())
+        .collect::<Vec<_>>();
+    let mut visited = BTreeSet::new();
+    let mut components = Vec::new();
+
+    for start in relevant_files {
+        if !visited.insert(start.clone()) {
+            continue;
+        }
+        let mut queue = vec![start.clone()];
+        let mut component = vec![start];
+        while let Some(path) = queue.pop() {
+            for neighbor in weak_neighbors(graph, &path) {
+                if visited.insert(neighbor.clone()) {
+                    queue.push(neighbor.clone());
+                    component.push(neighbor);
+                }
+            }
+        }
+        component.sort();
+        components.push(component);
+    }
+
+    components
+}
+
+fn weak_neighbors(graph: &StructuralGraph, path: &str) -> Vec<String> {
+    let mut neighbors = BTreeSet::new();
+    if let Some(targets) = graph.outgoing.get(path) {
+        neighbors.extend(targets.iter().cloned());
+    }
+    if let Some(sources) = graph.incoming.get(path) {
+        neighbors.extend(sources.iter().cloned());
+    }
+    neighbors.into_iter().collect()
+}
+
+fn external_non_test_inbound_count(
+    component: &BTreeSet<String>,
+    file_facts: &BTreeMap<String, FileFacts>,
+    graph: &StructuralGraph,
+) -> usize {
+    let mut sources = BTreeSet::new();
+    for path in component {
+        if let Some(incoming) = graph.incoming.get(path) {
+            for source in incoming {
+                if component.contains(source) {
+                    continue;
+                }
+                if file_facts.get(source).is_some_and(|facts| !facts.is_test) {
+                    sources.insert(source.clone());
+                }
+            }
+        }
+    }
+    sources.len()
+}
+
+fn cycle_size_by_file(health: &HealthReport) -> BTreeMap<String, usize> {
+    let mut sizes = BTreeMap::new();
+    for cycle in &health.circular_dep_files {
+        for path in cycle {
+            sizes
+                .entry(path.clone())
+                .and_modify(|size: &mut usize| *size = (*size).max(cycle.len()))
+                .or_insert(cycle.len());
+        }
+    }
+    sizes
+}
+
 fn sample_paths(paths: Option<&BTreeSet<String>>, limit: usize) -> Vec<String> {
     paths
         .map(|paths| paths.iter().take(limit).cloned().collect())
@@ -494,6 +815,19 @@ fn dead_private_cluster_score(dead_symbol_count: usize, dead_line_count: usize) 
     let symbol_bonus = (dead_symbol_count as u32 * 900).min(3600);
     let line_bonus = (dead_line_count as u32 * 18).min(2800);
     (1500 + symbol_bonus + line_bonus).min(10_000)
+}
+
+fn dead_island_score(
+    file_count: usize,
+    total_lines: usize,
+    cycle_size: usize,
+    reachable_from_tests: bool,
+) -> u32 {
+    let file_bonus = (file_count as u32 * 900).min(3600);
+    let line_bonus = (total_lines as u32 / 10).min(2600);
+    let cycle_bonus = (cycle_size as u32 * 700).min(2100);
+    let test_penalty = if reachable_from_tests { 1200 } else { 0 };
+    (2800 + file_bonus + line_bonus + cycle_bonus).saturating_sub(test_penalty)
 }
 
 fn scaled_ratio_pressure(value: usize, threshold: usize, max_bonus: u32) -> u32 {
@@ -694,6 +1028,115 @@ mod tests {
         assert!(kinds.contains(&"unstable_hotspot"));
         assert!(kinds.contains(&"cycle_cluster"));
         assert!(kinds.contains(&"dead_private_code_cluster"));
+    }
+
+    #[test]
+    fn reports_dead_island_for_disconnected_internal_cycle() {
+        let snapshot = Snapshot {
+            root: Arc::new(FileNode {
+                path: ".".to_string(),
+                name: ".".to_string(),
+                is_dir: true,
+                lines: 0,
+                logic: 0,
+                comments: 0,
+                blanks: 0,
+                funcs: 0,
+                mtime: 0.0,
+                gs: String::new(),
+                lang: String::new(),
+                sa: None,
+                children: Some(vec![
+                    test_file("src/app.ts", 120, 2, 10),
+                    test_file("src/live.ts", 80, 2, 8),
+                    test_file("src/orphan-a.ts", 90, 2, 6),
+                    test_file("src/orphan-b.ts", 95, 2, 7),
+                ]),
+            }),
+            total_files: 4,
+            total_lines: 385,
+            total_dirs: 1,
+            import_graph: vec![
+                ImportEdge {
+                    from_file: "src/app.ts".into(),
+                    to_file: "src/live.ts".into(),
+                },
+                ImportEdge {
+                    from_file: "src/orphan-a.ts".into(),
+                    to_file: "src/orphan-b.ts".into(),
+                },
+                ImportEdge {
+                    from_file: "src/orphan-b.ts".into(),
+                    to_file: "src/orphan-a.ts".into(),
+                },
+            ],
+            call_graph: Vec::new(),
+            inherit_graph: Vec::new(),
+            entry_points: vec![EntryPoint {
+                file: "src/app.ts".into(),
+                func: "main".into(),
+                lang: "typescript".into(),
+                confidence: "high".into(),
+            }],
+            exec_depth: HashMap::new(),
+        };
+        let health = HealthReport {
+            coupling_score: 0.0,
+            circular_dep_count: 1,
+            circular_dep_files: vec![vec!["src/orphan-a.ts".into(), "src/orphan-b.ts".into()]],
+            total_import_edges: 3,
+            cross_module_edges: 0,
+            entropy: 0.0,
+            entropy_bits: 0.0,
+            avg_cohesion: None,
+            max_depth: 1,
+            god_files: Vec::new(),
+            hotspot_files: Vec::new(),
+            most_unstable: Vec::new(),
+            complex_functions: Vec::new(),
+            long_functions: Vec::new(),
+            cog_complex_functions: Vec::new(),
+            high_param_functions: Vec::new(),
+            duplicate_groups: Vec::new(),
+            dead_functions: Vec::new(),
+            long_files: Vec::new(),
+            all_function_ccs: Vec::new(),
+            all_function_lines: Vec::new(),
+            all_file_lines: Vec::new(),
+            god_file_ratio: 0.0,
+            hotspot_ratio: 0.0,
+            complex_fn_ratio: 0.0,
+            long_fn_ratio: 0.0,
+            comment_ratio: None,
+            large_file_count: 0,
+            large_file_ratio: 0.0,
+            duplication_ratio: 0.0,
+            dead_code_ratio: 0.0,
+            high_param_ratio: 0.0,
+            cog_complex_ratio: 0.0,
+            quality_signal: 0.0,
+            root_cause_raw: RootCauseRaw {
+                modularity_q: 0.0,
+                cycle_count: 1,
+                max_depth: 1,
+                complexity_gini: 0.0,
+                redundancy_ratio: 0.0,
+            },
+            root_cause_scores: RootCauseScores {
+                modularity: 0.0,
+                acyclicity: 0.0,
+                depth: 0.0,
+                equality: 0.0,
+                redundancy: 0.0,
+            },
+        };
+
+        let reports = build_structural_debt_reports(&snapshot, &health);
+        assert!(reports.iter().any(|report| {
+            report.kind == "dead_island"
+                && report.files
+                    == vec!["src/orphan-a.ts".to_string(), "src/orphan-b.ts".to_string()]
+        }));
     }
 
     fn test_file(path: &str, lines: u32, funcs: u32, max_complexity: u32) -> FileNode {
