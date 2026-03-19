@@ -877,6 +877,58 @@ fn state_model_ids_from_reports(
     reports.iter().map(|report| report.id.clone()).collect()
 }
 
+#[derive(Default)]
+struct ChangedPatchScope {
+    obligations: Vec<crate::metrics::v2::ObligationReport>,
+    semantic_error: Option<String>,
+    suppression_application: SuppressionApplication,
+    touched_concepts: BTreeSet<String>,
+}
+
+fn analyze_changed_patch_scope(
+    state: &mut McpState,
+    root: &Path,
+    config: &crate::metrics::rules::RulesConfig,
+    changed_files: &BTreeSet<String>,
+) -> ChangedPatchScope {
+    if changed_files.is_empty() {
+        return ChangedPatchScope::default();
+    }
+
+    state.cached_semantic = None;
+    let (changed_semantic_findings, obligations, semantic_error) =
+        semantic_findings_and_obligations(
+            state,
+            root,
+            crate::metrics::v2::ObligationScope::Changed,
+            changed_files,
+        );
+    let changed_state_reports =
+        changed_state_integrity_reports(state, root, config, &obligations, changed_files);
+    let mut touched_concepts =
+        crate::metrics::v2::changed_concept_ids_from_files(config, changed_files)
+            .into_iter()
+            .collect::<BTreeSet<_>>();
+    touched_concepts.extend(crate::metrics::v2::changed_state_model_ids_from_files(
+        config,
+        changed_files,
+    ));
+    touched_concepts.extend(crate::metrics::v2::changed_concepts_from_obligations(
+        &obligations,
+    ));
+    touched_concepts.extend(state_model_ids_from_reports(&changed_state_reports));
+    touched_concepts.extend(state_model_ids_from_findings(&changed_semantic_findings));
+    let changed_findings = serialized_values(&changed_semantic_findings);
+    let suppression_application = apply_suppressions(config, changed_findings);
+
+    ChangedPatchScope {
+        obligations,
+        semantic_error,
+        suppression_application,
+        touched_concepts,
+    }
+}
+
 fn changed_state_integrity_reports(
     state: &mut McpState,
     root: &Path,
@@ -929,56 +981,7 @@ fn compute_touched_concept_gate(
     );
     let current_finding_payloads = finding_payload_map(&suppression_application.visible_findings);
     let (rules_config, _) = load_v2_rules_config(root);
-    let (
-        _changed_semantic_findings,
-        changed_obligations,
-        changed_semantic_error,
-        touched_concepts,
-        changed_suppression_application,
-    ) = if changed_files.is_empty() {
-        (
-            Vec::new(),
-            Vec::new(),
-            None,
-            BTreeSet::new(),
-            SuppressionApplication::default(),
-        )
-    } else {
-        state.cached_semantic = None;
-        let (changed_semantic_findings, changed_obligations, changed_semantic_error) =
-            semantic_findings_and_obligations(
-                state,
-                root,
-                crate::metrics::v2::ObligationScope::Changed,
-                &changed_files,
-            );
-        let changed_state_reports = changed_state_integrity_reports(
-            state,
-            root,
-            &rules_config,
-            &changed_obligations,
-            &changed_files,
-        );
-        let mut touched_concepts =
-            crate::metrics::v2::changed_concept_ids_from_files(&rules_config, &changed_files)
-                .into_iter()
-                .collect::<BTreeSet<_>>();
-        touched_concepts.extend(crate::metrics::v2::changed_state_model_ids_from_files(
-            &rules_config,
-            &changed_files,
-        ));
-        touched_concepts.extend(state_model_ids_from_reports(&changed_state_reports));
-        touched_concepts.extend(state_model_ids_from_findings(&changed_semantic_findings));
-        let changed_findings = serialized_values(&changed_semantic_findings);
-        let changed_suppression_application = apply_suppressions(&rules_config, changed_findings);
-        (
-            changed_semantic_findings,
-            changed_obligations,
-            changed_semantic_error,
-            touched_concepts,
-            changed_suppression_application,
-        )
-    };
+    let changed_scope = analyze_changed_patch_scope(state, root, &rules_config, &changed_files);
 
     let introduced_findings = session_v2
         .as_ref()
@@ -990,17 +993,20 @@ fn compute_touched_concept_gate(
                 .collect::<Vec<_>>()
         })
         .unwrap_or_else(|| {
-            changed_suppression_application
+            changed_scope
+                .suppression_application
                 .visible_findings
                 .iter()
                 .filter(|finding| {
                     let concept_id = finding_concept_id(finding).unwrap_or_default();
-                    touched_concepts.is_empty() || touched_concepts.contains(concept_id)
+                    changed_scope.touched_concepts.is_empty()
+                        || changed_scope.touched_concepts.contains(concept_id)
                 })
                 .cloned()
                 .collect::<Vec<_>>()
         });
-    let missing_obligations = changed_obligations
+    let missing_obligations = changed_scope
+        .obligations
         .iter()
         .filter(|obligation| !obligation.missing_sites.is_empty())
         .cloned()
@@ -1018,8 +1024,10 @@ fn compute_touched_concept_gate(
     } else {
         "pass"
     };
-    let semantic_error =
-        merge_optional_errors(changed_semantic_error.or(all_semantic_error), clone_error);
+    let semantic_error = merge_optional_errors(
+        changed_scope.semantic_error.or(all_semantic_error),
+        clone_error,
+    );
     let summary = if decision == "fail" {
         "Touched-concept regressions detected"
     } else if changed_files.is_empty() {
@@ -1039,7 +1047,7 @@ fn compute_touched_concept_gate(
         "introduced_findings": introduced_findings,
         "blocking_findings": blocking_findings,
         "missing_obligations": missing_obligations,
-        "obligation_completeness_0_10000": crate::metrics::v2::obligation_score_0_10000(&changed_obligations),
+        "obligation_completeness_0_10000": crate::metrics::v2::obligation_score_0_10000(&changed_scope.obligations),
         "suppression_hits": suppression_application.active_matches,
         "suppressed_finding_count": suppression_match_count(&suppression_application.active_matches),
         "expired_suppressions": suppression_application.expired_matches,
@@ -3086,61 +3094,14 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
     );
     let current_finding_payloads = finding_payload_map(&suppression_application.visible_findings);
     let (rules_config, _) = load_v2_rules_config(&root);
-    let (
-        _changed_semantic_findings,
-        changed_obligations,
-        changed_semantic_error,
-        changed_suppression_application,
-        changed_concepts,
-    ) = if changed_files.is_empty() {
-        (
-            Vec::new(),
-            Vec::new(),
-            None,
-            SuppressionApplication::default(),
-            Vec::new(),
-        )
-    } else {
-        state.cached_semantic = None;
-        let (changed_semantic_findings, changed_obligations, changed_semantic_error) =
-            semantic_findings_and_obligations(
-                state,
-                &root,
-                crate::metrics::v2::ObligationScope::Changed,
-                &changed_files,
-            );
-        let mut changed_concepts =
-            crate::metrics::v2::changed_concepts_from_obligations(&changed_obligations)
-                .into_iter()
-                .collect::<BTreeSet<_>>();
-        let changed_state_reports = changed_state_integrity_reports(
-            state,
-            &root,
-            &rules_config,
-            &changed_obligations,
-            &changed_files,
-        );
-        changed_concepts.extend(crate::metrics::v2::changed_concept_ids_from_files(
-            &rules_config,
-            &changed_files,
-        ));
-        changed_concepts.extend(crate::metrics::v2::changed_state_model_ids_from_files(
-            &rules_config,
-            &changed_files,
-        ));
-        changed_concepts.extend(state_model_ids_from_reports(&changed_state_reports));
-        changed_concepts.extend(state_model_ids_from_findings(&changed_semantic_findings));
-        let changed_findings = serialized_values(&changed_semantic_findings);
-        let changed_suppression_application = apply_suppressions(&rules_config, changed_findings);
-        (
-            changed_semantic_findings,
-            changed_obligations,
-            changed_semantic_error,
-            changed_suppression_application,
-            changed_concepts.into_iter().collect::<Vec<_>>(),
-        )
-    };
-    let missing_obligations = changed_obligations
+    let changed_scope = analyze_changed_patch_scope(state, &root, &rules_config, &changed_files);
+    let changed_concepts = changed_scope
+        .touched_concepts
+        .iter()
+        .cloned()
+        .collect::<Vec<_>>();
+    let missing_obligations = changed_scope
+        .obligations
         .iter()
         .filter(|obligation| !obligation.missing_sites.is_empty())
         .cloned()
@@ -3162,7 +3123,8 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         .collect::<Vec<_>>();
     if session_v2.is_none() {
         blocking_findings.extend(
-            changed_suppression_application
+            changed_scope
+                .suppression_application
                 .visible_findings
                 .iter()
                 .filter(|finding| severity_of_value(finding) == "high")
@@ -3189,8 +3151,10 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
     } else {
         "pass"
     };
-    let semantic_error =
-        merge_optional_errors(changed_semantic_error.or(all_semantic_error), clone_error);
+    let semantic_error = merge_optional_errors(
+        changed_scope.semantic_error.or(all_semantic_error),
+        clone_error,
+    );
     if baseline.is_none() && baseline_error.is_none() {
         baseline_error =
             Some("Legacy baseline unavailable; structural delta fields were omitted".to_string());
@@ -3240,7 +3204,7 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         "introduced_findings": introduced_findings,
         "resolved_findings": resolved_findings,
         "missing_obligations": missing_obligations,
-        "obligation_completeness_0_10000": crate::metrics::v2::obligation_score_0_10000(&changed_obligations),
+        "obligation_completeness_0_10000": crate::metrics::v2::obligation_score_0_10000(&changed_scope.obligations),
         "touched_concept_gate": {
             "decision": gate_decision,
             "blocking_findings": blocking_findings,
