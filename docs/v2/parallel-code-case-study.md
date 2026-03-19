@@ -199,16 +199,28 @@ This repo already contains source-level architecture guardrails:
 
 V2 should use these as evidence that projects often already encode architectural intent in static tests.
 
-## Expected High-Value Findings
+## Current Evidence-First Snapshot
 
-Once the first v2 analyzers land, this repo should plausibly produce findings such as:
+The current v2 snapshot for `parallel-code` is no longer only concept-shaped. It now includes first-class structural debt findings, debt clusters, and normalized finding details.
 
-- `TaskDotStatus` is a real hardening opportunity in the canonical presentation model
-- `ConnectionBannerState` is a real presentation hardening opportunity in the runtime/session surface
-- clone-drift candidates in `AgentGlyph` / `RemoteAgentGlyph`
-- clone-drift candidates in `ws-server` / `browser-websocket`
-- `server/browser-control-plane.ts` is a concentrated coordination hotspot
-- some lifecycle-heavy modules are explicit state machines and should not be penalized the same way as implicit coordination code
+The most useful current evidence classes are:
+
+- large files
+- dependency sprawl
+- dead private code clusters
+- cycle clusters
+- unstable hotspots
+- clone families
+- concept hardening signals such as `ConnectionBannerState` and `task_presentation_status`
+
+Representative current snapshot rows now include:
+
+- `server/browser-control-plane.ts` as a large-file signal
+- `src/components/terminal-view/terminal-session.ts` as a large-file, dependency-sprawl, dead-private-code, and hotspot cluster
+- `src/App.tsx` and `src/remote/App.tsx` inside a larger debt cluster that also touches runtime/session surfaces
+- a large cycle cluster spanning app/store orchestration files
+
+These are not automated priority claims. They are objective debt signals that engineers can use alongside the repo's architecture plan and tests.
 
 ## Evaluation Tasks
 

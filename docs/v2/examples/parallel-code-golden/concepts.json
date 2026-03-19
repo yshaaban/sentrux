@@ -256,17 +256,6 @@
     },
     {
       "anchors": [
-        "src/remote/ws.ts::ConnectionStatus"
-      ],
-      "confidence_0_10000": 7500,
-      "evidence": [
-        "closed domain 'ConnectionStatus' has 2 exhaustiveness site(s)"
-      ],
-      "id": "connection_status",
-      "kind": "closed_domain"
-    },
-    {
-      "anchors": [
         "src/lib/look.ts::LookPreset"
       ],
       "confidence_0_10000": 7500,
@@ -285,6 +274,17 @@
         "closed domain 'PendingMessage' has 2 exhaustiveness site(s)"
       ],
       "id": "pending_message",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/domain/presence.ts::PresenceConnectionStatus"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "closed domain 'PresenceConnectionStatus' has 2 exhaustiveness site(s)"
+      ],
+      "id": "presence_connection_status",
       "kind": "closed_domain"
     },
     {
@@ -817,6 +817,17 @@
     },
     {
       "anchors": [
+        "src/store/terminal-startup.ts::TerminalStartupPhase"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "closed domain 'TerminalStartupPhase' has 2 exhaustiveness site(s)"
+      ],
+      "id": "terminal_startup_phase",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
         "electron/ipc/pty.ts::AgentTerminalRecovery"
       ],
       "confidence_0_10000": 7000,
@@ -879,6 +890,17 @@
         "closed domain 'ClaimAgentControlFailure' has 1 exhaustiveness site(s)"
       ],
       "id": "claim_agent_control_failure",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "server/browser-preview.ts::PreviewTargetResolution"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'PreviewTargetResolution' has 1 exhaustiveness site(s)"
+      ],
+      "id": "preview_target_resolution",
       "kind": "closed_domain"
     },
     {
@@ -1457,7 +1479,7 @@
     "configured_concept_count": 3,
     "contract_count": 1,
     "guardrail_test_count": 5,
-    "inferred_concept_count": 114,
+    "inferred_concept_count": 116,
     "matched_guardrail_test_count": 1,
     "state_model_count": 2
   },

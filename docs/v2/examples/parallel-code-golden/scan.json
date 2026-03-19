@@ -4,7 +4,7 @@
   "baseline_path": "<parallel-code-root>/.sentrux/baseline.json",
   "confidence": {
     "rule_coverage_0_10000": 10000,
-    "scan_confidence_0_10000": 8164,
+    "scan_confidence_0_10000": 8184,
     "semantic_rules_loaded": true,
     "session_baseline": {
       "compatible": false,
@@ -13,39 +13,39 @@
       "schema_version": null
     }
   },
-  "files": 587,
-  "import_edges": 1738,
-  "lines": 135943,
+  "files": 604,
+  "import_edges": 1797,
+  "lines": 137347,
   "rules_error": null,
   "scan_trust": {
-    "candidate_files": 719,
+    "candidate_files": 738,
     "exclusions": {
       "bucketed": {
         "build": 12,
         "cache": 0,
         "fixture": 7,
         "generated": 0,
-        "vendor": 100
+        "vendor": 102
       },
       "ignored_extension": 11,
       "metadata_error": 0,
       "too_large": 2,
-      "total": 132
+      "total": 134
     },
     "fallback_reason": null,
-    "kept_files": 587,
+    "kept_files": 604,
     "mode": "git",
-    "overall_confidence_0_10000": 8164,
+    "overall_confidence_0_10000": 8184,
     "partial": false,
     "resolution": {
       "internal_confidence_0_10000": 9994,
-      "resolved": 1739,
-      "unresolved_external": 482,
+      "resolved": 1798,
+      "unresolved_external": 491,
       "unresolved_internal": 1,
-      "unresolved_unknown": 74
+      "unresolved_unknown": 75
     },
-    "scope_coverage_0_10000": 8164,
-    "tracked_candidates": 719,
+    "scope_coverage_0_10000": 8184,
+    "tracked_candidates": 738,
     "truncated": false,
     "untracked_candidates": 0
   },

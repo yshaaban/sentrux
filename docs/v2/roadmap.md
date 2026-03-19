@@ -20,7 +20,7 @@ Build order for v2:
 
 1. trust and output framing
 2. patch-safety wedge
-3. debt signals and watchpoints
+3. debt signals, debt clusters, and watchpoints
 4. advanced static analysis
 
 If work does not improve one of the first two tiers, it is not on the critical path. Engineers own final prioritization; v2 should keep the evidence objective.
@@ -302,12 +302,14 @@ Tasks:
 - [x] add conservative concept inference from anchors, contracts, and naming convergence
 - [x] provide example `rules.toml` for `parallel-code`
 - [x] document the small-config onboarding path
+- [x] add normalized finding-detail rows with impact and inspection focus
 
 Exit criteria:
 
 - users can inspect critical concepts without reading internal implementation details
 - architecture tests help coverage without blocking the wedge
 - conservative concept inference is additive, not required for beta findings
+- report rows make impact and inspection angle obvious without forcing engineers to infer it from raw kinds
 
 Open gap:
 
@@ -324,16 +326,18 @@ Tasks:
 - [x] surface suggested structural improvements in `findings`
 - [x] surface patch-scoped quality opportunities in `session_end`
 - [x] add debt signals that combine boundary pressure, clone families, hotspots, and missing-site pressure
+- [x] promote structural debt findings for large files, dependency sprawl, unstable hotspots, cycle clusters, dead private code clusters, and dead islands
+- [x] add overlap-aware debt clusters
 - [-] validate the evidence quality on more than one real repo
 
 Exit criteria:
 
 - the tool can point to a small set of high-value quality improvements on an existing repo
-- `findings` and `session_end` summarize repeated concept pressure instead of only listing raw violations
+- `findings` and `session_end` summarize repeated concept pressure and overlapping structural debt instead of only listing raw violations
 
 Open gap:
 
-- the debt-signal lane is implemented, but it still needs more real-repo proof and tuning so the outputs consistently surface interesting technical-debt patterns
+- the debt-signal lane is implemented, but it still needs more real-repo proof and tuning so the outputs consistently surface interesting technical-debt patterns without overproducing proof artifacts
 
 ## Tier 3: Advanced Static Analysis
 

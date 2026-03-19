@@ -2,6 +2,11 @@
 
 Generated on March 19, 2026 from the live checkout at `<parallel-code-root>`.
 
+Historical note:
+
+- this report captures the earlier live-review pass that informed the maintainer verdict loop
+- for the current evidence-first structural debt surface, use [parallel-code-proof-snapshot.md](<sentrux-root>/docs/v2/examples/parallel-code-proof-snapshot.md)
+
 ## Audience
 
 This report is for an engineer who does not already know `parallel-code` or Sentrux.

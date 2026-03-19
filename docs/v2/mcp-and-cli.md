@@ -244,6 +244,18 @@ Arguments:
       ]
     }
   ],
+  "debt_clusters": [
+    {
+      "scope": "cluster:src/app/task-workflows.ts|src/store/core.ts",
+      "severity": "high",
+      "summary": "Files src/app/task-workflows.ts and src/store/core.ts intersect 3 debt signals: concept, dependency_sprawl, cycle_cluster",
+      "signal_kinds": [
+        "concept",
+        "dependency_sprawl",
+        "cycle_cluster"
+      ]
+    }
+  ],
   "watchpoints": [
     {
       "scope": "task_git_status",
@@ -262,6 +274,18 @@ Arguments:
       "severity": "high",
       "summary": "taskGitStatus has more than one durable write path",
       "confidence": 9300
+    }
+  ],
+  "finding_details": [
+    {
+      "kind": "multi_writer_concept",
+      "scope": "task_git_status",
+      "severity": "high",
+      "summary": "taskGitStatus has more than one durable write path",
+      "impact": "Multiple write paths make the concept easier to update inconsistently and harder to debug.",
+      "inspection_focus": [
+        "inspect which module should own writes for this concept"
+      ]
     }
   ],
   "missing_obligations": [
@@ -308,11 +332,30 @@ Arguments:
       "summary": "Concept 'task_git_status' has 2 high-severity ownership or access findings"
     }
   ],
+  "debt_clusters": [
+    {
+      "scope": "cluster:src/app/task-workflows.ts|src/store/core.ts",
+      "severity": "high",
+      "summary": "Files src/app/task-workflows.ts and src/store/core.ts intersect 3 debt signals: concept, dependency_sprawl, cycle_cluster"
+    }
+  ],
   "watchpoints": [
     {
       "scope": "task_git_status",
       "severity": "high",
       "summary": "Concept 'task_git_status' intersects boundary pressure and clone overlap"
+    }
+  ],
+  "finding_details": [
+    {
+      "kind": "public_api_bypass",
+      "scope": "tasks",
+      "severity": "high",
+      "summary": "task-workflows imports store internals directly instead of the intended public store boundary",
+      "impact": "Bypassing the intended read boundary weakens architectural contracts and can create stale or inconsistent views.",
+      "inspection_focus": [
+        "inspect whether reads should move behind the canonical accessor or public boundary"
+      ]
     }
   ],
   "findings": [

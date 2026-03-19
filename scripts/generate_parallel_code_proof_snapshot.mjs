@@ -25,6 +25,10 @@ function readJson(targetPath) {
   return JSON.parse(readFileSync(targetPath, 'utf8'));
 }
 
+function compactList(values, limit, mapper) {
+  return (values ?? []).slice(0, limit).map(mapper);
+}
+
 function compactFinding(finding) {
   return {
     id: finding.id ?? null,
@@ -55,6 +59,28 @@ function compactDebtSignal(signal) {
     severity: signal.severity ?? null,
     score_0_10000: signal.score_0_10000 ?? null,
     summary: signal.summary ?? null,
+  };
+}
+
+function compactDebtCluster(cluster) {
+  return {
+    scope: cluster.scope ?? null,
+    severity: cluster.severity ?? null,
+    score_0_10000: cluster.score_0_10000 ?? null,
+    summary: cluster.summary ?? null,
+    signal_kinds: cluster.signal_kinds ?? [],
+    signal_families: cluster.signal_families ?? [],
+  };
+}
+
+function compactFindingDetail(detail) {
+  return {
+    kind: detail.kind ?? null,
+    scope: detail.scope ?? null,
+    severity: detail.severity ?? null,
+    summary: detail.summary ?? null,
+    impact: detail.impact ?? null,
+    inspection_focus: detail.inspection_focus ?? [],
   };
 }
 
@@ -100,13 +126,21 @@ function selectDuplicationTarget(snapshot) {
   const cloneSignal = snapshot.debt_signals.find(
     (signal) => signal.kind === 'clone_family',
   );
+  const duplicationCluster = snapshot.debt_clusters.find((cluster) =>
+    (cluster.signal_families ?? []).includes('duplication'),
+  );
   const hotspotSignal = snapshot.debt_signals.find(
     (signal) => signal.kind === 'hotspot',
+  );
+  const hotspotCluster = snapshot.debt_clusters.find((cluster) =>
+    (cluster.signal_families ?? []).includes('coordination'),
   );
 
   return {
     clone_family: cloneSignal ?? null,
+    duplication_cluster: duplicationCluster ?? null,
     hotspot: hotspotSignal ?? null,
+    hotspot_cluster: hotspotCluster ?? null,
   };
 }
 
@@ -133,11 +167,28 @@ function buildMarkdown(snapshot) {
     );
   }
   lines.push('');
+  lines.push('## Finding Details');
+  lines.push('');
+  for (const detail of snapshot.finding_details) {
+    lines.push(
+      `- \`${detail.severity}\` \`${detail.kind}\` \`${detail.scope}\`: ${detail.summary}`,
+    );
+    lines.push(`  - impact: ${detail.impact}`);
+  }
+  lines.push('');
   lines.push('## Debt Signals');
   lines.push('');
   for (const signal of snapshot.debt_signals) {
     lines.push(
       `- \`${signal.kind}\` \`${signal.scope}\` score ${signal.score_0_10000}: ${signal.summary}`,
+    );
+  }
+  lines.push('');
+  lines.push('## Debt Clusters');
+  lines.push('');
+  for (const cluster of snapshot.debt_clusters) {
+    lines.push(
+      `- \`${cluster.scope}\` score ${cluster.score_0_10000}: ${cluster.summary}`,
     );
   }
   lines.push('');
@@ -159,8 +210,14 @@ function buildMarkdown(snapshot) {
   );
   lines.push(
     `3. Duplication/hotspot: clone ${
-      snapshot.proof_targets.duplication_hotspot.clone_family?.scope ?? 'n/a'
-    } / hotspot ${snapshot.proof_targets.duplication_hotspot.hotspot?.scope ?? 'n/a'}`,
+      snapshot.proof_targets.duplication_hotspot.clone_family?.scope ??
+      snapshot.proof_targets.duplication_hotspot.duplication_cluster?.scope ??
+      'n/a'
+    } / hotspot ${
+      snapshot.proof_targets.duplication_hotspot.hotspot?.scope ??
+      snapshot.proof_targets.duplication_hotspot.hotspot_cluster?.scope ??
+      'n/a'
+    }`,
   );
   lines.push('');
   lines.push('## Benchmark Baseline');
@@ -201,14 +258,20 @@ async function main() {
       benchmark_path: benchmarkPath,
       metadata,
     },
-    top_findings: (findings.findings ?? []).slice(0, 10).map(compactFinding),
-    concept_summaries: (findings.concept_summaries ?? []).slice(0, 5).map(compactConceptSummary),
-    debt_signals: (findings.debt_signals ?? findings.quality_opportunities ?? [])
-      .slice(0, 5)
-      .map(compactDebtSignal),
-    watchpoints: (findings.watchpoints ?? findings.optimization_priorities ?? [])
-      .slice(0, 5)
-      .map(compactWatchpoint),
+    top_findings: compactList(findings.findings, 10, compactFinding),
+    finding_details: compactList(findings.finding_details, 10, compactFindingDetail),
+    concept_summaries: compactList(findings.concept_summaries, 5, compactConceptSummary),
+    debt_signals: compactList(
+      findings.debt_signals ?? findings.quality_opportunities,
+      5,
+      compactDebtSignal,
+    ),
+    debt_clusters: compactList(findings.debt_clusters, 5, compactDebtCluster),
+    watchpoints: compactList(
+      findings.watchpoints ?? findings.optimization_priorities,
+      5,
+      compactWatchpoint,
+    ),
     proof_targets: null,
     benchmark: {
       cold_process_total_ms: benchmark.benchmark?.cold_process_total_ms ?? null,

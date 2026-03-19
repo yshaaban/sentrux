@@ -43,6 +43,9 @@ The strongest completed work is:
 - broader contract-driven obligation triggers beyond closed-domain changes
 - stronger boundary-bypass and concept-boundary pressure findings
 - concept-scoped quality summaries and debt signals in `findings` and `session_end`
+- first-class structural debt findings for large files, dependency sprawl, unstable hotspots, cycle clusters, dead private code clusters, and dead islands
+- overlap-aware debt clusters that connect related structural and concept signals
+- normalized finding-detail rows with explicit impact and inspection focus
 - inspection candidates that combine concept pressure, clone families, and hotspots
 - parity and concentration context
 - conservative state-integrity analysis
@@ -69,7 +72,7 @@ The strongest completed work is:
 | Tier 1F | Mostly complete | `session_end` and `gate` now work in MCP and CLI on the same touched-concept model, including suppression-aware decisions and shared patch-safety analysis reuse | release-grade gate validation is still incomplete |
 | Tier 2A | Mostly complete | parity analyzer, MCP tool, and real proof now exist on more than one repo shape | broader contract families still need more false-positive review and non-happy-path validation |
 | Tier 2B | Mostly complete | concentration analysis exists and is tested | not yet benchmarked or validated on the real case-study repo |
-| Tier 2C | Mostly complete | inspection tools, adoption helpers, quality-guidance summaries, debt signals, and two real benchmark repos now exist | broader onboarding proof and evidence-quality validation are still incomplete |
+| Tier 2C | Mostly complete | inspection tools, adoption helpers, quality-guidance summaries, structural debt findings, debt clusters, and two real benchmark repos now exist | broader onboarding proof and evidence-quality validation are still incomplete |
 | Tier 3 | Partial | conservative state-integrity slice is in place and now validated on real `parallel-code` controllers | transition modeling and implicit lifecycle heuristics are not built |
 | Validation | Mostly complete | unit tests, synthetic gate/session regression scenarios, two real benchmark repos, multi-repo goldens, versioned benchmark comparison, explicit benchmark policy, and confidence/migration checks now exist | no full migration suite and benchmark-repo unhappy-path coverage is still incomplete |
 
@@ -87,12 +90,14 @@ Delivered:
 - scan trust/confidence data in MCP
 - bottleneck-first health framing
 - baseline/session-v2 persistence
+- normalized finding details and evidence-first debt reporting in MCP responses
 
 Still missing or partial:
 
 - baseline deltas are not surfaced inline in `health`
 - the composite score is demoted in MCP, but CLI and GUI are not yet fully aligned
 - confidence exists as MCP payload shape, but not as a fully unified first-class v2 type across product surfaces
+- proof-run markdown and GUI surfaces still lag the newer debt-cluster and finding-detail shapes
 
 ## Tier 1A: Clone Drift Fast Lane
 
@@ -262,6 +267,9 @@ Delivered:
 - onboarding docs
 - concept-scoped quality summaries in `findings`
 - debt signals in `findings` and `session_end`
+- structural debt findings in `findings` and `session_end`
+- debt clusters in `findings` and `session_end`
+- normalized finding details in `findings` and `session_end`
 - concentration-backed inspection scoring for concept-level refactor candidates
 - inspection candidates that combine boundary pressure, clone families, hotspots, and missing-site pressure
 

@@ -88,7 +88,15 @@ to:
 
 > What did this patch change, what obligations did that create, and what did the agent fail to update?
 
-V2 now also exposes debt signals, watchpoints, and patch risks. Any compatibility fields that still mention quality opportunities or optimization-style sorting should be treated as legacy aliases for inspection candidates only. Engineers own the final prioritization.
+V2 now also exposes:
+
+- debt signals
+- debt clusters
+- watchpoints
+- normalized finding details
+- patch risks
+
+Any compatibility fields that still mention quality opportunities or optimization-style sorting should be treated as legacy aliases for inspection candidates only. Engineers own the final prioritization.
 
 ## Core Wedge
 
@@ -141,8 +149,8 @@ Current reality:
 
 1. the patch-safety wedge is working in MCP and CLI
 2. proof artifacts now exist for `parallel-code` and `private-benchmark-repo`
-3. findings and `session_end` now include concept summaries, debt signals, and watchpoints
-4. the remaining gaps are warm-path performance follow-through, broader unhappy-path validation, and deeper Tier 3 analysis
+3. findings and `session_end` now include concept summaries, structural debt signals, debt clusters, normalized finding details, and watchpoints
+4. the remaining gaps are broader unhappy-path validation, proof-run refresh follow-through, and deeper Tier 3 analysis
 
 ## Exit Criteria For V2 Beta
 
