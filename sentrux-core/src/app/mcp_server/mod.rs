@@ -31,6 +31,9 @@ use std::{collections::BTreeMap, sync::Arc};
 pub struct SessionV2Baseline {
     pub file_hashes: BTreeMap<String, u64>,
     pub finding_payloads: BTreeMap<String, Value>,
+    pub git_head: Option<String>,
+    #[serde(default)]
+    pub working_tree_paths: std::collections::BTreeSet<String>,
 }
 
 /// Mutable state shared across MCP requests.

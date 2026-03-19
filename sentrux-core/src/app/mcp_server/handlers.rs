@@ -435,53 +435,129 @@ fn prepare_patch_check_context(
     })
 }
 
-fn working_tree_changed_files(root: &Path) -> BTreeSet<String> {
-    let output = match Command::new("git")
+fn git_output(root: &Path, args: &[&str]) -> Option<String> {
+    let output = Command::new("git")
         .arg("-C")
         .arg(root)
-        .arg("status")
-        .arg("--porcelain")
-        .arg("--untracked-files=all")
+        .args(args)
         .output()
-    {
-        Ok(output) if output.status.success() => output,
-        _ => return BTreeSet::new(),
-    };
-    let stdout = match String::from_utf8(output.stdout) {
-        Ok(stdout) => stdout,
-        Err(_) => return BTreeSet::new(),
-    };
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
 
-    stdout
-        .lines()
-        .filter_map(parse_porcelain_path)
-        .filter(|path| !is_internal_sentrux_path(path))
-        .map(|path| path.replace('\\', "/"))
-        .collect()
+    String::from_utf8(output.stdout).ok()
 }
 
-fn parse_porcelain_path(line: &str) -> Option<String> {
+fn working_tree_changed_files(root: &Path) -> Option<BTreeSet<String>> {
+    let stdout = git_output(root, &["status", "--porcelain", "--untracked-files=all"])?;
+    Some(
+        stdout
+            .lines()
+            .flat_map(parse_porcelain_paths)
+            .filter(|path| !is_internal_sentrux_path(path))
+            .map(|path| path.replace('\\', "/"))
+            .collect(),
+    )
+}
+
+fn parse_porcelain_paths(line: &str) -> Vec<String> {
     if line.len() < 4 {
-        return None;
+        return Vec::new();
     }
-    let path = line.get(3..)?.trim();
+    let Some(path) = line.get(3..) else {
+        return Vec::new();
+    };
+    let path = path.trim();
     if path.is_empty() {
+        return Vec::new();
+    }
+    if let Some((old_path, renamed_to)) = path.split_once(" -> ") {
+        return vec![old_path.to_string(), renamed_to.to_string()];
+    }
+    vec![path.to_string()]
+}
+
+fn current_git_head(root: &Path) -> Option<String> {
+    let head = git_output(root, &["rev-parse", "HEAD"])?;
+    let head = head.trim();
+    if head.is_empty() {
         return None;
     }
-    if let Some((_, renamed_to)) = path.split_once(" -> ") {
-        return Some(renamed_to.to_string());
+    Some(head.to_string())
+}
+
+fn diff_paths_between_heads(
+    root: &Path,
+    baseline_head: &str,
+    current_head: &str,
+) -> Option<BTreeSet<String>> {
+    let range = format!("{baseline_head}..{current_head}");
+    let stdout = git_output(
+        root,
+        &[
+            "diff",
+            "--name-status",
+            "--find-renames",
+            "--find-copies",
+            &range,
+        ],
+    )?;
+    Some(
+        stdout
+            .lines()
+            .flat_map(parse_name_status_paths)
+            .filter(|path| !is_internal_sentrux_path(path))
+            .map(|path| path.replace('\\', "/"))
+            .collect(),
+    )
+}
+
+fn parse_name_status_paths(line: &str) -> Vec<String> {
+    let mut parts = line.split('\t');
+    let Some(status) = parts.next().map(str::trim) else {
+        return Vec::new();
+    };
+    if status.is_empty() {
+        return Vec::new();
     }
-    Some(path.to_string())
+
+    if status.starts_with('R') || status.starts_with('C') {
+        let old_path = parts.next().unwrap_or_default().trim();
+        let new_path = parts.next().unwrap_or_default().trim();
+        return [old_path, new_path]
+            .into_iter()
+            .filter(|path| !path.is_empty())
+            .map(str::to_string)
+            .collect();
+    }
+
+    parts
+        .next()
+        .map(str::trim)
+        .filter(|path| !path.is_empty())
+        .map(|path| vec![path.to_string()])
+        .unwrap_or_default()
 }
 
 fn snapshot_file_hashes(root: &Path, snapshot: &Snapshot) -> BTreeMap<String, u64> {
-    crate::core::snapshot::flatten_files_ref(snapshot.root.as_ref())
-        .into_iter()
-        .filter(|file| !is_internal_sentrux_path(&file.path))
-        .filter_map(|file| {
-            let absolute_path = root.join(&file.path);
+    snapshot_file_hashes_for_paths(root, snapshot, &scanned_file_paths(snapshot))
+}
+
+fn snapshot_file_hashes_for_paths(
+    root: &Path,
+    snapshot: &Snapshot,
+    paths: &BTreeSet<String>,
+) -> BTreeMap<String, u64> {
+    let scanned_paths = scanned_file_paths(snapshot);
+    paths
+        .iter()
+        .filter(|path| scanned_paths.contains(*path))
+        .filter(|path| !is_internal_sentrux_path(path))
+        .filter_map(|path| {
+            let absolute_path = root.join(path);
             let bytes = std::fs::read(&absolute_path).ok()?;
-            Some((file.path.clone(), stable_hash(&bytes)))
+            Some((path.clone(), stable_hash(&bytes)))
         })
         .collect()
 }
@@ -490,13 +566,23 @@ fn diff_file_hashes(
     baseline_hashes: &BTreeMap<String, u64>,
     current_hashes: &BTreeMap<String, u64>,
 ) -> BTreeSet<String> {
-    baseline_hashes
+    let candidate_paths = baseline_hashes
         .keys()
         .chain(current_hashes.keys())
         .cloned()
-        .collect::<BTreeSet<_>>()
-        .into_iter()
-        .filter(|path| baseline_hashes.get(path) != current_hashes.get(path))
+        .collect::<BTreeSet<_>>();
+    diff_file_hashes_for_paths(baseline_hashes, current_hashes, &candidate_paths)
+}
+
+fn diff_file_hashes_for_paths(
+    baseline_hashes: &BTreeMap<String, u64>,
+    current_hashes: &BTreeMap<String, u64>,
+    candidate_paths: &BTreeSet<String>,
+) -> BTreeSet<String> {
+    candidate_paths
+        .iter()
+        .filter(|path| baseline_hashes.get(*path) != current_hashes.get(*path))
+        .cloned()
         .collect()
 }
 
@@ -525,11 +611,69 @@ fn changed_files_from_session_context(
 ) -> BTreeSet<String> {
     match session_v2 {
         Some(session_v2) => {
+            if let Some(candidate_paths) =
+                changed_session_candidate_paths(root, snapshot, session_v2)
+            {
+                if candidate_paths.is_empty() {
+                    return BTreeSet::new();
+                }
+                let current_file_hashes =
+                    snapshot_file_hashes_for_paths(root, snapshot, &candidate_paths);
+                return diff_file_hashes_for_paths(
+                    &session_v2.file_hashes,
+                    &current_file_hashes,
+                    &candidate_paths,
+                );
+            }
+
             let current_file_hashes = snapshot_file_hashes(root, snapshot);
             diff_file_hashes(&session_v2.file_hashes, &current_file_hashes)
         }
-        None => filter_changed_files_to_snapshot(working_tree_changed_files(root), snapshot),
+        None => working_tree_changed_files(root)
+            .map(|changed_files| filter_changed_files_to_snapshot(changed_files, snapshot))
+            .unwrap_or_default(),
     }
+}
+
+fn changed_session_candidate_paths(
+    root: &Path,
+    snapshot: &Snapshot,
+    session_v2: &SessionV2Baseline,
+) -> Option<BTreeSet<String>> {
+    let current_working_tree_paths = working_tree_changed_files(root)?;
+    let mut candidate_paths = session_v2
+        .working_tree_paths
+        .union(&current_working_tree_paths)
+        .cloned()
+        .collect::<BTreeSet<_>>();
+
+    let current_head = current_git_head(root);
+    match (session_v2.git_head.as_deref(), current_head.as_deref()) {
+        (Some(baseline_head), Some(current_head)) if baseline_head != current_head => {
+            let committed_paths = diff_paths_between_heads(root, baseline_head, current_head)?;
+            candidate_paths.extend(committed_paths);
+        }
+        (Some(_), None) | (None, Some(_)) => return None,
+        _ => {}
+    }
+
+    Some(filter_changed_files_to_session_scope(
+        candidate_paths,
+        snapshot,
+        session_v2,
+    ))
+}
+
+fn filter_changed_files_to_session_scope(
+    changed_files: BTreeSet<String>,
+    snapshot: &Snapshot,
+    session_v2: &SessionV2Baseline,
+) -> BTreeSet<String> {
+    let scanned_paths = scanned_file_paths(snapshot);
+    changed_files
+        .into_iter()
+        .filter(|path| scanned_paths.contains(path) || session_v2.file_hashes.contains_key(path))
+        .collect()
 }
 
 fn stable_hash(bytes: &[u8]) -> u64 {
@@ -578,6 +722,8 @@ fn build_session_v2_baseline(
     health: &metrics::HealthReport,
 ) -> (SessionV2Baseline, SuppressionApplication, Option<String>) {
     let file_hashes = snapshot_file_hashes(root, snapshot);
+    let git_head = current_git_head(root);
+    let working_tree_paths = working_tree_changed_files(root).unwrap_or_default();
     let (clone_findings, clone_error) =
         clone_findings_for_health(state, root, snapshot, health, health.duplicate_groups.len());
     let (semantic_findings, _, semantic_error) = semantic_findings_and_obligations(
@@ -595,6 +741,8 @@ fn build_session_v2_baseline(
         SessionV2Baseline {
             file_hashes,
             finding_payloads,
+            git_head,
+            working_tree_paths,
         },
         suppression_application,
         merge_optional_errors(semantic_error, clone_error),
@@ -1831,7 +1979,8 @@ fn distinct_file_count(group: &crate::metrics::DuplicateGroup) -> usize {
 #[cfg(test)]
 mod tests {
     use super::{
-        apply_suppressions, build_exact_clone_findings, cli_evaluate_v2_gate, cli_save_v2_session,
+        apply_suppressions, build_exact_clone_findings, build_session_v2_baseline,
+        changed_files_from_session_context, cli_evaluate_v2_gate, cli_save_v2_session,
         distinct_file_count, do_scan, fresh_mcp_state, handle_concepts, handle_explain_concept,
         handle_gate, handle_obligations, handle_scan, handle_session_end, handle_session_start,
         handle_state, handle_trace_symbol, load_persisted_session_v2, load_v2_rules_config,
@@ -1848,8 +1997,9 @@ mod tests {
     use crate::metrics::rules::RulesConfig;
     use crate::metrics::DuplicateGroup;
     use serde_json::json;
-    use std::collections::BTreeMap;
+    use std::collections::{BTreeMap, BTreeSet};
     use std::path::Path;
+    use std::process::Command;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn temp_root(label: &str) -> std::path::PathBuf {
@@ -1880,6 +2030,27 @@ mod tests {
             .open(&absolute_path)
             .expect("open file for append");
         file.write_all(contents.as_bytes()).expect("append file");
+    }
+
+    fn run_git(root: &Path, args: &[&str]) {
+        let status = Command::new("git")
+            .arg("-C")
+            .arg(root)
+            .args(args)
+            .status()
+            .expect("run git command");
+        assert!(status.success(), "git {:?} failed", args);
+    }
+
+    fn init_git_repo(root: &Path) {
+        run_git(root, &["init"]);
+        run_git(root, &["config", "user.email", "test@example.com"]);
+        run_git(root, &["config", "user.name", "Sentrux Test"]);
+    }
+
+    fn commit_all(root: &Path, message: &str) {
+        run_git(root, &["add", "."]);
+        run_git(root, &["commit", "-m", message]);
     }
 
     fn concept_fixture_root() -> std::path::PathBuf {
@@ -2367,6 +2538,8 @@ mod tests {
                 "finding-1".to_string(),
                 json!({"kind": "closed_domain_exhaustiveness", "severity": "high"}),
             )]),
+            git_head: Some("abc123".to_string()),
+            working_tree_paths: BTreeSet::from(["src/a.ts".to_string()]),
         };
 
         let path = save_session_v2_baseline(&root, &baseline).expect("save session baseline");
@@ -2377,6 +2550,52 @@ mod tests {
         assert_eq!(path, root.join(".sentrux").join("session-v2.json"));
         assert_eq!(loaded.file_hashes, baseline.file_hashes);
         assert_eq!(loaded.finding_payloads, baseline.finding_payloads);
+        assert_eq!(loaded.git_head, baseline.git_head);
+        assert_eq!(loaded.working_tree_paths, baseline.working_tree_paths);
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn session_v2_baseline_deserializes_without_git_metadata() {
+        let baseline: SessionV2Baseline = serde_json::from_value(json!({
+            "file_hashes": { "src/a.ts": 11 },
+            "finding_payloads": {}
+        }))
+        .expect("deserialize legacy session baseline");
+
+        assert_eq!(baseline.file_hashes["src/a.ts"], 11);
+        assert!(baseline.git_head.is_none());
+        assert!(baseline.working_tree_paths.is_empty());
+    }
+
+    #[test]
+    fn session_changed_files_include_committed_renames() {
+        let root = cli_gate_fixture_root();
+        init_git_repo(&root);
+        commit_all(&root, "initial");
+
+        let mut state = fresh_mcp_state();
+        let baseline_scan = do_scan(&root).expect("scan baseline");
+        let (session_v2, _, _) = build_session_v2_baseline(
+            &mut state,
+            &root,
+            &baseline_scan.snapshot,
+            &baseline_scan.health,
+        );
+
+        run_git(
+            &root,
+            &["mv", "src/domain/state.ts", "src/domain/app-state.ts"],
+        );
+        commit_all(&root, "rename state");
+
+        let current_scan = do_scan(&root).expect("scan renamed tree");
+        let changed_files =
+            changed_files_from_session_context(&root, &current_scan.snapshot, Some(&session_v2));
+
+        assert!(changed_files.contains("src/domain/state.ts"));
+        assert!(changed_files.contains("src/domain/app-state.ts"));
 
         let _ = std::fs::remove_dir_all(root);
     }
@@ -2401,6 +2620,38 @@ mod tests {
                 .map(|files| files.len()),
             Some(0)
         );
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn session_changed_files_detect_revert_from_dirty_baseline() {
+        let root = cli_gate_fixture_root();
+        init_git_repo(&root);
+        commit_all(&root, "initial");
+
+        write_file(
+            &root,
+            "src/domain/state.ts",
+            "export type AppState = 'idle' | 'busy' | 'error';\n",
+        );
+
+        let mut state = fresh_mcp_state();
+        let dirty_scan = do_scan(&root).expect("scan dirty baseline");
+        let (session_v2, _, _) =
+            build_session_v2_baseline(&mut state, &root, &dirty_scan.snapshot, &dirty_scan.health);
+
+        write_file(
+            &root,
+            "src/domain/state.ts",
+            "export type AppState = 'idle' | 'busy';\n",
+        );
+
+        let reverted_scan = do_scan(&root).expect("scan reverted tree");
+        let changed_files =
+            changed_files_from_session_context(&root, &reverted_scan.snapshot, Some(&session_v2));
+
+        assert!(changed_files.contains("src/domain/state.ts"));
 
         let _ = std::fs::remove_dir_all(root);
     }
