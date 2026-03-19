@@ -1,11 +1,21 @@
 {
   "baseline_path": "<parallel-code-root>/.sentrux/baseline.json",
+  "confidence": {
+    "rule_coverage_0_10000": 10000,
+    "scan_confidence_0_10000": 8125,
+    "semantic_rules_loaded": true,
+    "session_baseline": {
+      "compatible": true,
+      "error": null,
+      "loaded": true,
+      "schema_version": 3
+    }
+  },
   "expired_suppression_match_count": 0,
   "expired_suppressions": [],
   "message": "Call 'session_end' after making changes to see the diff",
-  "quality_signal": 4973,
   "semantic_error": null,
-  "session_finding_count": 23,
+  "session_finding_count": 54,
   "session_v2_baseline_path": "<parallel-code-root>/.sentrux/session-v2.json",
   "status": "Baseline saved",
   "suppressed_finding_count": 0,

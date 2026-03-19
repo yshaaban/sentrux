@@ -113,6 +113,35 @@ function sanitizeValue(value) {
   return value;
 }
 
+function stabilizeValue(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map(stabilizeValue)
+      .map((entry) => {
+        if (
+          typeof entry === 'string' &&
+          /^youngest clone file was touched \d+ day\(s\) ago$/.test(entry)
+        ) {
+          return 'youngest clone file was touched recently';
+        }
+        return entry;
+      });
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(
+          ([key]) =>
+            key !== 'age_days' &&
+            key !== 'youngest_age_days' &&
+            key !== 'quality_signal',
+        )
+        .map(([key, entry]) => [key, stabilizeValue(entry)]),
+    );
+  }
+  return value;
+}
+
 for (const [id, filename] of outputs) {
   const response = responses.get(id);
   if (!response) {
@@ -124,7 +153,7 @@ for (const [id, filename] of outputs) {
     throw new Error(`Missing text payload for id ${id}`);
   }
 
-  const parsed = sanitizeValue(JSON.parse(text));
+  const parsed = stabilizeValue(sanitizeValue(JSON.parse(text)));
   fs.writeFileSync(path.join(outputDir, filename), `${JSON.stringify(parsed, null, 2)}\n`);
 }
 EOF
@@ -192,6 +221,30 @@ function sanitizeValue(value) {
   return value;
 }
 
+function stabilizeValue(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map(stabilizeValue)
+      .map((entry) => {
+        if (
+          typeof entry === 'string' &&
+          /^youngest clone file was touched \d+ day\(s\) ago$/.test(entry)
+        ) {
+          return 'youngest clone file was touched recently';
+        }
+        return entry;
+      });
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([key]) => key !== 'age_days' && key !== 'youngest_age_days')
+        .map(([key, entry]) => [key, stabilizeValue(entry)]),
+    );
+  }
+  return value;
+}
+
 for (const [id, filename] of outputs) {
   const response = responses.get(id);
   if (!response) {
@@ -203,7 +256,7 @@ for (const [id, filename] of outputs) {
     throw new Error(`Missing text payload for id ${id}`);
   }
 
-  const parsed = sanitizeValue(JSON.parse(text));
+  const parsed = stabilizeValue(sanitizeValue(JSON.parse(text)));
   fs.writeFileSync(path.join(outputDir, filename), `${JSON.stringify(parsed, null, 2)}\n`);
 }
 EOF

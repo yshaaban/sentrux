@@ -200,17 +200,6 @@
     },
     {
       "anchors": [
-        "src/domain/task-convergence.ts::TaskReviewState"
-      ],
-      "confidence_0_10000": 8500,
-      "evidence": [
-        "closed domain 'TaskReviewState' has 7 exhaustiveness site(s)"
-      ],
-      "id": "task_review_state",
-      "kind": "closed_domain"
-    },
-    {
-      "anchors": [
         "src/lib/terminal-output-priority.ts::TerminalOutputPriority"
       ],
       "confidence_0_10000": 8500,
@@ -332,11 +321,11 @@
     },
     {
       "anchors": [
-        "src/app/task-workflows.control.test.ts::store.activeTaskId"
+        "src/app/task-lifecycle-workflows.ts::store.activeTaskId"
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.activeTaskId' is touched from 24 file(s)"
+        "symbol 'store.activeTaskId' is touched from 23 file(s)"
       ],
       "id": "store_active_task_id",
       "kind": "store_like_symbol"
@@ -358,7 +347,7 @@
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.agents' is touched from 19 file(s)"
+        "symbol 'store.agents' is touched from 20 file(s)"
       ],
       "id": "store_agents",
       "kind": "store_like_symbol"
@@ -369,14 +358,14 @@
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.autoTrustFolders' is touched from 5 file(s)"
+        "symbol 'store.autoTrustFolders' is touched from 6 file(s)"
       ],
       "id": "store_auto_trust_folders",
       "kind": "store_like_symbol"
     },
     {
       "anchors": [
-        "src/app/desktop-session.ts::store.collapsedTaskOrder"
+        "src/app/desktop-session-startup.ts::store.collapsedTaskOrder"
       ],
       "confidence_0_10000": 7500,
       "evidence": [
@@ -398,13 +387,24 @@
     },
     {
       "anchors": [
-        "src/components/TaskPanel.test.tsx::store.focusedPanel"
+        "src/app/task-workflows.control.test.ts::store.focusedPanel"
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.focusedPanel' is touched from 14 file(s)"
+        "symbol 'store.focusedPanel' is touched from 9 file(s)"
       ],
       "id": "store_focused_panel",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/task-workflows.control.test.ts::store.focusedPanel.task-1"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.focusedPanel.task-1' is touched from 4 file(s)"
+      ],
+      "id": "store_focused_panel_task_1",
       "kind": "store_like_symbol"
     },
     {
@@ -442,7 +442,7 @@
     },
     {
       "anchors": [
-        "src/app/task-workflows.ts::store.hydraForceDispatchFromPromptPanel"
+        "src/app/task-prompt-workflows.ts::store.hydraForceDispatchFromPromptPanel"
       ],
       "confidence_0_10000": 7500,
       "evidence": [
@@ -567,7 +567,7 @@
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.showHelpDialog' is touched from 4 file(s)"
+        "symbol 'store.showHelpDialog' is touched from 5 file(s)"
       ],
       "id": "store_show_help_dialog",
       "kind": "store_like_symbol"
@@ -611,7 +611,7 @@
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.sidebarFocused' is touched from 11 file(s)"
+        "symbol 'store.sidebarFocused' is touched from 12 file(s)"
       ],
       "id": "store_sidebar_focused",
       "kind": "store_like_symbol"
@@ -684,7 +684,7 @@
     },
     {
       "anchors": [
-        "src/app/desktop-session.ts::store.taskOrder"
+        "src/app/desktop-session-startup.ts::store.taskOrder"
       ],
       "confidence_0_10000": 7500,
       "evidence": [
@@ -699,7 +699,7 @@
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.taskOrder.length' is touched from 5 file(s)"
+        "symbol 'store.taskOrder.length' is touched from 4 file(s)"
       ],
       "id": "store_task_order_length",
       "kind": "store_like_symbol"
@@ -717,11 +717,11 @@
     },
     {
       "anchors": [
-        "src/app/desktop-session.ts::store.tasks"
+        "src/app/desktop-session-startup.ts::store.tasks"
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.tasks' is touched from 32 file(s)"
+        "symbol 'store.tasks' is touched from 33 file(s)"
       ],
       "id": "store_tasks",
       "kind": "store_like_symbol"
@@ -739,11 +739,11 @@
     },
     {
       "anchors": [
-        "src/app/task-workflows.ts::store.terminals"
+        "src/app/task-lifecycle-workflows.ts::store.terminals"
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.terminals' is touched from 9 file(s)"
+        "symbol 'store.terminals' is touched from 10 file(s)"
       ],
       "id": "store_terminals",
       "kind": "store_like_symbol"
@@ -783,13 +783,13 @@
     },
     {
       "anchors": [
-        "src/domain/task-convergence.ts::TaskReviewQueueGroup"
+        "src/domain/task-convergence.ts::TaskReviewState"
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "closed domain 'TaskReviewQueueGroup' has 2 exhaustiveness site(s)"
+        "closed domain 'TaskReviewState' has 2 exhaustiveness site(s)"
       ],
-      "id": "task_review_queue_group",
+      "id": "task_review_state",
       "kind": "closed_domain"
     },
     {
@@ -889,17 +889,6 @@
         "symbol 'store.customAgents' is touched from 3 file(s)"
       ],
       "id": "store_custom_agents",
-      "kind": "store_like_symbol"
-    },
-    {
-      "anchors": [
-        "src/components/PromptInput.test.tsx::store.focusedPanel.task-1"
-      ],
-      "confidence_0_10000": 7000,
-      "evidence": [
-        "symbol 'store.focusedPanel.task-1' is touched from 3 file(s)"
-      ],
-      "id": "store_focused_panel_task_1",
       "kind": "store_like_symbol"
     },
     {
@@ -1010,6 +999,39 @@
         "closed domain 'TaskAttentionTone' has 1 exhaustiveness site(s)"
       ],
       "id": "task_attention_tone",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "server/browser-control-plane.ts::TaskCommandTakeoverDecision"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'TaskCommandTakeoverDecision' has 1 exhaustiveness site(s)"
+      ],
+      "id": "task_command_takeover_decision",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/domain/task-convergence.ts::TaskReviewQueueGroup"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'TaskReviewQueueGroup' has 1 exhaustiveness site(s)"
+      ],
+      "id": "task_review_queue_group",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/domain/task-convergence.ts::TaskReviewTone"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'TaskReviewTone' has 1 exhaustiveness site(s)"
+      ],
+      "id": "task_review_tone",
       "kind": "closed_domain"
     },
     {
@@ -1223,17 +1245,6 @@
     },
     {
       "anchors": [
-        "src/App.tsx::store.incomingTaskTakeoverRequests"
-      ],
-      "confidence_0_10000": 6500,
-      "evidence": [
-        "symbol 'store.incomingTaskTakeoverRequests' is touched from 2 file(s)"
-      ],
-      "id": "store_incoming_task_takeover_requests",
-      "kind": "store_like_symbol"
-    },
-    {
-      "anchors": [
         "src/store/completion.ts::store.mergedLinesAdded"
       ],
       "confidence_0_10000": 6500,
@@ -1344,17 +1355,6 @@
     },
     {
       "anchors": [
-        "src/store/git-status-polling.ts::store.taskOrder.filter"
-      ],
-      "confidence_0_10000": 6500,
-      "evidence": [
-        "symbol 'store.taskOrder.filter' is touched from 2 file(s)"
-      ],
-      "id": "store_task_order_filter",
-      "kind": "store_like_symbol"
-    },
-    {
-      "anchors": [
         "src/app/task-workflows.control.test.ts::store.taskPorts.task-1"
       ],
       "confidence_0_10000": 6500,
@@ -1377,7 +1377,7 @@
     },
     {
       "anchors": [
-        "src/app/task-workflows.ts::store.tasks.*.lastPrompt"
+        "src/app/task-prompt-workflows.ts::store.tasks.*.lastPrompt"
       ],
       "confidence_0_10000": 6500,
       "evidence": [

@@ -199,7 +199,15 @@ pub fn infer_concepts(
         }
     }
 
-    for (symbol_name, files) in accessed_symbols {
+    let mut accessed_entries = accessed_symbols.into_iter().collect::<Vec<_>>();
+    accessed_entries.sort_by(|(left_symbol, left_files), (right_symbol, right_files)| {
+        right_files
+            .len()
+            .cmp(&left_files.len())
+            .then_with(|| left_symbol.cmp(right_symbol))
+    });
+
+    for (symbol_name, files) in accessed_entries {
         if configured_symbols.contains(&symbol_name) || files.len() < 2 {
             continue;
         }
@@ -627,5 +635,64 @@ mod tests {
             .expect("store task lease suggestion");
 
         assert_eq!(task_lease.anchors, vec!["src/a.ts::store.taskLease"]);
+    }
+
+    #[test]
+    fn inferred_store_like_concept_prefers_broadest_symbol_for_shared_id() {
+        let config: RulesConfig = toml::from_str("").expect("empty rules config");
+        let semantic = SemanticSnapshot {
+            project: ProjectModel::default(),
+            analyzed_files: 4,
+            capabilities: Vec::new(),
+            files: Vec::new(),
+            symbols: Vec::new(),
+            reads: vec![
+                ReadFact {
+                    path: "src/a.ts".to_string(),
+                    symbol_name: "store.focusedPanel".to_string(),
+                    read_kind: "property_access".to_string(),
+                    line: 1,
+                },
+                ReadFact {
+                    path: "src/b.ts".to_string(),
+                    symbol_name: "store.focusedPanel".to_string(),
+                    read_kind: "property_access".to_string(),
+                    line: 2,
+                },
+                ReadFact {
+                    path: "src/c.ts".to_string(),
+                    symbol_name: "store.focusedPanel".to_string(),
+                    read_kind: "property_access".to_string(),
+                    line: 3,
+                },
+                ReadFact {
+                    path: "src/d.ts".to_string(),
+                    symbol_name: "store.focusedPanel.*".to_string(),
+                    read_kind: "property_access".to_string(),
+                    line: 4,
+                },
+                ReadFact {
+                    path: "src/e.ts".to_string(),
+                    symbol_name: "store.focusedPanel.*".to_string(),
+                    read_kind: "property_access".to_string(),
+                    line: 5,
+                },
+            ],
+            writes: Vec::new(),
+            closed_domains: Vec::new(),
+            closed_domain_sites: Vec::new(),
+        };
+
+        let suggestions = infer_concepts(&config, &semantic);
+        let focused_panel = suggestions
+            .iter()
+            .find(|suggestion| suggestion.id == "store_focused_panel")
+            .expect("store focused panel suggestion");
+
+        assert_eq!(focused_panel.anchors, vec!["src/a.ts::store.focusedPanel"]);
+        assert_eq!(
+            focused_panel.evidence,
+            vec!["symbol 'store.focusedPanel' is touched from 3 file(s)"]
+        );
     }
 }

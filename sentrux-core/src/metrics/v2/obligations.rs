@@ -701,6 +701,8 @@ fn changed_contract_trigger_paths(
         .iter()
         .filter(|pattern| changed_files.iter().any(|path| path_matches(pattern, path)))
         .cloned()
+        .collect::<BTreeSet<_>>()
+        .into_iter()
         .collect()
 }
 

@@ -35,28 +35,279 @@
     {
       "concept_id": "task_git_status",
       "evidence": [
-        "src/app/git-status-sync.ts::store.taskGitStatus (store_call)",
-        "src/store/git-status-polling.ts::store.taskGitStatus.* (store_call)"
+        "src/store/task-git-status.ts::store.taskGitStatus",
+        "src/store/task-git-status.ts::store.taskGitStatus.*"
       ],
       "files": [
-        "src/app/git-status-sync.ts",
-        "src/store/git-status-polling.ts"
+        "src/store/task-git-status.ts"
       ],
-      "kind": "multi_writer_concept",
+      "kind": "writer_outside_allowlist",
       "severity": "high",
-      "summary": "Concept 'task_git_status' is mutated from 2 files"
+      "summary": "Concept 'task_git_status' is written outside its allowed writer set at src/store/task-git-status.ts"
     },
     {
       "concept_id": "task_git_status",
       "evidence": [
-        "src/store/git-status-polling.ts::store.taskGitStatus.*"
+        "src/store/agent-output-activity.ts -> src/store/core.ts"
       ],
       "files": [
-        "src/store/git-status-polling.ts"
+        "src/store/agent-output-activity.ts"
       ],
-      "kind": "forbidden_writer",
+      "kind": "authoritative_import_bypass",
       "severity": "high",
-      "summary": "Concept 'task_git_status' is written from forbidden location src/store/git-status-polling.ts"
+      "summary": "Concept 'task_git_status' is imported directly from authoritative internals at src/store/agent-output-activity.ts"
+    },
+    {
+      "concept_id": "task_git_status",
+      "evidence": [
+        "src/store/agents.ts -> src/store/core.ts"
+      ],
+      "files": [
+        "src/store/agents.ts"
+      ],
+      "kind": "authoritative_import_bypass",
+      "severity": "high",
+      "summary": "Concept 'task_git_status' is imported directly from authoritative internals at src/store/agents.ts"
+    },
+    {
+      "concept_id": "task_git_status",
+      "evidence": [
+        "src/store/auto-trust.ts -> src/store/core.ts"
+      ],
+      "files": [
+        "src/store/auto-trust.ts"
+      ],
+      "kind": "authoritative_import_bypass",
+      "severity": "high",
+      "summary": "Concept 'task_git_status' is imported directly from authoritative internals at src/store/auto-trust.ts"
+    },
+    {
+      "concept_id": "task_git_status",
+      "evidence": [
+        "src/store/client-session.ts -> src/store/core.ts"
+      ],
+      "files": [
+        "src/store/client-session.ts"
+      ],
+      "kind": "authoritative_import_bypass",
+      "severity": "high",
+      "summary": "Concept 'task_git_status' is imported directly from authoritative internals at src/store/client-session.ts"
+    },
+    {
+      "concept_id": "task_git_status",
+      "evidence": [
+        "src/store/completion.ts -> src/store/core.ts"
+      ],
+      "files": [
+        "src/store/completion.ts"
+      ],
+      "kind": "authoritative_import_bypass",
+      "severity": "high",
+      "summary": "Concept 'task_git_status' is imported directly from authoritative internals at src/store/completion.ts"
+    },
+    {
+      "concept_id": "task_git_status",
+      "evidence": [
+        "src/store/focus.ts -> src/store/core.ts"
+      ],
+      "files": [
+        "src/store/focus.ts"
+      ],
+      "kind": "authoritative_import_bypass",
+      "severity": "high",
+      "summary": "Concept 'task_git_status' is imported directly from authoritative internals at src/store/focus.ts"
+    },
+    {
+      "concept_id": "task_git_status",
+      "evidence": [
+        "src/store/navigation.ts -> src/store/core.ts"
+      ],
+      "files": [
+        "src/store/navigation.ts"
+      ],
+      "kind": "authoritative_import_bypass",
+      "severity": "high",
+      "summary": "Concept 'task_git_status' is imported directly from authoritative internals at src/store/navigation.ts"
+    },
+    {
+      "concept_id": "task_git_status",
+      "evidence": [
+        "src/store/notification.ts -> src/store/core.ts"
+      ],
+      "files": [
+        "src/store/notification.ts"
+      ],
+      "kind": "authoritative_import_bypass",
+      "severity": "high",
+      "summary": "Concept 'task_git_status' is imported directly from authoritative internals at src/store/notification.ts"
+    },
+    {
+      "concept_id": "task_git_status",
+      "evidence": [
+        "src/store/peer-presence.ts -> src/store/core.ts"
+      ],
+      "files": [
+        "src/store/peer-presence.ts"
+      ],
+      "kind": "authoritative_import_bypass",
+      "severity": "high",
+      "summary": "Concept 'task_git_status' is imported directly from authoritative internals at src/store/peer-presence.ts"
+    },
+    {
+      "concept_id": "task_git_status",
+      "evidence": [
+        "src/store/persistence-codecs.ts -> src/store/core.ts"
+      ],
+      "files": [
+        "src/store/persistence-codecs.ts"
+      ],
+      "kind": "authoritative_import_bypass",
+      "severity": "high",
+      "summary": "Concept 'task_git_status' is imported directly from authoritative internals at src/store/persistence-codecs.ts"
+    },
+    {
+      "concept_id": "task_git_status",
+      "evidence": [
+        "src/store/persistence-helpers.ts -> src/store/core.ts"
+      ],
+      "files": [
+        "src/store/persistence-helpers.ts"
+      ],
+      "kind": "authoritative_import_bypass",
+      "severity": "high",
+      "summary": "Concept 'task_git_status' is imported directly from authoritative internals at src/store/persistence-helpers.ts"
+    },
+    {
+      "concept_id": "task_git_status",
+      "evidence": [
+        "src/store/persistence-load.ts -> src/store/core.ts"
+      ],
+      "files": [
+        "src/store/persistence-load.ts"
+      ],
+      "kind": "authoritative_import_bypass",
+      "severity": "high",
+      "summary": "Concept 'task_git_status' is imported directly from authoritative internals at src/store/persistence-load.ts"
+    },
+    {
+      "concept_id": "task_git_status",
+      "evidence": [
+        "src/store/projects.ts -> src/store/core.ts"
+      ],
+      "files": [
+        "src/store/projects.ts"
+      ],
+      "kind": "authoritative_import_bypass",
+      "severity": "high",
+      "summary": "Concept 'task_git_status' is imported directly from authoritative internals at src/store/projects.ts"
+    },
+    {
+      "concept_id": "task_git_status",
+      "evidence": [
+        "src/store/review.ts -> src/store/core.ts"
+      ],
+      "files": [
+        "src/store/review.ts"
+      ],
+      "kind": "authoritative_import_bypass",
+      "severity": "high",
+      "summary": "Concept 'task_git_status' is imported directly from authoritative internals at src/store/review.ts"
+    },
+    {
+      "concept_id": "task_git_status",
+      "evidence": [
+        "src/store/state.ts -> src/store/core.ts"
+      ],
+      "files": [
+        "src/store/state.ts"
+      ],
+      "kind": "authoritative_import_bypass",
+      "severity": "high",
+      "summary": "Concept 'task_git_status' is imported directly from authoritative internals at src/store/state.ts"
+    },
+    {
+      "concept_id": "task_git_status",
+      "evidence": [
+        "src/store/store.ts -> src/store/core.ts"
+      ],
+      "files": [
+        "src/store/store.ts"
+      ],
+      "kind": "authoritative_import_bypass",
+      "severity": "high",
+      "summary": "Concept 'task_git_status' is imported directly from authoritative internals at src/store/store.ts"
+    },
+    {
+      "concept_id": "task_git_status",
+      "evidence": [
+        "src/store/task-command-controllers.ts -> src/store/core.ts"
+      ],
+      "files": [
+        "src/store/task-command-controllers.ts"
+      ],
+      "kind": "authoritative_import_bypass",
+      "severity": "high",
+      "summary": "Concept 'task_git_status' is imported directly from authoritative internals at src/store/task-command-controllers.ts"
+    },
+    {
+      "concept_id": "task_git_status",
+      "evidence": [
+        "src/store/task-command-takeovers.ts -> src/store/core.ts"
+      ],
+      "files": [
+        "src/store/task-command-takeovers.ts"
+      ],
+      "kind": "authoritative_import_bypass",
+      "severity": "high",
+      "summary": "Concept 'task_git_status' is imported directly from authoritative internals at src/store/task-command-takeovers.ts"
+    },
+    {
+      "concept_id": "task_git_status",
+      "evidence": [
+        "src/store/task-state-cleanup.ts -> src/store/core.ts"
+      ],
+      "files": [
+        "src/store/task-state-cleanup.ts"
+      ],
+      "kind": "authoritative_import_bypass",
+      "severity": "high",
+      "summary": "Concept 'task_git_status' is imported directly from authoritative internals at src/store/task-state-cleanup.ts"
+    },
+    {
+      "concept_id": "task_git_status",
+      "evidence": [
+        "src/store/tasks.ts -> src/store/core.ts"
+      ],
+      "files": [
+        "src/store/tasks.ts"
+      ],
+      "kind": "authoritative_import_bypass",
+      "severity": "high",
+      "summary": "Concept 'task_git_status' is imported directly from authoritative internals at src/store/tasks.ts"
+    },
+    {
+      "concept_id": "task_git_status",
+      "evidence": [
+        "src/store/terminals.ts -> src/store/core.ts"
+      ],
+      "files": [
+        "src/store/terminals.ts"
+      ],
+      "kind": "authoritative_import_bypass",
+      "severity": "high",
+      "summary": "Concept 'task_git_status' is imported directly from authoritative internals at src/store/terminals.ts"
+    },
+    {
+      "concept_id": "task_git_status",
+      "evidence": [
+        "src/store/ui.ts -> src/store/core.ts"
+      ],
+      "files": [
+        "src/store/ui.ts"
+      ],
+      "kind": "authoritative_import_bypass",
+      "severity": "high",
+      "summary": "Concept 'task_git_status' is imported directly from authoritative internals at src/store/ui.ts"
     }
   ],
   "obligations": [],
@@ -64,10 +315,8 @@
   "related_contract_ids": [],
   "related_tests": [
     {
-      "exists": true,
-      "matched_files": [
-        "src/app/git-status-sync.test.ts"
-      ],
+      "exists": false,
+      "matched_files": [],
       "pattern": "src/app/git-status-sync.test.ts"
     },
     {
@@ -114,25 +363,25 @@
         "symbol_name": "store.taskGitStatus"
       },
       {
-        "line": 793,
+        "line": 853,
         "path": "src/store/persistence.test.ts",
         "read_kind": "element_access",
         "symbol_name": "store.taskGitStatus.task-1"
       },
       {
-        "line": 793,
+        "line": 853,
         "path": "src/store/persistence.test.ts",
         "read_kind": "property_access",
         "symbol_name": "store.taskGitStatus"
       },
       {
-        "line": 1025,
+        "line": 1092,
         "path": "src/store/persistence.test.ts",
         "read_kind": "element_access",
         "symbol_name": "store.taskGitStatus.task-1"
       },
       {
-        "line": 1025,
+        "line": 1092,
         "path": "src/store/persistence.test.ts",
         "read_kind": "property_access",
         "symbol_name": "store.taskGitStatus"
@@ -140,20 +389,20 @@
     ],
     "writes": [
       {
-        "line": 61,
-        "path": "src/store/git-status-polling.ts",
+        "line": 97,
+        "path": "src/store/task-git-status.ts",
         "symbol_name": "store.taskGitStatus.*",
         "write_kind": "store_call"
       },
       {
-        "line": 113,
-        "path": "src/store/git-status-polling.ts",
+        "line": 114,
+        "path": "src/store/task-git-status.ts",
         "symbol_name": "store.taskGitStatus.*",
         "write_kind": "store_call"
       },
       {
-        "line": 75,
-        "path": "src/app/git-status-sync.ts",
+        "line": 142,
+        "path": "src/store/task-git-status.ts",
         "symbol_name": "store.taskGitStatus",
         "write_kind": "store_call"
       },
@@ -170,13 +419,13 @@
         "write_kind": "store_call"
       },
       {
-        "line": 751,
+        "line": 811,
         "path": "src/store/persistence.test.ts",
         "symbol_name": "store.taskGitStatus",
         "write_kind": "store_call"
       },
       {
-        "line": 996,
+        "line": 1056,
         "path": "src/store/persistence.test.ts",
         "symbol_name": "store.taskGitStatus",
         "write_kind": "store_call"
