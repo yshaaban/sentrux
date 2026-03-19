@@ -331,14 +331,17 @@ fn print_check_results(
     _arch_report: &metrics::arch::ArchReport,
     has_v2_rules: bool,
 ) -> i32 {
-    println!("sentrux check — {} rules checked\n", check.rules_checked);
+    println!(
+        "sentrux check — legacy structural rules check ({} rules checked)\n",
+        check.rules_checked
+    );
     if has_v2_rules {
         println!(
-            "Legacy structural check only. Use `sentrux gate` for v2 findings, obligations, and session deltas.\n"
+            "Primary v2 workflow: use `sentrux gate` for touched-concept regressions and MCP `findings` / `session_end` for actionable findings, obligations, and optimization priorities.\n"
         );
     }
     println!(
-        "Legacy structural context: {}\n",
+        "Supporting structural context: {}\n",
         (health.quality_signal * 10000.0).round() as u32
     );
 
@@ -470,7 +473,7 @@ fn print_v2_gate_save(payload: &serde_json::Value) {
         .get("quality_signal")
         .and_then(|value| value.as_u64())
     {
-        println!("Legacy structural context: {quality_signal}");
+        println!("Supporting structural context: {quality_signal}");
     }
     if let Some(error) = payload
         .get("semantic_error")
@@ -688,7 +691,7 @@ fn print_legacy_baseline_delta(payload: &serde_json::Value) {
         .get("signal_delta")
         .and_then(|value| value.as_i64());
     if let (Some(before), Some(after), Some(delta)) = (signal_before, signal_after, signal_delta) {
-        println!("Legacy structural quality: {before} -> {after} ({delta:+})");
+        println!("Supporting structural delta: {before} -> {after} ({delta:+})");
     }
 
     let coupling_before = baseline_delta
@@ -864,9 +867,12 @@ fn gate_save(
     let baseline = metrics::arch::ArchBaseline::from_health(health);
     match baseline.save(baseline_path) {
         Ok(()) => {
-            println!("Legacy structural baseline saved to {}", baseline_path.display());
             println!(
-                "Legacy structural context: {}",
+                "Legacy structural baseline saved to {}",
+                baseline_path.display()
+            );
+            println!(
+                "Supporting structural context: {}",
                 (health.quality_signal * 10000.0).round() as u32
             );
             println!("\nRun `sentrux gate` after making changes to compare.");
@@ -898,9 +904,9 @@ fn gate_compare(
 
     let diff = baseline.diff(health);
 
-    println!("sentrux gate — legacy structural regression check\n");
+    println!("sentrux gate — legacy structural context check\n");
     println!(
-        "Legacy structural context: {} -> {}",
+        "Supporting structural context: {} -> {}",
         (diff.signal_before * 10000.0).round() as u32,
         (diff.signal_after * 10000.0).round() as u32
     );

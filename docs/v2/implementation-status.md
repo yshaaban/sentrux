@@ -15,9 +15,9 @@ Current assessment:
 
 Working estimate:
 
-- core wedge completion: about 90%
-- full roadmap completion: about 75-80%
-- validation and proof completion: about 70-75%
+- core wedge completion: about 90-92%
+- full roadmap completion: about 80-85%
+- validation and proof completion: about 78-82%
 
 ## What Is True Today
 
@@ -49,7 +49,11 @@ The strongest completed work is:
 - session baseline project-fingerprint validation and confidence regression coverage
 - second benchmark repo proof loop on `private-benchmark-repo`
 - multi-repo golden validation runner
+- benchmark fail/warn/info classification with explicit thresholds
+- release checklist for proof artifacts, benchmark policy, and migration behavior
+- warm-path rules-config caching across repeated MCP requests
 - legacy MCP and CLI surfaces now frame structural output as context rather than the main v2 story
+- desktop structural panels and export flow now frame structural output as supporting context
 - `findings` now includes a top-level confidence summary
 
 ## Overall Status By Tier
@@ -58,7 +62,7 @@ The strongest completed work is:
 | --- | --- | --- | --- |
 | Tier 0 | Mostly complete | Trust foundation is real in MCP and CLI | GUI productization and `health` inline delta surfacing are still uneven |
 | Tier 1A | Mostly complete | Clone drift findings now have stable ids, git-aware risk context, divergence-aware family clustering, remediation hints, and cleaner production-first ranking | no history-aware rename/copy tracing and no dedicated clone-drift CLI surface yet |
-| Tier 1B | Mostly complete | TS bridge, semantic facts, and proof artifacts now exist across `parallel-code` and `private-benchmark-repo` | no mature persisted cache story and benchmark-threshold policy is still incomplete |
+| Tier 1B | Mostly complete | TS bridge, semantic facts, proof artifacts, and explicit benchmark policy now exist across `parallel-code` and `private-benchmark-repo` | no mature persisted cache story and warm-path structural cost is still higher than desired |
 | Tier 1C | Mostly complete | v2 rules, concept graph, and suppression enforcement now exist | broader policy UX and validation are still incomplete |
 | Tier 1D | Mostly complete | authority/access findings now include stronger public-boundary bypass and concept-boundary pressure summaries | no full scorecard track and limited generic public-entry inference |
 | Tier 1E | Mostly complete | obligation engine now handles closed-domain and initial contract-driven triggers | richer contract families and finer changed-symbol precision are still incomplete |
@@ -67,7 +71,7 @@ The strongest completed work is:
 | Tier 2B | Mostly complete | concentration analysis exists and is tested | not yet benchmarked or validated on the real case-study repo |
 | Tier 2C | Mostly complete | inspection tools, adoption helpers, quality-guidance summaries, optimization priorities, and two real benchmark repos now exist | broader onboarding proof and ranking validation are still incomplete |
 | Tier 3 | Partial | conservative state-integrity slice is in place and now validated on real `parallel-code` controllers | transition modeling and implicit lifecycle heuristics are not built |
-| Validation | Mostly complete | unit tests, synthetic gate/session regression scenarios, two real benchmark repos, multi-repo goldens, versioned benchmark comparison, and confidence/migration checks now exist | no full migration suite and benchmark-threshold policy is still incomplete |
+| Validation | Mostly complete | unit tests, synthetic gate/session regression scenarios, two real benchmark repos, multi-repo goldens, versioned benchmark comparison, explicit benchmark policy, and confidence/migration checks now exist | no full migration suite and benchmark-repo unhappy-path coverage is still incomplete |
 
 ## Tier-By-Tier Status
 
@@ -129,7 +133,7 @@ Still missing:
 
 - first-class generic reference facts are still incomplete compared to the design intent
 - semantic fact caching is mostly in-memory, not a mature persisted cache story
-- there is no regression benchmark suite yet, even though an initial real-repo benchmark now exists
+- the remaining warm patch-safety cost is still dominated by structural scan and changed-file bookkeeping
 
 ## Tier 1C: Minimal Concept Graph And Rules
 
@@ -209,7 +213,7 @@ Delivered:
 
 Still missing:
 
-- release-grade touched-concept gate goldens
+- deeper benchmark-repo unhappy-path validation around proof artifacts and analyzer promotion
 - broader CI ergonomics beyond the current CLI parity step
 - further reduction in scan-bound work inside the warm patch-safety path
 
@@ -329,18 +333,18 @@ It is not enough to say:
 
 ## Biggest Remaining Gaps
 
-1. benchmark-threshold policy and remaining warm-path performance work are still incomplete
-2. full migration and release-grade validation coverage are still thinner than the analyzer surface
-3. GUI and legacy surface alignment still trail MCP and CLI
-4. richer contract-driven obligations and changed-symbol precision are still incomplete
+1. remaining warm-path performance work is still dominated by structural scan and changed-file bookkeeping
+2. benchmark-repo unhappy-path validation and analyzer promotion criteria are still thinner than the main happy-path proof loop
+3. GUI wording is aligned, but the desktop surface still lacks first-class v2 findings, obligations, and optimization-priority panels
+4. richer contract-driven obligations are materially better, but true field-diff precision is still incomplete
 5. Tier 3 is still only an initial conservative slice
 
 ## Recommended Next Execution Order
 
-1. define and enforce benchmark-threshold policy while reducing remaining scan-bound patch-safety cost
-2. expand migration and release-grade validation coverage
-3. align the remaining GUI and legacy surfaces with the v2 doctrine
-4. deepen richer contract-driven obligations and changed-symbol precision
+1. reduce the remaining scan-bound warm patch-safety cost
+2. expand benchmark-repo unhappy-path validation and formal analyzer promotion criteria
+3. decide whether the desktop product needs first-class v2 panels instead of doctrinal alignment only
+4. deepen contract-field precision only where real repo feedback still shows misses
 5. validate parity, concentration, and optimization ranking against more non-happy-path repo scenarios
 
 ## Beta Readiness

@@ -80,11 +80,14 @@ fn draw_right_stats(ui: &mut egui::Ui, state: &AppState) {
         let c = crate::app::panels::ui_helpers::score_color(report.quality_signal);
         ui.label(
             egui::RichText::new(format!(
-                "Q:{}",
+                "LS:{}",
                 (report.quality_signal * 10000.0).round() as u32
             ))
             .monospace()
             .color(c),
+        )
+        .on_hover_text(
+            "Legacy structural context. Use v2 findings, obligations, and gate/session_end for primary actionable feedback.",
         );
     }
 

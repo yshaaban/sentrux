@@ -571,7 +571,7 @@ fn contract_required_sites(
         );
     }
 
-    sites.into_iter().collect()
+    sort_contract_sites(sites)
 }
 
 fn contract_required_symbol_targets(contract: &ContractRule) -> Vec<ContractSymbolTarget<'_>> {
@@ -758,21 +758,18 @@ fn contract_obligation_summary(
         );
     }
 
+    let missing_summary = summarize_contract_missing_sites(missing_sites);
     let changed_triggers = changed_contract_trigger_paths(trigger_paths, changed_files);
     if !changed_triggers.is_empty() {
         return format!(
-            "Contract '{}' changed in {} but {} required surface(s) were not updated",
+            "Contract '{}' changed in {} but {} were not updated",
             contract.id,
             changed_triggers.join(", "),
-            missing_sites.len()
+            missing_summary
         );
     }
 
-    format!(
-        "Contract '{}' is missing {} declared surface(s)",
-        contract.id,
-        missing_sites.len()
-    )
+    format!("Contract '{}' is missing {}", contract.id, missing_summary)
 }
 
 fn contract_related_concept_paths(
@@ -809,6 +806,11 @@ fn contract_related_semantic_paths(
             && contract_symbol_match_any(&symbol_names, &write.symbol_name)
         {
             paths.insert(write.path.clone());
+        }
+    }
+    for symbol in &semantic.symbols {
+        if !is_test_file(&symbol.path) && contract_symbol_match_any(&symbol_names, &symbol.name) {
+            paths.insert(symbol.path.clone());
         }
     }
 
@@ -868,6 +870,95 @@ fn contract_symbol_matches(symbol_name: &str, candidate: &str) -> bool {
             .strip_prefix(symbol_name)
             .map(|suffix| suffix.starts_with('.'))
             .unwrap_or(false)
+}
+
+fn sort_contract_sites(sites: BTreeSet<ObligationSite>) -> Vec<ObligationSite> {
+    let mut sorted = sites.into_iter().collect::<Vec<_>>();
+    sorted.sort_by(|left, right| {
+        contract_site_priority(left)
+            .cmp(&contract_site_priority(right))
+            .then(left.path.cmp(&right.path))
+            .then(left.kind.cmp(&right.kind))
+            .then(left.line.cmp(&right.line))
+    });
+    sorted
+}
+
+fn contract_site_priority(site: &ObligationSite) -> u8 {
+    match site.kind.as_str() {
+        "browser_entry" | "electron_entry" => 0,
+        "registry_symbol" => 1,
+        "payload_map_symbol" | "categories_symbol" => 2,
+        "required_symbol" | "required_file" => {
+            if contract_site_has_boundary_risk(site) {
+                3
+            } else {
+                4
+            }
+        }
+        _ => 5,
+    }
+}
+
+fn contract_site_has_boundary_risk(site: &ObligationSite) -> bool {
+    let lowered_path = site.path.to_ascii_lowercase();
+    let lowered_detail = site.detail.to_ascii_lowercase();
+    let risky_markers = [
+        "adapter",
+        "browser",
+        "client",
+        "desktop",
+        "electron",
+        "hydrate",
+        "ipc",
+        "persist",
+        "restore",
+        "rpc",
+        "serialize",
+        "server",
+        "session",
+        "transport",
+        "websocket",
+        "ws",
+    ];
+
+    risky_markers
+        .iter()
+        .any(|marker| lowered_path.contains(marker) || lowered_detail.contains(marker))
+}
+
+fn summarize_contract_missing_sites(missing_sites: &[ObligationSite]) -> String {
+    let mut labels = missing_sites
+        .iter()
+        .map(contract_site_summary_label)
+        .collect::<Vec<_>>();
+    labels.dedup();
+    if labels.len() == 1 {
+        return format!("the {} surface", labels[0]);
+    }
+    if labels.len() == 2 {
+        return format!("the {} and {} surfaces", labels[0], labels[1]);
+    }
+
+    format!(
+        "the {}, {} and {} other required surfaces",
+        labels[0],
+        labels[1],
+        labels.len() - 2
+    )
+}
+
+fn contract_site_summary_label(site: &ObligationSite) -> &'static str {
+    match site.kind.as_str() {
+        "browser_entry" => "browser runtime entry",
+        "electron_entry" => "electron runtime entry",
+        "registry_symbol" => "registry",
+        "payload_map_symbol" => "payload map",
+        "categories_symbol" => "categories",
+        "required_symbol" => "required symbol",
+        "required_file" => "required file",
+        _ => "declared contract",
+    }
 }
 
 fn path_matches(pattern: &str, path: &str) -> bool {
@@ -1339,6 +1430,78 @@ mod tests {
     }
 
     #[test]
+    fn changed_scope_triggers_from_semantically_related_contract_symbol_declaration() {
+        let config: RulesConfig = toml::from_str(
+            r#"
+                [[contract]]
+                id = "server_state_bootstrap"
+                payload_map_symbol = "src/domain/server-state-bootstrap.ts::ServerStateBootstrapPayloadMap"
+                required_symbols = ["src/app/bootstrap-persist.ts::serializeBootstrapPayload"]
+            "#,
+        )
+        .expect("rules config");
+        let semantic = SemanticSnapshot {
+            project: ProjectModel::default(),
+            analyzed_files: 3,
+            capabilities: vec![SemanticCapability::Symbols],
+            files: vec![
+                SemanticFileFact {
+                    path: "src/domain/server-state-bootstrap.ts".to_string(),
+                    ..SemanticFileFact::default()
+                },
+                SemanticFileFact {
+                    path: "src/app/bootstrap-persist.ts".to_string(),
+                    ..SemanticFileFact::default()
+                },
+                SemanticFileFact {
+                    path: "src/app/bootstrap-field-adapter.ts".to_string(),
+                    ..SemanticFileFact::default()
+                },
+            ],
+            symbols: vec![
+                SymbolFact {
+                    id: "payload".to_string(),
+                    path: "src/domain/server-state-bootstrap.ts".to_string(),
+                    name: "ServerStateBootstrapPayloadMap".to_string(),
+                    kind: "type_alias".to_string(),
+                    line: 8,
+                },
+                SymbolFact {
+                    id: "persist".to_string(),
+                    path: "src/app/bootstrap-persist.ts".to_string(),
+                    name: "serializeBootstrapPayload".to_string(),
+                    kind: "function".to_string(),
+                    line: 12,
+                },
+                SymbolFact {
+                    id: "field".to_string(),
+                    path: "src/app/bootstrap-field-adapter.ts".to_string(),
+                    name: "ServerStateBootstrapPayloadMap.snapshot".to_string(),
+                    kind: "property_signature".to_string(),
+                    line: 4,
+                },
+            ],
+            reads: Vec::new(),
+            writes: Vec::new(),
+            closed_domains: Vec::new(),
+            closed_domain_sites: Vec::new(),
+        };
+        let changed_files = BTreeSet::from(["src/app/bootstrap-field-adapter.ts".to_string()]);
+
+        let obligations =
+            build_obligations(&config, &semantic, ObligationScope::Changed, &changed_files);
+
+        let contract = obligations
+            .iter()
+            .find(|obligation| obligation.kind == "contract_surface_completeness")
+            .expect("contract obligation");
+        assert!(contract
+            .files
+            .contains(&"src/app/bootstrap-field-adapter.ts".to_string()));
+        assert!(contract.summary.contains("bootstrap-field-adapter.ts"));
+    }
+
+    #[test]
     fn changed_scope_ignores_test_only_contract_readers() {
         let config: RulesConfig = toml::from_str(
             r#"
@@ -1483,5 +1646,53 @@ mod tests {
             .missing_sites
             .iter()
             .any(|site| site.kind == "required_file"));
+    }
+
+    #[test]
+    fn contract_missing_sites_prioritize_runtime_and_registry_surfaces() {
+        let config: RulesConfig = toml::from_str(
+            r#"
+                [[contract]]
+                id = "server_state_bootstrap"
+                registry_symbol = "src/app/server-state-bootstrap-registry.ts::SERVER_STATE_BOOTSTRAP_REGISTRY"
+                browser_entry = "src/runtime/browser-session.ts"
+                required_files = ["src/app/bootstrap-persist.ts"]
+            "#,
+        )
+        .expect("rules config");
+        let semantic = SemanticSnapshot {
+            project: ProjectModel::default(),
+            analyzed_files: 0,
+            capabilities: vec![SemanticCapability::Symbols],
+            files: Vec::new(),
+            symbols: Vec::new(),
+            reads: Vec::new(),
+            writes: Vec::new(),
+            closed_domains: Vec::new(),
+            closed_domain_sites: Vec::new(),
+        };
+
+        let obligations =
+            build_obligations(&config, &semantic, ObligationScope::All, &BTreeSet::new());
+
+        let contract = obligations
+            .iter()
+            .find(|obligation| obligation.kind == "contract_surface_completeness")
+            .expect("contract obligation");
+        assert_eq!(
+            contract
+                .missing_sites
+                .first()
+                .map(|site| site.kind.as_str()),
+            Some("browser_entry")
+        );
+        assert_eq!(
+            contract.missing_sites.get(1).map(|site| site.kind.as_str()),
+            Some("registry_symbol")
+        );
+        assert_eq!(
+            contract.missing_sites.get(2).map(|site| site.kind.as_str()),
+            Some("required_file")
+        );
     }
 }

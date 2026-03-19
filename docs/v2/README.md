@@ -49,6 +49,7 @@ The next version should answer questions like:
 - [Analyzer Pipeline](./analyzer-pipeline.md)
 - [TypeScript Bridge](./typescript-bridge.md)
 - [Testing And Validation](./testing-and-validation.md)
+- [Release Checklist](./release-checklist.md)
 - [Validation Loop](./validation-loop.md)
 - [Parallel-Code Proof Board](./parallel-code-proof-board.md)
 - [Parallel-Code Proof Review](./parallel-code-proof-review.md)
@@ -139,7 +140,7 @@ Current reality:
 1. the patch-safety wedge is working in MCP and CLI
 2. proof artifacts now exist for `parallel-code` and `private-benchmark-repo`
 3. findings and `session_end` now include concept summaries, quality opportunities, and ranked optimization priorities
-4. the remaining gaps are release hardening, broader migration coverage, and deeper Tier 3 analysis
+4. the remaining gaps are warm-path performance follow-through, broader unhappy-path validation, and deeper Tier 3 analysis
 
 ## Exit Criteria For V2 Beta
 

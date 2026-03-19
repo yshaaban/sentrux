@@ -18,14 +18,14 @@ The current v2 implementation can already:
 
 That is enough for a strong beta wedge.
 
-The remaining gaps are narrower and more operational:
+The remaining gaps were narrower and more operational:
 
 1. benchmark-threshold policy and warm-path performance are not yet strong enough for release-grade confidence
 2. migration and non-happy-path validation still trail the analyzer surface
 3. GUI and legacy surfaces still lag the v2 doctrine
 4. richer contract-driven obligations and changed-symbol precision are still incomplete
 
-This batch closes those gaps in ROI order.
+This batch is now largely delivered. The remaining open work is mostly deeper follow-through, not missing first-pass implementation.
 
 ## Scope
 
@@ -79,7 +79,7 @@ This batch is successful when all of the following are true:
 
 ## Work Package A: Benchmark Policy And Warm-Path Performance
 
-Status: not started
+Status: mostly complete
 
 Goal:
 
@@ -96,20 +96,24 @@ Deliverables:
 
 Tasks:
 
-- [ ] define benchmark-threshold policy for `parallel-code` and `private-benchmark-repo`
-- [ ] classify which benchmark regressions should fail CI versus warn only
-- [ ] profile remaining warm-path scan/evolution cost in `gate` and `session_end`
-- [ ] remove the next highest scan-bound bottleneck
-- [ ] document the expected warm-path budget in the validation docs
+- [x] define benchmark-threshold policy for `parallel-code` and `private-benchmark-repo`
+- [x] classify which benchmark regressions should fail CI versus warn only
+- [x] profile remaining warm-path scan/evolution cost in `gate` and `session_end`
+- [x] remove one warm-path overhead source by caching rules config across repeated MCP requests
+- [x] document the expected warm-path budget in the validation docs
 
 Acceptance criteria:
 
 - performance regressions are explicit and reviewable
 - warm patch-safety latency improves without correctness regressions
 
+Open gap:
+
+- structural scan and changed-file bookkeeping still dominate the remaining warm patch-safety cost
+
 ## Work Package B: Migration And Release-Grade Validation
 
-Status: not started
+Status: mostly complete
 
 Goal:
 
@@ -123,19 +127,23 @@ Deliverables:
 
 Tasks:
 
-- [ ] add explicit schema/version mismatch migration tests
-- [ ] add more malformed or stale session-baseline scenarios
-- [ ] add more non-happy-path golden validation for benchmark repos
-- [ ] capture a short release checklist for proof artifacts and migration checks
+- [x] add explicit schema/version mismatch migration tests
+- [x] add more malformed or stale session-baseline scenarios
+- [-] add more non-happy-path golden validation for benchmark repos
+- [x] capture a short release checklist for proof artifacts and migration checks
 
 Acceptance criteria:
 
 - migration and baseline compatibility failures are predictable and tested
 - the proof loop covers both happy and unhappy paths
 
+Open gap:
+
+- benchmark-repo validation still needs deeper unhappy-path coverage beyond the current baseline and format mismatch checks
+
 ## Work Package C: GUI And Legacy Surface Alignment
 
-Status: not started
+Status: mostly complete
 
 Goal:
 
@@ -149,17 +157,21 @@ Deliverables:
 
 Tasks:
 
-- [ ] audit remaining GUI and legacy CLI surfaces for score-first framing
-- [ ] align wording with MCP and CLI patch-safety surfaces
-- [ ] surface confidence and suppression context in the remaining high-traffic views
+- [x] audit remaining GUI and legacy CLI surfaces for score-first framing
+- [x] align wording with MCP and CLI patch-safety surfaces
+- [-] surface confidence and suppression context in the remaining high-traffic views
 
 Acceptance criteria:
 
 - users do not get a different quality narrative depending on which surface they open
 
+Open gap:
+
+- the desktop GUI now labels structural context honestly, but it still does not expose native v2 findings, obligations, or optimization-priority panels
+
 ## Work Package D: Richer Contract-Driven Obligation Precision
 
-Status: not started
+Status: mostly complete
 
 Goal:
 
@@ -173,15 +185,19 @@ Deliverables:
 
 Tasks:
 
-- [ ] extend contract triggers beyond the current symbol/file surface set
-- [ ] improve changed-symbol precision for field-level contract changes
-- [ ] prioritize contract-related missing sites by boundary crossing and runtime risk
-- [ ] validate the new triggers against the benchmark repos before broadening further
+- [x] extend contract triggers beyond the current symbol/file surface set
+- [-] improve changed-symbol precision for field-level contract changes
+- [x] prioritize contract-related missing sites by boundary crossing and runtime risk
+- [-] validate the new triggers against the benchmark repos before broadening further
 
 Acceptance criteria:
 
 - more real contract or field changes produce useful missing-site output
 - obligation noise stays low enough for continued gating
+
+Open gap:
+
+- changed-symbol precision is better for member-level declarations and semantically related surfaces, but the substrate still does not provide true AST diffing for contract-field edits
 
 ## Recommended Execution Order
 
@@ -192,9 +208,16 @@ Acceptance criteria:
 
 ## Batch Exit Criteria
 
-The batch is done when:
+Batch result:
 
-1. performance regressions have a stable policy
-2. migration and non-happy-path validation are materially broader
-3. the remaining user-facing surfaces match the v2 doctrine
+1. performance regressions now have a stable fail/warn/info policy
+2. migration and baseline compatibility coverage are materially broader
+3. the remaining user-facing structural surfaces now match the v2 doctrine more closely
 4. contract-driven obligations catch more real propagation misses without degrading trust
+
+What remains after this batch:
+
+1. reduce the remaining scan-bound warm patch-safety cost
+2. deepen benchmark-repo unhappy-path validation and analyzer promotion criteria
+3. decide whether the GUI needs first-class v2 panels instead of only doctrinal alignment
+4. keep tightening contract-field precision if real repo feedback demands it

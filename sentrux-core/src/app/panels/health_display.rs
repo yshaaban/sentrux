@@ -1,4 +1,4 @@
-//! Unified quality display — 6 root cause metrics + quality signal.
+//! Legacy structural context display — root-cause metrics plus the supporting signal.
 //!
 //! No letter grades. No arbitrary categories. Just 6 fundamental
 //! structural properties with continuous [0,1] scores and smooth
@@ -12,7 +12,7 @@ pub(crate) fn draw_health_section(ui: &mut egui::Ui, report: &HealthReport, tc: 
     let row_h = 13.0;
     let font = egui::FontId::monospace(9.0);
 
-    // ── Quality Signal bar ──
+    // ── Supporting structural signal ──
     draw_quality_signal(ui, report, tc);
     ui.add_space(4.0);
 
@@ -91,13 +91,19 @@ pub(crate) fn draw_health_section(ui: &mut egui::Ui, report: &HealthReport, tc: 
     draw_unstable(ui, report, row_h);
 }
 
-/// Draw the quality signal bar at the top.
+/// Draw the legacy structural context bar at the top.
 fn draw_quality_signal(ui: &mut egui::Ui, report: &HealthReport, tc: &ThemeConfig) {
     ui.label(
-        egui::RichText::new("CODE QUALITY")
+        egui::RichText::new("LEGACY STRUCTURAL CONTEXT")
             .monospace()
             .size(9.0)
             .color(tc.section_label),
+    );
+    ui.label(
+        egui::RichText::new("supporting context for v2 findings and gate output")
+            .monospace()
+            .size(8.0)
+            .color(tc.text_secondary),
     );
     ui.add_space(2.0);
 
@@ -109,7 +115,7 @@ fn draw_quality_signal(ui: &mut egui::Ui, report: &HealthReport, tc: &ThemeConfi
     ui.painter().text(
         egui::pos2(grade_rect.left() + 4.0, grade_rect.center().y),
         egui::Align2::LEFT_CENTER,
-        format!("Quality  {}", (signal * 10000.0).round() as u32),
+        format!("Structural  {}", (signal * 10000.0).round() as u32),
         egui::FontId::monospace(11.0),
         color,
     );

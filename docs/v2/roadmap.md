@@ -137,7 +137,7 @@ Exit criteria:
 
 Open gap:
 
-- semantic proof now spans `parallel-code` and `private-benchmark-repo`, but long-lived cache maturity and benchmark-threshold policy are still missing
+- semantic proof now spans `parallel-code` and `private-benchmark-repo`, but long-lived cache maturity and further warm-path structural reductions are still missing
 
 ## Tier 1C: Minimal Concept Graph And Rules
 
@@ -370,7 +370,7 @@ Open gap:
 
 ## Cross-Cutting Validation Tasks
 
-Status: partial
+Status: mostly complete
 
 - [x] create initial scoped golden outputs for `parallel-code`
 - [x] expand `parallel-code` goldens to cover `session_end` and touched-concept gate scenarios
@@ -387,11 +387,12 @@ Status: partial
 - [x] add confidence-report regression tests
 - [-] add v1/v2 baseline migration tests
 - [x] verify case-study examples against the current target repo before docs or demos cite them
-- [ ] define release-grade benchmark-threshold policy
+- [x] define release-grade benchmark-threshold policy
+- [x] capture a release checklist for proof artifacts and migration checks
 
 Open gap:
 
-- implementation is still ahead of release-grade validation, but the proof loop now spans `parallel-code` and `private-benchmark-repo`, includes multi-repo golden validation, and has versioned benchmark artifacts for both repos; the remaining gap is mostly threshold policy, fuller migration coverage, and broader non-happy-path validation
+- implementation is still ahead of release-grade validation, but the proof loop now spans `parallel-code` and `private-benchmark-repo`, includes multi-repo golden validation, and has versioned benchmark artifacts plus explicit benchmark policy for both repos; the remaining gap is mostly deeper unhappy-path validation, promotion criteria, and fuller migration coverage
 
 ## Target Outcome On `parallel-code`
 
@@ -426,4 +427,4 @@ Current reality:
 - MCP and CLI now both expose the core patch-safety wedge with quality-guidance summaries
 - the real proof loop now includes checked-in pass and fail goldens for `parallel-code` and scoped goldens plus a benchmark artifact for `private-benchmark-repo`
 - warm patch-safety is improving, but the remaining performance gap is still scan-bound structural work
-- broader validation coverage, richer migration coverage, and better benchmark-threshold policy are the next proof gaps
+- broader benchmark-repo unhappy-path validation, richer migration coverage, and better analyzer promotion criteria are the next proof gaps

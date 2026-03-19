@@ -35,6 +35,12 @@ pub fn draw_metrics_panel(ctx: &egui::Context, state: &mut AppState) {
                     .size(10.0)
                     .color(tc.section_label),
             );
+            ui.label(
+                egui::RichText::new("primary v2 workflow: findings, obligations, gate/session_end")
+                    .monospace()
+                    .size(8.0)
+                    .color(tc.text_secondary),
+            );
             draw_sep(ui, &tc, 2.0);
 
             egui::ScrollArea::vertical()
@@ -97,7 +103,6 @@ fn draw_evolution_summary(
     report: &crate::metrics::evo::EvolutionReport,
     tc: &ThemeConfig,
 ) {
-    use super::ui_helpers::score_color;
     let font = egui::FontId::monospace(9.0);
     let row_h = 13.0;
 

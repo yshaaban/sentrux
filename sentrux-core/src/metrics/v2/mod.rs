@@ -65,7 +65,9 @@ pub fn build_authority_and_access_findings_with_snapshot(
         findings.extend(writer_policy_findings(concept, semantic));
         findings.extend(raw_access_findings(concept, semantic));
         if let Some(snapshot) = snapshot {
-            findings.extend(authoritative_import_bypass_findings(concept, semantic, snapshot));
+            findings.extend(authoritative_import_bypass_findings(
+                concept, semantic, snapshot,
+            ));
         }
     }
 
@@ -990,7 +992,10 @@ mod tests {
         };
         let snapshot = snap_with_edges(
             vec![
-                edge("src/app/runtime-diagnostics.ts", "src/domain/server-state-bootstrap.ts"),
+                edge(
+                    "src/app/runtime-diagnostics.ts",
+                    "src/domain/server-state-bootstrap.ts",
+                ),
                 edge(
                     "src/app/server-state-bootstrap.ts",
                     "src/domain/server-state-bootstrap.ts",
@@ -1008,11 +1013,8 @@ mod tests {
             ],
         );
 
-        let findings = build_authority_and_access_findings_with_snapshot(
-            &config,
-            &semantic,
-            Some(&snapshot),
-        );
+        let findings =
+            build_authority_and_access_findings_with_snapshot(&config, &semantic, Some(&snapshot));
 
         assert!(findings
             .iter()
