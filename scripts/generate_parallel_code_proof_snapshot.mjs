@@ -164,6 +164,49 @@ function buildMarkdown(snapshot) {
   lines.push(`Generated from: \`${snapshot.generated_from.golden_dir}\``);
   lines.push(`Benchmark: \`${snapshot.generated_from.benchmark_path}\``);
   lines.push('');
+  lines.push('## Freshness');
+  lines.push('');
+  lines.push(
+    `- analysis mode: \`${snapshot.generated_from.metadata.analysis_mode ?? 'unknown'}\``,
+  );
+  lines.push(
+    `- commit: \`${snapshot.generated_from.metadata.source_tree_identity?.commit ?? 'unknown'}\``,
+  );
+  lines.push(
+    `- dirty paths: \`${
+      snapshot.generated_from.metadata.source_tree_identity?.dirty_paths_count ?? 'unknown'
+    }\``,
+  );
+  lines.push(
+    `- dirty-path fingerprint: \`${
+      snapshot.generated_from.metadata.source_tree_identity?.dirty_paths_fingerprint ?? 'unknown'
+    }\``,
+  );
+  lines.push(
+    `- tree fingerprint: \`${
+      snapshot.generated_from.metadata.source_tree_identity?.tree_fingerprint ?? 'unknown'
+    }\``,
+  );
+  lines.push(
+    `- analyzed tree fingerprint: \`${
+      snapshot.generated_from.metadata.analyzed_tree_identity?.tree_fingerprint ?? 'unknown'
+    }\``,
+  );
+  lines.push(
+    `- rules sha256: \`${snapshot.generated_from.metadata.rules_identity?.sha256 ?? 'unknown'}\``,
+  );
+  lines.push(
+    `- binary sha256: \`${snapshot.generated_from.metadata.binary_identity?.sha256 ?? 'unknown'}\``,
+  );
+  if ((snapshot.generated_from.metadata.source_tree_identity?.dirty_paths ?? []).length > 0) {
+    lines.push('- dirty path list:');
+    for (const dirtyPath of snapshot.generated_from.metadata.source_tree_identity.dirty_paths) {
+      lines.push(`  - \`${dirtyPath}\``);
+    }
+  } else {
+    lines.push('- dirty path list: none');
+  }
+  lines.push('');
   lines.push('## Top Findings');
   lines.push('');
   for (const finding of snapshot.top_findings) {

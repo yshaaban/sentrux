@@ -7,6 +7,7 @@ import path from 'node:path';
 import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { assertPathExists, createDisposableRepoClone } from './lib/disposable-repo.mjs';
+import { buildRepoFreshnessMetadata } from './lib/repo-identity.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,6 +19,7 @@ const outputPath =
   process.env.OUTPUT_PATH ?? path.join(repoRoot, 'docs/v2/examples/parallel-code-benchmark.json');
 const compareToPath = process.env.COMPARE_TO ?? outputPath;
 const requestTimeoutMs = Number(process.env.REQUEST_TIMEOUT_MS ?? '120000');
+const analysisMode = process.env.ANALYSIS_MODE ?? 'working_tree';
 const benchmarkPolicy = buildBenchmarkPolicy();
 const failOnRegression = process.env.FAIL_ON_REGRESSION === '1';
 const benchmarkFormatVersion = 3;
@@ -594,10 +596,19 @@ async function main() {
     sourceRoot: parallelCodeRoot,
     label: 'parallel-code-benchmark',
     rulesSource,
+    analysisMode,
   });
   let benchmark;
+  let freshnessMetadata;
   try {
     benchmark = await runBenchmarkSession(clone.workRoot);
+    freshnessMetadata = buildRepoFreshnessMetadata({
+      repoRoot: parallelCodeRoot,
+      analyzedRoot: clone.workRoot,
+      analysisMode,
+      rulesSource,
+      binaryPath: sentruxBin,
+    });
   } finally {
     await clone.cleanup();
   }
@@ -605,7 +616,7 @@ async function main() {
     benchmark_format_version: benchmarkFormatVersion,
     generated_at: new Date().toISOString(),
     parallel_code_root: parallelCodeRoot,
-    analysis_mode: 'temporary_local_clone',
+    ...freshnessMetadata,
     sentrux_binary: sentruxBin,
     benchmark,
   };

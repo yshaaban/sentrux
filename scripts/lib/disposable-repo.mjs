@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import { cp, mkdir, mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { overlayWorkingTreeChanges } from './repo-identity.mjs';
 
 export function assertPathExists(targetPath, label) {
   if (!existsSync(targetPath)) {
@@ -25,7 +26,12 @@ function runChecked(command, args) {
   }
 }
 
-export async function createDisposableRepoClone({ sourceRoot, label, rulesSource }) {
+export async function createDisposableRepoClone({
+  sourceRoot,
+  label,
+  rulesSource,
+  analysisMode = 'head_clone',
+}) {
   assertPathExists(sourceRoot, `${label} repo`);
   assertPathExists(rulesSource, `${label} rules source`);
 
@@ -35,12 +41,16 @@ export async function createDisposableRepoClone({ sourceRoot, label, rulesSource
   const rulesPath = path.join(sentruxDir, 'rules.toml');
 
   runChecked('git', ['clone', '--quiet', '--local', '--no-hardlinks', sourceRoot, workRoot]);
+  if (analysisMode === 'working_tree') {
+    await overlayWorkingTreeChanges({ sourceRoot, targetRoot: workRoot });
+  }
   await mkdir(sentruxDir, { recursive: true });
   await cp(rulesSource, rulesPath);
 
   return {
     tempRoot,
     workRoot,
+    analysisMode,
     async cleanup() {
       await rm(tempRoot, { recursive: true, force: true });
     },

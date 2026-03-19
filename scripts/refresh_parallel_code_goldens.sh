@@ -7,6 +7,7 @@ PARALLEL_CODE_ROOT="${PARALLEL_CODE_ROOT:-<parallel-code-root>}"
 RULES_SOURCE="$REPO_ROOT/docs/v2/examples/parallel-code.rules.toml"
 OUTPUT_DIR="${OUTPUT_DIR:-$REPO_ROOT/docs/v2/examples/parallel-code-golden}"
 SENTRUX_BIN="${SENTRUX_BIN:-$REPO_ROOT/target/debug/sentrux}"
+ANALYSIS_MODE="${ANALYSIS_MODE:-working_tree}"
 
 if [[ ! -x "$SENTRUX_BIN" ]]; then
   echo "Expected built sentrux binary at $SENTRUX_BIN" >&2
@@ -46,6 +47,28 @@ trap cleanup EXIT
 
 mkdir -p "$OUTPUT_DIR"
 git clone --quiet --local --no-hardlinks "$PARALLEL_CODE_ROOT" "$WORK_ROOT"
+if [[ "$ANALYSIS_MODE" == "working_tree" ]]; then
+  node - "$PARALLEL_CODE_ROOT" "$WORK_ROOT" "$REPO_ROOT" <<'EOF'
+const path = require('node:path');
+
+async function main() {
+  const [, , sourceRoot, targetRoot, repoRoot] = process.argv;
+  const { overlayWorkingTreeChanges } = await import(
+    path.resolve(repoRoot, 'scripts/lib/repo-identity.mjs')
+  );
+  await overlayWorkingTreeChanges({ sourceRoot, targetRoot });
+}
+
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(1);
+});
+EOF
+elif [[ "$ANALYSIS_MODE" != "head_clone" ]]; then
+  echo "Unsupported ANALYSIS_MODE: $ANALYSIS_MODE (expected working_tree or head_clone)" >&2
+  exit 1
+fi
+
 mkdir -p "$WORK_SENTRUX_DIR"
 cp "$RULES_SOURCE" "$WORK_RULES_PATH"
 
@@ -158,6 +181,67 @@ for (const [id, filename] of outputs) {
 }
 EOF
 
+node - "$OUTPUT_DIR/metadata.json" "$PARALLEL_CODE_ROOT" "$WORK_ROOT" "$REPO_ROOT" "$RULES_SOURCE" "$SENTRUX_BIN" "$ANALYSIS_MODE" <<'EOF'
+const fs = require('node:fs');
+const path = require('node:path');
+
+async function main() {
+  const [
+    ,
+    ,
+    metadataPath,
+    parallelCodeRoot,
+    analyzedRoot,
+    repoRoot,
+    rulesSource,
+    sentruxBinary,
+    analysisMode,
+  ] = process.argv;
+  const {
+    assertRepoIdentityFresh,
+    buildRepoFreshnessMetadata,
+  } = await import(
+    path.resolve(repoRoot, 'scripts/lib/repo-identity.mjs')
+  );
+  const freshness = buildRepoFreshnessMetadata({
+    repoRoot: parallelCodeRoot,
+    analyzedRoot,
+    analysisMode,
+    rulesSource,
+    binaryPath: sentruxBinary,
+  });
+  if (analysisMode === 'working_tree') {
+    assertRepoIdentityFresh({
+      expected: freshness.source_tree_identity,
+      actual: freshness.analyzed_tree_identity,
+      label: 'parallel-code working-tree mirror',
+    });
+  }
+  const payload = {
+    generated_at: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
+    parallel_code_root: parallelCodeRoot,
+    analysis_mode: analysisMode,
+    source_tree_identity: freshness.source_tree_identity,
+    analyzed_tree_identity: freshness.analyzed_tree_identity,
+    regression_mutation: {
+      path: 'src/components/SidebarTaskRow.tsx',
+      change: 'store.taskGitStatus = store.taskGitStatus',
+    },
+    rules_source: rulesSource,
+    sentrux_binary: sentruxBinary,
+    rules_identity: freshness.rules_identity,
+    binary_identity: freshness.binary_identity,
+  };
+
+  fs.writeFileSync(metadataPath, `${JSON.stringify(payload, null, 2)}\n`);
+}
+
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(1);
+});
+EOF
+
 node - "$WORK_ROOT/src/components/SidebarTaskRow.tsx" <<'EOF'
 const fs = require('node:fs');
 
@@ -258,20 +342,6 @@ for (const [id, filename] of outputs) {
 
   const parsed = stabilizeValue(sanitizeValue(JSON.parse(text)));
   fs.writeFileSync(path.join(outputDir, filename), `${JSON.stringify(parsed, null, 2)}\n`);
-}
-EOF
-
-cat > "$OUTPUT_DIR/metadata.json" <<EOF
-{
-  "generated_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
-  "parallel_code_root": "$PARALLEL_CODE_ROOT",
-  "analysis_mode": "temporary_local_clone",
-  "regression_mutation": {
-    "path": "src/components/SidebarTaskRow.tsx",
-    "change": "store.taskGitStatus = store.taskGitStatus"
-  },
-  "rules_source": "$RULES_SOURCE",
-  "sentrux_binary": "$SENTRUX_BIN"
 }
 EOF
 
