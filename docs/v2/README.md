@@ -50,6 +50,8 @@ The next version should answer questions like:
 - [TypeScript Bridge](./typescript-bridge.md)
 - [Testing And Validation](./testing-and-validation.md)
 - [Validation Loop](./validation-loop.md)
+- [Parallel-Code Proof Board](./parallel-code-proof-board.md)
+- [Parallel-Code Proof Review](./parallel-code-proof-review.md)
 - [False-Positive Review](./false-positive-review.md)
 - [Baseline Migration](./baseline-migration.md)
 - [Rules V2](./rules-v2.md)
@@ -60,6 +62,8 @@ The next version should answer questions like:
 - [Parallel-Code Case Study](./parallel-code-case-study.md)
 - [Parallel-Code Scoped Goldens](./examples/parallel-code-golden/README.md)
 - [Parallel-Code Benchmark](./examples/parallel-code-benchmark.md)
+- [Parallel-Code Proof Snapshot](./examples/parallel-code-proof-snapshot.md)
+- [Parallel-Code Proof Runs](./examples/parallel-code-proof-runs/README.md)
 - [Private Benchmark Repo Scoped Goldens](./examples/private-benchmark-repo-golden/README.md)
 - [Private Benchmark Repo Benchmark](./examples/private-benchmark-repo-benchmark.md)
 

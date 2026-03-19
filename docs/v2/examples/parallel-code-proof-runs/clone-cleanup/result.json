@@ -1,0 +1,131 @@
+{
+  "scenario": "clone_cleanup",
+  "before": {
+    "clone": {
+      "family": {
+        "age_days_gap": 1,
+        "asymmetric_recent_change": false,
+        "clone_ids": [
+          "clone-0xfc51cb7428314a19",
+          "clone-0x220ca1c043f3d29c",
+          "clone-0x1d0ffc9c1f5ac781",
+          "clone-0x31a396cfce0df305"
+        ],
+        "commit_count_gap": 0,
+        "distinct_file_set_count": 1,
+        "divergence_score": 4,
+        "family_id": "clone-family-0x7e50d49dc16ef925",
+        "family_score": 86,
+        "file_count": 2,
+        "files": [
+          "src/components/AgentGlyph.tsx",
+          "src/remote/RemoteAgentGlyph.tsx"
+        ],
+        "kind": "clone_family",
+        "member_count": 4,
+        "mixed_file_sets": false,
+        "reasons": [
+          "4 exact clone groups repeat across 2 files",
+          "highest-risk representative exact clone scores 70",
+          "2 family file(s) changed within the last 30 day(s)",
+          "family churn spans a gap of 0 recent commit(s)",
+          "family file age spans a gap of 1 day(s)",
+          "family-level divergence contributes 4 risk point(s)"
+        ],
+        "recently_touched_file_count": 2,
+        "remediation_hints": [
+          {
+            "clone_ids": [
+              "clone-0xfc51cb7428314a19",
+              "clone-0x220ca1c043f3d29c",
+              "clone-0x1d0ffc9c1f5ac781",
+              "clone-0x31a396cfce0df305"
+            ],
+            "files": [
+              "src/components/AgentGlyph.tsx",
+              "src/remote/RemoteAgentGlyph.tsx"
+            ],
+            "kind": "sync_recent_divergence",
+            "priority": "high",
+            "summary": "Review recent edits across clone siblings: commit churn spans a gap of 0 recent commit(s); file age spans a gap of 1 day(s). Synchronize the shared behavior or intentionally split the implementations."
+          },
+          {
+            "clone_ids": [
+              "clone-0xfc51cb7428314a19",
+              "clone-0x220ca1c043f3d29c",
+              "clone-0x1d0ffc9c1f5ac781",
+              "clone-0x31a396cfce0df305"
+            ],
+            "files": [
+              "src/components/AgentGlyph.tsx",
+              "src/remote/RemoteAgentGlyph.tsx"
+            ],
+            "kind": "extract_shared_helper",
+            "priority": "high",
+            "summary": "Extract the repeated logic into a shared helper or module used by the 4 clone groups across these files."
+          },
+          {
+            "clone_ids": [
+              "clone-0xfc51cb7428314a19",
+              "clone-0x220ca1c043f3d29c",
+              "clone-0x1d0ffc9c1f5ac781",
+              "clone-0x31a396cfce0df305"
+            ],
+            "files": [
+              "src/components/AgentGlyph.tsx",
+              "src/remote/RemoteAgentGlyph.tsx"
+            ],
+            "kind": "collapse_clone_family",
+            "priority": "medium",
+            "summary": "Collapse the 4 repeated clone groups behind one named abstraction instead of maintaining copies in 2 files."
+          },
+          {
+            "clone_ids": [
+              "clone-0xfc51cb7428314a19",
+              "clone-0x220ca1c043f3d29c",
+              "clone-0x1d0ffc9c1f5ac781",
+              "clone-0x31a396cfce0df305"
+            ],
+            "files": [
+              "src/components/AgentGlyph.tsx",
+              "src/remote/RemoteAgentGlyph.tsx"
+            ],
+            "kind": "add_shared_behavior_tests",
+            "priority": "medium",
+            "summary": "Add focused tests around the shared behavior before deduplicating the clone family so the extraction does not hide drift."
+          }
+        ],
+        "representative_clone_id": "clone-0xfc51cb7428314a19",
+        "severity": "high",
+        "summary": "4 exact clone groups repeat across 2 files and churn differs by 0 recent commit(s) across siblings; sibling file age spans 1 day(s)"
+      },
+      "quality_opportunity": {
+        "evidence": [
+          "4 exact clone groups repeat across 2 files",
+          "highest-risk representative exact clone scores 70",
+          "2 family file(s) changed within the last 30 day(s)"
+        ],
+        "files": [
+          "src/components/AgentGlyph.tsx",
+          "src/remote/RemoteAgentGlyph.tsx"
+        ],
+        "kind": "clone_family",
+        "scope": "clone-family-0x7e50d49dc16ef925",
+        "score_0_10000": 86,
+        "severity": "high",
+        "suggested_actions": [
+          "Review recent edits across clone siblings: commit churn spans a gap of 0 recent commit(s); file age spans a gap of 1 day(s). Synchronize the shared behavior or intentionally split the implementations.",
+          "Extract the repeated logic into a shared helper or module used by the 4 clone groups across these files.",
+          "Collapse the 4 repeated clone groups behind one named abstraction instead of maintaining copies in 2 files."
+        ],
+        "summary": "4 exact clone groups repeat across 2 files and churn differs by 0 recent commit(s) across siblings; sibling file age spans 1 day(s)"
+      }
+    }
+  },
+  "after": {
+    "clone": {
+      "family": null,
+      "quality_opportunity": null
+    }
+  }
+}

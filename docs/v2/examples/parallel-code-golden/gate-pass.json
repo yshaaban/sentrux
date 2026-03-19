@@ -1,20 +1,20 @@
 {
   "baseline_delta": {
     "available": true,
-    "coupling_after": 0.4626334519572954,
-    "coupling_before": 0.4626334519572954,
+    "coupling_after": 0.4643268124280783,
+    "coupling_before": 0.4643268124280783,
     "cycles_after": 1,
     "cycles_before": 1,
     "degraded": false,
-    "signal_after": 4817,
-    "signal_before": 4817,
+    "signal_after": 4790,
+    "signal_before": 4790,
     "signal_delta": 0
   },
   "blocking_findings": [],
   "changed_files": [],
   "confidence": {
     "rule_coverage_0_10000": 10000,
-    "scan_confidence_0_10000": 8125,
+    "scan_confidence_0_10000": 8164,
     "semantic_rules_loaded": true,
     "session_baseline": {
       "compatible": true,
@@ -31,7 +31,7 @@
   "obligation_completeness_0_10000": 10000,
   "rules_error": null,
   "scan_trust": {
-    "candidate_files": 704,
+    "candidate_files": 719,
     "exclusions": {
       "bucketed": {
         "build": 12,
@@ -46,19 +46,19 @@
       "total": 132
     },
     "fallback_reason": null,
-    "kept_files": 572,
+    "kept_files": 587,
     "mode": "git",
-    "overall_confidence_0_10000": 8125,
+    "overall_confidence_0_10000": 8164,
     "partial": false,
     "resolution": {
       "internal_confidence_0_10000": 9994,
-      "resolved": 1687,
-      "unresolved_external": 473,
+      "resolved": 1739,
+      "unresolved_external": 482,
       "unresolved_internal": 1,
-      "unresolved_unknown": 72
+      "unresolved_unknown": 74
     },
-    "scope_coverage_0_10000": 8125,
-    "tracked_candidates": 704,
+    "scope_coverage_0_10000": 8164,
+    "tracked_candidates": 719,
     "truncated": false,
     "untracked_candidates": 0
   },

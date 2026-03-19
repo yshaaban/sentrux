@@ -1,0 +1,201 @@
+{
+  "generated_at": "2026-03-19T11:51:03.163Z",
+  "generated_from": {
+    "golden_dir": "<sentrux-root>/docs/v2/examples/parallel-code-golden",
+    "benchmark_path": "<sentrux-root>/docs/v2/examples/parallel-code-benchmark.json",
+    "metadata": {
+      "generated_at": "2026-03-19T11:51:03Z",
+      "parallel_code_root": "<parallel-code-root>",
+      "analysis_mode": "temporary_local_clone",
+      "regression_mutation": {
+        "path": "src/components/SidebarTaskRow.tsx",
+        "change": "store.taskGitStatus = store.taskGitStatus"
+      },
+      "rules_source": "<sentrux-root>/docs/v2/examples/parallel-code.rules.toml",
+      "sentrux_binary": "<sentrux-root>/target/debug/sentrux"
+    }
+  },
+  "top_findings": [
+    {
+      "id": null,
+      "kind": "closed_domain_exhaustiveness",
+      "severity": "high",
+      "concept_id": "ConnectionBannerState",
+      "summary": "Closed domain 'ConnectionBannerState' is missing coverage for variants: connecting, reconnecting, restoring"
+    },
+    {
+      "id": null,
+      "kind": "exact_clone_group",
+      "severity": "high",
+      "concept_id": null,
+      "summary": "2 functions share an identical normalized body across recently changed files"
+    },
+    {
+      "id": null,
+      "kind": "exact_clone_group",
+      "severity": "high",
+      "concept_id": null,
+      "summary": "2 functions share an identical normalized body across recently changed files"
+    },
+    {
+      "id": null,
+      "kind": "exact_clone_group",
+      "severity": "high",
+      "concept_id": null,
+      "summary": "2 functions share an identical normalized body across recently changed files"
+    },
+    {
+      "id": null,
+      "kind": "exact_clone_group",
+      "severity": "high",
+      "concept_id": null,
+      "summary": "2 functions share an identical normalized body across recently changed files"
+    },
+    {
+      "id": null,
+      "kind": "closed_domain_exhaustiveness",
+      "severity": "medium",
+      "concept_id": "task_presentation_status",
+      "summary": "Closed domain 'task_presentation_status' is missing required update sites"
+    },
+    {
+      "id": null,
+      "kind": "exact_clone_group",
+      "severity": "medium",
+      "concept_id": null,
+      "summary": "2 functions share an identical normalized body across recently changed files"
+    },
+    {
+      "id": null,
+      "kind": "exact_clone_group",
+      "severity": "medium",
+      "concept_id": null,
+      "summary": "2 functions share an identical normalized body across recently changed files"
+    },
+    {
+      "id": null,
+      "kind": "exact_clone_group",
+      "severity": "medium",
+      "concept_id": null,
+      "summary": "2 functions share an identical normalized body across recently changed files"
+    },
+    {
+      "id": null,
+      "kind": "exact_clone_group",
+      "severity": "low",
+      "concept_id": null,
+      "summary": "4 functions share an identical normalized body across recently changed files"
+    }
+  ],
+  "concept_summaries": [
+    {
+      "concept_id": "ConnectionBannerState",
+      "score_0_10000": 3100,
+      "summary": "Concept 'ConnectionBannerState' has repeated high-severity ownership or access issues",
+      "dominant_kinds": [
+        "closed_domain_exhaustiveness"
+      ],
+      "boundary_pressure_count": 0,
+      "missing_site_count": 0
+    },
+    {
+      "concept_id": "task_presentation_status",
+      "score_0_10000": 1680,
+      "summary": "Concept 'task_presentation_status' has 1 missing update sites to complete",
+      "dominant_kinds": [
+        "closed_domain_exhaustiveness"
+      ],
+      "boundary_pressure_count": 0,
+      "missing_site_count": 1
+    }
+  ],
+  "quality_opportunities": [
+    {
+      "kind": "clone_family",
+      "scope": "clone-family-0x7e50d49dc16ef925",
+      "severity": "high",
+      "score_0_10000": 86,
+      "summary": "4 exact clone groups repeat across 2 files and churn differs by 0 recent commit(s) across siblings; sibling file age spans 1 day(s)"
+    },
+    {
+      "kind": "clone_family",
+      "scope": "clone-family-0x9ebb8dad5cafb9c0",
+      "severity": "high",
+      "score_0_10000": 78,
+      "summary": "4 exact clone groups repeat across 2 files and churn differs by 3 recent commit(s) across siblings; sibling file age spans 0 day(s)"
+    },
+    {
+      "kind": "hotspot",
+      "scope": "server/browser-control-plane.ts",
+      "severity": "medium",
+      "score_0_10000": 5350,
+      "summary": "File 'server/browser-control-plane.ts' is a coordination hotspot worth refactoring before adding more behavior"
+    },
+    {
+      "kind": "hotspot",
+      "scope": "electron/ipc/hydra-adapter.ts",
+      "severity": "medium",
+      "score_0_10000": 4827,
+      "summary": "File 'electron/ipc/hydra-adapter.ts' is a coordination hotspot worth refactoring before adding more behavior"
+    },
+    {
+      "kind": "concept",
+      "scope": "ConnectionBannerState",
+      "severity": "medium",
+      "score_0_10000": 4305,
+      "summary": "Concept 'ConnectionBannerState' has repeated high-severity ownership or access issues"
+    }
+  ],
+  "optimization_priorities": [
+    {
+      "concept_id": "ConnectionBannerState",
+      "severity": "medium",
+      "score_0_10000": 4700,
+      "summary": "Deduplicate concept 'ConnectionBannerState' after aligning the repeated clone surfaces around it",
+      "clone_family_count": 1,
+      "hotspot_count": 1,
+      "missing_site_count": 0,
+      "boundary_pressure_count": 0
+    }
+  ],
+  "proof_targets": {
+    "ownership_boundary": null,
+    "propagation_obligations": {
+      "concept_id": "task_presentation_status",
+      "summary": "Concept 'task_presentation_status' has 1 missing update sites to complete",
+      "missing_site_count": 1,
+      "obligation_kind": "closed_domain_exhaustiveness",
+      "missing_sites": [
+        {
+          "detail": "no exhaustive mapping or switch site found for 'TaskDotStatus'",
+          "kind": "closed_domain",
+          "line": 12,
+          "path": "src/app/task-presentation-status.ts"
+        }
+      ]
+    },
+    "duplication_hotspot": {
+      "clone_family": {
+        "kind": "clone_family",
+        "scope": "clone-family-0x7e50d49dc16ef925",
+        "severity": "high",
+        "score_0_10000": 86,
+        "summary": "4 exact clone groups repeat across 2 files and churn differs by 0 recent commit(s) across siblings; sibling file age spans 1 day(s)"
+      },
+      "hotspot": {
+        "kind": "hotspot",
+        "scope": "server/browser-control-plane.ts",
+        "severity": "medium",
+        "score_0_10000": 5350,
+        "summary": "File 'server/browser-control-plane.ts' is a coordination hotspot worth refactoring before adding more behavior"
+      }
+    }
+  },
+  "benchmark": {
+    "cold_process_total_ms": 16772.8,
+    "warm_cached_total_ms": 888.7,
+    "warm_patch_safety_total_ms": 4149.9,
+    "warm_gate_ms": 3865.6,
+    "warm_session_end_ms": 30.8
+  }
+}

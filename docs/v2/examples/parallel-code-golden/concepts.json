@@ -2,7 +2,8 @@
   "concepts": [
     {
       "allowed_writers": [
-        "src/app/git-status-sync.ts::store.taskGitStatus.*"
+        "src/app/git-status-sync.ts::store.taskGitStatus.*",
+        "src/store/task-git-status.ts::store.taskGitStatus.*"
       ],
       "anchors": [
         "src/store/core.ts::store.taskGitStatus"
@@ -365,6 +366,17 @@
     },
     {
       "anchors": [
+        "src/app/agent-catalog.ts::store.availableAgents"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.availableAgents' is touched from 4 file(s)"
+      ],
+      "id": "store_available_agents",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
         "src/app/desktop-session-startup.ts::store.collapsedTaskOrder"
       ],
       "confidence_0_10000": 7500,
@@ -372,6 +384,17 @@
         "symbol 'store.collapsedTaskOrder' is touched from 6 file(s)"
       ],
       "id": "store_collapsed_task_order",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/agent-catalog.ts::store.customAgents"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.customAgents' is touched from 4 file(s)"
+      ],
+      "id": "store_custom_agents",
       "kind": "store_like_symbol"
     },
     {
@@ -435,7 +458,7 @@
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.hydraCommand' is touched from 5 file(s)"
+        "symbol 'store.hydraCommand' is touched from 4 file(s)"
       ],
       "id": "store_hydra_command",
       "kind": "store_like_symbol"
@@ -860,17 +883,6 @@
     },
     {
       "anchors": [
-        "src/app/agent-catalog.ts::store.availableAgents"
-      ],
-      "confidence_0_10000": 7000,
-      "evidence": [
-        "symbol 'store.availableAgents' is touched from 3 file(s)"
-      ],
-      "id": "store_available_agents",
-      "kind": "store_like_symbol"
-    },
-    {
-      "anchors": [
         "src/components/Sidebar.tsx::store.collapsedTaskOrder.filter"
       ],
       "confidence_0_10000": 7000,
@@ -878,17 +890,6 @@
         "symbol 'store.collapsedTaskOrder.filter' is touched from 3 file(s)"
       ],
       "id": "store_collapsed_task_order_filter",
-      "kind": "store_like_symbol"
-    },
-    {
-      "anchors": [
-        "src/app/agent-catalog.ts::store.customAgents"
-      ],
-      "confidence_0_10000": 7000,
-      "evidence": [
-        "symbol 'store.customAgents' is touched from 3 file(s)"
-      ],
-      "id": "store_custom_agents",
       "kind": "store_like_symbol"
     },
     {
@@ -1179,17 +1180,6 @@
     },
     {
       "anchors": [
-        "src/components/task-panel/TaskAiTerminalSection.tsx::store.availableAgents.filter"
-      ],
-      "confidence_0_10000": 6500,
-      "evidence": [
-        "symbol 'store.availableAgents.filter' is touched from 2 file(s)"
-      ],
-      "id": "store_available_agents_filter",
-      "kind": "store_like_symbol"
-    },
-    {
-      "anchors": [
         "src/store/completion.ts::store.completedTaskCount"
       ],
       "confidence_0_10000": 6500,
@@ -1467,7 +1457,7 @@
     "configured_concept_count": 3,
     "contract_count": 1,
     "guardrail_test_count": 5,
-    "inferred_concept_count": 115,
+    "inferred_concept_count": 114,
     "matched_guardrail_test_count": 1,
     "state_model_count": 2
   },

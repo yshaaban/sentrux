@@ -22,7 +22,7 @@ The live `parallel-code` worktree may be dirty, and the proof loop should not de
 
 ### Phase 1: Freeze Baseline
 
-Status: complete in artifacts, refreshable on demand
+Status: complete
 
 Goal:
 
@@ -34,7 +34,8 @@ Checklist:
 - [x] benchmark artifacts exist
 - [x] proof commands run against disposable clones
 - [x] top findings and concept summaries are reproducible
-- [ ] refresh the board whenever the repo or analyzer output changes materially
+- [x] refresh the board whenever the repo or analyzer output changes materially
+- [x] checked-in proof snapshot exists
 
 Expected proof output:
 
@@ -46,7 +47,7 @@ Expected proof output:
 
 ### Phase 2: Validate The Top Issues
 
-Status: in progress
+Status: complete
 
 Goal:
 
@@ -57,8 +58,8 @@ Checklist:
 - [x] review the top ownership and boundary findings
 - [x] review the top obligation and propagation findings
 - [x] review the top clone and hotspot findings
-- [ ] keep a short false-positive / overstatement log
-- [ ] tune or suppress anything that is noisy but not useful
+- [x] keep a short false-positive / overstatement log
+- [x] tune or suppress anything that is noisy but not useful
 
 Expected proof output:
 
@@ -66,9 +67,13 @@ Expected proof output:
 - a small set of trusted concept summaries
 - a small set of trusted optimization priorities
 
+Current review artifact:
+
+- [Parallel-Code Proof Review](./parallel-code-proof-review.md)
+
 ### Phase 3: Select Proof Targets
 
-Status: in progress
+Status: complete
 
 Goal:
 
@@ -76,17 +81,17 @@ Goal:
 
 Current proof targets:
 
-1. `task_git_status` ownership and boundary purity
-2. `task_presentation_status` propagation and obligations
-3. `task_command_controller` / `task-command-lease.ts` plus the diff-parsing/shared-escaping clone family
+1. seeded `task_git_status` ownership regression proof
+2. `task_presentation_status` propagation cleanup
+3. `AgentGlyph` / `RemoteAgentGlyph` clone-family cleanup
 
 Checklist:
 
 - [x] target 1 chosen
 - [x] target 2 chosen
 - [x] target 3 chosen
-- [ ] capture expected before-state proof signals for each target
-- [ ] record the refactor outcome we want from each target
+- [x] capture expected before-state proof signals for each target
+- [x] record the refactor outcome we want from each target
 
 Expected proof output:
 
@@ -96,7 +101,7 @@ Expected proof output:
 
 ### Phase 4: Refactor And Measure
 
-Status: pending
+Status: complete
 
 Goal:
 
@@ -104,12 +109,12 @@ Goal:
 
 Checklist:
 
-- [ ] refactor target 1 in a disposable clone
-- [ ] rerun v2 and compare before/after
-- [ ] refactor target 2 in a disposable clone
-- [ ] rerun v2 and compare before/after
-- [ ] refactor target 3 in a disposable clone
-- [ ] rerun v2 and compare before/after
+- [x] prove target 1 with a disposable-clone seeded ownership regression
+- [x] rerun v2 and compare before/after
+- [x] refactor target 2 in a disposable clone
+- [x] rerun v2 and compare before/after
+- [x] refactor target 3 in a disposable clone
+- [x] rerun v2 and compare before/after
 
 Expected proof output:
 
@@ -117,9 +122,14 @@ Expected proof output:
 - clearer ownership or propagation boundaries
 - lower clone or hotspot pressure
 
+Current proof outputs:
+
+- [Proof Snapshot](./examples/parallel-code-proof-snapshot.md)
+- [Disposable Proof Runs](./examples/parallel-code-proof-runs/README.md)
+
 ### Phase 5: Publish The Case Study
 
-Status: pending
+Status: complete
 
 Goal:
 
@@ -127,10 +137,10 @@ Goal:
 
 Checklist:
 
-- [ ] document the before state for each target
-- [ ] document the refactor made
-- [ ] document the after state and the v2 delta
-- [ ] keep the case study anchored to verified examples only
+- [x] document the before state for each target
+- [x] document the refactor made
+- [x] document the after state and the v2 delta
+- [x] keep the case study anchored to verified examples only
 
 Expected proof output:
 
@@ -144,14 +154,14 @@ Expected proof output:
 
 Why it matters:
 
-- it is the clearest ownership and boundary target in the current proof set
-- the current outputs show repeated `writer_outside_allowlist` and `authoritative_import_bypass` pressure
+- the reviewed baseline is now clean for this concept
+- that makes it a better seeded-regression proof than a current-repo cleanup target
 
-What a successful refactor should do:
+What a successful proof should do:
 
-- reduce duplicate ownership pressure
-- centralize mutation through the intended owner
-- shrink bypass evidence around the concept
+- introduce an out-of-policy write from an app-layer file
+- show `multi_writer_concept` and `writer_outside_allowlist`
+- show that `gate` fails on the touched concept
 
 ### 2. `task_presentation_status`
 
@@ -166,18 +176,18 @@ What a successful refactor should do:
 - reduce obligation burden
 - keep canonical access explicit
 
-### 3. `task_command_controller` / clone family
+### 3. `AgentGlyph` / `RemoteAgentGlyph`
 
 Why it matters:
 
-- it combines hotspot pressure with duplication pressure
-- the case study already points to coordination complexity and clone families that matter for maintainability
+- it is the highest-ranked current production clone family in the reviewed baseline
+- it is a clean, deterministic deduplication proof target
 
 What a successful refactor should do:
 
-- split or simplify the hotspot
-- reduce related clone-family pressure
-- make the coordination path easier to reason about
+- extract the shared glyph rendering into one helper module
+- remove the current clone family from the findings surface
+- leave the remaining hotspot list cleaner and more reviewable
 
 ## Proof Loop Output
 
@@ -196,4 +206,3 @@ Every proof run should record:
 - Do not use the live `parallel-code` worktree as the benchmark source of truth.
 - Do not treat runtime stability as proof of maintainability improvement.
 - Do not add new beta concepts until the current proof targets are closed or explicitly re-scoped.
-

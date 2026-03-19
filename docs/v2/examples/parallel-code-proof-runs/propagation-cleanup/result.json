@@ -1,0 +1,92 @@
+{
+  "scenario": "propagation_cleanup",
+  "before": {
+    "concept_summary": {
+      "boundary_pressure_count": 0,
+      "concept_id": "task_presentation_status",
+      "context_burden": 1,
+      "dominant_kinds": [
+        "closed_domain_exhaustiveness"
+      ],
+      "files": [
+        "src/app/task-presentation-status.ts"
+      ],
+      "finding_count": 1,
+      "high_severity_count": 0,
+      "missing_site_count": 1,
+      "obligation_count": 1,
+      "score_0_10000": 1680,
+      "suggested_actions": [
+        "complete the propagation chain before extending the concept further"
+      ],
+      "summary": "Concept 'task_presentation_status' has 1 missing update sites to complete"
+    },
+    "obligations": [
+      {
+        "concept_id": "task_presentation_status",
+        "context_burden": 1,
+        "domain_symbol_name": "TaskDotStatus",
+        "files": [
+          "src/app/task-presentation-status.ts"
+        ],
+        "id": "task_presentation_status::TaskDotStatus",
+        "kind": "closed_domain_exhaustiveness",
+        "missing_sites": [
+          {
+            "detail": "no exhaustive mapping or switch site found for 'TaskDotStatus'",
+            "kind": "closed_domain",
+            "line": 12,
+            "path": "src/app/task-presentation-status.ts"
+          }
+        ],
+        "missing_variants": [],
+        "required_sites": [
+          {
+            "detail": "no exhaustive mapping or switch site found for 'TaskDotStatus'",
+            "kind": "closed_domain",
+            "line": 12,
+            "path": "src/app/task-presentation-status.ts"
+          }
+        ],
+        "satisfied_sites": [],
+        "summary": "Closed domain 'task_presentation_status' is missing required update sites"
+      }
+    ],
+    "missing_site_count": 1
+  },
+  "after": {
+    "concept_summary": null,
+    "obligations": [
+      {
+        "concept_id": "task_presentation_status",
+        "context_burden": 1,
+        "domain_symbol_name": "TaskDotStatus",
+        "files": [
+          "src/app/task-presentation-status.ts"
+        ],
+        "id": "task_presentation_status::TaskDotStatus",
+        "kind": "closed_domain_exhaustiveness",
+        "missing_sites": [],
+        "missing_variants": [],
+        "required_sites": [
+          {
+            "detail": "covers 7 variants via record",
+            "kind": "record",
+            "line": 82,
+            "path": "src/app/task-presentation-status.ts"
+          }
+        ],
+        "satisfied_sites": [
+          {
+            "detail": "covers 7 variants via record",
+            "kind": "record",
+            "line": 82,
+            "path": "src/app/task-presentation-status.ts"
+          }
+        ],
+        "summary": "Closed domain 'task_presentation_status' is fully covered across 7 required sites"
+      }
+    ],
+    "missing_site_count": 0
+  }
+}

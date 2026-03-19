@@ -1,13 +1,13 @@
 {
   "baseline_delta": {
     "available": true,
-    "coupling_after": 0.4626334519572954,
-    "coupling_before": 0.4626334519572954,
+    "coupling_after": 0.4643268124280783,
+    "coupling_before": 0.4643268124280783,
     "cycles_after": 1,
     "cycles_before": 1,
     "degraded": false,
-    "signal_after": 4817,
-    "signal_before": 4817,
+    "signal_after": 4790,
+    "signal_before": 4790,
     "signal_delta": 0
   },
   "baseline_error": null,
@@ -19,6 +19,7 @@
   ],
   "concept_summaries": [
     {
+      "boundary_pressure_count": 1,
       "concept_id": "task_presentation_status",
       "context_burden": 5,
       "dominant_kinds": [
@@ -32,18 +33,18 @@
       "high_severity_count": 0,
       "missing_site_count": 5,
       "obligation_count": 1,
-      "score_0_10000": 4100,
+      "score_0_10000": 5200,
       "suggested_actions": [
         "route reads through the canonical accessor or public boundary",
         "complete the propagation chain before extending the concept further"
       ],
-      "summary": "Concept 'task_presentation_status' has 5 missing update sites to complete"
+      "summary": "Concept 'task_presentation_status' combines boundary pressure with 5 missing update sites"
     }
   ],
   "concept_summary_count": 1,
   "confidence": {
     "rule_coverage_0_10000": 10000,
-    "scan_confidence_0_10000": 8125,
+    "scan_confidence_0_10000": 8164,
     "semantic_rules_loaded": true,
     "session_baseline": {
       "compatible": true,
@@ -53,8 +54,8 @@
     }
   },
   "coupling_change": [
-    0.4626334519572954,
-    0.4626334519572954
+    0.4643268124280783,
+    0.4643268124280783
   ],
   "cycles_change": [
     1,
@@ -157,6 +158,33 @@
   ],
   "obligation_completeness_0_10000": 0,
   "opportunity_context_error": null,
+  "optimization_priorities": [
+    {
+      "boundary_pressure_count": 1,
+      "clone_family_count": 0,
+      "concept_id": "task_presentation_status",
+      "evidence": [
+        "boundary and ownership findings: 1",
+        "missing update sites: 5",
+        "context burden: 5"
+      ],
+      "files": [
+        "src/app/task-presentation-status.ts",
+        "src/components/SidebarTaskRow.tsx"
+      ],
+      "hotspot_count": 0,
+      "missing_site_count": 5,
+      "score_0_10000": 6100,
+      "severity": "medium",
+      "suggested_actions": [
+        "route reads through the canonical accessor or public boundary",
+        "complete the propagation chain before extending the concept further",
+        "tighten the concept boundary before extending the propagation chain"
+      ],
+      "summary": "Stabilize concept 'task_presentation_status' before adding more change surface: boundary bypasses are compounding incomplete propagation"
+    }
+  ],
+  "optimization_priority_count": 1,
   "pass": false,
   "quality_opportunities": [
     {
@@ -171,20 +199,20 @@
       ],
       "kind": "concept",
       "scope": "task_presentation_status",
-      "score_0_10000": 4100,
+      "score_0_10000": 5200,
       "severity": "medium",
       "suggested_actions": [
         "route reads through the canonical accessor or public boundary",
         "complete the propagation chain before extending the concept further"
       ],
-      "summary": "Concept 'task_presentation_status' has 5 missing update sites to complete"
+      "summary": "Concept 'task_presentation_status' combines boundary pressure with 5 missing update sites"
     }
   ],
   "quality_opportunity_count": 1,
   "resolved_findings": [],
   "rules_error": null,
   "scan_trust": {
-    "candidate_files": 704,
+    "candidate_files": 719,
     "exclusions": {
       "bucketed": {
         "build": 12,
@@ -199,25 +227,25 @@
       "total": 132
     },
     "fallback_reason": null,
-    "kept_files": 572,
+    "kept_files": 587,
     "mode": "git",
-    "overall_confidence_0_10000": 8125,
+    "overall_confidence_0_10000": 8164,
     "partial": false,
     "resolution": {
       "internal_confidence_0_10000": 9994,
-      "resolved": 1687,
-      "unresolved_external": 473,
+      "resolved": 1739,
+      "unresolved_external": 482,
       "unresolved_internal": 1,
-      "unresolved_unknown": 72
+      "unresolved_unknown": 74
     },
-    "scope_coverage_0_10000": 8125,
-    "tracked_candidates": 704,
+    "scope_coverage_0_10000": 8164,
+    "tracked_candidates": 719,
     "truncated": false,
     "untracked_candidates": 0
   },
   "semantic_error": null,
-  "signal_after": 4817,
-  "signal_before": 4817,
+  "signal_after": 4790,
+  "signal_before": 4790,
   "signal_delta": 0,
   "summary": "Touched-concept regressions detected",
   "suppressed_finding_count": 0,

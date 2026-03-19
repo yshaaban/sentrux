@@ -1,0 +1,17 @@
+{
+  "generated_at": "2026-03-19T12:05:30.369Z",
+  "scenarios": [
+    {
+      "name": "ownership-regression",
+      "output_dir": "<sentrux-root>/docs/v2/examples/parallel-code-proof-runs/ownership-regression"
+    },
+    {
+      "name": "propagation-cleanup",
+      "output_dir": "<sentrux-root>/docs/v2/examples/parallel-code-proof-runs/propagation-cleanup"
+    },
+    {
+      "name": "clone-cleanup",
+      "output_dir": "<sentrux-root>/docs/v2/examples/parallel-code-proof-runs/clone-cleanup"
+    }
+  ]
+}

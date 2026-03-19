@@ -51,6 +51,22 @@ This command:
 
 The proof board explains how the outputs from this command should be turned into real refactor targets and before/after proof records.
 
+### Run Proof Targets
+
+Use this when the goal is to regenerate the tracked before/after proof artifacts for the current `parallel-code` proof targets.
+
+```bash
+node scripts/run_parallel_code_proof_targets.mjs
+```
+
+This command:
+
+- creates disposable `parallel-code` clones
+- runs the seeded ownership regression proof
+- runs the propagation cleanup proof
+- runs the clone-family cleanup proof
+- writes checked-in proof artifacts under `docs/v2/examples/parallel-code-proof-runs`
+
 ### Benchmark Only
 
 Use this when you only want performance data.
@@ -127,6 +143,7 @@ Use this when the goal is to improve `parallel-code`, not just validate analyzer
 6. record the before/after delta in the proof board and the case study
 
 The proof board in [Parallel-Code Proof Board](./parallel-code-proof-board.md) is the tracking surface for that loop.
+The reviewed baseline and resolved overstatements are tracked in [Parallel-Code Proof Review](./parallel-code-proof-review.md).
 
 ## Relationship To Migration
 
