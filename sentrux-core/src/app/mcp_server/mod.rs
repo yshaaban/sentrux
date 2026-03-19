@@ -55,6 +55,7 @@ pub struct McpState {
     pub cached_evolution: Option<evolution::EvolutionReport>,
     pub cached_git_head: Option<String>,
     pub cached_working_tree_paths: BTreeSet<String>,
+    pub cached_working_tree_hashes: BTreeMap<String, u64>,
     pub semantic_bridge: Option<TypeScriptBridgeSupervisor>,
 }
 
@@ -87,6 +88,7 @@ pub fn run_mcp_server(register_extra: Option<&dyn Fn(&mut registry::ToolRegistry
         cached_evolution: None,
         cached_git_head: None,
         cached_working_tree_paths: BTreeSet::new(),
+        cached_working_tree_hashes: BTreeMap::new(),
         semantic_bridge: None,
     };
 

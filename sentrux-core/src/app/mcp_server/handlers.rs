@@ -59,6 +59,17 @@ pub(crate) fn do_scan(root: &Path) -> Result<ScanBundle, String> {
     })
 }
 
+fn do_scan_with_identity(root: &Path) -> Result<(ScanBundle, Option<ScanCacheIdentity>), String> {
+    let identity_before = current_scan_identity(root);
+    let bundle = do_scan(root)?;
+    let identity_after = current_scan_identity(root);
+    let scan_identity = match (identity_before, identity_after) {
+        (Some(before), Some(after)) if before == after => Some(after),
+        _ => None,
+    };
+    Ok((bundle, scan_identity))
+}
+
 fn scan_trust_json(metadata: &ScanMetadata) -> Value {
     let scope_coverage = ratio_score_0_10000(metadata.kept_files, metadata.candidate_files);
     let resolution_confidence = ratio_score_0_10000(
@@ -250,6 +261,7 @@ fn fresh_mcp_state() -> McpState {
         cached_evolution: None,
         cached_git_head: None,
         cached_working_tree_paths: BTreeSet::new(),
+        cached_working_tree_hashes: BTreeMap::new(),
         semantic_bridge: None,
     }
 }
@@ -265,6 +277,7 @@ fn refresh_changed_scope(state: &mut McpState, root: &Path) -> Result<BTreeSet<S
             root.to_path_buf(),
             context.bundle,
             persisted_baseline.or(state.baseline.clone()),
+            context.scan_identity,
         );
     } else if persisted_baseline.is_some() {
         state.baseline = persisted_baseline;
@@ -373,8 +386,8 @@ fn update_scan_cache(
     root: PathBuf,
     bundle: ScanBundle,
     baseline: Option<arch::ArchBaseline>,
+    identity: Option<ScanCacheIdentity>,
 ) {
-    let identity = current_scan_identity(&root);
     let root_changed = state
         .scan_root
         .as_ref()
@@ -395,7 +408,11 @@ fn update_scan_cache(
         .as_ref()
         .and_then(|identity| identity.git_head.clone());
     state.cached_working_tree_paths = identity
-        .map(|identity| identity.working_tree_paths)
+        .as_ref()
+        .map(|identity| identity.working_tree_paths.clone())
+        .unwrap_or_default();
+    state.cached_working_tree_hashes = identity
+        .map(|identity| identity.working_tree_hashes)
         .unwrap_or_default();
 }
 
@@ -416,12 +433,14 @@ struct PatchCheckContext {
     bundle: ScanBundle,
     changed_files: BTreeSet<String>,
     reused_cached_scan: bool,
+    scan_identity: Option<ScanCacheIdentity>,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 struct ScanCacheIdentity {
     git_head: Option<String>,
     working_tree_paths: BTreeSet<String>,
+    working_tree_hashes: BTreeMap<String, u64>,
 }
 
 fn prepare_patch_check_context(
@@ -443,11 +462,12 @@ fn prepare_patch_check_context(
                 bundle,
                 changed_files,
                 reused_cached_scan: true,
+                scan_identity: None,
             });
         }
     }
 
-    let bundle = do_scan(root)?;
+    let (bundle, scan_identity) = do_scan_with_identity(root)?;
     let changed_files =
         changed_files_from_session_context(root, &bundle.snapshot, session_v2, None);
 
@@ -455,6 +475,7 @@ fn prepare_patch_check_context(
         bundle,
         changed_files,
         reused_cached_scan: false,
+        scan_identity,
     })
 }
 
@@ -464,12 +485,15 @@ fn scan_cache_matches_identity(state: &McpState, identity: Option<&ScanCacheIden
     };
     state.cached_git_head == identity.git_head
         && state.cached_working_tree_paths == identity.working_tree_paths
+        && state.cached_working_tree_hashes == identity.working_tree_hashes
 }
 
 fn current_scan_identity(root: &Path) -> Option<ScanCacheIdentity> {
+    let working_tree_paths = working_tree_changed_files(root)?;
     Some(ScanCacheIdentity {
         git_head: current_git_head(root),
-        working_tree_paths: working_tree_changed_files(root)?,
+        working_tree_hashes: file_hashes_for_paths(root, &working_tree_paths),
+        working_tree_paths,
     })
 }
 
@@ -588,9 +612,18 @@ fn snapshot_file_hashes_for_paths(
     paths: &BTreeSet<String>,
 ) -> BTreeMap<String, u64> {
     let scanned_paths = scanned_file_paths(snapshot);
-    paths
+    let eligible_paths = paths
         .iter()
         .filter(|path| scanned_paths.contains(*path))
+        .filter(|path| !is_internal_sentrux_path(path))
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    file_hashes_for_paths(root, &eligible_paths)
+}
+
+fn file_hashes_for_paths(root: &Path, paths: &BTreeSet<String>) -> BTreeMap<String, u64> {
+    paths
+        .iter()
         .filter(|path| !is_internal_sentrux_path(path))
         .filter_map(|path| {
             let absolute_path = root.join(path);
@@ -771,6 +804,7 @@ fn clone_findings_for_health(
         .take(limit)
         .cloned()
         .collect::<Vec<_>>();
+    let remediation_limit = report.families.len().saturating_mul(4);
 
     (
         CloneFindingPayload {
@@ -780,11 +814,63 @@ fn clone_findings_for_health(
             prioritized_findings: serialized_values(&prioritized_findings),
             families: serialized_values(&report.families),
             remediation_hints: serialized_values(
-                &crate::metrics::v2::build_clone_remediation_hints(&report.families, limit),
+                &crate::metrics::v2::build_clone_remediation_hints(
+                    &report.families,
+                    remediation_limit,
+                ),
             ),
         },
         evolution_error,
     )
+}
+
+fn visible_clone_ids(findings: &[Value]) -> BTreeSet<String> {
+    findings
+        .iter()
+        .filter(|finding| finding_kind(finding) == "exact_clone_group")
+        .filter_map(|finding| {
+            finding
+                .get("clone_id")
+                .and_then(|value| value.as_str())
+                .map(str::to_string)
+        })
+        .collect()
+}
+
+fn clone_value_matches_visible_clone_ids(
+    value: &Value,
+    visible_clone_ids: &BTreeSet<String>,
+    key: &str,
+) -> bool {
+    value
+        .get(key)
+        .and_then(|value| value.as_array())
+        .map(|clone_ids| {
+            clone_ids.iter().any(|clone_id| {
+                clone_id
+                    .as_str()
+                    .map(|clone_id| visible_clone_ids.contains(clone_id))
+                    .unwrap_or(false)
+            })
+        })
+        .unwrap_or(false)
+}
+
+fn filter_clone_values_by_visible_clone_ids(
+    values: Vec<Value>,
+    visible_clone_ids: &BTreeSet<String>,
+    key: &str,
+    limit: usize,
+) -> Vec<Value> {
+    if visible_clone_ids.is_empty() {
+        return Vec::new();
+    }
+
+    values
+        .into_iter()
+        .filter(|value| clone_value_matches_visible_clone_ids(value, visible_clone_ids, key))
+        .take(limit)
+        .collect()
 }
 
 fn build_session_v2_baseline(
@@ -1288,6 +1374,7 @@ fn compute_touched_concept_gate(
             root.to_path_buf(),
             bundle,
             persisted_baseline.or(state.baseline.clone()),
+            context.scan_identity,
         );
         state.cached_semantic = preserved_semantic;
         state.cached_evolution = preserved_evolution;
@@ -1375,7 +1462,7 @@ fn handle_scan(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<Value
         return Err(format!("Not a directory: {path}"));
     }
 
-    let bundle = do_scan(&root)?;
+    let (bundle, scan_identity) = do_scan_with_identity(&root)?;
     let baseline_path = arch::baseline_path(&root);
     let (baseline, baseline_error) = match load_persisted_baseline(&root) {
         Ok(baseline) => (baseline, None),
@@ -1394,7 +1481,7 @@ fn handle_scan(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<Value
         "baseline_error": baseline_error,
     });
 
-    update_scan_cache(state, root, bundle, baseline);
+    update_scan_cache(state, root, bundle, baseline, scan_identity);
 
     Ok(result)
 }
@@ -1551,26 +1638,31 @@ fn handle_findings(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<V
         usize::MAX,
     );
     let (suppression_application, rules_error) = apply_root_suppressions(&root, merged_findings);
+    let visible_clone_ids = visible_clone_ids(&suppression_application.visible_findings);
     let findings = suppression_application
         .visible_findings
         .into_iter()
         .take(limit)
         .collect::<Vec<_>>();
-    let clone_families = clone_payload
-        .families
-        .into_iter()
-        .take(limit.min(10))
-        .collect::<Vec<_>>();
-    let clone_remediations = clone_payload
-        .remediation_hints
-        .into_iter()
-        .take(limit.min(10))
-        .collect::<Vec<_>>();
+    let clone_families = filter_clone_values_by_visible_clone_ids(
+        clone_payload.families,
+        &visible_clone_ids,
+        "clone_ids",
+        limit.min(10),
+    );
+    let clone_remediations = filter_clone_values_by_visible_clone_ids(
+        clone_payload.remediation_hints,
+        &visible_clone_ids,
+        "clone_ids",
+        limit.min(10),
+    );
 
     Ok(json!({
         "kind": "mixed_findings",
         "clone_group_count": clone_payload.clone_group_count,
         "clone_family_count": clone_payload.clone_family_count,
+        "visible_clone_group_count": visible_clone_ids.len(),
+        "visible_clone_family_count": clone_families.len(),
         "clone_families": clone_families,
         "clone_remediations": clone_remediations,
         "semantic_finding_count": findings.iter().filter(|finding| finding.get("concept_id").is_some()).count(),
@@ -2085,10 +2177,13 @@ mod tests {
     };
     use crate::app::mcp_server::{McpState, SessionV2Baseline};
     use crate::license::Tier;
+    use crate::metrics::evo::{
+        AuthorInfo, CouplingPair, EvolutionReport, FileChurn, TemporalHotspot,
+    };
     use crate::metrics::rules::RulesConfig;
     use crate::metrics::DuplicateGroup;
     use serde_json::json;
-    use std::collections::{BTreeMap, BTreeSet};
+    use std::collections::{BTreeMap, BTreeSet, HashMap};
     use std::path::Path;
     use std::process::Command;
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -2471,6 +2566,7 @@ mod tests {
             cached_evolution: None,
             cached_git_head: None,
             cached_working_tree_paths: BTreeSet::new(),
+            cached_working_tree_hashes: BTreeMap::new(),
             semantic_bridge: None,
         }
     }
@@ -2677,6 +2773,180 @@ mod tests {
     }
 
     #[test]
+    fn findings_hide_suppressed_clone_families_and_remediations() {
+        let root = cli_gate_fixture_root();
+        write_file(
+            &root,
+            ".sentrux/rules.toml",
+            r#"
+                [[suppress]]
+                kind = "exact_clone_group"
+                file = "src/a.ts"
+                reason = "temporary clone suppression"
+                expires = "2099-12-31"
+            "#,
+        );
+        write_file(
+            &root,
+            "src/a.ts",
+            "export function duplicateAlpha(): number { return 1; }\n",
+        );
+        write_file(
+            &root,
+            "src/b.ts",
+            "export function duplicateBeta(): number { return 1; }\n",
+        );
+
+        let mut state = fresh_mcp_state();
+        handle_scan(
+            &json!({"path": root.to_string_lossy().to_string()}),
+            &Tier::Free,
+            &mut state,
+        )
+        .expect("scan fixture");
+        state
+            .cached_health
+            .as_mut()
+            .expect("cached health")
+            .duplicate_groups = vec![
+            DuplicateGroup {
+                hash: 41,
+                instances: vec![
+                    ("src/a.ts".into(), "duplicateAlpha".into(), 12),
+                    ("src/b.ts".into(), "duplicateBeta".into(), 12),
+                ],
+            },
+            DuplicateGroup {
+                hash: 42,
+                instances: vec![
+                    ("src/a.ts".into(), "duplicateGamma".into(), 10),
+                    ("src/b.ts".into(), "duplicateDelta".into(), 10),
+                ],
+            },
+        ];
+
+        let response =
+            handle_findings(&json!({"limit": 10}), &Tier::Free, &mut state).expect("findings");
+
+        assert_eq!(response["clone_group_count"], 2);
+        assert_eq!(response["visible_clone_group_count"], 0);
+        assert_eq!(response["visible_clone_family_count"], 0);
+        assert!(response["clone_families"]
+            .as_array()
+            .expect("clone families")
+            .is_empty());
+        assert!(response["clone_remediations"]
+            .as_array()
+            .expect("clone remediations")
+            .is_empty());
+        assert!(!response["findings"]
+            .as_array()
+            .expect("findings array")
+            .iter()
+            .any(|finding| finding["kind"] == "exact_clone_group"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn findings_include_all_family_remediation_hints() {
+        let root = cli_gate_fixture_root();
+        write_file(
+            &root,
+            "src/a.ts",
+            "export function duplicateAlpha(): number { return 1; }\n",
+        );
+        write_file(
+            &root,
+            "src/b.ts",
+            "export function duplicateBeta(): number { return 1; }\n",
+        );
+
+        let mut state = fresh_mcp_state();
+        handle_scan(
+            &json!({"path": root.to_string_lossy().to_string()}),
+            &Tier::Free,
+            &mut state,
+        )
+        .expect("scan fixture");
+        state.cached_evolution = Some(EvolutionReport {
+            churn: HashMap::from([
+                (
+                    "src/a.ts".to_string(),
+                    FileChurn {
+                        commit_count: 4,
+                        lines_added: 6,
+                        lines_removed: 1,
+                        total_churn: 7,
+                    },
+                ),
+                (
+                    "src/b.ts".to_string(),
+                    FileChurn {
+                        commit_count: 0,
+                        lines_added: 0,
+                        lines_removed: 0,
+                        total_churn: 0,
+                    },
+                ),
+            ]),
+            coupling_pairs: Vec::<CouplingPair>::new(),
+            hotspots: Vec::<TemporalHotspot>::new(),
+            code_age: HashMap::from([("src/a.ts".to_string(), 3), ("src/b.ts".to_string(), 90)]),
+            authors: HashMap::<String, AuthorInfo>::new(),
+            single_author_ratio: 0.0,
+            bus_factor_score: 1.0,
+            churn_score: 1.0,
+            evolution_score: 1.0,
+            lookback_days: 90,
+            commits_analyzed: 4,
+        });
+        state
+            .cached_health
+            .as_mut()
+            .expect("cached health")
+            .duplicate_groups = vec![
+            DuplicateGroup {
+                hash: 41,
+                instances: vec![
+                    ("src/a.ts".into(), "duplicateAlpha".into(), 12),
+                    ("src/b.ts".into(), "duplicateBeta".into(), 12),
+                ],
+            },
+            DuplicateGroup {
+                hash: 42,
+                instances: vec![
+                    ("src/a.ts".into(), "duplicateGamma".into(), 10),
+                    ("src/b.ts".into(), "duplicateDelta".into(), 10),
+                ],
+            },
+        ];
+
+        let response =
+            handle_findings(&json!({"limit": 10}), &Tier::Free, &mut state).expect("findings");
+        let family_hints = response["clone_families"][0]["remediation_hints"]
+            .as_array()
+            .expect("family remediation hints");
+        let clone_remediations = response["clone_remediations"]
+            .as_array()
+            .expect("clone remediations");
+
+        assert!(family_hints.len() >= 3);
+        assert_eq!(clone_remediations.len(), family_hints.len());
+        assert!(clone_remediations
+            .iter()
+            .any(|hint| hint["kind"] == "sync_recent_divergence"));
+        assert!(clone_remediations
+            .iter()
+            .any(|hint| hint["kind"] == "extract_shared_helper"));
+        assert!(clone_remediations
+            .iter()
+            .any(|hint| hint["kind"] == "add_shared_behavior_tests"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
     fn overall_confidence_penalizes_partial_and_truncated_scans() {
         let mut metadata = ScanMetadata::empty(ScanMode::Git);
         let baseline = overall_confidence_0_10000(&metadata, 9000, 8000);
@@ -2834,7 +3104,13 @@ mod tests {
         let root = cli_gate_fixture_root();
         let bundle = do_scan(&root).expect("scan fixture");
         let mut state = fresh_mcp_state();
-        update_scan_cache(&mut state, root.clone(), bundle, None);
+        update_scan_cache(
+            &mut state,
+            root.clone(),
+            bundle,
+            None,
+            super::current_scan_identity(&root),
+        );
 
         let context =
             prepare_patch_check_context(&state, &root, None).expect("prepare patch context");
@@ -2868,12 +3144,64 @@ mod tests {
 
         let changed_bundle = do_scan(&root).expect("scan changed tree");
         let baseline = state.baseline.clone();
-        update_scan_cache(&mut state, root.clone(), changed_bundle, baseline);
+        update_scan_cache(
+            &mut state,
+            root.clone(),
+            changed_bundle,
+            baseline,
+            super::current_scan_identity(&root),
+        );
 
         let context = prepare_patch_check_context(&state, &root, state.session_v2.as_ref())
             .expect("prepare patch context on changed tree");
 
         assert!(context.reused_cached_scan);
+        assert!(context.changed_files.contains("src/domain/state.ts"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn patch_check_context_refreshes_cached_scan_when_dirty_contents_change() {
+        let root = closed_domain_gate_fixture_root();
+        init_git_repo(&root);
+        commit_all(&root, "initial");
+
+        let mut state = fresh_mcp_state();
+        handle_scan(
+            &json!({"path": root.to_string_lossy().to_string()}),
+            &Tier::Free,
+            &mut state,
+        )
+        .expect("scan initial tree");
+        handle_session_start(&json!({}), &Tier::Free, &mut state).expect("session start");
+
+        write_file(
+            &root,
+            "src/domain/state.ts",
+            "export type AppState = 'idle' | 'busy' | 'error';\n",
+        );
+
+        let changed_bundle = do_scan(&root).expect("scan changed tree");
+        let baseline = state.baseline.clone();
+        update_scan_cache(
+            &mut state,
+            root.clone(),
+            changed_bundle,
+            baseline,
+            super::current_scan_identity(&root),
+        );
+
+        write_file(
+            &root,
+            "src/domain/state.ts",
+            "export type AppState = 'idle' | 'busy' | 'error' | 'paused';\n",
+        );
+
+        let context = prepare_patch_check_context(&state, &root, state.session_v2.as_ref())
+            .expect("prepare patch context on edited dirty tree");
+
+        assert!(!context.reused_cached_scan);
         assert!(context.changed_files.contains("src/domain/state.ts"));
 
         let _ = std::fs::remove_dir_all(root);
@@ -3681,7 +4009,7 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
     });
 
     if !context.reused_cached_scan {
-        update_scan_cache(state, root, bundle, baseline);
+        update_scan_cache(state, root, bundle, baseline, context.scan_identity);
         state.cached_semantic = preserved_semantic;
         state.cached_evolution = preserved_evolution;
     } else {
@@ -3743,7 +4071,7 @@ fn handle_rescan(_args: &Value, _tier: &Tier, state: &mut McpState) -> Result<Va
         .scan_root
         .clone()
         .ok_or("No scan root. Call 'scan' first.")?;
-    let bundle = do_scan(&root)?;
+    let (bundle, scan_identity) = do_scan_with_identity(&root)?;
     let (baseline, baseline_error) = match load_persisted_baseline(&root) {
         Ok(baseline) => (baseline, None),
         Err(error) => (None, Some(error)),
@@ -3758,7 +4086,7 @@ fn handle_rescan(_args: &Value, _tier: &Tier, state: &mut McpState) -> Result<Va
         "baseline_error": baseline_error
     });
 
-    update_scan_cache(state, root, bundle, baseline);
+    update_scan_cache(state, root, bundle, baseline, scan_identity);
 
     Ok(result)
 }
