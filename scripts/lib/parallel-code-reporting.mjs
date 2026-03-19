@@ -168,13 +168,7 @@ export function selectPresentationBuckets(findingsPayload) {
     (candidate) => candidate.presentation_class === 'tooling_debt',
   );
   const primaryStructuralDebt = structuralDebt.filter(isLeadStructuralDebtCandidate);
-  const secondaryHotspots = uniqueCandidates
-    .filter(isSecondaryHotspotCandidate)
-    .filter(
-      (candidate) =>
-        !primaryStructuralDebt.slice(0, 3).some((entry) => entry.scope === candidate.scope) &&
-        !guardedFacades.slice(0, 1).some((entry) => entry.scope === candidate.scope),
-    );
+  const secondaryHotspotCandidates = uniqueCandidates.filter(isSecondaryHotspotCandidate);
 
   const leadCandidates = [
     ...primaryStructuralDebt.slice(0, 3),
@@ -192,6 +186,10 @@ export function selectPresentationBuckets(findingsPayload) {
     }
     leadCandidates.push(overflowCandidate);
   }
+
+  const secondaryHotspots = secondaryHotspotCandidates.filter(
+    (candidate) => !leadCandidates.some((entry) => entry.scope === candidate.scope),
+  );
 
   return {
     lead_candidates: leadCandidates,

@@ -187,154 +187,6 @@ function finalizeMarkdown(lines) {
   return output.join('\n');
 }
 
-function buildProofSnapshotMarkdown(snapshot) {
-  const lines = [];
-  lines.push('# Parallel-Code Proof Snapshot');
-  lines.push('');
-  lines.push(`Generated from: \`${snapshot.generated_from.golden_dir}\``);
-  lines.push(`Benchmark: \`${snapshot.generated_from.benchmark_path}\``);
-  lines.push('');
-  lines.push('## Freshness');
-  lines.push('');
-  lines.push(
-    `- analysis mode: \`${snapshot.generated_from.metadata.analysis_mode ?? 'unknown'}\``,
-  );
-  lines.push(
-    `- commit: \`${snapshot.generated_from.metadata.source_tree_identity?.commit ?? 'unknown'}\``,
-  );
-  lines.push(
-    `- dirty paths: \`${
-      snapshot.generated_from.metadata.source_tree_identity?.dirty_paths_count ?? 'unknown'
-    }\``,
-  );
-  lines.push(
-    `- dirty-path fingerprint: \`${
-      snapshot.generated_from.metadata.source_tree_identity?.dirty_paths_fingerprint ?? 'unknown'
-    }\``,
-  );
-  lines.push(
-    `- tree fingerprint: \`${
-      snapshot.generated_from.metadata.source_tree_identity?.tree_fingerprint ?? 'unknown'
-    }\``,
-  );
-  lines.push(
-    `- analyzed tree fingerprint: \`${
-      snapshot.generated_from.metadata.analyzed_tree_identity?.tree_fingerprint ?? 'unknown'
-    }\``,
-  );
-  lines.push(
-    `- rules sha256: \`${snapshot.generated_from.metadata.rules_identity?.sha256 ?? 'unknown'}\``,
-  );
-  lines.push(
-    `- binary sha256: \`${snapshot.generated_from.metadata.binary_identity?.sha256 ?? 'unknown'}\``,
-  );
-  if ((snapshot.generated_from.metadata.source_tree_identity?.dirty_paths ?? []).length > 0) {
-    lines.push('- dirty path list:');
-    for (const dirtyPath of snapshot.generated_from.metadata.source_tree_identity.dirty_paths) {
-      lines.push(`  - \`${dirtyPath}\``);
-    }
-  } else {
-    lines.push('- dirty path list: none');
-  }
-  lines.push('');
-  lines.push('## Top Findings');
-  lines.push('');
-  for (const finding of snapshot.top_findings) {
-    lines.push(
-      `- \`${finding.trust_tier ?? 'trusted'}\` \`${finding.presentation_class ?? 'structural_debt'}\` \`${finding.severity}\` \`${finding.kind}\` ${
-        finding.concept_id ? `(${finding.concept_id}) ` : ''
-      }${finding.summary}`,
-    );
-  }
-  lines.push('');
-  lines.push('## Experimental Findings');
-  lines.push('');
-  for (const finding of snapshot.experimental_findings) {
-    lines.push(`- \`${finding.severity}\` \`${finding.kind}\` ${finding.summary}`);
-  }
-  if (snapshot.experimental_findings.length === 0) {
-    lines.push('- none');
-  }
-  lines.push('');
-  lines.push('## Concept Summaries');
-  lines.push('');
-  for (const summary of snapshot.concept_summaries) {
-    lines.push(`- \`${summary.concept_id}\` score ${summary.score_0_10000}: ${summary.summary}`);
-  }
-  lines.push('');
-  lines.push('## Finding Details');
-  lines.push('');
-  for (const detail of snapshot.finding_details) {
-    lines.push(
-      `- \`${detail.trust_tier ?? 'trusted'}\` \`${detail.severity}\` \`${detail.kind}\` \`${detail.scope}\`: ${detail.summary}`,
-    );
-    lines.push(`  - impact: ${detail.impact}`);
-  }
-  lines.push('');
-  lines.push('## Debt Signals');
-  lines.push('');
-  for (const signal of snapshot.debt_signals) {
-    lines.push(
-      `- \`${signal.trust_tier}\` \`${signal.kind}\` \`${signal.scope}\` score ${signal.score_0_10000}: ${signal.summary}`,
-    );
-  }
-  lines.push('');
-  lines.push('## Experimental Debt Signals');
-  lines.push('');
-  for (const signal of snapshot.experimental_debt_signals) {
-    lines.push(`- \`${signal.kind}\` \`${signal.scope}\` score ${signal.score_0_10000}: ${signal.summary}`);
-  }
-  if (snapshot.experimental_debt_signals.length === 0) {
-    lines.push('- none');
-  }
-  lines.push('');
-  lines.push('## Debt Clusters');
-  lines.push('');
-  for (const cluster of snapshot.debt_clusters) {
-    lines.push(
-      `- \`${cluster.trust_tier}\` \`${cluster.scope}\` score ${cluster.score_0_10000}: ${cluster.summary}`,
-    );
-  }
-  lines.push('');
-  lines.push('## Watchpoints');
-  lines.push('');
-  for (const watchpoint of snapshot.watchpoints) {
-    lines.push(
-      `- \`${watchpoint.trust_tier ?? 'watchpoint'}\` \`${watchpoint.scope}\` score ${watchpoint.score_0_10000}: ${watchpoint.summary}`,
-    );
-  }
-  lines.push('');
-  lines.push('## Proof Targets');
-  lines.push('');
-  lines.push(
-    `1. Ownership/boundary: \`${snapshot.proof_targets.ownership_boundary?.concept_id ?? 'n/a'}\``,
-  );
-  lines.push(
-    `2. Propagation/obligations: \`${snapshot.proof_targets.propagation_obligations.concept_id}\``,
-  );
-  lines.push(
-    `3. Duplication/hotspot: clone ${
-      snapshot.proof_targets.duplication_hotspot.clone_family?.scope ??
-      snapshot.proof_targets.duplication_hotspot.duplication_cluster?.scope ??
-      'n/a'
-    } / hotspot ${
-      snapshot.proof_targets.duplication_hotspot.hotspot?.scope ??
-      snapshot.proof_targets.duplication_hotspot.hotspot_cluster?.scope ??
-      'n/a'
-    }`,
-  );
-  lines.push('');
-  lines.push('## Benchmark Baseline');
-  lines.push('');
-  lines.push(`- cold process total: ${snapshot.benchmark.cold_process_total_ms ?? 'n/a'} ms`);
-  lines.push(`- warm cached total: ${snapshot.benchmark.warm_cached_total_ms ?? 'n/a'} ms`);
-  lines.push(
-    `- warm patch-safety total: ${snapshot.benchmark.warm_patch_safety_total_ms ?? 'n/a'} ms`,
-  );
-
-  return finalizeMarkdown(lines);
-}
-
 function buildLiveEngineerReport({
   snapshot,
   findings,
@@ -775,8 +627,6 @@ async function main() {
     allowStale: allowStaleGoldens,
   });
 
-  await mkdir(path.dirname(snapshotMarkdownPath), { recursive: true });
-  await writeFile(snapshotMarkdownPath, buildProofSnapshotMarkdown(snapshot), 'utf8');
   await writeFile(
     reportMarkdownPath,
     buildLiveEngineerReport({
@@ -801,7 +651,6 @@ async function main() {
     'utf8',
   );
 
-  console.log(`Wrote proof snapshot Markdown to ${snapshotMarkdownPath}`);
   console.log(`Wrote live engineer report to ${reportMarkdownPath}`);
   console.log(`Wrote live engineer appendix to ${appendixMarkdownPath}`);
 }
