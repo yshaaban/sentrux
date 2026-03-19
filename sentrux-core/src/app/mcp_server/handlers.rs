@@ -1592,20 +1592,22 @@ fn finding_concept_id(finding: &Value) -> Option<&str> {
     finding.get("concept_id").and_then(|value| value.as_str())
 }
 
-fn finding_files(finding: &Value) -> Vec<String> {
-    if let Some(files) = finding
-        .get("files")
+fn finding_string_values(finding: &Value, field: &str) -> Vec<String> {
+    finding
+        .get(field)
         .and_then(|value| value.as_array())
-        .map(|files| {
-            files
+        .map(|values| {
+            values
                 .iter()
                 .filter_map(|value| value.as_str().map(str::to_string))
                 .collect::<Vec<_>>()
         })
-    {
-        if !files.is_empty() {
-            return files;
-        }
+        .unwrap_or_default()
+}
+
+fn finding_files(finding: &Value) -> Vec<String> {
+    if let files @ [_, ..] = finding_string_values(finding, "files").as_slice() {
+        return files.to_vec();
     }
 
     if let Some(path) = finding.get("path").and_then(|value| value.as_str()) {
@@ -1629,6 +1631,141 @@ fn finding_files(finding: &Value) -> Vec<String> {
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default()
+}
+
+fn finding_scope(finding: &Value) -> String {
+    if let Some(scope) = finding.get("scope").and_then(|value| value.as_str()) {
+        return scope.to_string();
+    }
+    if let Some(concept_id) = finding_concept_id(finding) {
+        return concept_id.to_string();
+    }
+
+    let files = finding_files(finding);
+    if files.is_empty() {
+        return finding_kind(finding).to_string();
+    }
+    if files.len() == 1 {
+        return files[0].clone();
+    }
+
+    files.join("|")
+}
+
+fn build_finding_details(findings: &[Value], limit: usize) -> Vec<FindingDetail> {
+    findings.iter().take(limit).map(finding_detail).collect()
+}
+
+fn finding_detail(finding: &Value) -> FindingDetail {
+    let kind = finding_kind(finding).to_string();
+    let files = dedupe_strings_preserve_order(finding_files(finding));
+    let evidence = dedupe_strings_preserve_order(finding_string_values(finding, "evidence"));
+    let inspection_focus = finding_detail_inspection_focus(finding);
+
+    FindingDetail {
+        kind: kind.clone(),
+        scope: finding_scope(finding),
+        severity: finding
+            .get("severity")
+            .and_then(|value| value.as_str())
+            .unwrap_or("low")
+            .to_string(),
+        summary: finding
+            .get("summary")
+            .and_then(|value| value.as_str())
+            .unwrap_or(kind.as_str())
+            .to_string(),
+        impact: finding_detail_impact(finding),
+        files: files.clone(),
+        evidence: evidence.clone(),
+        inspection_focus,
+        metrics: FindingDetailMetrics {
+            file_count: files.len(),
+            evidence_count: evidence.len(),
+            member_count: finding
+                .get("member_count")
+                .and_then(|value| value.as_u64())
+                .map(|value| value as usize),
+            family_score_0_10000: finding
+                .get("family_score")
+                .or_else(|| finding.get("family_score_0_10000"))
+                .and_then(|value| value.as_u64())
+                .map(|value| value as u32),
+            divergence_score: finding
+                .get("divergence_score")
+                .and_then(|value| value.as_u64())
+                .map(|value| value as u32),
+        },
+    }
+}
+
+fn finding_detail_impact(finding: &Value) -> String {
+    if let Some(impact) = finding.get("impact").and_then(|value| value.as_str()) {
+        return impact.to_string();
+    }
+
+    match finding_kind(finding) {
+        "multi_writer_concept" => {
+            "Multiple write paths make the concept easier to update inconsistently and harder to debug.".to_string()
+        }
+        "forbidden_writer" | "writer_outside_allowlist" => {
+            "Writes from the wrong layer erode ownership and increase the chance that invariants drift.".to_string()
+        }
+        "forbidden_raw_read" | "authoritative_import_bypass" => {
+            "Bypassing the intended read boundary weakens architectural contracts and can create stale or inconsistent views.".to_string()
+        }
+        "concept_boundary_pressure" => {
+            "Repeated boundary bypasses around the same concept make future changes easier to scatter across the codebase.".to_string()
+        }
+        "closed_domain_exhaustiveness" => {
+            "Finite-domain changes can silently miss one surface unless all required cases stay in sync.".to_string()
+        }
+        "contract_surface_completeness" => {
+            "Related contract surfaces are no longer aligned, so runtime paths can diverge or partially break.".to_string()
+        }
+        "state_integrity_missing_site" | "state_integrity_unmapped_root" => {
+            "State model drift makes lifecycle and restore behavior easier to break through partial edits.".to_string()
+        }
+        "contract_parity_gap" => {
+            "Cross-surface parity drift means different runtime paths may no longer implement the same contract.".to_string()
+        }
+        "exact_clone_group" | "clone_family" => {
+            "Duplicate logic increases the chance that fixes land in one copy but not the others.".to_string()
+        }
+        _ => "If ignored, this structural inconsistency will keep adding change friction and make future regressions harder to isolate.".to_string(),
+    }
+}
+
+fn finding_detail_inspection_focus(finding: &Value) -> Vec<String> {
+    let focus = finding_string_values(finding, "inspection_focus");
+    if !focus.is_empty() {
+        return focus;
+    }
+
+    let focus = match finding_kind(finding) {
+        "multi_writer_concept" | "forbidden_writer" | "writer_outside_allowlist" => vec![
+            "inspect which module should own writes for this concept".to_string(),
+            "inspect whether the extra write path can be removed or routed through the owner"
+                .to_string(),
+        ],
+        "forbidden_raw_read" | "authoritative_import_bypass" | "concept_boundary_pressure" => vec![
+            "inspect whether reads should move behind the canonical accessor or public boundary"
+                .to_string(),
+        ],
+        "closed_domain_exhaustiveness" | "contract_surface_completeness" => vec![
+            "inspect which required surfaces should change together and add explicit coverage there"
+                .to_string(),
+        ],
+        "exact_clone_group" | "clone_family" => clone_family_inspection_focus(finding),
+        _ => vec![
+            "inspect the files and evidence behind this finding before choosing a design fix"
+                .to_string(),
+        ],
+    };
+
+    let mut focus = dedupe_strings_preserve_order(focus);
+    focus.truncate(3);
+    focus
 }
 
 fn suppression_is_expired(suppression: &crate::metrics::rules::SuppressionRule) -> bool {
@@ -2158,6 +2295,7 @@ fn handle_findings(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<V
         .take(limit)
         .cloned()
         .collect::<Vec<_>>();
+    let finding_details = build_finding_details(&visible_findings, limit);
     let clone_families = filter_clone_values_by_visible_clone_ids(
         clone_payload.families,
         &visible_clone_ids,
@@ -2215,6 +2353,8 @@ fn handle_findings(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<V
         "optimization_priority_count": watchpoint_count,
         "optimization_priorities": legacy_optimization_priorities,
         "semantic_finding_count": semantic_finding_count,
+        "finding_detail_count": finding_details.len(),
+        "finding_details": finding_details,
         "rules_error": merge_optional_errors(config_error, suppression_error),
         "semantic_error": merge_optional_errors(semantic_error, clone_error),
         "debt_context_error": debt_context_error,
@@ -2728,6 +2868,19 @@ struct DebtSignal {
 }
 
 #[derive(Debug, Clone, serde::Serialize, Default)]
+struct FindingDetail {
+    kind: String,
+    scope: String,
+    severity: String,
+    summary: String,
+    impact: String,
+    files: Vec<String>,
+    evidence: Vec<String>,
+    inspection_focus: Vec<String>,
+    metrics: FindingDetailMetrics,
+}
+
+#[derive(Debug, Clone, serde::Serialize, Default)]
 struct InspectionWatchpoint {
     scope: String,
     severity: String,
@@ -2847,6 +3000,18 @@ struct DebtClusterMetrics {
     clone_family_count: usize,
     hotspot_count: usize,
     structural_signal_count: usize,
+}
+
+#[derive(Debug, Clone, serde::Serialize, Default)]
+struct FindingDetailMetrics {
+    file_count: usize,
+    evidence_count: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    member_count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    family_score_0_10000: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    divergence_score: Option<u32>,
 }
 
 fn debt_signal_candidate_files(
@@ -4858,6 +5023,38 @@ mod tests {
     }
 
     #[test]
+    fn findings_surface_finding_details_with_impact_and_focus() {
+        let root = concept_fixture_root();
+        let mut state = fresh_mcp_state();
+        handle_scan(
+            &json!({"path": root.to_string_lossy().to_string()}),
+            &Tier::Free,
+            &mut state,
+        )
+        .expect("scan fixture");
+        state.cached_semantic = Some(concept_fixture_semantic(&root));
+
+        let response =
+            handle_findings(&json!({"limit": 10}), &Tier::Free, &mut state).expect("findings");
+
+        assert!(response["finding_details"]
+            .as_array()
+            .expect("finding details")
+            .iter()
+            .any(|detail| {
+                detail["kind"] == "closed_domain_exhaustiveness"
+                    && detail["impact"]
+                        .as_str()
+                        .is_some_and(|impact| impact.contains("Finite-domain changes"))
+                    && detail["inspection_focus"]
+                        .as_array()
+                        .is_some_and(|focus| !focus.is_empty())
+            }));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
     fn findings_surface_structural_debt_signals() {
         let root = structural_debt_fixture_root();
         let mut state = fresh_mcp_state();
@@ -5921,6 +6118,16 @@ mod tests {
             .expect("debt signals")
             .iter()
             .any(|signal| signal["kind"] == "dead_island"));
+        assert!(response["finding_details"]
+            .as_array()
+            .expect("finding details")
+            .iter()
+            .any(|detail| {
+                detail["kind"] == "dead_island"
+                    && detail["impact"]
+                        .as_str()
+                        .is_some_and(|impact| impact.contains("maintenance noise"))
+            }));
 
         let _ = std::fs::remove_dir_all(root);
     }
@@ -6807,6 +7014,7 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
     } else {
         analysis.changed_visible_findings.clone()
     };
+    let finding_details = build_finding_details(&opportunity_findings, 10);
     let debt_outputs = build_debt_report_outputs(
         state,
         &root,
@@ -6874,6 +7082,8 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         "changed_concepts": changed_concepts,
         "introduced_findings": introduced_findings,
         "resolved_findings": resolved_findings,
+        "finding_detail_count": finding_details.len(),
+        "finding_details": finding_details,
         "missing_obligations": missing_obligations,
         "concept_summary_count": concept_summary_count,
         "concept_summaries": concept_summaries,
