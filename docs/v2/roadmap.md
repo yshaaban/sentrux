@@ -40,6 +40,7 @@ Deliverables:
 - internal versus external unresolved split
 - confidence reporting
 - bottleneck-first and delta-first output framing
+- trust-tiered finding presentation
 
 Tasks:
 
@@ -54,6 +55,8 @@ Tasks:
 - [x] auto-load baseline data when available during scan and health flows
 - [-] surface baseline deltas inline in health and session summaries
 - [-] demote the single composite score in CLI, MCP, and GUI output
+- [x] add trust tiers for trusted findings, watchpoints, and experimental detectors
+- [x] keep experimental detectors out of default `findings`, `session_end`, and `gate` lists
 
 Exit criteria:
 
@@ -63,7 +66,7 @@ Exit criteria:
 
 Open gap:
 
-- MCP and CLI are now largely aligned here; GUI and `health` delta surfacing still lag
+- MCP and CLI are now largely aligned here; GUI and `health` delta surfacing still lag, and proof/evaluator artifacts still need regular trust-tier refreshes
 
 This tier should ship independently of the semantic frontend.
 
@@ -303,6 +306,10 @@ Tasks:
 - [x] provide example `rules.toml` for `parallel-code`
 - [x] document the small-config onboarding path
 - [x] add normalized finding-detail rows with impact and inspection focus
+- [x] add candidate split axes and related-surface metadata to major finding classes
+- [x] surface cycle cut candidates for cycle clusters
+- [x] quarantine dead-private-code clusters as experimental
+- [-] fix dead-private-code detection so it can eventually leave the experimental tier
 
 Exit criteria:
 
@@ -328,6 +335,8 @@ Tasks:
 - [x] add debt signals that combine boundary pressure, clone families, hotspots, and missing-site pressure
 - [x] promote structural debt findings for large files, dependency sprawl, unstable hotspots, cycle clusters, dead private code clusters, and dead islands
 - [x] add overlap-aware debt clusters
+- [x] add finding trust tiers and separate watchpoints from trusted debt signals
+- [x] add experimental finding side channels for under-validated detectors
 - [-] validate the evidence quality on more than one real repo
 
 Exit criteria:
@@ -337,7 +346,7 @@ Exit criteria:
 
 Open gap:
 
-- the debt-signal lane is implemented, but it still needs more real-repo proof and tuning so the outputs consistently surface interesting technical-debt patterns without overproducing proof artifacts
+- the debt-signal lane is implemented, but it still needs more real-repo proof, evaluator-loop coverage, and detector correctness work so the outputs consistently surface interesting technical-debt patterns without overproducing proof artifacts
 
 ## Tier 3: Advanced Static Analysis
 

@@ -24,6 +24,8 @@
     }
   },
   "decision": "pass",
+  "experimental_finding_count": 0,
+  "experimental_findings": [],
   "expired_suppression_match_count": 0,
   "expired_suppressions": [],
   "introduced_findings": [],

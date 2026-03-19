@@ -15,7 +15,7 @@
   "expired_suppressions": [],
   "message": "Call 'session_end' after making changes to see the diff",
   "semantic_error": null,
-  "session_finding_count": 163,
+  "session_finding_count": 162,
   "session_v2_baseline_path": "<parallel-code-root>/.sentrux/session-v2.json",
   "status": "Baseline saved",
   "suppressed_finding_count": 0,

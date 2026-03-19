@@ -24,6 +24,12 @@ For v2 integrations, the preferred order is:
 
 This ordering should shape both MCP and CLI design. Any ranking or optimization-like output is a sorting aid, not the final decision.
 
+Finding trust model:
+
+- `trusted`: solid enough for normal engineer-facing findings and touched-concept ratchets
+- `watchpoint`: real structural pressure or incomplete interpretation; useful for inspection, not for overconfident automation
+- `experimental`: detector is still under evaluation and must not quietly influence top-level findings or CI decisions
+
 ## Existing Tools To Preserve
 
 Keep these unchanged during the initial v2 rollout:
@@ -72,11 +78,14 @@ Arguments:
 Returns:
 
 - findings
+- experimental findings
 - evidence
 - likely fix sites
 - concept summaries for repeated concept pressure
+- debt signals, debt clusters, and watchpoints
+- trust tiers, impact, candidate split axes, and related surfaces
 - quality-improvement opportunities as inspection candidates
-- optimization candidates as sorting aids
+- optimization candidates as legacy watchpoint aliases only
 - top-level confidence summary
 
 ## `obligations`
@@ -127,11 +136,13 @@ It should add:
 - changed files
 - changed concepts
 - introduced findings
+- experimental findings
 - resolved findings
 - missing obligations
 - concept summaries for changed concepts
+- patch-scoped trusted debt signals, watchpoints, and experimental side-channel findings
 - patch-scoped quality-improvement opportunities as inspection candidates
-- patch-scoped optimization candidates for structural cleanup
+- patch-scoped optimization candidates as legacy watchpoint aliases
 - track deltas
 - touched-concept regression verdict
 - confidence delta if coverage changed

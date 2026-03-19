@@ -134,8 +134,16 @@ V2 must always expose:
 - what required heuristics
 - what had deep semantic coverage
 - what confidence the result deserves
+- what trust tier each finding belongs to: `trusted`, `watchpoint`, or `experimental`
 
 Do not hide uncertainty behind precise scores.
+
+Engineer-facing defaults should:
+
+- lead with trusted findings
+- separate watchpoints from trusted debt signals
+- quarantine experimental detectors from default ratchets and top finding lists
+- preserve fixability metadata such as impact, inspection focus, and candidate split axes
 
 ## Anti-Goals
 

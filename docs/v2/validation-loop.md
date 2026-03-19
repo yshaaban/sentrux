@@ -14,6 +14,7 @@ The loop validates three separate things:
 2. benchmark regression behavior
 3. the baseline and migration story around v1 and v2 coexistence
 4. proof-and-improvement runs on disposable clones
+5. finding-class usefulness and trust-tier calibration
 
 ## Commands
 
@@ -145,6 +146,30 @@ Use this when the goal is to improve `parallel-code`, not just validate analyzer
 The proof board in [Parallel-Code Proof Board](./parallel-code-proof-board.md) is the tracking surface for that loop.
 The reviewed baseline and resolved overstatements are tracked in [Parallel-Code Proof Review](./parallel-code-proof-review.md).
 Maintainer feedback verdicts are tracked in [parallel-code-review-verdicts.json](./examples/parallel-code-review-verdicts.json) and summarized by [summarize_parallel_code_review_feedback.mjs](../../scripts/summarize_parallel_code_review_feedback.mjs).
+
+## Finding-Class Evaluation Loop
+
+Use maintainer review to calibrate finding classes, not only individual reports.
+
+For each reviewed finding class, capture:
+
+- `category`
+  - `useful`
+  - `useful_watchpoint`
+  - `real_but_overstated`
+  - `low_value`
+  - `incorrect`
+- `expected_trust_tier`
+  - `trusted`
+  - `watchpoint`
+  - `experimental`
+
+This loop should drive product changes such as:
+
+- promoting a detector to trusted
+- keeping a detector as a watchpoint
+- quarantining a detector as experimental
+- adding fixability metadata when a finding is real but not design-actionable yet
 
 ## Relationship To Migration
 

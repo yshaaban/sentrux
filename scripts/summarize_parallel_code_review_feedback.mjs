@@ -29,6 +29,15 @@ function summarizeCounts(verdicts) {
   return [...counts.entries()].sort(([left], [right]) => left.localeCompare(right));
 }
 
+function summarizeTrustTierCounts(verdicts) {
+  const counts = new Map();
+  for (const verdict of verdicts) {
+    const tier = verdict.expected_trust_tier ?? 'unspecified';
+    counts.set(tier, (counts.get(tier) ?? 0) + 1);
+  }
+  return [...counts.entries()].sort(([left], [right]) => left.localeCompare(right));
+}
+
 function buildMarkdown(payload) {
   const lines = [];
   lines.push('# Parallel-Code Review Verdicts');
@@ -43,6 +52,12 @@ function buildMarkdown(payload) {
     lines.push(`- \`${category}\`: ${count}`);
   }
   lines.push('');
+  lines.push('## Expected Trust Tiers');
+  lines.push('');
+  for (const [tier, count] of summarizeTrustTierCounts(payload.verdicts ?? [])) {
+    lines.push(`- \`${tier}\`: ${count}`);
+  }
+  lines.push('');
   lines.push('## Detailed Verdicts');
   lines.push('');
   for (const verdict of payload.verdicts ?? []) {
@@ -51,6 +66,7 @@ function buildMarkdown(payload) {
     lines.push(`- kind: \`${verdict.kind}\``);
     lines.push(`- category: \`${verdict.category}\``);
     lines.push(`- report bucket: \`${verdict.report_bucket}\``);
+    lines.push(`- expected trust tier: \`${verdict.expected_trust_tier ?? 'unspecified'}\``);
     lines.push(`- engineer note: ${verdict.engineer_note}`);
     lines.push(`- expected v2 behavior: ${verdict.expected_v2_behavior}`);
     lines.push('');

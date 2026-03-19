@@ -33,6 +33,7 @@ function compactFinding(finding) {
   return {
     id: finding.id ?? null,
     kind: finding.kind ?? null,
+    trust_tier: finding.trust_tier ?? null,
     severity: finding.severity ?? null,
     concept_id: finding.concept_id ?? null,
     summary: finding.summary ?? null,
@@ -53,18 +54,22 @@ function compactConceptSummary(summary) {
 function compactDebtSignal(signal) {
   return {
     kind: signal.kind ?? null,
+    trust_tier: signal.trust_tier ?? null,
     scope: signal.scope ?? null,
     signal_class: signal.signal_class ?? null,
     signal_families: signal.signal_families ?? [],
     severity: signal.severity ?? null,
     score_0_10000: signal.score_0_10000 ?? null,
     summary: signal.summary ?? null,
+    candidate_split_axes: signal.candidate_split_axes ?? [],
+    related_surfaces: signal.related_surfaces ?? [],
   };
 }
 
 function compactDebtCluster(cluster) {
   return {
     scope: cluster.scope ?? null,
+    trust_tier: cluster.trust_tier ?? null,
     severity: cluster.severity ?? null,
     score_0_10000: cluster.score_0_10000 ?? null,
     summary: cluster.summary ?? null,
@@ -76,21 +81,29 @@ function compactDebtCluster(cluster) {
 function compactFindingDetail(detail) {
   return {
     kind: detail.kind ?? null,
+    trust_tier: detail.trust_tier ?? null,
     scope: detail.scope ?? null,
     severity: detail.severity ?? null,
     summary: detail.summary ?? null,
     impact: detail.impact ?? null,
     inspection_focus: detail.inspection_focus ?? [],
+    candidate_split_axes: detail.candidate_split_axes ?? [],
+    related_surfaces: detail.related_surfaces ?? [],
   };
 }
 
 function compactWatchpoint(watchpoint) {
   return {
+    kind: watchpoint.kind ?? null,
+    trust_tier: watchpoint.trust_tier ?? null,
     scope: watchpoint.scope ?? watchpoint.concept_id ?? null,
     signal_families: watchpoint.signal_families ?? [],
     severity: watchpoint.severity ?? null,
     score_0_10000: watchpoint.score_0_10000 ?? null,
     summary: watchpoint.summary ?? null,
+    impact: watchpoint.impact ?? null,
+    candidate_split_axes: watchpoint.candidate_split_axes ?? [],
+    related_surfaces: watchpoint.related_surfaces ?? [],
     clone_family_count: watchpoint.clone_family_count ?? 0,
     hotspot_count: watchpoint.hotspot_count ?? 0,
     missing_site_count: watchpoint.missing_site_count ?? 0,
@@ -155,8 +168,19 @@ function buildMarkdown(snapshot) {
   lines.push('');
   for (const finding of snapshot.top_findings) {
     lines.push(
-      `- \`${finding.severity}\` \`${finding.kind}\` ${finding.concept_id ? `(${finding.concept_id}) ` : ''}${finding.summary}`,
+      `- \`${finding.trust_tier ?? 'trusted'}\` \`${finding.severity}\` \`${finding.kind}\` ${finding.concept_id ? `(${finding.concept_id}) ` : ''}${finding.summary}`,
     );
+  }
+  lines.push('');
+  lines.push('## Experimental Findings');
+  lines.push('');
+  for (const finding of snapshot.experimental_findings) {
+    lines.push(
+      `- \`${finding.severity}\` \`${finding.kind}\` ${finding.summary}`,
+    );
+  }
+  if (snapshot.experimental_findings.length === 0) {
+    lines.push('- none');
   }
   lines.push('');
   lines.push('## Concept Summaries');
@@ -171,7 +195,7 @@ function buildMarkdown(snapshot) {
   lines.push('');
   for (const detail of snapshot.finding_details) {
     lines.push(
-      `- \`${detail.severity}\` \`${detail.kind}\` \`${detail.scope}\`: ${detail.summary}`,
+      `- \`${detail.trust_tier ?? 'trusted'}\` \`${detail.severity}\` \`${detail.kind}\` \`${detail.scope}\`: ${detail.summary}`,
     );
     lines.push(`  - impact: ${detail.impact}`);
   }
@@ -180,15 +204,26 @@ function buildMarkdown(snapshot) {
   lines.push('');
   for (const signal of snapshot.debt_signals) {
     lines.push(
+      `- \`${signal.trust_tier}\` \`${signal.kind}\` \`${signal.scope}\` score ${signal.score_0_10000}: ${signal.summary}`,
+    );
+  }
+  lines.push('');
+  lines.push('## Experimental Debt Signals');
+  lines.push('');
+  for (const signal of snapshot.experimental_debt_signals) {
+    lines.push(
       `- \`${signal.kind}\` \`${signal.scope}\` score ${signal.score_0_10000}: ${signal.summary}`,
     );
+  }
+  if (snapshot.experimental_debt_signals.length === 0) {
+    lines.push('- none');
   }
   lines.push('');
   lines.push('## Debt Clusters');
   lines.push('');
   for (const cluster of snapshot.debt_clusters) {
     lines.push(
-      `- \`${cluster.scope}\` score ${cluster.score_0_10000}: ${cluster.summary}`,
+      `- \`${cluster.trust_tier}\` \`${cluster.scope}\` score ${cluster.score_0_10000}: ${cluster.summary}`,
     );
   }
   lines.push('');
@@ -196,7 +231,7 @@ function buildMarkdown(snapshot) {
   lines.push('');
   for (const watchpoint of snapshot.watchpoints) {
     lines.push(
-      `- \`${watchpoint.scope}\` score ${watchpoint.score_0_10000}: ${watchpoint.summary}`,
+      `- \`${watchpoint.trust_tier ?? 'watchpoint'}\` \`${watchpoint.scope}\` score ${watchpoint.score_0_10000}: ${watchpoint.summary}`,
     );
   }
   lines.push('');
@@ -259,10 +294,20 @@ async function main() {
       metadata,
     },
     top_findings: compactList(findings.findings, 10, compactFinding),
+    experimental_findings: compactList(
+      findings.experimental_findings,
+      10,
+      compactFinding,
+    ),
     finding_details: compactList(findings.finding_details, 10, compactFindingDetail),
     concept_summaries: compactList(findings.concept_summaries, 5, compactConceptSummary),
     debt_signals: compactList(
       findings.debt_signals ?? findings.quality_opportunities,
+      5,
+      compactDebtSignal,
+    ),
+    experimental_debt_signals: compactList(
+      findings.experimental_debt_signals,
       5,
       compactDebtSignal,
     ),

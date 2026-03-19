@@ -10,76 +10,7 @@
     "signal_before": 4769,
     "signal_delta": 0
   },
-  "blocking_findings": [
-    {
-      "evidence": [
-        "dead private functions: 19",
-        "dead private lines: 110",
-        "sample dead functions: InlineAttentionIndicator, boxShadow, getPrimaryTaskAgentDef",
-        "total file lines: 537"
-      ],
-      "files": [
-        "src/components/SidebarTaskRow.tsx"
-      ],
-      "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
-      "inspection_focus": [
-        "inspect whether the dead helpers should be deleted or intentionally reconnected",
-        "inspect whether the file still reflects the supported control flow"
-      ],
-      "kind": "dead_private_code_cluster",
-      "metrics": {
-        "dead_line_count": 110,
-        "dead_symbol_count": 19,
-        "file_count": 1,
-        "function_count": 43,
-        "line_count": 537,
-        "max_complexity": 4
-      },
-      "scope": "src/components/SidebarTaskRow.tsx",
-      "score_0_10000": 7080,
-      "severity": "high",
-      "signal_class": "debt",
-      "signal_families": [
-        "staleness",
-        "maintainability"
-      ],
-      "summary": "File 'src/components/SidebarTaskRow.tsx' contains 19 uncalled private functions totaling 110 lines"
-    },
-    {
-      "evidence": [
-        "dead private functions: 21",
-        "dead private lines: 115",
-        "sample dead functions: getAvailablePortsFallbackMessage, handleCustomExpose, OpenTabIcon",
-        "total file lines: 895"
-      ],
-      "files": [
-        "src/components/PreviewPanel.tsx"
-      ],
-      "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
-      "inspection_focus": [
-        "inspect whether the dead helpers should be deleted or intentionally reconnected",
-        "inspect whether the file still reflects the supported control flow"
-      ],
-      "kind": "dead_private_code_cluster",
-      "metrics": {
-        "dead_line_count": 115,
-        "dead_symbol_count": 21,
-        "file_count": 1,
-        "function_count": 39,
-        "line_count": 895,
-        "max_complexity": 11
-      },
-      "scope": "src/components/PreviewPanel.tsx",
-      "score_0_10000": 7170,
-      "severity": "high",
-      "signal_class": "debt",
-      "signal_families": [
-        "staleness",
-        "maintainability"
-      ],
-      "summary": "File 'src/components/PreviewPanel.tsx' contains 21 uncalled private functions totaling 115 lines"
-    }
-  ],
+  "blocking_findings": [],
   "changed_files": [
     "src/components/SidebarTaskRow.tsx"
   ],
@@ -95,21 +26,8 @@
     }
   },
   "decision": "fail",
-  "expired_suppression_match_count": 0,
-  "expired_suppressions": [],
-  "introduced_findings": [
-    {
-      "concept_id": "task_presentation_status",
-      "evidence": [
-        "src/components/SidebarTaskRow.tsx::store.taskGitStatus"
-      ],
-      "files": [
-        "src/components/SidebarTaskRow.tsx"
-      ],
-      "kind": "forbidden_raw_read",
-      "severity": "medium",
-      "summary": "Concept 'task_presentation_status' is read from a forbidden raw access path at src/components/SidebarTaskRow.tsx"
-    },
+  "experimental_finding_count": 2,
+  "experimental_findings": [
     {
       "evidence": [
         "dead private functions: 19",
@@ -137,12 +55,13 @@
       "scope": "src/components/SidebarTaskRow.tsx",
       "score_0_10000": 7080,
       "severity": "high",
-      "signal_class": "debt",
+      "signal_class": "watchpoint",
       "signal_families": [
         "staleness",
         "maintainability"
       ],
-      "summary": "File 'src/components/SidebarTaskRow.tsx' contains 19 uncalled private functions totaling 110 lines"
+      "summary": "File 'src/components/SidebarTaskRow.tsx' contains 19 uncalled private functions totaling 110 lines",
+      "trust_tier": "experimental"
     },
     {
       "evidence": [
@@ -171,14 +90,25 @@
       "scope": "src/components/PreviewPanel.tsx",
       "score_0_10000": 7170,
       "severity": "high",
-      "signal_class": "debt",
+      "signal_class": "watchpoint",
       "signal_families": [
         "staleness",
         "maintainability"
       ],
-      "summary": "File 'src/components/PreviewPanel.tsx' contains 21 uncalled private functions totaling 115 lines"
-    },
+      "summary": "File 'src/components/PreviewPanel.tsx' contains 21 uncalled private functions totaling 115 lines",
+      "trust_tier": "experimental"
+    }
+  ],
+  "expired_suppression_match_count": 0,
+  "expired_suppressions": [],
+  "introduced_findings": [
     {
+      "candidate_split_axes": [
+        "components dependency boundary",
+        "app dependency boundary",
+        "lib dependency boundary",
+        "private helper surface split"
+      ],
       "evidence": [
         "line count: 537",
         "large-file threshold: 500",
@@ -202,6 +132,13 @@
         "line_count": 537,
         "max_complexity": 4
       },
+      "related_surfaces": [
+        "src/app/task-convergence.ts",
+        "src/app/task-presentation-status.ts",
+        "src/components/AgentGlyph.tsx",
+        "src/components/StatusDot.tsx",
+        "src/components/task-review-presentation.ts"
+      ],
       "scope": "src/components/SidebarTaskRow.tsx",
       "score_0_10000": 2666,
       "severity": "low",
@@ -210,7 +147,20 @@
         "size",
         "coordination"
       ],
-      "summary": "File 'src/components/SidebarTaskRow.tsx' is 537 lines, above the typescript threshold of 500"
+      "summary": "File 'src/components/SidebarTaskRow.tsx' is 537 lines, above the typescript threshold of 500",
+      "trust_tier": "trusted"
+    },
+    {
+      "concept_id": "task_presentation_status",
+      "evidence": [
+        "src/components/SidebarTaskRow.tsx::store.taskGitStatus"
+      ],
+      "files": [
+        "src/components/SidebarTaskRow.tsx"
+      ],
+      "kind": "forbidden_raw_read",
+      "severity": "medium",
+      "summary": "Concept 'task_presentation_status' is read from a forbidden raw access path at src/components/SidebarTaskRow.tsx"
     }
   ],
   "missing_obligations": [
