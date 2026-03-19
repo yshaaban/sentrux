@@ -50,7 +50,7 @@ fn version_string() -> &'static str {
 #[derive(Parser)]
 #[command(
     name = "sentrux",
-    about = "Live codebase visualization and structural quality gate",
+    about = "Live codebase visualization and patch-safety gate",
     version = version_string(),
     arg_required_else_help = false,
 )]
@@ -76,7 +76,7 @@ enum Command {
         path: String,
     },
 
-    /// Touched-concept regression gate with legacy structural fallback
+    /// Touched-concept patch-safety gate with legacy structural fallback
     Gate {
         /// Save current metrics as the new baseline
         #[arg(long)]
@@ -320,7 +320,8 @@ fn run_check(path: &str) -> i32 {
         &result.snapshot.import_graph,
     );
 
-    print_check_results(&check, &health, &arch_report)
+    let has_v2_rules = config_has_v2_rules(&config);
+    print_check_results(&check, &health, &arch_report, has_v2_rules)
 }
 
 /// Print check results and return exit code (0 = pass, 1 = violations).
@@ -328,10 +329,16 @@ fn print_check_results(
     check: &metrics::rules::RuleCheckResult,
     health: &metrics::HealthReport,
     _arch_report: &metrics::arch::ArchReport,
+    has_v2_rules: bool,
 ) -> i32 {
     println!("sentrux check — {} rules checked\n", check.rules_checked);
+    if has_v2_rules {
+        println!(
+            "Structural check only. Use `sentrux gate` for v2 findings, obligations, and session deltas.\n"
+        );
+    }
     println!(
-        "Quality: {}\n",
+        "Structural quality: {}\n",
         (health.quality_signal * 10000.0).round() as u32
     );
 
@@ -395,12 +402,12 @@ fn run_gate(path: &str, save_mode: bool, strict: bool) -> i32 {
 
 fn v2_rules_enabled(root: &std::path::Path) -> bool {
     sentrux_core::metrics::rules::RulesConfig::try_load(root)
-        .map(|config| {
-            !config.concept.is_empty()
-                || !config.contract.is_empty()
-                || !config.state_model.is_empty()
-        })
+        .map(|config| config_has_v2_rules(&config))
         .unwrap_or(false)
+}
+
+fn config_has_v2_rules(config: &metrics::rules::RulesConfig) -> bool {
+    !config.concept.is_empty() || !config.contract.is_empty() || !config.state_model.is_empty()
 }
 
 fn run_v2_gate(root: &std::path::Path, save_mode: bool, strict: bool) -> i32 {
@@ -432,7 +439,7 @@ fn print_v2_gate_save(payload: &serde_json::Value) {
         .get("quality_signal")
         .and_then(|value| value.as_u64())
     {
-        println!("Quality: {quality_signal}");
+        println!("Structural baseline quality: {quality_signal}");
     }
     if let Some(path) = payload
         .get("baseline_path")
@@ -464,6 +471,7 @@ fn print_v2_gate_save(payload: &serde_json::Value) {
     {
         println!("Expired suppression matches: {count}");
     }
+    print_cli_confidence_summary(payload);
     if let Some(error) = payload
         .get("semantic_error")
         .and_then(|value| value.as_str())
@@ -504,6 +512,11 @@ fn print_v2_gate_result(payload: &serde_json::Value) -> i32 {
         .and_then(|value| value.as_array())
         .cloned()
         .unwrap_or_default();
+    let introduced_nonblocking_findings = introduced_findings
+        .iter()
+        .filter(|finding| severity_of_value(finding) != "high")
+        .cloned()
+        .collect::<Vec<_>>();
     let suppression_hits = payload
         .get("suppression_hits")
         .and_then(|value| value.as_array())
@@ -514,30 +527,30 @@ fn print_v2_gate_result(payload: &serde_json::Value) -> i32 {
         .and_then(|value| value.as_array())
         .cloned()
         .unwrap_or_default();
+    let changed_concepts = string_array_from_value(payload.get("changed_concepts"));
 
     println!("sentrux gate — touched-concept regression check\n");
     println!("Decision:     {decision}");
     println!("Summary:      {summary}");
     println!("Changed files: {}", changed_files.len());
+    if !changed_concepts.is_empty() {
+        print_string_section("Changed concepts", &changed_concepts, 10);
+    }
+    print_legacy_baseline_delta(payload);
     println!("Introduced findings: {}", introduced_findings.len());
     println!("Blocking findings:  {}", blocking_findings.len());
     println!("Missing obligations: {}", missing_obligations.len());
-    println!("Suppression hits: {}", suppression_hits.len());
-    println!("Expired suppressions: {}", expired_suppressions.len());
-
     if let Some(score) = payload
         .get("obligation_completeness_0_10000")
         .and_then(|value| value.as_u64())
     {
-        println!("Obligation completeness: {score}");
+        println!("Obligation completeness: {score}/10000");
     }
+    print_scan_trust_summary(payload);
+    print_cli_confidence_summary(payload);
 
-    if let Some(error) = payload
-        .get("semantic_error")
-        .and_then(|value| value.as_str())
-    {
-        println!("\nSemantic note: {error}");
-    }
+    println!("Suppression hits: {}", suppression_hits.len());
+    println!("Expired suppressions: {}", expired_suppressions.len());
 
     if !suppression_hits.is_empty() {
         println!("\nSuppression hits:");
@@ -560,11 +573,31 @@ fn print_v2_gate_result(payload: &serde_json::Value) -> i32 {
         }
     }
 
+    if !introduced_nonblocking_findings.is_empty() {
+        println!("\nIntroduced findings (non-blocking):");
+        for finding in introduced_nonblocking_findings.iter().take(10) {
+            print_cli_finding(finding);
+        }
+    }
+
     if !missing_obligations.is_empty() {
         println!("\nMissing obligations:");
         for obligation in missing_obligations.iter().take(10) {
             print_cli_obligation(obligation);
         }
+    }
+
+    if let Some(error) = payload
+        .get("semantic_error")
+        .and_then(|value| value.as_str())
+    {
+        println!("\nSemantic note: {error}");
+    }
+    if let Some(error) = payload
+        .get("baseline_error")
+        .and_then(|value| value.as_str())
+    {
+        println!("Baseline note: {error}");
     }
 
     if decision == "pass" {
@@ -623,6 +656,200 @@ fn print_cli_suppression_match(matched: &serde_json::Value) {
     println!("  - kind={kind} concept={concept} file={file} count={count} reason={reason}");
 }
 
+fn severity_of_value(value: &serde_json::Value) -> &str {
+    value
+        .get("severity")
+        .and_then(|severity| severity.as_str())
+        .unwrap_or("low")
+}
+
+fn print_legacy_baseline_delta(payload: &serde_json::Value) {
+    let Some(baseline_delta) = payload
+        .get("baseline_delta")
+        .and_then(|value| value.as_object())
+    else {
+        return;
+    };
+    if !baseline_delta
+        .get("available")
+        .and_then(|value| value.as_bool())
+        .unwrap_or(false)
+    {
+        return;
+    }
+
+    let signal_before = baseline_delta
+        .get("signal_before")
+        .and_then(|value| value.as_i64());
+    let signal_after = baseline_delta
+        .get("signal_after")
+        .and_then(|value| value.as_i64());
+    let signal_delta = baseline_delta
+        .get("signal_delta")
+        .and_then(|value| value.as_i64());
+    if let (Some(before), Some(after), Some(delta)) = (signal_before, signal_after, signal_delta) {
+        println!("Legacy structural quality: {before} -> {after} ({delta:+})");
+    }
+
+    let coupling_before = baseline_delta
+        .get("coupling_before")
+        .and_then(|value| value.as_f64());
+    let coupling_after = baseline_delta
+        .get("coupling_after")
+        .and_then(|value| value.as_f64());
+    if let (Some(before), Some(after)) = (coupling_before, coupling_after) {
+        println!("Coupling:     {:.2} -> {:.2}", before, after);
+    }
+
+    let cycles_before = baseline_delta
+        .get("cycles_before")
+        .and_then(|value| value.as_i64());
+    let cycles_after = baseline_delta
+        .get("cycles_after")
+        .and_then(|value| value.as_i64());
+    if let (Some(before), Some(after)) = (cycles_before, cycles_after) {
+        println!("Cycles:       {before} -> {after}");
+    }
+}
+
+fn print_scan_trust_summary(payload: &serde_json::Value) {
+    let Some(scan_trust) = payload
+        .get("scan_trust")
+        .and_then(|value| value.as_object())
+    else {
+        return;
+    };
+
+    let overall_confidence = scan_trust
+        .get("overall_confidence_0_10000")
+        .and_then(|value| value.as_u64());
+    let scope_coverage = scan_trust
+        .get("scope_coverage_0_10000")
+        .and_then(|value| value.as_u64());
+    let resolution = scan_trust
+        .get("resolution")
+        .and_then(|value| value.as_object());
+    let resolved = resolution
+        .and_then(|value| value.get("resolved"))
+        .and_then(|value| value.as_u64());
+    let unresolved_internal = resolution
+        .and_then(|value| value.get("unresolved_internal"))
+        .and_then(|value| value.as_u64());
+    let unresolved_external = resolution
+        .and_then(|value| value.get("unresolved_external"))
+        .and_then(|value| value.as_u64());
+
+    if let Some(overall_confidence) = overall_confidence {
+        println!("Scan confidence: {overall_confidence}/10000");
+    }
+    if let Some(scope_coverage) = scope_coverage {
+        println!("Scope coverage:  {scope_coverage}/10000");
+    }
+    if resolved.is_some() || unresolved_internal.is_some() || unresolved_external.is_some() {
+        println!(
+            "Resolution:      resolved {}, unresolved internal {}, unresolved external {}",
+            resolved.unwrap_or(0),
+            unresolved_internal.unwrap_or(0),
+            unresolved_external.unwrap_or(0),
+        );
+    }
+
+    if let Some(partial) = scan_trust.get("partial").and_then(|value| value.as_bool()) {
+        if partial {
+            println!("Scan note: partial coverage");
+        }
+    }
+    if let Some(truncated) = scan_trust
+        .get("truncated")
+        .and_then(|value| value.as_bool())
+    {
+        if truncated {
+            println!("Scan note: truncated results");
+        }
+    }
+    if let Some(fallback_reason) = scan_trust
+        .get("fallback_reason")
+        .and_then(|value| value.as_str())
+    {
+        println!("Scan note: {fallback_reason}");
+    }
+}
+
+fn print_cli_confidence_summary(payload: &serde_json::Value) {
+    let Some(confidence) = payload
+        .get("confidence")
+        .and_then(|value| value.as_object())
+    else {
+        return;
+    };
+
+    if let Some(rule_coverage) = confidence
+        .get("rule_coverage_0_10000")
+        .and_then(|value| value.as_u64())
+    {
+        println!("Rule coverage:  {rule_coverage}/10000");
+    }
+
+    let session_baseline = confidence
+        .get("session_baseline")
+        .and_then(|value| value.as_object());
+    if let Some(status) = session_baseline {
+        let loaded = status
+            .get("loaded")
+            .and_then(|value| value.as_bool())
+            .unwrap_or(false);
+        let compatible = status
+            .get("compatible")
+            .and_then(|value| value.as_bool())
+            .unwrap_or(false);
+        let schema_version = status
+            .get("schema_version")
+            .and_then(|value| value.as_u64());
+        let error = status.get("error").and_then(|value| value.as_str());
+
+        if loaded {
+            if let Some(version) = schema_version {
+                let compatibility = if compatible {
+                    "compatible"
+                } else {
+                    "incompatible"
+                };
+                println!("Session baseline: v{version} ({compatibility})");
+            } else {
+                println!("Session baseline: loaded");
+            }
+        } else {
+            println!("Session baseline: unavailable");
+        }
+
+        if let Some(error) = error {
+            println!("Session baseline note: {error}");
+        }
+    }
+}
+
+fn print_string_section(title: &str, items: &[String], limit: usize) {
+    println!("\n{title}:");
+    for item in items.iter().take(limit) {
+        println!("  - {item}");
+    }
+    if items.len() > limit {
+        println!("  - ... ({} more)", items.len() - limit);
+    }
+}
+
+fn string_array_from_value(value: Option<&serde_json::Value>) -> Vec<String> {
+    value
+        .and_then(|value| value.as_array())
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| item.as_str().map(|item| item.to_string()))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default()
+}
+
 fn gate_save(
     baseline_path: &std::path::Path,
     health: &metrics::HealthReport,
@@ -639,7 +866,7 @@ fn gate_save(
         Ok(()) => {
             println!("Baseline saved to {}", baseline_path.display());
             println!(
-                "Quality: {}",
+                "Structural baseline quality: {}",
                 (health.quality_signal * 10000.0).round() as u32
             );
             println!("\nRun `sentrux gate` after making changes to compare.");
@@ -673,7 +900,7 @@ fn gate_compare(
 
     println!("sentrux gate — structural regression check\n");
     println!(
-        "Quality:      {} -> {}",
+        "Structural quality: {} -> {}",
         (diff.signal_before * 10000.0).round() as u32,
         (diff.signal_after * 10000.0).round() as u32
     );
