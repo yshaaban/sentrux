@@ -1205,13 +1205,18 @@ fn build_patch_safety_analysis(
         &bundle.health,
         bundle.health.duplicate_groups.len(),
     );
+    let structural_reports =
+        crate::metrics::v2::build_structural_debt_reports(&bundle.snapshot, &bundle.health);
     let (rules_config, rules_error) = load_v2_rules_config(state, root);
     let semantic = match analyze_semantic_snapshot(state, root) {
         Ok(semantic) => semantic,
         Err(error) => {
             let suppression_application = apply_suppressions(
                 &rules_config,
-                finding_values(&clone_payload.exact_findings, &[]),
+                finding_values(
+                    &clone_payload.exact_findings,
+                    &serialized_values(&structural_reports),
+                ),
             );
             let analysis = PatchSafetyAnalysisCache {
                 scan_identity: cache_identity.clone(),
@@ -1248,9 +1253,11 @@ fn build_patch_safety_analysis(
             )
         })
         .unwrap_or_default();
+    let all_finding_values =
+        combined_other_finding_values(&all_analysis.findings, &structural_reports);
     let suppression_application = apply_suppressions(
         &rules_config,
-        finding_values(&clone_payload.exact_findings, &all_analysis.findings),
+        finding_values(&clone_payload.exact_findings, &all_finding_values),
     );
     let changed_scope = analyze_changed_patch_scope(
         state,
@@ -1310,10 +1317,12 @@ fn build_session_v2_baseline(
         crate::metrics::v2::ObligationScope::All,
         &BTreeSet::new(),
     );
+    let structural_reports = crate::metrics::v2::build_structural_debt_reports(snapshot, health);
+    let all_finding_values = combined_other_finding_values(&semantic_findings, &structural_reports);
     let (config, _) = load_v2_rules_config(state, root);
     let suppression_application = apply_suppressions(
         &config,
-        finding_values(&clone_payload.exact_findings, &semantic_findings),
+        finding_values(&clone_payload.exact_findings, &all_finding_values),
     );
     let finding_payloads = finding_payload_map(&suppression_application.visible_findings);
     let confidence = SessionV2ConfidenceSnapshot {
@@ -1434,6 +1443,15 @@ fn serialized_values<T: serde::Serialize>(values: &[T]) -> Vec<Value> {
         .collect()
 }
 
+fn combined_other_finding_values(
+    semantic_findings: &[crate::metrics::v2::SemanticFinding],
+    structural_reports: &[crate::metrics::v2::StructuralDebtReport],
+) -> Vec<Value> {
+    let mut findings = serialized_values(semantic_findings);
+    findings.extend(serialized_values(structural_reports));
+    findings
+}
+
 #[derive(Debug, Clone, serde::Serialize, Default)]
 struct SuppressionMatch {
     kind: String,
@@ -1452,12 +1470,9 @@ struct SuppressionApplication {
     expired_matches: Vec<SuppressionMatch>,
 }
 
-fn finding_values(
-    clone_findings: &[Value],
-    semantic_findings: &[crate::metrics::v2::SemanticFinding],
-) -> Vec<Value> {
+fn finding_values(clone_findings: &[Value], other_findings: &[Value]) -> Vec<Value> {
     let mut findings = clone_findings.to_vec();
-    findings.extend(serialized_values(semantic_findings));
+    findings.extend(other_findings.iter().cloned());
     findings
 }
 
@@ -2123,9 +2138,11 @@ fn handle_findings(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<V
         crate::metrics::v2::ObligationScope::All,
         &BTreeSet::new(),
     );
+    let structural_reports = crate::metrics::v2::build_structural_debt_reports(&snapshot, &health);
+    let other_findings = combined_other_finding_values(&semantic_findings, &structural_reports);
     let merged_findings = merge_findings(
         clone_payload.prioritized_findings.clone(),
-        semantic_findings,
+        other_findings,
         usize::MAX,
     );
     let (suppression_application, suppression_error) =
@@ -2157,6 +2174,7 @@ fn handle_findings(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<V
         state,
         &root,
         &snapshot,
+        &health,
         &visible_findings,
         &obligations,
         &clone_families,
@@ -2636,17 +2654,17 @@ fn handle_state(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<Valu
 
 fn merge_findings(
     clone_findings: Vec<Value>,
-    semantic_findings: Vec<crate::metrics::v2::SemanticFinding>,
+    other_findings: Vec<Value>,
     limit: usize,
 ) -> Vec<Value> {
-    let mut merged: Vec<(u8, Value)> = semantic_findings
+    let mut merged: Vec<(u8, Value)> = other_findings
         .into_iter()
         .map(|finding| {
-            let priority = severity_priority(&finding.severity);
-            (
-                priority,
-                serde_json::to_value(finding).unwrap_or_else(|_| json!({})),
-            )
+            let severity = finding
+                .get("severity")
+                .and_then(|value| value.as_str())
+                .unwrap_or("low");
+            (severity_priority(severity), finding)
         })
         .collect();
     merged.extend(clone_findings.into_iter().map(|finding| {
@@ -2698,6 +2716,7 @@ struct DebtSignal {
     severity: String,
     score_0_10000: u32,
     summary: String,
+    impact: String,
     files: Vec<String>,
     evidence: Vec<String>,
     inspection_focus: Vec<String>,
@@ -2757,9 +2776,25 @@ struct DebtSignalMetrics {
     #[serde(skip_serializing_if = "Option::is_none")]
     file_count: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    line_count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    function_count: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     member_count: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     recently_touched_file_count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    fan_in: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    fan_out: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    instability_0_10000: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    dead_symbol_count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    dead_line_count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cycle_size: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     divergence_score: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -2802,6 +2837,7 @@ fn build_debt_report_outputs(
     state: &mut McpState,
     root: &Path,
     snapshot: &Snapshot,
+    health: &metrics::HealthReport,
     findings: &[Value],
     obligations: &[crate::metrics::v2::ObligationReport],
     clone_families: &[Value],
@@ -2813,8 +2849,10 @@ fn build_debt_report_outputs(
     let (concentration_reports, context_error) =
         debt_signal_concentration_reports(state, root, snapshot, &candidate_files);
     let concept_summaries = build_concept_debt_summaries(findings, obligations);
+    let structural_reports = structural_reports_for_scope(snapshot, health, extra_files);
     let debt_signals = build_debt_signals(
         &concept_summaries,
+        &structural_reports,
         findings,
         clone_families,
         &concentration_reports,
@@ -2833,6 +2871,22 @@ fn build_debt_report_outputs(
         watchpoints,
         context_error,
     }
+}
+
+fn structural_reports_for_scope(
+    snapshot: &Snapshot,
+    health: &metrics::HealthReport,
+    scope_files: &BTreeSet<String>,
+) -> Vec<crate::metrics::v2::StructuralDebtReport> {
+    let reports = crate::metrics::v2::build_structural_debt_reports(snapshot, health);
+    if scope_files.is_empty() {
+        return reports;
+    }
+
+    reports
+        .into_iter()
+        .filter(|report| report.files.iter().any(|path| scope_files.contains(path)))
+        .collect()
 }
 
 fn build_concept_debt_summaries(
@@ -2949,6 +3003,7 @@ fn build_concept_debt_summaries(
 
 fn build_debt_signals(
     concept_summaries: &[ConceptDebtSummary],
+    structural_reports: &[crate::metrics::v2::StructuralDebtReport],
     findings: &[Value],
     clone_families: &[Value],
     concentration_reports: &[crate::metrics::v2::ConcentrationReport],
@@ -3000,6 +3055,7 @@ fn build_debt_signals(
                 severity: signal_severity(score_0_10000).to_string(),
                 score_0_10000,
                 summary: summary.summary.clone(),
+                impact: concept_signal_impact(summary),
                 files: summary.files.clone(),
                 evidence,
                 inspection_focus: summary.inspection_focus.clone(),
@@ -3007,6 +3063,19 @@ fn build_debt_signals(
             }
         })
         .collect::<Vec<_>>();
+
+    let structural_signals = structural_reports
+        .iter()
+        .map(structural_signal)
+        .collect::<Vec<_>>();
+    covered_hotspot_paths.extend(
+        structural_signals
+            .iter()
+            .filter(|signal| signal.kind == "unstable_hotspot")
+            .flat_map(|signal| signal.files.iter().cloned())
+            .collect::<Vec<_>>(),
+    );
+    signals.extend(structural_signals);
 
     if !clone_families.is_empty() {
         signals.extend(
@@ -3419,6 +3488,48 @@ fn concept_signal_metrics(summary: &ConceptDebtSummary) -> DebtSignalMetrics {
     }
 }
 
+fn concept_signal_impact(summary: &ConceptDebtSummary) -> String {
+    if summary.boundary_pressure_count > 0 && summary.missing_site_count > 0 {
+        return "Split ownership and incomplete propagation make this concept easier to regress through partial edits.".to_string();
+    }
+    if summary.boundary_pressure_count > 0 {
+        return "Unclear ownership or boundary erosion makes the concept harder to reason about and easier to update inconsistently.".to_string();
+    }
+    if summary.missing_site_count > 0 {
+        return "Explicit propagation burden means future changes can miss required update sites unless the concept is hardened.".to_string();
+    }
+    "Repeated structural findings suggest this concept will remain brittle until the boundary and update path are clearer.".to_string()
+}
+
+fn structural_signal(report: &crate::metrics::v2::StructuralDebtReport) -> DebtSignal {
+    DebtSignal {
+        kind: report.kind.clone(),
+        scope: report.scope.clone(),
+        signal_class: report.signal_class.clone(),
+        signal_families: report.signal_families.clone(),
+        severity: report.severity.clone(),
+        score_0_10000: report.score_0_10000,
+        summary: report.summary.clone(),
+        impact: report.impact.clone(),
+        files: report.files.clone(),
+        evidence: report.evidence.clone(),
+        inspection_focus: report.inspection_focus.clone(),
+        metrics: DebtSignalMetrics {
+            file_count: report.metrics.file_count,
+            line_count: report.metrics.line_count,
+            function_count: report.metrics.function_count,
+            fan_in: report.metrics.fan_in,
+            fan_out: report.metrics.fan_out,
+            instability_0_10000: report.metrics.instability_0_10000,
+            dead_symbol_count: report.metrics.dead_symbol_count,
+            dead_line_count: report.metrics.dead_line_count,
+            cycle_size: report.metrics.cycle_size,
+            max_complexity: report.metrics.max_complexity,
+            ..DebtSignalMetrics::default()
+        },
+    }
+}
+
 fn clone_family_inspection_focus(family: &Value) -> Vec<String> {
     let mut focus = family
         .get("remediation_hints")
@@ -3485,6 +3596,7 @@ fn clone_family_signal(family: &Value) -> Option<DebtSignal> {
         severity,
         score_0_10000,
         summary,
+        impact: "Duplicate logic across related files increases the chance that a fix lands in only one sibling and the family drifts over time.".to_string(),
         files,
         evidence,
         inspection_focus,
@@ -3541,6 +3653,7 @@ fn clone_group_signal(finding: &Value) -> Option<DebtSignal> {
         severity,
         score_0_10000,
         summary,
+        impact: "Copy-paste maintenance means the same behavior must be kept in sync across multiple files.".to_string(),
         files,
         evidence,
         inspection_focus: vec![
@@ -3576,6 +3689,7 @@ fn hotspot_signal(report: &crate::metrics::v2::ConcentrationReport) -> Option<De
             "File '{}' is carrying coordination hotspot pressure",
             report.path
         ),
+        impact: "Side effects, async branches, and retry logic concentrated in one file increase coordination debt and regression risk.".to_string(),
         files: vec![report.path.clone()],
         evidence: report.reasons.iter().cloned().take(3).collect(),
         inspection_focus: vec![
@@ -3619,6 +3733,7 @@ fn legacy_quality_opportunity_values(signals: &[DebtSignal]) -> Vec<Value> {
                 "severity": signal.severity,
                 "score_0_10000": signal.score_0_10000,
                 "summary": signal.summary,
+                "impact": signal.impact,
                 "files": signal.files,
                 "evidence": signal.evidence,
                 "suggested_actions": signal.inspection_focus,
@@ -3865,6 +3980,26 @@ mod tests {
             &root,
             "src/runtime/browser-session.ts",
             "import { TaskStateRegistry } from '../app/task-presentation';\nvoid TaskStateRegistry;\nconst version = 1;\n",
+        );
+        root
+    }
+
+    fn structural_debt_fixture_root() -> std::path::PathBuf {
+        let root = temp_root("structural-debt");
+        let mut large_file = String::from("import { alpha } from './a';\nimport { beta } from './b';\nexport function render(): number {\n  return alpha() + beta();\n}\n");
+        for index in 0..900 {
+            large_file.push_str(&format!("export const item{index} = {index};\n"));
+        }
+        write_file(&root, "src/app.ts", &large_file);
+        write_file(
+            &root,
+            "src/a.ts",
+            "import { beta } from './b';\nexport function alpha(): number { return beta(); }\n",
+        );
+        write_file(
+            &root,
+            "src/b.ts",
+            "import { alpha } from './a';\nexport function beta(): number { return alpha() + 1; }\n",
         );
         root
     }
@@ -4460,6 +4595,39 @@ mod tests {
             .expect("watchpoints")
             .iter()
             .any(|watchpoint| watchpoint["scope"] == "task_git_status"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn findings_surface_structural_debt_signals() {
+        let root = structural_debt_fixture_root();
+        let mut state = fresh_mcp_state();
+        handle_scan(
+            &json!({"path": root.to_string_lossy().to_string()}),
+            &Tier::Free,
+            &mut state,
+        )
+        .expect("scan fixture");
+
+        let response =
+            handle_findings(&json!({"limit": 25}), &Tier::Free, &mut state).expect("findings");
+
+        assert!(response["debt_signals"]
+            .as_array()
+            .expect("debt signals")
+            .iter()
+            .any(|signal| signal["kind"] == "large_file" && signal["scope"] == "src/app.ts"));
+        assert!(response["debt_signals"]
+            .as_array()
+            .expect("debt signals")
+            .iter()
+            .any(|signal| signal["kind"] == "cycle_cluster"));
+        assert!(response["findings"]
+            .as_array()
+            .expect("findings array")
+            .iter()
+            .any(|finding| finding["kind"] == "large_file"));
 
         let _ = std::fs::remove_dir_all(root);
     }
@@ -5363,6 +5531,49 @@ mod tests {
     }
 
     #[test]
+    fn session_end_surfaces_structural_debt_signals_for_changed_file() {
+        let root = temp_root("structural-session-end");
+        init_git_repo(&root);
+        write_file(
+            &root,
+            "src/app.ts",
+            "import { alpha } from './a';\nexport function render(): number { return alpha(); }\n",
+        );
+        write_file(
+            &root,
+            "src/a.ts",
+            "export function alpha(): number { return 1; }\n",
+        );
+        commit_all(&root, "initial");
+
+        let mut state = fresh_mcp_state();
+        handle_scan(
+            &json!({"path": root.to_string_lossy().to_string()}),
+            &Tier::Free,
+            &mut state,
+        )
+        .expect("scan fixture");
+        handle_session_start(&json!({}), &Tier::Free, &mut state).expect("session start");
+
+        let mut appended = String::new();
+        for index in 0..900 {
+            appended.push_str(&format!("export const item{index} = {index};\n"));
+        }
+        append_file(&root, "src/app.ts", &appended);
+
+        let response =
+            handle_session_end(&json!({}), &Tier::Free, &mut state).expect("session end");
+
+        assert!(response["debt_signals"]
+            .as_array()
+            .expect("debt signals")
+            .iter()
+            .any(|signal| signal["kind"] == "large_file" && signal["scope"] == "src/app.ts"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
     fn gate_keeps_clone_findings_when_semantic_analysis_fails() {
         let root = cli_gate_fixture_root();
         write_file(
@@ -6210,6 +6421,7 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         state,
         &root,
         &bundle.snapshot,
+        &bundle.health,
         &opportunity_findings,
         &analysis.changed_obligations,
         &[],

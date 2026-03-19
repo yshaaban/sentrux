@@ -5,6 +5,7 @@ mod concentration;
 mod obligations;
 mod parity;
 mod state;
+mod structural;
 
 use crate::analysis::semantic::{ReadFact, SemanticSnapshot, WriteFact};
 use crate::core::snapshot::Snapshot;
@@ -35,6 +36,7 @@ pub use state::{
     changed_state_model_ids_from_files, state_integrity_score_0_10000, StateIntegrityReport,
     StateScope,
 };
+pub use structural::{build_structural_debt_reports, StructuralDebtMetrics, StructuralDebtReport};
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct SemanticFinding {
