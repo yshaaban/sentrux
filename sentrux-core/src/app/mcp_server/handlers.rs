@@ -2183,9 +2183,11 @@ fn handle_findings(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<V
     );
     let concept_summary_count = debt_outputs.concept_summaries.len();
     let debt_signal_count = debt_outputs.debt_signals.len();
+    let debt_cluster_count = debt_outputs.debt_clusters.len();
     let watchpoint_count = debt_outputs.watchpoints.len();
     let concept_summaries = debt_outputs.concept_summaries;
     let debt_signals = debt_outputs.debt_signals;
+    let debt_clusters = debt_outputs.debt_clusters;
     let watchpoints = debt_outputs.watchpoints;
     let legacy_quality_opportunities = legacy_quality_opportunity_values(&debt_signals);
     let legacy_optimization_priorities = legacy_optimization_priority_values(&watchpoints);
@@ -2204,6 +2206,8 @@ fn handle_findings(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<V
         "concept_summaries": concept_summaries,
         "debt_signal_count": debt_signal_count,
         "debt_signals": debt_signals,
+        "debt_cluster_count": debt_cluster_count,
+        "debt_clusters": debt_clusters,
         "watchpoint_count": watchpoint_count,
         "watchpoints": watchpoints,
         "quality_opportunity_count": debt_signal_count,
@@ -2739,6 +2743,21 @@ struct InspectionWatchpoint {
     boundary_pressure_count: usize,
 }
 
+#[derive(Debug, Clone, serde::Serialize, Default)]
+struct DebtCluster {
+    scope: String,
+    severity: String,
+    score_0_10000: u32,
+    summary: String,
+    impact: String,
+    files: Vec<String>,
+    evidence: Vec<String>,
+    inspection_focus: Vec<String>,
+    signal_families: Vec<String>,
+    signal_kinds: Vec<String>,
+    metrics: DebtClusterMetrics,
+}
+
 #[derive(Default)]
 struct ConceptDebtAggregate {
     finding_count: usize,
@@ -2755,6 +2774,7 @@ struct ConceptDebtAggregate {
 struct DebtReportOutputs {
     concept_summaries: Vec<ConceptDebtSummary>,
     debt_signals: Vec<DebtSignal>,
+    debt_clusters: Vec<DebtCluster>,
     watchpoints: Vec<InspectionWatchpoint>,
     context_error: Option<String>,
 }
@@ -2819,6 +2839,16 @@ struct DebtSignalMetrics {
     churn_commits: Option<u32>,
 }
 
+#[derive(Debug, Clone, serde::Serialize, Default)]
+struct DebtClusterMetrics {
+    signal_count: usize,
+    file_count: usize,
+    concept_count: usize,
+    clone_family_count: usize,
+    hotspot_count: usize,
+    structural_signal_count: usize,
+}
+
 fn debt_signal_candidate_files(
     findings: &[Value],
     obligations: &[crate::metrics::v2::ObligationReport],
@@ -2856,14 +2886,15 @@ fn build_debt_report_outputs(
         debt_signal_concentration_reports(state, root, snapshot, &candidate_files);
     let concept_summaries = build_concept_debt_summaries(findings, obligations);
     let structural_reports = structural_reports_for_scope(snapshot, health, extra_files);
-    let debt_signals = build_debt_signals(
+    let all_debt_signals = collect_debt_signals(
         &concept_summaries,
         &structural_reports,
         findings,
         clone_families,
         &concentration_reports,
-        limit,
     );
+    let debt_signals = truncate_debt_signals(all_debt_signals.clone(), limit);
+    let debt_clusters = build_debt_clusters(&all_debt_signals, limit);
     let watchpoints = build_inspection_watchpoints(
         &concept_summaries,
         clone_families,
@@ -2874,6 +2905,7 @@ fn build_debt_report_outputs(
     DebtReportOutputs {
         concept_summaries: concept_summaries.into_iter().take(limit).collect(),
         debt_signals,
+        debt_clusters,
         watchpoints,
         context_error,
     }
@@ -3007,13 +3039,12 @@ fn build_concept_debt_summaries(
     summaries
 }
 
-fn build_debt_signals(
+fn collect_debt_signals(
     concept_summaries: &[ConceptDebtSummary],
     structural_reports: &[crate::metrics::v2::StructuralDebtReport],
     findings: &[Value],
     clone_families: &[Value],
     concentration_reports: &[crate::metrics::v2::ConcentrationReport],
-    limit: usize,
 ) -> Vec<DebtSignal> {
     let mut covered_hotspot_paths = BTreeSet::new();
     let mut signals = concept_summaries
@@ -3115,6 +3146,10 @@ fn build_debt_signals(
             .then_with(|| right.score_0_10000.cmp(&left.score_0_10000))
             .then_with(|| left.scope.cmp(&right.scope))
     });
+    signals
+}
+
+fn truncate_debt_signals(mut signals: Vec<DebtSignal>, limit: usize) -> Vec<DebtSignal> {
     signals.truncate(limit);
     signals
 }
@@ -3185,6 +3220,195 @@ fn build_inspection_watchpoints(
     });
     watchpoints.truncate(limit);
     watchpoints
+}
+
+fn build_debt_clusters(signals: &[DebtSignal], limit: usize) -> Vec<DebtCluster> {
+    let mut visited = BTreeSet::new();
+    let mut clusters = Vec::new();
+
+    for start_index in 0..signals.len() {
+        if !visited.insert(start_index) {
+            continue;
+        }
+
+        let component = debt_cluster_component(start_index, signals, &mut visited);
+        if component.len() < 2 {
+            continue;
+        }
+
+        if let Some(cluster) = debt_cluster(&component) {
+            clusters.push(cluster);
+        }
+    }
+
+    clusters.sort_by(|left, right| {
+        severity_priority(&right.severity)
+            .cmp(&severity_priority(&left.severity))
+            .then_with(|| right.score_0_10000.cmp(&left.score_0_10000))
+            .then_with(|| left.scope.cmp(&right.scope))
+    });
+    clusters.truncate(limit);
+    clusters
+}
+
+fn debt_cluster_component(
+    start_index: usize,
+    signals: &[DebtSignal],
+    visited: &mut BTreeSet<usize>,
+) -> Vec<DebtSignal> {
+    let mut queue = vec![start_index];
+    let mut component = Vec::new();
+
+    while let Some(index) = queue.pop() {
+        let signal = signals[index].clone();
+        for next_index in 0..signals.len() {
+            if visited.contains(&next_index) {
+                continue;
+            }
+            if files_overlap(&signal.files, &signals[next_index].files) {
+                visited.insert(next_index);
+                queue.push(next_index);
+            }
+        }
+        component.push(signal);
+    }
+
+    component
+}
+
+fn debt_cluster(signals: &[DebtSignal]) -> Option<DebtCluster> {
+    let files = signals
+        .iter()
+        .flat_map(|signal| signal.files.iter().cloned())
+        .collect::<Vec<_>>();
+    let files = dedupe_strings_preserve_order(files);
+    if files.is_empty() {
+        return None;
+    }
+    let file_count = files.len();
+
+    let mut signal_kinds = signals
+        .iter()
+        .map(|signal| signal.kind.clone())
+        .collect::<Vec<_>>();
+    signal_kinds = dedupe_strings_preserve_order(signal_kinds);
+
+    let mut signal_families = signals
+        .iter()
+        .flat_map(|signal| signal.signal_families.iter().cloned())
+        .collect::<Vec<_>>();
+    signal_families = dedupe_strings_preserve_order(signal_families);
+
+    let summary = if files.len() == 1 {
+        format!(
+            "File '{}' intersects {} debt signals: {}",
+            files[0],
+            signals.len(),
+            signal_kinds.join(", ")
+        )
+    } else {
+        format!(
+            "Files {} intersect {} debt signals: {}",
+            sample_file_labels(&files, 3),
+            signals.len(),
+            signal_kinds.join(", ")
+        )
+    };
+
+    let impact = if signal_families.iter().any(|family| family == "ownership")
+        && signal_families.iter().any(|family| family == "propagation")
+    {
+        "Overlapping ownership drift and propagation burden make partial edits easier to miss and harder to validate.".to_string()
+    } else if signal_families.iter().any(|family| family == "duplication")
+        && signal_families
+            .iter()
+            .any(|family| family == "coordination")
+    {
+        "Duplicated logic inside coordination-heavy seams increases the chance that fixes land in one path but not the others.".to_string()
+    } else {
+        "Multiple overlapping debt signals in the same surface increase change cost and make regressions harder to isolate.".to_string()
+    };
+
+    let mut evidence = vec![
+        format!("overlapping signals: {}", signals.len()),
+        format!("signal kinds: {}", signal_kinds.join(", ")),
+        format!("affected files: {}", files.len()),
+    ];
+    evidence.extend(
+        signals
+            .iter()
+            .take(3)
+            .map(|signal| format!("{}: {}", signal.kind, signal.summary)),
+    );
+    evidence = dedupe_strings_preserve_order(evidence);
+
+    let mut inspection_focus = signals
+        .iter()
+        .flat_map(|signal| signal.inspection_focus.iter().cloned())
+        .collect::<Vec<_>>();
+    inspection_focus = dedupe_strings_preserve_order(inspection_focus);
+    inspection_focus.truncate(4);
+
+    let highest_score = signals
+        .iter()
+        .map(|signal| signal.score_0_10000)
+        .max()
+        .unwrap_or(0);
+    let aggregate_bonus = ((signals.len().saturating_sub(1)) as u32 * 500).min(2000);
+    let score_0_10000 = (highest_score + aggregate_bonus).min(10_000);
+
+    Some(DebtCluster {
+        scope: format!("cluster:{}", files.join("|")),
+        severity: signal_severity(score_0_10000).to_string(),
+        score_0_10000,
+        summary,
+        impact,
+        files,
+        evidence,
+        inspection_focus,
+        signal_families: signal_families.clone(),
+        signal_kinds: signal_kinds.clone(),
+        metrics: DebtClusterMetrics {
+            signal_count: signals.len(),
+            file_count,
+            concept_count: signals
+                .iter()
+                .filter(|signal| signal.kind == "concept")
+                .count(),
+            clone_family_count: signals
+                .iter()
+                .filter(|signal| signal.kind == "clone_family")
+                .count(),
+            hotspot_count: signals
+                .iter()
+                .filter(|signal| signal.kind == "hotspot" || signal.kind == "unstable_hotspot")
+                .count(),
+            structural_signal_count: signals
+                .iter()
+                .filter(|signal| is_structural_debt_signal_kind(&signal.kind))
+                .count(),
+        },
+    })
+}
+
+fn is_structural_debt_signal_kind(kind: &str) -> bool {
+    matches!(
+        kind,
+        "large_file"
+            | "dependency_sprawl"
+            | "unstable_hotspot"
+            | "cycle_cluster"
+            | "dead_private_code_cluster"
+            | "dead_island"
+    )
+}
+
+fn sample_file_labels(files: &[String], limit: usize) -> String {
+    let sample = files.iter().take(limit).cloned().collect::<Vec<_>>();
+    if files.len() <= limit {
+        return sample.join(", ");
+    }
+    format!("{}, and {} more", sample.join(", "), files.len() - limit)
 }
 
 fn related_clone_families<'a>(
@@ -4695,6 +4919,40 @@ mod tests {
     }
 
     #[test]
+    fn findings_surface_debt_clusters_for_overlapping_signals() {
+        let root = dead_island_fixture_root();
+        let mut state = fresh_mcp_state();
+        handle_scan(
+            &json!({"path": root.to_string_lossy().to_string()}),
+            &Tier::Free,
+            &mut state,
+        )
+        .expect("scan fixture");
+
+        let response =
+            handle_findings(&json!({"limit": 25}), &Tier::Free, &mut state).expect("findings");
+
+        assert!(response["debt_clusters"]
+            .as_array()
+            .expect("debt clusters")
+            .iter()
+            .any(|cluster| {
+                cluster["signal_kinds"]
+                    .as_array()
+                    .expect("signal kinds")
+                    .iter()
+                    .any(|kind| kind == "dead_island")
+                    && cluster["signal_kinds"]
+                        .as_array()
+                        .expect("signal kinds")
+                        .iter()
+                        .any(|kind| kind == "cycle_cluster")
+            }));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
     fn findings_hide_suppressed_clone_families_and_remediations() {
         let root = cli_gate_fixture_root();
         write_file(
@@ -5668,6 +5926,44 @@ mod tests {
     }
 
     #[test]
+    fn session_end_surfaces_debt_clusters_for_changed_component_file() {
+        let root = dead_island_fixture_root();
+        init_git_repo(&root);
+        commit_all(&root, "initial");
+
+        let mut state = fresh_mcp_state();
+        handle_scan(
+            &json!({"path": root.to_string_lossy().to_string()}),
+            &Tier::Free,
+            &mut state,
+        )
+        .expect("scan fixture");
+        handle_session_start(&json!({}), &Tier::Free, &mut state).expect("session start");
+        append_file(
+            &root,
+            "src/orphan-a.ts",
+            "\nexport const orphanClusterMarker = 1;\n",
+        );
+
+        let response =
+            handle_session_end(&json!({}), &Tier::Free, &mut state).expect("session end");
+
+        assert!(response["debt_clusters"]
+            .as_array()
+            .expect("debt clusters")
+            .iter()
+            .any(|cluster| {
+                cluster["signal_kinds"]
+                    .as_array()
+                    .expect("signal kinds")
+                    .iter()
+                    .any(|kind| kind == "dead_island")
+            }));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
     fn gate_keeps_clone_findings_when_semantic_analysis_fails() {
         let root = cli_gate_fixture_root();
         write_file(
@@ -6524,9 +6820,11 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
     );
     let concept_summary_count = debt_outputs.concept_summaries.len();
     let debt_signal_count = debt_outputs.debt_signals.len();
+    let debt_cluster_count = debt_outputs.debt_clusters.len();
     let watchpoint_count = debt_outputs.watchpoints.len();
     let concept_summaries = debt_outputs.concept_summaries;
     let debt_signals = debt_outputs.debt_signals;
+    let debt_clusters = debt_outputs.debt_clusters;
     let watchpoints = debt_outputs.watchpoints;
     let legacy_quality_opportunities = legacy_quality_opportunity_values(&debt_signals);
     let legacy_optimization_priorities = legacy_optimization_priority_values(&watchpoints);
@@ -6581,6 +6879,8 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         "concept_summaries": concept_summaries,
         "debt_signal_count": debt_signal_count,
         "debt_signals": debt_signals,
+        "debt_cluster_count": debt_cluster_count,
+        "debt_clusters": debt_clusters,
         "watchpoint_count": watchpoint_count,
         "watchpoints": watchpoints,
         "quality_opportunity_count": debt_signal_count,
