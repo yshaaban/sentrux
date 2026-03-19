@@ -10,6 +10,7 @@ use std::hash::{Hash, Hasher};
 
 const MIN_CLONE_LINES: u32 = 3;
 const RECENT_AGE_DAYS: u32 = 30;
+const MIN_FAMILY_FILE_OVERLAP: usize = 2;
 
 #[derive(Debug, Clone, serde::Serialize, Default)]
 pub struct CloneDriftInstance {
@@ -49,6 +50,8 @@ pub struct CloneFamilySummary {
     pub divergence_score: u32,
     pub member_count: usize,
     pub file_count: usize,
+    pub distinct_file_set_count: usize,
+    pub mixed_file_sets: bool,
     pub commit_count_gap: Option<u32>,
     pub age_days_gap: Option<u32>,
     pub representative_clone_id: String,
@@ -322,26 +325,62 @@ fn clone_summary(
 }
 
 fn build_clone_family_summaries(findings: &[CloneDriftFinding]) -> Vec<CloneFamilySummary> {
-    let mut families = findings
-        .iter()
-        .fold(
-            BTreeMap::<Vec<String>, Vec<&CloneDriftFinding>>::new(),
-            |mut map, finding| {
-                map.entry(finding.files.clone()).or_default().push(finding);
-                map
-            },
-        )
+    let mut families = clone_family_clusters(findings)
         .into_iter()
-        .filter_map(|(files, members)| clone_family_summary(files, members))
+        .filter_map(clone_family_summary)
         .collect::<Vec<_>>();
     families.sort_by(compare_clone_families);
     families
 }
 
-fn clone_family_summary(
-    files: Vec<String>,
-    members: Vec<&CloneDriftFinding>,
-) -> Option<CloneFamilySummary> {
+fn clone_family_clusters(findings: &[CloneDriftFinding]) -> Vec<Vec<&CloneDriftFinding>> {
+    let mut visited = vec![false; findings.len()];
+    let mut clusters = Vec::new();
+
+    for start in 0..findings.len() {
+        if visited[start] {
+            continue;
+        }
+
+        visited[start] = true;
+        let mut stack = vec![start];
+        let mut cluster = Vec::new();
+
+        while let Some(index) = stack.pop() {
+            let finding = &findings[index];
+            cluster.push(finding);
+
+            for next_index in 0..findings.len() {
+                if visited[next_index] {
+                    continue;
+                }
+                if clone_findings_share_family(finding, &findings[next_index]) {
+                    visited[next_index] = true;
+                    stack.push(next_index);
+                }
+            }
+        }
+
+        if cluster.len() >= 2 {
+            clusters.push(cluster);
+        }
+    }
+
+    clusters
+}
+
+fn clone_findings_share_family(left: &CloneDriftFinding, right: &CloneDriftFinding) -> bool {
+    overlapping_file_count(&left.files, &right.files) >= MIN_FAMILY_FILE_OVERLAP
+}
+
+fn overlapping_file_count(left: &[String], right: &[String]) -> usize {
+    let right_files = right.iter().collect::<BTreeSet<_>>();
+    left.iter()
+        .filter(|file| right_files.contains(file))
+        .count()
+}
+
+fn clone_family_summary(members: Vec<&CloneDriftFinding>) -> Option<CloneFamilySummary> {
     if members.len() < 2 {
         return None;
     }
@@ -349,13 +388,19 @@ fn clone_family_summary(
     let mut members = members;
     members.sort_by(|left, right| compare_clone_findings(left, right));
     let representative = members.first()?;
+    let files = clone_family_files(&members);
     let family_id = clone_family_id(&files);
     let clone_ids = members
         .iter()
         .map(|finding| finding.clone_id.clone())
         .collect::<Vec<_>>();
     let file_summaries = clone_family_file_summaries(&members);
-    let family_metrics = clone_family_metrics(&file_summaries);
+    let distinct_file_set_count = members
+        .iter()
+        .map(|finding| finding.files.clone())
+        .collect::<BTreeSet<_>>()
+        .len();
+    let family_metrics = clone_family_metrics(&file_summaries, distinct_file_set_count);
     let family_score = representative
         .risk_score
         .saturating_add(4 * ((members.len() - 1).min(3) as u32))
@@ -384,6 +429,8 @@ fn clone_family_summary(
         divergence_score: family_metrics.divergence_score,
         member_count: members.len(),
         file_count: files.len(),
+        distinct_file_set_count: family_metrics.distinct_file_set_count,
+        mixed_file_sets: family_metrics.mixed_file_sets,
         commit_count_gap: family_metrics.commit_count_gap,
         age_days_gap: family_metrics.age_days_gap,
         representative_clone_id: representative.clone_id.clone(),
@@ -395,6 +442,15 @@ fn clone_family_summary(
         summary,
         remediation_hints,
     })
+}
+
+fn clone_family_files(findings: &[&CloneDriftFinding]) -> Vec<String> {
+    findings
+        .iter()
+        .flat_map(|finding| finding.files.iter().cloned())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
 }
 
 fn clone_family_id(files: &[String]) -> String {
@@ -453,6 +509,12 @@ fn clone_family_reasons(
             family_metrics.recently_touched_file_count, RECENT_AGE_DAYS
         ));
     }
+    if family_metrics.mixed_file_sets {
+        reasons.push(format!(
+            "family clone coverage spans {} overlapping file set(s)",
+            family_metrics.distinct_file_set_count
+        ));
+    }
     if let Some(gap) = family_metrics.commit_count_gap {
         reasons.push(format!(
             "family churn spans a gap of {} recent commit(s)",
@@ -483,6 +545,12 @@ fn clone_family_summary_text(
 
     if family_metrics.asymmetric_recent_change {
         details.push("recent edits are uneven across the family".to_string());
+    }
+    if family_metrics.mixed_file_sets {
+        details.push(format!(
+            "clone coverage spans {} overlapping sibling sets",
+            family_metrics.distinct_file_set_count
+        ));
     }
 
     if let Some(gap) = family_metrics.commit_count_gap {
@@ -515,8 +583,31 @@ fn clone_family_remediation_hints(
 ) -> Vec<CloneRemediationHint> {
     let mut hints = Vec::new();
 
+    if family_metrics.mixed_file_sets {
+        hints.push(CloneRemediationHint {
+            kind: "review_family_boundaries".to_string(),
+            priority: if family_metrics.divergence_score >= 12 {
+                "high".to_string()
+            } else {
+                "medium".to_string()
+            },
+            summary: format!(
+                "Review the overlapping clone family boundaries across {} sibling file set(s) and decide whether these copies should stay synchronized or be split into separate abstractions.",
+                family_metrics.distinct_file_set_count
+            ),
+            files: files.to_vec(),
+            clone_ids: clone_ids.to_vec(),
+        });
+    }
+
     if family_metrics.divergence_score > 0 {
         let mut detail = Vec::new();
+        if family_metrics.mixed_file_sets {
+            detail.push(format!(
+                "clone coverage spans {} overlapping sibling sets",
+                family_metrics.distinct_file_set_count
+            ));
+        }
         if let Some(gap) = family_metrics.commit_count_gap {
             detail.push(format!(
                 "commit churn spans a gap of {gap} recent commit(s)"
@@ -591,9 +682,14 @@ fn clone_family_remediation_hints(
     hints
 }
 
-fn clone_family_metrics(file_summaries: &BTreeMap<String, CloneFileSummary>) -> CloneFamilyMetrics {
+fn clone_family_metrics(
+    file_summaries: &BTreeMap<String, CloneFileSummary>,
+    distinct_file_set_count: usize,
+) -> CloneFamilyMetrics {
     let mut metrics = CloneFamilyMetrics::default();
     metrics.file_count = file_summaries.len();
+    metrics.distinct_file_set_count = distinct_file_set_count;
+    metrics.mixed_file_sets = distinct_file_set_count > 1;
     metrics.recently_touched_file_count = file_summaries
         .values()
         .filter(|summary| is_recent_age(summary.age_days))
@@ -632,6 +728,9 @@ fn clone_family_divergence_score(metrics: &CloneFamilyMetrics) -> u32 {
     if metrics.asymmetric_recent_change {
         score = score.saturating_add(18);
     }
+    if metrics.mixed_file_sets {
+        score = score.saturating_add(8);
+    }
 
     if let Some(gap) = metrics.commit_count_gap {
         score = score.saturating_add(match gap {
@@ -655,7 +754,7 @@ fn clone_family_divergence_score(metrics: &CloneFamilyMetrics) -> u32 {
         score = score.saturating_add((metrics.recently_touched_file_count as u32).min(3) * 2);
     }
 
-    score.min(36)
+    score.min(44)
 }
 
 fn prioritize_clone_findings(
@@ -787,12 +886,14 @@ fn clone_file_summaries(instances: &[CloneDriftInstance]) -> BTreeMap<&str, Clon
 #[derive(Debug, Clone, Default)]
 struct CloneFamilyMetrics {
     file_count: usize,
+    distinct_file_set_count: usize,
     active_file_count: usize,
     inactive_file_count: usize,
     recently_touched_file_count: usize,
     commit_count_gap: Option<u32>,
     age_days_gap: Option<u32>,
     asymmetric_recent_change: bool,
+    mixed_file_sets: bool,
     divergence_score: u32,
 }
 
@@ -958,6 +1059,8 @@ mod tests {
         assert_eq!(report.families.len(), 1);
         assert_eq!(report.families[0].member_count, 2);
         assert_eq!(report.families[0].file_count, 2);
+        assert_eq!(report.families[0].distinct_file_set_count, 1);
+        assert!(!report.families[0].mixed_file_sets);
         assert_eq!(report.families[0].clone_ids.len(), 2);
         assert_eq!(report.families[0].commit_count_gap, Some(4));
         assert_eq!(report.families[0].age_days_gap, Some(87));
@@ -1083,6 +1186,46 @@ mod tests {
             .summary
             .contains("churn differs by 9 recent commit(s)"));
         assert_eq!(report.families[0].commit_count_gap, Some(9));
+    }
+
+    #[test]
+    fn clone_drift_report_groups_overlapping_file_sets_into_one_family() {
+        let groups = vec![
+            DuplicateGroup {
+                hash: 21,
+                instances: vec![
+                    ("src/a.ts".to_string(), "dup_a".to_string(), 12),
+                    ("src/b.ts".to_string(), "dup_b".to_string(), 12),
+                ],
+            },
+            DuplicateGroup {
+                hash: 22,
+                instances: vec![
+                    ("src/a.ts".to_string(), "dup_c".to_string(), 10),
+                    ("src/b.ts".to_string(), "dup_d".to_string(), 10),
+                    ("src/c.ts".to_string(), "dup_e".to_string(), 10),
+                ],
+            },
+        ];
+
+        let report = build_clone_drift_report(&groups, Some(&test_evolution()));
+
+        assert_eq!(report.families.len(), 1);
+        assert_eq!(report.families[0].member_count, 2);
+        assert_eq!(report.families[0].file_count, 3);
+        assert_eq!(report.families[0].distinct_file_set_count, 2);
+        assert!(report.families[0].mixed_file_sets);
+        assert!(report.families[0]
+            .summary
+            .contains("overlapping sibling sets"));
+        assert!(report.families[0]
+            .reasons
+            .iter()
+            .any(|reason| reason.contains("overlapping file set(s)")));
+        assert!(report.families[0]
+            .remediation_hints
+            .iter()
+            .any(|hint| hint.kind == "review_family_boundaries"));
     }
 
     #[test]
