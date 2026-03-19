@@ -2,355 +2,164 @@
 
 Generated on March 19, 2026 from the live checkout at `<parallel-code-root>`.
 
-This appendix contains the evidence behind the maintainer-facing report in
+This appendix contains the evidence behind
 [parallel-code-live-engineer-report.md](<sentrux-root>/docs/v2/examples/parallel-code-live-engineer-report.md).
 
 ## Method
 
-The analysis was run against a disposable clone of the live `~/parallel-code` checkout with:
+The analysis used a disposable clone of the live repo and the current evidence-first v2 surfaces:
 
-- Sentrux binary:
-  [sentrux](<sentrux-root>/target/debug/sentrux)
-- rules file:
-  [parallel-code.rules.toml](<sentrux-root>/docs/v2/examples/parallel-code.rules.toml)
-- refresh path:
-  [refresh_parallel_code_goldens.sh](<sentrux-root>/scripts/refresh_parallel_code_goldens.sh)
-- benchmark path:
-  [benchmark_parallel_code_v2.mjs](<sentrux-root>/scripts/benchmark_parallel_code_v2.mjs)
+- live source repo: [<parallel-code-root>](<parallel-code-root>)
+- rules file used for the run: [parallel-code.rules.toml](<sentrux-root>/docs/v2/examples/parallel-code.rules.toml)
+- goldens refresh path: [refresh_parallel_code_goldens.sh](<sentrux-root>/scripts/refresh_parallel_code_goldens.sh)
 
-This was a **live** run, but the rules came from Sentrux’s example config, not from a project-owned `.sentrux/rules.toml` inside `parallel-code`.
+Scope caveat:
 
-The output is evidence-first. Any optimization-style fields should be read as inspection aids, not as final prioritization.
+- the live repo currently has [.sentrux/baseline.json](<parallel-code-root>/.sentrux/baseline.json)
+- it does **not** currently have a repo-owned `.sentrux/rules.toml`
+- the run therefore used the bundled example rules file above
 
 ## Scan Scope And Confidence
 
 Current scan:
 
-- scanned files: `597`
-- scanned lines: `136,404`
-- resolved import edges: `1,770`
-- kept files from git candidate set: `597 / 729`
-- excluded files: `132`
-- scan confidence: `8189 / 10000`
+- scanned files: `604`
+- scanned lines: `137,347`
+- resolved import edges: `1,797`
+- kept files from git candidate set: `604 / 738`
+- excluded files: `134`
+- scan confidence: `8184 / 10000`
 - rule coverage: `10000 / 10000`
 - semantic rules loaded: `true`
+- session baseline loaded for this run: `false`
 
-Interpretation:
+## Top Current Findings
 
-- the run had full configured-rule coverage
-- scan confidence is lower than rule coverage because the repo includes excluded/generated/vendor/build surfaces outside the kept analysis set
-- that is normal for a repo of this shape
+### Structural debt findings in the top finding set
 
-## Configured Concepts And Contracts
+- File 'server/browser-control-plane.ts' is 1054 lines, above the typescript threshold of 500
+- File 'src/components/terminal-view/terminal-session.ts' is 1856 lines, above the typescript threshold of 500
+- File 'src/App.tsx' depends on 28 real surfaces, above the typescript threshold of 15
+- File 'src/components/TaskPanel.tsx' depends on 28 real surfaces, above the typescript threshold of 15
+- File 'src/components/ScrollingDiffView.tsx' contains 15 uncalled private functions totaling 144 lines
+- File 'src/store/review.ts' contains 10 uncalled private functions totaling 121 lines
+- File 'src/components/PreviewPanel.tsx' contains 21 uncalled private functions totaling 115 lines
+- File 'src/components/SidebarTaskRow.tsx' contains 19 uncalled private functions totaling 109 lines
+- Files src/app/agent-catalog.ts, src/app/remote-access.ts, src/app/task-attention.ts, src/app/task-close-state.ts, src/app/task-command-dispatch.ts, src/app/task-command-lease-runtime-subscriptions.ts, src/app/task-command-lease-runtime.ts, src/app/task-command-lease-session.ts, src/app/task-command-lease-takeover.ts, src/app/task-command-lease.ts, src/app/task-convergence.ts, src/app/task-lifecycle-workflows.ts, src/app/task-presentation-status.ts, src/app/task-prompt-workflows.ts, src/app/task-review-state.ts, src/app/task-shell-workflows.ts, src/app/task-workflows.ts, src/lib/runtime-client-id.ts, src/store/agent-output-activity.ts, src/store/agents.ts, src/store/auto-trust.ts, src/store/client-session.ts, src/store/completion.ts, src/store/core.ts, src/store/focus.ts, src/store/keyed-snapshot-record.ts, src/store/navigation.ts, src/store/notification.ts, src/store/peer-presence.ts, src/store/persistence-codecs.ts, src/store/persistence-load-context.ts, src/store/persistence-load.ts, src/store/persistence-projects.ts, src/store/persistence-save.ts, src/store/persistence-terminal-restore.ts, src/store/persistence.ts, src/store/projects.ts, src/store/remote.ts, src/store/review.ts, src/store/state.ts, src/store/store.ts, src/store/task-command-controllers.ts, src/store/task-command-takeovers.ts, src/store/task-git-status.ts, src/store/task-state-cleanup.ts, src/store/taskStatus.ts, src/store/tasks.ts, src/store/terminals.ts, src/store/ui.ts form a dependency cycle
+- File 'src/store/store.ts' has 56 inbound references and remains unstable
 
-Configured concepts from
-[parallel-code.rules.toml](<sentrux-root>/docs/v2/examples/parallel-code.rules.toml):
+### Concept finding still present
 
-### `task_git_status`
+- Closed domain 'ConnectionBannerState' is missing coverage for variants: connecting, reconnecting, restoring
+- undefined
 
-- kind: `authoritative_state`
-- intended writer surfaces:
-  - [git-status-sync.ts](<parallel-code-root>/src/app/git-status-sync.ts)
-  - [task-git-status.ts](<parallel-code-root>/src/store/task-git-status.ts)
-- intended canonical accessors:
-  - [taskStatus.ts](<parallel-code-root>/src/store/taskStatus.ts)
-  - [task-presentation-status.ts](<parallel-code-root>/src/app/task-presentation-status.ts)
+## Top Debt Clusters
 
-### `task_presentation_status`
+### Cluster 1
 
-- kind: `projection`
-- intended authoritative inputs:
-  - `store.agentSupervision`
-  - `store.taskGitStatus`
-  - `store.taskReview`
-- intended canonical surface:
-  - [task-presentation-status.ts](<parallel-code-root>/src/app/task-presentation-status.ts)
-  - [task-attention.ts](<parallel-code-root>/src/app/task-attention.ts)
+- summary: Files src/App.tsx, src/remote/App.tsx, src/runtime/browser-session.ts intersect 6 debt signals: dependency_sprawl, clone_family, dead_private_code_cluster, large_file, concept
+- signal kinds: dependency_sprawl, clone_family, dead_private_code_cluster, large_file, concept
+- signal families: coupling, coordination, duplication, drift, staleness, maintainability, size, boundary
+- metrics:
+  - signal count: `6`
+  - file count: `3`
+  - structural signal count: `4`
 
-### `server_state_bootstrap`
+### Cluster 2
 
-- kind: `runtime_contract`
-- anchors:
-  - [server-state-bootstrap.ts](<parallel-code-root>/src/app/server-state-bootstrap.ts)
-  - [server-state-bootstrap-registry.ts](<parallel-code-root>/src/app/server-state-bootstrap-registry.ts)
-  - [server-state-bootstrap.ts domain](<parallel-code-root>/src/domain/server-state-bootstrap.ts)
+- summary: Files server/browser-control-plane.ts, electron/remote/server.ts, electron/remote/ws-transport.test.ts, and 1 more intersect 4 debt signals: large_file, clone_family, dead_private_code_cluster, hotspot
+- signal kinds: large_file, clone_family, dead_private_code_cluster, hotspot
+- signal families: size, coordination, duplication, drift, staleness, maintainability
+- metrics:
+  - signal count: `4`
+  - file count: `4`
+  - structural signal count: `2`
 
-Configured contract:
+### Cluster 3
 
-- `server_state_bootstrap`
-- browser entry:
-  [browser-session.ts](<parallel-code-root>/src/runtime/browser-session.ts)
-- electron entry:
-  [desktop-session.ts](<parallel-code-root>/src/app/desktop-session.ts)
+- summary: File 'src/components/terminal-view/terminal-session.ts' intersects 4 debt signals: large_file, dead_private_code_cluster, dependency_sprawl, hotspot
+- signal kinds: large_file, dead_private_code_cluster, dependency_sprawl, hotspot
+- signal families: size, coordination, staleness, maintainability, coupling
+- metrics:
+  - signal count: `4`
+  - file count: `1`
+  - structural signal count: `3`
 
-Configured explicit state models:
+### Cluster 4
 
-- [browser-state-sync-controller.ts](<parallel-code-root>/src/runtime/browser-state-sync-controller.ts)
-- [server-state-bootstrap.ts](<parallel-code-root>/src/app/server-state-bootstrap.ts)
+- summary: File 'src/components/TaskPanel.tsx' intersects 4 debt signals: dependency_sprawl, large_file, dead_private_code_cluster, hotspot
+- signal kinds: dependency_sprawl, large_file, dead_private_code_cluster, hotspot
+- signal families: coupling, coordination, size, staleness, maintainability
+- metrics:
+  - signal count: `4`
+  - file count: `1`
+  - structural signal count: `3`
 
-## Top Findings From The Live Run
+### Cluster 5
 
-### 1. `ConnectionBannerState`
+- summary: Files src/store/review.ts, src/app/agent-catalog.ts, src/app/remote-access.ts, and 46 more intersect 16 debt signals: dead_private_code_cluster, cycle_cluster, hotspot, dependency_sprawl, unstable_hotspot
+- signal kinds: dead_private_code_cluster, cycle_cluster, hotspot, dependency_sprawl, unstable_hotspot
+- signal families: staleness, maintainability, dependency, layering, coordination, coupling, blast_radius
+- metrics:
+  - signal count: `16`
+  - file count: `49`
+  - structural signal count: `12`
 
-- severity: `high`
-- kind: `closed_domain_exhaustiveness`
-- files:
-  - [App.tsx](<parallel-code-root>/src/App.tsx)
-  - [browser-session.ts](<parallel-code-root>/src/runtime/browser-session.ts)
-- summary:
-  `Closed domain 'ConnectionBannerState' is missing coverage for variants: connecting, reconnecting, restoring`
+## Clone Families Still Surfaced
 
-Supporting concept summary:
-
-- score: `3100 / 10000`
-- dominant kind: `closed_domain_exhaustiveness`
-- summary:
-  `Concept 'ConnectionBannerState' has repeated high-severity ownership or access issues`
-
-Related quality opportunity:
-
-- kind: `concept`
-- score: `4305 / 10000`
-- hotspot overlap:
-  [browser-session.ts](<parallel-code-root>/src/runtime/browser-session.ts)
-
-### 2. `task_presentation_status`
-
-- severity: `medium`
-- kind: `closed_domain_exhaustiveness`
-- files:
-  - [task-presentation-status.ts](<parallel-code-root>/src/app/task-presentation-status.ts)
-- summary:
-  `Closed domain 'task_presentation_status' is missing required update sites`
-
-Missing site evidence:
-
-- [task-presentation-status.ts](<parallel-code-root>/src/app/task-presentation-status.ts)
-  - line `12`
-  - `no exhaustive mapping or switch site found for 'TaskDotStatus'`
-
-Related concept summary:
-
-- score: `1680 / 10000`
-- missing site count: `1`
-- obligation count: `1`
-- summary:
-  `Concept 'task_presentation_status' has 1 missing update sites to complete`
-
-Related tests already matched by the configured concept:
-
-- [task-attention.test.ts](<parallel-code-root>/src/app/task-attention.test.ts)
-- [task-presentation-status.test.ts](<parallel-code-root>/src/app/task-presentation-status.test.ts)
-- [SidebarTaskRow.architecture.test.ts](<parallel-code-root>/src/components/SidebarTaskRow.architecture.test.ts)
-- [SidebarTaskRow.test.tsx](<parallel-code-root>/src/components/SidebarTaskRow.test.tsx)
-
-### 3. Clone family: `AgentGlyph` / `RemoteAgentGlyph`
-
-Files:
-
-- [AgentGlyph.tsx](<parallel-code-root>/src/components/AgentGlyph.tsx)
-- [RemoteAgentGlyph.tsx](<parallel-code-root>/src/remote/RemoteAgentGlyph.tsx)
-
-Clone family summary:
-
-- family score: `86`
-- member count: `4`
-- recent file age gap: `1 day`
-- recent commit gap: `0`
-
-Exact clone groups surfaced:
-
-- `CodexGlyph` (`30` lines)
-- `ClaudeGlyph` (`25` lines)
-- `HydraGlyph` (`16` lines)
-- `GenericGlyph` (`10` lines)
-
-Primary remediation hints:
-
-- synchronize recent divergence explicitly if the files are meant to stay aligned
-- extract a shared helper/module
-- collapse repeated clone groups behind one named abstraction
-- add focused shared behavior tests before extraction
-
-### 4. Clone family: `ws-server` / `browser-websocket`
-
-Files:
-
-- [ws-server.ts](<parallel-code-root>/electron/remote/ws-server.ts)
-- [browser-websocket.ts](<parallel-code-root>/server/browser-websocket.ts)
-
-Clone family summary:
+### [ws-server.ts](<parallel-code-root>/electron/remote/ws-server.ts) / [browser-websocket.ts](<parallel-code-root>/server/browser-websocket.ts)
 
 - family score: `78`
 - member count: `4`
 - recent commit gap: `3`
-- recent file age gap: `0 days`
+- summary: 4 exact clone groups repeat across 2 files and churn differs by 3 recent commit(s) across siblings; sibling file age spans 0 day(s)
 
-Named exact clone groups surfaced in the top findings:
+### [AgentGlyph.tsx](<parallel-code-root>/src/components/AgentGlyph.tsx) / [RemoteAgentGlyph.tsx](<parallel-code-root>/src/remote/RemoteAgentGlyph.tsx)
 
-- `resume` (`11` lines)
-- `pause` (`11` lines)
+- family score: `86`
+- member count: `4`
+- recent commit gap: `0`
+- summary: 4 exact clone groups repeat across 2 files and churn differs by 0 recent commit(s) across siblings; sibling file age spans 1 day(s)
 
-Primary remediation hints:
+### [App.tsx](<parallel-code-root>/src/App.tsx) / [App.tsx](<parallel-code-root>/src/remote/App.tsx)
 
-- review whether the two runtime surfaces should still be behaviorally identical
-- synchronize or intentionally split
-- extract shared helper logic if behavior should stay aligned
+- family score: `322`
+- member count: `2`
+- recent commit gap: `63`
+- summary: 2 exact clone groups repeat across 2 files and churn differs by 63 recent commit(s) across siblings; sibling file age spans 0 day(s)
 
-### 5. Hotspots
-
-### `server/browser-control-plane.ts`
-
-File:
-
-- [browser-control-plane.ts](<parallel-code-root>/server/browser-control-plane.ts)
-
-Signal:
-
-- hotspot score: `5350 / 10000`
-- evidence:
-  - `6` side-effect targets
-  - `6` timer/retry coordination signals
-  - `3` async/branching control signals
-
-### `electron/ipc/hydra-adapter.ts`
-
-File:
-
-- [hydra-adapter.ts](<parallel-code-root>/electron/ipc/hydra-adapter.ts)
-
-Signal:
-
-- hotspot score: `4827 / 10000`
-- evidence:
-  - `11` side-effect targets
-  - `3` timer/retry coordination signals
-  - `19` async/branching control signals
-
-## Other Lower-Priority Clone Signals
-
-These are real, but I would rank them behind the items above:
-
-### `client-session` / `persistence-load`
-
-Files:
-
-- [client-session.ts](<parallel-code-root>/src/store/client-session.ts)
-- [persistence-load.ts](<parallel-code-root>/src/store/persistence-load.ts)
-
-Current duplicate:
-
-- `isStringNumberRecord` (`9` lines)
-
-### `App` / `remote/App`
-
-Files:
-
-- [App.tsx](<parallel-code-root>/src/App.tsx)
-- [remote/App.tsx](<parallel-code-root>/src/remote/App.tsx)
-
-Current duplicates:
-
-- `markBusyTakeoverRequest` (`5` lines)
-- `clearBusyTakeoverRequest` (`5` lines)
-
-These may still be worth cleaning up, but they are not my first recommendation for engineering time.
-
-## Current Non-Findings That Matter
+## Configured Concepts And Current State
 
 ### `task_git_status`
 
-Current status:
+- live explain artifact: generated during the disposable-clone run and summarized here
+- current findings: `0`
+- current obligations: `0`
+- current related test misses: `src/app/git-status-sync.test.ts`
 
-- no findings
-- no obligations
+### `task_presentation_status`
 
-Useful detail:
-
-- configured readers and writers are present
-- the live run did **not** reproduce the old ownership overstatement
-
-One note:
-
-- one configured related test pattern did not match:
-  `src/app/git-status-sync.test.ts`
-
-That is a test-coverage/config maintenance note, not a current architectural finding.
+- live explain artifact: generated during the disposable-clone run and summarized here
+- current findings: `1`
+- current obligations: `1`
+- finding summary: `Closed domain 'task_presentation_status' is missing required update sites`
+- missing site detail: `no exhaustive mapping or switch site found for 'TaskDotStatus'`
+- missing site file: [task-presentation-status.ts](<parallel-code-root>/src/app/task-presentation-status.ts)
 
 ### `server_state_bootstrap`
 
-Current status:
-
-- parity findings: none
+- live explain artifact: generated during the disposable-clone run and summarized here
+- current findings: `0`
+- current obligations: `0`
 - parity score: `10000 / 10000`
-- state findings: none
 - state integrity score: `10000 / 10000`
 
-This makes it a poor first cleanup target relative to the findings above.
+## Session-End Baseline State
 
-## Clean-Tree Patch-Safety Result
+The pass-state session report is clean for the untouched baseline:
 
-The live repo was analyzed in a no-change state.
+- touched concept gate decision: `pass`
+- introduced findings: `0`
+- finding details in session_end: `0`
 
-Current `gate` result:
-
-- decision: `pass`
-- changed files: `0`
-- blocking findings: `0`
-- missing obligations: `0`
-- obligation completeness: `10000 / 10000`
-
-This means the current baseline is stable enough for patch-delta use, but this report is still about **baseline maintainability** rather than a live patch review.
-
-## Performance Notes For This Live Run
-
-These are tool/runtime notes, not project-health findings.
-
-Current live benchmark:
-
-- cold process total: `20,161.4 ms`
-- cold scan: `12,361.4 ms`
-- warm cached total: `1,077.6 ms`
-- warm patch-safety total: `4,838.3 ms`
-- warm gate: `4,505.2 ms`
-- warm session_end: `35.1 ms`
-
-Compared with the current blessed benchmark artifact:
-
-- fail-tier regressions:
-  - cold process total: `+3388.6 ms` (`+20.2%`)
-  - cold scan: `+2585.5 ms` (`+26.4%`)
-- warn-tier regressions:
-  - warm cached total: `+188.9 ms` (`+21.3%`)
-  - warm patch-safety total: `+688.4 ms` (`+16.6%`)
-  - warm gate: `+639.6 ms` (`+16.5%`)
-
-Interpretation:
-
-- these are Sentrux performance deltas, not `parallel-code` product defects
-- the code-quality findings above remain useful even though the analysis run was slower than the blessed benchmark artifact
-
-## Suggested Engineer Feedback Format
-
-If you want structured feedback from the engineer, ask them to respond inline to these statements:
-
-1. `ConnectionBannerState` coverage issue is:
-   - real
-   - partly real
-   - not useful
-2. `TaskDotStatus` should be exhaustively mapped in [task-presentation-status.ts](<parallel-code-root>/src/app/task-presentation-status.ts):
-   - yes
-   - maybe elsewhere
-   - no
-3. `AgentGlyph` and `RemoteAgentGlyph` should be deduplicated:
-   - yes
-   - maybe
-   - no
-4. `ws-server` and `browser-websocket` should stay synchronized:
-   - yes
-   - maybe
-   - no
-5. The most painful current hotspot is:
-   - [browser-control-plane.ts](<parallel-code-root>/server/browser-control-plane.ts)
-   - [hydra-adapter.ts](<parallel-code-root>/electron/ipc/hydra-adapter.ts)
-   - neither
+That means the repo-level debt surfaces above are baseline inspection signals, not patch-specific regressions from the pass-state session.

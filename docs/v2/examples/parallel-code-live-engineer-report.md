@@ -2,328 +2,252 @@
 
 Generated on March 19, 2026 from the live checkout at `<parallel-code-root>`.
 
-Historical note:
-
-- this report captures the earlier live-review pass that informed the maintainer verdict loop
-- for the current evidence-first structural debt surface, use [parallel-code-proof-snapshot.md](<sentrux-root>/docs/v2/examples/parallel-code-proof-snapshot.md)
-
-## Audience
-
-This report is for an engineer who does not already know `parallel-code` or Sentrux.
-
-It answers two questions:
-
-1. what current code-quality or maintainability issues look worth inspecting
-2. which areas do **not** currently look like current debt hotspots
+This report uses the current evidence-first v2 surface. It is meant for an engineer who does not already know either `parallel-code` or Sentrux.
 
 ## What Was Analyzed
 
-This was a fresh live analysis of the current `~/parallel-code` checkout using Sentrux v2 on a disposable clone.
+The run used a disposable clone of the live repo and the current Sentrux v2 analysis surfaces:
+
+- live source checkout: [<parallel-code-root>](<parallel-code-root>)
+- rules file used for the run: [parallel-code.rules.toml](<sentrux-root>/docs/v2/examples/parallel-code.rules.toml)
+- current proof snapshot for comparison: [parallel-code-proof-snapshot.md](<sentrux-root>/docs/v2/examples/parallel-code-proof-snapshot.md)
 
 Important scope note:
 
-- `parallel-code` does **not** currently carry its own `.sentrux/rules.toml`
-- this run used the example rules file shipped with Sentrux:
-  [parallel-code.rules.toml](<sentrux-root>/docs/v2/examples/parallel-code.rules.toml)
-- that rules file configures three critical concepts:
+- the live repo currently has a `.sentrux/baseline.json`, but it does **not** carry its own `.sentrux/rules.toml`
+- this live rerun therefore still uses the bundled example rules for the three configured critical concepts:
   - `task_git_status`
   - `task_presentation_status`
   - `server_state_bootstrap`
-- repo-wide clone, hotspot, parity, and state checks were also run
 
-Analysis coverage for this run:
+Scan coverage for this run:
 
-- 597 scanned source files
-- 136,404 scanned lines
-- 1,770 resolved import edges
-- scan confidence: `8189 / 10000`
-- configured rule coverage: `10000 / 10000`
-
-## What Parallel Code Appears To Be
-
-From the repo README, `parallel-code` is a TypeScript app for running multiple AI coding agents in isolated git worktrees, with:
-
-- Electron and browser/server modes
-- a SolidJS frontend
-- local and remote/mobile UI surfaces
-- task state, session/bootstrap logic, websocket transport, and review/supervision flows
-
-That means the most expensive defects are likely to be:
-
-- UI state drift
-- duplicated runtime logic across Electron/browser surfaces
-- missing propagation when state or contracts evolve
-- orchestration files accumulating too many responsibilities
+- scanned source files: `604`
+- scanned lines: `137,347`
+- resolved import edges: `1,797`
+- git candidate files kept: `604 / 738`
+- excluded files: `134`
+- scan confidence: `8184 / 10000`
+- rule coverage: `10000 / 10000`
+- semantic rules loaded: `true`
 
 ## Executive Summary
 
-The current live run surfaces **two strong debt signals**, **two hardening/watchpoint signals**, **one coordination watchpoint**, and **two areas that currently do not look like problems**.
+The current live repo is now surfacing **structural debt** much more strongly than the earlier memo did. The dominant current signals are:
 
-### Strong debt signals
+1. a very large, coordination-heavy terminal session surface in [terminal-session.ts](<parallel-code-root>/src/components/terminal-view/terminal-session.ts)
+2. a very large control-plane seam in [browser-control-plane.ts](<parallel-code-root>/server/browser-control-plane.ts)
+3. broad dependency sprawl in [App.tsx](<parallel-code-root>/src/App.tsx) and [TaskPanel.tsx](<parallel-code-root>/src/components/TaskPanel.tsx)
+4. a large store/app dependency cycle anchored around [store.ts](<parallel-code-root>/src/store/store.ts)
+5. several high-confidence stale private code clusters in UI and store files
 
-1. `AgentGlyph.tsx` and `RemoteAgentGlyph.tsx` contain a real duplicate-maintenance cluster
-2. `server/browser-control-plane.ts` is a coordination hotspot worth watching closely
+The configured concept surfaces are mixed:
 
-### Hardening and watchpoints
+- [task_git_status](<parallel-code-root>/src/store/task-git-status.ts) currently looks healthy in the configured rules
+- [server_state_bootstrap](<parallel-code-root>/src/app/server-state-bootstrap.ts) currently looks healthy on parity and state integrity
+- [ConnectionBannerState](<parallel-code-root>/src/App.tsx) and [task_presentation_status](<parallel-code-root>/src/app/task-presentation-status.ts) still show targeted hardening gaps, but they are no longer the dominant repo-wide story
 
-1. `ConnectionBannerState` has a real presentation hardening opportunity
-2. `task_presentation_status` has a real canonical-model hardening opportunity
-3. `electron/remote/ws-server.ts` and `server/browser-websocket.ts` are a lower-confidence transport watchpoint
+Clone risk still exists and is useful, but it is now secondary to the structural debt surfaces above.
 
-### Coordination watchpoint
+## Strongest Current Debt Signals
 
-1. `electron/ipc/hydra-adapter.ts` is a coordination watchpoint, but it is less compelling than `server/browser-control-plane.ts`
+### 1. [terminal-session.ts](<parallel-code-root>/src/components/terminal-view/terminal-session.ts) is carrying stacked debt, not just size
 
-### Areas that currently look healthy
+Current evidence:
 
-1. `task_git_status` does **not** currently look like an ownership problem in the live baseline
-2. `server_state_bootstrap` currently looks healthy on parity and configured state-integrity checks
-
-## Inspection Notes
-
-The report does **not** assign final priority. The repo's own architecture docs should be used for that. In particular, the current repo plan points to startup/session/restore alignment as the active architecture workstream.
-
-### 1. Inspect `task_presentation_status` as a hardening opportunity
-
-Files:
-
-- [task-presentation-status.ts](<parallel-code-root>/src/app/task-presentation-status.ts)
-
-Current signal:
-
-- `medium` `closed_domain_exhaustiveness`
-- missing required update site for `TaskDotStatus`
+- large file: `1856` lines, `92` functions, peak complexity `350`
+- dependency sprawl: `25` real outward dependencies
+- hotspot pressure: `75` side-effect targets, `30` async/branching signals, `8` timer/retry signals
+- debt cluster: File 'src/components/terminal-view/terminal-session.ts' intersects 4 debt signals: large_file, dead_private_code_cluster, dependency_sprawl, hotspot
 
 Why this matters:
 
-- this is a change-propagation hardening opportunity, not a cosmetic issue
-- if `TaskDotStatus` evolves, there is no single explicit exhaustive mapping proving all states are handled
-- this is the kind of issue that can cause subtle UI drift later
+- this file is simultaneously large, highly coupled, coordination-heavy, and already carrying stale private paths
+- if it keeps growing in place, changes will stay expensive to review and harder to isolate when regressions appear
 
-What Sentrux is saying:
+Inspection focus from the live run:
 
-- there is no exhaustive mapping or switch site for `TaskDotStatus`
-- the missing site is in [task-presentation-status.ts](<parallel-code-root>/src/app/task-presentation-status.ts)
+- split orchestration from rendering/data-shaping concerns
+- narrow direct dependencies where possible
+- remove or reconnect dead private helpers so the file reflects the supported control flow
 
-Recommended action:
+### 2. [browser-control-plane.ts](<parallel-code-root>/server/browser-control-plane.ts) is a large control seam and part of a transport/control cluster
 
-- add one explicit total mapping for `TaskDotStatus`
-- keep it in [task-presentation-status.ts](<parallel-code-root>/src/app/task-presentation-status.ts) as the canonical presentation surface
-- keep the existing tests around that surface strong
+Current evidence:
 
-Expected payoff:
-
-- easier future edits to task presentation state
-- lower chance of “new status added, one display path forgotten”
-
-### 2. Inspect `ConnectionBannerState` as a presentation hardening opportunity
-
-Files:
-
-- [App.tsx](<parallel-code-root>/src/App.tsx)
-- [browser-session.ts](<parallel-code-root>/src/runtime/browser-session.ts)
-
-Current signal:
-
-- `high` `closed_domain_exhaustiveness`
-- missing coverage for:
-  - `connecting`
-  - `reconnecting`
-  - `restoring`
+- large file: `1054` lines, `74` functions, peak complexity `102`
+- current top cluster overlap: Files server/browser-control-plane.ts, electron/remote/server.ts, electron/remote/ws-transport.test.ts, and 1 more intersect 4 debt signals: large_file, clone_family, dead_private_code_cluster, hotspot
+- that cluster also overlaps a transport/server clone family touching:
+  - [server.ts](<parallel-code-root>/electron/remote/server.ts)
+  - [ws-transport.test.ts](<parallel-code-root>/electron/remote/ws-transport.test.ts)
+  - [websocket-contract-harness.ts](<parallel-code-root>/tests/harness/websocket-contract-harness.ts)
 
 Why this matters:
 
-- this looks like a genuine runtime/UI state alignment gap
-- connection lifecycle code tends to drift if rendering logic is spread across conditions instead of one explicit mapping
+- this is not just a big file problem
+- the file sits inside a coordination-heavy seam that also overlaps clone and stale-code signals
+- that combination is where change drift becomes expensive and subtle
 
-Recommended action:
+Inspection focus from the live run:
 
-- define one explicit banner-state mapping surface
-- make banner text/state rendering exhaustive for `ConnectionBannerState`
-- keep runtime state definitions and app rendering aligned around that one surface
+- split control-plane orchestration from narrower protocol or adapter helpers
+- inspect whether the transport/server sibling logic is meant to stay aligned or be intentionally separated
 
-Expected payoff:
+### 3. [App.tsx](<parallel-code-root>/src/App.tsx) and [TaskPanel.tsx](<parallel-code-root>/src/components/TaskPanel.tsx) both show real dependency sprawl
 
-- cleaner connection lifecycle behavior
-- fewer edge-case UI mismatches during reconnect/restore flows
+Current evidence:
 
-### 3. Collapse the glyph duplication between local and remote UI
-
-Files:
-
-- [AgentGlyph.tsx](<parallel-code-root>/src/components/AgentGlyph.tsx)
-- [RemoteAgentGlyph.tsx](<parallel-code-root>/src/remote/RemoteAgentGlyph.tsx)
-
-Current signal:
-
-- clone family score: `86`
-- 4 exact clone groups across 2 files
-
-Duplicated functions:
-
-- `CodexGlyph`
-- `ClaudeGlyph`
-- `HydraGlyph`
-- `GenericGlyph`
+- [App.tsx](<parallel-code-root>/src/App.tsx): fan-out `28`, instability `9655 / 10000`, line count `530`
+- [TaskPanel.tsx](<parallel-code-root>/src/components/TaskPanel.tsx): fan-out `28`, instability `9333 / 10000`, line count `637`
+- both also participate in debt clusters:
+  - Files src/App.tsx, src/remote/App.tsx, src/runtime/browser-session.ts intersect 6 debt signals: dependency_sprawl, clone_family, dead_private_code_cluster, large_file, concept
+  - File 'src/components/TaskPanel.tsx' intersects 4 debt signals: dependency_sprawl, large_file, dead_private_code_cluster, hotspot
 
 Why this matters:
 
-- this is real duplicated product logic in two production files
-- the cost is not just file size; it is future drift whenever one icon or variant changes and the sibling is forgotten
+- these files are carrying too many direct dependencies for their role
+- that makes feature changes spread across orchestration, policy, and view concerns in one place
+- the App cluster also overlaps the current `ConnectionBannerState` hardening finding and an App/remote-App clone family
 
-Recommended action:
+Inspection focus from the live run:
 
-- extract shared glyph rendering into one reusable module
-- keep only context-specific wrappers where the local and remote surfaces truly differ
-- add a small shared rendering test before deduplicating if you want a safer refactor
+- reduce direct dependency breadth before adding more policy to these files
+- inspect whether view, action wiring, and runtime/session coordination can be separated more clearly
 
-Expected payoff:
+### 4. The store/app subsystem cycle is now one of the clearest architecture-level debt signals
 
-- less duplicated UI logic
-- much lower drift risk between local and remote app surfaces
+Current evidence:
 
-### 4. Treat websocket pause/resume behavior as a watchpoint, not a top refactor target
-
-Files:
-
-- [ws-server.ts](<parallel-code-root>/electron/remote/ws-server.ts)
-- [browser-websocket.ts](<parallel-code-root>/server/browser-websocket.ts)
-
-Current signal:
-
-- clone family score: `78`
-- 4 exact clone groups across 2 files
-- current named duplicated functions include:
-  - `pause`
-  - `resume`
+- cycle size: `49` files
+- total lines inside the cycle: `6750`
+- peak function complexity inside the cycle: `71`
+- unstable hotspot inside the cycle: [store.ts](<parallel-code-root>/src/store/store.ts) with fan-in `56` and fan-out `20`
+- overlapping debt cluster: Files src/store/review.ts, src/app/agent-catalog.ts, src/app/remote-access.ts, and 46 more intersect 16 debt signals: dead_private_code_cluster, cycle_cluster, hotspot, dependency_sprawl, unstable_hotspot
 
 Why this matters:
 
-- this is transport/control behavior duplicated across Electron and browser/server runtime code
-- the surfaces are no longer symmetric shells, so this should be treated carefully
+- this is not one bad file; it is a subsystem-level layering problem
+- a cycle at this size makes refactors and initialization-order changes harder to isolate
+- the cluster also overlaps dead private code and hotspot pressure, which suggests the subsystem is paying both coupling cost and maintenance noise at the same time
 
-Recommended action:
+Inspection focus from the live run:
 
-- decide whether these two files are meant to stay behaviorally aligned
-- if yes, extract shared pause/resume framing and sibling helpers
-- if no, document and intentionally split the behavior instead of letting them look accidentally duplicated
+- break one back-edge rather than trying to “fix the whole store” at once
+- look for contract/type extraction seams or runtime-client/state boundaries that can move to a lower-dependency layer
+- treat [store.ts](<parallel-code-root>/src/store/store.ts) as a blast-radius surface because of the current inbound reference count
 
-Expected payoff:
+## High-Confidence Stale Private Code Clusters
 
-- safer runtime evolution across the two transport surfaces
-- less chance of subtle mode-specific behavior skew
+These are straightforward, objective cleanups rather than speculative architecture advice.
 
-### 5. Split the two coordination hotspots before they get worse
-
-Files:
-
-- [browser-control-plane.ts](<parallel-code-root>/server/browser-control-plane.ts)
-- [hydra-adapter.ts](<parallel-code-root>/electron/ipc/hydra-adapter.ts)
-
-Current signal:
-
-- both are medium-severity hotspot opportunities
-- [browser-control-plane.ts](<parallel-code-root>/server/browser-control-plane.ts)
-  - 6 side-effect targets
-  - 6 timer/retry coordination signals
-  - 3 async/branching control signals
-- [hydra-adapter.ts](<parallel-code-root>/electron/ipc/hydra-adapter.ts)
-  - 11 side-effect targets
-  - 3 timer/retry coordination signals
-  - 19 async/branching control signals
+- [ScrollingDiffView.tsx](<parallel-code-root>/src/components/ScrollingDiffView.tsx)
+  - `15` uncalled private functions
+  - `144` dead private lines
+  - sample names: `highlightSearchMatches`, `highlightSearchInHtml`, `inlineQuestions`
+- [review.ts](<parallel-code-root>/src/store/review.ts)
+  - `10` uncalled private functions
+  - `121` dead private lines
+  - sample names: `handlePermissionResponse`, `updateReviewComment`, `markCommentsSent`
+- [PreviewPanel.tsx](<parallel-code-root>/src/components/PreviewPanel.tsx)
+  - `21` uncalled private functions
+  - `115` dead private lines
+- [SidebarTaskRow.tsx](<parallel-code-root>/src/components/SidebarTaskRow.tsx)
+  - `19` uncalled private functions
+  - `109` dead private lines
+  - sample names include `getPrimaryTaskAgentDef`
 
 Why this matters:
 
-- these files are becoming coordination choke points
-- even without a current bug, this is a maintainability warning that future feature work will be harder and riskier here
+- these findings are easy to dismiss as lint, but they are concrete maintenance noise
+- dead private helpers make supported control flow less obvious and inflate future edit surfaces
 
-Recommended action:
+## Targeted Concept Hardening Signals
 
-- split orchestration from state mutation
-- split transport or adapter responsibilities from policy decisions
-- avoid adding new behavior here until one extraction pass is done
+These are still real, but they should be read as targeted completeness hardening rather than the main repo-wide debt story.
 
-Expected payoff:
+### [ConnectionBannerState](<parallel-code-root>/src/App.tsx)
 
-- easier reasoning about side effects
-- fewer “god-file” style regressions later
+Current evidence:
 
-## What Does **Not** Look Like A Current Debt Hotspot
+- severity: `high`
+- finding: Closed domain 'ConnectionBannerState' is missing coverage for variants: connecting, reconnecting, restoring
+- files: [App.tsx](<parallel-code-root>/src/App.tsx) and [browser-session.ts](<parallel-code-root>/src/runtime/browser-session.ts)
+- related watchpoint: Concept 'ConnectionBannerState' intersects clone overlap, coordination hotspot overlap
 
-These are useful because they tell the engineer where **not** to spend time first.
+What this means:
 
-### `task_git_status`
+- the runtime/browser-session surface and app rendering surface still do not give the analyzer one explicit total coverage point for the connection banner states
+- this is a localized state-completeness hardening signal, not the strongest repo-wide architectural debt signal
 
-Files:
+### [task_presentation_status](<parallel-code-root>/src/app/task-presentation-status.ts)
 
-- [task-git-status.ts](<parallel-code-root>/src/store/task-git-status.ts)
-- [taskStatus.ts](<parallel-code-root>/src/store/taskStatus.ts)
-- [task-presentation-status.ts](<parallel-code-root>/src/app/task-presentation-status.ts)
+Current evidence:
 
-Current result:
+- severity: `medium`
+- finding: Closed domain `task_presentation_status` is missing required update sites
+- obligation burden: `1` missing site
+- exact missing-site detail: `no exhaustive mapping or switch site found for 'TaskDotStatus'` at line `12`
+- related tests already exist for this concept in the configured rules
+
+What this means:
+
+- the analyzer still does not see one explicit exhaustive mapping site for `TaskDotStatus`
+- this is useful completeness hardening, but it is narrower than the structural debt clusters above
+
+## Clone And Drift Signals That Still Matter
+
+Clone families are no longer the whole story, but two families are still worth an engineer’s attention.
+
+### [AgentGlyph.tsx](<parallel-code-root>/src/components/AgentGlyph.tsx) / [RemoteAgentGlyph.tsx](<parallel-code-root>/src/remote/RemoteAgentGlyph.tsx)
+
+- family score: `86`
+- exact clone groups: `4`
+- current meaning: repeated UI logic across local and remote surfaces still creates avoidable duplicate maintenance
+
+### [ws-server.ts](<parallel-code-root>/electron/remote/ws-server.ts) / [browser-websocket.ts](<parallel-code-root>/server/browser-websocket.ts)
+
+- family score: `78`
+- exact clone groups: `4`
+- churn gap across siblings: `3` recent commits
+- current meaning: the two transport/runtime surfaces still share repeated behavior and need either deliberate synchronization or a clearer intentional split
+
+A lower-priority but still real family also remains between [App.tsx](<parallel-code-root>/src/App.tsx) and [App.tsx](<parallel-code-root>/src/remote/App.tsx).
+
+## Configured Surfaces That Currently Look Healthy
+
+### [task_git_status](<parallel-code-root>/src/store/task-git-status.ts)
+
+Current state:
 
 - no current findings
 - no current obligations
+- no current parity/state findings tied to this configured concept
 
-Interpretation:
+Useful note:
 
-- this concept is configured as an authoritative state surface
-- on the current baseline, it does **not** look like a current architectural defect
+- one related test pattern in the bundled rules did not match a file: `src/app/git-status-sync.test.ts`
+- that is a rules/test-coverage detail, not a current concept failure
 
-This is useful because an older proof pass had an overstatement here. The live baseline does not support that concern anymore.
+### [server_state_bootstrap](<parallel-code-root>/src/app/server-state-bootstrap.ts)
 
-### `server_state_bootstrap`
+Current state:
 
-Files:
+- no current findings
+- no current obligations
+- runtime parity score: `10000 / 10000`
+- state integrity score: `10000 / 10000`
 
-- [server-state-bootstrap.ts](<parallel-code-root>/src/app/server-state-bootstrap.ts)
-- [server-state-bootstrap-registry.ts](<parallel-code-root>/src/app/server-state-bootstrap-registry.ts)
-- [browser-session.ts](<parallel-code-root>/src/runtime/browser-session.ts)
-- [desktop-session.ts](<parallel-code-root>/src/app/desktop-session.ts)
+Why this matters:
 
-Current result:
+- this configured runtime-contract surface currently looks aligned across browser, electron, registry, and explicit state-model checks
+- that makes it a good example of the kind of surface the rules are already helping keep honest
 
-- parity score: `10000 / 10000`
-- state-integrity findings: none
+## Suggested Engineer Feedback Prompts
 
-Interpretation:
+If you send this report to an engineer on `parallel-code`, the most useful feedback questions are:
 
-- the configured runtime contract and explicit state model around bootstrap currently look healthy
-- this area does not look like the best immediate cleanup target
-
-## Suggested Fix Order
-
-If the team wants one pragmatic order, this is the one I would use:
-
-1. add the explicit `TaskDotStatus` mapping in [task-presentation-status.ts](<parallel-code-root>/src/app/task-presentation-status.ts)
-2. centralize exhaustive `ConnectionBannerState` handling
-3. deduplicate [AgentGlyph.tsx](<parallel-code-root>/src/components/AgentGlyph.tsx) and [RemoteAgentGlyph.tsx](<parallel-code-root>/src/remote/RemoteAgentGlyph.tsx)
-4. review and likely deduplicate the websocket `pause` / `resume` logic
-5. split [browser-control-plane.ts](<parallel-code-root>/server/browser-control-plane.ts) and [hydra-adapter.ts](<parallel-code-root>/electron/ipc/hydra-adapter.ts) before adding more behavior
-
-## Feedback Requested From The Engineer
-
-Please answer these directly against the code, not against Sentrux:
-
-1. Is `ConnectionBannerState` intended to have one canonical exhaustive mapping, or is the current split intentional?
-2. Is [task-presentation-status.ts](<parallel-code-root>/src/app/task-presentation-status.ts) the right place to own the full `TaskDotStatus` mapping?
-3. Are [AgentGlyph.tsx](<parallel-code-root>/src/components/AgentGlyph.tsx) and [RemoteAgentGlyph.tsx](<parallel-code-root>/src/remote/RemoteAgentGlyph.tsx) meant to evolve together, or are they expected to diverge?
-4. Are [ws-server.ts](<parallel-code-root>/electron/remote/ws-server.ts) and [browser-websocket.ts](<parallel-code-root>/server/browser-websocket.ts) intentionally duplicated because of platform constraints, or is this accidental?
-5. Which of the two hotspot files is already painful to change in practice:
-   - [browser-control-plane.ts](<parallel-code-root>/server/browser-control-plane.ts)
-   - [hydra-adapter.ts](<parallel-code-root>/electron/ipc/hydra-adapter.ts)
-
-## Caveats
-
-- this is a real live analysis of the current repo state
-- it is **not** zero-config analysis; it uses the Sentrux example rules for three important concepts
-- that means:
-  - the configured concept findings are high-value but intentionally scoped
-  - clone/hotspot signals are broader and more heuristic
-- there was no current session baseline in the live repo, so this report is baseline analysis, not patch-delta analysis
-
-## Appendix
-
-See the detailed evidence in:
-
-- [parallel-code-live-engineer-report-appendix.md](<sentrux-root>/docs/v2/examples/parallel-code-live-engineer-report-appendix.md)
+1. Do the terminal-session, App, TaskPanel, and store-cycle signals match where the team already feels change pain?
+2. Which dead private code clusters are obviously stale versus intentionally dormant?
+3. Is the large store cycle describing a real layering problem, or is it overstating expected store wiring?
+4. For the websocket and glyph clone families, which ones should stay aligned and which ones are intentionally separate?
+5. Are the `ConnectionBannerState` and `task_presentation_status` findings still useful as hardening prompts even if they are not top priority?
