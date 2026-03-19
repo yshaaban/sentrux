@@ -52,6 +52,14 @@ pub struct ContractRule {
     pub electron_entry: Option<String>,
     #[serde(default)]
     pub required_capabilities: Vec<String>,
+    #[serde(default)]
+    pub trigger_symbols: Vec<String>,
+    #[serde(default)]
+    pub trigger_files: Vec<String>,
+    #[serde(default)]
+    pub required_symbols: Vec<String>,
+    #[serde(default)]
+    pub required_files: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
@@ -113,11 +121,15 @@ pub fn compute_rule_coverage(
     let contracts_machine_checkable = contracts
         .iter()
         .filter(|contract| {
-            contract.registry_symbol.is_some()
-                && contract.categories_symbol.is_some()
-                && (contract.browser_entry.is_some()
-                    || contract.electron_entry.is_some()
-                    || contract.payload_map_symbol.is_some())
+            let core_declared =
+                contract.registry_symbol.is_some() && contract.categories_symbol.is_some();
+            let additional_surfaces = contract.browser_entry.is_some()
+                || contract.electron_entry.is_some()
+                || contract.payload_map_symbol.is_some()
+                || !contract.required_symbols.is_empty()
+                || !contract.required_files.is_empty();
+
+            core_declared && additional_surfaces
         })
         .count();
     let state_models_machine_checkable = state_models
@@ -178,6 +190,8 @@ mod tests {
                 registry_symbol = "src/app/server-state-bootstrap-registry.ts::SERVER_STATE_BOOTSTRAP_REGISTRY"
                 categories_symbol = "src/domain/server-state-bootstrap.ts::SERVER_STATE_BOOTSTRAP_CATEGORIES"
                 browser_entry = "src/runtime/browser-session.ts"
+                trigger_symbols = ["src/domain/server-state-bootstrap.ts::buildBootstrapPayload"]
+                required_files = ["src/runtime/server-state-bootstrap.ts"]
 
                 [[state_model]]
                 id = "browser_state_sync"
@@ -201,6 +215,8 @@ mod tests {
         assert_eq!(config.contract.len(), 1);
         assert_eq!(config.state_model.len(), 1);
         assert_eq!(config.suppress.len(), 1);
+        assert_eq!(config.contract[0].trigger_symbols.len(), 1);
+        assert_eq!(config.contract[0].required_files.len(), 1);
     }
 
     #[test]
