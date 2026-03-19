@@ -30,13 +30,34 @@ use std::{
     sync::Arc,
 };
 
+pub const SESSION_V2_SCHEMA_VERSION: u32 = 2;
+const MIN_SUPPORTED_SESSION_V2_SCHEMA_VERSION: u32 = 1;
+
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct SessionV2ConfidenceSnapshot {
+    pub scan_confidence_0_10000: Option<u32>,
+    pub rule_coverage_0_10000: Option<u32>,
+}
+
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct SessionV2Baseline {
+    #[serde(default = "default_session_v2_schema_version")]
+    pub schema_version: u32,
     pub file_hashes: BTreeMap<String, u64>,
     pub finding_payloads: BTreeMap<String, Value>,
     pub git_head: Option<String>,
     #[serde(default)]
     pub working_tree_paths: BTreeSet<String>,
+    #[serde(default)]
+    pub confidence: SessionV2ConfidenceSnapshot,
+}
+
+const fn default_session_v2_schema_version() -> u32 {
+    1
+}
+
+pub fn session_v2_schema_supported(schema_version: u32) -> bool {
+    (MIN_SUPPORTED_SESSION_V2_SCHEMA_VERSION..=SESSION_V2_SCHEMA_VERSION).contains(&schema_version)
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

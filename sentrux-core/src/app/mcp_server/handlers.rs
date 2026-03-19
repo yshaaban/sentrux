@@ -7,7 +7,10 @@
 //! Free users see top-3 + total counts. Pro users see everything.
 
 use super::registry::ToolDef;
-use super::{McpState, ScanCacheIdentity, SessionV2Baseline};
+use super::{
+    session_v2_schema_supported, McpState, ScanCacheIdentity, SessionV2Baseline,
+    SessionV2ConfidenceSnapshot, SESSION_V2_SCHEMA_VERSION,
+};
 use crate::analysis::scanner;
 use crate::analysis::scanner::common::ScanMetadata;
 use crate::analysis::semantic::SemanticSnapshot;
@@ -15,6 +18,7 @@ use crate::core::snapshot::Snapshot;
 use crate::license::Tier;
 use crate::metrics;
 use crate::metrics::arch;
+use crate::metrics::rules::RulesConfig;
 use serde_json::{json, Value};
 use std::collections::{hash_map::DefaultHasher, BTreeMap, BTreeSet, HashSet};
 use std::hash::{Hash, Hasher};
@@ -112,6 +116,52 @@ fn scan_trust_json(metadata: &ScanMetadata) -> Value {
     })
 }
 
+#[derive(Debug, Clone, serde::Serialize)]
+struct SessionBaselineStatus {
+    loaded: bool,
+    compatible: bool,
+    schema_version: Option<u32>,
+    error: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+struct V2ConfidenceReport {
+    scan_confidence_0_10000: u32,
+    rule_coverage_0_10000: u32,
+    semantic_rules_loaded: bool,
+    session_baseline: SessionBaselineStatus,
+}
+
+fn missing_session_baseline_status() -> SessionBaselineStatus {
+    SessionBaselineStatus {
+        loaded: false,
+        compatible: false,
+        schema_version: None,
+        error: None,
+    }
+}
+
+fn compatible_session_baseline_status(schema_version: u32) -> SessionBaselineStatus {
+    SessionBaselineStatus {
+        loaded: true,
+        compatible: true,
+        schema_version: Some(schema_version),
+        error: None,
+    }
+}
+
+fn incompatible_session_baseline_status(
+    schema_version: Option<u32>,
+    error: String,
+) -> SessionBaselineStatus {
+    SessionBaselineStatus {
+        loaded: true,
+        compatible: false,
+        schema_version,
+        error: Some(error),
+    }
+}
+
 fn ratio_score_0_10000(numerator: usize, denominator: usize) -> u32 {
     if denominator == 0 {
         return 10000;
@@ -137,6 +187,47 @@ fn overall_confidence_0_10000(
     score
 }
 
+fn scan_confidence_0_10000(metadata: &ScanMetadata) -> u32 {
+    let scope_coverage = ratio_score_0_10000(metadata.kept_files, metadata.candidate_files);
+    let resolution_confidence = ratio_score_0_10000(
+        metadata.resolution.resolved,
+        metadata.resolution.resolved + metadata.resolution.unresolved_internal,
+    );
+    overall_confidence_0_10000(metadata, scope_coverage, resolution_confidence)
+}
+
+fn build_v2_confidence_report(
+    metadata: &ScanMetadata,
+    config: &RulesConfig,
+    session_baseline: SessionBaselineStatus,
+) -> V2ConfidenceReport {
+    V2ConfidenceReport {
+        scan_confidence_0_10000: scan_confidence_0_10000(metadata),
+        rule_coverage_0_10000: config.v2_rule_coverage().coverage_0_10000,
+        semantic_rules_loaded: semantic_rules_loaded(config),
+        session_baseline,
+    }
+}
+
+fn legacy_baseline_delta_json(diff: Option<&arch::ArchDiff>) -> Value {
+    match diff {
+        Some(diff) => json!({
+            "available": true,
+            "signal_before": ((diff.signal_before * 10000.0).round() as i32),
+            "signal_after": ((diff.signal_after * 10000.0).round() as i32),
+            "signal_delta": (((diff.signal_after - diff.signal_before) * 10000.0).round() as i32),
+            "cycles_before": diff.cycles_before,
+            "cycles_after": diff.cycles_after,
+            "coupling_before": diff.coupling_before,
+            "coupling_after": diff.coupling_after,
+            "degraded": diff.degraded,
+        }),
+        None => json!({
+            "available": false,
+        }),
+    }
+}
+
 fn load_persisted_baseline(root: &Path) -> Result<Option<arch::ArchBaseline>, String> {
     let baseline_path = arch::baseline_path(root);
     if !baseline_path.exists() {
@@ -149,16 +240,61 @@ fn session_v2_baseline_path(root: &Path) -> PathBuf {
     root.join(".sentrux").join("session-v2.json")
 }
 
-fn load_persisted_session_v2(root: &Path) -> Result<Option<SessionV2Baseline>, String> {
+fn load_session_v2_baseline_status(
+    root: &Path,
+) -> (Option<SessionV2Baseline>, SessionBaselineStatus) {
     let baseline_path = session_v2_baseline_path(root);
     if !baseline_path.exists() {
-        return Ok(None);
+        return (None, missing_session_baseline_status());
     }
-    let bytes = std::fs::read(&baseline_path)
-        .map_err(|error| format!("Failed to read {}: {error}", baseline_path.display()))?;
-    serde_json::from_slice(&bytes)
-        .map(Some)
-        .map_err(|error| format!("Failed to parse {}: {error}", baseline_path.display()))
+    let bytes = match std::fs::read(&baseline_path) {
+        Ok(bytes) => bytes,
+        Err(error) => {
+            return (
+                None,
+                incompatible_session_baseline_status(
+                    None,
+                    format!("Failed to read {}: {error}", baseline_path.display()),
+                ),
+            )
+        }
+    };
+    let baseline: SessionV2Baseline = match serde_json::from_slice(&bytes) {
+        Ok(baseline) => baseline,
+        Err(error) => {
+            return (
+                None,
+                incompatible_session_baseline_status(
+                    None,
+                    format!("Failed to parse {}: {error}", baseline_path.display()),
+                ),
+            )
+        }
+    };
+    let schema_version = baseline.schema_version;
+    if !session_v2_schema_supported(schema_version) {
+        return (
+            None,
+            incompatible_session_baseline_status(
+                Some(schema_version),
+                format!(
+                    "Unsupported v2 session baseline schema version {schema_version}; supported range is {}-{}",
+                    super::MIN_SUPPORTED_SESSION_V2_SCHEMA_VERSION,
+                    SESSION_V2_SCHEMA_VERSION
+                ),
+            ),
+        );
+    }
+
+    (
+        Some(baseline),
+        compatible_session_baseline_status(schema_version),
+    )
+}
+
+#[cfg(test)]
+fn load_persisted_session_v2(root: &Path) -> Result<Option<SessionV2Baseline>, String> {
+    Ok(load_session_v2_baseline_status(root).0)
 }
 
 fn load_rules_config(root: &Path) -> Result<crate::metrics::rules::RulesConfig, String> {
@@ -196,6 +332,10 @@ fn load_v2_rules_config(root: &Path) -> (crate::metrics::rules::RulesConfig, Opt
         Ok(config) => (config, None),
         Err(error) => (empty_rules_config(), Some(error)),
     }
+}
+
+fn semantic_rules_loaded(config: &RulesConfig) -> bool {
+    !config.concept.is_empty() || !config.contract.is_empty() || !config.state_model.is_empty()
 }
 
 fn save_baseline(root: &Path, baseline: &arch::ArchBaseline) -> Result<std::path::PathBuf, String> {
@@ -236,15 +376,25 @@ fn current_session_v2_baseline(
     state: &mut McpState,
     root: &Path,
 ) -> Result<Option<SessionV2Baseline>, String> {
+    current_session_v2_baseline_with_status(state, root).map(|(baseline, _)| baseline)
+}
+
+fn current_session_v2_baseline_with_status(
+    state: &mut McpState,
+    root: &Path,
+) -> Result<(Option<SessionV2Baseline>, SessionBaselineStatus), String> {
     if let Some(session_v2) = &state.session_v2 {
-        return Ok(Some(session_v2.clone()));
+        return Ok((
+            Some(session_v2.clone()),
+            compatible_session_baseline_status(session_v2.schema_version),
+        ));
     }
 
-    let session_v2 = load_persisted_session_v2(root)?;
+    let (session_v2, status) = load_session_v2_baseline_status(root);
     if let Some(session_v2) = &session_v2 {
         state.session_v2 = Some(session_v2.clone());
     }
-    Ok(session_v2)
+    Ok((session_v2, status))
 }
 
 fn fresh_mcp_state() -> McpState {
@@ -855,6 +1005,7 @@ fn build_session_v2_baseline(
     root: &Path,
     snapshot: &Snapshot,
     health: &metrics::HealthReport,
+    metadata: &ScanMetadata,
 ) -> (SessionV2Baseline, SuppressionApplication, Option<String>) {
     let file_hashes = snapshot_file_hashes(root, snapshot);
     let git_head = current_git_head(root);
@@ -873,13 +1024,19 @@ fn build_session_v2_baseline(
         finding_values(&clone_payload.exact_findings, &semantic_findings),
     );
     let finding_payloads = finding_payload_map(&suppression_application.visible_findings);
+    let confidence = SessionV2ConfidenceSnapshot {
+        scan_confidence_0_10000: Some(scan_confidence_0_10000(metadata)),
+        rule_coverage_0_10000: Some(config.v2_rule_coverage().coverage_0_10000),
+    };
 
     (
         SessionV2Baseline {
+            schema_version: SESSION_V2_SCHEMA_VERSION,
             file_hashes,
             finding_payloads,
             git_head,
             working_tree_paths,
+            confidence,
         },
         suppression_application,
         merge_optional_errors(semantic_error, clone_error),
@@ -1238,7 +1395,7 @@ fn compute_touched_concept_gate(
     root: &Path,
     strict: bool,
 ) -> Result<Value, String> {
-    let session_v2 = current_session_v2_baseline(state, root)?;
+    let (session_v2, session_v2_status) = current_session_v2_baseline_with_status(state, root)?;
     let context = prepare_patch_check_context(state, root, session_v2.as_ref())?;
     let bundle = context.bundle;
     let changed_files = context.changed_files;
@@ -1324,8 +1481,13 @@ fn compute_touched_concept_gate(
         "No blocking touched-concept regressions detected"
     };
     let persisted_baseline = load_persisted_baseline(root).ok().flatten();
+    let legacy_baseline_delta = persisted_baseline
+        .as_ref()
+        .or(state.baseline.as_ref())
+        .map(|baseline| baseline.diff(&bundle.health));
     let preserved_semantic = state.cached_semantic.clone();
     let preserved_evolution = state.cached_evolution.clone();
+    let (rules_config, _) = load_v2_rules_config(root);
 
     let response = json!({
         "decision": decision,
@@ -1343,6 +1505,8 @@ fn compute_touched_concept_gate(
         "rules_error": rules_error,
         "semantic_error": semantic_error,
         "scan_trust": scan_trust_json(&bundle.metadata),
+        "confidence": build_v2_confidence_report(&bundle.metadata, &rules_config, session_v2_status),
+        "baseline_delta": legacy_baseline_delta_json(legacy_baseline_delta.as_ref()),
     });
 
     if !context.reused_cached_scan {
@@ -1368,10 +1532,16 @@ pub fn cli_save_v2_session(root: &Path) -> Result<Value, String> {
     let baseline = arch::ArchBaseline::from_health(&bundle.health);
     let signal = baseline.quality_signal;
     let baseline_path = save_baseline(root, &baseline)?;
-    let (session_v2, suppression_application, semantic_error) =
-        build_session_v2_baseline(&mut state, root, &bundle.snapshot, &bundle.health);
+    let (session_v2, suppression_application, semantic_error) = build_session_v2_baseline(
+        &mut state,
+        root,
+        &bundle.snapshot,
+        &bundle.health,
+        &bundle.metadata,
+    );
     let session_v2_baseline_path = save_session_v2_baseline(root, &session_v2)?;
     let session_finding_count = session_v2.finding_payloads.len();
+    let (rules_config, _) = load_v2_rules_config(root);
 
     Ok(json!({
         "status": "Baseline saved",
@@ -1383,6 +1553,11 @@ pub fn cli_save_v2_session(root: &Path) -> Result<Value, String> {
         "suppressed_finding_count": suppression_match_count(&suppression_application.active_matches),
         "expired_suppressions": suppression_application.expired_matches,
         "expired_suppression_match_count": suppression_match_count(&suppression_application.expired_matches),
+        "confidence": build_v2_confidence_report(
+            &bundle.metadata,
+            &rules_config,
+            compatible_session_baseline_status(SESSION_V2_SCHEMA_VERSION),
+        ),
         "semantic_error": semantic_error,
         "message": "Run 'sentrux gate' after making changes to evaluate touched-concept regressions"
     }))
@@ -1445,6 +1620,9 @@ fn handle_scan(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<Value
         Ok(baseline) => (baseline, None),
         Err(error) => (None, Some(error)),
     };
+    let (rules_config, rules_error) = load_v2_rules_config(&root);
+    let (_, session_v2_status) = load_session_v2_baseline_status(&root);
+    let confidence = build_v2_confidence_report(&bundle.metadata, &rules_config, session_v2_status);
 
     let result = json!({
         "scanned": path,
@@ -1453,9 +1631,11 @@ fn handle_scan(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<Value
         "lines": bundle.snapshot.total_lines,
         "import_edges": bundle.snapshot.import_graph.len(),
         "scan_trust": scan_trust_json(&bundle.metadata),
+        "confidence": confidence,
         "baseline_loaded": baseline.is_some(),
         "baseline_path": baseline_path,
         "baseline_error": baseline_error,
+        "rules_error": rules_error,
     });
 
     update_scan_cache(state, root, bundle, baseline, scan_identity);
@@ -1487,6 +1667,20 @@ fn handle_health(_args: &Value, tier: &Tier, state: &mut McpState) -> Result<Val
         .cached_scan_metadata
         .as_ref()
         .ok_or("No scan data. Call 'scan' first.")?;
+    let root = state
+        .scan_root
+        .clone()
+        .ok_or("No scan root. Call 'scan' first.")?;
+    let (baseline, baseline_error) = match state.baseline.clone() {
+        Some(baseline) => (Some(baseline), None),
+        None => match load_persisted_baseline(&root) {
+            Ok(baseline) => (baseline, None),
+            Err(error) => (None, Some(error)),
+        },
+    };
+    let baseline_delta = baseline.as_ref().map(|baseline| baseline.diff(h));
+    let (rules_config, rules_error) = load_v2_rules_config(&root);
+    let (_, session_v2_status) = load_session_v2_baseline_status(&root);
     let rc = &h.root_cause_scores;
     let raw = &h.root_cause_raw;
     // Identify the weakest root cause — this is where improvement effort should focus
@@ -1516,7 +1710,11 @@ fn handle_health(_args: &Value, tier: &Tier, state: &mut McpState) -> Result<Val
         },
         "total_import_edges": h.total_import_edges,
         "cross_module_edges": h.cross_module_edges,
-        "scan_trust": scan_trust_json(metadata)
+        "scan_trust": scan_trust_json(metadata),
+        "confidence": build_v2_confidence_report(metadata, &rules_config, session_v2_status),
+        "baseline_delta": legacy_baseline_delta_json(baseline_delta.as_ref()),
+        "baseline_error": baseline_error,
+        "rules_error": rules_error,
     });
 
     // Pro: root-cause-organized diagnostics. Tells AI WHERE to focus for each root cause.
@@ -2141,18 +2339,20 @@ mod tests {
         apply_suppressions, build_exact_clone_findings, build_session_v2_baseline,
         changed_files_from_session_context, cli_evaluate_v2_gate, cli_save_v2_session,
         distinct_file_count, do_scan, fresh_mcp_state, handle_concepts, handle_explain_concept,
-        handle_findings, handle_gate, handle_obligations, handle_scan, handle_session_end,
-        handle_session_start, handle_state, handle_trace_symbol, load_persisted_session_v2,
-        load_v2_rules_config, overall_confidence_0_10000, prepare_patch_check_context,
-        save_session_v2_baseline, state_model_ids_from_findings, state_model_ids_from_reports,
-        update_scan_cache,
+        handle_findings, handle_gate, handle_health, handle_obligations, handle_scan,
+        handle_session_end, handle_session_start, handle_state, handle_trace_symbol,
+        load_persisted_session_v2, load_session_v2_baseline_status, load_v2_rules_config,
+        overall_confidence_0_10000, prepare_patch_check_context, save_session_v2_baseline,
+        state_model_ids_from_findings, state_model_ids_from_reports, update_scan_cache,
     };
     use crate::analysis::scanner::common::{ScanMetadata, ScanMode};
     use crate::analysis::semantic::{
         ClosedDomain, ExhaustivenessSite, ProjectModel, ReadFact, SemanticCapability,
         SemanticSnapshot, SymbolFact, WriteFact,
     };
-    use crate::app::mcp_server::{McpState, SessionV2Baseline};
+    use crate::app::mcp_server::{
+        McpState, SessionV2Baseline, SessionV2ConfidenceSnapshot, SESSION_V2_SCHEMA_VERSION,
+    };
     use crate::license::Tier;
     use crate::metrics::evo::{
         AuthorInfo, CouplingPair, EvolutionReport, FileChurn, TemporalHotspot,
@@ -2940,6 +3140,7 @@ mod tests {
     fn session_v2_baseline_roundtrips_on_disk() {
         let root = temp_root("session-v2-roundtrip");
         let baseline = SessionV2Baseline {
+            schema_version: SESSION_V2_SCHEMA_VERSION,
             file_hashes: BTreeMap::from([
                 ("src/a.ts".to_string(), 11),
                 ("src/b.ts".to_string(), 22),
@@ -2950,6 +3151,10 @@ mod tests {
             )]),
             git_head: Some("abc123".to_string()),
             working_tree_paths: BTreeSet::from(["src/a.ts".to_string()]),
+            confidence: SessionV2ConfidenceSnapshot {
+                scan_confidence_0_10000: Some(8100),
+                rule_coverage_0_10000: Some(7500),
+            },
         };
 
         let path = save_session_v2_baseline(&root, &baseline).expect("save session baseline");
@@ -2962,6 +3167,11 @@ mod tests {
         assert_eq!(loaded.finding_payloads, baseline.finding_payloads);
         assert_eq!(loaded.git_head, baseline.git_head);
         assert_eq!(loaded.working_tree_paths, baseline.working_tree_paths);
+        assert_eq!(loaded.schema_version, SESSION_V2_SCHEMA_VERSION);
+        assert_eq!(
+            loaded.confidence.scan_confidence_0_10000,
+            baseline.confidence.scan_confidence_0_10000
+        );
 
         let _ = std::fs::remove_dir_all(root);
     }
@@ -2974,9 +3184,129 @@ mod tests {
         }))
         .expect("deserialize legacy session baseline");
 
+        assert_eq!(baseline.schema_version, 1);
         assert_eq!(baseline.file_hashes["src/a.ts"], 11);
         assert!(baseline.git_head.is_none());
         assert!(baseline.working_tree_paths.is_empty());
+        assert!(baseline.confidence.scan_confidence_0_10000.is_none());
+    }
+
+    #[test]
+    fn session_v2_status_rejects_unsupported_schema_versions() {
+        let root = temp_root("session-v2-schema");
+        write_file(
+            &root,
+            ".sentrux/session-v2.json",
+            &serde_json::to_string_pretty(&json!({
+                "schema_version": SESSION_V2_SCHEMA_VERSION + 1,
+                "file_hashes": { "src/a.ts": 11 },
+                "finding_payloads": {}
+            }))
+            .expect("serialize"),
+        );
+
+        let (baseline, status) = load_session_v2_baseline_status(&root);
+
+        assert!(baseline.is_none());
+        assert!(status.loaded);
+        assert!(!status.compatible);
+        assert_eq!(status.schema_version, Some(SESSION_V2_SCHEMA_VERSION + 1));
+        assert!(status
+            .error
+            .as_deref()
+            .unwrap_or_default()
+            .contains("Unsupported"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn malformed_session_v2_baseline_degrades_gracefully() {
+        let root = closed_domain_gate_fixture_root();
+        write_file(&root, ".sentrux/session-v2.json", "{ invalid json");
+
+        let mut state = fresh_mcp_state();
+        handle_scan(
+            &json!({"path": root.to_string_lossy().to_string()}),
+            &Tier::Free,
+            &mut state,
+        )
+        .expect("scan fixture");
+
+        let health = handle_health(&json!({}), &Tier::Free, &mut state).expect("health");
+        let gate = handle_gate(&json!({}), &Tier::Free, &mut state).expect("gate");
+
+        assert!(health["confidence"]["session_baseline"]["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("Failed to parse"));
+        assert_eq!(gate["decision"], "pass");
+        assert!(gate["confidence"]["session_baseline"]["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("Failed to parse"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn health_surfaces_legacy_baseline_delta_and_v2_confidence() {
+        let root = closed_domain_gate_fixture_root();
+        let mut state = fresh_mcp_state();
+        handle_scan(
+            &json!({"path": root.to_string_lossy().to_string()}),
+            &Tier::Free,
+            &mut state,
+        )
+        .expect("scan fixture");
+        handle_session_start(&json!({}), &Tier::Free, &mut state).expect("session start");
+
+        let response = handle_health(&json!({}), &Tier::Free, &mut state).expect("health");
+
+        assert_eq!(response["baseline_delta"]["available"], true);
+        assert!(
+            response["confidence"]["scan_confidence_0_10000"]
+                .as_u64()
+                .unwrap_or_default()
+                > 0
+        );
+        assert_eq!(
+            response["confidence"]["session_baseline"]["schema_version"],
+            SESSION_V2_SCHEMA_VERSION
+        );
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn gate_reports_incompatible_session_v2_baseline_in_confidence() {
+        let root = closed_domain_gate_fixture_root();
+        write_file(
+            &root,
+            ".sentrux/session-v2.json",
+            &serde_json::to_string_pretty(&json!({
+                "schema_version": SESSION_V2_SCHEMA_VERSION + 1,
+                "file_hashes": {},
+                "finding_payloads": {}
+            }))
+            .expect("serialize"),
+        );
+
+        let evaluated = cli_evaluate_v2_gate(&root, false).expect("evaluate v2 gate");
+
+        assert_eq!(evaluated["decision"], "pass");
+        assert_eq!(
+            evaluated["confidence"]["session_baseline"]["compatible"],
+            false
+        );
+        assert_eq!(
+            evaluated["confidence"]["session_baseline"]["schema_version"],
+            SESSION_V2_SCHEMA_VERSION + 1
+        );
+        assert!(evaluated["confidence"]["session_baseline"]["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("Unsupported"));
     }
 
     #[test]
@@ -2992,6 +3322,7 @@ mod tests {
             &root,
             &baseline_scan.snapshot,
             &baseline_scan.health,
+            &baseline_scan.metadata,
         );
 
         run_git(
@@ -3052,8 +3383,13 @@ mod tests {
 
         let mut state = fresh_mcp_state();
         let dirty_scan = do_scan(&root).expect("scan dirty baseline");
-        let (session_v2, _, _) =
-            build_session_v2_baseline(&mut state, &root, &dirty_scan.snapshot, &dirty_scan.health);
+        let (session_v2, _, _) = build_session_v2_baseline(
+            &mut state,
+            &root,
+            &dirty_scan.snapshot,
+            &dirty_scan.health,
+            &dirty_scan.metadata,
+        );
 
         write_file(
             &root,
@@ -3771,11 +4107,17 @@ fn handle_session_start(
         .scan_root
         .clone()
         .ok_or("No scan root. Call 'scan' first.")?;
+    let metadata = state
+        .cached_scan_metadata
+        .as_ref()
+        .cloned()
+        .ok_or("No scan data. Call 'scan' first.")?;
     let baseline = arch::ArchBaseline::from_health(&health);
     let signal = baseline.quality_signal;
     let baseline_path = save_baseline(&root, &baseline)?;
     let (session_v2, suppression_application, semantic_error) =
-        build_session_v2_baseline(state, &root, &snapshot, &health);
+        build_session_v2_baseline(state, &root, &snapshot, &health, &metadata);
+    let (rules_config, _) = load_v2_rules_config(&root);
 
     state.baseline = Some(baseline);
     let session_v2_baseline_path = save_session_v2_baseline(&root, &session_v2)?;
@@ -3791,6 +4133,11 @@ fn handle_session_start(
         "suppressed_finding_count": suppression_match_count(&suppression_application.active_matches),
         "expired_suppressions": suppression_application.expired_matches,
         "expired_suppression_match_count": suppression_match_count(&suppression_application.expired_matches),
+        "confidence": build_v2_confidence_report(
+            &metadata,
+            &rules_config,
+            compatible_session_baseline_status(SESSION_V2_SCHEMA_VERSION),
+        ),
         "semantic_error": semantic_error,
         "message": "Call 'session_end' after making changes to see the diff"
     }))
@@ -3817,7 +4164,7 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         .scan_root
         .clone()
         .ok_or("No scan root. Call 'scan' first.")?;
-    let session_v2 = current_session_v2_baseline(state, &root)?;
+    let (session_v2, session_v2_status) = current_session_v2_baseline_with_status(state, &root)?;
     let (baseline, mut baseline_error) = match state.baseline.clone() {
         Some(baseline) => (Some(baseline), None),
         None => match load_persisted_baseline(&root) {
@@ -3919,6 +4266,7 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         changed_scope.semantic_error.or(all_semantic_error),
         clone_error,
     );
+    let (rules_config, _) = load_v2_rules_config(&root);
     if baseline.is_none() && baseline_error.is_none() {
         baseline_error =
             Some("Legacy baseline unavailable; structural delta fields were omitted".to_string());
@@ -3979,6 +4327,8 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         "expired_suppression_match_count": suppression_match_count(&suppression_application.expired_matches),
         "rules_error": rules_error,
         "scan_trust": scan_trust_json(&bundle.metadata),
+        "confidence": build_v2_confidence_report(&bundle.metadata, &rules_config, session_v2_status),
+        "baseline_delta": legacy_baseline_delta_json(legacy_diff.as_ref()),
         "semantic_error": semantic_error,
         "baseline_error": baseline_error
     });
