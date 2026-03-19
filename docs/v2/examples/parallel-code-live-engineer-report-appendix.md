@@ -24,74 +24,64 @@ Scope caveat:
 
 Current scan:
 
-- scanned files: `604`
-- scanned lines: `136,558`
-- kept files from git candidate set: `604 / 738`
+- scanned files: `622`
+- scanned lines: `137959`
+- kept files from git candidate set: `622 / 756`
 - excluded files: `134`
 - excluded buckets:
-  - vendor: `102`
   - build: `12`
+  - cache: `0`
   - fixture: `7`
-  - ignored extension: `11`
-  - too large: `2`
-- resolved imports: `1,798`
+  - generated: `0`
+  - vendor: `102`
+- resolved imports: `1871`
 - unresolved internal imports: `1`
-- unresolved external imports: `491`
-- unresolved unknown imports: `75`
-- scan confidence: `8184 / 10000`
+- unresolved external imports: `508`
+- unresolved unknown imports: `79`
+- scan confidence: `8228 / 10000`
 - rule coverage: `10000 / 10000`
 - semantic rules loaded: `true`
 - session baseline loaded in `findings`: `false`
 
 ## Top Trusted Findings
 
-### [browser-control-plane.ts](<parallel-code-root>/server/browser-control-plane.ts)
+### ConnectionBannerState
 
 - `trusted`
-- `large_file`
-- summary: `File 'server/browser-control-plane.ts' is 1054 lines, above the typescript threshold of 500`
+- `closed_domain_exhaustiveness`
+- summary: `Closed domain 'ConnectionBannerState' is missing coverage for variants: connecting, reconnecting, restoring`
 - evidence:
-  - line count: `1054`
-  - threshold: `500`
-  - function count: `74`
-  - peak complexity: `102`
-  - outbound dependencies: `12`
-- candidate split axes:
-  - `electron dependency boundary`
-  - `domain dependency boundary`
-  - `server dependency boundary`
-  - `high-complexity helper extraction`
-  - `private helper surface split`
-
-### [terminal-session.ts](<parallel-code-root>/src/components/terminal-view/terminal-session.ts)
-
-- `trusted`
-- `large_file`
-- summary: `File 'src/components/terminal-view/terminal-session.ts' is 1856 lines, above the typescript threshold of 500`
-- evidence:
-  - line count: `1856`
-  - threshold: `500`
-  - function count: `92`
-  - peak complexity: `350`
-  - outbound dependencies: `25`
+  - evidence count: `1`
+  - file count: `2`
+  - src/components/app-shell/AppConnectionBanner.tsx [missing variants: connecting, reconnecting, restoring]
 - related surfaces:
-  - [channels.ts](<parallel-code-root>/electron/ipc/channels.ts)
-  - [task-command-lease.ts](<parallel-code-root>/src/app/task-command-lease.ts)
-  - [terminal-output-scheduler.ts](<parallel-code-root>/src/app/terminal-output-scheduler.ts)
+  - [AppConnectionBanner.tsx](<parallel-code-root>/src/components/app-shell/AppConnectionBanner.tsx)
+  - [browser-session.ts](<parallel-code-root>/src/runtime/browser-session.ts)
 
 ### [App.tsx](<parallel-code-root>/src/App.tsx)
 
 - `trusted`
 - `dependency_sprawl`
-- summary: `File 'src/App.tsx' depends on 28 real surfaces, above the typescript threshold of 15`
+- summary: `Composition root 'src/App.tsx' depends on 32 real surfaces, above the typescript threshold of 15`
 - evidence:
-  - fan-out: `28`
-  - instability: `0.97`
-  - dominant categories: `components(12), lib(5), app(3)`
-  - sample dependencies:
-    - [app-action-keys.ts](<parallel-code-root>/src/app/app-action-keys.ts)
-    - [desktop-session.ts](<parallel-code-root>/src/app/desktop-session.ts)
-    - [task-command-lease.ts](<parallel-code-root>/src/app/task-command-lease.ts)
+  - role tags: `guarded_seam, composition_root`
+  - evidence count: `6`
+  - file count: `1`
+  - fan-out: 32
+  - fan-out threshold: 15
+  - instability: 0.97
+  - dominant dependency categories: components(16), lib(5), app(3)
+  - sample dependencies: src/app/app-action-keys.ts, src/app/desktop-session.ts, src/app/task-command-lease.ts
+  - guardrail tests: src/app/store-boundary.architecture.test.ts
+- candidate split axes:
+  - `components dependency boundary`
+  - `lib dependency boundary`
+  - `app dependency boundary`
+- related surfaces:
+  - [app-action-keys.ts](<parallel-code-root>/src/app/app-action-keys.ts)
+  - [desktop-session.ts](<parallel-code-root>/src/app/desktop-session.ts)
+  - [task-command-lease.ts](<parallel-code-root>/src/app/task-command-lease.ts)
+  - [store-boundary.architecture.test.ts](<parallel-code-root>/src/app/store-boundary.architecture.test.ts)
 
 ### [TaskPanel.tsx](<parallel-code-root>/src/components/TaskPanel.tsx)
 
@@ -99,101 +89,134 @@ Current scan:
 - `dependency_sprawl`
 - summary: `File 'src/components/TaskPanel.tsx' depends on 28 real surfaces, above the typescript threshold of 15`
 - evidence:
-  - fan-out: `28`
-  - instability: `0.93`
-  - dominant categories: `components(17), lib(4), store(3)`
-  - sample dependencies:
-    - [task-ports.ts](<parallel-code-root>/src/app/task-ports.ts)
-    - [CloseTaskDialog.tsx](<parallel-code-root>/src/components/CloseTaskDialog.tsx)
-    - [DiffViewerDialog.tsx](<parallel-code-root>/src/components/DiffViewerDialog.tsx)
+  - role tags: `guarded_seam, facade_with_extracted_owners`
+  - evidence count: `7`
+  - file count: `1`
+  - fan-out: 28
+  - fan-out threshold: 15
+  - instability: 0.93
+  - dominant dependency categories: components(19), lib(4), store(3)
+  - sample dependencies: src/app/task-ports.ts, src/components/CloseTaskDialog.tsx, src/components/DiffViewerDialog.tsx
+  - guardrail tests: src/components/TaskPanel.architecture.test.ts
+  - extracted owner factories: createTaskPanelFocusRuntime, createTaskPanelPreviewController, createTaskPanelDialogState
+- candidate split axes:
+  - `components dependency boundary`
+  - `lib dependency boundary`
+  - `store dependency boundary`
+- related surfaces:
+  - [task-ports.ts](<parallel-code-root>/src/app/task-ports.ts)
+  - [CloseTaskDialog.tsx](<parallel-code-root>/src/components/CloseTaskDialog.tsx)
+  - [DiffViewerDialog.tsx](<parallel-code-root>/src/components/DiffViewerDialog.tsx)
+  - [TaskPanel.architecture.test.ts](<parallel-code-root>/src/components/TaskPanel.architecture.test.ts)
 
 ### [store.ts](<parallel-code-root>/src/store/store.ts)
 
 - `trusted`
 - `unstable_hotspot`
-- summary: `File 'src/store/store.ts' has 56 inbound references and remains unstable`
+- summary: `Component-facing barrel 'src/store/store.ts' has 47 inbound references and remains unstable`
 - evidence:
-  - fan-in: `56`
-  - fan-out: `20`
-  - instability: `0.26`
-  - dominant dependent categories: `components(34), store(11), runtime(5)`
-  - sample dependents:
-    - [App.tsx](<parallel-code-root>/src/App.tsx)
-    - [desktop-browser-runtime.ts](<parallel-code-root>/src/app/desktop-browser-runtime.ts)
-    - [desktop-session-startup.ts](<parallel-code-root>/src/app/desktop-session-startup.ts)
+  - role tags: `guarded_seam, guarded_boundary, component_barrel`
+  - evidence count: `8`
+  - file count: `1`
+  - fan-in: 47
+  - hotspot threshold: 20
+  - fan-out: 20
+  - instability: 0.30
+  - dominant dependent categories: components(33), store(11), arena(2)
+  - sample dependents: src/App.tsx, src/arena/ConfigScreen.tsx, src/arena/ResultsScreen.tsx
+  - guardrail tests: src/app/store-boundary.architecture.test.ts, src/components/TaskPanel.architecture.test.ts
+  - guarded boundary literals: store/core, store/store, store.taskCommandControllers, store.focusedPanel[, setTaskFocusedPanel
+- candidate split axes:
+  - `components caller boundary`
+  - `store caller boundary`
+  - `store dependency boundary`
+- related surfaces:
+  - [App.tsx](<parallel-code-root>/src/App.tsx)
+  - [ConfigScreen.tsx](<parallel-code-root>/src/arena/ConfigScreen.tsx)
+  - [ResultsScreen.tsx](<parallel-code-root>/src/arena/ResultsScreen.tsx)
+  - [store-boundary.architecture.test.ts](<parallel-code-root>/src/app/store-boundary.architecture.test.ts)
+  - [TaskPanel.architecture.test.ts](<parallel-code-root>/src/components/TaskPanel.architecture.test.ts)
+
+### [session-stress.mjs](<parallel-code-root>/scripts/session-stress.mjs)
+
+- `trusted`
+- `large_file`
+- summary: `File 'scripts/session-stress.mjs' is 2048 lines, above the javascript threshold of 500`
+- evidence:
+  - role tags: `entry_surface`
+  - evidence count: `5`
+  - file count: `1`
+  - line count: 2048
+  - large-file threshold: 500
+  - function count: 91
+  - peak function complexity: 26
+  - outbound dependencies: 2
+- candidate split axes:
+  - `scripts dependency boundary`
+  - `entry surface split`
+  - `private helper surface split`
+- related surfaces:
+  - [browser-server-client.mjs](<parallel-code-root>/scripts/browser-server-client.mjs)
+  - [session-stress-profiles.mjs](<parallel-code-root>/scripts/session-stress-profiles.mjs)
+
+### [ipc.ts](<parallel-code-root>/src/lib/ipc.ts)
+
+- `trusted`
+- `unstable_hotspot`
+- summary: `File 'src/lib/ipc.ts' has 66 inbound references and remains unstable`
+- evidence:
+  - evidence count: `6`
+  - file count: `1`
+  - fan-in: 66
+  - hotspot threshold: 20
+  - fan-out: 12
+  - instability: 0.15
+  - dominant dependent categories: app(18), components(13), store(13)
+  - sample dependents: src/App.tsx, src/app/agent-catalog.ts, src/app/desktop-session-startup.ts
+- candidate split axes:
+  - `app caller boundary`
+  - `components caller boundary`
+  - `lib dependency boundary`
+- related surfaces:
+  - [App.tsx](<parallel-code-root>/src/App.tsx)
+  - [agent-catalog.ts](<parallel-code-root>/src/app/agent-catalog.ts)
+  - [desktop-session-startup.ts](<parallel-code-root>/src/app/desktop-session-startup.ts)
 
 ## Top Watchpoints
 
-### Store/app cycle cluster
+### cycle:src/app/agent-catalog.ts|src/app/remote-access.ts|src/app/task-attention.ts|src/app/task-close-state.ts|src/app/task-command-dispatch.ts|src/app/task-command-lease-runtime-subscriptions.ts|src/app/task-command-lease-runtime.ts|src/app/task-command-lease-session.ts|src/app/task-command-lease-takeover.ts|src/app/task-command-lease.ts|src/app/task-convergence.ts|src/app/task-lifecycle-workflows.ts|src/app/task-presentation-status.ts|src/app/task-prompt-workflows.ts|src/app/task-review-state.ts|src/app/task-shell-workflows.ts|src/app/task-workflows.ts|src/lib/runtime-client-id.ts|src/store/agent-output-activity.ts|src/store/agents.ts|src/store/auto-trust.ts|src/store/client-session.ts|src/store/completion.ts|src/store/core.ts|src/store/focus.ts|src/store/keyed-snapshot-record.ts|src/store/navigation.ts|src/store/notification.ts|src/store/peer-presence.ts|src/store/persistence-codecs.ts|src/store/persistence-load-context.ts|src/store/persistence-load.ts|src/store/persistence-projects.ts|src/store/persistence-save.ts|src/store/persistence-terminal-restore.ts|src/store/persistence.ts|src/store/projects.ts|src/store/remote.ts|src/store/review.ts|src/store/state.ts|src/store/store.ts|src/store/task-command-controllers.ts|src/store/task-command-takeovers.ts|src/store/task-git-status.ts|src/store/task-state-cleanup.ts|src/store/taskStatus.ts|src/store/tasks.ts|src/store/terminals.ts|src/store/ui.ts
 
 - `watchpoint`
 - `cycle_cluster`
-- cycle size: `49`
-- total lines in cycle: `6750`
-- peak complexity inside cycle: `71`
-- candidate cuts: `3`
-- best cut summary:
-  - `src/store/tasks.ts -> src/app/task-workflows.ts`
-  - seam kind: `app_store_boundary`
-  - cyclic files removed by cut: `10`
+- summary: `Files src/app/agent-catalog.ts, src/app/remote-access.ts, src/app/task-attention.ts, src/app/task-close-state.ts, src/app/task-command-dispatch.ts, src/app/task-command-lease-runtime-subscriptions.ts, src/app/task-command-lease-runtime.ts, src/app/task-command-lease-session.ts, src/app/task-command-lease-takeover.ts, src/app/task-command-lease.ts, src/app/task-convergence.ts, src/app/task-lifecycle-workflows.ts, src/app/task-presentation-status.ts, src/app/task-prompt-workflows.ts, src/app/task-review-state.ts, src/app/task-shell-workflows.ts, src/app/task-workflows.ts, src/lib/runtime-client-id.ts, src/store/agent-output-activity.ts, src/store/agents.ts, src/store/auto-trust.ts, src/store/client-session.ts, src/store/completion.ts, src/store/core.ts, src/store/focus.ts, src/store/keyed-snapshot-record.ts, src/store/navigation.ts, src/store/notification.ts, src/store/peer-presence.ts, src/store/persistence-codecs.ts, src/store/persistence-load-context.ts, src/store/persistence-load.ts, src/store/persistence-projects.ts, src/store/persistence-save.ts, src/store/persistence-terminal-restore.ts, src/store/persistence.ts, src/store/projects.ts, src/store/remote.ts, src/store/review.ts, src/store/state.ts, src/store/store.ts, src/store/task-command-controllers.ts, src/store/task-command-takeovers.ts, src/store/task-git-status.ts, src/store/task-state-cleanup.ts, src/store/taskStatus.ts, src/store/tasks.ts, src/store/terminals.ts, src/store/ui.ts form a dependency cycle`
 
-Other cut candidates:
+### clone-family-0x7e50d49dc16ef925
 
-1. [core.ts](<parallel-code-root>/src/store/core.ts) -> [store.ts](<parallel-code-root>/src/store/store.ts)
-   - seam kind: `local_module_split`
-   - reduction: `13`
-2. [state.ts](<parallel-code-root>/src/store/state.ts) -> [core.ts](<parallel-code-root>/src/store/core.ts)
-   - seam kind: `contract_or_type_extraction`
-   - reduction: `7`
+- `watchpoint`
+- `clone_family`
+- summary: `4 exact clone groups repeat across 2 files and churn differs by 0 recent commit(s) across siblings; sibling file age spans 1 day(s)`
 
-### Clone watchpoints
+### clone-family-0x9ebb8dad5cafb9c0
 
-1. [AgentGlyph.tsx](<parallel-code-root>/src/components/AgentGlyph.tsx) / [RemoteAgentGlyph.tsx](<parallel-code-root>/src/remote/RemoteAgentGlyph.tsx)
-   - `watchpoint`
-   - `clone_family`
-   - exact clone groups: `4`
+- `watchpoint`
+- `clone_family`
+- summary: `4 exact clone groups repeat across 2 files and churn differs by 3 recent commit(s) across siblings; sibling file age spans 0 day(s)`
 
-2. [ws-server.ts](<parallel-code-root>/electron/remote/ws-server.ts) / [browser-websocket.ts](<parallel-code-root>/server/browser-websocket.ts)
-   - `watchpoint`
-   - `clone_family`
-   - exact clone groups: `4`
-   - churn gap: `3`
+### server/browser-channels.ts
 
-3. medium hotspot watchpoints:
-   - [browser-channels.ts](<parallel-code-root>/server/browser-channels.ts)
-   - [browser-http-ipc.ts](<parallel-code-root>/src/lib/browser-http-ipc.ts)
+- `watchpoint`
+- `hotspot`
+- summary: `File 'server/browser-channels.ts' is carrying coordination hotspot pressure`
+
+### src/lib/browser-http-ipc.ts
+
+- `watchpoint`
+- `hotspot`
+- summary: `File 'src/lib/browser-http-ipc.ts' is carrying coordination hotspot pressure`
 
 ## Trusted Debt Clusters
 
-### Cluster 1
-
-- summary: `Files src/App.tsx, src/remote/App.tsx, src/runtime/browser-session.ts intersect 4 debt signals: dependency_sprawl, clone_family, large_file, concept`
-- trust tier: `trusted`
-- signal kinds:
-  - `dependency_sprawl`
-  - `clone_family`
-  - `large_file`
-  - `concept`
-
-### Cluster 2
-
-- summary: `Files server/browser-control-plane.ts, electron/remote/server.ts, electron/remote/ws-transport.test.ts, and 1 more intersect 3 debt signals: large_file, clone_family, hotspot`
-- trust tier: `trusted`
-- signal kinds:
-  - `large_file`
-  - `clone_family`
-  - `hotspot`
-
-### Cluster 3
-
-- summary: `File 'src/components/terminal-view/terminal-session.ts' intersects 3 debt signals: large_file, dependency_sprawl, hotspot`
-- trust tier: `trusted`
-- signal kinds:
-  - `large_file`
-  - `dependency_sprawl`
-  - `hotspot`
-
-### Cluster 4
+### cluster:src/store/store.ts|src/app/agent-catalog.ts|src/app/remote-access.ts|src/app/task-attention.ts|src/app/task-close-state.ts|src/app/task-command-dispatch.ts|src/app/task-command-lease-runtime-subscriptions.ts|src/app/task-command-lease-runtime.ts|src/app/task-command-lease-session.ts|src/app/task-command-lease-takeover.ts|src/app/task-command-lease.ts|src/app/task-convergence.ts|src/app/task-lifecycle-workflows.ts|src/app/task-presentation-status.ts|src/app/task-prompt-workflows.ts|src/app/task-review-state.ts|src/app/task-shell-workflows.ts|src/app/task-workflows.ts|src/lib/runtime-client-id.ts|src/store/agent-output-activity.ts|src/store/agents.ts|src/store/auto-trust.ts|src/store/client-session.ts|src/store/completion.ts|src/store/core.ts|src/store/focus.ts|src/store/keyed-snapshot-record.ts|src/store/navigation.ts|src/store/notification.ts|src/store/peer-presence.ts|src/store/persistence-codecs.ts|src/store/persistence-load-context.ts|src/store/persistence-load.ts|src/store/persistence-projects.ts|src/store/persistence-save.ts|src/store/persistence-terminal-restore.ts|src/store/persistence.ts|src/store/projects.ts|src/store/remote.ts|src/store/review.ts|src/store/state.ts|src/store/task-command-controllers.ts|src/store/task-command-takeovers.ts|src/store/task-git-status.ts|src/store/task-state-cleanup.ts|src/store/taskStatus.ts|src/store/tasks.ts|src/store/terminals.ts|src/store/ui.ts
 
 - summary: `Files src/store/store.ts, src/app/agent-catalog.ts, src/app/remote-access.ts, and 46 more intersect 9 debt signals: unstable_hotspot, cycle_cluster, hotspot, dependency_sprawl`
 - trust tier: `trusted`
@@ -203,25 +226,44 @@ Other cut candidates:
   - `hotspot`
   - `dependency_sprawl`
 
-### Cluster 5
+### cluster:src/App.tsx|src/remote/App.tsx
 
-- summary: `File 'src/components/TaskPanel.tsx' intersects 3 debt signals: dependency_sprawl, hotspot, large_file`
+- summary: `Files src/App.tsx, src/remote/App.tsx intersect 2 debt signals: dependency_sprawl, clone_family`
 - trust tier: `trusted`
 - signal kinds:
   - `dependency_sprawl`
+  - `clone_family`
+
+### cluster:src/components/terminal-view/terminal-session.ts
+
+- summary: `File 'src/components/terminal-view/terminal-session.ts' intersects 3 debt signals: hotspot, large_file, dependency_sprawl`
+- trust tier: `trusted`
+- signal kinds:
+  - `hotspot`
+  - `large_file`
+  - `dependency_sprawl`
+
+### cluster:src/components/PromptInput.tsx
+
+- summary: `File 'src/components/PromptInput.tsx' intersects 2 debt signals: hotspot, large_file`
+- trust tier: `trusted`
+- signal kinds:
   - `hotspot`
   - `large_file`
 
-Important note:
+### cluster:scripts/session-stress.mjs
 
-- the refreshed clusters no longer include `dead_private_code_cluster`
-- that detector is now confined to the experimental side channel
+- summary: `File 'scripts/session-stress.mjs' intersects 2 debt signals: large_file, hotspot`
+- trust tier: `trusted`
+- signal kinds:
+  - `large_file`
+  - `hotspot`
 
 ## Experimental Side Channel
 
 Current experimental counts:
 
-- experimental findings: `12`
+- experimental findings: `10`
 - experimental debt signals: `5`
 
 Representative examples:
@@ -239,33 +281,18 @@ Current rule:
 
 ## Configured Concepts And Current State
 
-### `task_git_status`
+### `ConnectionBannerState`
 
-- findings: `0`
-- obligations: `0`
+- score: `3100 / 10000`
+- missing update sites: `0`
+- boundary pressure count: `0`
+- dominant finding kinds: `closed_domain_exhaustiveness`
+- summary: Concept 'ConnectionBannerState' has 1 high-severity ownership or access findings
 
 ### `task_presentation_status`
 
-- findings: `1`
-- obligations: `1`
-- finding kind: `closed_domain_exhaustiveness`
-- missing site path:
-  [task-presentation-status.ts](<parallel-code-root>/src/app/task-presentation-status.ts)
-
-### `server_state_bootstrap`
-
-- findings: `0`
-- obligations: `0`
-- parity score: `10000 / 10000`
-- state integrity score: `10000 / 10000`
-
-## Session-End Pass State
-
-Current clean pass-state session:
-
-- `pass: true`
-- introduced findings: `0`
-- experimental findings: `0`
-- debt signals: `5`
-- watchpoints: `1`
-- summary: `Quality stable or improved`
+- score: `1680 / 10000`
+- missing update sites: `1`
+- boundary pressure count: `0`
+- dominant finding kinds: `closed_domain_exhaustiveness`
+- summary: Concept 'task_presentation_status' spans 1 obligation reports with 1 missing update sites

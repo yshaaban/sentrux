@@ -151,7 +151,17 @@
     {
       "matched_concepts": [],
       "matched_symbols": [],
+      "path": "src/components/TaskPanel.architecture.test.ts"
+    },
+    {
+      "matched_concepts": [],
+      "matched_symbols": [],
       "path": "src/components/review-surfaces.architecture.test.ts"
+    },
+    {
+      "matched_concepts": [],
+      "matched_symbols": [],
+      "path": "src/components/terminal-view/terminal-session.architecture.test.ts"
     }
   ],
   "inferred_concepts": [
@@ -1026,7 +1036,7 @@
     },
     {
       "anchors": [
-        "server/browser-control-plane.ts::TaskCommandTakeoverDecision"
+        "server/browser-task-command-takeovers.ts::TaskCommandTakeoverDecision"
       ],
       "confidence_0_10000": 7000,
       "evidence": [
@@ -1478,7 +1488,7 @@
   "summary": {
     "configured_concept_count": 3,
     "contract_count": 1,
-    "guardrail_test_count": 5,
+    "guardrail_test_count": 7,
     "inferred_concept_count": 116,
     "matched_guardrail_test_count": 1,
     "state_model_count": 2

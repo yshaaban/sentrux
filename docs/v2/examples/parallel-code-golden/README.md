@@ -57,6 +57,21 @@ Those are not reasons to hide the outputs. They are reasons to keep them version
 ./scripts/refresh_parallel_code_goldens.sh
 ```
 
+The refreshed metadata now records the source tree identity and freshness details:
+
+- commit
+- dirty path count and dirty path list
+- tree fingerprint
+- analysis mode
+
+## Live Report Command
+
+```bash
+node scripts/generate_parallel_code_live_engineer_report.mjs
+```
+
+This command refuses stale goldens by default. Use `--allow-stale-goldens` only when you are intentionally inspecting an older captured baseline.
+
 ## Validation Command
 
 Use the one-command validation loop to compare fresh outputs against the checked-in goldens:
@@ -76,6 +91,7 @@ Optional environment overrides:
 - `PARALLEL_CODE_ROOT=/path/to/parallel-code`
 - `OUTPUT_DIR=/custom/output/dir`
 - `SENTRUX_BIN=/path/to/sentrux`
+- `ALLOW_STALE_GOLDENS=1` for the live report generator
 
 ## Stability Note
 

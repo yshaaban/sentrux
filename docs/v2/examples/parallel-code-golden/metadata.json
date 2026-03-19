@@ -1,11 +1,43 @@
 {
-  "generated_at": "2026-03-19T17:32:23Z",
+  "generated_at": "2026-03-19T19:05:31Z",
   "parallel_code_root": "<parallel-code-root>",
-  "analysis_mode": "temporary_local_clone",
+  "analysis_mode": "working_tree",
+  "source_tree_identity": {
+    "commit": "cf21f8733a9d800ec2a41239500e01e01ab8cc4b",
+    "dirty_paths": [
+      "docs/UPSTREAM-DIVERGENCE.md",
+      "docs/UPSTREAM-CATCHUP-2026-03-19.md"
+    ],
+    "dirty_paths_count": 2,
+    "dirty_paths_fingerprint": "f1d370a4de031e83ee00b998f24ac88ff9f4d1338a336da4d92f7dd165c14541",
+    "tree_fingerprint": "3c54adb61f586d027b231a19a49fe87cc64be8957098769c0447c353883d26fa",
+    "analysis_mode": "working_tree"
+  },
+  "analyzed_tree_identity": {
+    "commit": "cf21f8733a9d800ec2a41239500e01e01ab8cc4b",
+    "dirty_paths": [
+      "docs/UPSTREAM-DIVERGENCE.md",
+      "docs/UPSTREAM-CATCHUP-2026-03-19.md"
+    ],
+    "dirty_paths_count": 2,
+    "dirty_paths_fingerprint": "f1d370a4de031e83ee00b998f24ac88ff9f4d1338a336da4d92f7dd165c14541",
+    "tree_fingerprint": "3c54adb61f586d027b231a19a49fe87cc64be8957098769c0447c353883d26fa",
+    "analysis_mode": "working_tree"
+  },
   "regression_mutation": {
     "path": "src/components/SidebarTaskRow.tsx",
     "change": "store.taskGitStatus = store.taskGitStatus"
   },
   "rules_source": "<sentrux-root>/docs/v2/examples/parallel-code.rules.toml",
-  "sentrux_binary": "<sentrux-root>/target/debug/sentrux"
+  "sentrux_binary": "<sentrux-root>/target/debug/sentrux",
+  "rules_identity": {
+    "path": "<sentrux-root>/docs/v2/examples/parallel-code.rules.toml",
+    "exists": true,
+    "sha256": "548daed030bff265a920dc8dc68c0665d4bf6d3768127a1668d74887f7d4c6fa"
+  },
+  "binary_identity": {
+    "path": "<sentrux-root>/target/debug/sentrux",
+    "exists": true,
+    "sha256": "2bb225f8ca21343aabfb928a7cee4189c07b1384b98409726496db07c77c9706"
+  }
 }

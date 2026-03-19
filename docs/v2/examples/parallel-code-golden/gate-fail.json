@@ -1,13 +1,13 @@
 {
   "baseline_delta": {
     "available": true,
-    "coupling_after": 0.44908180300500833,
-    "coupling_before": 0.44908180300500833,
+    "coupling_after": 0.46096256684491976,
+    "coupling_before": 0.46096256684491976,
     "cycles_after": 1,
     "cycles_before": 1,
     "degraded": false,
-    "signal_after": 4769,
-    "signal_before": 4769,
+    "signal_after": 4771,
+    "signal_before": 4771,
     "signal_delta": 0
   },
   "blocking_findings": [],
@@ -16,7 +16,7 @@
   ],
   "confidence": {
     "rule_coverage_0_10000": 10000,
-    "scan_confidence_0_10000": 8184,
+    "scan_confidence_0_10000": 8228,
     "semantic_rules_loaded": true,
     "session_baseline": {
       "compatible": true,
@@ -26,7 +26,7 @@
     }
   },
   "decision": "fail",
-  "experimental_finding_count": 2,
+  "experimental_finding_count": 1,
   "experimental_findings": [
     {
       "evidence": [
@@ -50,8 +50,12 @@
         "file_count": 1,
         "function_count": 43,
         "line_count": 537,
-        "max_complexity": 4
+        "max_complexity": 4,
+        "role_count": 1
       },
+      "role_tags": [
+        "guarded_seam"
+      ],
       "scope": "src/components/SidebarTaskRow.tsx",
       "score_0_10000": 7080,
       "severity": "high",
@@ -61,41 +65,6 @@
         "maintainability"
       ],
       "summary": "File 'src/components/SidebarTaskRow.tsx' contains 19 uncalled private functions totaling 110 lines",
-      "trust_tier": "experimental"
-    },
-    {
-      "evidence": [
-        "dead private functions: 21",
-        "dead private lines: 115",
-        "sample dead functions: getAvailablePortsFallbackMessage, handleCustomExpose, OpenTabIcon",
-        "total file lines: 895"
-      ],
-      "files": [
-        "src/components/PreviewPanel.tsx"
-      ],
-      "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
-      "inspection_focus": [
-        "inspect whether the dead helpers should be deleted or intentionally reconnected",
-        "inspect whether the file still reflects the supported control flow"
-      ],
-      "kind": "dead_private_code_cluster",
-      "metrics": {
-        "dead_line_count": 115,
-        "dead_symbol_count": 21,
-        "file_count": 1,
-        "function_count": 39,
-        "line_count": 895,
-        "max_complexity": 11
-      },
-      "scope": "src/components/PreviewPanel.tsx",
-      "score_0_10000": 7170,
-      "severity": "high",
-      "signal_class": "watchpoint",
-      "signal_families": [
-        "staleness",
-        "maintainability"
-      ],
-      "summary": "File 'src/components/PreviewPanel.tsx' contains 21 uncalled private functions totaling 115 lines",
       "trust_tier": "experimental"
     }
   ],
@@ -114,7 +83,8 @@
         "large-file threshold: 500",
         "function count: 43",
         "peak function complexity: 4",
-        "outbound dependencies: 11"
+        "outbound dependencies: 11",
+        "guardrail tests: src/components/SidebarTaskRow.architecture.test.ts"
       ],
       "files": [
         "src/components/SidebarTaskRow.tsx"
@@ -129,15 +99,21 @@
         "fan_out": 11,
         "file_count": 1,
         "function_count": 43,
+        "guardrail_test_count": 1,
         "line_count": 537,
-        "max_complexity": 4
+        "max_complexity": 4,
+        "role_count": 1
       },
       "related_surfaces": [
         "src/app/task-convergence.ts",
         "src/app/task-presentation-status.ts",
         "src/components/AgentGlyph.tsx",
         "src/components/StatusDot.tsx",
-        "src/components/task-review-presentation.ts"
+        "src/components/task-review-presentation.ts",
+        "src/components/SidebarTaskRow.architecture.test.ts"
+      ],
+      "role_tags": [
+        "guarded_seam"
       ],
       "scope": "src/components/SidebarTaskRow.tsx",
       "score_0_10000": 2666,
@@ -245,7 +221,7 @@
   "obligation_completeness_0_10000": 0,
   "rules_error": null,
   "scan_trust": {
-    "candidate_files": 738,
+    "candidate_files": 756,
     "exclusions": {
       "bucketed": {
         "build": 12,
@@ -260,21 +236,21 @@
       "total": 134
     },
     "fallback_reason": null,
-    "kept_files": 604,
+    "kept_files": 622,
     "mode": "git",
-    "overall_confidence_0_10000": 8184,
+    "overall_confidence_0_10000": 8228,
     "partial": false,
     "resolution": {
-      "internal_confidence_0_10000": 9994,
-      "resolved": 1798,
-      "unresolved_external": 491,
+      "internal_confidence_0_10000": 9995,
+      "resolved": 1871,
+      "unresolved_external": 508,
       "unresolved_internal": 1,
-      "unresolved_unknown": 75
+      "unresolved_unknown": 79
     },
-    "scope_coverage_0_10000": 8184,
-    "tracked_candidates": 738,
+    "scope_coverage_0_10000": 8228,
+    "tracked_candidates": 755,
     "truncated": false,
-    "untracked_candidates": 0
+    "untracked_candidates": 1
   },
   "semantic_error": null,
   "strict": false,

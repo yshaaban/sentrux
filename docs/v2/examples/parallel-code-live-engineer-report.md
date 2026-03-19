@@ -4,305 +4,128 @@ Generated on March 19, 2026 from the live checkout at `<parallel-code-root>`.
 
 This report is for an engineer who does not already know `parallel-code` or Sentrux.
 
-Important location note:
+## Freshness Gate
 
-- the analyzed repo is [<parallel-code-root>](<parallel-code-root>)
-- this report lives in the Sentrux repo, not in `parallel-code`:
-  [parallel-code-live-engineer-report.md](<sentrux-root>/docs/v2/examples/parallel-code-live-engineer-report.md)
+- analysis mode: `working_tree`
+- commit: `cf21f8733a9d800ec2a41239500e01e01ab8cc4b`
+- dirty paths: `2`
+- dirty-path fingerprint: `f1d370a4de031e83ee00b998f24ac88ff9f4d1338a336da4d92f7dd165c14541`
+- tree fingerprint: `3c54adb61f586d027b231a19a49fe87cc64be8957098769c0447c353883d26fa`
+- stale goldens: refused by default unless the goldens are fresh
 
 ## What Was Analyzed
 
-The run used a disposable clone of the live repo plus the current Sentrux v2 surfaces:
+- live source checkout: `<parallel-code-root>`
+- rules file used for the run: `<sentrux-root>/docs/v2/examples/parallel-code.rules.toml`
+- comparison snapshot: `<sentrux-root>/docs/v2/examples/parallel-code-proof-snapshot.json`
+- benchmark artifact: `<sentrux-root>/docs/v2/examples/parallel-code-benchmark.json`
 
-- live source checkout: [<parallel-code-root>](<parallel-code-root>)
-- rules file used for the run: [parallel-code.rules.toml](<sentrux-root>/docs/v2/examples/parallel-code.rules.toml)
-- comparison snapshot: [parallel-code-proof-snapshot.md](<sentrux-root>/docs/v2/examples/parallel-code-proof-snapshot.md)
+## Scan Coverage
 
-Important scope note:
-
-- the live repo still does not have a repo-owned `.sentrux/rules.toml`
-- this rerun therefore still uses the bundled example rules for:
-  - `task_git_status`
-  - `task_presentation_status`
-  - `server_state_bootstrap`
-
-Scan coverage for this run:
-
-- scanned source files: `604`
-- scanned lines: `136,558`
-- git candidate files kept: `604 / 738`
+- scanned source files: `622`
+- scanned lines: `137959`
+- git candidate files kept: `622 / 756`
 - excluded files: `134`
-- resolved import edges: `1,798`
+- resolved import edges: `1871`
 - unresolved internal imports: `1`
-- unresolved external imports: `491`
-- unresolved unknown imports: `75`
-- scan confidence: `8184 / 10000`
+- unresolved external imports: `508`
+- unresolved unknown imports: `79`
+- scan confidence: `8228 / 10000`
 - rule coverage: `10000 / 10000`
 - semantic rules loaded: `true`
 
-## How To Read This Report
-
-Sentrux v2 now separates results by trust tier:
-
-- `trusted`: strong enough to use as normal engineer-facing debt evidence
-- `watchpoint`: real pressure signal, but still needs seam-aware interpretation
-- `experimental`: visible for analyzer follow-up, not for cleanup prioritization
-
-That matters here:
-
-- the top structural signals below are mostly `trusted`
-- the large store/app cycle is a `watchpoint`, but it now includes cut candidates
-- dead-private-code results are `experimental` and should not drive refactor work
-
 ## Executive Summary
 
-The current live repo surfaces five meaningful engineering signals:
+The current live repo surfaces the same core architecture pressure points as the proof snapshot:
 
-1. [terminal-session.ts](<parallel-code-root>/src/components/terminal-view/terminal-session.ts) is a stacked trusted debt surface: very large, highly coupled, and coordination-heavy.
-2. [browser-control-plane.ts](<parallel-code-root>/server/browser-control-plane.ts) is still a large control seam, and it overlaps a transport/control cluster with clone and hotspot pressure.
-3. [App.tsx](<parallel-code-root>/src/App.tsx) and [TaskPanel.tsx](<parallel-code-root>/src/components/TaskPanel.tsx) both have strong dependency-sprawl signals.
-4. the store/app subsystem cycle is still one of the clearest architecture watchpoints, and v2 now gives concrete candidate back-edges to inspect first.
-5. configured concept health is mostly stable:
-   - [task-git-status.ts](<parallel-code-root>/src/store/task-git-status.ts) looks healthy
-   - [server-state-bootstrap.ts](<parallel-code-root>/src/app/server-state-bootstrap.ts) looks healthy
-   - [ConnectionBannerState](<parallel-code-root>/src/App.tsx) and [task-presentation-status.ts](<parallel-code-root>/src/app/task-presentation-status.ts) remain targeted hardening findings
-
-The main improvement over the earlier reports is that weak stale-private-code signals are now quarantined as experimental instead of being mixed into the default debt story.
+- `dependency_sprawl` Composition root 'src/App.tsx' depends on 32 real surfaces, above the typescript threshold of 15
+- `dependency_sprawl` File 'src/components/TaskPanel.tsx' depends on 28 real surfaces, above the typescript threshold of 15
+- `unstable_hotspot` Component-facing barrel 'src/store/store.ts' has 47 inbound references and remains unstable
+- `large_file` File 'scripts/session-stress.mjs' is 2048 lines, above the javascript threshold of 500
+- `unstable_hotspot` File 'src/lib/ipc.ts' has 66 inbound references and remains unstable
 
 ## Strongest Trusted Debt Signals
 
-### 1. [terminal-session.ts](<parallel-code-root>/src/components/terminal-view/terminal-session.ts)
+### ConnectionBannerState
 
-Current trusted evidence:
+- kind: `closed_domain_exhaustiveness`
+- severity: `high`
+- summary: Closed domain 'ConnectionBannerState' is missing coverage for variants: connecting, reconnecting, restoring
+- impact: Finite-domain changes can silently miss one surface unless all required cases stay in sync.
+- related surfaces:
+  - `src/components/app-shell/AppConnectionBanner.tsx`
+  - `src/runtime/browser-session.ts`
 
-- large file: `1856` lines
-- function count: `92`
-- peak complexity: `350`
-- dependency sprawl: `25` real outward dependencies
-- hotspot metrics:
-  - side-effect breadth: `75`
-  - async/branch weight: `30`
-  - timer/retry weight: `8`
-- trusted cluster:
-  - `large_file`
-  - `dependency_sprawl`
-  - `hotspot`
+### src/App.tsx
 
-Impact if left alone:
+- kind: `dependency_sprawl`
+- severity: `high`
+- summary: Composition root 'src/App.tsx' depends on 32 real surfaces, above the typescript threshold of 15
+- impact: Broad dependency fan-out in a composition root makes shell wiring and runtime ownership harder to keep separate.
+- candidate split axes:
+  - `components dependency boundary`
+  - `lib dependency boundary`
+  - `app dependency boundary`
+- related surfaces:
+  - `src/app/app-action-keys.ts`
+  - `src/app/desktop-session.ts`
+  - `src/app/task-command-lease.ts`
+  - `src/app/store-boundary.architecture.test.ts`
 
-- review cost stays high
-- changes keep crossing orchestration, UI, and helper concerns in one file
-- regressions will remain expensive to isolate
+### src/components/TaskPanel.tsx
 
-Inspection focus:
-
-- split orchestration from rendering and data shaping
-- reduce dependency breadth before adding more behavior
-- use the reported split axes as likely first-cut seams:
+- kind: `dependency_sprawl`
+- severity: `high`
+- summary: File 'src/components/TaskPanel.tsx' depends on 28 real surfaces, above the typescript threshold of 15
+- impact: Broad dependency fan-out expands change surface and makes orchestration drift harder to localize.
+- candidate split axes:
+  - `components dependency boundary`
   - `lib dependency boundary`
   - `store dependency boundary`
-  - `app dependency boundary`
-
-### 2. [browser-control-plane.ts](<parallel-code-root>/server/browser-control-plane.ts)
-
-Current trusted evidence:
-
-- large file: `1054` lines
-- function count: `74`
-- peak complexity: `102`
 - related surfaces:
-  - [channels.ts](<parallel-code-root>/electron/ipc/channels.ts)
-  - [runtime-diagnostics.ts](<parallel-code-root>/electron/ipc/runtime-diagnostics.ts)
-  - [task-command-leases.ts](<parallel-code-root>/electron/ipc/task-command-leases.ts)
-  - [protocol.ts](<parallel-code-root>/electron/remote/protocol.ts)
-  - [ws-transport.ts](<parallel-code-root>/electron/remote/ws-transport.ts)
-- trusted cluster overlap:
-  - `large_file`
-  - `clone_family`
-  - `hotspot`
+  - `src/app/task-ports.ts`
+  - `src/components/CloseTaskDialog.tsx`
+  - `src/components/DiffViewerDialog.tsx`
+  - `src/components/TaskPanel.architecture.test.ts`
 
-Impact if left alone:
+### src/store/store.ts
 
-- this seam keeps accumulating coordination responsibility
-- fixes in transport/control behavior are more likely to drift across related surfaces
+- kind: `unstable_hotspot`
+- severity: `high`
+- summary: Component-facing barrel 'src/store/store.ts' has 47 inbound references and remains unstable
+- impact: A volatile component-facing barrel makes it harder to keep presentation access broad while keeping deeper orchestration changes contained.
+- candidate split axes:
+  - `components caller boundary`
+  - `store caller boundary`
+  - `store dependency boundary`
+- related surfaces:
+  - `src/App.tsx`
+  - `src/arena/ConfigScreen.tsx`
+  - `src/arena/ResultsScreen.tsx`
+  - `src/app/store-boundary.architecture.test.ts`
 
-Inspection focus:
+## Watchpoints
 
-- split control-plane orchestration from narrower adapter/protocol helpers
-- treat the cluster as a pressure point to inspect, not an automatic dedupe mandate
+- `watchpoint` `cycle_cluster` Files src/app/agent-catalog.ts, src/app/remote-access.ts, src/app/task-attention.ts, src/app/task-close-state.ts, src/app/task-command-dispatch.ts, src/app/task-command-lease-runtime-subscriptions.ts, src/app/task-command-lease-runtime.ts, src/app/task-command-lease-session.ts, src/app/task-command-lease-takeover.ts, src/app/task-command-lease.ts, src/app/task-convergence.ts, src/app/task-lifecycle-workflows.ts, src/app/task-presentation-status.ts, src/app/task-prompt-workflows.ts, src/app/task-review-state.ts, src/app/task-shell-workflows.ts, src/app/task-workflows.ts, src/lib/runtime-client-id.ts, src/store/agent-output-activity.ts, src/store/agents.ts, src/store/auto-trust.ts, src/store/client-session.ts, src/store/completion.ts, src/store/core.ts, src/store/focus.ts, src/store/keyed-snapshot-record.ts, src/store/navigation.ts, src/store/notification.ts, src/store/peer-presence.ts, src/store/persistence-codecs.ts, src/store/persistence-load-context.ts, src/store/persistence-load.ts, src/store/persistence-projects.ts, src/store/persistence-save.ts, src/store/persistence-terminal-restore.ts, src/store/persistence.ts, src/store/projects.ts, src/store/remote.ts, src/store/review.ts, src/store/state.ts, src/store/store.ts, src/store/task-command-controllers.ts, src/store/task-command-takeovers.ts, src/store/task-git-status.ts, src/store/task-state-cleanup.ts, src/store/taskStatus.ts, src/store/tasks.ts, src/store/terminals.ts, src/store/ui.ts form a dependency cycle
+- `watchpoint` `clone_family` 4 exact clone groups repeat across 2 files and churn differs by 0 recent commit(s) across siblings; sibling file age spans 1 day(s)
+- `watchpoint` `clone_family` 4 exact clone groups repeat across 2 files and churn differs by 3 recent commit(s) across siblings; sibling file age spans 0 day(s)
+- `watchpoint` `hotspot` File 'server/browser-channels.ts' is carrying coordination hotspot pressure
 
-### 3. [App.tsx](<parallel-code-root>/src/App.tsx) and [TaskPanel.tsx](<parallel-code-root>/src/components/TaskPanel.tsx)
+## Benchmark Baseline
 
-Current trusted evidence:
+- cold process total: 16772.8 ms
+- warm cached total: 888.7 ms
+- warm patch-safety total: 4149.9 ms
 
-- [App.tsx](<parallel-code-root>/src/App.tsx)
-  - fan-out: `28`
-  - instability: `9655 / 10000`
-  - dominant dependency categories: `components(12), lib(5), app(3)`
-- [TaskPanel.tsx](<parallel-code-root>/src/components/TaskPanel.tsx)
-  - fan-out: `28`
-  - instability: `9333 / 10000`
-  - dominant dependency categories: `components(17), lib(4), store(3)`
-- both are also in trusted structural clusters
+## Freshness Check Result
 
-Impact if left alone:
+- live commit: `cf21f8733a9d800ec2a41239500e01e01ab8cc4b`
+- live dirty paths: `2`
+- live dirty-path fingerprint: `f1d370a4de031e83ee00b998f24ac88ff9f4d1338a336da4d92f7dd165c14541`
+- live tree fingerprint: `3c54adb61f586d027b231a19a49fe87cc64be8957098769c0447c353883d26fa`
+- freshness comparison: goldens matched and report generation was allowed
 
-- orchestration, action wiring, and view concerns stay entangled
-- future changes will keep spreading across too many direct dependencies
+## Source Documents
 
-Inspection focus:
-
-- reduce direct dependency breadth before adding more feature logic
-- inspect whether view composition can be separated from runtime/session wiring
-
-### 4. [store.ts](<parallel-code-root>/src/store/store.ts) plus the store/app cycle
-
-This is the strongest current `watchpoint`, not the strongest current `trusted` finding.
-
-Current evidence:
-
-- unstable hotspot:
-  - inbound references: `56`
-  - fan-out: `20`
-  - instability: `0.26`
-- cycle size: `49` files
-- total lines inside cycle: `6750`
-- peak complexity inside cycle: `71`
-
-Why this still matters:
-
-- it is subsystem-level layering pressure, not just one bad file
-- the cycle increases refactor friction and blast radius
-- but it still needs seam-aware interpretation, so it stays a `watchpoint`
-
-Concrete cycle cut candidates from the live run:
-
-1. [tasks.ts](<parallel-code-root>/src/store/tasks.ts) -> [task-workflows.ts](<parallel-code-root>/src/app/task-workflows.ts)
-   - seam kind: `app_store_boundary`
-   - estimated cyclic-file reduction: `10`
-2. [core.ts](<parallel-code-root>/src/store/core.ts) -> [store.ts](<parallel-code-root>/src/store/store.ts)
-   - seam kind: `local_module_split`
-   - estimated cyclic-file reduction: `13`
-3. [state.ts](<parallel-code-root>/src/store/state.ts) -> [core.ts](<parallel-code-root>/src/store/core.ts)
-   - seam kind: `contract_or_type_extraction`
-   - estimated cyclic-file reduction: `7`
-
-That is not the same as “this is the next thing to refactor,” but it is now a much better design starting point than a bare SCC listing.
-
-## Clone And Drift Watchpoints
-
-These are real, but they should still be read as watchpoints unless the team decides they are worth cleanup now.
-
-### [AgentGlyph.tsx](<parallel-code-root>/src/components/AgentGlyph.tsx) / [RemoteAgentGlyph.tsx](<parallel-code-root>/src/remote/RemoteAgentGlyph.tsx)
-
-- trust tier: `watchpoint`
-- exact clone groups: `4`
-- current interpretation: real duplicate maintenance risk across local and remote glyph rendering
-
-### [ws-server.ts](<parallel-code-root>/electron/remote/ws-server.ts) / [browser-websocket.ts](<parallel-code-root>/server/browser-websocket.ts)
-
-- trust tier: `watchpoint`
-- exact clone groups: `4`
-- churn gap across siblings: `3`
-- current interpretation: shared behavior still exists, but this is better treated as drift risk than as an automatic extraction target
-
-## Targeted Concept Hardening Signals
-
-These are trusted, but they are narrower than the structural debt signals above.
-
-### [ConnectionBannerState](<parallel-code-root>/src/App.tsx)
-
-Current finding:
-
-- `trusted`
-- `high`
-- `closed_domain_exhaustiveness`
-- missing variants: `connecting`, `reconnecting`, `restoring`
-
-Related surfaces:
-
-- [App.tsx](<parallel-code-root>/src/App.tsx)
-- [browser-session.ts](<parallel-code-root>/src/runtime/browser-session.ts)
-
-Current interpretation:
-
-- still useful as a completeness-hardening finding
-- not the dominant repo-wide debt story
-
-### [task-presentation-status.ts](<parallel-code-root>/src/app/task-presentation-status.ts)
-
-Current finding:
-
-- `trusted`
-- `medium`
-- one obligation
-- one missing site
-- missing-site path:
-  [task-presentation-status.ts](<parallel-code-root>/src/app/task-presentation-status.ts)
-
-Current interpretation:
-
-- still useful hardening evidence
-- narrower than the main structural pressure points
-
-## Configured Surfaces That Currently Look Healthy
-
-### [task-git-status.ts](<parallel-code-root>/src/store/task-git-status.ts)
-
-Current state:
-
-- findings: `0`
-- obligations: `0`
-
-### [server-state-bootstrap.ts](<parallel-code-root>/src/app/server-state-bootstrap.ts)
-
-Current state:
-
-- findings: `0`
-- obligations: `0`
-- parity score: `10000 / 10000`
-- state integrity score: `10000 / 10000`
-
-This remains a good example of a configured surface that currently looks aligned.
-
-## Experimental Findings: Visible, But Not Actionable Yet
-
-The live run still surfaces `dead_private_code_cluster` results, but they are now explicitly quarantined as experimental.
-
-Current experimental count:
-
-- experimental findings: `12`
-- experimental debt signals: `5`
-
-Examples:
-
-- [ScrollingDiffView.tsx](<parallel-code-root>/src/components/ScrollingDiffView.tsx)
-- [review.ts](<parallel-code-root>/src/store/review.ts)
-- [PreviewPanel.tsx](<parallel-code-root>/src/components/PreviewPanel.tsx)
-- [SidebarTaskRow.tsx](<parallel-code-root>/src/components/SidebarTaskRow.tsx)
-
-How to use this section:
-
-- do not treat it as a cleanup queue
-- do treat it as analyzer follow-up
-- if a human confirms a specific case is truly dead, that is useful, but the detector is not review-grade yet
-
-## Session-End Baseline State
-
-The untouched baseline session is clean:
-
-- `pass: true`
-- introduced findings: `0`
-- experimental findings: `0`
-- debt signals in pass-state `session_end`: `5`
-- watchpoints in pass-state `session_end`: `1`
-
-That means the structural signals above are baseline inspection signals, not patch-specific regressions from the pass-state session.
-
-## Suggested Engineer Feedback Prompts
-
-1. Do the trusted structural signals around terminal session, App, TaskPanel, and browser control plane match where the team already feels change pain?
-2. For the store/app cycle, which of the three cut candidates looks most plausible as the first seam to inspect?
-3. Are the clone watchpoints better handled by shared contract tests, helper extraction, or intentional divergence?
-4. Are the `ConnectionBannerState` and `task_presentation_status` findings still useful hardening prompts even if they are not top priorities?
-5. Which experimental dead-private findings are obviously wrong, and are any obviously real?
+- proof snapshot: `<sentrux-root>/docs/v2/examples/parallel-code-proof-snapshot.md`
+- golden metadata: `<sentrux-root>/docs/v2/examples/parallel-code-golden/metadata.json`

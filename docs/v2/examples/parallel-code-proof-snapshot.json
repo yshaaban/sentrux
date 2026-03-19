@@ -1,18 +1,50 @@
 {
-  "generated_at": "2026-03-19T17:32:23.612Z",
+  "generated_at": "2026-03-19T19:06:01.805Z",
   "generated_from": {
     "golden_dir": "<sentrux-root>/docs/v2/examples/parallel-code-golden",
     "benchmark_path": "<sentrux-root>/docs/v2/examples/parallel-code-benchmark.json",
     "metadata": {
-      "generated_at": "2026-03-19T17:32:23Z",
+      "generated_at": "2026-03-19T19:05:31Z",
       "parallel_code_root": "<parallel-code-root>",
-      "analysis_mode": "temporary_local_clone",
+      "analysis_mode": "working_tree",
+      "source_tree_identity": {
+        "commit": "cf21f8733a9d800ec2a41239500e01e01ab8cc4b",
+        "dirty_paths": [
+          "docs/UPSTREAM-DIVERGENCE.md",
+          "docs/UPSTREAM-CATCHUP-2026-03-19.md"
+        ],
+        "dirty_paths_count": 2,
+        "dirty_paths_fingerprint": "f1d370a4de031e83ee00b998f24ac88ff9f4d1338a336da4d92f7dd165c14541",
+        "tree_fingerprint": "3c54adb61f586d027b231a19a49fe87cc64be8957098769c0447c353883d26fa",
+        "analysis_mode": "working_tree"
+      },
+      "analyzed_tree_identity": {
+        "commit": "cf21f8733a9d800ec2a41239500e01e01ab8cc4b",
+        "dirty_paths": [
+          "docs/UPSTREAM-DIVERGENCE.md",
+          "docs/UPSTREAM-CATCHUP-2026-03-19.md"
+        ],
+        "dirty_paths_count": 2,
+        "dirty_paths_fingerprint": "f1d370a4de031e83ee00b998f24ac88ff9f4d1338a336da4d92f7dd165c14541",
+        "tree_fingerprint": "3c54adb61f586d027b231a19a49fe87cc64be8957098769c0447c353883d26fa",
+        "analysis_mode": "working_tree"
+      },
       "regression_mutation": {
         "path": "src/components/SidebarTaskRow.tsx",
         "change": "store.taskGitStatus = store.taskGitStatus"
       },
       "rules_source": "<sentrux-root>/docs/v2/examples/parallel-code.rules.toml",
-      "sentrux_binary": "<sentrux-root>/target/debug/sentrux"
+      "sentrux_binary": "<sentrux-root>/target/debug/sentrux",
+      "rules_identity": {
+        "path": "<sentrux-root>/docs/v2/examples/parallel-code.rules.toml",
+        "exists": true,
+        "sha256": "548daed030bff265a920dc8dc68c0665d4bf6d3768127a1668d74887f7d4c6fa"
+      },
+      "binary_identity": {
+        "path": "<sentrux-root>/target/debug/sentrux",
+        "exists": true,
+        "sha256": "2bb225f8ca21343aabfb928a7cee4189c07b1384b98409726496db07c77c9706"
+      }
     }
   },
   "top_findings": [
@@ -26,27 +58,11 @@
     },
     {
       "id": null,
-      "kind": "large_file",
-      "trust_tier": "trusted",
-      "severity": "high",
-      "concept_id": null,
-      "summary": "File 'server/browser-control-plane.ts' is 1054 lines, above the typescript threshold of 500"
-    },
-    {
-      "id": null,
-      "kind": "large_file",
-      "trust_tier": "trusted",
-      "severity": "high",
-      "concept_id": null,
-      "summary": "File 'src/components/terminal-view/terminal-session.ts' is 1856 lines, above the typescript threshold of 500"
-    },
-    {
-      "id": null,
       "kind": "dependency_sprawl",
       "trust_tier": "trusted",
       "severity": "high",
       "concept_id": null,
-      "summary": "File 'src/App.tsx' depends on 28 real surfaces, above the typescript threshold of 15"
+      "summary": "Composition root 'src/App.tsx' depends on 32 real surfaces, above the typescript threshold of 15"
     },
     {
       "id": null,
@@ -58,11 +74,11 @@
     },
     {
       "id": null,
-      "kind": "dependency_sprawl",
+      "kind": "unstable_hotspot",
       "trust_tier": "trusted",
       "severity": "high",
       "concept_id": null,
-      "summary": "File 'src/components/terminal-view/terminal-session.ts' depends on 25 real surfaces, above the typescript threshold of 15"
+      "summary": "Component-facing barrel 'src/store/store.ts' has 47 inbound references and remains unstable"
     },
     {
       "id": null,
@@ -74,27 +90,43 @@
     },
     {
       "id": null,
-      "kind": "unstable_hotspot",
-      "trust_tier": "trusted",
-      "severity": "high",
-      "concept_id": null,
-      "summary": "File 'src/store/store.ts' has 56 inbound references and remains unstable"
-    },
-    {
-      "id": null,
-      "kind": "unstable_hotspot",
-      "trust_tier": "trusted",
-      "severity": "high",
-      "concept_id": null,
-      "summary": "File 'src/lib/ipc.ts' has 63 inbound references and remains unstable"
-    },
-    {
-      "id": null,
       "kind": "large_file",
       "trust_tier": "trusted",
       "severity": "high",
       "concept_id": null,
       "summary": "File 'scripts/session-stress.mjs' is 2048 lines, above the javascript threshold of 500"
+    },
+    {
+      "id": null,
+      "kind": "unstable_hotspot",
+      "trust_tier": "trusted",
+      "severity": "high",
+      "concept_id": null,
+      "summary": "File 'src/lib/ipc.ts' has 66 inbound references and remains unstable"
+    },
+    {
+      "id": null,
+      "kind": "dependency_sprawl",
+      "trust_tier": "trusted",
+      "severity": "high",
+      "concept_id": null,
+      "summary": "File 'src/components/terminal-view/terminal-session.ts' depends on 22 real surfaces, above the typescript threshold of 15"
+    },
+    {
+      "id": null,
+      "kind": "dependency_sprawl",
+      "trust_tier": "trusted",
+      "severity": "high",
+      "concept_id": null,
+      "summary": "File 'src/components/ReviewPanel.tsx' depends on 22 real surfaces, above the typescript threshold of 15"
+    },
+    {
+      "id": null,
+      "kind": "exact_clone_group",
+      "trust_tier": null,
+      "severity": "high",
+      "concept_id": null,
+      "summary": "2 functions share an identical normalized body across recently changed files"
     }
   ],
   "experimental_findings": [
@@ -192,60 +224,8 @@
       ],
       "candidate_split_axes": [],
       "related_surfaces": [
-        "src/App.tsx",
+        "src/components/app-shell/AppConnectionBanner.tsx",
         "src/runtime/browser-session.ts"
-      ]
-    },
-    {
-      "kind": "large_file",
-      "trust_tier": "trusted",
-      "scope": "server/browser-control-plane.ts",
-      "severity": "high",
-      "summary": "File 'server/browser-control-plane.ts' is 1054 lines, above the typescript threshold of 500",
-      "impact": "Responsibility concentration increases review friction and makes later splits harder to isolate.",
-      "inspection_focus": [
-        "inspect whether orchestration, adapters, and data shaping are accumulating in one file",
-        "inspect whether the file can be split along responsibility boundaries instead of line-count slices"
-      ],
-      "candidate_split_axes": [
-        "electron dependency boundary",
-        "domain dependency boundary",
-        "server dependency boundary",
-        "high-complexity helper extraction",
-        "private helper surface split"
-      ],
-      "related_surfaces": [
-        "electron/ipc/channels.ts",
-        "electron/ipc/runtime-diagnostics.ts",
-        "electron/ipc/task-command-leases.ts",
-        "electron/remote/protocol.ts",
-        "electron/remote/ws-transport.ts"
-      ]
-    },
-    {
-      "kind": "large_file",
-      "trust_tier": "trusted",
-      "scope": "src/components/terminal-view/terminal-session.ts",
-      "severity": "high",
-      "summary": "File 'src/components/terminal-view/terminal-session.ts' is 1856 lines, above the typescript threshold of 500",
-      "impact": "Responsibility concentration increases review friction and makes later splits harder to isolate.",
-      "inspection_focus": [
-        "inspect whether orchestration, adapters, and data shaping are accumulating in one file",
-        "inspect whether the file can be split along responsibility boundaries instead of line-count slices"
-      ],
-      "candidate_split_axes": [
-        "lib dependency boundary",
-        "store dependency boundary",
-        "app dependency boundary",
-        "high-complexity helper extraction",
-        "private helper surface split"
-      ],
-      "related_surfaces": [
-        "electron/ipc/channels.ts",
-        "src/app/task-command-lease.ts",
-        "src/app/terminal-output-scheduler.ts",
-        "src/components/terminal-view/types.ts",
-        "src/domain/terminal-input-tracing.ts"
       ]
     },
     {
@@ -253,11 +233,11 @@
       "trust_tier": "trusted",
       "scope": "src/App.tsx",
       "severity": "high",
-      "summary": "File 'src/App.tsx' depends on 28 real surfaces, above the typescript threshold of 15",
-      "impact": "Broad dependency fan-out expands change surface and makes orchestration drift harder to localize.",
+      "summary": "Composition root 'src/App.tsx' depends on 32 real surfaces, above the typescript threshold of 15",
+      "impact": "Broad dependency fan-out in a composition root makes shell wiring and runtime ownership harder to keep separate.",
       "inspection_focus": [
-        "inspect whether orchestration and policy code can move behind narrower helpers",
-        "inspect whether unrelated adapter dependencies are accumulating in one module"
+        "inspect whether view composition can stay separate from runtime or session wiring",
+        "inspect whether shell responsibilities are spreading across too many direct imports"
       ],
       "candidate_split_axes": [
         "components dependency boundary",
@@ -267,7 +247,8 @@
       "related_surfaces": [
         "src/app/app-action-keys.ts",
         "src/app/desktop-session.ts",
-        "src/app/task-command-lease.ts"
+        "src/app/task-command-lease.ts",
+        "src/app/store-boundary.architecture.test.ts"
       ]
     },
     {
@@ -289,56 +270,8 @@
       "related_surfaces": [
         "src/app/task-ports.ts",
         "src/components/CloseTaskDialog.tsx",
-        "src/components/DiffViewerDialog.tsx"
-      ]
-    },
-    {
-      "kind": "dependency_sprawl",
-      "trust_tier": "trusted",
-      "scope": "src/components/terminal-view/terminal-session.ts",
-      "severity": "high",
-      "summary": "File 'src/components/terminal-view/terminal-session.ts' depends on 25 real surfaces, above the typescript threshold of 15",
-      "impact": "Broad dependency fan-out expands change surface and makes orchestration drift harder to localize.",
-      "inspection_focus": [
-        "inspect whether orchestration and policy code can move behind narrower helpers",
-        "inspect whether unrelated adapter dependencies are accumulating in one module"
-      ],
-      "candidate_split_axes": [
-        "lib dependency boundary",
-        "store dependency boundary",
-        "app dependency boundary"
-      ],
-      "related_surfaces": [
-        "electron/ipc/channels.ts",
-        "src/app/task-command-lease.ts",
-        "src/app/terminal-output-scheduler.ts"
-      ]
-    },
-    {
-      "kind": "cycle_cluster",
-      "trust_tier": "watchpoint",
-      "scope": "cycle:src/app/agent-catalog.ts|src/app/remote-access.ts|src/app/task-attention.ts|src/app/task-close-state.ts|src/app/task-command-dispatch.ts|src/app/task-command-lease-runtime-subscriptions.ts|src/app/task-command-lease-runtime.ts|src/app/task-command-lease-session.ts|src/app/task-command-lease-takeover.ts|src/app/task-command-lease.ts|src/app/task-convergence.ts|src/app/task-lifecycle-workflows.ts|src/app/task-presentation-status.ts|src/app/task-prompt-workflows.ts|src/app/task-review-state.ts|src/app/task-shell-workflows.ts|src/app/task-workflows.ts|src/lib/runtime-client-id.ts|src/store/agent-output-activity.ts|src/store/agents.ts|src/store/auto-trust.ts|src/store/client-session.ts|src/store/completion.ts|src/store/core.ts|src/store/focus.ts|src/store/keyed-snapshot-record.ts|src/store/navigation.ts|src/store/notification.ts|src/store/peer-presence.ts|src/store/persistence-codecs.ts|src/store/persistence-load-context.ts|src/store/persistence-load.ts|src/store/persistence-projects.ts|src/store/persistence-save.ts|src/store/persistence-terminal-restore.ts|src/store/persistence.ts|src/store/projects.ts|src/store/remote.ts|src/store/review.ts|src/store/state.ts|src/store/store.ts|src/store/task-command-controllers.ts|src/store/task-command-takeovers.ts|src/store/task-git-status.ts|src/store/task-state-cleanup.ts|src/store/taskStatus.ts|src/store/tasks.ts|src/store/terminals.ts|src/store/ui.ts",
-      "severity": "high",
-      "summary": "Files src/app/agent-catalog.ts, src/app/remote-access.ts, src/app/task-attention.ts, src/app/task-close-state.ts, src/app/task-command-dispatch.ts, src/app/task-command-lease-runtime-subscriptions.ts, src/app/task-command-lease-runtime.ts, src/app/task-command-lease-session.ts, src/app/task-command-lease-takeover.ts, src/app/task-command-lease.ts, src/app/task-convergence.ts, src/app/task-lifecycle-workflows.ts, src/app/task-presentation-status.ts, src/app/task-prompt-workflows.ts, src/app/task-review-state.ts, src/app/task-shell-workflows.ts, src/app/task-workflows.ts, src/lib/runtime-client-id.ts, src/store/agent-output-activity.ts, src/store/agents.ts, src/store/auto-trust.ts, src/store/client-session.ts, src/store/completion.ts, src/store/core.ts, src/store/focus.ts, src/store/keyed-snapshot-record.ts, src/store/navigation.ts, src/store/notification.ts, src/store/peer-presence.ts, src/store/persistence-codecs.ts, src/store/persistence-load-context.ts, src/store/persistence-load.ts, src/store/persistence-projects.ts, src/store/persistence-save.ts, src/store/persistence-terminal-restore.ts, src/store/persistence.ts, src/store/projects.ts, src/store/remote.ts, src/store/review.ts, src/store/state.ts, src/store/store.ts, src/store/task-command-controllers.ts, src/store/task-command-takeovers.ts, src/store/task-git-status.ts, src/store/task-state-cleanup.ts, src/store/taskStatus.ts, src/store/tasks.ts, src/store/terminals.ts, src/store/ui.ts form a dependency cycle",
-      "impact": "The cycle prevents clean layering and makes initialization order and refactors harder to isolate.",
-      "inspection_focus": [
-        "inspect whether one back-edge can be removed by splitting contracts from implementations",
-        "inspect whether shared types can move to a lower-dependency seam"
-      ],
-      "candidate_split_axes": [
-        "app store boundary",
-        "local module split",
-        "contract or type extraction"
-      ],
-      "related_surfaces": [
-        "src/store/tasks.ts",
-        "src/app/task-workflows.ts",
-        "src/store/core.ts",
-        "src/store/store.ts",
-        "src/store/state.ts",
-        "src/app/agent-catalog.ts",
-        "src/app/remote-access.ts",
-        "src/app/task-attention.ts"
+        "src/components/DiffViewerDialog.tsx",
+        "src/components/TaskPanel.architecture.test.ts"
       ]
     },
     {
@@ -346,11 +279,11 @@
       "trust_tier": "trusted",
       "scope": "src/store/store.ts",
       "severity": "high",
-      "summary": "File 'src/store/store.ts' has 56 inbound references and remains unstable",
-      "impact": "High fan-in plus instability increases blast radius and makes small edits harder to contain.",
+      "summary": "Component-facing barrel 'src/store/store.ts' has 47 inbound references and remains unstable",
+      "impact": "A volatile component-facing barrel makes it harder to keep presentation access broad while keeping deeper orchestration changes contained.",
       "inspection_focus": [
-        "inspect whether a stable contract can be split from the volatile implementation",
-        "inspect whether too many callers depend directly on an orchestration-heavy file"
+        "inspect which component-facing reads really need the shared barrel and which can move behind narrower selectors",
+        "inspect whether broad inbound traffic is hiding a smaller set of volatility-heavy owner modules"
       ],
       "candidate_split_axes": [
         "components caller boundary",
@@ -359,30 +292,36 @@
       ],
       "related_surfaces": [
         "src/App.tsx",
-        "src/app/desktop-browser-runtime.ts",
-        "src/app/desktop-session-startup.ts"
+        "src/arena/ConfigScreen.tsx",
+        "src/arena/ResultsScreen.tsx",
+        "src/app/store-boundary.architecture.test.ts",
+        "src/components/TaskPanel.architecture.test.ts"
       ]
     },
     {
-      "kind": "unstable_hotspot",
-      "trust_tier": "trusted",
-      "scope": "src/lib/ipc.ts",
+      "kind": "cycle_cluster",
+      "trust_tier": "watchpoint",
+      "scope": "cycle:src/app/agent-catalog.ts|src/app/remote-access.ts|src/app/task-attention.ts|src/app/task-close-state.ts|src/app/task-command-dispatch.ts|src/app/task-command-lease-runtime-subscriptions.ts|src/app/task-command-lease-runtime.ts|src/app/task-command-lease-session.ts|src/app/task-command-lease-takeover.ts|src/app/task-command-lease.ts|src/app/task-convergence.ts|src/app/task-lifecycle-workflows.ts|src/app/task-presentation-status.ts|src/app/task-prompt-workflows.ts|src/app/task-review-state.ts|src/app/task-shell-workflows.ts|src/app/task-workflows.ts|src/lib/runtime-client-id.ts|src/store/agent-output-activity.ts|src/store/agents.ts|src/store/auto-trust.ts|src/store/client-session.ts|src/store/completion.ts|src/store/core.ts|src/store/focus.ts|src/store/keyed-snapshot-record.ts|src/store/navigation.ts|src/store/notification.ts|src/store/peer-presence.ts|src/store/persistence-codecs.ts|src/store/persistence-load-context.ts|src/store/persistence-load.ts|src/store/persistence-projects.ts|src/store/persistence-save.ts|src/store/persistence-terminal-restore.ts|src/store/persistence.ts|src/store/projects.ts|src/store/remote.ts|src/store/review.ts|src/store/state.ts|src/store/store.ts|src/store/task-command-controllers.ts|src/store/task-command-takeovers.ts|src/store/task-git-status.ts|src/store/task-state-cleanup.ts|src/store/taskStatus.ts|src/store/tasks.ts|src/store/terminals.ts|src/store/ui.ts",
       "severity": "high",
-      "summary": "File 'src/lib/ipc.ts' has 63 inbound references and remains unstable",
-      "impact": "High fan-in plus instability increases blast radius and makes small edits harder to contain.",
+      "summary": "Files src/app/agent-catalog.ts, src/app/remote-access.ts, src/app/task-attention.ts, src/app/task-close-state.ts, src/app/task-command-dispatch.ts, src/app/task-command-lease-runtime-subscriptions.ts, src/app/task-command-lease-runtime.ts, src/app/task-command-lease-session.ts, src/app/task-command-lease-takeover.ts, src/app/task-command-lease.ts, src/app/task-convergence.ts, src/app/task-lifecycle-workflows.ts, src/app/task-presentation-status.ts, src/app/task-prompt-workflows.ts, src/app/task-review-state.ts, src/app/task-shell-workflows.ts, src/app/task-workflows.ts, src/lib/runtime-client-id.ts, src/store/agent-output-activity.ts, src/store/agents.ts, src/store/auto-trust.ts, src/store/client-session.ts, src/store/completion.ts, src/store/core.ts, src/store/focus.ts, src/store/keyed-snapshot-record.ts, src/store/navigation.ts, src/store/notification.ts, src/store/peer-presence.ts, src/store/persistence-codecs.ts, src/store/persistence-load-context.ts, src/store/persistence-load.ts, src/store/persistence-projects.ts, src/store/persistence-save.ts, src/store/persistence-terminal-restore.ts, src/store/persistence.ts, src/store/projects.ts, src/store/remote.ts, src/store/review.ts, src/store/state.ts, src/store/store.ts, src/store/task-command-controllers.ts, src/store/task-command-takeovers.ts, src/store/task-git-status.ts, src/store/task-state-cleanup.ts, src/store/taskStatus.ts, src/store/tasks.ts, src/store/terminals.ts, src/store/ui.ts form a dependency cycle",
+      "impact": "The cycle touches a component-facing barrel, which makes it harder to keep broad component access separate from deeper app and runtime seams.",
       "inspection_focus": [
-        "inspect whether a stable contract can be split from the volatile implementation",
-        "inspect whether too many callers depend directly on an orchestration-heavy file"
+        "inspect whether the best cut keeps component-facing barrel access while moving deeper orchestration behind a narrower seam",
+        "inspect whether app or runtime dependencies can stop flowing back through the shared barrel"
       ],
       "candidate_split_axes": [
-        "app caller boundary",
-        "store caller boundary",
-        "lib dependency boundary"
+        "guarded boundary cut",
+        "app store boundary"
       ],
       "related_surfaces": [
-        "src/App.tsx",
+        "src/store/core.ts",
+        "src/store/store.ts",
+        "src/store/tasks.ts",
+        "src/app/task-workflows.ts",
+        "src/store/state.ts",
         "src/app/agent-catalog.ts",
-        "src/app/desktop-session-startup.ts"
+        "src/app/remote-access.ts",
+        "src/app/task-attention.ts"
       ]
     },
     {
@@ -398,11 +337,94 @@
       ],
       "candidate_split_axes": [
         "scripts dependency boundary",
+        "entry surface split",
         "private helper surface split"
       ],
       "related_surfaces": [
         "scripts/browser-server-client.mjs",
         "scripts/session-stress-profiles.mjs"
+      ]
+    },
+    {
+      "kind": "unstable_hotspot",
+      "trust_tier": "trusted",
+      "scope": "src/lib/ipc.ts",
+      "severity": "high",
+      "summary": "File 'src/lib/ipc.ts' has 66 inbound references and remains unstable",
+      "impact": "High fan-in plus instability increases blast radius and makes small edits harder to contain.",
+      "inspection_focus": [
+        "inspect whether a stable contract can be split from the volatile implementation",
+        "inspect whether too many callers depend directly on an orchestration-heavy file"
+      ],
+      "candidate_split_axes": [
+        "app caller boundary",
+        "components caller boundary",
+        "lib dependency boundary"
+      ],
+      "related_surfaces": [
+        "src/App.tsx",
+        "src/app/agent-catalog.ts",
+        "src/app/desktop-session-startup.ts"
+      ]
+    },
+    {
+      "kind": "dependency_sprawl",
+      "trust_tier": "trusted",
+      "scope": "src/components/terminal-view/terminal-session.ts",
+      "severity": "high",
+      "summary": "File 'src/components/terminal-view/terminal-session.ts' depends on 22 real surfaces, above the typescript threshold of 15",
+      "impact": "Broad dependency fan-out expands change surface and makes orchestration drift harder to localize.",
+      "inspection_focus": [
+        "inspect whether orchestration and policy code can move behind narrower helpers",
+        "inspect whether unrelated adapter dependencies are accumulating in one module"
+      ],
+      "candidate_split_axes": [
+        "lib dependency boundary",
+        "components dependency boundary",
+        "store dependency boundary"
+      ],
+      "related_surfaces": [
+        "electron/ipc/channels.ts",
+        "src/components/terminal-view/terminal-input-pipeline.ts",
+        "src/components/terminal-view/terminal-output-pipeline.ts",
+        "src/components/terminal-view/terminal-session.architecture.test.ts"
+      ]
+    },
+    {
+      "kind": "dependency_sprawl",
+      "trust_tier": "trusted",
+      "scope": "src/components/ReviewPanel.tsx",
+      "severity": "high",
+      "summary": "File 'src/components/ReviewPanel.tsx' depends on 22 real surfaces, above the typescript threshold of 15",
+      "impact": "Broad dependency fan-out expands change surface and makes orchestration drift harder to localize.",
+      "inspection_focus": [
+        "inspect whether orchestration and policy code can move behind narrower helpers",
+        "inspect whether unrelated adapter dependencies are accumulating in one module"
+      ],
+      "candidate_split_axes": [
+        "app dependency boundary",
+        "components dependency boundary",
+        "lib dependency boundary"
+      ],
+      "related_surfaces": [
+        "electron/ipc/channels.ts",
+        "src/app/async-request-guard.ts",
+        "src/app/review-diffs.ts",
+        "src/components/review-surfaces.architecture.test.ts"
+      ]
+    },
+    {
+      "kind": "exact_clone_group",
+      "trust_tier": "trusted",
+      "scope": "electron/remote/ws-server.ts|server/browser-websocket.ts",
+      "severity": "high",
+      "summary": "2 functions share an identical normalized body across recently changed files",
+      "impact": "Duplicate logic increases the chance that fixes land in one copy but not the others.",
+      "inspection_focus": [],
+      "candidate_split_axes": [],
+      "related_surfaces": [
+        "electron/remote/ws-server.ts",
+        "server/browser-websocket.ts"
       ]
     }
   ],
@@ -430,60 +452,6 @@
   ],
   "debt_signals": [
     {
-      "kind": "large_file",
-      "trust_tier": "trusted",
-      "scope": "server/browser-control-plane.ts",
-      "signal_class": "debt",
-      "signal_families": [
-        "size",
-        "coordination"
-      ],
-      "severity": "high",
-      "score_0_10000": 8400,
-      "summary": "File 'server/browser-control-plane.ts' is 1054 lines, above the typescript threshold of 500",
-      "candidate_split_axes": [
-        "electron dependency boundary",
-        "domain dependency boundary",
-        "server dependency boundary",
-        "high-complexity helper extraction",
-        "private helper surface split"
-      ],
-      "related_surfaces": [
-        "electron/ipc/channels.ts",
-        "electron/ipc/runtime-diagnostics.ts",
-        "electron/ipc/task-command-leases.ts",
-        "electron/remote/protocol.ts",
-        "electron/remote/ws-transport.ts"
-      ]
-    },
-    {
-      "kind": "large_file",
-      "trust_tier": "trusted",
-      "scope": "src/components/terminal-view/terminal-session.ts",
-      "signal_class": "debt",
-      "signal_families": [
-        "size",
-        "coordination"
-      ],
-      "severity": "high",
-      "score_0_10000": 8400,
-      "summary": "File 'src/components/terminal-view/terminal-session.ts' is 1856 lines, above the typescript threshold of 500",
-      "candidate_split_axes": [
-        "lib dependency boundary",
-        "store dependency boundary",
-        "app dependency boundary",
-        "high-complexity helper extraction",
-        "private helper surface split"
-      ],
-      "related_surfaces": [
-        "electron/ipc/channels.ts",
-        "src/app/task-command-lease.ts",
-        "src/app/terminal-output-scheduler.ts",
-        "src/components/terminal-view/types.ts",
-        "src/domain/terminal-input-tracing.ts"
-      ]
-    },
-    {
       "kind": "dependency_sprawl",
       "trust_tier": "trusted",
       "scope": "src/App.tsx",
@@ -493,8 +461,8 @@
         "coordination"
       ],
       "severity": "high",
-      "score_0_10000": 7986,
-      "summary": "File 'src/App.tsx' depends on 28 real surfaces, above the typescript threshold of 15",
+      "score_0_10000": 8424,
+      "summary": "Composition root 'src/App.tsx' depends on 32 real surfaces, above the typescript threshold of 15",
       "candidate_split_axes": [
         "components dependency boundary",
         "lib dependency boundary",
@@ -503,7 +471,8 @@
       "related_surfaces": [
         "src/app/app-action-keys.ts",
         "src/app/desktop-session.ts",
-        "src/app/task-command-lease.ts"
+        "src/app/task-command-lease.ts",
+        "src/app/store-boundary.architecture.test.ts"
       ]
     },
     {
@@ -526,7 +495,53 @@
       "related_surfaces": [
         "src/app/task-ports.ts",
         "src/components/CloseTaskDialog.tsx",
-        "src/components/DiffViewerDialog.tsx"
+        "src/components/DiffViewerDialog.tsx",
+        "src/components/TaskPanel.architecture.test.ts"
+      ]
+    },
+    {
+      "kind": "unstable_hotspot",
+      "trust_tier": "trusted",
+      "scope": "src/store/store.ts",
+      "signal_class": "debt",
+      "signal_families": [
+        "coupling",
+        "blast_radius"
+      ],
+      "severity": "high",
+      "score_0_10000": 7195,
+      "summary": "Component-facing barrel 'src/store/store.ts' has 47 inbound references and remains unstable",
+      "candidate_split_axes": [
+        "components caller boundary",
+        "store caller boundary",
+        "store dependency boundary"
+      ],
+      "related_surfaces": [
+        "src/App.tsx",
+        "src/arena/ConfigScreen.tsx",
+        "src/arena/ResultsScreen.tsx",
+        "src/app/store-boundary.architecture.test.ts",
+        "src/components/TaskPanel.architecture.test.ts"
+      ]
+    },
+    {
+      "kind": "hotspot",
+      "trust_tier": "trusted",
+      "scope": "src/components/PromptInput.tsx",
+      "signal_class": "debt",
+      "signal_families": [
+        "coordination"
+      ],
+      "severity": "high",
+      "score_0_10000": 7144,
+      "summary": "File 'src/components/PromptInput.tsx' is carrying coordination hotspot pressure",
+      "candidate_split_axes": [
+        "orchestration boundary",
+        "side-effect boundary",
+        "adapter boundary"
+      ],
+      "related_surfaces": [
+        "src/components/PromptInput.tsx"
       ]
     },
     {
@@ -538,7 +553,7 @@
         "coordination"
       ],
       "severity": "high",
-      "score_0_10000": 7800,
+      "score_0_10000": 6800,
       "summary": "File 'src/components/terminal-view/terminal-session.ts' is carrying coordination hotspot pressure",
       "candidate_split_axes": [
         "orchestration boundary",
@@ -629,66 +644,10 @@
   ],
   "debt_clusters": [
     {
-      "scope": "cluster:src/App.tsx|src/remote/App.tsx|src/runtime/browser-session.ts",
-      "trust_tier": "trusted",
-      "severity": "high",
-      "score_0_10000": 9486,
-      "summary": "Files src/App.tsx, src/remote/App.tsx, src/runtime/browser-session.ts intersect 4 debt signals: dependency_sprawl, clone_family, large_file, concept",
-      "signal_kinds": [
-        "dependency_sprawl",
-        "clone_family",
-        "large_file",
-        "concept"
-      ],
-      "signal_families": [
-        "coupling",
-        "coordination",
-        "duplication",
-        "drift",
-        "size",
-        "boundary"
-      ]
-    },
-    {
-      "scope": "cluster:server/browser-control-plane.ts|electron/remote/server.ts|electron/remote/ws-transport.test.ts|tests/harness/websocket-contract-harness.ts",
-      "trust_tier": "trusted",
-      "severity": "high",
-      "score_0_10000": 9400,
-      "summary": "Files server/browser-control-plane.ts, electron/remote/server.ts, electron/remote/ws-transport.test.ts, and 1 more intersect 3 debt signals: large_file, clone_family, hotspot",
-      "signal_kinds": [
-        "large_file",
-        "clone_family",
-        "hotspot"
-      ],
-      "signal_families": [
-        "size",
-        "coordination",
-        "duplication",
-        "drift"
-      ]
-    },
-    {
-      "scope": "cluster:src/components/terminal-view/terminal-session.ts",
-      "trust_tier": "trusted",
-      "severity": "high",
-      "score_0_10000": 9400,
-      "summary": "File 'src/components/terminal-view/terminal-session.ts' intersects 3 debt signals: large_file, dependency_sprawl, hotspot",
-      "signal_kinds": [
-        "large_file",
-        "dependency_sprawl",
-        "hotspot"
-      ],
-      "signal_families": [
-        "size",
-        "coordination",
-        "coupling"
-      ]
-    },
-    {
       "scope": "cluster:src/store/store.ts|src/app/agent-catalog.ts|src/app/remote-access.ts|src/app/task-attention.ts|src/app/task-close-state.ts|src/app/task-command-dispatch.ts|src/app/task-command-lease-runtime-subscriptions.ts|src/app/task-command-lease-runtime.ts|src/app/task-command-lease-session.ts|src/app/task-command-lease-takeover.ts|src/app/task-command-lease.ts|src/app/task-convergence.ts|src/app/task-lifecycle-workflows.ts|src/app/task-presentation-status.ts|src/app/task-prompt-workflows.ts|src/app/task-review-state.ts|src/app/task-shell-workflows.ts|src/app/task-workflows.ts|src/lib/runtime-client-id.ts|src/store/agent-output-activity.ts|src/store/agents.ts|src/store/auto-trust.ts|src/store/client-session.ts|src/store/completion.ts|src/store/core.ts|src/store/focus.ts|src/store/keyed-snapshot-record.ts|src/store/navigation.ts|src/store/notification.ts|src/store/peer-presence.ts|src/store/persistence-codecs.ts|src/store/persistence-load-context.ts|src/store/persistence-load.ts|src/store/persistence-projects.ts|src/store/persistence-save.ts|src/store/persistence-terminal-restore.ts|src/store/persistence.ts|src/store/projects.ts|src/store/remote.ts|src/store/review.ts|src/store/state.ts|src/store/task-command-controllers.ts|src/store/task-command-takeovers.ts|src/store/task-git-status.ts|src/store/task-state-cleanup.ts|src/store/taskStatus.ts|src/store/tasks.ts|src/store/terminals.ts|src/store/ui.ts",
       "trust_tier": "trusted",
       "severity": "high",
-      "score_0_10000": 9162,
+      "score_0_10000": 9195,
       "summary": "Files src/store/store.ts, src/app/agent-catalog.ts, src/app/remote-access.ts, and 46 more intersect 9 debt signals: unstable_hotspot, cycle_cluster, hotspot, dependency_sprawl",
       "signal_kinds": [
         "unstable_hotspot",
@@ -705,20 +664,67 @@
       ]
     },
     {
-      "scope": "cluster:src/components/TaskPanel.tsx",
+      "scope": "cluster:src/App.tsx|src/remote/App.tsx",
       "trust_tier": "trusted",
       "severity": "high",
-      "score_0_10000": 8906,
-      "summary": "File 'src/components/TaskPanel.tsx' intersects 3 debt signals: dependency_sprawl, hotspot, large_file",
+      "score_0_10000": 8924,
+      "summary": "Files src/App.tsx, src/remote/App.tsx intersect 2 debt signals: dependency_sprawl, clone_family",
       "signal_kinds": [
         "dependency_sprawl",
-        "hotspot",
-        "large_file"
+        "clone_family"
       ],
       "signal_families": [
         "coupling",
         "coordination",
+        "duplication",
+        "drift"
+      ]
+    },
+    {
+      "scope": "cluster:src/components/terminal-view/terminal-session.ts",
+      "trust_tier": "trusted",
+      "severity": "high",
+      "score_0_10000": 7800,
+      "summary": "File 'src/components/terminal-view/terminal-session.ts' intersects 3 debt signals: hotspot, large_file, dependency_sprawl",
+      "signal_kinds": [
+        "hotspot",
+        "large_file",
+        "dependency_sprawl"
+      ],
+      "signal_families": [
+        "coordination",
+        "size",
+        "coupling"
+      ]
+    },
+    {
+      "scope": "cluster:src/components/PromptInput.tsx",
+      "trust_tier": "trusted",
+      "severity": "high",
+      "score_0_10000": 7644,
+      "summary": "File 'src/components/PromptInput.tsx' intersects 2 debt signals: hotspot, large_file",
+      "signal_kinds": [
+        "hotspot",
+        "large_file"
+      ],
+      "signal_families": [
+        "coordination",
         "size"
+      ]
+    },
+    {
+      "scope": "cluster:scripts/session-stress.mjs",
+      "trust_tier": "trusted",
+      "severity": "high",
+      "score_0_10000": 7220,
+      "summary": "File 'scripts/session-stress.mjs' intersects 2 debt signals: large_file, hotspot",
+      "signal_kinds": [
+        "large_file",
+        "hotspot"
+      ],
+      "signal_families": [
+        "size",
+        "coordination"
       ]
     }
   ],
@@ -734,17 +740,16 @@
       "severity": "high",
       "score_0_10000": 7162,
       "summary": "Files src/app/agent-catalog.ts, src/app/remote-access.ts, src/app/task-attention.ts, src/app/task-close-state.ts, src/app/task-command-dispatch.ts, src/app/task-command-lease-runtime-subscriptions.ts, src/app/task-command-lease-runtime.ts, src/app/task-command-lease-session.ts, src/app/task-command-lease-takeover.ts, src/app/task-command-lease.ts, src/app/task-convergence.ts, src/app/task-lifecycle-workflows.ts, src/app/task-presentation-status.ts, src/app/task-prompt-workflows.ts, src/app/task-review-state.ts, src/app/task-shell-workflows.ts, src/app/task-workflows.ts, src/lib/runtime-client-id.ts, src/store/agent-output-activity.ts, src/store/agents.ts, src/store/auto-trust.ts, src/store/client-session.ts, src/store/completion.ts, src/store/core.ts, src/store/focus.ts, src/store/keyed-snapshot-record.ts, src/store/navigation.ts, src/store/notification.ts, src/store/peer-presence.ts, src/store/persistence-codecs.ts, src/store/persistence-load-context.ts, src/store/persistence-load.ts, src/store/persistence-projects.ts, src/store/persistence-save.ts, src/store/persistence-terminal-restore.ts, src/store/persistence.ts, src/store/projects.ts, src/store/remote.ts, src/store/review.ts, src/store/state.ts, src/store/store.ts, src/store/task-command-controllers.ts, src/store/task-command-takeovers.ts, src/store/task-git-status.ts, src/store/task-state-cleanup.ts, src/store/taskStatus.ts, src/store/tasks.ts, src/store/terminals.ts, src/store/ui.ts form a dependency cycle",
-      "impact": "The cycle prevents clean layering and makes initialization order and refactors harder to isolate.",
+      "impact": "The cycle touches a component-facing barrel, which makes it harder to keep broad component access separate from deeper app and runtime seams.",
       "candidate_split_axes": [
-        "app store boundary",
-        "local module split",
-        "contract or type extraction"
+        "guarded boundary cut",
+        "app store boundary"
       ],
       "related_surfaces": [
-        "src/store/tasks.ts",
-        "src/app/task-workflows.ts",
         "src/store/core.ts",
         "src/store/store.ts",
+        "src/store/tasks.ts",
+        "src/app/task-workflows.ts",
         "src/store/state.ts",
         "src/app/agent-catalog.ts",
         "src/app/remote-access.ts",
@@ -765,7 +770,7 @@
       ],
       "severity": "high",
       "score_0_10000": 86,
-      "summary": "4 exact clone groups repeat across 2 files and churn differs by 0 recent commit(s) across siblings; sibling file age spans 2 day(s)",
+      "summary": "4 exact clone groups repeat across 2 files and churn differs by 0 recent commit(s) across siblings; sibling file age spans 1 day(s)",
       "impact": "Duplicate logic across related files increases the chance that a fix lands in only one sibling and the family drifts over time.",
       "candidate_split_axes": [
         "shared behavior boundary",
@@ -875,65 +880,60 @@
     "duplication_hotspot": {
       "clone_family": null,
       "duplication_cluster": {
-        "scope": "cluster:src/App.tsx|src/remote/App.tsx|src/runtime/browser-session.ts",
+        "scope": "cluster:src/App.tsx|src/remote/App.tsx",
         "trust_tier": "trusted",
         "severity": "high",
-        "score_0_10000": 9486,
-        "summary": "Files src/App.tsx, src/remote/App.tsx, src/runtime/browser-session.ts intersect 4 debt signals: dependency_sprawl, clone_family, large_file, concept",
+        "score_0_10000": 8924,
+        "summary": "Files src/App.tsx, src/remote/App.tsx intersect 2 debt signals: dependency_sprawl, clone_family",
         "signal_kinds": [
           "dependency_sprawl",
-          "clone_family",
-          "large_file",
-          "concept"
+          "clone_family"
         ],
         "signal_families": [
           "coupling",
           "coordination",
           "duplication",
-          "drift",
-          "size",
-          "boundary"
+          "drift"
         ]
       },
       "hotspot": {
         "kind": "hotspot",
         "trust_tier": "trusted",
-        "scope": "src/components/terminal-view/terminal-session.ts",
+        "scope": "src/components/PromptInput.tsx",
         "signal_class": "debt",
         "signal_families": [
           "coordination"
         ],
         "severity": "high",
-        "score_0_10000": 7800,
-        "summary": "File 'src/components/terminal-view/terminal-session.ts' is carrying coordination hotspot pressure",
+        "score_0_10000": 7144,
+        "summary": "File 'src/components/PromptInput.tsx' is carrying coordination hotspot pressure",
         "candidate_split_axes": [
           "orchestration boundary",
           "side-effect boundary",
           "adapter boundary"
         ],
         "related_surfaces": [
-          "src/components/terminal-view/terminal-session.ts"
+          "src/components/PromptInput.tsx"
         ]
       },
       "hotspot_cluster": {
-        "scope": "cluster:src/App.tsx|src/remote/App.tsx|src/runtime/browser-session.ts",
+        "scope": "cluster:src/store/store.ts|src/app/agent-catalog.ts|src/app/remote-access.ts|src/app/task-attention.ts|src/app/task-close-state.ts|src/app/task-command-dispatch.ts|src/app/task-command-lease-runtime-subscriptions.ts|src/app/task-command-lease-runtime.ts|src/app/task-command-lease-session.ts|src/app/task-command-lease-takeover.ts|src/app/task-command-lease.ts|src/app/task-convergence.ts|src/app/task-lifecycle-workflows.ts|src/app/task-presentation-status.ts|src/app/task-prompt-workflows.ts|src/app/task-review-state.ts|src/app/task-shell-workflows.ts|src/app/task-workflows.ts|src/lib/runtime-client-id.ts|src/store/agent-output-activity.ts|src/store/agents.ts|src/store/auto-trust.ts|src/store/client-session.ts|src/store/completion.ts|src/store/core.ts|src/store/focus.ts|src/store/keyed-snapshot-record.ts|src/store/navigation.ts|src/store/notification.ts|src/store/peer-presence.ts|src/store/persistence-codecs.ts|src/store/persistence-load-context.ts|src/store/persistence-load.ts|src/store/persistence-projects.ts|src/store/persistence-save.ts|src/store/persistence-terminal-restore.ts|src/store/persistence.ts|src/store/projects.ts|src/store/remote.ts|src/store/review.ts|src/store/state.ts|src/store/task-command-controllers.ts|src/store/task-command-takeovers.ts|src/store/task-git-status.ts|src/store/task-state-cleanup.ts|src/store/taskStatus.ts|src/store/tasks.ts|src/store/terminals.ts|src/store/ui.ts",
         "trust_tier": "trusted",
         "severity": "high",
-        "score_0_10000": 9486,
-        "summary": "Files src/App.tsx, src/remote/App.tsx, src/runtime/browser-session.ts intersect 4 debt signals: dependency_sprawl, clone_family, large_file, concept",
+        "score_0_10000": 9195,
+        "summary": "Files src/store/store.ts, src/app/agent-catalog.ts, src/app/remote-access.ts, and 46 more intersect 9 debt signals: unstable_hotspot, cycle_cluster, hotspot, dependency_sprawl",
         "signal_kinds": [
-          "dependency_sprawl",
-          "clone_family",
-          "large_file",
-          "concept"
+          "unstable_hotspot",
+          "cycle_cluster",
+          "hotspot",
+          "dependency_sprawl"
         ],
         "signal_families": [
           "coupling",
-          "coordination",
-          "duplication",
-          "drift",
-          "size",
-          "boundary"
+          "blast_radius",
+          "dependency",
+          "layering",
+          "coordination"
         ]
       }
     }
