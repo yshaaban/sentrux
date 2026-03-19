@@ -214,7 +214,7 @@ The current analysis surfaces these highest-leverage improvement targets:
   - [terminal-output-pipeline.ts](<parallel-code-root>/src/components/terminal-view/terminal-output-pipeline.ts)
   - [terminal-session.architecture.test.ts](<parallel-code-root>/src/components/terminal-view/terminal-session.architecture.test.ts)
 
-### [browser-websocket.ts](<parallel-code-root>/electron/remote/ws-server.ts|server/browser-websocket.ts)
+### electron/remote/ws-server.ts|server/browser-websocket.ts
 
 - trust tier: `trusted`
 - class: `watchpoint`
@@ -229,7 +229,7 @@ The current analysis surfaces these highest-leverage improvement targets:
   - [ws-server.ts](<parallel-code-root>/electron/remote/ws-server.ts)
   - [browser-websocket.ts](<parallel-code-root>/server/browser-websocket.ts)
 
-### [RemoteAgentGlyph.tsx](<parallel-code-root>/src/components/AgentGlyph.tsx|src/remote/RemoteAgentGlyph.tsx)
+### src/components/AgentGlyph.tsx|src/remote/RemoteAgentGlyph.tsx
 
 - trust tier: `trusted`
 - class: `watchpoint`
@@ -299,8 +299,8 @@ The current analysis surfaces these highest-leverage improvement targets:
 
 - live commit: `76772b8a37d5de0d0ffba06130218c5f12e40511`
 - live dirty paths: `40`
-- live dirty-path fingerprint: `2db83fe36579d9eca04948fe5c91eb568b9eed05a838639ca5cdab4c204978a1`
-- live tree fingerprint: `909d3c33a72de0eb08030e4a191402dcf7dd7d697d1507b1ebd4cc370d5e726b`
+- live dirty-path fingerprint: `f296bb0b14f1d5252d880c5f89ff068afe8843d8afae860dc8bed3376c7baffd`
+- live tree fingerprint: `f71c1c3d996887ee36dfe48e72dacb8b9f89e70b1055b3f03b2594c4f055db48`
 - freshness comparison: goldens matched and report generation was allowed
 
 ## Source Documents

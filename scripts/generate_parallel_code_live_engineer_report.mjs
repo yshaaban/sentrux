@@ -107,6 +107,10 @@ function formatRepoPathMarkdown(repoPath, targetPath) {
   return `[${path.basename(targetPath)}](${path.join(repoPath, targetPath)})`;
 }
 
+function isSingleRepoPath(value) {
+  return looksLikeRepoPath(value) && !value.includes('|');
+}
+
 function appendRepoLinkList(lines, title, repoPath, surfaces, limit = 5) {
   if ((surfaces ?? []).length === 0) {
     return;
@@ -119,7 +123,7 @@ function appendRepoLinkList(lines, title, repoPath, surfaces, limit = 5) {
 }
 
 function appendCandidateBlock(lines, candidate, repoRoot) {
-  if (looksLikeRepoPath(candidate.scope)) {
+  if (isSingleRepoPath(candidate.scope)) {
     lines.push(`### ${formatRepoPathMarkdown(repoRoot, candidate.scope)}`);
   } else {
     lines.push(`### ${candidate.scope}`);
@@ -482,7 +486,7 @@ function buildLiveEngineerAppendix({
   lines.push('## Leverage Summary');
   lines.push('');
   for (const candidate of leadCandidates) {
-    if (looksLikeRepoPath(candidate.scope)) {
+    if (isSingleRepoPath(candidate.scope)) {
       lines.push(`### ${formatRepoPathMarkdown(metadata.parallel_code_root, candidate.scope)}`);
     } else {
       lines.push(`### ${candidate.scope}`);
@@ -544,7 +548,13 @@ function buildLiveEngineerAppendix({
   lines.push('## Tooling Debt');
   lines.push('');
   for (const candidate of toolingDebt) {
-    lines.push(`- ${formatRepoPathMarkdown(metadata.parallel_code_root, candidate.scope)} ${candidate.summary}`);
+    if (isSingleRepoPath(candidate.scope)) {
+      lines.push(
+        `- ${formatRepoPathMarkdown(metadata.parallel_code_root, candidate.scope)} ${candidate.summary}`,
+      );
+    } else {
+      lines.push(`- \`${candidate.scope}\` ${candidate.summary}`);
+    }
   }
   if (toolingDebt.length === 0) {
     lines.push('- none');
@@ -607,7 +617,7 @@ function buildLiveEngineerAppendix({
     lines.push('Representative examples:');
     lines.push('');
     for (const signal of experimentalSignals.slice(0, 5)) {
-      if (looksLikeRepoPath(signal.scope)) {
+      if (isSingleRepoPath(signal.scope)) {
         lines.push(`- ${formatRepoPathMarkdown(metadata.parallel_code_root, signal.scope)}`);
       } else {
         lines.push(`- \`${signal.scope}\``);
