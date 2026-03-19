@@ -7,6 +7,7 @@ mod parity;
 mod state;
 
 use crate::analysis::semantic::{ReadFact, SemanticSnapshot, WriteFact};
+use crate::core::snapshot::Snapshot;
 use crate::metrics::rules::{self, ConceptRule, RulesConfig};
 use crate::metrics::testgap::is_test_file;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
@@ -49,12 +50,23 @@ pub fn build_authority_and_access_findings(
     config: &RulesConfig,
     semantic: &SemanticSnapshot,
 ) -> Vec<SemanticFinding> {
+    build_authority_and_access_findings_with_snapshot(config, semantic, None)
+}
+
+pub fn build_authority_and_access_findings_with_snapshot(
+    config: &RulesConfig,
+    semantic: &SemanticSnapshot,
+    snapshot: Option<&Snapshot>,
+) -> Vec<SemanticFinding> {
     let mut findings = Vec::new();
 
     for concept in &config.concept {
         findings.extend(multi_writer_findings(concept, semantic));
         findings.extend(writer_policy_findings(concept, semantic));
         findings.extend(raw_access_findings(concept, semantic));
+        if let Some(snapshot) = snapshot {
+            findings.extend(authoritative_import_bypass_findings(concept, snapshot));
+        }
     }
 
     findings
@@ -182,6 +194,64 @@ fn raw_access_findings(concept: &ConceptRule, semantic: &SemanticSnapshot) -> Ve
         .collect()
 }
 
+fn authoritative_import_bypass_findings(
+    concept: &ConceptRule,
+    snapshot: &Snapshot,
+) -> Vec<SemanticFinding> {
+    if concept.kind == "projection" || concept.canonical_accessors.is_empty() {
+        return Vec::new();
+    }
+
+    let authoritative_paths = concept_authoritative_paths(concept);
+    if authoritative_paths.is_empty() {
+        return Vec::new();
+    }
+
+    let allowed_importers = concept_allowed_importer_paths(concept);
+    let mut bypasses = BTreeMap::<String, BTreeSet<String>>::new();
+
+    for edge in &snapshot.import_graph {
+        if !authoritative_paths.contains(&edge.to_file) {
+            continue;
+        }
+        if edge.from_file == edge.to_file || is_test_file(&edge.from_file) {
+            continue;
+        }
+        if allowed_importers
+            .iter()
+            .any(|pattern| path_matches_pattern(pattern, &edge.from_file))
+        {
+            continue;
+        }
+
+        bypasses
+            .entry(edge.from_file.clone())
+            .or_default()
+            .insert(format!("{} -> {}", edge.from_file, edge.to_file));
+    }
+
+    let severity = if concept.priority.as_deref() == Some("critical") {
+        "high"
+    } else {
+        "medium"
+    };
+
+    bypasses
+        .into_iter()
+        .map(|(path, evidence)| SemanticFinding {
+            kind: "authoritative_import_bypass".to_string(),
+            severity: severity.to_string(),
+            concept_id: concept.id.clone(),
+            summary: format!(
+                "Concept '{}' is imported directly from authoritative internals at {}",
+                concept.id, path
+            ),
+            files: vec![path],
+            evidence: evidence.into_iter().collect(),
+        })
+        .collect()
+}
+
 pub(crate) fn relevant_writes<'a>(
     concept: &ConceptRule,
     semantic: &'a SemanticSnapshot,
@@ -253,6 +323,40 @@ pub(crate) fn concept_targets(concept: &ConceptRule) -> HashSet<String> {
     )
 }
 
+fn concept_authoritative_paths(concept: &ConceptRule) -> HashSet<String> {
+    concept
+        .anchors
+        .iter()
+        .chain(concept.authoritative_inputs.iter())
+        .filter_map(|value| value.split_once("::").map(|(path, _)| path.to_string()))
+        .collect()
+}
+
+fn concept_allowed_importer_paths(concept: &ConceptRule) -> Vec<String> {
+    let mut patterns = BTreeSet::new();
+
+    for value in concept
+        .anchors
+        .iter()
+        .chain(concept.authoritative_inputs.iter())
+        .chain(concept.canonical_accessors.iter())
+        .chain(concept.allowed_writers.iter())
+        .chain(concept.related_tests.iter())
+    {
+        if let Some((path, _)) = value.split_once("::") {
+            patterns.insert(path.to_string());
+        } else {
+            patterns.insert(value.clone());
+        }
+    }
+
+    patterns.into_iter().collect()
+}
+
+fn path_matches_pattern(pattern: &str, path: &str) -> bool {
+    rules::glob_match(pattern, path) || pattern == path
+}
+
 pub(crate) fn symbol_from_scoped_path(value: &str) -> Option<String> {
     let (_, symbol) = value.split_once("::")?;
     Some(symbol.to_string())
@@ -320,11 +424,14 @@ pub(crate) fn symbol_pattern_matches(pattern: &str, symbol_name: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::build_authority_and_access_findings;
+    use super::{
+        build_authority_and_access_findings, build_authority_and_access_findings_with_snapshot,
+    };
     use crate::analysis::semantic::{
         ProjectModel, ReadFact, SemanticCapability, SemanticSnapshot, WriteFact,
     };
     use crate::metrics::rules::RulesConfig;
+    use crate::metrics::test_helpers::{edge, file, snap_with_edges};
 
     #[test]
     fn reports_multi_writer_and_forbidden_raw_read_findings() {
@@ -566,6 +673,64 @@ mod tests {
         assert_eq!(
             forbidden[0].evidence,
             vec!["src/store/git-status-polling.ts::store.taskGitStatus.*"]
+        );
+    }
+
+    #[test]
+    fn reports_direct_imports_of_authoritative_modules() {
+        let config: RulesConfig = toml::from_str(
+            r#"
+                [[concept]]
+                id = "task_git_status"
+                kind = "authoritative_state"
+                priority = "critical"
+                anchors = ["src/store/core.ts::store.taskGitStatus"]
+                authoritative_inputs = ["src/store/internal-status.ts::taskGitStatusSource"]
+                canonical_accessors = ["src/store/store.ts::getTaskGitStatus"]
+                allowed_writers = ["src/app/git-status-sync.ts::*"]
+            "#,
+        )
+        .expect("rules config");
+        let semantic = SemanticSnapshot {
+            project: ProjectModel::default(),
+            analyzed_files: 0,
+            capabilities: vec![SemanticCapability::Writes],
+            files: Vec::new(),
+            symbols: Vec::new(),
+            reads: Vec::new(),
+            writes: Vec::new(),
+            closed_domains: Vec::new(),
+            closed_domain_sites: Vec::new(),
+        };
+        let snapshot = snap_with_edges(
+            vec![
+                edge("src/app/task-workflows.ts", "src/store/core.ts"),
+                edge("src/store/internal-status.ts", "src/store/core.ts"),
+                edge("src/store/store.ts", "src/store/core.ts"),
+                edge("src/app/git-status-sync.ts", "src/store/core.ts"),
+            ],
+            vec![
+                file("src/app/task-workflows.ts"),
+                file("src/store/core.ts"),
+                file("src/store/internal-status.ts"),
+                file("src/store/store.ts"),
+                file("src/app/git-status-sync.ts"),
+            ],
+        );
+
+        let findings =
+            build_authority_and_access_findings_with_snapshot(&config, &semantic, Some(&snapshot));
+
+        let bypasses = findings
+            .iter()
+            .filter(|finding| finding.kind == "authoritative_import_bypass")
+            .collect::<Vec<_>>();
+        assert_eq!(bypasses.len(), 1);
+        assert_eq!(bypasses[0].severity, "high");
+        assert_eq!(bypasses[0].files, vec!["src/app/task-workflows.ts"]);
+        assert_eq!(
+            bypasses[0].evidence,
+            vec!["src/app/task-workflows.ts -> src/store/core.ts"]
         );
     }
 }

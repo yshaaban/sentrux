@@ -1015,6 +1015,7 @@ fn build_session_v2_baseline(
     let (semantic_findings, _, semantic_error) = semantic_findings_and_obligations(
         state,
         root,
+        Some(snapshot),
         crate::metrics::v2::ObligationScope::All,
         &BTreeSet::new(),
     );
@@ -1046,6 +1047,7 @@ fn build_session_v2_baseline(
 fn semantic_findings_and_obligations(
     state: &mut McpState,
     root: &Path,
+    snapshot: Option<&Snapshot>,
     scope: crate::metrics::v2::ObligationScope,
     changed_files: &BTreeSet<String>,
 ) -> (
@@ -1057,7 +1059,9 @@ fn semantic_findings_and_obligations(
     match analyze_semantic_snapshot(state, root) {
         Ok(Some(semantic)) => {
             let mut findings =
-                crate::metrics::v2::build_authority_and_access_findings(&config, &semantic);
+                crate::metrics::v2::build_authority_and_access_findings_with_snapshot(
+                    &config, &semantic, snapshot,
+                );
             let obligations =
                 crate::metrics::v2::build_obligations(&config, &semantic, scope, changed_files);
             findings.extend(crate::metrics::v2::build_obligation_findings(&obligations));
@@ -1338,10 +1342,12 @@ fn analyze_changed_patch_scope(
     }
 
     state.cached_semantic = None;
+    let cached_snapshot = state.cached_snapshot.clone();
     let (changed_semantic_findings, obligations, semantic_error) =
         semantic_findings_and_obligations(
             state,
             root,
+            cached_snapshot.as_deref(),
             crate::metrics::v2::ObligationScope::Changed,
             changed_files,
         );
@@ -1414,6 +1420,7 @@ fn compute_touched_concept_gate(
     let (all_semantic_findings, _, all_semantic_error) = semantic_findings_and_obligations(
         state,
         root,
+        Some(&bundle.snapshot),
         crate::metrics::v2::ObligationScope::All,
         &BTreeSet::new(),
     );
@@ -1804,6 +1811,7 @@ fn handle_findings(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<V
     let (semantic_findings, _, semantic_error) = semantic_findings_and_obligations(
         state,
         &root,
+        Some(&snapshot),
         crate::metrics::v2::ObligationScope::All,
         &BTreeSet::new(),
     );
@@ -1900,9 +1908,15 @@ fn handle_obligations(args: &Value, _tier: &Tier, state: &mut McpState) -> Resul
     let concept_filter = args.get("concept").and_then(|value| value.as_str());
     let file_filter = args.get("file").and_then(|value| value.as_str());
     let symbol_filter = args.get("symbol").and_then(|value| value.as_str());
+    let cached_snapshot = state.cached_snapshot.clone();
 
-    let (_, obligations, semantic_error) =
-        semantic_findings_and_obligations(state, &root, scope, &changed_files);
+    let (_, obligations, semantic_error) = semantic_findings_and_obligations(
+        state,
+        &root,
+        cached_snapshot.as_deref(),
+        scope,
+        &changed_files,
+    );
     let obligations = obligations
         .into_iter()
         .filter(|obligation| {
@@ -2577,6 +2591,87 @@ mod tests {
                     default:
                       return assertNever(state);
                   }
+                }
+            "#,
+        );
+        root
+    }
+
+    fn contract_gate_fixture_root() -> std::path::PathBuf {
+        let root = temp_root("contract-gate");
+        write_file(
+            &root,
+            ".sentrux/rules.toml",
+            r#"
+                [[contract]]
+                id = "server_state_bootstrap"
+                categories_symbol = "src/domain/bootstrap.ts::BOOTSTRAP_CATEGORIES"
+                payload_map_symbol = "src/domain/bootstrap.ts::BootstrapPayloadMap"
+                registry_symbol = "src/app/bootstrap-registry.ts::BOOTSTRAP_REGISTRY"
+                browser_entry = "src/runtime/browser-session.ts"
+                electron_entry = "src/app/desktop-session.ts"
+            "#,
+        );
+        write_file(
+            &root,
+            "package.json",
+            r#"{ "name": "contract-gate-fixture", "type": "module" }"#,
+        );
+        write_file(
+            &root,
+            "tsconfig.json",
+            r#"
+                {
+                  "compilerOptions": {
+                    "module": "esnext",
+                    "target": "es2020",
+                    "strict": true
+                  },
+                  "include": ["src/**/*.ts"]
+                }
+            "#,
+        );
+        write_file(
+            &root,
+            "src/domain/bootstrap.ts",
+            r#"
+                export const BOOTSTRAP_CATEGORIES = ['tasks'] as const;
+                export type BootstrapCategory = (typeof BOOTSTRAP_CATEGORIES)[number];
+                export type BootstrapPayloadMap = {
+                  tasks: { count: number };
+                };
+            "#,
+        );
+        write_file(
+            &root,
+            "src/app/bootstrap-registry.ts",
+            r#"
+                import type { BootstrapPayloadMap } from '../domain/bootstrap';
+
+                export const BOOTSTRAP_REGISTRY: Record<keyof BootstrapPayloadMap, string> = {
+                  tasks: 'tasks',
+                };
+            "#,
+        );
+        write_file(
+            &root,
+            "src/runtime/browser-session.ts",
+            r#"
+                import { BOOTSTRAP_REGISTRY } from '../app/bootstrap-registry';
+
+                export function startBrowserSession(): number {
+                  return Object.keys(BOOTSTRAP_REGISTRY).length;
+                }
+            "#,
+        );
+        write_file(
+            &root,
+            "src/app/desktop-session.ts",
+            r#"
+                import { BOOTSTRAP_REGISTRY } from './bootstrap-registry';
+
+                export function startDesktopSession(): number {
+                  return Object.keys(BOOTSTRAP_REGISTRY).length;
                 }
             "#,
         );
@@ -3600,6 +3695,38 @@ mod tests {
     }
 
     #[test]
+    fn cli_v2_gate_fails_on_contract_surface_regression() {
+        let root = contract_gate_fixture_root();
+        cli_save_v2_session(&root).expect("save v2 session");
+        write_file(
+            &root,
+            "src/domain/bootstrap.ts",
+            r#"
+                export const BOOTSTRAP_CATEGORIES = ['tasks', 'reviews'] as const;
+                export type BootstrapCategory = (typeof BOOTSTRAP_CATEGORIES)[number];
+                export type BootstrapPayloadMap = {
+                  tasks: { count: number };
+                  reviews: { total: number };
+                };
+            "#,
+        );
+
+        let evaluated = cli_evaluate_v2_gate(&root, false).expect("evaluate v2 gate");
+
+        assert_eq!(evaluated["decision"], "fail");
+        assert!(evaluated["missing_obligations"]
+            .as_array()
+            .expect("missing obligations")
+            .iter()
+            .any(|value| {
+                value["kind"] == "contract_surface_completeness"
+                    && value["concept_id"] == "server_state_bootstrap"
+            }));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
     fn session_end_works_with_v2_session_when_legacy_baseline_is_missing() {
         let root = closed_domain_gate_fixture_root();
         cli_save_v2_session(&root).expect("save v2 session");
@@ -4193,6 +4320,7 @@ fn handle_session_end(_args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
     let (all_semantic_findings, _, all_semantic_error) = semantic_findings_and_obligations(
         state,
         &root,
+        Some(&bundle.snapshot),
         crate::metrics::v2::ObligationScope::All,
         &BTreeSet::new(),
     );
@@ -4534,9 +4662,11 @@ fn handle_explain_concept(
         .ok_or_else(|| format!("Unknown concept: {concept_id}"))?;
     let graph = crate::analysis::concepts::extract_concept_graph(&config);
     let semantic = analyze_semantic_snapshot(state, &root).ok().flatten();
+    let cached_snapshot = state.cached_snapshot.clone();
     let (semantic_findings, obligations, semantic_error) = semantic_findings_and_obligations(
         state,
         &root,
+        cached_snapshot.as_deref(),
         crate::metrics::v2::ObligationScope::All,
         &BTreeSet::new(),
     );
@@ -4738,9 +4868,11 @@ fn handle_trace_symbol(args: &Value, _tier: &Tier, state: &mut McpState) -> Resu
         .filter(|contract| contract_matches_symbol(contract, query))
         .map(|contract| contract.id.clone())
         .collect::<BTreeSet<_>>();
+    let cached_snapshot = state.cached_snapshot.clone();
     let (semantic_findings, obligations, semantic_error) = semantic_findings_and_obligations(
         state,
         &root,
+        cached_snapshot.as_deref(),
         crate::metrics::v2::ObligationScope::All,
         &BTreeSet::new(),
     );

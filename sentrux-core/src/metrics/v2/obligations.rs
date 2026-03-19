@@ -2,7 +2,7 @@
 
 use super::{concept_targets, symbol_matches_targets, SemanticFinding};
 use crate::analysis::semantic::{ClosedDomain, ExhaustivenessSite, SemanticSnapshot};
-use crate::metrics::rules::{self, ConceptRule, RulesConfig};
+use crate::metrics::rules::{self, ConceptRule, ContractRule, RulesConfig};
 use crate::metrics::testgap::is_test_file;
 use std::collections::{BTreeSet, HashSet};
 
@@ -74,6 +74,14 @@ pub fn build_obligations(
         }
     }
 
+    for contract in &config.contract {
+        if let Some(report) =
+            build_contract_obligation(config, contract, semantic, scope, changed_files)
+        {
+            obligations.push(report);
+        }
+    }
+
     for domain in &semantic.closed_domains {
         if covered_domains.contains(&domain.symbol_name) {
             continue;
@@ -104,6 +112,75 @@ pub fn build_obligations(
             .then(left.id.cmp(&right.id))
     });
     obligations
+}
+
+fn build_contract_obligation(
+    config: &RulesConfig,
+    contract: &ContractRule,
+    semantic: &SemanticSnapshot,
+    scope: ObligationScope,
+    changed_files: &BTreeSet<String>,
+) -> Option<ObligationReport> {
+    let trigger_paths = contract_trigger_paths(contract);
+    let triggered = contract_is_triggered(&trigger_paths, changed_files);
+    let required_sites = contract_required_sites(contract, semantic);
+    if required_sites.is_empty() {
+        return None;
+    }
+
+    let mut files = required_sites
+        .iter()
+        .map(|site| site.path.clone())
+        .collect::<BTreeSet<_>>();
+    files.extend(contract_related_concept_paths(config, contract));
+    let missing_structural_sites = required_sites
+        .iter()
+        .filter(|site| is_missing_contract_site(site))
+        .cloned()
+        .collect::<Vec<_>>();
+
+    if scope == ObligationScope::Changed && !triggered && missing_structural_sites.is_empty() {
+        return None;
+    }
+    if scope == ObligationScope::All && missing_structural_sites.is_empty() {
+        return None;
+    }
+
+    let mut satisfied_sites = Vec::new();
+    let mut missing_sites = Vec::new();
+    for site in &required_sites {
+        if is_missing_contract_site(site) {
+            missing_sites.push(site.clone());
+            continue;
+        }
+
+        if scope == ObligationScope::Changed && triggered {
+            if changed_files.contains(&site.path) {
+                satisfied_sites.push(site.clone());
+            } else {
+                missing_sites.push(site.clone());
+            }
+        } else {
+            satisfied_sites.push(site.clone());
+        }
+    }
+
+    let summary =
+        contract_obligation_summary(contract, &trigger_paths, changed_files, &missing_sites);
+
+    Some(ObligationReport {
+        id: format!("contract::{}", contract.id),
+        kind: "contract_surface_completeness".to_string(),
+        concept_id: Some(contract.id.clone()),
+        domain_symbol_name: None,
+        summary,
+        files: files.into_iter().collect(),
+        required_sites: required_sites.clone(),
+        satisfied_sites,
+        missing_sites,
+        missing_variants: Vec::new(),
+        context_burden: required_sites.len(),
+    })
 }
 
 pub fn build_obligation_findings(obligations: &[ObligationReport]) -> Vec<SemanticFinding> {
@@ -455,6 +532,190 @@ fn concept_rule_paths(concept: &ConceptRule) -> Vec<String> {
     paths
 }
 
+fn contract_trigger_paths(contract: &ContractRule) -> Vec<String> {
+    [
+        contract.categories_symbol.as_deref(),
+        contract.payload_map_symbol.as_deref(),
+    ]
+    .into_iter()
+    .flatten()
+    .filter_map(scoped_symbol_path)
+    .collect()
+}
+
+fn contract_required_sites(
+    contract: &ContractRule,
+    semantic: &SemanticSnapshot,
+) -> Vec<ObligationSite> {
+    let mut sites = BTreeSet::new();
+
+    push_contract_symbol_site(
+        &mut sites,
+        semantic,
+        contract.categories_symbol.as_deref(),
+        "categories_symbol",
+        "update categories symbol",
+    );
+    push_contract_symbol_site(
+        &mut sites,
+        semantic,
+        contract.payload_map_symbol.as_deref(),
+        "payload_map_symbol",
+        "update payload map symbol",
+    );
+    push_contract_symbol_site(
+        &mut sites,
+        semantic,
+        contract.registry_symbol.as_deref(),
+        "registry_symbol",
+        "update registry symbol",
+    );
+    push_contract_file_site(
+        &mut sites,
+        semantic,
+        contract.browser_entry.as_deref(),
+        "browser_entry",
+        "update browser runtime entry",
+    );
+    push_contract_file_site(
+        &mut sites,
+        semantic,
+        contract.electron_entry.as_deref(),
+        "electron_entry",
+        "update electron runtime entry",
+    );
+
+    sites.into_iter().collect()
+}
+
+fn push_contract_symbol_site(
+    sites: &mut BTreeSet<ObligationSite>,
+    semantic: &SemanticSnapshot,
+    scoped_symbol: Option<&str>,
+    kind: &str,
+    detail: &str,
+) {
+    let Some((path, symbol_name)) = scoped_symbol.and_then(|value| value.split_once("::")) else {
+        return;
+    };
+
+    let symbol = semantic
+        .symbols
+        .iter()
+        .find(|symbol| symbol.path == path && symbol.name == symbol_name);
+    let site_detail = if symbol.is_some() {
+        detail.to_string()
+    } else {
+        missing_contract_site_detail(symbol_name)
+    };
+    let line = symbol.map(|symbol| symbol.line);
+
+    sites.insert(ObligationSite {
+        path: path.to_string(),
+        kind: kind.to_string(),
+        line,
+        detail: site_detail,
+    });
+}
+
+fn push_contract_file_site(
+    sites: &mut BTreeSet<ObligationSite>,
+    semantic: &SemanticSnapshot,
+    path: Option<&str>,
+    kind: &str,
+    detail: &str,
+) {
+    let Some(path) = path else {
+        return;
+    };
+    let present = semantic.files.iter().any(|file| file.path == path);
+    sites.insert(ObligationSite {
+        path: path.to_string(),
+        kind: kind.to_string(),
+        line: None,
+        detail: if present {
+            detail.to_string()
+        } else {
+            missing_contract_site_detail(path)
+        },
+    });
+}
+
+fn contract_is_triggered(trigger_paths: &[String], changed_files: &BTreeSet<String>) -> bool {
+    if changed_files.is_empty() {
+        return false;
+    }
+
+    trigger_paths
+        .iter()
+        .any(|pattern| changed_files.iter().any(|path| path_matches(pattern, path)))
+}
+
+fn contract_obligation_summary(
+    contract: &ContractRule,
+    trigger_paths: &[String],
+    changed_files: &BTreeSet<String>,
+    missing_sites: &[ObligationSite],
+) -> String {
+    if missing_sites.is_empty() {
+        return format!(
+            "Contract '{}' is fully updated across all required surfaces",
+            contract.id
+        );
+    }
+
+    let changed_triggers = changed_contract_trigger_paths(trigger_paths, changed_files);
+    if !changed_triggers.is_empty() {
+        return format!(
+            "Contract '{}' changed in {} but {} required surface(s) were not updated",
+            contract.id,
+            changed_triggers.join(", "),
+            missing_sites.len()
+        );
+    }
+
+    format!(
+        "Contract '{}' is missing {} declared surface(s)",
+        contract.id,
+        missing_sites.len()
+    )
+}
+
+fn contract_related_concept_paths(
+    config: &RulesConfig,
+    contract: &ContractRule,
+) -> BTreeSet<String> {
+    config
+        .concept
+        .iter()
+        .filter(|concept| concept.id == contract.id)
+        .flat_map(concept_rule_paths)
+        .collect()
+}
+
+fn changed_contract_trigger_paths(
+    trigger_paths: &[String],
+    changed_files: &BTreeSet<String>,
+) -> Vec<String> {
+    trigger_paths
+        .iter()
+        .filter(|pattern| changed_files.iter().any(|path| path_matches(pattern, path)))
+        .cloned()
+        .collect()
+}
+
+fn is_missing_contract_site(site: &ObligationSite) -> bool {
+    site.detail.starts_with("declared contract site is missing")
+}
+
+fn missing_contract_site_detail(target: &str) -> String {
+    format!("declared contract site is missing from semantic snapshot: {target}")
+}
+
+fn scoped_symbol_path(value: &str) -> Option<String> {
+    value.split_once("::").map(|(path, _)| path.to_string())
+}
+
 fn path_matches(pattern: &str, path: &str) -> bool {
     if rules::glob_match(pattern, path) {
         return true;
@@ -643,5 +904,133 @@ mod tests {
             build_obligations(&config, &semantic, ObligationScope::All, &BTreeSet::new());
 
         assert!(obligations.is_empty());
+    }
+
+    #[test]
+    fn changed_scope_requires_related_contract_surfaces() {
+        let config: RulesConfig = toml::from_str(
+            r#"
+                [[contract]]
+                id = "server_state_bootstrap"
+                categories_symbol = "src/domain/server-state-bootstrap.ts::SERVER_STATE_BOOTSTRAP_CATEGORIES"
+                payload_map_symbol = "src/domain/server-state-bootstrap.ts::ServerStateBootstrapPayloadMap"
+                registry_symbol = "src/app/server-state-bootstrap-registry.ts::SERVER_STATE_BOOTSTRAP_REGISTRY"
+                browser_entry = "src/runtime/browser-session.ts"
+                electron_entry = "src/app/desktop-session.ts"
+            "#,
+        )
+        .expect("rules config");
+        let semantic = SemanticSnapshot {
+            project: ProjectModel::default(),
+            analyzed_files: 4,
+            capabilities: vec![SemanticCapability::Symbols],
+            files: vec![
+                SemanticFileFact {
+                    path: "src/domain/server-state-bootstrap.ts".to_string(),
+                    ..SemanticFileFact::default()
+                },
+                SemanticFileFact {
+                    path: "src/app/server-state-bootstrap-registry.ts".to_string(),
+                    ..SemanticFileFact::default()
+                },
+                SemanticFileFact {
+                    path: "src/runtime/browser-session.ts".to_string(),
+                    ..SemanticFileFact::default()
+                },
+                SemanticFileFact {
+                    path: "src/app/desktop-session.ts".to_string(),
+                    ..SemanticFileFact::default()
+                },
+            ],
+            symbols: vec![
+                crate::analysis::semantic::SymbolFact {
+                    id: "cats".to_string(),
+                    path: "src/domain/server-state-bootstrap.ts".to_string(),
+                    name: "SERVER_STATE_BOOTSTRAP_CATEGORIES".to_string(),
+                    kind: "const".to_string(),
+                    line: 3,
+                },
+                crate::analysis::semantic::SymbolFact {
+                    id: "payload".to_string(),
+                    path: "src/domain/server-state-bootstrap.ts".to_string(),
+                    name: "ServerStateBootstrapPayloadMap".to_string(),
+                    kind: "type_alias".to_string(),
+                    line: 8,
+                },
+                crate::analysis::semantic::SymbolFact {
+                    id: "registry".to_string(),
+                    path: "src/app/server-state-bootstrap-registry.ts".to_string(),
+                    name: "SERVER_STATE_BOOTSTRAP_REGISTRY".to_string(),
+                    kind: "const".to_string(),
+                    line: 5,
+                },
+            ],
+            reads: Vec::new(),
+            writes: Vec::new(),
+            closed_domains: Vec::new(),
+            closed_domain_sites: Vec::new(),
+        };
+        let changed_files = BTreeSet::from(["src/domain/server-state-bootstrap.ts".to_string()]);
+
+        let obligations =
+            build_obligations(&config, &semantic, ObligationScope::Changed, &changed_files);
+
+        let contract = obligations
+            .iter()
+            .find(|obligation| obligation.kind == "contract_surface_completeness")
+            .expect("contract obligation");
+        assert_eq!(
+            contract.concept_id.as_deref(),
+            Some("server_state_bootstrap")
+        );
+        assert!(contract
+            .missing_sites
+            .iter()
+            .any(|site| site.kind == "registry_symbol"));
+        assert!(contract
+            .missing_sites
+            .iter()
+            .any(|site| site.kind == "browser_entry"));
+        assert!(contract
+            .missing_sites
+            .iter()
+            .any(|site| site.kind == "electron_entry"));
+    }
+
+    #[test]
+    fn all_scope_reports_missing_declared_contract_sites() {
+        let config: RulesConfig = toml::from_str(
+            r#"
+                [[contract]]
+                id = "server_state_bootstrap"
+                categories_symbol = "src/domain/server-state-bootstrap.ts::SERVER_STATE_BOOTSTRAP_CATEGORIES"
+                browser_entry = "src/runtime/browser-session.ts"
+            "#,
+        )
+        .expect("rules config");
+        let semantic = SemanticSnapshot {
+            project: ProjectModel::default(),
+            analyzed_files: 0,
+            capabilities: vec![SemanticCapability::Symbols],
+            files: Vec::new(),
+            symbols: Vec::new(),
+            reads: Vec::new(),
+            writes: Vec::new(),
+            closed_domains: Vec::new(),
+            closed_domain_sites: Vec::new(),
+        };
+
+        let obligations =
+            build_obligations(&config, &semantic, ObligationScope::All, &BTreeSet::new());
+
+        let contract = obligations
+            .iter()
+            .find(|obligation| obligation.kind == "contract_surface_completeness")
+            .expect("contract obligation");
+        assert_eq!(contract.missing_sites.len(), 2);
+        assert!(contract
+            .missing_sites
+            .iter()
+            .all(|site| site.detail.contains("declared contract site is missing")));
     }
 }
