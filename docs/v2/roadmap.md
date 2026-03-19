@@ -313,6 +313,27 @@ Open gap:
 
 - the example rules file now works on the real repo, but broader regression coverage and more stable benchmark conditions are still needed
 
+## Tier 2D: Quality Improvement Guidance
+
+Status: mostly complete
+
+Tasks:
+
+- [x] add concept-level grouping for repeated findings
+- [x] rank quality-improvement opportunities from current findings and obligations
+- [x] surface suggested structural improvements in `findings`
+- [x] surface patch-scoped quality opportunities in `session_end`
+- [-] validate the prioritization on more than one real repo
+
+Exit criteria:
+
+- the tool can point to a small set of high-value quality improvements on an existing repo
+- `findings` and `session_end` summarize repeated concept pressure instead of only listing raw violations
+
+Open gap:
+
+- the prioritization lane is implemented, but it still needs more real-repo proof and tuning so the top opportunities consistently reflect the highest-payoff fixes
+
 ## Tier 3: Advanced Static Analysis
 
 Status: partial
@@ -387,6 +408,7 @@ By the end of Tier 2, v2 should additionally show:
 - bootstrap and runtime parity gaps
 - concentration hotspots worth architectural attention
 - inspectable concept models and rule coverage
+- ranked concept-level quality-improvement opportunities
 - expansion into `task_command_controller` and `task_convergence`
 
 Tier 3 should improve the repo story, but it is not required for the wedge to be useful.

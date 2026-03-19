@@ -2,7 +2,7 @@
 
 Last updated: 2026-03-19
 
-This document defines the next execution block for v2 after the recent `parallel-code` validation loop.
+This document defines the next execution block for v2 after the recent `parallel-code` validation loop and the first quality-guidance surfacing pass.
 
 The goal of this batch is not to broaden v2. It is to make the current wedge reliably useful for improving code quality in real workflows.
 
@@ -20,7 +20,7 @@ But there are still three gaps between “useful diagnostics” and “reliable 
 
 1. clone drift is git-aware now, but it still lacks divergence detection and family-level prioritization
 2. validation is behind implementation
-3. prioritization still needs to better point at the highest-leverage quality work
+3. the new prioritization lane still needs broader real-repo proof and tuning
 
 This batch closes those gaps in ROI order.
 
@@ -30,7 +30,7 @@ Included:
 
 1. git-aware clone drift completion
 2. validation hardening
-3. quality-improvement prioritization
+3. quality-guidance validation and tuning
 
 Explicitly excluded from this batch:
 
@@ -70,7 +70,7 @@ This batch is successful when all of the following are true:
 2. the top findings surface contains fewer repeated/noisy entries and more actionable ones
 3. clone findings can prioritize risky copied code using git recency/churn
 4. `session_end` and `gate` have golden scenarios and benchmark regression coverage
-5. clone-family clustering is visible enough that the next prioritization pass has a clear target
+5. clone-family clustering and concept pressure summaries are stable enough that the next prioritization pass has a clear target
 
 ## Work Package A: CLI Gate Parity
 
@@ -268,7 +268,7 @@ What we learned so far:
 
 ## Work Package E: Quality Improvement Prioritization
 
-Status: planned
+Status: mostly complete
 
 Goal:
 
@@ -289,17 +289,21 @@ Deliverables:
 
 Tasks:
 
-- [ ] add concept-level grouping for repeated findings
-- [ ] rank top-quality-improvement opportunities from current findings
-- [ ] surface suggested structural improvements in MCP summaries
+- [x] add concept-level grouping for repeated findings
+- [x] rank top-quality-improvement opportunities from current findings and obligations
+- [x] surface suggested structural improvements in `findings`
+- [x] surface patch-scoped quality opportunities in `session_end`
+- [-] validate and tune the opportunity ranking on more than one real repo
 
 Acceptance criteria:
 
 - the tool can point to a small set of high-value quality improvements on an existing repo
 
-What we expect to learn:
+What we learned:
 
-- whether Sentrux can move from patch safety to proactive quality improvement guidance
+- grouping repeated concept pressure makes the `findings` surface materially easier to scan than a flat list of violations
+- concentration context is useful as a score boost, but it should stay supporting evidence instead of becoming a separate top-level queue for already-covered concepts
+- the next gap is proof quality, not another round of raw ranking logic
 
 ## Recommended Execution Order
 
@@ -317,7 +321,7 @@ This order matches the current product bottlenecks:
 - then make it trustworthy
 - then deepen a still-underbuilt core lane
 - then harden the proof loop
-- then improve prioritization for repo-improvement work
+- then validate and tune prioritization for repo-improvement work
 
 ## Batch Exit Criteria
 
@@ -327,4 +331,4 @@ The batch is done when:
 2. suppressions and expiry work
 3. clone drift is git-aware
 4. `session_end` and `gate` have stable goldens
-5. the top findings on `parallel-code` are clean enough that a human would use them to drive quality work without heavy manual filtering
+5. the top findings and opportunities on `parallel-code` are clean enough that a human would use them to drive quality work without heavy manual filtering

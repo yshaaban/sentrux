@@ -71,6 +71,8 @@ Returns:
 - findings
 - evidence
 - likely fix sites
+- concept summaries for repeated concept pressure
+- ranked quality-improvement opportunities
 - confidence
 
 ## `obligations`
@@ -123,6 +125,8 @@ It should add:
 - introduced findings
 - resolved findings
 - missing obligations
+- concept summaries for changed concepts
+- patch-scoped quality-improvement opportunities
 - track deltas
 - touched-concept regression verdict
 - confidence delta if coverage changed
@@ -210,6 +214,25 @@ Arguments:
   "changed_concepts": [
     "task_git_status"
   ],
+  "concept_summaries": [
+    {
+      "concept_id": "task_git_status",
+      "summary": "Concept 'task_git_status' combines architecture violations with 2 missing update sites",
+      "score_0_10000": 7800
+    }
+  ],
+  "quality_opportunities": [
+    {
+      "kind": "concept",
+      "scope": "task_git_status",
+      "severity": "high",
+      "summary": "Concept 'task_git_status' combines architecture violations with 2 missing update sites",
+      "suggested_actions": [
+        "centralize writes behind a single owner",
+        "complete the propagation chain before extending the concept further"
+      ]
+    }
+  ],
   "introduced_findings": [
     {
       "id": "multi_writer:task_git_status",
@@ -237,6 +260,24 @@ Arguments:
 
 ```json
 {
+  "concept_summaries": [
+    {
+      "concept_id": "task_git_status",
+      "dominant_kinds": [
+        "multi_writer_concept",
+        "forbidden_writer"
+      ],
+      "summary": "Concept 'task_git_status' has repeated high-severity ownership or access issues"
+    }
+  ],
+  "quality_opportunities": [
+    {
+      "kind": "concept",
+      "scope": "task_git_status",
+      "severity": "high",
+      "summary": "Concept 'task_git_status' has repeated high-severity ownership or access issues"
+    }
+  ],
   "findings": [
     {
       "id": "public_api_bypass:task_workflows",

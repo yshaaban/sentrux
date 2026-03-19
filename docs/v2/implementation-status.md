@@ -40,6 +40,7 @@ The strongest completed work is:
 - upgraded `session_end`
 - touched-concept `gate` in MCP and CLI
 - shared patch-safety analysis reuse across `gate` and `session_end`
+- concept-scoped quality summaries and ranked improvement opportunities in `findings` and `session_end`
 - parity and concentration context
 - conservative state-integrity analysis
 
@@ -56,7 +57,7 @@ The strongest completed work is:
 | Tier 1F | Mostly complete | `session_end` and `gate` now work in MCP and CLI on the same touched-concept model, including suppression-aware decisions and shared patch-safety analysis reuse | release-grade gate validation is still incomplete |
 | Tier 2A | Mostly complete | parity analyzer, MCP tool, and real `parallel-code` bootstrap proof now exist | broader contract families still need more than one benchmark repo |
 | Tier 2B | Mostly complete | concentration analysis exists and is tested | not yet benchmarked or validated on the real case-study repo |
-| Tier 2C | Mostly complete | inspection tools and adoption helpers exist | real-repo validation has started, but the proof loop is not closed |
+| Tier 2C | Mostly complete | inspection tools, adoption helpers, and quality-guidance summaries now exist | real-repo validation has started, but the proof loop is not closed |
 | Tier 3 | Partial | conservative state-integrity slice is in place and now validated on real `parallel-code` controllers | transition modeling and implicit lifecycle heuristics are not built |
 | Validation | Partial | unit tests, synthetic gate/session regression scenarios, scoped real-repo goldens, and a versioned `parallel-code` benchmark comparison loop now exist | no second benchmark repo, release-grade confidence regression suite, or full migration suite |
 
@@ -246,6 +247,9 @@ Delivered:
 - guardrail-test evidence
 - conservative concept inference
 - onboarding docs
+- concept-scoped quality summaries in `findings`
+- ranked quality-improvement opportunities in `findings` and `session_end`
+- concentration-backed opportunity scoring for concept-level refactor candidates
 
 Still missing:
 
