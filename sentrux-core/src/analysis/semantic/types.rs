@@ -20,9 +20,11 @@ pub struct SemanticSnapshot {
     pub writes: Vec<WriteFact>,
     pub closed_domains: Vec<ClosedDomain>,
     pub closed_domain_sites: Vec<ExhaustivenessSite>,
+    #[serde(default)]
+    pub transition_sites: Vec<TransitionSite>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum SemanticCapability {
     Symbols,
     References,
@@ -30,6 +32,7 @@ pub enum SemanticCapability {
     ClosedDomains,
     ClosedDomainSites,
     Writes,
+    TransitionSites,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
@@ -80,5 +83,16 @@ pub struct ExhaustivenessSite {
     pub site_kind: String,
     pub proof_kind: String,
     pub covered_variants: Vec<String>,
+    pub line: u32,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
+pub struct TransitionSite {
+    pub path: String,
+    pub domain_symbol_name: String,
+    pub group_id: String,
+    pub transition_kind: String,
+    pub source_variant: Option<String>,
+    pub target_variants: Vec<String>,
     pub line: u32,
 }

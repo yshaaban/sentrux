@@ -296,6 +296,7 @@ mod tests {
                     bh: None,
                     d: None,
                     co: None,
+                    same_file_ref_count: None,
                     is_public: false,
                     is_method: false,
                 }]),
@@ -314,6 +315,112 @@ mod tests {
         assert_eq!(report.complex_functions[0].value, 25);
         assert_eq!(report.long_functions.len(), 1);
         assert_eq!(report.long_functions[0].value, 200);
+    }
+
+    #[test]
+    fn dead_functions_ignore_same_file_value_position_references() {
+        let file = FileNode {
+            path: "src/view.tsx".to_string(),
+            name: "view.tsx".to_string(),
+            is_dir: false,
+            lines: 40,
+            logic: 32,
+            comments: 0,
+            blanks: 8,
+            funcs: 2,
+            mtime: 0.0,
+            gs: String::new(),
+            lang: "typescript".to_string(),
+            sa: Some(StructuralAnalysis {
+                functions: Some(vec![
+                    FuncInfo {
+                        n: "helper".to_string(),
+                        sl: 1,
+                        el: 5,
+                        ln: 5,
+                        cc: Some(1),
+                        cog: None,
+                        pc: None,
+                        bh: None,
+                        d: None,
+                        co: None,
+                        same_file_ref_count: Some(1),
+                        is_public: false,
+                        is_method: false,
+                    },
+                    FuncInfo {
+                        n: "Screen".to_string(),
+                        sl: 7,
+                        el: 20,
+                        ln: 14,
+                        cc: Some(1),
+                        cog: None,
+                        pc: None,
+                        bh: None,
+                        d: None,
+                        co: None,
+                        same_file_ref_count: None,
+                        is_public: true,
+                        is_method: false,
+                    },
+                ]),
+                cls: None,
+                imp: None,
+                co: None,
+                tags: None,
+                comment_lines: None,
+            }),
+            children: None,
+        };
+        let snap = snap_with_edges(Vec::new(), vec![file]);
+        let report = compute_health(&snap);
+
+        assert!(report.dead_functions.is_empty());
+    }
+
+    #[test]
+    fn dead_functions_do_not_ignore_same_file_type_only_mentions() {
+        let file = FileNode {
+            path: "src/view.ts".to_string(),
+            name: "view.ts".to_string(),
+            is_dir: false,
+            lines: 24,
+            logic: 18,
+            comments: 0,
+            blanks: 6,
+            funcs: 1,
+            mtime: 0.0,
+            gs: String::new(),
+            lang: "typescript".to_string(),
+            sa: Some(StructuralAnalysis {
+                functions: Some(vec![FuncInfo {
+                    n: "helper".to_string(),
+                    sl: 1,
+                    el: 5,
+                    ln: 5,
+                    cc: Some(1),
+                    cog: None,
+                    pc: None,
+                    bh: None,
+                    d: None,
+                    co: None,
+                    same_file_ref_count: None,
+                    is_public: false,
+                    is_method: false,
+                }]),
+                cls: None,
+                imp: None,
+                co: None,
+                tags: None,
+                comment_lines: None,
+            }),
+            children: None,
+        };
+        let snap = snap_with_edges(Vec::new(), vec![file]);
+        let report = compute_health(&snap);
+
+        assert_eq!(report.dead_functions.len(), 1);
+        assert_eq!(report.dead_functions[0].func, "helper");
     }
 
     // ── Shannon entropy: single cross-module pair = 0 entropy ──

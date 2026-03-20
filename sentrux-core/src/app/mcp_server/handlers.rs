@@ -3334,6 +3334,14 @@ fn handle_state(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<Valu
         .iter()
         .map(|report| report.missing_sites.len())
         .sum::<usize>();
+    let transition_site_count = reports
+        .iter()
+        .map(|report| report.transition_sites.len())
+        .sum::<usize>();
+    let transition_gap_count = reports
+        .iter()
+        .map(|report| report.transition_gap_sites.len())
+        .sum::<usize>();
 
     Ok(json!({
         "kind": "state",
@@ -3343,6 +3351,8 @@ fn handle_state(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<Valu
         "finding_count": findings.len(),
         "missing_variant_count": missing_variant_count,
         "missing_site_count": missing_site_count,
+        "transition_site_count": transition_site_count,
+        "transition_gap_count": transition_gap_count,
         "state_integrity_score_0_10000": state_integrity_score_0_10000,
         "rules_error": merge_optional_errors(rules_error, suppression_rules_error),
         "semantic_error": semantic_error,
@@ -5280,7 +5290,7 @@ mod tests {
     use crate::analysis::semantic::typescript::default_bridge_config;
     use crate::analysis::semantic::{
         ClosedDomain, ExhaustivenessSite, ProjectModel, ReadFact, SemanticCapability,
-        SemanticSnapshot, SymbolFact, WriteFact,
+        SemanticSnapshot, SymbolFact, TransitionSite, WriteFact,
     };
     use crate::app::bridge::TypeScriptBridgeSupervisor;
     use crate::app::mcp_server::{
@@ -5746,6 +5756,7 @@ mod tests {
                 covered_variants: vec!["idle".to_string(), "running".to_string()],
                 line: 12,
             }],
+            transition_sites: Vec::new(),
         }
     }
 
@@ -5787,6 +5798,7 @@ mod tests {
             capabilities: vec![
                 SemanticCapability::ClosedDomains,
                 SemanticCapability::ClosedDomainSites,
+                SemanticCapability::TransitionSites,
             ],
             files: Vec::new(),
             symbols: Vec::new(),
@@ -5810,6 +5822,7 @@ mod tests {
                 covered_variants: vec!["idle".to_string(), "running".to_string()],
                 line: 6,
             }],
+            transition_sites: Vec::new(),
         }
     }
 
@@ -8015,6 +8028,8 @@ mod tests {
         assert_eq!(response["kind"], "state");
         assert_eq!(response["state_model_count"], 1);
         assert_eq!(response["missing_variant_count"], 1);
+        assert_eq!(response["transition_site_count"], 0);
+        assert_eq!(response["transition_gap_count"], 0);
         assert!(response["findings"]
             .as_array()
             .expect("state findings")
@@ -8025,6 +8040,62 @@ mod tests {
             .expect("state findings")
             .iter()
             .any(|value| value["kind"] == "state_model_missing_variant_coverage"));
+        assert!(response["findings"]
+            .as_array()
+            .expect("state findings")
+            .iter()
+            .any(|value| value["kind"] == "state_model_missing_transition_sites"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn state_tool_surfaces_transition_gaps() {
+        let root = state_fixture_root();
+        let mut semantic = state_fixture_semantic(&root);
+        semantic.transition_sites = vec![
+            TransitionSite {
+                path: "src/runtime/browser-state-sync-controller.ts".to_string(),
+                domain_symbol_name: "BrowserSyncState".to_string(),
+                group_id: "src/runtime/browser-state-sync-controller.ts:6:BrowserSyncState"
+                    .to_string(),
+                transition_kind: "switch_case".to_string(),
+                source_variant: Some("idle".to_string()),
+                target_variants: vec!["running".to_string()],
+                line: 7,
+            },
+            TransitionSite {
+                path: "src/runtime/browser-state-sync-controller.ts".to_string(),
+                domain_symbol_name: "BrowserSyncState".to_string(),
+                group_id: "src/runtime/browser-state-sync-controller.ts:6:BrowserSyncState"
+                    .to_string(),
+                transition_kind: "switch_case".to_string(),
+                source_variant: Some("running".to_string()),
+                target_variants: vec!["error".to_string()],
+                line: 10,
+            },
+            TransitionSite {
+                path: "src/runtime/browser-state-sync-controller.ts".to_string(),
+                domain_symbol_name: "BrowserSyncState".to_string(),
+                group_id: "src/runtime/browser-state-sync-controller.ts:6:BrowserSyncState"
+                    .to_string(),
+                transition_kind: "switch_case".to_string(),
+                source_variant: Some("error".to_string()),
+                target_variants: Vec::new(),
+                line: 13,
+            },
+        ];
+        let mut state = state_with_semantic(&root, semantic);
+
+        let response = handle_state(&json!({}), &Tier::Free, &mut state).expect("state tool");
+
+        assert_eq!(response["transition_site_count"], 3);
+        assert_eq!(response["transition_gap_count"], 1);
+        assert!(response["findings"]
+            .as_array()
+            .expect("state findings")
+            .iter()
+            .any(|value| value["kind"] == "state_model_transition_coverage_gap"));
 
         let _ = std::fs::remove_dir_all(root);
     }
@@ -8170,6 +8241,7 @@ mod tests {
             writes: Vec::new(),
             closed_domains: Vec::new(),
             closed_domain_sites: Vec::new(),
+            transition_sites: Vec::new(),
         };
         let mut state = state_with_semantic(&root, semantic);
 
@@ -8238,6 +8310,7 @@ mod tests {
                 covered_variants: vec!["idle".to_string(), "running".to_string()],
                 line: 3,
             }],
+            transition_sites: Vec::new(),
         };
         let mut state = state_with_semantic(&root, semantic);
 

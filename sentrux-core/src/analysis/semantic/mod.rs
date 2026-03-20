@@ -10,5 +10,5 @@ pub mod typescript;
 pub use project::discover_project;
 pub use types::{
     ClosedDomain, ExhaustivenessSite, ProjectModel, ReadFact, SemanticCapability, SemanticFileFact,
-    SemanticSnapshot, SymbolFact, WriteFact,
+    SemanticSnapshot, SymbolFact, TransitionSite, WriteFact,
 };

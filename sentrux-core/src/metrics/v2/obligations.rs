@@ -1030,6 +1030,7 @@ mod tests {
                 covered_variants: vec!["idle".to_string(), "busy".to_string()],
                 line: 20,
             }],
+            transition_sites: Vec::new(),
         };
         let changed_files = BTreeSet::from([
             "src/app/task-presentation-status.ts".to_string(),
@@ -1085,6 +1086,7 @@ mod tests {
                 covered_variants: vec!["idle".to_string()],
                 line: 10,
             }],
+            transition_sites: Vec::new(),
         };
         let changed_files = BTreeSet::from(["src/app/task-state-writer.ts".to_string()]);
 
@@ -1123,6 +1125,7 @@ mod tests {
                 covered_variants: vec!["idle".to_string()],
                 line: 10,
             }],
+            transition_sites: Vec::new(),
         };
 
         let obligations =
@@ -1159,6 +1162,7 @@ mod tests {
                 covered_variants: vec!["Variant0".to_string()],
                 line: 10,
             }],
+            transition_sites: Vec::new(),
         };
 
         let obligations =
@@ -1230,6 +1234,7 @@ mod tests {
             writes: Vec::new(),
             closed_domains: Vec::new(),
             closed_domain_sites: Vec::new(),
+            transition_sites: Vec::new(),
         };
         let changed_files = BTreeSet::from(["src/domain/server-state-bootstrap.ts".to_string()]);
 
@@ -1321,6 +1326,7 @@ mod tests {
             writes: Vec::new(),
             closed_domains: Vec::new(),
             closed_domain_sites: Vec::new(),
+            transition_sites: Vec::new(),
         };
         let changed_files =
             BTreeSet::from(["src/app/server-state-bootstrap-registry.ts".to_string()]);
@@ -1425,6 +1431,7 @@ mod tests {
             writes: Vec::new(),
             closed_domains: Vec::new(),
             closed_domain_sites: Vec::new(),
+            transition_sites: Vec::new(),
         };
         let changed_files = BTreeSet::from(["src/app/bootstrap-adapter.ts".to_string()]);
 
@@ -1501,6 +1508,7 @@ mod tests {
             writes: Vec::new(),
             closed_domains: Vec::new(),
             closed_domain_sites: Vec::new(),
+            transition_sites: Vec::new(),
         };
         let changed_files = BTreeSet::from(["src/app/bootstrap-field-adapter.ts".to_string()]);
 
@@ -1576,6 +1584,7 @@ mod tests {
             writes: Vec::new(),
             closed_domains: Vec::new(),
             closed_domain_sites: Vec::new(),
+            transition_sites: Vec::new(),
         };
         let changed_files = BTreeSet::from(["src/app/server-state-bootstrap.test.ts".to_string()]);
 
@@ -1606,6 +1615,7 @@ mod tests {
             writes: Vec::new(),
             closed_domains: Vec::new(),
             closed_domain_sites: Vec::new(),
+            transition_sites: Vec::new(),
         };
 
         let obligations =
@@ -1645,6 +1655,7 @@ mod tests {
             writes: Vec::new(),
             closed_domains: Vec::new(),
             closed_domain_sites: Vec::new(),
+            transition_sites: Vec::new(),
         };
 
         let obligations =
@@ -1686,6 +1697,7 @@ mod tests {
             writes: Vec::new(),
             closed_domains: Vec::new(),
             closed_domain_sites: Vec::new(),
+            transition_sites: Vec::new(),
         };
 
         let obligations =

@@ -122,6 +122,98 @@ function main() {
     }
 
     #[test]
+    fn typescript_parser_tracks_same_file_callback_references() {
+        let code = br#"
+function handlePermissionResponse(): string {
+    return 'ok';
+}
+
+export function App(): null {
+    const handlers = [handlePermissionResponse];
+    void handlers;
+    return null;
+}
+"#;
+        let sa = parse_bytes(code, "typescript").expect("ts parse failed");
+        let functions = sa.functions.as_ref().expect("no functions");
+        let helper = functions
+            .iter()
+            .find(|function| function.n == "handlePermissionResponse")
+            .expect("missing helper function");
+
+        assert_eq!(helper.same_file_ref_count, Some(1));
+    }
+
+    #[test]
+    fn typescript_parser_tracks_same_file_jsx_component_references() {
+        let code = br#"
+function Helper(): null {
+    return null;
+}
+
+export function Screen(): any {
+    return <Helper />;
+}
+"#;
+        let sa = parse_bytes(code, "typescript").expect("tsx parse failed");
+        let functions = sa.functions.as_ref().expect("no functions");
+        let helper = functions
+            .iter()
+            .find(|function| function.n == "Helper")
+            .expect("missing helper component");
+
+        assert_eq!(helper.same_file_ref_count, Some(1));
+    }
+
+    #[test]
+    fn typescript_parser_ignores_same_file_comment_and_string_mentions() {
+        let code = br#"
+function helper(): string {
+    return 'ok';
+}
+
+export function Screen(): string {
+    // helper should stay private until wired up.
+    const label = "helper";
+    const metadata = { helper: label };
+    void metadata;
+    return label;
+}
+"#;
+        let sa = parse_bytes(code, "typescript").expect("ts parse failed");
+        let functions = sa.functions.as_ref().expect("no functions");
+        let helper = functions
+            .iter()
+            .find(|function| function.n == "helper")
+            .expect("missing helper function");
+
+        assert_eq!(helper.same_file_ref_count, None);
+    }
+
+    #[test]
+    fn typescript_parser_ignores_same_file_type_only_mentions() {
+        let code = br#"
+function helper(): string {
+    return 'ok';
+}
+
+type HelperState = helper | 'ready';
+
+export function Screen(): string {
+    return 'screen';
+}
+"#;
+        let sa = parse_bytes(code, "typescript").expect("ts parse failed");
+        let functions = sa.functions.as_ref().expect("no functions");
+        let helper = functions
+            .iter()
+            .find(|function| function.n == "helper")
+            .expect("missing helper function");
+
+        assert_eq!(helper.same_file_ref_count, None);
+    }
+
+    #[test]
     fn oracle_rust() {
         let code = br#"
 use std::collections::HashMap;

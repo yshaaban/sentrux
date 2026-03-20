@@ -526,6 +526,10 @@ fn is_called(func_name: &str, all_calls: &HashSet<String>) -> bool {
     all_calls.contains(func_name) || all_calls.contains(base_name)
 }
 
+fn has_same_file_references(function: &crate::core::types::FuncInfo) -> bool {
+    function.same_file_ref_count.unwrap_or(0) > 0
+}
+
 /// Collect functions not referenced by any call site (dead code candidates).
 fn collect_dead_functions(files: &[&FileNode]) -> Vec<FuncMetric> {
     let all_calls = build_call_target_set(files);
@@ -549,7 +553,7 @@ fn collect_dead_functions(files: &[&FileNode]) -> Vec<FuncMetric> {
             if is_excluded_function(&f.n, &implicit, &file.lang) {
                 continue;
             }
-            if !is_called(&f.n, &all_calls) {
+            if !is_called(&f.n, &all_calls) && !has_same_file_references(f) {
                 result.push(FuncMetric {
                     file: file.path.clone(),
                     func: f.n.clone(),

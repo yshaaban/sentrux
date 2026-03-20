@@ -542,6 +542,7 @@ mod tests {
             }],
             closed_domains: Vec::new(),
             closed_domain_sites: Vec::new(),
+            transition_sites: Vec::new(),
         };
         let history = ConcentrationHistory {
             churn_commits: HashMap::from([
@@ -671,6 +672,7 @@ mod tests {
             }],
             closed_domains: Vec::new(),
             closed_domain_sites: Vec::new(),
+            transition_sites: Vec::new(),
         };
 
         let reports = build_concentration_reports(

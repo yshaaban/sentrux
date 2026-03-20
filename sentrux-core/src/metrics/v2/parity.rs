@@ -607,6 +607,7 @@ mod tests {
             writes: Vec::new(),
             closed_domains: Vec::new(),
             closed_domain_sites: Vec::new(),
+            transition_sites: Vec::new(),
         };
 
         let reports = build_parity_reports(
@@ -720,6 +721,7 @@ mod tests {
             writes: Vec::new(),
             closed_domains: Vec::new(),
             closed_domain_sites: Vec::new(),
+            transition_sites: Vec::new(),
         };
 
         let reports = build_parity_reports(
@@ -826,6 +828,7 @@ mod tests {
             writes: Vec::new(),
             closed_domains: Vec::new(),
             closed_domain_sites: Vec::new(),
+            transition_sites: Vec::new(),
         };
 
         let reports = build_parity_reports(

@@ -1,9 +1,11 @@
 //! Conservative state-integrity analysis built on closed-domain and obligation facts.
 
 use super::{ObligationReport, ObligationSite, SemanticFinding};
-use crate::analysis::semantic::{ExhaustivenessSite, SemanticSnapshot};
+use crate::analysis::semantic::{
+    ExhaustivenessSite, SemanticCapability, SemanticSnapshot, TransitionSite,
+};
 use crate::metrics::rules::{self, RulesConfig, StateModelRule};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum StateScope {
@@ -24,6 +26,10 @@ pub struct StateIntegrityReport {
     pub missing_variants: Vec<String>,
     pub missing_exhaustive_switch_domains: Vec<String>,
     pub missing_assert_never_domains: Vec<String>,
+    pub transition_sites_supported: bool,
+    pub transition_sites: Vec<TransitionSite>,
+    pub transition_gap_sites: Vec<TransitionSite>,
+    pub missing_transition_variants: Vec<String>,
     pub explicitness_score_0_10000: u32,
     pub context_burden: usize,
 }
@@ -147,6 +153,45 @@ pub fn build_state_integrity_findings(reports: &[StateIntegrityReport]) -> Vec<S
             });
         }
 
+        if report.transition_sites_supported
+            && report.transition_sites.is_empty()
+            && !report.domain_symbol_names.is_empty()
+        {
+            findings.push(SemanticFinding {
+                kind: "state_model_missing_transition_sites".to_string(),
+                severity: "medium".to_string(),
+                concept_id: report.id.clone(),
+                summary: format!(
+                    "State model '{}' has no explicit transition sites under its configured roots",
+                    report.id
+                ),
+                files: report.files.clone(),
+                evidence: report.roots.clone(),
+            });
+        }
+
+        if !report.transition_gap_sites.is_empty() {
+            findings.push(SemanticFinding {
+                kind: "state_model_transition_coverage_gap".to_string(),
+                severity: "high".to_string(),
+                concept_id: report.id.clone(),
+                summary: format!(
+                    "State model '{}' has {} transition branch(es) without an explicit next-state mapping",
+                    report.id,
+                    report.transition_gap_sites.len()
+                ),
+                files: report.files.clone(),
+                evidence: report
+                    .transition_gap_sites
+                    .iter()
+                    .map(|site| {
+                        let source_variant = site.source_variant.as_deref().unwrap_or("unknown");
+                        format!("{}:{} [{}]", site.path, site.line, source_variant)
+                    })
+                    .collect(),
+            });
+        }
+
         if report.context_burden >= 8 {
             findings.push(SemanticFinding {
                 kind: "state_model_high_context_burden".to_string(),
@@ -245,6 +290,26 @@ fn build_state_integrity_report(
     let mut satisfied_sites = BTreeSet::new();
     let mut missing_sites = BTreeSet::new();
     let mut missing_variants = BTreeSet::new();
+    let transition_sites_supported = semantic
+        .capabilities
+        .contains(&SemanticCapability::TransitionSites);
+    let transition_sites = semantic
+        .transition_sites
+        .iter()
+        .filter(|site| {
+            roots_match_path(&state_model.roots, &site.path)
+                && domain_symbol_names.contains(&site.domain_symbol_name)
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    for site in &transition_sites {
+        files.insert(site.path.clone());
+    }
+    let transition_gap_sites = transition_gap_sites(&transition_sites);
+    let missing_transition_variants = transition_gap_sites
+        .iter()
+        .filter_map(|site| site.source_variant.clone())
+        .collect::<BTreeSet<_>>();
     let mut context_burden = 0usize;
     for obligation in related_obligations {
         files.extend(obligation.files.iter().cloned());
@@ -267,7 +332,11 @@ fn build_state_integrity_report(
         satisfied_sites.len(),
         missing_exhaustive_switch_domains.len(),
         missing_assert_never_domains.len(),
+        transition_sites_supported,
+        transition_sites.len(),
+        transition_gap_sites.len(),
     );
+    context_burden += transition_sites.len();
 
     StateIntegrityReport {
         id: state_model.id.clone(),
@@ -281,6 +350,10 @@ fn build_state_integrity_report(
         missing_variants: missing_variants.into_iter().collect(),
         missing_exhaustive_switch_domains,
         missing_assert_never_domains,
+        transition_sites_supported,
+        transition_sites,
+        transition_gap_sites,
+        missing_transition_variants: missing_transition_variants.into_iter().collect(),
         explicitness_score_0_10000,
         context_burden,
     }
@@ -349,6 +422,9 @@ fn explicitness_score_0_10000(
     satisfied_site_count: usize,
     missing_switch_count: usize,
     missing_assert_never_count: usize,
+    transition_sites_supported: bool,
+    transition_site_count: usize,
+    transition_gap_count: usize,
 ) -> u32 {
     if domain_count == 0 {
         return 0;
@@ -375,8 +451,33 @@ fn explicitness_score_0_10000(
             (1.0 - (missing_assert_never_count as f64 / domain_count as f64)).clamp(0.0, 1.0),
         );
     }
+    if transition_sites_supported {
+        let transition_component = if transition_site_count == 0 {
+            0.0
+        } else {
+            (1.0 - (transition_gap_count as f64 / transition_site_count as f64)).clamp(0.0, 1.0)
+        };
+        components.push(transition_component);
+    }
 
     ((components.iter().sum::<f64>() / components.len() as f64) * 10000.0).round() as u32
+}
+
+fn transition_gap_sites(transition_sites: &[TransitionSite]) -> Vec<TransitionSite> {
+    let mut groups = BTreeMap::<&str, Vec<&TransitionSite>>::new();
+    for site in transition_sites {
+        groups.entry(&site.group_id).or_default().push(site);
+    }
+
+    let mut gaps = Vec::new();
+    for sites in groups.into_values() {
+        gaps.extend(
+            sites.into_iter()
+                .filter(|site| site.target_variants.is_empty())
+                .cloned(),
+        );
+    }
+    gaps
 }
 
 fn roots_match_path(roots: &[String], path: &str) -> bool {
@@ -395,6 +496,7 @@ mod tests {
     };
     use crate::analysis::semantic::{
         ClosedDomain, ExhaustivenessSite, ProjectModel, SemanticCapability, SemanticSnapshot,
+        TransitionSite,
     };
     use crate::metrics::rules::RulesConfig;
     use crate::metrics::v2::{build_obligations, ObligationScope};
@@ -422,6 +524,7 @@ mod tests {
             capabilities: vec![
                 SemanticCapability::ClosedDomains,
                 SemanticCapability::ClosedDomainSites,
+                SemanticCapability::TransitionSites,
             ],
             files: Vec::new(),
             symbols: Vec::new(),
@@ -445,6 +548,7 @@ mod tests {
                 covered_variants: vec!["idle".to_string(), "running".to_string()],
                 line: 12,
             }],
+            transition_sites: Vec::new(),
         };
         let obligations =
             build_obligations(&config, &semantic, ObligationScope::All, &BTreeSet::new());
@@ -495,6 +599,7 @@ mod tests {
             writes: Vec::new(),
             closed_domains: Vec::new(),
             closed_domain_sites: Vec::new(),
+            transition_sites: Vec::new(),
         };
 
         let changed_files = BTreeSet::from(["src/runtime/orphan-controller.ts".to_string()]);
@@ -516,5 +621,293 @@ mod tests {
             changed_state_model_ids_from_files(&config, &changed_files),
             vec!["orphan_state_model".to_string()]
         );
+    }
+
+    #[test]
+    fn state_reports_capture_transition_gaps() {
+        let config: RulesConfig = toml::from_str(
+            r#"
+                [[state_model]]
+                id = "browser_state_sync"
+                roots = ["src/runtime/browser-state-sync-controller.ts"]
+                require_exhaustive_switch = true
+                require_assert_never = true
+            "#,
+        )
+        .expect("rules config");
+        let semantic = SemanticSnapshot {
+            project: ProjectModel::default(),
+            analyzed_files: 1,
+            capabilities: vec![
+                SemanticCapability::ClosedDomains,
+                SemanticCapability::ClosedDomainSites,
+                SemanticCapability::TransitionSites,
+            ],
+            files: Vec::new(),
+            symbols: Vec::new(),
+            reads: Vec::new(),
+            writes: Vec::new(),
+            closed_domains: vec![ClosedDomain {
+                path: "src/domain/browser-sync-state.ts".to_string(),
+                symbol_name: "BrowserSyncState".to_string(),
+                variants: vec![
+                    "idle".to_string(),
+                    "running".to_string(),
+                    "error".to_string(),
+                ],
+                line: 1,
+            }],
+            closed_domain_sites: vec![ExhaustivenessSite {
+                path: "src/runtime/browser-state-sync-controller.ts".to_string(),
+                domain_symbol_name: "BrowserSyncState".to_string(),
+                site_kind: "switch".to_string(),
+                proof_kind: "assertNever".to_string(),
+                covered_variants: vec![
+                    "idle".to_string(),
+                    "running".to_string(),
+                    "error".to_string(),
+                ],
+                line: 12,
+            }],
+            transition_sites: vec![
+                TransitionSite {
+                    path: "src/runtime/browser-state-sync-controller.ts".to_string(),
+                    domain_symbol_name: "BrowserSyncState".to_string(),
+                    group_id: "src/runtime/browser-state-sync-controller.ts:12:BrowserSyncState"
+                        .to_string(),
+                    transition_kind: "switch_case".to_string(),
+                    source_variant: Some("idle".to_string()),
+                    target_variants: vec!["running".to_string()],
+                    line: 13,
+                },
+                TransitionSite {
+                    path: "src/runtime/browser-state-sync-controller.ts".to_string(),
+                    domain_symbol_name: "BrowserSyncState".to_string(),
+                    group_id: "src/runtime/browser-state-sync-controller.ts:12:BrowserSyncState"
+                        .to_string(),
+                    transition_kind: "switch_case".to_string(),
+                    source_variant: Some("running".to_string()),
+                    target_variants: vec!["error".to_string()],
+                    line: 17,
+                },
+                TransitionSite {
+                    path: "src/runtime/browser-state-sync-controller.ts".to_string(),
+                    domain_symbol_name: "BrowserSyncState".to_string(),
+                    group_id: "src/runtime/browser-state-sync-controller.ts:12:BrowserSyncState"
+                        .to_string(),
+                    transition_kind: "switch_case".to_string(),
+                    source_variant: Some("error".to_string()),
+                    target_variants: Vec::new(),
+                    line: 21,
+                },
+            ],
+        };
+
+        let reports = build_state_integrity_reports(
+            &config,
+            &semantic,
+            &[],
+            StateScope::All,
+            &BTreeSet::new(),
+        );
+        let findings = build_state_integrity_findings(&reports);
+
+        assert_eq!(reports.len(), 1);
+        assert_eq!(
+            reports[0].missing_transition_variants,
+            vec!["error".to_string()]
+        );
+        assert_eq!(reports[0].transition_gap_sites.len(), 1);
+        assert!(findings
+            .iter()
+            .any(|finding| finding.kind == "state_model_transition_coverage_gap"));
+    }
+
+    #[test]
+    fn state_reports_treat_all_empty_transition_groups_as_gaps() {
+        let config: RulesConfig = toml::from_str(
+            r#"
+                [[state_model]]
+                id = "browser_state_sync"
+                roots = ["src/runtime/browser-state-sync-controller.ts"]
+            "#,
+        )
+        .expect("rules config");
+        let semantic = SemanticSnapshot {
+            project: ProjectModel::default(),
+            analyzed_files: 1,
+            capabilities: vec![
+                SemanticCapability::ClosedDomains,
+                SemanticCapability::ClosedDomainSites,
+                SemanticCapability::TransitionSites,
+            ],
+            files: Vec::new(),
+            symbols: Vec::new(),
+            reads: Vec::new(),
+            writes: Vec::new(),
+            closed_domains: vec![ClosedDomain {
+                path: "src/domain/browser-sync-state.ts".to_string(),
+                symbol_name: "BrowserSyncState".to_string(),
+                variants: vec![
+                    "idle".to_string(),
+                    "running".to_string(),
+                    "error".to_string(),
+                ],
+                line: 1,
+            }],
+            closed_domain_sites: vec![ExhaustivenessSite {
+                path: "src/runtime/browser-state-sync-controller.ts".to_string(),
+                domain_symbol_name: "BrowserSyncState".to_string(),
+                site_kind: "switch".to_string(),
+                proof_kind: "switch".to_string(),
+                covered_variants: vec![
+                    "idle".to_string(),
+                    "running".to_string(),
+                    "error".to_string(),
+                ],
+                line: 8,
+            }],
+            transition_sites: vec![
+                TransitionSite {
+                    path: "src/runtime/browser-state-sync-controller.ts".to_string(),
+                    domain_symbol_name: "BrowserSyncState".to_string(),
+                    group_id: "src/runtime/browser-state-sync-controller.ts:8:BrowserSyncState"
+                        .to_string(),
+                    transition_kind: "switch_case".to_string(),
+                    source_variant: Some("idle".to_string()),
+                    target_variants: Vec::new(),
+                    line: 9,
+                },
+                TransitionSite {
+                    path: "src/runtime/browser-state-sync-controller.ts".to_string(),
+                    domain_symbol_name: "BrowserSyncState".to_string(),
+                    group_id: "src/runtime/browser-state-sync-controller.ts:8:BrowserSyncState"
+                        .to_string(),
+                    transition_kind: "switch_case".to_string(),
+                    source_variant: Some("running".to_string()),
+                    target_variants: Vec::new(),
+                    line: 13,
+                },
+            ],
+        };
+
+        let reports = build_state_integrity_reports(
+            &config,
+            &semantic,
+            &[],
+            StateScope::All,
+            &BTreeSet::new(),
+        );
+
+        assert_eq!(reports.len(), 1);
+        assert_eq!(reports[0].transition_gap_sites.len(), 2);
+        assert!(reports[0].explicitness_score_0_10000 < 10000);
+    }
+
+    #[test]
+    fn state_reports_flag_missing_transition_sites() {
+        let config: RulesConfig = toml::from_str(
+            r#"
+                [[state_model]]
+                id = "browser_state_sync"
+                roots = ["src/runtime/browser-state-sync-controller.ts"]
+                require_exhaustive_switch = true
+            "#,
+        )
+        .expect("rules config");
+        let semantic = SemanticSnapshot {
+            project: ProjectModel::default(),
+            analyzed_files: 1,
+            capabilities: vec![
+                SemanticCapability::ClosedDomains,
+                SemanticCapability::ClosedDomainSites,
+                SemanticCapability::TransitionSites,
+            ],
+            files: Vec::new(),
+            symbols: Vec::new(),
+            reads: Vec::new(),
+            writes: Vec::new(),
+            closed_domains: vec![ClosedDomain {
+                path: "src/domain/browser-sync-state.ts".to_string(),
+                symbol_name: "BrowserSyncState".to_string(),
+                variants: vec!["idle".to_string(), "running".to_string()],
+                line: 1,
+            }],
+            closed_domain_sites: vec![ExhaustivenessSite {
+                path: "src/runtime/browser-state-sync-controller.ts".to_string(),
+                domain_symbol_name: "BrowserSyncState".to_string(),
+                site_kind: "switch".to_string(),
+                proof_kind: "switch".to_string(),
+                covered_variants: vec!["idle".to_string(), "running".to_string()],
+                line: 8,
+            }],
+            transition_sites: Vec::new(),
+        };
+
+        let reports = build_state_integrity_reports(
+            &config,
+            &semantic,
+            &[],
+            StateScope::All,
+            &BTreeSet::new(),
+        );
+        let findings = build_state_integrity_findings(&reports);
+
+        assert!(findings
+            .iter()
+            .any(|finding| finding.kind == "state_model_missing_transition_sites"));
+    }
+
+    #[test]
+    fn state_reports_do_not_require_transition_sites_without_support() {
+        let config: RulesConfig = toml::from_str(
+            r#"
+                [[state_model]]
+                id = "browser_state_sync"
+                roots = ["src/runtime/browser-state-sync-controller.ts"]
+            "#,
+        )
+        .expect("rules config");
+        let semantic = SemanticSnapshot {
+            project: ProjectModel::default(),
+            analyzed_files: 1,
+            capabilities: vec![
+                SemanticCapability::ClosedDomains,
+                SemanticCapability::ClosedDomainSites,
+            ],
+            files: Vec::new(),
+            symbols: Vec::new(),
+            reads: Vec::new(),
+            writes: Vec::new(),
+            closed_domains: vec![ClosedDomain {
+                path: "src/domain/browser-sync-state.ts".to_string(),
+                symbol_name: "BrowserSyncState".to_string(),
+                variants: vec!["idle".to_string(), "running".to_string()],
+                line: 1,
+            }],
+            closed_domain_sites: vec![ExhaustivenessSite {
+                path: "src/runtime/browser-state-sync-controller.ts".to_string(),
+                domain_symbol_name: "BrowserSyncState".to_string(),
+                site_kind: "switch".to_string(),
+                proof_kind: "switch".to_string(),
+                covered_variants: vec!["idle".to_string(), "running".to_string()],
+                line: 8,
+            }],
+            transition_sites: Vec::new(),
+        };
+
+        let reports = build_state_integrity_reports(
+            &config,
+            &semantic,
+            &[],
+            StateScope::All,
+            &BTreeSet::new(),
+        );
+        let findings = build_state_integrity_findings(&reports);
+
+        assert_eq!(reports.len(), 1);
+        assert!(!findings
+            .iter()
+            .any(|finding| finding.kind == "state_model_missing_transition_sites"));
     }
 }

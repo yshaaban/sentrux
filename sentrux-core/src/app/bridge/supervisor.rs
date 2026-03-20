@@ -411,7 +411,7 @@ fn terminate_child(child: Option<&mut Child>) -> Result<(), BridgeError> {
 #[cfg(test)]
 mod tests {
     use super::TypeScriptBridgeSupervisor;
-    use crate::analysis::semantic::discover_project;
+    use crate::analysis::semantic::{discover_project, SemanticCapability};
     use crate::analysis::semantic::typescript::TypeScriptBridgeConfig;
     use std::process::Command;
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -531,6 +531,236 @@ mod tests {
         assert!(symbol_names.contains(&"store.taskGitStatus"));
         assert!(symbol_names.contains(&"store.nested"));
         assert!(symbol_names.contains(&"store.nested.branch"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn supervisor_collects_if_transition_sites() {
+        if Command::new("node").arg("--version").output().is_err() {
+            return;
+        }
+
+        let root = temp_root("transition-sites");
+        write_file(
+            &root,
+            "tsconfig.json",
+            r#"{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true
+  },
+  "include": ["src/**/*.ts"]
+}
+"#,
+        );
+        write_file(
+            &root,
+            "src/runtime/browser-state.ts",
+            r#"export type BrowserSyncState = "idle" | "running" | "error";
+
+export function nextState(state: BrowserSyncState): BrowserSyncState {
+  if (state === "idle") {
+    return "running";
+  } else if (state === "running") {
+    return "error";
+  } else {
+    return "idle";
+  }
+}
+"#,
+        );
+
+        let project = discover_project(&root).expect("project discovery");
+        let mut supervisor = TypeScriptBridgeSupervisor::with_default_config();
+        let snapshot = supervisor
+            .analyze_project(&project)
+            .expect("semantic analysis");
+
+        assert!(snapshot
+            .capabilities
+            .iter()
+            .any(|capability| matches!(capability, SemanticCapability::TransitionSites)));
+        assert_eq!(snapshot.transition_sites.len(), 3);
+        assert_eq!(snapshot.transition_sites[0].source_variant.as_deref(), Some("idle"));
+        assert!(snapshot.transition_sites[0]
+            .target_variants
+            .contains(&"running".to_string()));
+        assert_eq!(snapshot.transition_sites[1].source_variant.as_deref(), Some("running"));
+        assert!(snapshot.transition_sites[1]
+            .target_variants
+            .contains(&"error".to_string()));
+        assert_eq!(snapshot.transition_sites[2].source_variant.as_deref(), Some("error"));
+        assert!(snapshot.transition_sites[2]
+            .target_variants
+            .contains(&"idle".to_string()));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn supervisor_skips_switches_without_explicit_next_state_mappings() {
+        if Command::new("node").arg("--version").output().is_err() {
+            return;
+        }
+
+        let root = temp_root("transition-free-switch");
+        write_file(
+            &root,
+            "tsconfig.json",
+            r#"{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true
+  },
+  "include": ["src/**/*.ts"]
+}
+"#,
+        );
+        write_file(
+            &root,
+            "src/runtime/browser-state.ts",
+            r#"export type BrowserSyncState = "idle" | "running";
+
+export function renderStateLabel(state: BrowserSyncState): string {
+  switch (state) {
+    case "idle":
+      return "Idle";
+    case "running":
+      return "Running";
+  }
+}
+"#,
+        );
+
+        let project = discover_project(&root).expect("project discovery");
+        let mut supervisor = TypeScriptBridgeSupervisor::with_default_config();
+        let snapshot = supervisor
+            .analyze_project(&project)
+            .expect("semantic analysis");
+
+        assert!(snapshot.transition_sites.is_empty());
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn supervisor_keeps_transition_groups_with_domain_typed_returns() {
+        if Command::new("node").arg("--version").output().is_err() {
+            return;
+        }
+
+        let root = temp_root("transition-helper-switch");
+        write_file(
+            &root,
+            "tsconfig.json",
+            r#"{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true
+  },
+  "include": ["src/**/*.ts"]
+}
+"#,
+        );
+        write_file(
+            &root,
+            "src/runtime/browser-state.ts",
+            r#"export type BrowserSyncState = "idle" | "running";
+
+function advance(current: BrowserSyncState): BrowserSyncState {
+  return current === "idle" ? "running" : "idle";
+}
+
+export function nextState(state: BrowserSyncState): BrowserSyncState {
+  switch (state) {
+    case "idle":
+      return advance(state);
+    case "running":
+      return advance(state);
+  }
+}
+"#,
+        );
+
+        let project = discover_project(&root).expect("project discovery");
+        let mut supervisor = TypeScriptBridgeSupervisor::with_default_config();
+        let snapshot = supervisor
+            .analyze_project(&project)
+            .expect("semantic analysis");
+
+        assert_eq!(snapshot.transition_sites.len(), 2);
+        assert!(snapshot
+            .transition_sites
+            .iter()
+            .all(|site| site.target_variants.is_empty()));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn supervisor_collects_binary_state_inequality_transitions() {
+        if Command::new("node").arg("--version").output().is_err() {
+            return;
+        }
+
+        let root = temp_root("transition-inequality-if");
+        write_file(
+            &root,
+            "tsconfig.json",
+            r#"{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true
+  },
+  "include": ["src/**/*.ts"]
+}
+"#,
+        );
+        write_file(
+            &root,
+            "src/runtime/browser-state.ts",
+            r#"export type BrowserSyncState = "idle" | "running";
+
+export function nextState(state: BrowserSyncState): BrowserSyncState {
+  if (state !== "idle") {
+    return "idle";
+  } else {
+    return "running";
+  }
+}
+"#,
+        );
+
+        let project = discover_project(&root).expect("project discovery");
+        let mut supervisor = TypeScriptBridgeSupervisor::with_default_config();
+        let snapshot = supervisor
+            .analyze_project(&project)
+            .expect("semantic analysis");
+
+        assert_eq!(snapshot.transition_sites.len(), 2);
+        assert_eq!(
+            snapshot.transition_sites[0].source_variant.as_deref(),
+            Some("running")
+        );
+        assert!(snapshot.transition_sites[0]
+            .target_variants
+            .contains(&"idle".to_string()));
+        assert_eq!(
+            snapshot.transition_sites[1].source_variant.as_deref(),
+            Some("idle")
+        );
+        assert!(snapshot.transition_sites[1]
+            .target_variants
+            .contains(&"running".to_string()));
 
         let _ = std::fs::remove_dir_all(root);
     }

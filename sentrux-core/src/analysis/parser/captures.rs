@@ -390,6 +390,7 @@ pub(super) fn process_func_def(
             bh: if bh != 0 { Some(bh) } else { None },
             d: None,
             co: None,
+            same_file_ref_count: None,
             is_public: is_public || is_test,
             is_method: false,
         });

@@ -96,6 +96,11 @@ pub struct FuncInfo {
     /// Populated by parser via line-range containment check.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub co: Option<Vec<String>>,
+    /// Same-file identifier references to this function outside its own body.
+    /// Used to conservatively suppress dead-private false positives for callback
+    /// wiring, JSX usage, and other non-call value-position references.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub same_file_ref_count: Option<u32>,
     /// Whether this function is publicly visible (pub/export/public).
     /// Used by dead code detection: public functions are NOT dead code.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]

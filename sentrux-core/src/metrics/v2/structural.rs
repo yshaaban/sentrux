@@ -3561,6 +3561,7 @@ mod tests {
                     bh: Some(1),
                     d: None,
                     co: None,
+                    same_file_ref_count: None,
                     is_public: false,
                     is_method: false,
                 }]),

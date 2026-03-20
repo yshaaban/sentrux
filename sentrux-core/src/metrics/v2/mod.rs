@@ -585,6 +585,7 @@ mod tests {
             ],
             closed_domains: Vec::new(),
             closed_domain_sites: Vec::new(),
+            transition_sites: Vec::new(),
         };
 
         let findings = build_authority_and_access_findings(&config, &semantic);
@@ -648,6 +649,7 @@ mod tests {
             ],
             closed_domains: Vec::new(),
             closed_domain_sites: Vec::new(),
+            transition_sites: Vec::new(),
         };
 
         let findings = build_authority_and_access_findings(&config, &semantic);
@@ -723,6 +725,7 @@ mod tests {
             ],
             closed_domains: Vec::new(),
             closed_domain_sites: Vec::new(),
+            transition_sites: Vec::new(),
         };
 
         let findings = build_authority_and_access_findings(&config, &semantic);
@@ -772,6 +775,7 @@ mod tests {
             ],
             closed_domains: Vec::new(),
             closed_domain_sites: Vec::new(),
+            transition_sites: Vec::new(),
         };
 
         let findings = build_authority_and_access_findings(&config, &semantic);
@@ -818,6 +822,7 @@ mod tests {
             writes: Vec::new(),
             closed_domains: Vec::new(),
             closed_domain_sites: Vec::new(),
+            transition_sites: Vec::new(),
         };
         let snapshot = snap_with_edges(
             vec![
@@ -880,6 +885,7 @@ mod tests {
             writes: Vec::new(),
             closed_domains: Vec::new(),
             closed_domain_sites: Vec::new(),
+            transition_sites: Vec::new(),
         };
         let snapshot = snap_with_edges(
             vec![
@@ -932,6 +938,7 @@ mod tests {
             writes: Vec::new(),
             closed_domains: Vec::new(),
             closed_domain_sites: Vec::new(),
+            transition_sites: Vec::new(),
         };
         let snapshot = snap_with_edges(
             vec![
@@ -994,6 +1001,7 @@ mod tests {
             writes: Vec::new(),
             closed_domains: Vec::new(),
             closed_domain_sites: Vec::new(),
+            transition_sites: Vec::new(),
         };
         let snapshot = snap_with_edges(
             vec![
@@ -1062,6 +1070,7 @@ mod tests {
             writes: Vec::new(),
             closed_domains: Vec::new(),
             closed_domain_sites: Vec::new(),
+            transition_sites: Vec::new(),
         };
         let snapshot = snap_with_edges(
             vec![

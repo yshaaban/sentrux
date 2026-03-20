@@ -585,6 +585,7 @@ mod tests {
                 covered_variants: vec!["idle".to_string()],
                 line: 10,
             }],
+            transition_sites: Vec::new(),
         };
 
         let suggestions = infer_concepts(&config, &semantic);
@@ -626,6 +627,7 @@ mod tests {
             writes: Vec::new(),
             closed_domains: Vec::new(),
             closed_domain_sites: Vec::new(),
+            transition_sites: Vec::new(),
         };
 
         let suggestions = infer_concepts(&config, &semantic);
@@ -681,6 +683,7 @@ mod tests {
             writes: Vec::new(),
             closed_domains: Vec::new(),
             closed_domain_sites: Vec::new(),
+            transition_sites: Vec::new(),
         };
 
         let suggestions = infer_concepts(&config, &semantic);
