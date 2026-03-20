@@ -1,6 +1,6 @@
 # Sentrux V2 Validation Loop
 
-This document defines the repeatable proof loop for the v2 wedge on `parallel-code`.
+This document defines the repeatable proof loop for the v2 wedge across the checked-in benchmark repos.
 
 The goal is not only to generate artifacts. The goal is to make regressions easy to detect, review, and refresh without guessing.
 
@@ -35,6 +35,13 @@ This command:
 
 The live `parallel-code` worktree may be dirty, so every proof refresh must go through a disposable clone.
 
+The other benchmark repos follow the same pattern:
+
+```bash
+./scripts/refresh_h1_sdk_goldens.sh
+./scripts/refresh_admin_frontend_goldens.sh
+```
+
 For stable engineer-review artifacts against committed `HEAD`, use:
 
 ```bash
@@ -59,6 +66,19 @@ This command:
 - fails if the benchmark comparison reports a regression
 
 The proof board explains how the outputs from this command should be turned into real refactor targets and before/after proof records.
+
+For the other benchmark repos, use:
+
+```bash
+node scripts/validate_h1_sdk_v2.mjs
+node scripts/validate_admin_frontend_v2.mjs
+```
+
+To validate all benchmark repos together, use:
+
+```bash
+node scripts/validate_benchmark_repos_v2.mjs
+```
 
 ### Run Proof Targets
 
@@ -229,3 +249,20 @@ node scripts/validate_h1_sdk_v2.mjs --goldens-only
 ```
 
 This does not provide an engineer-report corpus like `parallel-code`, but it does verify that generic ranking-oriented analyzer changes do not accidentally destabilize the second checked-in benchmark repo shape.
+
+## Third Repo Cross-Check
+
+Archetype and onboarding changes should also be validated on a modular Next.js frontend shape.
+
+Use:
+
+```bash
+node scripts/validate_admin_frontend_v2.mjs --goldens-only
+```
+
+This verifies:
+
+- `project_shape` stability
+- starter-rule generation
+- framework-aware role tagging on route, provider, service, and state surfaces
+- generic `module_contract` enforcement through the synthetic benchmark fail path

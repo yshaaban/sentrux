@@ -69,6 +69,8 @@ The next version should answer questions like:
 - [Parallel-Code Proof Runs](./examples/parallel-code-proof-runs/README.md)
 - [Private Benchmark Repo Scoped Goldens](./examples/private-benchmark-repo-golden/README.md)
 - [Private Benchmark Repo Benchmark](./examples/private-benchmark-repo-benchmark.md)
+- [Private Frontend Scoped Goldens](./examples/private-frontend-golden/README.md)
+- [Private Frontend Benchmark](./examples/private-frontend-benchmark.md)
 
 ## Deliverable Shape
 
@@ -99,6 +101,8 @@ V2 now also exposes:
 - trust tiers
 - leverage classes and leverage reasons for engineering meaning
 - candidate split axes and related surfaces for fix-oriented inspection
+- project-shape detection, archetype matches, and starter-rule suggestions for repo onboarding
+- module-contract rules for module public APIs and cross-module deep-import enforcement
 
 Any compatibility fields that still mention quality opportunities or optimization-style sorting should be treated as legacy aliases for inspection candidates only. Engineers own the final prioritization.
 
@@ -153,10 +157,12 @@ Current reality:
 
 1. the patch-safety wedge is working in MCP and CLI
 2. proof artifacts now exist for `parallel-code` and `private-benchmark-repo`
-3. findings and `session_end` now include concept summaries, structural debt signals, debt clusters, normalized finding details, and watchpoints
-4. trusted findings, watchpoints, and experimental findings are now separated in the primary MCP surfaces
-5. cycle-cluster reports now include concrete cut-candidate evidence instead of only SCC membership
-6. the remaining gaps are broader unhappy-path validation, proof-run refresh follow-through, dead-private detector promotion beyond experimental, and broader Tier 3 analysis beyond the new explicit transition-integrity slice
+3. proof artifacts now also exist for `private-frontend` as the modular Next.js frontend benchmark repo
+4. findings and `session_end` now include concept summaries, structural debt signals, debt clusters, normalized finding details, and watchpoints
+5. trusted findings, watchpoints, and experimental findings are now separated in the primary MCP surfaces
+6. cycle-cluster reports now include concrete cut-candidate evidence instead of only SCC membership
+7. v2 now includes a generic archetype/onboarding layer with `project_shape` output, framework-aware role defaults, and starter-rule generation
+8. the remaining gaps are broader unhappy-path validation, proof-run refresh follow-through, dead-private detector promotion beyond experimental, and broader Tier 3 analysis beyond the new explicit transition-integrity slice
 
 ## Exit Criteria For V2 Beta
 

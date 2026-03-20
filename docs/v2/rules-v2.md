@@ -40,8 +40,20 @@ Add new sections instead of breaking the current file format.
 ```toml
 [project]
 primary_language = "typescript"
+archetypes = ["modular_nextjs_frontend"]
 exclude = ["vendor/**", "dist/**", "coverage/**"]
 ```
+
+Supported `project` fields now include:
+
+- `primary_language`
+- `exclude`
+- `archetypes`
+
+`archetypes` is optional.
+
+It lets a repo pin the intended shape when the zero-config `project_shape` detector would otherwise
+offer multiple plausible matches.
 
 ## Concept
 
@@ -114,6 +126,29 @@ require_exhaustive_switch = true
 require_assert_never = true
 ```
 
+## Module Contract
+
+Use `module_contract` when a repo wants to declare a module public API and forbid cross-module deep
+imports.
+
+```toml
+[[module_contract]]
+id = "feature_modules"
+root = "src/modules"
+public_api = ["index.ts", "index.tsx"]
+forbid_cross_module_deep_imports = true
+```
+
+Supported fields:
+
+- `id`
+- `root`
+- `public_api`
+- `forbid_cross_module_deep_imports`
+
+This is especially useful for modular frontend repos where each module is expected to expose a small
+public API barrel while keeping internal components and helpers private.
+
 ## Suppression
 
 Suppressions are necessary for approved exceptions.
@@ -166,6 +201,7 @@ Every v2 run should compute rule coverage:
 - declared concepts with at least one machine-checked condition
 - declared contracts with parity cells checked
 - declared state models with explicit structural checks
+- declared module contracts with machine-checkable import validation
 
 This score must be exposed directly.
 
@@ -192,8 +228,9 @@ Not allowed for v2 rule compliance:
 Teams should be able to start with:
 
 1. zero-config heuristic findings
-2. 3 to 5 critical concept rules
-3. one or two critical contracts
+2. `project_shape` suggestions plus one or two boundary-root/module-contract declarations
+3. 3 to 5 critical concept rules
+4. one or two critical contracts
 
 The rules model should reward this small-config path rather than assuming a complete architecture specification.
 

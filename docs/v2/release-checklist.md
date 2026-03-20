@@ -14,10 +14,11 @@ Run:
 
 1. `node scripts/validate_parallel_code_v2.mjs`
 2. `node scripts/validate_h1_sdk_v2.mjs`
-3. `node scripts/validate_benchmark_repos_v2.mjs`
-4. `cargo test -p sentrux-core app::mcp_server::handlers::tests -- --nocapture`
-5. `cargo test -p sentrux-core metrics::v2::obligations::tests -- --nocapture`
-6. `cargo build -p sentrux`
+3. `node scripts/validate_admin_frontend_v2.mjs`
+4. `node scripts/validate_benchmark_repos_v2.mjs`
+5. `cargo test -p sentrux-core app::mcp_server::handlers::tests -- --nocapture`
+6. `cargo test -p sentrux-core metrics::v2::obligations::tests -- --nocapture`
+7. `cargo build -p sentrux`
 
 ## Benchmark Policy
 
@@ -52,3 +53,4 @@ Do not bless the release unless:
 - benchmark policy results are understood
 - migration and handler validation passes
 - the top actionable findings on `parallel-code` still look trustworthy
+- the archetype and onboarding surfaces still look sane on `private-frontend`

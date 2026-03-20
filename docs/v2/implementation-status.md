@@ -56,10 +56,13 @@ The strongest completed work is:
 - conservative state-integrity analysis
 - session baseline project-fingerprint validation and confidence regression coverage
 - second benchmark repo proof loop on `private-benchmark-repo`
+- third benchmark repo proof loop on `private-frontend`
 - multi-repo golden validation runner
 - benchmark fail/warn/info classification with explicit thresholds
 - release checklist for proof artifacts, benchmark policy, and migration behavior
 - warm-path rules-config caching across repeated MCP requests
+- generic archetype detection with `project_shape` output, starter-rule generation, and framework-aware role defaults for modular Next.js and React frontend repos
+- generic `module_contract` rules for module public APIs and cross-module deep-import enforcement
 - legacy MCP and CLI surfaces now frame structural output as context rather than the main v2 story
 - desktop structural panels and export flow now frame structural output as supporting context
 - `findings` now includes a top-level confidence summary
@@ -71,15 +74,15 @@ The strongest completed work is:
 | Tier 0 | Mostly complete | Trust foundation is real in MCP and CLI | GUI productization and `health` inline delta surfacing are still uneven |
 | Tier 1A | Mostly complete | Clone drift findings now have stable ids, git-aware risk context, divergence-aware family clustering, remediation hints, and cleaner production-first ranking | no history-aware rename/copy tracing and no dedicated clone-drift CLI surface yet |
 | Tier 1B | Mostly complete | TS bridge, semantic facts, proof artifacts, and explicit benchmark policy now exist across `parallel-code` and `private-benchmark-repo` | no mature persisted cache story and warm-path structural cost is still higher than desired |
-| Tier 1C | Mostly complete | v2 rules, concept graph, and suppression enforcement now exist | broader policy UX and validation are still incomplete |
+| Tier 1C | Mostly complete | v2 rules, concept graph, suppression enforcement, archetype-aware starter rules, and module-contract support now exist | broader policy UX and validation are still incomplete |
 | Tier 1D | Mostly complete | authority/access findings now include stronger public-boundary bypass and concept-boundary pressure summaries | no full scorecard track and limited generic public-entry inference |
 | Tier 1E | Mostly complete | obligation engine now handles closed-domain and initial contract-driven triggers | richer contract families and finer changed-symbol precision are still incomplete |
 | Tier 1F | Mostly complete | `session_end` and `gate` now work in MCP and CLI on the same touched-concept model, including suppression-aware decisions and shared patch-safety analysis reuse | release-grade gate validation is still incomplete |
 | Tier 2A | Mostly complete | parity analyzer, MCP tool, and real proof now exist on more than one repo shape | broader contract families still need more false-positive review and non-happy-path validation |
 | Tier 2B | Mostly complete | concentration analysis exists and is tested | not yet benchmarked or validated on the real case-study repo |
-| Tier 2C | Mostly complete | inspection tools, adoption helpers, trust-tiered debt signals, structural debt findings, debt clusters, and two real benchmark repos now exist | broader onboarding proof and evidence-quality validation are still incomplete |
+| Tier 2C | Mostly complete | inspection tools, adoption helpers, trust-tiered debt signals, structural debt findings, debt clusters, `project_shape`, and three real benchmark repos now exist | broader onboarding proof and evidence-quality validation are still incomplete |
 | Tier 3 | Partial | conservative state-integrity slice now includes explicit transition-site modeling and transition-coverage findings for rule-declared state domains | implicit lifecycle heuristics and broader invalid-state-risk inference are still not built |
-| Validation | Mostly complete | unit tests, synthetic gate/session regression scenarios, two real benchmark repos, multi-repo goldens, versioned benchmark comparison, explicit benchmark policy, and confidence/migration checks now exist | no full migration suite and benchmark-repo unhappy-path coverage is still incomplete |
+| Validation | Mostly complete | unit tests, synthetic gate/session regression scenarios, three real benchmark repos, multi-repo goldens, versioned benchmark comparison, explicit benchmark policy, and confidence/migration checks now exist | no full migration suite and benchmark-repo unhappy-path coverage is still incomplete |
 
 ## Tier-By-Tier Status
 
@@ -165,6 +168,7 @@ Delivered:
 Still missing:
 
 - broader policy-management ergonomics and release-grade validation around suppressions
+- broader repo-archetype packs beyond the current modular Next.js and React frontend defaults
 
 ## Tier 1D: Authority And Access
 
@@ -183,6 +187,7 @@ Still missing:
 - no explicit authority/access scorecard tool or track surface
 - authoritative concept detection is still primarily rule-driven
 - public-API/barrel bypass detection is still narrower than the roadmap intent
+- feature-module public-API enforcement still depends on explicit `module_contract` configuration rather than first-class adoption UX
 
 ## Tier 1E: Obligation Engine
 

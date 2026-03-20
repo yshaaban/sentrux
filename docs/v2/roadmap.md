@@ -59,7 +59,7 @@ Tasks:
 - [x] add trust tiers for trusted findings, watchpoints, and experimental detectors
 - [x] keep experimental detectors out of default `findings`, `session_end`, and `gate` lists
 - [x] add leverage classes and leverage reasons to engineer-facing v2 outputs
-- [-] validate leverage-aware report composition across benchmark repos
+- [x] validate leverage-aware report composition across benchmark repos
 
 Exit criteria:
 
@@ -165,6 +165,7 @@ Exit criteria:
 Open gap:
 
 - suppression matching and expiry are implemented, but still need broader validation and policy ergonomics
+- broader archetype packs and richer onboarding UX are still ahead
 
 ## Tier 1D: Authority And Access
 
@@ -251,6 +252,7 @@ Deliverables:
 - concept inspection tools
 - rule and guardrail integration
 - conservative concept inference
+- repo-archetype onboarding and framework-aware defaults
 
 ## Tier 2A: Contract Parity
 

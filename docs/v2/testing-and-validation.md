@@ -90,7 +90,7 @@ Required golden targets:
 
 1. `parallel-code`
 2. `private-benchmark-repo`
-3. one additional TS fixture with a different architecture shape
+3. `private-frontend`
 
 Golden outputs should include:
 
@@ -108,6 +108,8 @@ Current status:
 - initial benchmark notes exist in [examples/parallel-code-benchmark.md](./examples/parallel-code-benchmark.md)
 - scoped `private-benchmark-repo` goldens now exist in [examples/private-benchmark-repo-golden](./examples/private-benchmark-repo-golden/README.md)
 - `private-benchmark-repo` now has a checked-in benchmark artifact in [examples/private-benchmark-repo-benchmark.md](./examples/private-benchmark-repo-benchmark.md)
+- scoped `private-frontend` goldens now exist in [examples/private-frontend-golden](./examples/private-frontend-golden/README.md)
+- `private-frontend` now has a checked-in benchmark artifact in [examples/private-frontend-benchmark.md](./examples/private-frontend-benchmark.md)
 - synthetic touched-concept gate and `session_end` regression scenarios now exist in the MCP handler test suite
 - migration/coexistence coverage now verifies that `gate` and `session_end` still work when only the v2 session baseline is usable, when the v2 session baseline is missing, and when copied or incompatible baselines are present
 - confidence regression coverage now checks incompatible schema and project-mismatch session baselines
@@ -118,7 +120,8 @@ Current status:
   - warn at `>150ms` and `>10%`
 - a release checklist now exists in [release-checklist.md](./release-checklist.md)
 - the validation loop now has a dedicated one-command runner for checked-in goldens and benchmark regression checks
-- the validation loop now has a multi-repo runner across both benchmark repos
+- the validation loop now has a multi-repo runner across all checked-in benchmark repos
+- the validation loop now has a third benchmark repo for modular Next.js frontend shape and onboarding helpers
 - full release-grade validation still needs broader benchmark-repo unhappy-path coverage and stronger analyzer promotion criteria
 
 ## Layer 5: False-Positive Review
