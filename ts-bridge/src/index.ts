@@ -788,6 +788,10 @@ function collectSwitchExhaustivenessSite(
 }
 
 function collectTransitionSite(context: FileAnalysisContext, node: ts.Node): void {
+  if (ts.isVariableDeclaration(node)) {
+    collectRecordTransitionSites(context, node);
+  }
+
   if (ts.isSwitchStatement(node)) {
     collectSwitchTransitionSites(context, node);
     return;
@@ -799,6 +803,152 @@ function collectTransitionSite(context: FileAnalysisContext, node: ts.Node): voi
   ) {
     collectIfTransitionSites(context, node);
   }
+}
+
+function collectRecordTransitionSites(
+  context: FileAnalysisContext,
+  node: ts.VariableDeclaration,
+): void {
+  const initializer = node.initializer;
+  if (!initializer) {
+    return;
+  }
+
+  const objectLiteral = unwrapObjectLiteralExpression(initializer);
+  if (!objectLiteral) {
+    return;
+  }
+
+  const recordInfo = transitionRecordInfoForVariableDeclaration(context, node);
+  if (!recordInfo) {
+    return;
+  }
+
+  const recordLine = lineOfNode(context.sourceFile, node.name);
+  const groupId = `${context.relativePath}:${recordLine}:${recordInfo.domainInfo.domainSymbolName}:record`;
+  const groupSites: TransitionSite[] = [];
+
+  for (const property of objectLiteral.properties) {
+    const sourceVariant = transitionSourceVariantFromObjectProperty(
+      property,
+      recordInfo.domainInfo.variants,
+    );
+    if (!sourceVariant) {
+      continue;
+    }
+
+    const targetVariants = transitionTargetsFromObjectProperty(
+      property,
+      recordInfo.targetVariants,
+    );
+    groupSites.push({
+      path: context.relativePath,
+      domain_symbol_name: recordInfo.domainInfo.domainSymbolName,
+      group_id: groupId,
+      transition_kind: "record_entry",
+      source_variant: sourceVariant,
+      target_variants: targetVariants,
+      line: lineOfNode(context.sourceFile, property),
+    });
+  }
+
+  if (groupSites.length > 0) {
+    context.transitionSites.push(...groupSites);
+  }
+}
+
+function transitionRecordInfoForVariableDeclaration(
+  context: FileAnalysisContext,
+  node: ts.VariableDeclaration,
+): {
+  domainInfo: ClosedDomainInfo;
+  targetVariants: string[];
+} | null {
+  if (node.type) {
+    const recordInfo = transitionRecordInfoFromTypeNode(context, node.type);
+    if (recordInfo) {
+      return recordInfo;
+    }
+  }
+
+  const initializer = node.initializer;
+  if (!initializer || !ts.isSatisfiesExpression(initializer)) {
+    return null;
+  }
+
+  return transitionRecordInfoFromTypeNode(context, initializer.type);
+}
+
+function transitionRecordInfoFromTypeNode(
+  context: FileAnalysisContext,
+  typeNode: ts.TypeNode,
+): {
+  domainInfo: ClosedDomainInfo;
+  targetVariants: string[];
+} | null {
+  if (!ts.isTypeReferenceNode(typeNode)) {
+    return null;
+  }
+
+  const typeName = typeNode.typeName.getText(context.sourceFile);
+  if (
+    typeName !== "Record" ||
+    !typeNode.typeArguments ||
+    typeNode.typeArguments.length < 2
+  ) {
+    return null;
+  }
+
+  const sourceInfo = closedDomainInfoForTypeNode(context, typeNode.typeArguments[0]);
+  const targetInfo = closedDomainInfoForTypeNode(context, typeNode.typeArguments[1]);
+  if (!sourceInfo || !targetInfo || sourceInfo.variants.length <= 1) {
+    return null;
+  }
+
+  if (sourceInfo.domainSymbolName !== targetInfo.domainSymbolName) {
+    return null;
+  }
+
+  return {
+    domainInfo: sourceInfo,
+    targetVariants: targetInfo.variants,
+  };
+}
+
+function transitionSourceVariantFromObjectProperty(
+  property: ts.ObjectLiteralElementLike,
+  allowedVariants: readonly string[],
+): string | null {
+  if (ts.isPropertyAssignment(property)) {
+    return transitionVariantTextFromPropertyName(property.name, allowedVariants);
+  }
+
+  if (ts.isShorthandPropertyAssignment(property)) {
+    return allowedVariants.includes(property.name.text) ? property.name.text : null;
+  }
+
+  return null;
+}
+
+function transitionTargetsFromObjectProperty(
+  property: ts.ObjectLiteralElementLike,
+  allowedVariants: readonly string[],
+): string[] {
+  if (ts.isPropertyAssignment(property)) {
+    return collectTransitionTargetVariantsFromExpression(
+      property.initializer,
+      allowedVariants,
+    );
+  }
+
+  if (
+    ts.isShorthandPropertyAssignment(property) &&
+    allowedVariants.includes(property.name.text)
+  ) {
+    return [property.name.text];
+  }
+
+  return [];
 }
 
 function collectSwitchTransitionSites(
@@ -1061,8 +1211,41 @@ function collectTransitionTargetVariants(
 ): string[] {
   const variants = new Set<string>();
 
-  function recordExpression(expression: ts.Expression): void {
-    const current = unwrapTransitionExpression(expression);
+  function visit(node: ts.Node): void {
+    if (ts.isReturnStatement(node) && node.expression) {
+      for (const variant of collectTransitionTargetVariantsFromExpression(
+        node.expression,
+        allowedVariants,
+      )) {
+        variants.add(variant);
+      }
+    } else if (ts.isBinaryExpression(node) && isAssignmentOperator(node.operatorToken.kind)) {
+      for (const variant of collectTransitionTargetVariantsFromExpression(
+        node.right,
+        allowedVariants,
+      )) {
+        variants.add(variant);
+      }
+    }
+
+    ts.forEachChild(node, visit);
+  }
+
+  for (const statement of statements) {
+    visit(statement);
+  }
+
+  return [...variants];
+}
+
+function collectTransitionTargetVariantsFromExpression(
+  expression: ts.Expression,
+  allowedVariants: readonly string[],
+): string[] {
+  const variants = new Set<string>();
+
+  function recordExpression(currentExpression: ts.Expression): void {
+    const current = unwrapTransitionExpression(currentExpression);
     const targetVariant = transitionVariantText(current, allowedVariants);
     if (targetVariant && allowedVariants.includes(targetVariant)) {
       variants.add(targetVariant);
@@ -1073,6 +1256,11 @@ function collectTransitionTargetVariants(
       for (const property of current.properties) {
         if (ts.isPropertyAssignment(property)) {
           recordExpression(property.initializer);
+        } else if (
+          ts.isShorthandPropertyAssignment(property) &&
+          allowedVariants.includes(property.name.text)
+        ) {
+          variants.add(property.name.text);
         }
       }
       return;
@@ -1090,24 +1278,10 @@ function collectTransitionTargetVariants(
           recordExpression(element);
         }
       }
-      return;
     }
   }
 
-  function visit(node: ts.Node): void {
-    if (ts.isReturnStatement(node) && node.expression) {
-      recordExpression(node.expression);
-    } else if (ts.isBinaryExpression(node) && isAssignmentOperator(node.operatorToken.kind)) {
-      recordExpression(node.right);
-    }
-
-    ts.forEachChild(node, visit);
-  }
-
-  for (const statement of statements) {
-    visit(statement);
-  }
-
+  recordExpression(expression);
   return [...variants];
 }
 
@@ -1493,6 +1667,25 @@ function objectLiteralKeys(node: ts.ObjectLiteralExpression): string[] {
 function propertyNameText(name: ts.PropertyName): string | null {
   if (ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNumericLiteral(name)) {
     return name.text;
+  }
+
+  return null;
+}
+
+function transitionVariantTextFromPropertyName(
+  name: ts.PropertyName,
+  allowedVariants: readonly string[],
+): string | null {
+  const propertyText = propertyNameText(name);
+  if (propertyText && allowedVariants.includes(propertyText)) {
+    return propertyText;
+  }
+
+  if (
+    ts.isComputedPropertyName(name) &&
+    ts.isExpression(name.expression)
+  ) {
+    return transitionVariantText(name.expression, allowedVariants);
   }
 
   return null;

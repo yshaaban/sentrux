@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Sentrux External Eval Scenario",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "scenario_id", "repo", "tasks"],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "scenario_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "repo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "root_env", "default_root"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "root_env": {
+          "type": "string",
+          "minLength": 1
+        },
+        "default_root": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "tasks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/task"
+      }
+    }
+  },
+  "$defs": {
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["task_id", "kind", "prompt"],
+      "properties": {
+        "task_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "enum": ["agent_brief", "dead_private"]
+        },
+        "mode": {
+          "enum": ["repo_onboarding", "patch", "pre_merge"]
+        },
+        "prompt": {
+          "type": "string",
+          "minLength": 1
+        },
+        "notes": {
+          "type": "string"
+        },
+        "checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/check"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "agent_brief"
+              }
+            }
+          },
+          "then": {
+            "required": ["mode"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "dead_private"
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "required": ["mode"]
+            }
+          }
+        }
+      ]
+    },
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "path"],
+      "properties": {
+        "kind": {
+          "enum": [
+            "has",
+            "truthy",
+            "min_items",
+            "max_items",
+            "enum",
+            "number_gte",
+            "number_lte",
+            "matches",
+            "contains_text",
+            "equals"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "severity": {
+          "enum": ["required", "optional"]
+        },
+        "value": {},
+        "allowed": {
+          "type": "array"
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "pattern": {
+          "type": "string"
+        },
+        "flags": {
+          "type": "string"
+        },
+        "case_sensitive": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

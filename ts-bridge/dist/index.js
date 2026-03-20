@@ -42,6 +42,26 @@ function toProjectModel(value) {
         workspace_files: value.workspace_files,
         primary_language: typeof value.primary_language === "string" ? value.primary_language : null,
         fingerprint: value.fingerprint,
+        repo_archetype: typeof value.repo_archetype === "string" ? value.repo_archetype : null,
+        detected_archetypes: Array.isArray(value.detected_archetypes)
+            ? value.detected_archetypes.flatMap((entry) => {
+                if (!isObject(entry)) {
+                    return [];
+                }
+                if (typeof entry.id !== "string" ||
+                    typeof entry.confidence !== "string" ||
+                    !isStringArray(entry.reasons)) {
+                    return [];
+                }
+                return [
+                    {
+                        id: entry.id,
+                        confidence: entry.confidence,
+                        reasons: entry.reasons,
+                    },
+                ];
+            })
+            : [],
     };
 }
 function normalizePath(value) {
@@ -517,6 +537,9 @@ function collectSwitchExhaustivenessSite(context, node) {
     });
 }
 function collectTransitionSite(context, node) {
+    if (ts.isVariableDeclaration(node)) {
+        collectRecordTransitionSites(context, node);
+    }
     if (ts.isSwitchStatement(node)) {
         collectSwitchTransitionSites(context, node);
         return;
@@ -525,6 +548,97 @@ function collectTransitionSite(context, node) {
         !(ts.isIfStatement(node.parent) && node.parent.elseStatement === node)) {
         collectIfTransitionSites(context, node);
     }
+}
+function collectRecordTransitionSites(context, node) {
+    const initializer = node.initializer;
+    if (!initializer) {
+        return;
+    }
+    const objectLiteral = unwrapObjectLiteralExpression(initializer);
+    if (!objectLiteral) {
+        return;
+    }
+    const recordInfo = transitionRecordInfoForVariableDeclaration(context, node);
+    if (!recordInfo) {
+        return;
+    }
+    const recordLine = lineOfNode(context.sourceFile, node.name);
+    const groupId = `${context.relativePath}:${recordLine}:${recordInfo.domainInfo.domainSymbolName}:record`;
+    const groupSites = [];
+    for (const property of objectLiteral.properties) {
+        const sourceVariant = transitionSourceVariantFromObjectProperty(property, recordInfo.domainInfo.variants);
+        if (!sourceVariant) {
+            continue;
+        }
+        const targetVariants = transitionTargetsFromObjectProperty(property, recordInfo.targetVariants);
+        groupSites.push({
+            path: context.relativePath,
+            domain_symbol_name: recordInfo.domainInfo.domainSymbolName,
+            group_id: groupId,
+            transition_kind: "record_entry",
+            source_variant: sourceVariant,
+            target_variants: targetVariants,
+            line: lineOfNode(context.sourceFile, property),
+        });
+    }
+    if (groupSites.length > 0) {
+        context.transitionSites.push(...groupSites);
+    }
+}
+function transitionRecordInfoForVariableDeclaration(context, node) {
+    if (node.type) {
+        const recordInfo = transitionRecordInfoFromTypeNode(context, node.type);
+        if (recordInfo) {
+            return recordInfo;
+        }
+    }
+    const initializer = node.initializer;
+    if (!initializer || !ts.isSatisfiesExpression(initializer)) {
+        return null;
+    }
+    return transitionRecordInfoFromTypeNode(context, initializer.type);
+}
+function transitionRecordInfoFromTypeNode(context, typeNode) {
+    if (!ts.isTypeReferenceNode(typeNode)) {
+        return null;
+    }
+    const typeName = typeNode.typeName.getText(context.sourceFile);
+    if (typeName !== "Record" ||
+        !typeNode.typeArguments ||
+        typeNode.typeArguments.length < 2) {
+        return null;
+    }
+    const sourceInfo = closedDomainInfoForTypeNode(context, typeNode.typeArguments[0]);
+    const targetInfo = closedDomainInfoForTypeNode(context, typeNode.typeArguments[1]);
+    if (!sourceInfo || !targetInfo || sourceInfo.variants.length <= 1) {
+        return null;
+    }
+    if (sourceInfo.domainSymbolName !== targetInfo.domainSymbolName) {
+        return null;
+    }
+    return {
+        domainInfo: sourceInfo,
+        targetVariants: targetInfo.variants,
+    };
+}
+function transitionSourceVariantFromObjectProperty(property, allowedVariants) {
+    if (ts.isPropertyAssignment(property)) {
+        return transitionVariantTextFromPropertyName(property.name, allowedVariants);
+    }
+    if (ts.isShorthandPropertyAssignment(property)) {
+        return allowedVariants.includes(property.name.text) ? property.name.text : null;
+    }
+    return null;
+}
+function transitionTargetsFromObjectProperty(property, allowedVariants) {
+    if (ts.isPropertyAssignment(property)) {
+        return collectTransitionTargetVariantsFromExpression(property.initializer, allowedVariants);
+    }
+    if (ts.isShorthandPropertyAssignment(property) &&
+        allowedVariants.includes(property.name.text)) {
+        return [property.name.text];
+    }
+    return [];
 }
 function collectSwitchTransitionSites(context, node) {
     const domainInfo = closedDomainInfoForExpression(context, node.expression);
@@ -693,8 +807,28 @@ function statementsOf(statement) {
 }
 function collectTransitionTargetVariants(statements, allowedVariants) {
     const variants = new Set();
-    function recordExpression(expression) {
-        const current = unwrapTransitionExpression(expression);
+    function visit(node) {
+        if (ts.isReturnStatement(node) && node.expression) {
+            for (const variant of collectTransitionTargetVariantsFromExpression(node.expression, allowedVariants)) {
+                variants.add(variant);
+            }
+        }
+        else if (ts.isBinaryExpression(node) && isAssignmentOperator(node.operatorToken.kind)) {
+            for (const variant of collectTransitionTargetVariantsFromExpression(node.right, allowedVariants)) {
+                variants.add(variant);
+            }
+        }
+        ts.forEachChild(node, visit);
+    }
+    for (const statement of statements) {
+        visit(statement);
+    }
+    return [...variants];
+}
+function collectTransitionTargetVariantsFromExpression(expression, allowedVariants) {
+    const variants = new Set();
+    function recordExpression(currentExpression) {
+        const current = unwrapTransitionExpression(currentExpression);
         const targetVariant = transitionVariantText(current, allowedVariants);
         if (targetVariant && allowedVariants.includes(targetVariant)) {
             variants.add(targetVariant);
@@ -704,6 +838,10 @@ function collectTransitionTargetVariants(statements, allowedVariants) {
             for (const property of current.properties) {
                 if (ts.isPropertyAssignment(property)) {
                     recordExpression(property.initializer);
+                }
+                else if (ts.isShorthandPropertyAssignment(property) &&
+                    allowedVariants.includes(property.name.text)) {
+                    variants.add(property.name.text);
                 }
             }
             return;
@@ -719,21 +857,9 @@ function collectTransitionTargetVariants(statements, allowedVariants) {
                     recordExpression(element);
                 }
             }
-            return;
         }
     }
-    function visit(node) {
-        if (ts.isReturnStatement(node) && node.expression) {
-            recordExpression(node.expression);
-        }
-        else if (ts.isBinaryExpression(node) && isAssignmentOperator(node.operatorToken.kind)) {
-            recordExpression(node.right);
-        }
-        ts.forEachChild(node, visit);
-    }
-    for (const statement of statements) {
-        visit(statement);
-    }
+    recordExpression(expression);
     return [...variants];
 }
 function hasPotentialTransitionIntent(context, statements, domainInfo) {
@@ -1005,6 +1131,17 @@ function objectLiteralKeys(node) {
 function propertyNameText(name) {
     if (ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNumericLiteral(name)) {
         return name.text;
+    }
+    return null;
+}
+function transitionVariantTextFromPropertyName(name, allowedVariants) {
+    const propertyText = propertyNameText(name);
+    if (propertyText && allowedVariants.includes(propertyText)) {
+        return propertyText;
+    }
+    if (ts.isComputedPropertyName(name) &&
+        ts.isExpression(name.expression)) {
+        return transitionVariantText(name.expression, allowedVariants);
     }
     return null;
 }

@@ -9,6 +9,10 @@
 use super::registry::ToolDef;
 use super::{
     agent_brief::{build_agent_brief, AgentBriefInput, AgentBriefMode},
+    semantic_cache::{
+        current_semantic_cache_identity, load_persisted_semantic_snapshot,
+        save_persisted_semantic_snapshot, SemanticCacheIdentity, SemanticCacheSource,
+    },
     session_v2_schema_supported, McpState, PatchSafetyAnalysisCache, RulesCacheIdentity,
     ScanCacheIdentity, SessionV2Baseline, SessionV2ConfidenceSnapshot, SESSION_V2_SCHEMA_VERSION,
 };
@@ -547,6 +551,8 @@ fn fresh_mcp_state() -> McpState {
         cached_snapshot: None,
         cached_scan_metadata: None,
         cached_semantic: None,
+        cached_semantic_identity: None,
+        cached_semantic_source: None,
         cached_health: None,
         cached_arch: None,
         baseline: None,
@@ -584,16 +590,29 @@ fn analyze_semantic_snapshot(
     state: &mut McpState,
     root: &Path,
 ) -> Result<Option<SemanticSnapshot>, String> {
-    if let Some(semantic) = &state.cached_semantic {
-        return Ok(Some(semantic.clone()));
-    }
-
     let project = crate::analysis::semantic::discover_project(root)
         .map_err(|error| format!("Semantic project discovery failed: {error}"))?;
     if project.primary_language.as_deref() != Some("typescript")
         || project.tsconfig_paths.is_empty()
     {
         return Ok(None);
+    }
+    let cache_identity = current_semantic_identity(root, &project);
+
+    if let Some(semantic) = &state.cached_semantic {
+        if state.cached_semantic_identity.as_ref() == cache_identity.as_ref() {
+            state.cached_semantic_source = Some(SemanticCacheSource::Memory);
+            return Ok(Some(semantic.clone()));
+        }
+    }
+
+    if let Some(identity) = cache_identity.as_ref() {
+        if let Ok(Some(snapshot)) = load_persisted_semantic_snapshot(root, identity) {
+            state.cached_semantic = Some(snapshot.clone());
+            state.cached_semantic_identity = Some(identity.clone());
+            state.cached_semantic_source = Some(SemanticCacheSource::Disk);
+            return Ok(Some(snapshot));
+        }
     }
 
     let bridge = state
@@ -603,8 +622,47 @@ fn analyze_semantic_snapshot(
         .analyze_project(&project)
         .map_err(|error| format!("Semantic analysis unavailable: {error}"))?;
     state.cached_semantic = Some(semantic.clone());
+    state.cached_semantic_identity = cache_identity.clone();
+    state.cached_semantic_source = Some(SemanticCacheSource::Bridge);
+    if let Some(identity) = cache_identity.as_ref() {
+        let _ = save_persisted_semantic_snapshot(root, identity, &semantic);
+    }
 
     Ok(Some(semantic))
+}
+
+fn current_semantic_identity(
+    root: &Path,
+    project: &crate::analysis::semantic::ProjectModel,
+) -> Option<SemanticCacheIdentity> {
+    let scan_identity = current_scan_identity(root)?;
+    Some(current_semantic_cache_identity(
+        project,
+        scan_identity.git_head,
+        scan_identity.working_tree_paths,
+        scan_identity.working_tree_hashes,
+    ))
+}
+
+fn semantic_cache_status_json(state: &McpState) -> Value {
+    match (
+        state.cached_semantic.as_ref(),
+        state.cached_semantic_identity.as_ref(),
+        state.cached_semantic_source,
+    ) {
+        (Some(snapshot), Some(identity), Some(source)) => json!({
+            "available": true,
+            "source": source.as_str(),
+            "project_fingerprint": identity.project_fingerprint,
+            "bridge_protocol_version": identity.bridge_protocol_version,
+            "git_head": identity.git_head,
+            "working_tree_path_count": identity.working_tree_paths.len(),
+            "analyzed_files": snapshot.analyzed_files,
+        }),
+        _ => json!({
+            "available": false,
+        }),
+    }
 }
 
 fn concentration_history(
@@ -697,6 +755,8 @@ fn update_scan_cache(
     state.cached_snapshot = Some(Arc::new(bundle.snapshot));
     state.cached_scan_metadata = Some(bundle.metadata);
     state.cached_semantic = None;
+    state.cached_semantic_identity = None;
+    state.cached_semantic_source = None;
     state.cached_health = Some(bundle.health);
     state.cached_arch = Some(bundle.arch_report);
     state.cached_evolution = None;
@@ -5930,6 +5990,8 @@ mod tests {
             cached_snapshot: None,
             cached_scan_metadata: None,
             cached_semantic: Some(semantic),
+            cached_semantic_identity: None,
+            cached_semantic_source: None,
             cached_health: None,
             cached_arch: None,
             baseline: None,
@@ -5942,6 +6004,164 @@ mod tests {
             cached_patch_safety: None,
             semantic_bridge: None,
         }
+    }
+
+    #[test]
+    fn concepts_reuse_persisted_semantic_cache_when_bridge_is_unavailable() {
+        if Command::new("node").arg("--version").output().is_err() {
+            return;
+        }
+
+        let root = temp_root("semantic-cache");
+        init_git_repo(&root);
+        write_file(
+            &root,
+            "tsconfig.json",
+            r#"{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true
+  },
+  "include": ["src/**/*.ts"]
+}
+"#,
+        );
+        write_file(
+            &root,
+            ".sentrux/rules.toml",
+            r#"
+                [[concept]]
+                id = "browser_sync_state"
+                anchors = ["src/state.ts::BrowserSyncState"]
+
+                [[state_model]]
+                id = "browser_state_sync"
+                roots = ["src/controller.ts"]
+                require_exhaustive_switch = true
+            "#,
+        );
+        write_file(
+            &root,
+            "src/state.ts",
+            "export type BrowserSyncState = 'idle' | 'running' | 'error';\n",
+        );
+        write_file(
+            &root,
+            "src/controller.ts",
+            "import type { BrowserSyncState } from './state';\nexport function next(state: BrowserSyncState): BrowserSyncState {\n  switch (state) {\n    case 'idle': return 'running';\n    case 'running': return 'error';\n    case 'error': return 'idle';\n  }\n}\n",
+        );
+        commit_all(&root, "seed semantic cache");
+
+        let mut state = fresh_mcp_state();
+        handle_scan(
+            &json!({"path": root.to_string_lossy().to_string()}),
+            &Tier::Free,
+            &mut state,
+        )
+        .expect("scan fixture");
+
+        let first = handle_concepts(&json!({}), &Tier::Free, &mut state).expect("first concepts");
+        assert_eq!(first["semantic_cache"]["source"], "bridge");
+        let cache_path =
+            crate::app::mcp_server::semantic_cache::semantic_snapshot_cache_path(&root);
+        assert!(cache_path.exists(), "semantic cache should be written");
+
+        state.cached_semantic = None;
+        state.cached_semantic_identity = None;
+        state.cached_semantic_source = None;
+        let mut broken_config = default_bridge_config();
+        broken_config.entrypoint = "/definitely/missing-sentrux-bridge.js".to_string();
+        state.semantic_bridge = Some(TypeScriptBridgeSupervisor::new(broken_config));
+
+        let second =
+            handle_concepts(&json!({}), &Tier::Free, &mut state).expect("second concepts");
+        assert_eq!(second["semantic_cache"]["source"], "disk");
+        assert!(second["semantic_error"].is_null());
+        assert_eq!(
+            second["summary"]["state_model_count"].as_u64(),
+            Some(1)
+        );
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn state_tool_surfaces_transition_table_sites_from_bridge() {
+        if Command::new("node").arg("--version").output().is_err() {
+            return;
+        }
+
+        let root = temp_root("transition-table-bridge");
+        init_git_repo(&root);
+        write_file(
+            &root,
+            "tsconfig.json",
+            r#"{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true
+  },
+  "include": ["src/**/*.ts"]
+}
+"#,
+        );
+        write_file(
+            &root,
+            ".sentrux/rules.toml",
+            r#"
+                [[state_model]]
+                id = "browser_state_sync"
+                roots = ["src/controller.ts"]
+                require_exhaustive_switch = false
+            "#,
+        );
+        write_file(
+            &root,
+            "src/state.ts",
+            "export type BrowserSyncState = 'idle' | 'running' | 'error';\n",
+        );
+        write_file(
+            &root,
+            "src/controller.ts",
+            "import type { BrowserSyncState } from './state';\nconst transitions = {\n  idle: 'running',\n  running: 'error',\n} satisfies Record<BrowserSyncState, BrowserSyncState>;\nexport function next(state: BrowserSyncState): BrowserSyncState {\n  return transitions[state] ?? state;\n}\n",
+        );
+        commit_all(&root, "seed transition table fixture");
+
+        let mut state = fresh_mcp_state();
+        handle_scan(
+            &json!({"path": root.to_string_lossy().to_string()}),
+            &Tier::Free,
+            &mut state,
+        )
+        .expect("scan fixture");
+
+        let response = handle_state(&json!({}), &Tier::Free, &mut state).expect("state tool");
+
+        assert_eq!(response["semantic_error"], serde_json::Value::Null);
+        assert_eq!(response["transition_site_count"].as_u64(), Some(2));
+        assert!(response["findings"]
+            .as_array()
+            .expect("state findings")
+            .iter()
+            .any(|value| value["kind"] == "state_model_transition_coverage_gap"));
+        assert!(response["reports"]
+            .as_array()
+            .expect("state reports")
+            .iter()
+            .any(|value| {
+                value["id"] == "browser_state_sync"
+                    && value["missing_transition_variants"]
+                        .as_array()
+                        .expect("missing transition variants")
+                        .iter()
+                        .any(|entry| entry == "error")
+            }));
+
+        let _ = std::fs::remove_dir_all(root);
     }
 
     #[test]
@@ -9265,6 +9485,10 @@ fn handle_onboarding_agent_brief(
     });
 
     if let Some(object) = brief.as_object_mut() {
+        object.insert(
+            "semantic_cache".to_string(),
+            semantic_cache_status_json(state),
+        );
         object.insert("rules_error".to_string(), json!(rules_error));
         object.insert(
             "semantic_error".to_string(),
@@ -9461,6 +9685,10 @@ fn build_patch_mode_agent_brief(
 
     if let Some(object) = brief.as_object_mut() {
         object.insert(
+            "semantic_cache".to_string(),
+            semantic_cache_status_json(state),
+        );
+        object.insert(
             "changed_files".to_string(),
             json!(changed_files.iter().cloned().collect::<Vec<_>>()),
         );
@@ -9557,6 +9785,7 @@ fn handle_concepts(_args: &Value, _tier: &Tier, state: &mut McpState) -> Result<
         "kind": "concepts",
         "project": config.project,
         "project_shape": optional_project_shape_json(&root, state.cached_snapshot.as_deref(), &config),
+        "semantic_cache": semantic_cache_status_json(state),
         "rule_coverage": coverage,
         "rules_error": rules_error,
         "semantic_error": semantic_error,

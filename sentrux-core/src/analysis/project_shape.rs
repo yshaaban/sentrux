@@ -26,6 +26,8 @@ pub struct ModuleContractSuggestion {
     pub id: String,
     pub root: String,
     pub public_api: Vec<String>,
+    pub nested_public_api: Vec<String>,
+    pub confidence: String,
     pub evidence: Vec<String>,
 }
 
@@ -59,7 +61,7 @@ pub fn detect_project_shape(
     let detected_archetypes =
         detect_archetypes(file_paths, &capabilities, &package_signals, configured_archetypes);
     let boundary_roots = detect_boundary_roots(file_paths, &capabilities);
-    let module_contracts = detect_module_contracts(&boundary_roots);
+    let module_contracts = detect_module_contracts(&boundary_roots, file_paths);
     let effective_archetypes = effective_archetypes(configured_archetypes, &detected_archetypes);
     let primary_archetype = effective_archetypes.first().cloned();
 
@@ -108,6 +110,13 @@ pub fn render_starter_rules(
             quoted_list(&contract.public_api)
         ));
         lines.push("forbid_cross_module_deep_imports = true".to_string());
+        lines.push(format!("# confidence: {}", contract.confidence));
+        if !contract.nested_public_api.is_empty() {
+            lines.push(format!(
+                "# observed nested public APIs: {}",
+                contract.nested_public_api.join(", ")
+            ));
+        }
     }
 
     if !shape.boundary_roots.is_empty() {
@@ -168,6 +177,13 @@ fn detect_capabilities(
         .any(|path| path.starts_with("src/app/api/") && is_route_handler_path(path));
     let has_modules_root = file_paths.iter().any(|path| path.starts_with("src/modules/"));
     let feature_module_count = feature_module_names(file_paths).len();
+    let has_http_handlers = file_paths.iter().any(|path| {
+        path.starts_with("src/routes/")
+            || path.starts_with("src/controllers/")
+            || path.starts_with("src/api/")
+            || path.starts_with("src/server/routes/")
+            || path.starts_with("src/server/controllers/")
+    });
     let has_service_layer = file_paths
         .iter()
         .any(|path| path.starts_with("src/services/") || path.contains("/services/"));
@@ -190,6 +206,19 @@ fn detect_capabilities(
             || path.contains("/controllers/use-")
             || path.contains("/hooks/use-")
     });
+    let has_persistence_layer = file_paths.iter().any(|path| {
+        path.starts_with("src/repositories/")
+            || path.starts_with("src/db/")
+            || path.starts_with("src/persistence/")
+            || path.contains("/repositories/")
+            || path.contains("/persistence/")
+    });
+    let has_middleware_stack = file_paths.iter().any(|path| {
+        path.starts_with("src/middleware/")
+            || path.contains("/middleware/")
+            || path.ends_with("/middleware.ts")
+            || path.ends_with("/middleware.tsx")
+    });
     let has_localized_routing = file_paths.iter().any(|path| path.starts_with("src/app/[locale]/"));
 
     if package_signals.has_next || workspace_files.iter().any(|path| path.starts_with("next.config")) {
@@ -203,6 +232,9 @@ fn detect_capabilities(
     }
     if has_api_routes {
         capabilities.push("api_routes".to_string());
+    }
+    if has_http_handlers {
+        capabilities.push("http_handlers".to_string());
     }
     if has_modules_root && feature_module_count >= 1 {
         capabilities.push("feature_modules".to_string());
@@ -218,6 +250,12 @@ fn detect_capabilities(
     }
     if has_query_layer || package_signals.has_react_query {
         capabilities.push("query_layer".to_string());
+    }
+    if has_persistence_layer {
+        capabilities.push("persistence_layer".to_string());
+    }
+    if has_middleware_stack {
+        capabilities.push("middleware_stack".to_string());
     }
     if has_localized_routing {
         capabilities.push("localized_routing".to_string());
@@ -265,6 +303,38 @@ fn detect_archetypes(
         });
     }
 
+    if !has("app_router") && has("service_layer") && has("http_handlers") {
+        archetypes.push(ProjectArchetypeMatch {
+            id: "layered_node_service".to_string(),
+            confidence: if has("persistence_layer") || has("middleware_stack") {
+                "high".to_string()
+            } else {
+                "medium".to_string()
+            },
+            reasons: dedupe_strings(vec![
+                "http_handlers_detected".to_string(),
+                "service_layer_detected".to_string(),
+                has("persistence_layer")
+                    .then(|| "persistence_layer_detected".to_string())
+                    .unwrap_or_default(),
+                has("middleware_stack")
+                    .then(|| "middleware_stack_detected".to_string())
+                    .unwrap_or_default(),
+            ]),
+        });
+    } else if !has("app_router") && has("http_handlers") {
+        archetypes.push(ProjectArchetypeMatch {
+            id: "node_service".to_string(),
+            confidence: "medium".to_string(),
+            reasons: dedupe_strings(vec![
+                "http_handlers_detected".to_string(),
+                has("middleware_stack")
+                    .then(|| "middleware_stack_detected".to_string())
+                    .unwrap_or_default(),
+            ]),
+        });
+    }
+
     if configured_archetypes.is_empty() && package_signals.has_react && !file_paths.is_empty() {
         archetypes.push(ProjectArchetypeMatch {
             id: "react_frontend".to_string(),
@@ -296,6 +366,20 @@ fn detect_boundary_roots(
             kind: "api_routes".to_string(),
             root: "src/app/api".to_string(),
             evidence: vec!["Next.js route handlers detected".to_string()],
+        });
+    }
+    if file_paths.iter().any(|path| path.starts_with("src/routes/")) {
+        roots.push(BoundaryRootSuggestion {
+            kind: "http_handlers".to_string(),
+            root: "src/routes".to_string(),
+            evidence: vec!["top-level route handlers detected".to_string()],
+        });
+    }
+    if file_paths.iter().any(|path| path.starts_with("src/controllers/")) {
+        roots.push(BoundaryRootSuggestion {
+            kind: "http_handlers".to_string(),
+            root: "src/controllers".to_string(),
+            evidence: vec!["top-level controller layer detected".to_string()],
         });
     }
     if file_paths.iter().any(|path| path.starts_with("src/services/")) {
@@ -337,12 +421,34 @@ fn detect_boundary_roots(
             evidence: vec!["top-level query hook layer detected".to_string()],
         });
     }
+    if file_paths.iter().any(|path| path.starts_with("src/repositories/")) {
+        roots.push(BoundaryRootSuggestion {
+            kind: "persistence_layer".to_string(),
+            root: "src/repositories".to_string(),
+            evidence: vec!["top-level repository layer detected".to_string()],
+        });
+    }
+    if file_paths.iter().any(|path| path.starts_with("src/db/")) {
+        roots.push(BoundaryRootSuggestion {
+            kind: "persistence_layer".to_string(),
+            root: "src/db".to_string(),
+            evidence: vec!["top-level database layer detected".to_string()],
+        });
+    }
+    if file_paths.iter().any(|path| path.starts_with("src/middleware/")) {
+        roots.push(BoundaryRootSuggestion {
+            kind: "middleware_stack".to_string(),
+            root: "src/middleware".to_string(),
+            evidence: vec!["top-level middleware stack detected".to_string()],
+        });
+    }
 
     roots
 }
 
 fn detect_module_contracts(
     boundary_roots: &[BoundaryRootSuggestion],
+    file_paths: &[String],
 ) -> Vec<ModuleContractSuggestion> {
     boundary_roots
         .iter()
@@ -351,6 +457,8 @@ fn detect_module_contracts(
             id: "feature_modules".to_string(),
             root: boundary.root.clone(),
             public_api: vec!["index.ts".to_string(), "index.tsx".to_string()],
+            nested_public_api: detect_module_public_api_patterns(file_paths, &boundary.root),
+            confidence: "high".to_string(),
             evidence: boundary.evidence.clone(),
         })
         .collect()
@@ -401,6 +509,34 @@ fn feature_module_names(file_paths: &[String]) -> BTreeSet<String> {
             let module_name = remainder.split('/').next()?;
             (!module_name.is_empty()).then(|| module_name.to_string())
         })
+        .collect()
+}
+
+fn detect_module_public_api_patterns(file_paths: &[String], root: &str) -> Vec<String> {
+    let mut counts = std::collections::BTreeMap::<String, usize>::new();
+    let root_prefix = format!("{root}/");
+
+    for path in file_paths {
+        let Some(remainder) = path.strip_prefix(&root_prefix) else {
+            continue;
+        };
+        let mut parts = remainder.split('/');
+        let Some(_module_name) = parts.next() else {
+            continue;
+        };
+        let nested = parts.collect::<Vec<_>>();
+        if nested.len() < 2 {
+            continue;
+        }
+        let nested_path = nested.join("/");
+        if nested_path.ends_with("index.ts") || nested_path.ends_with("index.tsx") {
+            *counts.entry(nested_path).or_default() += 1;
+        }
+    }
+
+    counts
+        .into_iter()
+        .filter_map(|(pattern, count)| (count >= 2).then_some(pattern))
         .collect()
 }
 
@@ -512,6 +648,7 @@ mod tests {
         assert!(rendered.contains("archetypes = ["));
         assert!(rendered.contains("[[module_contract]]"));
         assert!(rendered.contains("root = \"src/modules\""));
+        assert!(rendered.contains("# confidence: high"));
     }
 
     #[test]
@@ -562,5 +699,75 @@ mod tests {
             .boundary_roots
             .iter()
             .any(|boundary| boundary.kind == "query_layer" && boundary.root == "src/hooks/queries"));
+    }
+
+    #[test]
+    fn detects_layered_node_service_shape() {
+        let file_paths = vec![
+            "src/routes/users.ts".to_string(),
+            "src/controllers/users-controller.ts".to_string(),
+            "src/services/users-service.ts".to_string(),
+            "src/repositories/users-repository.ts".to_string(),
+            "src/middleware/auth.ts".to_string(),
+        ];
+
+        let shape = detect_project_shape(None, &file_paths, &["package.json".to_string()], &[]);
+
+        assert_eq!(
+            shape.primary_archetype.as_deref(),
+            Some("layered_node_service")
+        );
+        assert!(shape
+            .capabilities
+            .iter()
+            .any(|entry| entry == "http_handlers"));
+        assert!(shape
+            .capabilities
+            .iter()
+            .any(|entry| entry == "persistence_layer"));
+        assert!(shape
+            .boundary_roots
+            .iter()
+            .any(|boundary| boundary.root == "src/routes"));
+        assert!(shape
+            .boundary_roots
+            .iter()
+            .any(|boundary| boundary.root == "src/repositories"));
+    }
+
+    #[test]
+    fn infers_nested_feature_module_public_api_patterns() {
+        let file_paths = vec![
+            "src/app/layout.tsx".to_string(),
+            "src/modules/home/index.ts".to_string(),
+            "src/modules/home/components/index.ts".to_string(),
+            "src/modules/home/hooks/index.ts".to_string(),
+            "src/modules/users/index.ts".to_string(),
+            "src/modules/users/components/index.ts".to_string(),
+            "src/modules/users/hooks/index.ts".to_string(),
+        ];
+
+        let shape = detect_project_shape(
+            None,
+            &file_paths,
+            &["package.json".to_string(), "next.config.ts".to_string()],
+            &[],
+        );
+
+        let contract = shape
+            .module_contracts
+            .iter()
+            .find(|entry| entry.id == "feature_modules")
+            .expect("feature modules contract");
+
+        assert_eq!(contract.confidence, "high");
+        assert!(contract
+            .nested_public_api
+            .iter()
+            .any(|path| path == "components/index.ts"));
+        assert!(contract
+            .nested_public_api
+            .iter()
+            .any(|path| path == "hooks/index.ts"));
     }
 }

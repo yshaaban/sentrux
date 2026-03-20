@@ -50,6 +50,7 @@ function summarizeConcepts(payload) {
     configured_concept_count: payload.summary?.configured_concept_count ?? null,
     matched_guardrail_test_count: payload.summary?.matched_guardrail_test_count ?? null,
     inferred_concept_count: payload.summary?.inferred_concept_count ?? null,
+    semantic_cache_source: payload.semantic_cache?.source ?? null,
   };
 }
 
@@ -95,6 +96,7 @@ function summarizeAgentBrief(payload) {
     primary_target_count: payload.primary_target_count ?? null,
     missing_obligation_count: payload.missing_obligation_count ?? null,
     watchpoint_count: payload.watchpoint_count ?? null,
+    semantic_cache_source: payload.semantic_cache?.source ?? null,
   };
 }
 
@@ -227,6 +229,10 @@ function buildBenchmarkComparison(currentResult, previousResult) {
     ['warm_cached_total_ms', 'warm cached total'],
     ['warm_cached.findings.elapsed_ms', 'warm findings'],
     ['warm_cached.agent_brief_onboarding.elapsed_ms', 'warm agent_brief onboarding'],
+    ['warm_persisted_total_ms', 'warm persisted total'],
+    ['warm_persisted.concepts.elapsed_ms', 'warm persisted concepts'],
+    ['warm_persisted.findings.elapsed_ms', 'warm persisted findings'],
+    ['warm_persisted.agent_brief_onboarding.elapsed_ms', 'warm persisted agent_brief onboarding'],
     ['warm_patch_safety_total_ms', 'warm patch-safety total'],
     ['warm_patch_safety.session_start.elapsed_ms', 'warm session_start'],
     ['warm_patch_safety.agent_brief_patch.elapsed_ms', 'warm agent_brief patch'],
@@ -466,8 +472,10 @@ async function measureRequest(session, label, name, args, summarize) {
 
 async function runBenchmarkSession(parallelCodeWorkRoot, homeOverride) {
   const session = createSession(sentruxBin, homeOverride);
+  let persistedSession = null;
   const cold = {};
   const warm = {};
+  const warmPersisted = {};
   const warmPatchSafety = {};
   const coldStartedAt = nowMs();
 
@@ -620,17 +628,56 @@ async function runBenchmarkSession(parallelCodeWorkRoot, homeOverride) {
     );
     const warmPatchSafetyTotalMs = roundMs(nowMs() - patchSafetyStartedAt);
 
+    const warmPersistedStartedAt = nowMs();
+    persistedSession = createSession(sentruxBin, homeOverride);
+    warmPersisted.scan = await measureRequest(
+      persistedSession,
+      'persisted_scan',
+      'scan',
+      { path: parallelCodeWorkRoot },
+      summarizeScan,
+    );
+    warmPersisted.concepts = await measureRequest(
+      persistedSession,
+      'persisted_concepts',
+      'concepts',
+      {},
+      summarizeConcepts,
+    );
+    warmPersisted.findings = await measureRequest(
+      persistedSession,
+      'persisted_findings_top12',
+      'findings',
+      { limit: 12 },
+      summarizeFindings,
+    );
+    warmPersisted.agent_brief_onboarding = await measureRequest(
+      persistedSession,
+      'persisted_agent_brief_onboarding',
+      'agent_brief',
+      { mode: 'repo_onboarding', limit: 3 },
+      summarizeAgentBrief,
+    );
+    const warmPersistedTotalMs = roundMs(nowMs() - warmPersistedStartedAt);
+    await persistedSession.close();
+    persistedSession = null;
+
     return {
       cold_process_total_ms: coldProcessTotalMs,
       cold,
       warm_cached_total_ms: warmCachedTotalMs,
       warm_cached: warm,
+      warm_persisted_total_ms: warmPersistedTotalMs,
+      warm_persisted: warmPersisted,
       warm_patch_safety_total_ms: warmPatchSafetyTotalMs,
       warm_patch_safety: warmPatchSafety,
       stdout_log: session.stdoutLog,
       stderr_log: session.stderrLog,
     };
   } finally {
+    if (persistedSession) {
+      await persistedSession.close();
+    }
     await session.close();
   }
 }

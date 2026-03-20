@@ -604,6 +604,7 @@ fn looks_like_entry_surface_path(path: &str) -> bool {
         || path.ends_with("/main.ts")
         || path.ends_with("/main.tsx")
         || looks_like_route_surface_path(path)
+        || looks_like_service_http_surface_path(path)
         || path == "src/middleware.ts"
         || path == "src/middleware.tsx"
 }
@@ -631,6 +632,14 @@ fn looks_like_api_route_surface_path(path: &str) -> bool {
         && (path.ends_with("/route.ts") || path.ends_with("/route.tsx"))
 }
 
+fn looks_like_service_http_surface_path(path: &str) -> bool {
+    path.starts_with("src/routes/")
+        || path.starts_with("src/controllers/")
+        || path.starts_with("src/api/")
+        || path.starts_with("src/server/routes/")
+        || path.starts_with("src/server/controllers/")
+}
+
 fn looks_like_provider_surface_path(path: &str) -> bool {
     path == "src/app/providers.tsx"
         || path == "src/app/providers.ts"
@@ -649,6 +658,22 @@ fn looks_like_query_hook_surface_path(path: &str) -> bool {
         || path.contains("/hooks/queries/")
         || path.ends_with("-queries.ts")
         || path.ends_with("-queries.tsx")
+}
+
+fn looks_like_repository_layer_path(path: &str) -> bool {
+    path.starts_with("src/repositories/")
+        || path.contains("/repositories/")
+        || path.starts_with("src/db/")
+        || path.contains("/db/")
+        || path.starts_with("src/persistence/")
+        || path.contains("/persistence/")
+}
+
+fn looks_like_middleware_surface_path(path: &str) -> bool {
+    path == "src/middleware.ts"
+        || path == "src/middleware.tsx"
+        || path.starts_with("src/middleware/")
+        || path.contains("/middleware/")
 }
 
 fn looks_like_feature_module_barrel_path(path: &str) -> bool {
@@ -673,6 +698,10 @@ fn path_role_tags(path: &str) -> Vec<String> {
         role_tags.push("api_route_surface".to_string());
         role_tags.push("entry_surface".to_string());
     }
+    if looks_like_service_http_surface_path(path) {
+        role_tags.push("http_handler_surface".to_string());
+        role_tags.push("entry_surface".to_string());
+    }
     if looks_like_provider_surface_path(path) {
         role_tags.push("provider_surface".to_string());
     }
@@ -681,6 +710,12 @@ fn path_role_tags(path: &str) -> Vec<String> {
     }
     if looks_like_query_hook_surface_path(path) {
         role_tags.push("query_hook_surface".to_string());
+    }
+    if looks_like_repository_layer_path(path) {
+        role_tags.push("repository_layer".to_string());
+    }
+    if looks_like_middleware_surface_path(path) {
+        role_tags.push("middleware_surface".to_string());
     }
     if looks_like_feature_module_barrel_path(path) {
         role_tags.push("feature_module_barrel".to_string());
@@ -3638,6 +3673,52 @@ mod tests {
 
         assert!(report.role_tags.iter().any(|tag| tag == "state_container"));
         assert_eq!(report.leverage_class, "architecture_signal");
+    }
+
+    #[test]
+    fn dependency_sprawl_marks_service_http_surfaces_as_entry_surfaces() {
+        let snapshot = Snapshot {
+            root: Arc::new(FileNode {
+                path: ".".to_string(),
+                name: ".".to_string(),
+                is_dir: true,
+                lines: 0,
+                logic: 0,
+                comments: 0,
+                blanks: 0,
+                funcs: 0,
+                mtime: 0.0,
+                gs: String::new(),
+                lang: String::new(),
+                sa: None,
+                children: Some(vec![test_file("src/routes/users.ts", 180, 4, 11)]),
+            }),
+            total_files: 1,
+            total_lines: 180,
+            total_dirs: 1,
+            import_graph: Vec::new(),
+            call_graph: Vec::new(),
+            inherit_graph: Vec::new(),
+            entry_points: Vec::new(),
+            exec_depth: HashMap::new(),
+        };
+        let mut health = empty_health_report();
+        health.god_files = vec![FileMetric {
+            path: "src/routes/users.ts".into(),
+            value: 15,
+        }];
+
+        let reports = build_structural_debt_reports(&snapshot, &health);
+        let report = reports
+            .iter()
+            .find(|report| report.scope == "src/routes/users.ts")
+            .expect("http handler report");
+
+        assert!(report
+            .role_tags
+            .iter()
+            .any(|tag| tag == "http_handler_surface"));
+        assert!(report.role_tags.iter().any(|tag| tag == "entry_surface"));
     }
 
     #[test]

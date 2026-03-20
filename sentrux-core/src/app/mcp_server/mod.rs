@@ -14,6 +14,7 @@ mod agent_brief;
 pub mod handlers;
 pub mod handlers_evo;
 pub mod registry;
+mod semantic_cache;
 
 use crate::analysis::scanner::common::ScanMetadata;
 use crate::analysis::semantic::SemanticSnapshot;
@@ -30,6 +31,7 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     sync::Arc,
 };
+use semantic_cache::{SemanticCacheIdentity, SemanticCacheSource};
 
 pub const SESSION_V2_SCHEMA_VERSION: u32 = 3;
 const MIN_SUPPORTED_SESSION_V2_SCHEMA_VERSION: u32 = 1;
@@ -107,6 +109,8 @@ pub struct McpState {
     pub cached_snapshot: Option<Arc<Snapshot>>,
     pub cached_scan_metadata: Option<ScanMetadata>,
     pub cached_semantic: Option<SemanticSnapshot>,
+    pub cached_semantic_identity: Option<SemanticCacheIdentity>,
+    pub cached_semantic_source: Option<SemanticCacheSource>,
     pub cached_health: Option<metrics::HealthReport>,
     pub cached_arch: Option<arch::ArchReport>,
     pub baseline: Option<arch::ArchBaseline>,
@@ -142,6 +146,8 @@ pub fn run_mcp_server(register_extra: Option<&dyn Fn(&mut registry::ToolRegistry
         cached_snapshot: None,
         cached_scan_metadata: None,
         cached_semantic: None,
+        cached_semantic_identity: None,
+        cached_semantic_source: None,
         cached_health: None,
         cached_arch: None,
         baseline: None,

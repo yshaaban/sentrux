@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-03-20T00:00:00.000Z",
+  "default_provider": "claude-code",
+  "runner": "scripts/evals/run.mjs",
+  "schemas": {
+    "scenario": "./scenario.schema.json",
+    "result": "./result.schema.json"
+  },
+  "scenarios": [
+    {
+      "scenario_id": "parallel-code",
+      "path": "./scenarios/parallel-code.json"
+    },
+    {
+      "scenario_id": "private-benchmark-repo",
+      "path": "./scenarios/private-benchmark-repo.json"
+    },
+    {
+      "scenario_id": "private-frontend",
+      "path": "./scenarios/private-frontend.json"
+    }
+  ]
+}

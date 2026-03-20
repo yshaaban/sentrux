@@ -145,7 +145,10 @@ fn is_main_entry_by_name(file: &FileNode) -> bool {
 }
 
 fn is_framework_entry_path(path: &str) -> bool {
-    is_nextjs_app_router_entry_path(path) || path == "src/middleware.ts" || path == "src/middleware.tsx"
+    is_nextjs_app_router_entry_path(path)
+        || is_service_http_entry_path(path)
+        || path == "src/middleware.ts"
+        || path == "src/middleware.tsx"
 }
 
 fn is_nextjs_app_router_entry_path(path: &str) -> bool {
@@ -162,6 +165,14 @@ fn is_nextjs_app_router_entry_path(path: &str) -> bool {
             || path.ends_with("/not-found.tsx")
             || path.ends_with("/route.ts")
             || path.ends_with("/route.tsx"))
+}
+
+fn is_service_http_entry_path(path: &str) -> bool {
+    path.starts_with("src/routes/")
+        || path.starts_with("src/controllers/")
+        || path.starts_with("src/api/")
+        || path.starts_with("src/server/routes/")
+        || path.starts_with("src/server/controllers/")
 }
 
 /// Check if an entry point with the given func name already exists for this file.
@@ -240,6 +251,13 @@ mod tests {
     #[test]
     fn detects_nextjs_api_route_entries() {
         let entries = detect_entry_points(&file("src/app/api/rag/jobs/route.ts"));
+
+        assert!(entries.iter().any(|entry| entry.func == "framework_entry"));
+    }
+
+    #[test]
+    fn detects_service_route_entries() {
+        let entries = detect_entry_points(&file("src/routes/users.ts"));
 
         assert!(entries.iter().any(|entry| entry.func == "framework_entry"));
     }

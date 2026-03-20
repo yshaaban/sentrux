@@ -1,0 +1,233 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Sentrux External Eval Result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "scenario",
+    "task",
+    "provider",
+    "execution",
+    "response",
+    "evaluation"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_path", "scenario_id", "repo"],
+      "properties": {
+        "source_path": {
+          "type": "string"
+        },
+        "scenario_id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "repo": {
+          "type": "object"
+        }
+      }
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["task_id", "kind", "prompt", "checks"],
+      "properties": {
+        "task_id": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": ["agent_brief", "dead_private"]
+        },
+        "mode": {
+          "enum": ["repo_onboarding", "patch", "pre_merge", null]
+        },
+        "prompt": {
+          "type": "string"
+        },
+        "notes": {
+          "type": ["string", "null"]
+        },
+        "checks": {
+          "type": "array"
+        }
+      }
+    },
+    "provider": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "command", "cwd", "timeout_ms"],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": ["string", "null"]
+        },
+        "model": {
+          "type": ["string", "null"]
+        },
+        "command": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["executable", "args"],
+          "properties": {
+            "executable": {
+              "type": "string"
+            },
+            "args": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "cwd": {
+          "type": "string"
+        },
+        "timeout_ms": {
+          "type": "number"
+        }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "started_at",
+        "finished_at",
+        "duration_ms",
+        "exit_code",
+        "signal",
+        "timed_out"
+      ],
+      "properties": {
+        "started_at": {
+          "type": "string"
+        },
+        "finished_at": {
+          "type": "string"
+        },
+        "duration_ms": {
+          "type": "number"
+        },
+        "exit_code": {
+          "type": ["integer", "null"]
+        },
+        "signal": {
+          "type": ["string", "null"]
+        },
+        "timed_out": {
+          "type": "boolean"
+        }
+      }
+    },
+    "response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["parse_status", "outer_json", "response_json", "response_text", "stdout", "stderr"],
+      "properties": {
+        "parse_status": {
+          "type": "string"
+        },
+        "outer_json": {},
+        "response_json": {},
+        "response_text": {
+          "type": ["string", "null"]
+        },
+        "stdout": {
+          "type": "string"
+        },
+        "stderr": {
+          "type": "string"
+        }
+      }
+    },
+    "evaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "score_0_100",
+        "required_check_count",
+        "passed_check_count",
+        "failed_check_count",
+        "check_results",
+        "provider_failed",
+        "summary"
+      ],
+      "properties": {
+        "status": {
+          "enum": ["pass", "warn", "fail", "dry_run"]
+        },
+        "score_0_100": {
+          "type": "number"
+        },
+        "required_check_count": {
+          "type": "number"
+        },
+        "passed_check_count": {
+          "type": "number"
+        },
+        "failed_check_count": {
+          "type": "number"
+        },
+        "check_results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "path", "severity", "passed", "observed_summary", "message"],
+            "properties": {
+              "kind": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              },
+              "severity": {
+                "enum": ["required", "optional"]
+              },
+              "passed": {
+                "type": "boolean"
+              },
+              "observed_summary": {
+                "type": "string"
+              },
+              "expected_summary": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "provider_failed": {
+          "type": "boolean"
+        },
+        "summary": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
