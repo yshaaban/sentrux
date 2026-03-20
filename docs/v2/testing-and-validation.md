@@ -112,6 +112,8 @@ Current status:
 - scoped `private-frontend` goldens now exist in [examples/private-frontend-golden](./examples/private-frontend-golden/README.md)
 - `private-frontend` now has a checked-in benchmark artifact in [examples/private-frontend-benchmark.md](./examples/private-frontend-benchmark.md)
 - the checked-in benchmark repos now include mode-aware `agent_brief` outputs for repo onboarding, patch guidance, and pre-merge guidance
+- the benchmark harness now records warm persisted semantic timings and semantic-cache source attribution
+- the external eval harness now includes repo-agnostic scenario schemas plus a focused `dead_private` review loop
 - synthetic touched-concept gate and `session_end` regression scenarios now exist in the MCP handler test suite
 - migration/coexistence coverage now verifies that `gate` and `session_end` still work when only the v2 session baseline is usable, when the v2 session baseline is missing, and when copied or incompatible baselines are present
 - confidence regression coverage now checks incompatible schema and project-mismatch session baselines

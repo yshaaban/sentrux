@@ -103,6 +103,8 @@ V2 now also exposes:
 - candidate split axes and related surfaces for fix-oriented inspection
 - project-shape detection, archetype matches, and starter-rule suggestions for repo onboarding
 - module-contract rules for module public APIs and cross-module deep-import enforcement
+- persisted semantic cache reuse across repeated MCP requests and fresh-process reruns when the repo fingerprint still matches
+- external evaluator harness scaffolding plus a focused `dead_private` review loop
 
 Any compatibility fields that still mention quality opportunities or optimization-style sorting should be treated as legacy aliases for inspection candidates only. Engineers own the final prioritization.
 
@@ -162,7 +164,7 @@ Current reality:
 5. trusted findings, watchpoints, and experimental findings are now separated in the primary MCP surfaces
 6. cycle-cluster reports now include concrete cut-candidate evidence instead of only SCC membership
 7. v2 now includes a generic archetype/onboarding layer with `project_shape` output, framework-aware role defaults, and starter-rule generation
-8. the remaining gaps are broader unhappy-path validation, proof-run refresh follow-through, dead-private detector promotion beyond experimental, and broader Tier 3 analysis beyond the new explicit transition-integrity slice
+8. the remaining gaps are broader unhappy-path validation, proof-run refresh follow-through, dead-private detector promotion beyond experimental, deeper cache incrementality, and broader Tier 3 analysis beyond the new explicit transition-integrity slice
 
 ## Exit Criteria For V2 Beta
 

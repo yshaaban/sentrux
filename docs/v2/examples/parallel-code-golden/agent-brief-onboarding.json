@@ -1,7 +1,7 @@
 {
   "confidence": {
     "rule_coverage_0_10000": 10000,
-    "scan_confidence_0_10000": 8297,
+    "scan_confidence_0_10000": 8302,
     "semantic_rules_loaded": true,
     "session_baseline": {
       "compatible": false,
@@ -15,20 +15,20 @@
     {
       "kind": "dead_private_code_cluster",
       "reason": "experimental_detector",
-      "scope": "src/store/review.ts",
-      "summary": "File 'src/store/review.ts' contains 9 uncalled private functions totaling 105 lines"
+      "scope": "src/components/TaskPanel.tsx",
+      "summary": "File 'src/components/TaskPanel.tsx' contains 5 uncalled private functions totaling 9 lines"
     },
     {
       "kind": "dead_private_code_cluster",
       "reason": "experimental_detector",
-      "scope": "src/lib/terminalLatency.ts",
-      "summary": "File 'src/lib/terminalLatency.ts' contains 6 uncalled private functions totaling 79 lines"
+      "scope": "src/components/PreviewPanel.tsx",
+      "summary": "File 'src/components/PreviewPanel.tsx' contains 4 uncalled private functions totaling 4 lines"
     },
     {
       "kind": "dead_private_code_cluster",
       "reason": "experimental_detector",
-      "scope": "src/arena/store.ts",
-      "summary": "File 'src/arena/store.ts' contains 4 uncalled private functions totaling 28 lines"
+      "scope": "src/components/ReviewPanel.tsx",
+      "summary": "File 'src/components/ReviewPanel.tsx' contains 4 uncalled private functions totaling 4 lines"
     }
   ],
   "do_not_chase_count": 3,
@@ -36,7 +36,7 @@
   "expired_suppressions": [],
   "freshness": {
     "baseline_loaded": false,
-    "git_head": "424a7d78f4251dbb3394d7e9306ff112ac68c542",
+    "git_head": "515044a4bd3867142d6fff31bcbb0a31d76e34c5",
     "session_baseline_compatible": false,
     "working_tree_path_count": 0
   },
@@ -146,7 +146,7 @@
   "resolved_findings": [],
   "rules_error": null,
   "scan_trust": {
-    "candidate_files": 787,
+    "candidate_files": 789,
     "exclusions": {
       "bucketed": {
         "build": 12,
@@ -161,21 +161,30 @@
       "total": 134
     },
     "fallback_reason": null,
-    "kept_files": 653,
+    "kept_files": 655,
     "mode": "git",
-    "overall_confidence_0_10000": 8297,
+    "overall_confidence_0_10000": 8302,
     "partial": false,
     "resolution": {
       "internal_confidence_0_10000": 9995,
-      "resolved": 2000,
-      "unresolved_external": 531,
+      "resolved": 2008,
+      "unresolved_external": 533,
       "unresolved_internal": 1,
       "unresolved_unknown": 86
     },
-    "scope_coverage_0_10000": 8297,
-    "tracked_candidates": 787,
+    "scope_coverage_0_10000": 8302,
+    "tracked_candidates": 789,
     "truncated": false,
     "untracked_candidates": 0
+  },
+  "semantic_cache": {
+    "analyzed_files": 573,
+    "available": true,
+    "bridge_protocol_version": "0.1.0",
+    "git_head": "515044a4bd3867142d6fff31bcbb0a31d76e34c5",
+    "project_fingerprint": "bd376b35c69fd0f7",
+    "source": "memory",
+    "working_tree_path_count": 0
   },
   "semantic_error": null,
   "summary": "repo onboarding brief with 3 primary target(s) and 3 watchpoint(s)",

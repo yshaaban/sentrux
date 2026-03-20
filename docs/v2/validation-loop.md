@@ -16,6 +16,7 @@ The loop validates three separate things:
 4. proof-and-improvement runs on disposable clones
 5. finding-class usefulness and trust-tier calibration
 6. mode-specific `agent_brief` coverage for `repo_onboarding`, `patch`, and `pre_merge`
+7. external evaluator calibration for agent guidance and experimental detectors
 
 ## Commands
 
@@ -143,6 +144,7 @@ The benchmark harness records and compares:
 - cold scan latency
 - first semantic materialization latency
 - warm cached semantic latency
+- warm persisted semantic latency from a fresh process
 - warm patch-safety latency
 - regression thresholds across benchmark runs
 
@@ -228,7 +230,7 @@ This loop should drive product changes such as:
 
 Current promotion note:
 
-- `dead_private_code_cluster` remains intentionally `experimental` until broader TS/TSX reference precision is validated beyond the current same-file callback/JSX suppression fix
+- `dead_private_code_cluster` remains intentionally `experimental` until broader TS/TSX reference precision is validated beyond the current same-file callback/JSX suppression fix, exported-symbol visibility fix, and external review-loop evidence
 
 ## Relationship To Migration
 
@@ -268,3 +270,31 @@ This verifies:
 - starter-rule generation
 - framework-aware role tagging on route, provider, service, and state surfaces
 - generic `module_contract` enforcement through the synthetic benchmark fail path
+
+## External Evaluator Loop
+
+Use the checked-in eval harness when the question is whether the structured feedback is actually useful to another coding agent, not just internally consistent.
+
+Dry-run the harness with:
+
+```bash
+node scripts/evals/run.mjs --dry-run
+```
+
+Dry-run the focused dead-private loop with:
+
+```bash
+node scripts/evals/review_dead_private.mjs \
+  --repo-root /path/to/repo \
+  --repo-name my-repo \
+  --dry-run
+```
+
+These runs validate:
+
+- scenario and result schema stability
+- provider wrapper wiring
+- prompt payload shape for `agent_brief` and `dead_private` tasks
+- dead-private candidate quality before a live external review is attempted
+
+Live provider runs should only be treated as pass/fail evidence once the local Claude Code CLI is authenticated and returning stable structured JSON in headless mode.

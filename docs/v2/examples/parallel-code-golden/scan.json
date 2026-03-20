@@ -4,7 +4,7 @@
   "baseline_path": "<parallel-code-root>/.sentrux/baseline.json",
   "confidence": {
     "rule_coverage_0_10000": 10000,
-    "scan_confidence_0_10000": 8297,
+    "scan_confidence_0_10000": 8302,
     "semantic_rules_loaded": true,
     "session_baseline": {
       "compatible": false,
@@ -13,9 +13,9 @@
       "schema_version": null
     }
   },
-  "files": 653,
-  "import_edges": 1999,
-  "lines": 144038,
+  "files": 655,
+  "import_edges": 2007,
+  "lines": 145011,
   "project_shape": {
     "boundary_roots": [
       {
@@ -38,7 +38,7 @@
   },
   "rules_error": null,
   "scan_trust": {
-    "candidate_files": 787,
+    "candidate_files": 789,
     "exclusions": {
       "bucketed": {
         "build": 12,
@@ -53,19 +53,19 @@
       "total": 134
     },
     "fallback_reason": null,
-    "kept_files": 653,
+    "kept_files": 655,
     "mode": "git",
-    "overall_confidence_0_10000": 8297,
+    "overall_confidence_0_10000": 8302,
     "partial": false,
     "resolution": {
       "internal_confidence_0_10000": 9995,
-      "resolved": 2000,
-      "unresolved_external": 531,
+      "resolved": 2008,
+      "unresolved_external": 533,
       "unresolved_internal": 1,
       "unresolved_unknown": 86
     },
-    "scope_coverage_0_10000": 8297,
-    "tracked_candidates": 787,
+    "scope_coverage_0_10000": 8302,
+    "tracked_candidates": 789,
     "truncated": false,
     "untracked_candidates": 0
   },

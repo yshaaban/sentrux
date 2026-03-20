@@ -148,7 +148,7 @@ Exit criteria:
 
 Open gap:
 
-- semantic proof now spans `parallel-code` and `private-benchmark-repo`, but long-lived cache maturity and further warm-path structural reductions are still missing
+- semantic proof now spans `parallel-code`, `private-benchmark-repo`, and `private-frontend`, and persisted snapshot reuse now exists, but long-lived cache maturity and further warm-path structural reductions are still missing
 
 ## Tier 1C: Minimal Concept Graph And Rules
 
@@ -170,7 +170,7 @@ Exit criteria:
 Open gap:
 
 - suppression matching and expiry are implemented, but still need broader validation and policy ergonomics
-- broader archetype packs and richer onboarding UX are still ahead
+- broader archetype packs are underway, but richer onboarding UX and more service/frontend families are still ahead
 
 ## Tier 1D: Authority And Access
 
@@ -319,7 +319,7 @@ Tasks:
 - [x] add candidate split axes and related-surface metadata to major finding classes
 - [x] surface cycle cut candidates for cycle clusters
 - [x] quarantine dead-private-code clusters as experimental
-- [-] finish dead-private-code promotion review after the same-file callback/JSX suppression fix
+- [-] finish dead-private-code promotion review after the same-file callback/JSX suppression fix, exported-symbol visibility fix, and external eval-loop setup
 
 Exit criteria:
 
@@ -330,7 +330,7 @@ Exit criteria:
 
 Open gap:
 
-- the example rules file now works on the real repo, but broader regression coverage and more stable benchmark conditions are still needed
+- the example rules file now works on the real repo, but broader regression coverage, live external-evaluator readiness, and more stable benchmark conditions are still needed
 
 ## Tier 2D: Quality Improvement Guidance
 
@@ -376,8 +376,8 @@ Tasks:
 
 - [x] detect explicit stateful controllers and reducers across files
 - [x] recognize discriminated object unions and trailing `assertNever(...)` proofs in the TS bridge
-- [-] model transition sites for explicit state domains
-- [-] detect transition-coverage gaps for explicit state domains
+- [x] model transition sites for explicit state domains
+- [x] detect transition-coverage gaps for explicit state domains
 - [ ] infer implicit lifecycle modules from booleans, timers, maps, and generations
 - [ ] emit invalid-state-risk findings
 - [ ] add `state_integrity` as a future scorecard track
@@ -389,7 +389,7 @@ Exit criteria:
 
 Open gap:
 
-- the current state analyzer now models explicit `switch` and `if`/`else if` transition sites for rule-declared TypeScript state domains, but it is still only a conservative slice of the full Tier 3 plan
+- the current state analyzer now models explicit `switch`, `if`/`else if`, and `Record<Domain, Domain>` transition tables for rule-declared TypeScript state domains, but it is still only a conservative slice of the full Tier 3 plan
 
 ## Cross-Cutting Validation Tasks
 
@@ -406,6 +406,8 @@ Status: mostly complete
 - [x] capture initial `private-benchmark-repo` benchmark artifact
 - [x] add versioned performance regression benchmark comparison for `parallel-code`
 - [x] add multi-repo golden validation runner
+- [x] add external evaluator harness scaffolding with Claude Code CLI provider support
+- [x] add focused `dead_private` review-loop export for benchmark repos
 - [x] add false-positive review process for new heuristics
 - [x] add confidence-report regression tests
 - [-] add v1/v2 baseline migration tests

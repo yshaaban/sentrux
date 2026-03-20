@@ -189,6 +189,17 @@
     },
     {
       "anchors": [
+        "src/domain/git-status.ts::ChangedFileStatusCategory"
+      ],
+      "confidence_0_10000": 8500,
+      "evidence": [
+        "closed domain 'ChangedFileStatusCategory' has 4 exhaustiveness site(s)"
+      ],
+      "id": "changed_file_status_category",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
         "electron/ipc/channels.ts::IPC"
       ],
       "confidence_0_10000": 8500,
@@ -218,17 +229,6 @@
         "closed domain 'TerminalOutputPriority' has 5 exhaustiveness site(s)"
       ],
       "id": "terminal_output_priority",
-      "kind": "closed_domain"
-    },
-    {
-      "anchors": [
-        "src/domain/git-status.ts::ChangedFileStatusCategory"
-      ],
-      "confidence_0_10000": 8000,
-      "evidence": [
-        "closed domain 'ChangedFileStatusCategory' has 3 exhaustiveness site(s)"
-      ],
-      "id": "changed_file_status_category",
       "kind": "closed_domain"
     },
     {
@@ -1575,6 +1575,15 @@
     "suppressions_expiring": 0
   },
   "rules_error": null,
+  "semantic_cache": {
+    "analyzed_files": 573,
+    "available": true,
+    "bridge_protocol_version": "0.1.0",
+    "git_head": "515044a4bd3867142d6fff31bcbb0a31d76e34c5",
+    "project_fingerprint": "bd376b35c69fd0f7",
+    "source": "bridge",
+    "working_tree_path_count": 0
+  },
   "semantic_error": null,
   "state_models": [
     {

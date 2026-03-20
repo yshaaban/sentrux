@@ -1,34 +1,22 @@
 {
-  "generated_at": "2026-03-20T03:27:05Z",
+  "generated_at": "2026-03-20T04:33:49Z",
   "parallel_code_root": "<parallel-code-root>",
-  "analysis_mode": "head_clone",
+  "analysis_mode": "working_tree",
   "source_tree_identity": {
-    "commit": "424a7d78f4251dbb3394d7e9306ff112ac68c542",
-    "dirty_paths": [
-      "electron/ipc/git-diff-ops.test.ts",
-      "electron/ipc/git-diff-ops.ts",
-      "src/app/review-diffs.test.ts",
-      "src/app/review-diffs.ts",
-      "src/components/ChangedFilesList.tsx",
-      "src/components/ReviewPanel.test.tsx",
-      "src/components/ReviewPanel.tsx",
-      "src/components/review-panel/ReviewPanelFileList.test.tsx",
-      "src/components/review-panel/ReviewPanelFileList.tsx",
-      "src/components/review-panel/review-panel-controller.ts",
-      "src/lib/changed-file-display.ts"
-    ],
-    "dirty_paths_count": 11,
-    "dirty_paths_fingerprint": "4b26ae2ce9bf11b95cbb13e5e71dc6eec03056f54909799b398e7c01107f099d",
-    "tree_fingerprint": "d441668708363c0a271a59bb3d509c1813fe771a34cb350d2c8b39c4879e2151",
-    "analysis_mode": "head_clone"
-  },
-  "analyzed_tree_identity": {
-    "commit": "424a7d78f4251dbb3394d7e9306ff112ac68c542",
+    "commit": "515044a4bd3867142d6fff31bcbb0a31d76e34c5",
     "dirty_paths": [],
     "dirty_paths_count": 0,
     "dirty_paths_fingerprint": "53c1562521679823f3ee3c10c2585dec4c3ecd862d145f868947047fd32725ac",
-    "tree_fingerprint": "fbd13bb3cf5ff3c032b0e0ab3787e7f50ba0fe1079487d884bfbfa58a938de84",
-    "analysis_mode": "head_clone"
+    "tree_fingerprint": "1a927458c65a57174c31a70ba48b0dcd1fe18c80681512eed86f5710da511d7c",
+    "analysis_mode": "working_tree"
+  },
+  "analyzed_tree_identity": {
+    "commit": "515044a4bd3867142d6fff31bcbb0a31d76e34c5",
+    "dirty_paths": [],
+    "dirty_paths_count": 0,
+    "dirty_paths_fingerprint": "53c1562521679823f3ee3c10c2585dec4c3ecd862d145f868947047fd32725ac",
+    "tree_fingerprint": "1a927458c65a57174c31a70ba48b0dcd1fe18c80681512eed86f5710da511d7c",
+    "analysis_mode": "working_tree"
   },
   "regression_mutation": {
     "path": "src/components/SidebarTaskRow.tsx",
@@ -44,6 +32,6 @@
   "binary_identity": {
     "path": "<sentrux-root>/target/debug/sentrux",
     "exists": true,
-    "sha256": "dfb6e9dd1db1fa11debf2d61c4a90ac221d9e5d1abe4526ebbbb274a94c8262d"
+    "sha256": "b62d359d09b76d40dc2b4b79bad6a9b60d7333998d0f974aaef785332f2af764"
   }
 }
