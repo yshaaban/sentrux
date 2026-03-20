@@ -3,11 +3,15 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+source "$REPO_ROOT/scripts/lib/benchmark-plugin-home.sh"
 PARALLEL_CODE_ROOT="${PARALLEL_CODE_ROOT:-<parallel-code-root>}"
 RULES_SOURCE="$REPO_ROOT/docs/v2/examples/parallel-code.rules.toml"
 OUTPUT_DIR="${OUTPUT_DIR:-$REPO_ROOT/docs/v2/examples/parallel-code-golden}"
 SENTRUX_BIN="${SENTRUX_BIN:-$REPO_ROOT/target/debug/sentrux}"
 ANALYSIS_MODE="${ANALYSIS_MODE:-working_tree}"
+SENTRUX_SKIP_GRAMMAR_DOWNLOAD="${SENTRUX_SKIP_GRAMMAR_DOWNLOAD:-1}"
+
+export SENTRUX_SKIP_GRAMMAR_DOWNLOAD
 
 if [[ ! -x "$SENTRUX_BIN" ]]; then
   echo "Expected built sentrux binary at $SENTRUX_BIN" >&2
@@ -38,6 +42,7 @@ tmpdir="$(mktemp -d)"
 WORK_ROOT="$tmpdir/parallel-code"
 WORK_SENTRUX_DIR="$WORK_ROOT/.sentrux"
 WORK_RULES_PATH="$WORK_SENTRUX_DIR/rules.toml"
+PLUGIN_HOME="$(prepare_typescript_benchmark_home "$tmpdir")"
 
 cleanup() {
   rm -rf "$tmpdir"
@@ -87,7 +92,7 @@ cat > "$tmpdir/requests.jsonl" <<EOF
 {"jsonrpc":"2.0","id":12,"method":"tools/call","params":{"name":"session_end","arguments":{}}}
 EOF
 
-"$SENTRUX_BIN" --mcp < "$tmpdir/requests.jsonl" | grep '^[{]' > "$tmpdir/responses.jsonl"
+HOME="$PLUGIN_HOME" "$SENTRUX_BIN" --mcp < "$tmpdir/requests.jsonl" | grep '^[{]' > "$tmpdir/responses.jsonl"
 
 node - "$tmpdir/responses.jsonl" "$OUTPUT_DIR" "$WORK_ROOT" "$PARALLEL_CODE_ROOT" <<'EOF'
 const fs = require('node:fs');
@@ -266,7 +271,7 @@ cat > "$tmpdir/regression-requests.jsonl" <<EOF
 {"jsonrpc":"2.0","id":22,"method":"tools/call","params":{"name":"session_end","arguments":{}}}
 EOF
 
-"$SENTRUX_BIN" --mcp < "$tmpdir/regression-requests.jsonl" | grep '^[{]' > "$tmpdir/regression-responses.jsonl"
+HOME="$PLUGIN_HOME" "$SENTRUX_BIN" --mcp < "$tmpdir/regression-requests.jsonl" | grep '^[{]' > "$tmpdir/regression-responses.jsonl"
 
 node - "$tmpdir/regression-responses.jsonl" "$OUTPUT_DIR" "$WORK_ROOT" "$PARALLEL_CODE_ROOT" <<'EOF'
 const fs = require('node:fs');

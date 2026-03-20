@@ -6,6 +6,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
+import { prepareTypeScriptBenchmarkHome } from './lib/benchmark-plugin-home.mjs';
 import { assertPathExists, createDisposableRepoClone } from './lib/disposable-repo.mjs';
 import { buildRepoFreshnessMetadata } from './lib/repo-identity.mjs';
 
@@ -23,6 +24,7 @@ const analysisMode = process.env.ANALYSIS_MODE ?? 'working_tree';
 const benchmarkPolicy = buildBenchmarkPolicy();
 const failOnRegression = process.env.FAIL_ON_REGRESSION === '1';
 const benchmarkFormatVersion = 3;
+const skipGrammarDownload = process.env.SENTRUX_SKIP_GRAMMAR_DOWNLOAD ?? '1';
 
 function roundMs(value) {
   return Number(value.toFixed(1));
@@ -315,9 +317,14 @@ function parseToolPayload(response) {
   return JSON.parse(text);
 }
 
-function createSession(binPath) {
+function createSession(binPath, homeOverride) {
   const child = spawn(binPath, ['--mcp'], {
     cwd: repoRoot,
+    env: {
+      ...process.env,
+      HOME: homeOverride,
+      SENTRUX_SKIP_GRAMMAR_DOWNLOAD: skipGrammarDownload,
+    },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
   const pending = new Map();
@@ -443,8 +450,8 @@ async function measureRequest(session, label, name, args, summarize) {
   };
 }
 
-async function runBenchmarkSession(parallelCodeWorkRoot) {
-  const session = createSession(sentruxBin);
+async function runBenchmarkSession(parallelCodeWorkRoot, homeOverride) {
+  const session = createSession(sentruxBin, homeOverride);
   const cold = {};
   const warm = {};
   const warmPatchSafety = {};
@@ -601,7 +608,8 @@ async function main() {
   let benchmark;
   let freshnessMetadata;
   try {
-    benchmark = await runBenchmarkSession(clone.workRoot);
+    const pluginHome = await prepareTypeScriptBenchmarkHome({ tempRoot: clone.tempRoot });
+    benchmark = await runBenchmarkSession(clone.workRoot, pluginHome);
     freshnessMetadata = buildRepoFreshnessMetadata({
       repoRoot: parallelCodeRoot,
       analyzedRoot: clone.workRoot,

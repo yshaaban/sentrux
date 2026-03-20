@@ -22,6 +22,7 @@ const nodeBin = process.execPath;
 const runGoldens = !process.argv.includes('--benchmark-only');
 const runBenchmark = !process.argv.includes('--goldens-only');
 const keepTemp = process.argv.includes('--keep-temp');
+const skipGrammarDownload = process.env.SENTRUX_SKIP_GRAMMAR_DOWNLOAD ?? '1';
 
 function fail(message) {
   throw new Error(message);
@@ -38,6 +39,7 @@ function runChecked(command, args, extraEnv = {}) {
     cwd: repoRoot,
     env: {
       ...process.env,
+      SENTRUX_SKIP_GRAMMAR_DOWNLOAD: skipGrammarDownload,
       ...extraEnv,
     },
     stdio: 'inherit',
