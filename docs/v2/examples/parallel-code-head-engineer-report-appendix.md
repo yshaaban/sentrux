@@ -1,6 +1,6 @@
 # Parallel Code: Committed HEAD Analysis Report Appendix
 
-Generated on March 19, 2026 from a committed HEAD clone of `<parallel-code-root>`.
+Generated on March 20, 2026 from a committed HEAD clone of `<parallel-code-root>`.
 
 This appendix contains the evidence behind
 [parallel-code-head-engineer-report.md](<sentrux-root>/docs/v2/examples/parallel-code-head-engineer-report.md).
@@ -247,8 +247,8 @@ Current scan:
 ## Secondary Cleanup
 
 - `src/components/terminal-view/terminal-session.ts` `secondary_cleanup` `high_signal` File 'src/components/terminal-view/terminal-session.ts' depends on 22 real surfaces, above the typescript threshold of 15
+- `browser_state_sync` `secondary_cleanup` `high_signal` State model 'browser_state_sync' has 8 transition branch(es) without an explicit next-state mapping
 - `electron/remote/ws-server.ts|server/browser-websocket.ts` `secondary_cleanup` `high_signal` 2 functions share an identical normalized body across recently changed files
-- `src/components/AgentGlyph.tsx|src/remote/RemoteAgentGlyph.tsx` `secondary_cleanup` `high_signal` 2 functions share an identical normalized body across recently changed files
 
 ## Targeted Hardening Notes
 
@@ -350,11 +350,11 @@ Current experimental counts:
 
 Representative examples:
 
-- [ScrollingDiffView.tsx](<parallel-code-root>/src/components/ScrollingDiffView.tsx)
 - [review.ts](<parallel-code-root>/src/store/review.ts)
-- [PreviewPanel.tsx](<parallel-code-root>/src/components/PreviewPanel.tsx)
-- [server.ts](<parallel-code-root>/electron/remote/server.ts)
-- [SidebarTaskRow.tsx](<parallel-code-root>/src/components/SidebarTaskRow.tsx)
+- [terminalLatency.ts](<parallel-code-root>/src/lib/terminalLatency.ts)
+- [store.ts](<parallel-code-root>/src/arena/store.ts)
+- [diff-selection.ts](<parallel-code-root>/src/lib/diff-selection.ts)
+- [ui.ts](<parallel-code-root>/src/store/ui.ts)
 
 Current rule:
 
@@ -362,6 +362,14 @@ Current rule:
 - they should not be used as maintainer-facing debt guidance until the detector is fixed
 
 ## Configured Concepts And Current State
+
+### `browser_state_sync`
+
+- score: `4000 / 10000`
+- missing update sites: `0`
+- boundary pressure count: `0`
+- dominant finding kinds: `state_model_high_context_burden, state_model_transition_coverage_gap`
+- summary: Concept 'browser_state_sync' has 1 high-severity ownership or access findings
 
 ### `ConnectionBannerState`
 
@@ -378,3 +386,11 @@ Current rule:
 - boundary pressure count: `0`
 - dominant finding kinds: `closed_domain_exhaustiveness`
 - summary: Concept 'task_presentation_status' spans 1 obligation reports with 1 missing update sites
+
+### `server_state_bootstrap_gate`
+
+- score: `900 / 10000`
+- missing update sites: `0`
+- boundary pressure count: `0`
+- dominant finding kinds: `state_model_missing_transition_sites`
+- summary: Concept 'server_state_bootstrap_gate' has 1 repeated structural findings

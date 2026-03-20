@@ -312,7 +312,7 @@ Tasks:
 - [x] add candidate split axes and related-surface metadata to major finding classes
 - [x] surface cycle cut candidates for cycle clusters
 - [x] quarantine dead-private-code clusters as experimental
-- [-] fix dead-private-code detection so it can eventually leave the experimental tier
+- [-] finish dead-private-code promotion review after the same-file callback/JSX suppression fix
 
 Exit criteria:
 
@@ -369,8 +369,8 @@ Tasks:
 
 - [x] detect explicit stateful controllers and reducers across files
 - [x] recognize discriminated object unions and trailing `assertNever(...)` proofs in the TS bridge
-- [ ] model transition sites for explicit state domains
-- [ ] detect transition-coverage gaps for explicit state domains
+- [-] model transition sites for explicit state domains
+- [-] detect transition-coverage gaps for explicit state domains
 - [ ] infer implicit lifecycle modules from booleans, timers, maps, and generations
 - [ ] emit invalid-state-risk findings
 - [ ] add `state_integrity` as a future scorecard track
@@ -382,7 +382,7 @@ Exit criteria:
 
 Open gap:
 
-- the current state analyzer now validates the scoped `parallel-code` controllers, but it is still only a conservative slice of the full Tier 3 plan
+- the current state analyzer now models explicit `switch` and `if`/`else if` transition sites for rule-declared TypeScript state domains, but it is still only a conservative slice of the full Tier 3 plan
 
 ## Cross-Cutting Validation Tasks
 
@@ -408,7 +408,7 @@ Status: mostly complete
 
 Open gap:
 
-- implementation is still ahead of release-grade validation, but the proof loop now spans `parallel-code` and `private-benchmark-repo`, includes multi-repo golden validation, and has versioned benchmark artifacts plus explicit benchmark policy for both repos; the remaining gap is mostly deeper unhappy-path validation, promotion criteria, and fuller migration coverage
+- implementation is still ahead of release-grade validation, but the proof loop now spans `parallel-code` and `private-benchmark-repo`, includes multi-repo golden validation, explicit transition-controller bridge tests, and has versioned benchmark artifacts plus explicit benchmark policy for both repos; the remaining gap is mostly deeper unhappy-path validation, promotion criteria, and fuller migration coverage
 
 ## Target Outcome On `parallel-code`
 

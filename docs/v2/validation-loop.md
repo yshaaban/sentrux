@@ -35,6 +35,14 @@ This command:
 
 The live `parallel-code` worktree may be dirty, so every proof refresh must go through a disposable clone.
 
+For stable engineer-review artifacts against committed `HEAD`, use:
+
+```bash
+ANALYSIS_MODE=head_clone \
+OUTPUT_DIR=docs/v2/examples/parallel-code-head-golden \
+./scripts/refresh_parallel_code_goldens.sh
+```
+
 ### Validate Goldens And Benchmark
 
 Use this for the normal proof loop.
@@ -195,6 +203,10 @@ This loop should drive product changes such as:
 - adding fixability metadata when a finding is real but not design-actionable yet
 - adjusting leverage classification when the raw finding is right but the engineering meaning is wrong
 - improving within-bucket ranking when two valid findings should not be treated as peers
+
+Current promotion note:
+
+- `dead_private_code_cluster` remains intentionally `experimental` until broader TS/TSX reference precision is validated beyond the current same-file callback/JSX suppression fix
 
 ## Relationship To Migration
 

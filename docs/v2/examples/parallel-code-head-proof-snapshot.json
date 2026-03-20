@@ -1,18 +1,33 @@
 {
-  "generated_at": "2026-03-19T23:29:50.174Z",
+  "generated_at": "2026-03-20T00:27:48.149Z",
   "generated_from": {
     "golden_dir": "<sentrux-root>/docs/v2/examples/parallel-code-head-golden",
     "benchmark_path": "<sentrux-root>/docs/v2/examples/parallel-code-benchmark.json",
     "metadata": {
-      "generated_at": "2026-03-19T23:26:10Z",
+      "generated_at": "2026-03-20T00:27:24Z",
       "parallel_code_root": "<parallel-code-root>",
       "analysis_mode": "head_clone",
       "source_tree_identity": {
         "commit": "ba6954bbd37c4bc2a2147672335bab3f51530b44",
-        "dirty_paths": [],
-        "dirty_paths_count": 0,
-        "dirty_paths_fingerprint": "53c1562521679823f3ee3c10c2585dec4c3ecd862d145f868947047fd32725ac",
-        "tree_fingerprint": "d40dadfe68e7261ef2d8911f450c38de8e14e78791d015580de50ac28bdf3b24",
+        "dirty_paths": [
+          "docs/ARCHITECTURE.md",
+          "docs/TERMINAL-DEVELOPMENT-GUIDE.md",
+          "docs/TERMINAL-INFRA-FOLLOW-UPS.md",
+          "docs/TESTING.md",
+          "electron/ipc/agent-handlers.ts",
+          "electron/ipc/handlers.restore.test.ts",
+          "src/components/TerminalView.test.tsx",
+          "src/components/TerminalView.tsx",
+          "src/components/terminal-view/terminal-recovery-runtime.ts",
+          "src/components/terminal-view/terminal-session.ts",
+          "src/lib/scrollbackRestore.test.ts",
+          "src/lib/scrollbackRestore.ts",
+          "src/components/terminal-view/terminal-recovery-runtime.test.tsx",
+          "tests/browser/terminal-startup-experiment.spec.ts"
+        ],
+        "dirty_paths_count": 14,
+        "dirty_paths_fingerprint": "ee392f8d00af4d746af2161b242a3312baa1649cd79b1c47a153077a751b7f47",
+        "tree_fingerprint": "3b3b1264839b8440303d2b18cadca70cb06aac26c0631c6f0069e58d0695a637",
         "analysis_mode": "head_clone"
       },
       "analyzed_tree_identity": {
@@ -37,7 +52,7 @@
       "binary_identity": {
         "path": "<sentrux-root>/target/debug/sentrux",
         "exists": true,
-        "sha256": "a20f59ee9ec7cfcb8c235eae2631c58b8d72e63ab6b513b548633ca6c19d8334"
+        "sha256": "1e29947391421780c02d7aa0abe28dc05dead4bc618c607e7f5be693f467980a"
       }
     }
   },
@@ -268,20 +283,6 @@
       "trust_tier": "experimental",
       "presentation_class": "experimental",
       "leverage_class": "experimental",
-      "scope": "src/components/ScrollingDiffView.tsx",
-      "severity": "high",
-      "concept_id": null,
-      "score_band": "high_signal",
-      "score_0_10000": 7900,
-      "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
-      "summary": "File 'src/components/ScrollingDiffView.tsx' contains 18 uncalled private functions totaling 272 lines"
-    },
-    {
-      "id": null,
-      "kind": "dead_private_code_cluster",
-      "trust_tier": "experimental",
-      "presentation_class": "experimental",
-      "leverage_class": "experimental",
       "scope": "src/store/review.ts",
       "severity": "high",
       "concept_id": null,
@@ -289,62 +290,6 @@
       "score_0_10000": 7278,
       "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
       "summary": "File 'src/store/review.ts' contains 10 uncalled private functions totaling 121 lines"
-    },
-    {
-      "id": null,
-      "kind": "dead_private_code_cluster",
-      "trust_tier": "experimental",
-      "presentation_class": "experimental",
-      "leverage_class": "experimental",
-      "scope": "src/components/PreviewPanel.tsx",
-      "severity": "high",
-      "concept_id": null,
-      "score_band": "high_signal",
-      "score_0_10000": 7170,
-      "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
-      "summary": "File 'src/components/PreviewPanel.tsx' contains 21 uncalled private functions totaling 115 lines"
-    },
-    {
-      "id": null,
-      "kind": "dead_private_code_cluster",
-      "trust_tier": "experimental",
-      "presentation_class": "experimental",
-      "leverage_class": "experimental",
-      "scope": "electron/remote/server.ts",
-      "severity": "high",
-      "concept_id": null,
-      "score_band": "high_signal",
-      "score_0_10000": 7000,
-      "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
-      "summary": "File 'electron/remote/server.ts' contains 3 uncalled private functions totaling 193 lines"
-    },
-    {
-      "id": null,
-      "kind": "dead_private_code_cluster",
-      "trust_tier": "experimental",
-      "presentation_class": "experimental",
-      "leverage_class": "experimental",
-      "scope": "src/components/SidebarTaskRow.tsx",
-      "severity": "high",
-      "concept_id": null,
-      "score_band": "high_signal",
-      "score_0_10000": 6954,
-      "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
-      "summary": "File 'src/components/SidebarTaskRow.tsx' contains 17 uncalled private functions totaling 103 lines"
-    },
-    {
-      "id": null,
-      "kind": "dead_private_code_cluster",
-      "trust_tier": "experimental",
-      "presentation_class": "experimental",
-      "leverage_class": "experimental",
-      "scope": "src/remote/ws.ts",
-      "severity": "high",
-      "concept_id": null,
-      "score_band": "high_signal",
-      "score_0_10000": 6702,
-      "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
-      "summary": "File 'src/remote/ws.ts' contains 5 uncalled private functions totaling 89 lines"
     },
     {
       "id": null,
@@ -366,13 +311,13 @@
       "trust_tier": "experimental",
       "presentation_class": "experimental",
       "leverage_class": "experimental",
-      "scope": "src/remote/touch-gestures.ts",
+      "scope": "src/arena/store.ts",
       "severity": "medium",
       "concept_id": null,
       "score_band": "moderate_signal",
-      "score_0_10000": 6432,
+      "score_0_10000": 5604,
       "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
-      "summary": "File 'src/remote/touch-gestures.ts' contains 6 uncalled private functions totaling 74 lines"
+      "summary": "File 'src/arena/store.ts' contains 4 uncalled private functions totaling 28 lines"
     },
     {
       "id": null,
@@ -380,13 +325,13 @@
       "trust_tier": "experimental",
       "presentation_class": "experimental",
       "leverage_class": "experimental",
-      "scope": "src/arena/ResultsScreen.tsx",
+      "scope": "src/lib/diff-selection.ts",
       "severity": "medium",
       "concept_id": null,
       "score_band": "moderate_signal",
-      "score_0_10000": 6216,
+      "score_0_10000": 5424,
       "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
-      "summary": "File 'src/arena/ResultsScreen.tsx' contains 7 uncalled private functions totaling 62 lines"
+      "summary": "File 'src/lib/diff-selection.ts' contains 2 uncalled private functions totaling 118 lines"
     },
     {
       "id": null,
@@ -394,13 +339,83 @@
       "trust_tier": "experimental",
       "presentation_class": "experimental",
       "leverage_class": "experimental",
-      "scope": "src/lib/drag-reorder.ts",
+      "scope": "src/store/ui.ts",
       "severity": "medium",
       "concept_id": null,
       "score_band": "moderate_signal",
-      "score_0_10000": 6180,
+      "score_0_10000": 5316,
       "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
-      "summary": "File 'src/lib/drag-reorder.ts' contains 4 uncalled private functions totaling 60 lines"
+      "summary": "File 'src/store/ui.ts' contains 4 uncalled private functions totaling 12 lines"
+    },
+    {
+      "id": null,
+      "kind": "dead_private_code_cluster",
+      "trust_tier": "experimental",
+      "presentation_class": "experimental",
+      "leverage_class": "experimental",
+      "scope": "src/store/agents.ts",
+      "severity": "medium",
+      "concept_id": null,
+      "score_band": "moderate_signal",
+      "score_0_10000": 5298,
+      "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
+      "summary": "File 'src/store/agents.ts' contains 3 uncalled private functions totaling 61 lines"
+    },
+    {
+      "id": null,
+      "kind": "dead_private_code_cluster",
+      "trust_tier": "experimental",
+      "presentation_class": "experimental",
+      "leverage_class": "experimental",
+      "scope": "src/components/TaskPanel.tsx",
+      "severity": "medium",
+      "concept_id": null,
+      "score_band": "moderate_signal",
+      "score_0_10000": 5244,
+      "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
+      "summary": "File 'src/components/TaskPanel.tsx' contains 4 uncalled private functions totaling 8 lines"
+    },
+    {
+      "id": null,
+      "kind": "dead_private_code_cluster",
+      "trust_tier": "experimental",
+      "presentation_class": "experimental",
+      "leverage_class": "experimental",
+      "scope": "src/app/desktop-session-resources.ts",
+      "severity": "medium",
+      "concept_id": null,
+      "score_band": "moderate_signal",
+      "score_0_10000": 5208,
+      "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
+      "summary": "File 'src/app/desktop-session-resources.ts' contains 6 uncalled private functions totaling 6 lines"
+    },
+    {
+      "id": null,
+      "kind": "dead_private_code_cluster",
+      "trust_tier": "experimental",
+      "presentation_class": "experimental",
+      "leverage_class": "experimental",
+      "scope": "electron/remote/server.ts",
+      "severity": "medium",
+      "concept_id": null,
+      "score_band": "moderate_signal",
+      "score_0_10000": 5200,
+      "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
+      "summary": "File 'electron/remote/server.ts' contains 1 uncalled private functions totaling 184 lines"
+    },
+    {
+      "id": null,
+      "kind": "dead_private_code_cluster",
+      "trust_tier": "experimental",
+      "presentation_class": "experimental",
+      "leverage_class": "experimental",
+      "scope": "src/components/PreviewPanel.tsx",
+      "severity": "medium",
+      "concept_id": null,
+      "score_band": "moderate_signal",
+      "score_0_10000": 5172,
+      "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
+      "summary": "File 'src/components/PreviewPanel.tsx' contains 4 uncalled private functions totaling 4 lines"
     }
   ],
   "finding_details": [
@@ -420,6 +435,23 @@
       "related_surfaces": [
         "src/components/app-shell/AppConnectionBanner.tsx",
         "src/runtime/browser-session.ts"
+      ]
+    },
+    {
+      "kind": "state_model_transition_coverage_gap",
+      "trust_tier": "trusted",
+      "presentation_class": "structural_debt",
+      "leverage_class": "secondary_cleanup",
+      "scope": "browser_state_sync",
+      "severity": "high",
+      "summary": "State model 'browser_state_sync' has 8 transition branch(es) without an explicit next-state mapping",
+      "impact": "If ignored, this structural inconsistency will keep adding change friction and make future regressions harder to isolate.",
+      "inspection_focus": [
+        "inspect the files and evidence behind this finding before choosing a design fix"
+      ],
+      "candidate_split_axes": [],
+      "related_surfaces": [
+        "src/runtime/browser-state-sync-controller.ts"
       ]
     },
     {
@@ -618,34 +650,21 @@
         "src/components/terminal-view/terminal-output-pipeline.ts",
         "src/components/terminal-view/terminal-session.architecture.test.ts"
       ]
-    },
-    {
-      "kind": "dependency_sprawl",
-      "trust_tier": "trusted",
-      "presentation_class": "structural_debt",
-      "leverage_class": "local_refactor_target",
-      "scope": "src/components/ReviewPanel.tsx",
-      "severity": "high",
-      "summary": "File 'src/components/ReviewPanel.tsx' depends on 22 real surfaces, above the typescript threshold of 15",
-      "impact": "Broad dependency fan-out expands change surface and makes orchestration drift harder to localize.",
-      "inspection_focus": [
-        "inspect whether orchestration and policy code can move behind narrower helpers",
-        "inspect whether unrelated adapter dependencies are accumulating in one module"
-      ],
-      "candidate_split_axes": [
-        "app dependency boundary",
-        "components dependency boundary",
-        "lib dependency boundary"
-      ],
-      "related_surfaces": [
-        "electron/ipc/channels.ts",
-        "src/app/async-request-guard.ts",
-        "src/app/review-diffs.ts",
-        "src/components/review-surfaces.architecture.test.ts"
-      ]
     }
   ],
   "concept_summaries": [
+    {
+      "concept_id": "browser_state_sync",
+      "score_band": "moderate_signal",
+      "score_0_10000": 4000,
+      "summary": "Concept 'browser_state_sync' has 1 high-severity ownership or access findings",
+      "dominant_kinds": [
+        "state_model_high_context_burden",
+        "state_model_transition_coverage_gap"
+      ],
+      "boundary_pressure_count": 0,
+      "missing_site_count": 0
+    },
     {
       "concept_id": "ConnectionBannerState",
       "score_band": "supporting_signal",
@@ -667,6 +686,17 @@
       ],
       "boundary_pressure_count": 0,
       "missing_site_count": 1
+    },
+    {
+      "concept_id": "server_state_bootstrap_gate",
+      "score_band": "supporting_signal",
+      "score_0_10000": 900,
+      "summary": "Concept 'server_state_bootstrap_gate' has 1 repeated structural findings",
+      "dominant_kinds": [
+        "state_model_missing_transition_sites"
+      ],
+      "boundary_pressure_count": 0,
+      "missing_site_count": 0
     }
   ],
   "debt_signals": [
@@ -805,24 +835,6 @@
       "trust_tier": "experimental",
       "presentation_class": "experimental",
       "leverage_class": "experimental",
-      "scope": "src/components/ScrollingDiffView.tsx",
-      "signal_class": "watchpoint",
-      "signal_families": [
-        "staleness",
-        "maintainability"
-      ],
-      "severity": "high",
-      "score_band": "high_signal",
-      "score_0_10000": 7900,
-      "summary": "File 'src/components/ScrollingDiffView.tsx' contains 18 uncalled private functions totaling 272 lines",
-      "candidate_split_axes": [],
-      "related_surfaces": []
-    },
-    {
-      "kind": "dead_private_code_cluster",
-      "trust_tier": "experimental",
-      "presentation_class": "experimental",
-      "leverage_class": "experimental",
       "scope": "src/store/review.ts",
       "signal_class": "watchpoint",
       "signal_families": [
@@ -841,7 +853,7 @@
       "trust_tier": "experimental",
       "presentation_class": "experimental",
       "leverage_class": "experimental",
-      "scope": "src/components/PreviewPanel.tsx",
+      "scope": "src/lib/terminalLatency.ts",
       "signal_class": "watchpoint",
       "signal_families": [
         "staleness",
@@ -849,8 +861,8 @@
       ],
       "severity": "high",
       "score_band": "high_signal",
-      "score_0_10000": 7170,
-      "summary": "File 'src/components/PreviewPanel.tsx' contains 21 uncalled private functions totaling 115 lines",
+      "score_0_10000": 6522,
+      "summary": "File 'src/lib/terminalLatency.ts' contains 6 uncalled private functions totaling 79 lines",
       "candidate_split_axes": [],
       "related_surfaces": []
     },
@@ -859,16 +871,16 @@
       "trust_tier": "experimental",
       "presentation_class": "experimental",
       "leverage_class": "experimental",
-      "scope": "electron/remote/server.ts",
+      "scope": "src/arena/store.ts",
       "signal_class": "watchpoint",
       "signal_families": [
         "staleness",
         "maintainability"
       ],
-      "severity": "high",
-      "score_band": "high_signal",
-      "score_0_10000": 7000,
-      "summary": "File 'electron/remote/server.ts' contains 3 uncalled private functions totaling 193 lines",
+      "severity": "medium",
+      "score_band": "moderate_signal",
+      "score_0_10000": 5604,
+      "summary": "File 'src/arena/store.ts' contains 4 uncalled private functions totaling 28 lines",
       "candidate_split_axes": [],
       "related_surfaces": []
     },
@@ -877,16 +889,34 @@
       "trust_tier": "experimental",
       "presentation_class": "experimental",
       "leverage_class": "experimental",
-      "scope": "src/components/SidebarTaskRow.tsx",
+      "scope": "src/lib/diff-selection.ts",
       "signal_class": "watchpoint",
       "signal_families": [
         "staleness",
         "maintainability"
       ],
-      "severity": "high",
-      "score_band": "high_signal",
-      "score_0_10000": 6954,
-      "summary": "File 'src/components/SidebarTaskRow.tsx' contains 17 uncalled private functions totaling 103 lines",
+      "severity": "medium",
+      "score_band": "moderate_signal",
+      "score_0_10000": 5424,
+      "summary": "File 'src/lib/diff-selection.ts' contains 2 uncalled private functions totaling 118 lines",
+      "candidate_split_axes": [],
+      "related_surfaces": []
+    },
+    {
+      "kind": "dead_private_code_cluster",
+      "trust_tier": "experimental",
+      "presentation_class": "experimental",
+      "leverage_class": "experimental",
+      "scope": "src/store/ui.ts",
+      "signal_class": "watchpoint",
+      "signal_families": [
+        "staleness",
+        "maintainability"
+      ],
+      "severity": "medium",
+      "score_band": "moderate_signal",
+      "score_0_10000": 5316,
+      "summary": "File 'src/store/ui.ts' contains 4 uncalled private functions totaling 12 lines",
       "candidate_split_axes": [],
       "related_surfaces": []
     }

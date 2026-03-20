@@ -78,7 +78,7 @@ The strongest completed work is:
 | Tier 2A | Mostly complete | parity analyzer, MCP tool, and real proof now exist on more than one repo shape | broader contract families still need more false-positive review and non-happy-path validation |
 | Tier 2B | Mostly complete | concentration analysis exists and is tested | not yet benchmarked or validated on the real case-study repo |
 | Tier 2C | Mostly complete | inspection tools, adoption helpers, trust-tiered debt signals, structural debt findings, debt clusters, and two real benchmark repos now exist | broader onboarding proof and evidence-quality validation are still incomplete |
-| Tier 3 | Partial | conservative state-integrity slice is in place and now validated on real `parallel-code` controllers | transition modeling and implicit lifecycle heuristics are not built |
+| Tier 3 | Partial | conservative state-integrity slice now includes explicit transition-site modeling and transition-coverage findings for rule-declared state domains | implicit lifecycle heuristics and broader invalid-state-risk inference are still not built |
 | Validation | Mostly complete | unit tests, synthetic gate/session regression scenarios, two real benchmark repos, multi-repo goldens, versioned benchmark comparison, explicit benchmark policy, and confidence/migration checks now exist | no full migration suite and benchmark-repo unhappy-path coverage is still incomplete |
 
 ## Tier-By-Tier Status
@@ -285,7 +285,7 @@ Delivered:
 Still missing:
 
 - broader proof beyond the initial real-repo validation and scoped golden outputs
-- dead-private detection remains experimental because its reference model is not reliable enough on real TS/TSX repos yet
+- dead-private detection still remains experimental because its reference model is now conservative for same-file callback/JSX usage, but broader reference precision is not reliable enough on real TS/TSX repos yet
 
 ## Tier 3: Advanced Static Analysis
 
@@ -297,11 +297,12 @@ Delivered:
 - state findings
 - `state` MCP tool
 - state findings integrated into `findings`, `gate`, `session_end`, `trace_symbol`, and `explain_concept`
+- explicit transition-site modeling for rule-declared TypeScript state domains
+- transition-coverage-gap findings and missing-transition-site findings
+- bridge-level validation for `switch` and `if`/`else if` explicit transition controllers
 
 Still missing:
 
-- transition modeling
-- transition-coverage analysis
 - implicit lifecycle inference
 - invalid-state-risk findings
 - real scorecard track for state integrity

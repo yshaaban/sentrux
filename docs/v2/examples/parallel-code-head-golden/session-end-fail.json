@@ -6,8 +6,8 @@
     "cycles_after": 2,
     "cycles_before": 2,
     "degraded": false,
-    "signal_after": 4399,
-    "signal_before": 4399,
+    "signal_after": 4456,
+    "signal_before": 4456,
     "signal_delta": 0
   },
   "baseline_error": null,
@@ -240,9 +240,9 @@
     {
       "candidate_split_axes": [],
       "evidence": [
-        "dead private functions: 17",
-        "dead private lines: 104",
-        "sample dead functions: InlineAttentionIndicator, boxShadow, getPrimaryTaskAgentDef",
+        "dead private functions: 2",
+        "dead private lines: 29",
+        "sample dead functions: boxShadow, fontWeight",
         "total file lines: 545"
       ],
       "files": [
@@ -259,8 +259,8 @@
         "detector_under_evaluation"
       ],
       "metrics": {
-        "dead_line_count": 104,
-        "dead_symbol_count": 17,
+        "dead_line_count": 29,
+        "dead_symbol_count": 2,
         "file_count": 1,
         "function_count": 40,
         "line_count": 545,
@@ -273,24 +273,24 @@
         "guarded_seam"
       ],
       "scope": "src/components/SidebarTaskRow.tsx",
-      "score_0_10000": 6972,
-      "severity": "high",
+      "score_0_10000": 3822,
+      "severity": "medium",
       "signal_class": "watchpoint",
       "signal_families": [
         "staleness",
         "maintainability"
       ],
-      "summary": "File 'src/components/SidebarTaskRow.tsx' contains 17 uncalled private functions totaling 104 lines",
+      "summary": "File 'src/components/SidebarTaskRow.tsx' contains 2 uncalled private functions totaling 29 lines",
       "trust_tier": "experimental"
     }
   ],
-  "experimental_finding_count": 2,
+  "experimental_finding_count": 1,
   "experimental_findings": [
     {
       "evidence": [
-        "dead private functions: 17",
-        "dead private lines: 104",
-        "sample dead functions: InlineAttentionIndicator, boxShadow, getPrimaryTaskAgentDef",
+        "dead private functions: 2",
+        "dead private lines: 29",
+        "sample dead functions: boxShadow, fontWeight",
         "total file lines: 545"
       ],
       "files": [
@@ -307,8 +307,8 @@
         "detector_under_evaluation"
       ],
       "metrics": {
-        "dead_line_count": 104,
-        "dead_symbol_count": 17,
+        "dead_line_count": 29,
+        "dead_symbol_count": 2,
         "file_count": 1,
         "function_count": 40,
         "line_count": 545,
@@ -320,59 +320,14 @@
         "guarded_seam"
       ],
       "scope": "src/components/SidebarTaskRow.tsx",
-      "score_0_10000": 6972,
-      "severity": "high",
-      "signal_class": "watchpoint",
-      "signal_families": [
-        "staleness",
-        "maintainability"
-      ],
-      "summary": "File 'src/components/SidebarTaskRow.tsx' contains 17 uncalled private functions totaling 104 lines",
-      "trust_tier": "experimental"
-    },
-    {
-      "evidence": [
-        "dead private functions: 4",
-        "dead private lines: 57",
-        "sample dead functions: countMatches, getTotalRemoved, getTotalAdded",
-        "total file lines: 335"
-      ],
-      "files": [
-        "src/components/DiffViewerDialog.tsx"
-      ],
-      "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
-      "inspection_focus": [
-        "inspect whether the dead helpers should be deleted or intentionally reconnected",
-        "inspect whether the file still reflects the supported control flow"
-      ],
-      "kind": "dead_private_code_cluster",
-      "leverage_class": "experimental",
-      "leverage_reasons": [
-        "detector_under_evaluation"
-      ],
-      "metrics": {
-        "dead_line_count": 57,
-        "dead_symbol_count": 4,
-        "file_count": 1,
-        "function_count": 11,
-        "line_count": 335,
-        "max_complexity": 17,
-        "role_count": 2
-      },
-      "presentation_class": "experimental",
-      "role_tags": [
-        "guarded_seam",
-        "facade_with_extracted_owners"
-      ],
-      "scope": "src/components/DiffViewerDialog.tsx",
-      "score_0_10000": 6126,
+      "score_0_10000": 3822,
       "severity": "medium",
       "signal_class": "watchpoint",
       "signal_families": [
         "staleness",
         "maintainability"
       ],
-      "summary": "File 'src/components/DiffViewerDialog.tsx' contains 4 uncalled private functions totaling 57 lines",
+      "summary": "File 'src/components/SidebarTaskRow.tsx' contains 2 uncalled private functions totaling 29 lines",
       "trust_tier": "experimental"
     }
   ],
@@ -792,8 +747,8 @@
     "untracked_candidates": 0
   },
   "semantic_error": null,
-  "signal_after": 4399,
-  "signal_before": 4399,
+  "signal_after": 4456,
+  "signal_before": 4456,
   "signal_delta": 0,
   "summary": "Touched-concept regressions detected",
   "suppressed_finding_count": 0,

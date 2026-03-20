@@ -156,7 +156,7 @@ Current reality:
 3. findings and `session_end` now include concept summaries, structural debt signals, debt clusters, normalized finding details, and watchpoints
 4. trusted findings, watchpoints, and experimental findings are now separated in the primary MCP surfaces
 5. cycle-cluster reports now include concrete cut-candidate evidence instead of only SCC membership
-6. the remaining gaps are broader unhappy-path validation, proof-run refresh follow-through, dead-private detector correctness, and deeper Tier 3 analysis
+6. the remaining gaps are broader unhappy-path validation, proof-run refresh follow-through, dead-private detector promotion beyond experimental, and broader Tier 3 analysis beyond the new explicit transition-integrity slice
 
 ## Exit Criteria For V2 Beta
 

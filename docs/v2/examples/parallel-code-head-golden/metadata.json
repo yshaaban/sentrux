@@ -1,13 +1,28 @@
 {
-  "generated_at": "2026-03-19T23:26:10Z",
+  "generated_at": "2026-03-20T00:27:24Z",
   "parallel_code_root": "<parallel-code-root>",
   "analysis_mode": "head_clone",
   "source_tree_identity": {
     "commit": "ba6954bbd37c4bc2a2147672335bab3f51530b44",
-    "dirty_paths": [],
-    "dirty_paths_count": 0,
-    "dirty_paths_fingerprint": "53c1562521679823f3ee3c10c2585dec4c3ecd862d145f868947047fd32725ac",
-    "tree_fingerprint": "d40dadfe68e7261ef2d8911f450c38de8e14e78791d015580de50ac28bdf3b24",
+    "dirty_paths": [
+      "docs/ARCHITECTURE.md",
+      "docs/TERMINAL-DEVELOPMENT-GUIDE.md",
+      "docs/TERMINAL-INFRA-FOLLOW-UPS.md",
+      "docs/TESTING.md",
+      "electron/ipc/agent-handlers.ts",
+      "electron/ipc/handlers.restore.test.ts",
+      "src/components/TerminalView.test.tsx",
+      "src/components/TerminalView.tsx",
+      "src/components/terminal-view/terminal-recovery-runtime.ts",
+      "src/components/terminal-view/terminal-session.ts",
+      "src/lib/scrollbackRestore.test.ts",
+      "src/lib/scrollbackRestore.ts",
+      "src/components/terminal-view/terminal-recovery-runtime.test.tsx",
+      "tests/browser/terminal-startup-experiment.spec.ts"
+    ],
+    "dirty_paths_count": 14,
+    "dirty_paths_fingerprint": "ee392f8d00af4d746af2161b242a3312baa1649cd79b1c47a153077a751b7f47",
+    "tree_fingerprint": "3b3b1264839b8440303d2b18cadca70cb06aac26c0631c6f0069e58d0695a637",
     "analysis_mode": "head_clone"
   },
   "analyzed_tree_identity": {
@@ -32,6 +47,6 @@
   "binary_identity": {
     "path": "<sentrux-root>/target/debug/sentrux",
     "exists": true,
-    "sha256": "a20f59ee9ec7cfcb8c235eae2631c58b8d72e63ab6b513b548633ca6c19d8334"
+    "sha256": "1e29947391421780c02d7aa0abe28dc05dead4bc618c607e7f5be693f467980a"
   }
 }

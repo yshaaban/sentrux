@@ -2,8 +2,52 @@
   "changed_files": [],
   "expired_suppression_match_count": 0,
   "expired_suppressions": [],
-  "finding_count": 0,
-  "findings": [],
+  "finding_count": 3,
+  "findings": [
+    {
+      "concept_id": "server_state_bootstrap_gate",
+      "evidence": [
+        "src/app/server-state-bootstrap.ts"
+      ],
+      "files": [
+        "src/app/server-state-bootstrap.ts"
+      ],
+      "kind": "state_model_missing_transition_sites",
+      "severity": "medium",
+      "summary": "State model 'server_state_bootstrap_gate' has no explicit transition sites under its configured roots"
+    },
+    {
+      "concept_id": "browser_state_sync",
+      "evidence": [
+        "src/runtime/browser-state-sync-controller.ts:239 [disposed]",
+        "src/runtime/browser-state-sync-controller.ts:249 [scheduled]",
+        "src/runtime/browser-state-sync-controller.ts:254 [idle]",
+        "src/runtime/browser-state-sync-controller.ts:44 [idle]",
+        "src/runtime/browser-state-sync-controller.ts:45 [scheduled]",
+        "src/runtime/browser-state-sync-controller.ts:46 [disposed]",
+        "src/runtime/browser-state-sync-controller.ts:85 [disposed]",
+        "src/runtime/browser-state-sync-controller.ts:100 [idle]"
+      ],
+      "files": [
+        "src/runtime/browser-state-sync-controller.ts"
+      ],
+      "kind": "state_model_transition_coverage_gap",
+      "severity": "high",
+      "summary": "State model 'browser_state_sync' has 8 transition branch(es) without an explicit next-state mapping"
+    },
+    {
+      "concept_id": "browser_state_sync",
+      "evidence": [
+        "BrowserStateSyncStatus"
+      ],
+      "files": [
+        "src/runtime/browser-state-sync-controller.ts"
+      ],
+      "kind": "state_model_high_context_burden",
+      "severity": "medium",
+      "summary": "State model 'browser_state_sync' has high static context burden (12)"
+    }
+  ],
   "kind": "state",
   "missing_site_count": 0,
   "missing_variant_count": 0,
@@ -11,30 +55,9 @@
     {
       "context_burden": 0,
       "domain_symbol_names": [
-        "BrowserStateSyncStatus"
-      ],
-      "explicitness_score_0_10000": 10000,
-      "files": [
-        "src/runtime/browser-state-sync-controller.ts"
-      ],
-      "id": "browser_state_sync",
-      "kind": "explicit",
-      "missing_assert_never_domains": [],
-      "missing_exhaustive_switch_domains": [],
-      "missing_sites": [],
-      "missing_variants": [],
-      "required_sites": [],
-      "roots": [
-        "src/runtime/browser-state-sync-controller.ts"
-      ],
-      "satisfied_sites": []
-    },
-    {
-      "context_burden": 0,
-      "domain_symbol_names": [
         "ServerStateBootstrapGateState"
       ],
-      "explicitness_score_0_10000": 10000,
+      "explicitness_score_0_10000": 8000,
       "files": [
         "src/app/server-state-bootstrap.ts"
       ],
@@ -43,19 +66,244 @@
       "missing_assert_never_domains": [],
       "missing_exhaustive_switch_domains": [],
       "missing_sites": [],
+      "missing_transition_variants": [],
       "missing_variants": [],
       "required_sites": [],
       "roots": [
         "src/app/server-state-bootstrap.ts"
       ],
-      "satisfied_sites": []
+      "satisfied_sites": [],
+      "transition_gap_sites": [],
+      "transition_sites": [],
+      "transition_sites_supported": true
+    },
+    {
+      "context_burden": 12,
+      "domain_symbol_names": [
+        "BrowserStateSyncStatus"
+      ],
+      "explicitness_score_0_10000": 8667,
+      "files": [
+        "src/runtime/browser-state-sync-controller.ts"
+      ],
+      "id": "browser_state_sync",
+      "kind": "explicit",
+      "missing_assert_never_domains": [],
+      "missing_exhaustive_switch_domains": [],
+      "missing_sites": [],
+      "missing_transition_variants": [
+        "disposed",
+        "idle",
+        "scheduled"
+      ],
+      "missing_variants": [],
+      "required_sites": [],
+      "roots": [
+        "src/runtime/browser-state-sync-controller.ts"
+      ],
+      "satisfied_sites": [],
+      "transition_gap_sites": [
+        {
+          "domain_symbol_name": "BrowserStateSyncStatus",
+          "group_id": "src/runtime/browser-state-sync-controller.ts:238:BrowserStateSyncStatus",
+          "line": 239,
+          "path": "src/runtime/browser-state-sync-controller.ts",
+          "source_variant": "disposed",
+          "target_variants": [],
+          "transition_kind": "switch_case"
+        },
+        {
+          "domain_symbol_name": "BrowserStateSyncStatus",
+          "group_id": "src/runtime/browser-state-sync-controller.ts:238:BrowserStateSyncStatus",
+          "line": 249,
+          "path": "src/runtime/browser-state-sync-controller.ts",
+          "source_variant": "scheduled",
+          "target_variants": [],
+          "transition_kind": "switch_case"
+        },
+        {
+          "domain_symbol_name": "BrowserStateSyncStatus",
+          "group_id": "src/runtime/browser-state-sync-controller.ts:238:BrowserStateSyncStatus",
+          "line": 254,
+          "path": "src/runtime/browser-state-sync-controller.ts",
+          "source_variant": "idle",
+          "target_variants": [],
+          "transition_kind": "switch_case"
+        },
+        {
+          "domain_symbol_name": "BrowserStateSyncStatus",
+          "group_id": "src/runtime/browser-state-sync-controller.ts:38:BrowserStateSyncStatus",
+          "line": 44,
+          "path": "src/runtime/browser-state-sync-controller.ts",
+          "source_variant": "idle",
+          "target_variants": [],
+          "transition_kind": "switch_case"
+        },
+        {
+          "domain_symbol_name": "BrowserStateSyncStatus",
+          "group_id": "src/runtime/browser-state-sync-controller.ts:38:BrowserStateSyncStatus",
+          "line": 45,
+          "path": "src/runtime/browser-state-sync-controller.ts",
+          "source_variant": "scheduled",
+          "target_variants": [],
+          "transition_kind": "switch_case"
+        },
+        {
+          "domain_symbol_name": "BrowserStateSyncStatus",
+          "group_id": "src/runtime/browser-state-sync-controller.ts:38:BrowserStateSyncStatus",
+          "line": 46,
+          "path": "src/runtime/browser-state-sync-controller.ts",
+          "source_variant": "disposed",
+          "target_variants": [],
+          "transition_kind": "switch_case"
+        },
+        {
+          "domain_symbol_name": "BrowserStateSyncStatus",
+          "group_id": "src/runtime/browser-state-sync-controller.ts:84:BrowserStateSyncStatus",
+          "line": 85,
+          "path": "src/runtime/browser-state-sync-controller.ts",
+          "source_variant": "disposed",
+          "target_variants": [],
+          "transition_kind": "switch_case"
+        },
+        {
+          "domain_symbol_name": "BrowserStateSyncStatus",
+          "group_id": "src/runtime/browser-state-sync-controller.ts:84:BrowserStateSyncStatus",
+          "line": 100,
+          "path": "src/runtime/browser-state-sync-controller.ts",
+          "source_variant": "idle",
+          "target_variants": [],
+          "transition_kind": "switch_case"
+        }
+      ],
+      "transition_sites": [
+        {
+          "domain_symbol_name": "BrowserStateSyncStatus",
+          "group_id": "src/runtime/browser-state-sync-controller.ts:38:BrowserStateSyncStatus",
+          "line": 39,
+          "path": "src/runtime/browser-state-sync-controller.ts",
+          "source_variant": "syncing",
+          "target_variants": [
+            "idle"
+          ],
+          "transition_kind": "switch_case"
+        },
+        {
+          "domain_symbol_name": "BrowserStateSyncStatus",
+          "group_id": "src/runtime/browser-state-sync-controller.ts:38:BrowserStateSyncStatus",
+          "line": 44,
+          "path": "src/runtime/browser-state-sync-controller.ts",
+          "source_variant": "idle",
+          "target_variants": [],
+          "transition_kind": "switch_case"
+        },
+        {
+          "domain_symbol_name": "BrowserStateSyncStatus",
+          "group_id": "src/runtime/browser-state-sync-controller.ts:38:BrowserStateSyncStatus",
+          "line": 45,
+          "path": "src/runtime/browser-state-sync-controller.ts",
+          "source_variant": "scheduled",
+          "target_variants": [],
+          "transition_kind": "switch_case"
+        },
+        {
+          "domain_symbol_name": "BrowserStateSyncStatus",
+          "group_id": "src/runtime/browser-state-sync-controller.ts:38:BrowserStateSyncStatus",
+          "line": 46,
+          "path": "src/runtime/browser-state-sync-controller.ts",
+          "source_variant": "disposed",
+          "target_variants": [],
+          "transition_kind": "switch_case"
+        },
+        {
+          "domain_symbol_name": "BrowserStateSyncStatus",
+          "group_id": "src/runtime/browser-state-sync-controller.ts:84:BrowserStateSyncStatus",
+          "line": 85,
+          "path": "src/runtime/browser-state-sync-controller.ts",
+          "source_variant": "disposed",
+          "target_variants": [],
+          "transition_kind": "switch_case"
+        },
+        {
+          "domain_symbol_name": "BrowserStateSyncStatus",
+          "group_id": "src/runtime/browser-state-sync-controller.ts:84:BrowserStateSyncStatus",
+          "line": 87,
+          "path": "src/runtime/browser-state-sync-controller.ts",
+          "source_variant": "scheduled",
+          "target_variants": [
+            "idle"
+          ],
+          "transition_kind": "switch_case"
+        },
+        {
+          "domain_symbol_name": "BrowserStateSyncStatus",
+          "group_id": "src/runtime/browser-state-sync-controller.ts:84:BrowserStateSyncStatus",
+          "line": 92,
+          "path": "src/runtime/browser-state-sync-controller.ts",
+          "source_variant": "syncing",
+          "target_variants": [
+            "syncing"
+          ],
+          "transition_kind": "switch_case"
+        },
+        {
+          "domain_symbol_name": "BrowserStateSyncStatus",
+          "group_id": "src/runtime/browser-state-sync-controller.ts:84:BrowserStateSyncStatus",
+          "line": 100,
+          "path": "src/runtime/browser-state-sync-controller.ts",
+          "source_variant": "idle",
+          "target_variants": [],
+          "transition_kind": "switch_case"
+        },
+        {
+          "domain_symbol_name": "BrowserStateSyncStatus",
+          "group_id": "src/runtime/browser-state-sync-controller.ts:238:BrowserStateSyncStatus",
+          "line": 239,
+          "path": "src/runtime/browser-state-sync-controller.ts",
+          "source_variant": "disposed",
+          "target_variants": [],
+          "transition_kind": "switch_case"
+        },
+        {
+          "domain_symbol_name": "BrowserStateSyncStatus",
+          "group_id": "src/runtime/browser-state-sync-controller.ts:238:BrowserStateSyncStatus",
+          "line": 241,
+          "path": "src/runtime/browser-state-sync-controller.ts",
+          "source_variant": "syncing",
+          "target_variants": [
+            "syncing"
+          ],
+          "transition_kind": "switch_case"
+        },
+        {
+          "domain_symbol_name": "BrowserStateSyncStatus",
+          "group_id": "src/runtime/browser-state-sync-controller.ts:238:BrowserStateSyncStatus",
+          "line": 249,
+          "path": "src/runtime/browser-state-sync-controller.ts",
+          "source_variant": "scheduled",
+          "target_variants": [],
+          "transition_kind": "switch_case"
+        },
+        {
+          "domain_symbol_name": "BrowserStateSyncStatus",
+          "group_id": "src/runtime/browser-state-sync-controller.ts:238:BrowserStateSyncStatus",
+          "line": 254,
+          "path": "src/runtime/browser-state-sync-controller.ts",
+          "source_variant": "idle",
+          "target_variants": [],
+          "transition_kind": "switch_case"
+        }
+      ],
+      "transition_sites_supported": true
     }
   ],
   "rules_error": null,
   "scope": "all",
   "semantic_error": null,
-  "state_integrity_score_0_10000": 10000,
+  "state_integrity_score_0_10000": 8333,
   "state_model_count": 2,
   "suppressed_finding_count": 0,
-  "suppression_hits": []
+  "suppression_hits": [],
+  "transition_gap_count": 8,
+  "transition_site_count": 12
 }

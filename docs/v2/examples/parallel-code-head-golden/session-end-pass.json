@@ -6,8 +6,8 @@
     "cycles_after": 2,
     "cycles_before": 2,
     "degraded": false,
-    "signal_after": 4399,
-    "signal_before": 4399,
+    "signal_after": 4456,
+    "signal_before": 4456,
     "signal_delta": 0
   },
   "baseline_error": null,
@@ -665,50 +665,6 @@
     {
       "candidate_split_axes": [],
       "evidence": [
-        "dead private functions: 18",
-        "dead private lines: 272",
-        "sample dead functions: LineWithInsertions, highlightSearchMatches, highlightSearchInHtml",
-        "total file lines: 838"
-      ],
-      "files": [
-        "src/components/ScrollingDiffView.tsx"
-      ],
-      "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
-      "inspection_focus": [
-        "inspect whether the dead helpers should be deleted or intentionally reconnected",
-        "inspect whether the file still reflects the supported control flow"
-      ],
-      "kind": "dead_private_code_cluster",
-      "leverage_class": "experimental",
-      "leverage_reasons": [
-        "detector_under_evaluation"
-      ],
-      "metrics": {
-        "dead_line_count": 272,
-        "dead_symbol_count": 18,
-        "file_count": 1,
-        "function_count": 30,
-        "line_count": 838,
-        "max_complexity": 9,
-        "role_count": 0
-      },
-      "presentation_class": "experimental",
-      "related_surfaces": [],
-      "role_tags": [],
-      "scope": "src/components/ScrollingDiffView.tsx",
-      "score_0_10000": 7900,
-      "severity": "high",
-      "signal_class": "watchpoint",
-      "signal_families": [
-        "staleness",
-        "maintainability"
-      ],
-      "summary": "File 'src/components/ScrollingDiffView.tsx' contains 18 uncalled private functions totaling 272 lines",
-      "trust_tier": "experimental"
-    },
-    {
-      "candidate_split_axes": [],
-      "evidence": [
         "dead private functions: 10",
         "dead private lines: 121",
         "sample dead functions: handlePermissionResponse, updateReviewComment, markCommentsSent",
@@ -753,13 +709,13 @@
     {
       "candidate_split_axes": [],
       "evidence": [
-        "dead private functions: 21",
-        "dead private lines: 115",
-        "sample dead functions: getAvailablePortsFallbackMessage, handleCustomExpose, OpenTabIcon",
-        "total file lines: 895"
+        "dead private functions: 6",
+        "dead private lines: 79",
+        "sample dead functions: getFlowStats, getRoundTripStats, getRenderLatencyStats",
+        "total file lines: 370"
       ],
       "files": [
-        "src/components/PreviewPanel.tsx"
+        "src/lib/terminalLatency.ts"
       ],
       "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
       "inspection_focus": [
@@ -772,38 +728,38 @@
         "detector_under_evaluation"
       ],
       "metrics": {
-        "dead_line_count": 115,
-        "dead_symbol_count": 21,
+        "dead_line_count": 79,
+        "dead_symbol_count": 6,
         "file_count": 1,
-        "function_count": 39,
-        "line_count": 895,
-        "max_complexity": 11,
+        "function_count": 29,
+        "line_count": 370,
+        "max_complexity": 7,
         "role_count": 0
       },
       "presentation_class": "experimental",
       "related_surfaces": [],
       "role_tags": [],
-      "scope": "src/components/PreviewPanel.tsx",
-      "score_0_10000": 7170,
+      "scope": "src/lib/terminalLatency.ts",
+      "score_0_10000": 6522,
       "severity": "high",
       "signal_class": "watchpoint",
       "signal_families": [
         "staleness",
         "maintainability"
       ],
-      "summary": "File 'src/components/PreviewPanel.tsx' contains 21 uncalled private functions totaling 115 lines",
+      "summary": "File 'src/lib/terminalLatency.ts' contains 6 uncalled private functions totaling 79 lines",
       "trust_tier": "experimental"
     },
     {
       "candidate_split_axes": [],
       "evidence": [
-        "dead private functions: 3",
-        "dead private lines: 193",
-        "sample dead functions: startRemoteServer, handleListening, handleError",
-        "total file lines: 211"
+        "dead private functions: 4",
+        "dead private lines: 28",
+        "sample dead functions: markBattleCompetitorExited, resetForRematch, returnToHistory",
+        "total file lines: 290"
       ],
       "files": [
-        "electron/remote/server.ts"
+        "src/arena/store.ts"
       ],
       "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
       "inspection_focus": [
@@ -816,40 +772,38 @@
         "detector_under_evaluation"
       ],
       "metrics": {
-        "dead_line_count": 193,
-        "dead_symbol_count": 3,
+        "dead_line_count": 28,
+        "dead_symbol_count": 4,
         "file_count": 1,
-        "function_count": 19,
-        "line_count": 211,
-        "max_complexity": 12,
-        "role_count": 1
+        "function_count": 29,
+        "line_count": 290,
+        "max_complexity": 13,
+        "role_count": 0
       },
       "presentation_class": "experimental",
       "related_surfaces": [],
-      "role_tags": [
-        "entry_surface"
-      ],
-      "scope": "electron/remote/server.ts",
-      "score_0_10000": 7000,
-      "severity": "high",
+      "role_tags": [],
+      "scope": "src/arena/store.ts",
+      "score_0_10000": 5604,
+      "severity": "medium",
       "signal_class": "watchpoint",
       "signal_families": [
         "staleness",
         "maintainability"
       ],
-      "summary": "File 'electron/remote/server.ts' contains 3 uncalled private functions totaling 193 lines",
+      "summary": "File 'src/arena/store.ts' contains 4 uncalled private functions totaling 28 lines",
       "trust_tier": "experimental"
     },
     {
       "candidate_split_axes": [],
       "evidence": [
-        "dead private functions: 17",
-        "dead private lines: 103",
-        "sample dead functions: InlineAttentionIndicator, boxShadow, getPrimaryTaskAgentDef",
-        "total file lines: 544"
+        "dead private functions: 2",
+        "dead private lines: 118",
+        "sample dead functions: getDiffSelection, acceptNode",
+        "total file lines: 110"
       ],
       "files": [
-        "src/components/SidebarTaskRow.tsx"
+        "src/lib/diff-selection.ts"
       ],
       "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
       "inspection_focus": [
@@ -862,28 +816,70 @@
         "detector_under_evaluation"
       ],
       "metrics": {
-        "dead_line_count": 103,
-        "dead_symbol_count": 17,
+        "dead_line_count": 118,
+        "dead_symbol_count": 2,
         "file_count": 1,
-        "function_count": 40,
-        "line_count": 544,
-        "max_complexity": 5,
-        "role_count": 1
+        "function_count": 2,
+        "line_count": 110,
+        "max_complexity": 29,
+        "role_count": 0
       },
       "presentation_class": "experimental",
       "related_surfaces": [],
-      "role_tags": [
-        "guarded_seam"
-      ],
-      "scope": "src/components/SidebarTaskRow.tsx",
-      "score_0_10000": 6954,
-      "severity": "high",
+      "role_tags": [],
+      "scope": "src/lib/diff-selection.ts",
+      "score_0_10000": 5424,
+      "severity": "medium",
       "signal_class": "watchpoint",
       "signal_families": [
         "staleness",
         "maintainability"
       ],
-      "summary": "File 'src/components/SidebarTaskRow.tsx' contains 17 uncalled private functions totaling 103 lines",
+      "summary": "File 'src/lib/diff-selection.ts' contains 2 uncalled private functions totaling 118 lines",
+      "trust_tier": "experimental"
+    },
+    {
+      "candidate_split_axes": [],
+      "evidence": [
+        "dead private functions: 4",
+        "dead private lines: 12",
+        "sample dead functions: setHydraForceDispatchFromPromptPanel, getGlobalScale, setTerminalFont",
+        "total file lines: 143"
+      ],
+      "files": [
+        "src/store/ui.ts"
+      ],
+      "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
+      "inspection_focus": [
+        "inspect whether the dead helpers should be deleted or intentionally reconnected",
+        "inspect whether the file still reflects the supported control flow"
+      ],
+      "kind": "dead_private_code_cluster",
+      "leverage_class": "experimental",
+      "leverage_reasons": [
+        "detector_under_evaluation"
+      ],
+      "metrics": {
+        "dead_line_count": 12,
+        "dead_symbol_count": 4,
+        "file_count": 1,
+        "function_count": 21,
+        "line_count": 143,
+        "max_complexity": 7,
+        "role_count": 0
+      },
+      "presentation_class": "experimental",
+      "related_surfaces": [],
+      "role_tags": [],
+      "scope": "src/store/ui.ts",
+      "score_0_10000": 5316,
+      "severity": "medium",
+      "signal_class": "watchpoint",
+      "signal_families": [
+        "staleness",
+        "maintainability"
+      ],
+      "summary": "File 'src/store/ui.ts' contains 4 uncalled private functions totaling 12 lines",
       "trust_tier": "experimental"
     }
   ],
@@ -1156,8 +1152,8 @@
     "untracked_candidates": 0
   },
   "semantic_error": null,
-  "signal_after": 4399,
-  "signal_before": 4399,
+  "signal_after": 4456,
+  "signal_before": 4456,
   "signal_delta": 0,
   "summary": "Quality stable or improved",
   "suppressed_finding_count": 0,

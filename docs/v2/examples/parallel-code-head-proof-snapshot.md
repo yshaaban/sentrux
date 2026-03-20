@@ -7,13 +7,27 @@ Benchmark: `<sentrux-root>/docs/v2/examples/parallel-code-benchmark.json`
 
 - analysis mode: `head_clone`
 - commit: `ba6954bbd37c4bc2a2147672335bab3f51530b44`
-- dirty paths: `0`
-- dirty-path fingerprint: `53c1562521679823f3ee3c10c2585dec4c3ecd862d145f868947047fd32725ac`
-- tree fingerprint: `d40dadfe68e7261ef2d8911f450c38de8e14e78791d015580de50ac28bdf3b24`
+- dirty paths: `14`
+- dirty-path fingerprint: `ee392f8d00af4d746af2161b242a3312baa1649cd79b1c47a153077a751b7f47`
+- tree fingerprint: `3b3b1264839b8440303d2b18cadca70cb06aac26c0631c6f0069e58d0695a637`
 - analyzed tree fingerprint: `d40dadfe68e7261ef2d8911f450c38de8e14e78791d015580de50ac28bdf3b24`
 - rules sha256: `548daed030bff265a920dc8dc68c0665d4bf6d3768127a1668d74887f7d4c6fa`
-- binary sha256: `a20f59ee9ec7cfcb8c235eae2631c58b8d72e63ab6b513b548633ca6c19d8334`
-- dirty path list: none
+- binary sha256: `1e29947391421780c02d7aa0abe28dc05dead4bc618c607e7f5be693f467980a`
+- dirty path list:
+  - `docs/ARCHITECTURE.md`
+  - `docs/TERMINAL-DEVELOPMENT-GUIDE.md`
+  - `docs/TERMINAL-INFRA-FOLLOW-UPS.md`
+  - `docs/TESTING.md`
+  - `electron/ipc/agent-handlers.ts`
+  - `electron/ipc/handlers.restore.test.ts`
+  - `src/components/TerminalView.test.tsx`
+  - `src/components/TerminalView.tsx`
+  - `src/components/terminal-view/terminal-recovery-runtime.ts`
+  - `src/components/terminal-view/terminal-session.ts`
+  - `src/lib/scrollbackRestore.test.ts`
+  - `src/lib/scrollbackRestore.ts`
+  - `src/components/terminal-view/terminal-recovery-runtime.test.tsx`
+  - `tests/browser/terminal-startup-experiment.spec.ts`
 
 ## Top Findings
 
@@ -34,26 +48,30 @@ Benchmark: `<sentrux-root>/docs/v2/examples/parallel-code-benchmark.json`
 
 ## Experimental Findings
 
-- `high` `dead_private_code_cluster` File 'src/components/ScrollingDiffView.tsx' contains 18 uncalled private functions totaling 272 lines
 - `high` `dead_private_code_cluster` File 'src/store/review.ts' contains 10 uncalled private functions totaling 121 lines
-- `high` `dead_private_code_cluster` File 'src/components/PreviewPanel.tsx' contains 21 uncalled private functions totaling 115 lines
-- `high` `dead_private_code_cluster` File 'electron/remote/server.ts' contains 3 uncalled private functions totaling 193 lines
-- `high` `dead_private_code_cluster` File 'src/components/SidebarTaskRow.tsx' contains 17 uncalled private functions totaling 103 lines
-- `high` `dead_private_code_cluster` File 'src/remote/ws.ts' contains 5 uncalled private functions totaling 89 lines
 - `high` `dead_private_code_cluster` File 'src/lib/terminalLatency.ts' contains 6 uncalled private functions totaling 79 lines
-- `medium` `dead_private_code_cluster` File 'src/remote/touch-gestures.ts' contains 6 uncalled private functions totaling 74 lines
-- `medium` `dead_private_code_cluster` File 'src/arena/ResultsScreen.tsx' contains 7 uncalled private functions totaling 62 lines
-- `medium` `dead_private_code_cluster` File 'src/lib/drag-reorder.ts' contains 4 uncalled private functions totaling 60 lines
+- `medium` `dead_private_code_cluster` File 'src/arena/store.ts' contains 4 uncalled private functions totaling 28 lines
+- `medium` `dead_private_code_cluster` File 'src/lib/diff-selection.ts' contains 2 uncalled private functions totaling 118 lines
+- `medium` `dead_private_code_cluster` File 'src/store/ui.ts' contains 4 uncalled private functions totaling 12 lines
+- `medium` `dead_private_code_cluster` File 'src/store/agents.ts' contains 3 uncalled private functions totaling 61 lines
+- `medium` `dead_private_code_cluster` File 'src/components/TaskPanel.tsx' contains 4 uncalled private functions totaling 8 lines
+- `medium` `dead_private_code_cluster` File 'src/app/desktop-session-resources.ts' contains 6 uncalled private functions totaling 6 lines
+- `medium` `dead_private_code_cluster` File 'electron/remote/server.ts' contains 1 uncalled private functions totaling 184 lines
+- `medium` `dead_private_code_cluster` File 'src/components/PreviewPanel.tsx' contains 4 uncalled private functions totaling 4 lines
 
 ## Concept Summaries
 
+- `browser_state_sync` `moderate_signal`: Concept 'browser_state_sync' has 1 high-severity ownership or access findings
 - `ConnectionBannerState` `supporting_signal`: Concept 'ConnectionBannerState' has 1 high-severity ownership or access findings
 - `task_presentation_status` `supporting_signal`: Concept 'task_presentation_status' spans 1 obligation reports with 1 missing update sites
+- `server_state_bootstrap_gate` `supporting_signal`: Concept 'server_state_bootstrap_gate' has 1 repeated structural findings
 
 ## Finding Details
 
 - `trusted` `high` `closed_domain_exhaustiveness` `ConnectionBannerState`: Closed domain 'ConnectionBannerState' is missing coverage for variants: connecting, reconnecting, restoring
   - impact: Finite-domain changes can silently miss one surface unless all required cases stay in sync.
+- `trusted` `high` `state_model_transition_coverage_gap` `browser_state_sync`: State model 'browser_state_sync' has 8 transition branch(es) without an explicit next-state mapping
+  - impact: If ignored, this structural inconsistency will keep adding change friction and make future regressions harder to isolate.
 - `watchpoint` `high` `cycle_cluster` `cycle:src/app/agent-catalog.ts|src/app/remote-access.ts|src/app/task-attention.ts|src/app/task-close-state.ts|src/app/task-command-dispatch.ts|src/app/task-command-lease-runtime-subscriptions.ts|src/app/task-command-lease-runtime.ts|src/app/task-command-lease-session.ts|src/app/task-command-lease-takeover.ts|src/app/task-command-lease.ts|src/app/task-convergence.ts|src/app/task-lifecycle-workflows.ts|src/app/task-presentation-status.ts|src/app/task-prompt-workflows.ts|src/app/task-review-state.ts|src/app/task-shell-workflows.ts|src/app/task-workflows.ts|src/lib/runtime-client-id.ts|src/store/agent-output-activity.ts|src/store/agents.ts|src/store/auto-trust.ts|src/store/client-session.ts|src/store/completion.ts|src/store/core.ts|src/store/focus.ts|src/store/keyed-snapshot-record.ts|src/store/navigation.ts|src/store/notification.ts|src/store/peer-presence.ts|src/store/persistence-codecs.ts|src/store/persistence-load-context.ts|src/store/persistence-load.ts|src/store/persistence-projects.ts|src/store/persistence-save.ts|src/store/persistence-terminal-restore.ts|src/store/persistence.ts|src/store/projects.ts|src/store/remote.ts|src/store/review.ts|src/store/sidebar-order.ts|src/store/state.ts|src/store/store.ts|src/store/task-command-controllers.ts|src/store/task-command-takeovers.ts|src/store/task-git-status.ts|src/store/task-state-cleanup.ts|src/store/taskStatus.ts|src/store/tasks.ts|src/store/terminals.ts|src/store/ui.ts`: Files src/app/agent-catalog.ts, src/app/remote-access.ts, src/app/task-attention.ts, src/app/task-close-state.ts, src/app/task-command-dispatch.ts, src/app/task-command-lease-runtime-subscriptions.ts, src/app/task-command-lease-runtime.ts, src/app/task-command-lease-session.ts, src/app/task-command-lease-takeover.ts, src/app/task-command-lease.ts, src/app/task-convergence.ts, src/app/task-lifecycle-workflows.ts, src/app/task-presentation-status.ts, src/app/task-prompt-workflows.ts, src/app/task-review-state.ts, src/app/task-shell-workflows.ts, src/app/task-workflows.ts, src/lib/runtime-client-id.ts, src/store/agent-output-activity.ts, src/store/agents.ts, src/store/auto-trust.ts, src/store/client-session.ts, src/store/completion.ts, src/store/core.ts, src/store/focus.ts, src/store/keyed-snapshot-record.ts, src/store/navigation.ts, src/store/notification.ts, src/store/peer-presence.ts, src/store/persistence-codecs.ts, src/store/persistence-load-context.ts, src/store/persistence-load.ts, src/store/persistence-projects.ts, src/store/persistence-save.ts, src/store/persistence-terminal-restore.ts, src/store/persistence.ts, src/store/projects.ts, src/store/remote.ts, src/store/review.ts, src/store/sidebar-order.ts, src/store/state.ts, src/store/store.ts, src/store/task-command-controllers.ts, src/store/task-command-takeovers.ts, src/store/task-git-status.ts, src/store/task-state-cleanup.ts, src/store/taskStatus.ts, src/store/tasks.ts, src/store/terminals.ts, src/store/ui.ts form a dependency cycle
   - impact: The cycle touches a component-facing barrel, which makes it harder to keep broad component access separate from deeper app and runtime seams.
 - `trusted` `high` `dependency_sprawl` `src/App.tsx`: Composition root 'src/App.tsx' depends on 33 real surfaces, above the typescript threshold of 15
@@ -70,8 +88,6 @@ Benchmark: `<sentrux-root>/docs/v2/examples/parallel-code-benchmark.json`
   - impact: A transport facade with heavy fan-in needs clear ownership boundaries so lifecycle or domain logic does not leak into transport glue.
 - `trusted` `high` `dependency_sprawl` `src/components/terminal-view/terminal-session.ts`: File 'src/components/terminal-view/terminal-session.ts' depends on 22 real surfaces, above the typescript threshold of 15
   - impact: Broad dependency fan-out expands change surface and makes orchestration drift harder to localize.
-- `trusted` `high` `dependency_sprawl` `src/components/ReviewPanel.tsx`: File 'src/components/ReviewPanel.tsx' depends on 22 real surfaces, above the typescript threshold of 15
-  - impact: Broad dependency fan-out expands change surface and makes orchestration drift harder to localize.
 
 ## Debt Signals
 
@@ -83,11 +99,11 @@ Benchmark: `<sentrux-root>/docs/v2/examples/parallel-code-benchmark.json`
 
 ## Experimental Debt Signals
 
-- `dead_private_code_cluster` `src/components/ScrollingDiffView.tsx` `high_signal`: File 'src/components/ScrollingDiffView.tsx' contains 18 uncalled private functions totaling 272 lines
 - `dead_private_code_cluster` `src/store/review.ts` `high_signal`: File 'src/store/review.ts' contains 10 uncalled private functions totaling 121 lines
-- `dead_private_code_cluster` `src/components/PreviewPanel.tsx` `high_signal`: File 'src/components/PreviewPanel.tsx' contains 21 uncalled private functions totaling 115 lines
-- `dead_private_code_cluster` `electron/remote/server.ts` `high_signal`: File 'electron/remote/server.ts' contains 3 uncalled private functions totaling 193 lines
-- `dead_private_code_cluster` `src/components/SidebarTaskRow.tsx` `high_signal`: File 'src/components/SidebarTaskRow.tsx' contains 17 uncalled private functions totaling 103 lines
+- `dead_private_code_cluster` `src/lib/terminalLatency.ts` `high_signal`: File 'src/lib/terminalLatency.ts' contains 6 uncalled private functions totaling 79 lines
+- `dead_private_code_cluster` `src/arena/store.ts` `moderate_signal`: File 'src/arena/store.ts' contains 4 uncalled private functions totaling 28 lines
+- `dead_private_code_cluster` `src/lib/diff-selection.ts` `moderate_signal`: File 'src/lib/diff-selection.ts' contains 2 uncalled private functions totaling 118 lines
+- `dead_private_code_cluster` `src/store/ui.ts` `moderate_signal`: File 'src/store/ui.ts' contains 4 uncalled private functions totaling 12 lines
 
 ## Debt Clusters
 

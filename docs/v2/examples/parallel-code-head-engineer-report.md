@@ -1,6 +1,6 @@
 # Parallel Code: Committed HEAD Analysis Report For Engineers
 
-Generated on March 19, 2026 from a committed HEAD clone of `<parallel-code-root>`.
+Generated on March 20, 2026 from a committed HEAD clone of `<parallel-code-root>`.
 
 This report is for an engineer who does not already know `parallel-code` or Sentrux.
 
@@ -8,16 +8,16 @@ This report is for an engineer who does not already know `parallel-code` or Sent
 
 - analysis mode: `head_clone`
 - commit: `ba6954bbd37c4bc2a2147672335bab3f51530b44`
-- dirty paths: `0`
-- dirty-path fingerprint: `53c1562521679823f3ee3c10c2585dec4c3ecd862d145f868947047fd32725ac`
-- tree fingerprint: `d40dadfe68e7261ef2d8911f450c38de8e14e78791d015580de50ac28bdf3b24`
+- dirty paths: `14`
+- dirty-path fingerprint: `ee392f8d00af4d746af2161b242a3312baa1649cd79b1c47a153077a751b7f47`
+- tree fingerprint: `3b3b1264839b8440303d2b18cadca70cb06aac26c0631c6f0069e58d0695a637`
 - stale goldens: refused by default unless the goldens are fresh
 
 ## What Was Analyzed
 
 - live source checkout: `<parallel-code-root>`
 - report scope: committed `HEAD` only
-- ignored working-tree changes outside HEAD: `0`
+- ignored working-tree changes outside HEAD: `14`
 - rules file used for the run: `<sentrux-root>/docs/v2/examples/parallel-code.rules.toml`
 - comparison snapshot: `<sentrux-root>/docs/v2/examples/parallel-code-head-proof-snapshot.json`
 - benchmark artifact: `<sentrux-root>/docs/v2/examples/parallel-code-benchmark.json`
@@ -246,6 +246,21 @@ The current analysis surfaces these highest-leverage improvement targets:
   - [terminal-output-pipeline.ts](<parallel-code-root>/src/components/terminal-view/terminal-output-pipeline.ts)
   - [terminal-session.architecture.test.ts](<parallel-code-root>/src/components/terminal-view/terminal-session.architecture.test.ts)
 
+### browser_state_sync
+
+- trust tier: `trusted`
+- class: `structural_debt`
+- leverage: `secondary_cleanup`
+- signal band: `high_signal`
+- kind: `state_model_transition_coverage_gap`
+- severity: `high`
+- summary: State model 'browser_state_sync' has 8 transition branch(es) without an explicit next-state mapping
+- impact: If ignored, this structural inconsistency will keep adding change friction and make future regressions harder to isolate.
+- leverage reasons:
+  - `real_but_lower_leverage_cleanup`
+- related surfaces:
+  - [browser-state-sync-controller.ts](<parallel-code-root>/src/runtime/browser-state-sync-controller.ts)
+
 ### electron/remote/ws-server.ts|server/browser-websocket.ts
 
 - trust tier: `trusted`
@@ -261,22 +276,6 @@ The current analysis surfaces these highest-leverage improvement targets:
 - related surfaces:
   - [ws-server.ts](<parallel-code-root>/electron/remote/ws-server.ts)
   - [browser-websocket.ts](<parallel-code-root>/server/browser-websocket.ts)
-
-### src/components/AgentGlyph.tsx|src/remote/RemoteAgentGlyph.tsx
-
-- trust tier: `trusted`
-- class: `watchpoint`
-- leverage: `secondary_cleanup`
-- signal band: `high_signal`
-- kind: `exact_clone_group`
-- severity: `high`
-- summary: 2 functions share an identical normalized body across recently changed files
-- impact: Duplicate logic increases the chance that fixes land in one copy but not the others.
-- leverage reasons:
-  - `duplicate_maintenance_pressure`
-- related surfaces:
-  - [AgentGlyph.tsx](<parallel-code-root>/src/components/AgentGlyph.tsx)
-  - [RemoteAgentGlyph.tsx](<parallel-code-root>/src/remote/RemoteAgentGlyph.tsx)
 
 ## Targeted Hardening Notes
 
@@ -338,9 +337,9 @@ The current analysis surfaces these highest-leverage improvement targets:
 ## Freshness Check Result
 
 - live commit: `ba6954bbd37c4bc2a2147672335bab3f51530b44`
-- live dirty paths: `0`
-- live dirty-path fingerprint: `53c1562521679823f3ee3c10c2585dec4c3ecd862d145f868947047fd32725ac`
-- live tree fingerprint: `d40dadfe68e7261ef2d8911f450c38de8e14e78791d015580de50ac28bdf3b24`
+- live dirty paths: `14`
+- live dirty-path fingerprint: `ee392f8d00af4d746af2161b242a3312baa1649cd79b1c47a153077a751b7f47`
+- live tree fingerprint: `3b3b1264839b8440303d2b18cadca70cb06aac26c0631c6f0069e58d0695a637`
 - freshness comparison: goldens matched and report generation was allowed
 
 ## Source Documents

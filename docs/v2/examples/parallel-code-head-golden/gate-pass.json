@@ -6,8 +6,8 @@
     "cycles_after": 2,
     "cycles_before": 2,
     "degraded": false,
-    "signal_after": 4399,
-    "signal_before": 4399,
+    "signal_after": 4456,
+    "signal_before": 4456,
     "signal_delta": 0
   },
   "blocking_findings": [],
