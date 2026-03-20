@@ -94,6 +94,11 @@ order = 2
 from = "src/renderer/*"
 to = "src/scanner.rs"
 reason = "Renderer must not know about scanning"
+
+[[module_contract]]
+id = "feature_modules"
+root = "src/modules"
+public_api = ["index.ts", "index.tsx"]
 "#;
         let config: RulesConfig = toml::from_str(toml).unwrap();
         assert!((config.constraints.min_quality.unwrap() - 0.4).abs() < 0.01);
@@ -101,6 +106,7 @@ reason = "Renderer must not know about scanning"
         assert_eq!(config.layers.len(), 3);
         assert_eq!(config.layers[0].name, "presentation");
         assert_eq!(config.boundaries.len(), 1);
+        assert_eq!(config.module_contract.len(), 1);
         assert_eq!(
             config.boundaries[0].reason,
             "Renderer must not know about scanning"
@@ -255,6 +261,112 @@ order = 2
             layer_violations.is_empty(),
             "correct direction should not violate"
         );
+    }
+
+    #[test]
+    fn module_contract_detects_cross_module_deep_imports() {
+        let config: RulesConfig = toml::from_str(
+            r#"
+[[module_contract]]
+id = "feature_modules"
+root = "src/modules"
+public_api = ["index.ts", "index.tsx"]
+forbid_cross_module_deep_imports = true
+"#,
+        )
+        .unwrap();
+
+        let edges = vec![edge(
+            "src/modules/home/components/panel.tsx",
+            "src/modules/file-manager/components/internal.tsx",
+        )];
+        let snap = make_snapshot(
+            edges.clone(),
+            vec![
+                file("src/modules/home/components/panel.tsx"),
+                file("src/modules/file-manager/components/internal.tsx"),
+            ],
+        );
+        let health = metrics::compute_health(&snap);
+        let arch_report = arch::compute_arch(&snap);
+
+        let result = check_rules(&config, &health, &arch_report, &edges);
+
+        assert!(!result.passed);
+        assert!(result
+            .violations
+            .iter()
+            .any(|violation| violation.rule == "module_contract"));
+    }
+
+    #[test]
+    fn module_contract_allows_cross_module_public_api_imports() {
+        let config: RulesConfig = toml::from_str(
+            r#"
+[[module_contract]]
+id = "feature_modules"
+root = "src/modules"
+public_api = ["index.ts", "index.tsx"]
+forbid_cross_module_deep_imports = true
+"#,
+        )
+        .unwrap();
+
+        let edges = vec![edge(
+            "src/modules/home/components/panel.tsx",
+            "src/modules/file-manager/index.ts",
+        )];
+        let snap = make_snapshot(
+            edges.clone(),
+            vec![
+                file("src/modules/home/components/panel.tsx"),
+                file("src/modules/file-manager/index.ts"),
+            ],
+        );
+        let health = metrics::compute_health(&snap);
+        let arch_report = arch::compute_arch(&snap);
+
+        let result = check_rules(&config, &health, &arch_report, &edges);
+
+        assert!(result
+            .violations
+            .iter()
+            .all(|violation| violation.rule != "module_contract"));
+    }
+
+    #[test]
+    fn module_contract_detects_external_imports_of_module_internals() {
+        let config: RulesConfig = toml::from_str(
+            r#"
+[[module_contract]]
+id = "feature_modules"
+root = "src/modules"
+public_api = ["index.ts", "index.tsx"]
+forbid_cross_module_deep_imports = true
+"#,
+        )
+        .unwrap();
+
+        let edges = vec![edge(
+            "src/app/[locale]/page.tsx",
+            "src/modules/file-manager/components/internal.tsx",
+        )];
+        let snap = make_snapshot(
+            edges.clone(),
+            vec![
+                file("src/app/[locale]/page.tsx"),
+                file("src/modules/file-manager/components/internal.tsx"),
+            ],
+        );
+        let health = metrics::compute_health(&snap);
+        let arch_report = arch::compute_arch(&snap);
+
+        let result = check_rules(&config, &health, &arch_report, &edges);
+
+        assert!(result
+            .violations
+            .iter()
+            .any(|violation| violation.rule == "module_contract"));
     }
 
     // ── Boundary checks ──

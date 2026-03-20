@@ -32,6 +32,14 @@ interface ProjectModel {
   workspace_files: string[];
   primary_language?: string | null;
   fingerprint: string;
+  repo_archetype?: string | null;
+  detected_archetypes: ProjectArchetypeMatch[];
+}
+
+interface ProjectArchetypeMatch {
+  id: string;
+  confidence: string;
+  reasons: string[];
 }
 
 interface SemanticSnapshot {
@@ -170,6 +178,29 @@ function toProjectModel(value: unknown): ProjectModel | null {
     primary_language:
       typeof value.primary_language === "string" ? value.primary_language : null,
     fingerprint: value.fingerprint,
+    repo_archetype:
+      typeof value.repo_archetype === "string" ? value.repo_archetype : null,
+    detected_archetypes: Array.isArray(value.detected_archetypes)
+      ? value.detected_archetypes.flatMap((entry) => {
+          if (!isObject(entry)) {
+            return [];
+          }
+          if (
+            typeof entry.id !== "string" ||
+            typeof entry.confidence !== "string" ||
+            !isStringArray(entry.reasons)
+          ) {
+            return [];
+          }
+          return [
+            {
+              id: entry.id,
+              confidence: entry.confidence,
+              reasons: entry.reasons,
+            },
+          ];
+        })
+      : [],
   };
 }
 

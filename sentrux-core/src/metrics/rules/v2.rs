@@ -8,6 +8,8 @@ pub struct ProjectRuleConfig {
     pub primary_language: Option<String>,
     #[serde(default)]
     pub exclude: Vec<String>,
+    #[serde(default)]
+    pub archetypes: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
@@ -76,6 +78,24 @@ pub struct StateModelRule {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
+pub struct ModuleContractRule {
+    pub id: String,
+    pub root: String,
+    #[serde(default = "default_module_contract_public_api")]
+    pub public_api: Vec<String>,
+    #[serde(default = "default_true")]
+    pub forbid_cross_module_deep_imports: bool,
+}
+
+fn default_module_contract_public_api() -> Vec<String> {
+    vec!["index.ts".to_string(), "index.tsx".to_string()]
+}
+
+const fn default_true() -> bool {
+    true
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct SuppressionRule {
     pub kind: String,
     #[serde(default)]
@@ -96,6 +116,8 @@ pub struct RuleCoverage {
     pub contracts_machine_checkable: usize,
     pub state_models_declared: usize,
     pub state_models_machine_checkable: usize,
+    pub module_contracts_declared: usize,
+    pub module_contracts_machine_checkable: usize,
     pub suppressions_declared: usize,
     pub suppressions_expiring: usize,
     pub coverage_0_10000: u32,
@@ -105,6 +127,7 @@ pub fn compute_rule_coverage(
     concepts: &[ConceptRule],
     contracts: &[ContractRule],
     state_models: &[StateModelRule],
+    module_contracts: &[ModuleContractRule],
     suppressions: &[SuppressionRule],
 ) -> RuleCoverage {
     let concepts_machine_checkable = concepts
@@ -139,14 +162,25 @@ pub fn compute_rule_coverage(
                 && (state_model.require_assert_never || state_model.require_exhaustive_switch)
         })
         .count();
+    let module_contracts_machine_checkable = module_contracts
+        .iter()
+        .filter(|contract| {
+            !contract.id.is_empty()
+                && !contract.root.is_empty()
+                && !contract.public_api.is_empty()
+                && contract.forbid_cross_module_deep_imports
+        })
+        .count();
     let suppressions_expiring = suppressions
         .iter()
         .filter(|suppression| suppression.expires.is_some())
         .count();
 
-    let declared_total = concepts.len() + contracts.len() + state_models.len();
-    let machine_checkable_total =
-        concepts_machine_checkable + contracts_machine_checkable + state_models_machine_checkable;
+    let declared_total = concepts.len() + contracts.len() + state_models.len() + module_contracts.len();
+    let machine_checkable_total = concepts_machine_checkable
+        + contracts_machine_checkable
+        + state_models_machine_checkable
+        + module_contracts_machine_checkable;
     let coverage_0_10000 = if declared_total == 0 {
         0
     } else {
@@ -160,6 +194,8 @@ pub fn compute_rule_coverage(
         contracts_machine_checkable,
         state_models_declared: state_models.len(),
         state_models_machine_checkable,
+        module_contracts_declared: module_contracts.len(),
+        module_contracts_machine_checkable,
         suppressions_declared: suppressions.len(),
         suppressions_expiring,
         coverage_0_10000,
@@ -178,6 +214,7 @@ mod tests {
                 [project]
                 primary_language = "typescript"
                 exclude = ["dist/**"]
+                archetypes = ["modular_nextjs_frontend"]
 
                 [[concept]]
                 id = "task_git_status"
@@ -198,6 +235,12 @@ mod tests {
                 roots = ["src/runtime/browser-state-sync-controller.ts"]
                 require_exhaustive_switch = true
 
+                [[module_contract]]
+                id = "feature_modules"
+                root = "src/modules"
+                public_api = ["index.ts", "index.tsx"]
+                forbid_cross_module_deep_imports = true
+
                 [[suppress]]
                 kind = "multi_writer_concept"
                 concept = "legacy_browser_state"
@@ -214,6 +257,7 @@ mod tests {
         assert_eq!(config.concept.len(), 1);
         assert_eq!(config.contract.len(), 1);
         assert_eq!(config.state_model.len(), 1);
+        assert_eq!(config.module_contract.len(), 1);
         assert_eq!(config.suppress.len(), 1);
         assert_eq!(config.contract[0].trigger_symbols.len(), 1);
         assert_eq!(config.contract[0].required_files.len(), 1);
@@ -241,6 +285,10 @@ mod tests {
                 id = "browser_state_sync"
                 roots = ["src/runtime/browser-state-sync-controller.ts"]
                 require_exhaustive_switch = true
+
+                [[module_contract]]
+                id = "feature_modules"
+                root = "src/modules"
             "#,
         )
         .expect("rules config");
@@ -249,6 +297,7 @@ mod tests {
             &config.concept,
             &config.contract,
             &config.state_model,
+            &config.module_contract,
             &config.suppress,
         );
 
@@ -256,6 +305,7 @@ mod tests {
         assert_eq!(coverage.concepts_machine_checkable, 1);
         assert_eq!(coverage.contracts_machine_checkable, 1);
         assert_eq!(coverage.state_models_machine_checkable, 1);
-        assert_eq!(coverage.coverage_0_10000, 7500);
+        assert_eq!(coverage.module_contracts_machine_checkable, 1);
+        assert_eq!(coverage.coverage_0_10000, 8000);
     }
 }

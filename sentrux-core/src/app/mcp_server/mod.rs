@@ -317,6 +317,7 @@ pub fn build_registry() -> registry::ToolRegistry {
 
     // Rules
     reg.register(handlers::concepts_def());
+    reg.register(handlers::project_shape_def());
     reg.register(handlers::explain_concept_def());
     reg.register(handlers::trace_symbol_def());
     reg.register(handlers::check_rules_def());

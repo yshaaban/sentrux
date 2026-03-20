@@ -1,5 +1,7 @@
 //! Core semantic IR types for the v2 semantic substrate.
 
+use crate::analysis::project_shape::ProjectArchetypeMatch;
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
 pub struct ProjectModel {
     pub root: String,
@@ -7,6 +9,10 @@ pub struct ProjectModel {
     pub workspace_files: Vec<String>,
     pub primary_language: Option<String>,
     pub fingerprint: String,
+    #[serde(default)]
+    pub repo_archetype: Option<String>,
+    #[serde(default)]
+    pub detected_archetypes: Vec<ProjectArchetypeMatch>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]

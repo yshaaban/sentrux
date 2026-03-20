@@ -70,6 +70,9 @@ pub(crate) fn detect_entry_points(file: &FileNode) -> Vec<EntryPoint> {
     if is_main_entry_by_name(file) {
         entries.push(make_entry(file, "main"));
     }
+    if is_framework_entry_path(&file.path) {
+        entries.push(make_entry(file, "framework_entry"));
+    }
 
     collect_sa_entry_points(file, &mut entries);
 
@@ -141,6 +144,26 @@ fn is_main_entry_by_name(file: &FileNode) -> bool {
     false
 }
 
+fn is_framework_entry_path(path: &str) -> bool {
+    is_nextjs_app_router_entry_path(path) || path == "src/middleware.ts" || path == "src/middleware.tsx"
+}
+
+fn is_nextjs_app_router_entry_path(path: &str) -> bool {
+    path.starts_with("src/app/")
+        && (path.ends_with("/page.ts")
+            || path.ends_with("/page.tsx")
+            || path.ends_with("/layout.ts")
+            || path.ends_with("/layout.tsx")
+            || path.ends_with("/loading.ts")
+            || path.ends_with("/loading.tsx")
+            || path.ends_with("/error.ts")
+            || path.ends_with("/error.tsx")
+            || path.ends_with("/not-found.ts")
+            || path.ends_with("/not-found.tsx")
+            || path.ends_with("/route.ts")
+            || path.ends_with("/route.tsx"))
+}
+
 /// Check if an entry point with the given func name already exists for this file.
 fn has_entry(entries: &[EntryPoint], file_path: &str, func: &str) -> bool {
     entries
@@ -181,5 +204,43 @@ fn make_entry(file: &FileNode, func: &str) -> EntryPoint {
         func: func.to_string(),
         lang: file.lang.clone(),
         confidence: "high".to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::detect_entry_points;
+    use crate::core::types::FileNode;
+
+    fn file(path: &str) -> FileNode {
+        FileNode {
+            path: path.to_string(),
+            name: path.rsplit('/').next().unwrap_or(path).to_string(),
+            is_dir: false,
+            lines: 10,
+            logic: 8,
+            comments: 1,
+            blanks: 1,
+            funcs: 0,
+            mtime: 0.0,
+            gs: String::new(),
+            lang: "typescript".to_string(),
+            sa: None,
+            children: None,
+        }
+    }
+
+    #[test]
+    fn detects_nextjs_app_router_entries() {
+        let entries = detect_entry_points(&file("src/app/[locale]/layout.tsx"));
+
+        assert!(entries.iter().any(|entry| entry.func == "framework_entry"));
+    }
+
+    #[test]
+    fn detects_nextjs_api_route_entries() {
+        let entries = detect_entry_points(&file("src/app/api/rag/jobs/route.ts"));
+
+        assert!(entries.iter().any(|entry| entry.func == "framework_entry"));
     }
 }

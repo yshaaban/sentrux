@@ -230,6 +230,7 @@ fn file_facts(
     if file.path.contains("store/store.") && role_tags.iter().any(|tag| tag == "guarded_boundary") {
         role_tags.push("component_barrel".to_string());
     }
+    role_tags.extend(path_role_tags(&file.path));
 
     FileFacts {
         lang: file.lang.clone(),
@@ -602,10 +603,93 @@ fn looks_like_entry_surface_path(path: &str) -> bool {
         || path.ends_with("/index.tsx")
         || path.ends_with("/main.ts")
         || path.ends_with("/main.tsx")
+        || looks_like_route_surface_path(path)
+        || path == "src/middleware.ts"
+        || path == "src/middleware.tsx"
 }
 
 fn looks_like_tooling_path(path: &str) -> bool {
     path.starts_with("scripts/")
+}
+
+fn looks_like_route_surface_path(path: &str) -> bool {
+    path.starts_with("src/app/")
+        && (path.ends_with("/page.ts")
+            || path.ends_with("/page.tsx")
+            || path.ends_with("/layout.ts")
+            || path.ends_with("/layout.tsx")
+            || path.ends_with("/loading.ts")
+            || path.ends_with("/loading.tsx")
+            || path.ends_with("/error.ts")
+            || path.ends_with("/error.tsx")
+            || path.ends_with("/not-found.ts")
+            || path.ends_with("/not-found.tsx"))
+}
+
+fn looks_like_api_route_surface_path(path: &str) -> bool {
+    path.starts_with("src/app/api/")
+        && (path.ends_with("/route.ts") || path.ends_with("/route.tsx"))
+}
+
+fn looks_like_provider_surface_path(path: &str) -> bool {
+    path == "src/app/providers.tsx"
+        || path == "src/app/providers.ts"
+        || path.starts_with("src/providers/")
+        || path.contains("/providers/")
+        || path.starts_with("src/contexts/")
+        || path.contains("/contexts/")
+}
+
+fn looks_like_service_layer_path(path: &str) -> bool {
+    path.starts_with("src/services/") || path.contains("/services/")
+}
+
+fn looks_like_query_hook_surface_path(path: &str) -> bool {
+    path.starts_with("src/hooks/queries/")
+        || path.contains("/hooks/queries/")
+        || path.ends_with("-queries.ts")
+        || path.ends_with("-queries.tsx")
+}
+
+fn looks_like_feature_module_barrel_path(path: &str) -> bool {
+    path.starts_with("src/modules/")
+        && (path.ends_with("/index.ts") || path.ends_with("/index.tsx"))
+        && path["src/modules/".len()..].split('/').count() == 2
+}
+
+fn looks_like_state_container_path(path: &str) -> bool {
+    path.starts_with("src/store/")
+        || path.contains("/store/")
+        || path.ends_with(".store.ts")
+        || path.ends_with(".store.tsx")
+}
+
+fn path_role_tags(path: &str) -> Vec<String> {
+    let mut role_tags = Vec::new();
+    if looks_like_route_surface_path(path) {
+        role_tags.push("route_surface".to_string());
+    }
+    if looks_like_api_route_surface_path(path) {
+        role_tags.push("api_route_surface".to_string());
+        role_tags.push("entry_surface".to_string());
+    }
+    if looks_like_provider_surface_path(path) {
+        role_tags.push("provider_surface".to_string());
+    }
+    if looks_like_service_layer_path(path) {
+        role_tags.push("service_layer".to_string());
+    }
+    if looks_like_query_hook_surface_path(path) {
+        role_tags.push("query_hook_surface".to_string());
+    }
+    if looks_like_feature_module_barrel_path(path) {
+        role_tags.push("feature_module_barrel".to_string());
+    }
+    if looks_like_state_container_path(path) {
+        role_tags.push("state_container".to_string());
+    }
+
+    dedupe_strings_preserve_order(role_tags)
 }
 
 fn looks_like_transport_facade_path(path: &str) -> bool {
@@ -631,7 +715,7 @@ fn structural_presentation_class(
     if looks_like_tooling_path(path) {
         return "tooling_debt".to_string();
     }
-    if has_role_tag(role_tags, "transport_facade") {
+    if has_role_tag(role_tags, "transport_facade") || has_role_tag(role_tags, "service_layer") {
         return "guarded_facade".to_string();
     }
 
@@ -667,11 +751,16 @@ fn structural_leverage_class(report: &StructuralDebtReport) -> String {
     }
     if has_role_tag(&report.role_tags, "component_barrel")
         || has_role_tag(&report.role_tags, "guarded_boundary")
+        || has_role_tag(&report.role_tags, "state_container")
+        || has_role_tag(&report.role_tags, "feature_module_barrel")
     {
         return "architecture_signal".to_string();
     }
     if has_role_tag(&report.role_tags, "composition_root")
         || has_role_tag(&report.role_tags, "entry_surface")
+        || has_role_tag(&report.role_tags, "route_surface")
+        || has_role_tag(&report.role_tags, "api_route_surface")
+        || has_role_tag(&report.role_tags, "provider_surface")
     {
         return "regrowth_watchpoint".to_string();
     }
@@ -713,6 +802,12 @@ fn structural_leverage_reasons(report: &StructuralDebtReport) -> Vec<String> {
             if has_role_tag(&report.role_tags, "guarded_boundary") {
                 reasons.push("guardrail_backed_boundary_pressure".to_string());
             }
+            if has_role_tag(&report.role_tags, "state_container") {
+                reasons.push("client_state_hub_pressure".to_string());
+            }
+            if has_role_tag(&report.role_tags, "feature_module_barrel") {
+                reasons.push("feature_module_public_api_pressure".to_string());
+            }
             if report.kind == "cycle_cluster" {
                 reasons.push("mixed_cycle_pressure".to_string());
                 if report.metrics.cut_candidate_count.unwrap_or(0) > 0 {
@@ -726,6 +821,11 @@ fn structural_leverage_reasons(report: &StructuralDebtReport) -> Vec<String> {
         "regrowth_watchpoint" => {
             reasons.push("intentionally_central_surface".to_string());
             reasons.push("fan_out_regrowth_pressure".to_string());
+            if has_role_tag(&report.role_tags, "route_surface")
+                || has_role_tag(&report.role_tags, "api_route_surface")
+            {
+                reasons.push("framework_entry_surface".to_string());
+            }
         }
         "local_refactor_target" => {
             if has_role_tag(&report.role_tags, "facade_with_extracted_owners") {
@@ -752,6 +852,8 @@ fn structural_leverage_reasons(report: &StructuralDebtReport) -> Vec<String> {
                 reasons.push("disconnected_internal_component".to_string());
             } else if report.kind == "cycle_cluster" {
                 reasons.push("smaller_cycle_watchpoint".to_string());
+            } else if has_role_tag(&report.role_tags, "query_hook_surface") {
+                reasons.push("query_surface_cleanup".to_string());
             } else if has_role_tag(&report.role_tags, "facade_with_extracted_owners") {
                 reasons.push("secondary_facade_cleanup".to_string());
             } else if report.kind == "large_file" {
@@ -833,7 +935,11 @@ fn contextual_role_tags(
             })
         })
     });
-    if imported_by_entry_surface && path.starts_with("src/") {
+    if imported_by_entry_surface
+        && path.starts_with("src/")
+        && !looks_like_api_route_surface_path(path)
+        && !looks_like_route_surface_path(path)
+    {
         role_tags.push("composition_root".to_string());
     }
 
@@ -3446,6 +3552,92 @@ mod tests {
         );
 
         assert!(stronger_cut > weaker_cut);
+    }
+
+    #[test]
+    fn dependency_sprawl_marks_nextjs_route_surfaces_as_regrowth_watchpoints() {
+        let snapshot = Snapshot {
+            root: Arc::new(FileNode {
+                path: ".".to_string(),
+                name: ".".to_string(),
+                is_dir: true,
+                lines: 0,
+                logic: 0,
+                comments: 0,
+                blanks: 0,
+                funcs: 0,
+                mtime: 0.0,
+                gs: String::new(),
+                lang: String::new(),
+                sa: None,
+                children: Some(vec![test_file("src/app/[locale]/layout.tsx", 220, 6, 12)]),
+            }),
+            total_files: 1,
+            total_lines: 220,
+            total_dirs: 1,
+            import_graph: Vec::new(),
+            call_graph: Vec::new(),
+            inherit_graph: Vec::new(),
+            entry_points: Vec::new(),
+            exec_depth: HashMap::new(),
+        };
+        let mut health = empty_health_report();
+        health.god_files = vec![FileMetric {
+            path: "src/app/[locale]/layout.tsx".into(),
+            value: 18,
+        }];
+
+        let reports = build_structural_debt_reports(&snapshot, &health);
+        let report = reports
+            .iter()
+            .find(|report| report.scope == "src/app/[locale]/layout.tsx")
+            .expect("route surface report");
+
+        assert!(report.role_tags.iter().any(|tag| tag == "route_surface"));
+        assert_eq!(report.leverage_class, "regrowth_watchpoint");
+    }
+
+    #[test]
+    fn unstable_hotspot_marks_state_containers_as_architecture_signals() {
+        let snapshot = Snapshot {
+            root: Arc::new(FileNode {
+                path: ".".to_string(),
+                name: ".".to_string(),
+                is_dir: true,
+                lines: 0,
+                logic: 0,
+                comments: 0,
+                blanks: 0,
+                funcs: 0,
+                mtime: 0.0,
+                gs: String::new(),
+                lang: String::new(),
+                sa: None,
+                children: Some(vec![test_file("src/store/chat-input.store.ts", 204, 5, 9)]),
+            }),
+            total_files: 1,
+            total_lines: 204,
+            total_dirs: 1,
+            import_graph: Vec::new(),
+            call_graph: Vec::new(),
+            inherit_graph: Vec::new(),
+            entry_points: Vec::new(),
+            exec_depth: HashMap::new(),
+        };
+        let mut health = empty_health_report();
+        health.hotspot_files = vec![FileMetric {
+            path: "src/store/chat-input.store.ts".into(),
+            value: 17,
+        }];
+
+        let reports = build_structural_debt_reports(&snapshot, &health);
+        let report = reports
+            .iter()
+            .find(|report| report.scope == "src/store/chat-input.store.ts")
+            .expect("state container report");
+
+        assert!(report.role_tags.iter().any(|tag| tag == "state_container"));
+        assert_eq!(report.leverage_class, "architecture_signal");
     }
 
     #[test]

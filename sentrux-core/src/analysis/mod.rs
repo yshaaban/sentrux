@@ -14,6 +14,7 @@ pub mod graph;
 pub mod lang_registry;
 pub mod parser;
 pub mod plugin;
+pub mod project_shape;
 pub mod resolver;
 pub mod scanner;
 pub mod semantic;

@@ -1,0 +1,566 @@
+//! Generic repo-archetype and onboarding-shape detection.
+//!
+//! This is intentionally heuristic and evidence-first. It should help v2 adapt
+//! to common TypeScript repo families without hardcoding repo names.
+
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
+use std::path::Path;
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+pub struct ProjectArchetypeMatch {
+    pub id: String,
+    pub confidence: String,
+    pub reasons: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+pub struct BoundaryRootSuggestion {
+    pub kind: String,
+    pub root: String,
+    pub evidence: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+pub struct ModuleContractSuggestion {
+    pub id: String,
+    pub root: String,
+    pub public_api: Vec<String>,
+    pub evidence: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+pub struct ProjectShapeReport {
+    pub configured_archetypes: Vec<String>,
+    pub detected_archetypes: Vec<ProjectArchetypeMatch>,
+    pub effective_archetypes: Vec<String>,
+    pub primary_archetype: Option<String>,
+    pub capabilities: Vec<String>,
+    pub boundary_roots: Vec<BoundaryRootSuggestion>,
+    pub module_contracts: Vec<ModuleContractSuggestion>,
+}
+
+#[derive(Debug, Clone, Default)]
+struct PackageManifestSignals {
+    has_next: bool,
+    has_react: bool,
+    has_react_query: bool,
+    has_zustand: bool,
+}
+
+pub fn detect_project_shape(
+    root: Option<&Path>,
+    file_paths: &[String],
+    workspace_files: &[String],
+    configured_archetypes: &[String],
+) -> ProjectShapeReport {
+    let package_signals = root.and_then(read_package_manifest_signals).unwrap_or_default();
+    let capabilities = detect_capabilities(file_paths, workspace_files, &package_signals);
+    let detected_archetypes =
+        detect_archetypes(file_paths, &capabilities, &package_signals, configured_archetypes);
+    let boundary_roots = detect_boundary_roots(file_paths, &capabilities);
+    let module_contracts = detect_module_contracts(&boundary_roots);
+    let effective_archetypes = effective_archetypes(configured_archetypes, &detected_archetypes);
+    let primary_archetype = effective_archetypes.first().cloned();
+
+    ProjectShapeReport {
+        configured_archetypes: configured_archetypes.to_vec(),
+        detected_archetypes,
+        effective_archetypes,
+        primary_archetype,
+        capabilities,
+        boundary_roots,
+        module_contracts,
+    }
+}
+
+pub fn render_starter_rules(
+    shape: &ProjectShapeReport,
+    primary_language: Option<&str>,
+    existing_excludes: &[String],
+) -> String {
+    let mut lines = Vec::new();
+    let mut excludes = existing_excludes.to_vec();
+    excludes.extend(suggest_excludes(shape));
+    excludes = dedupe_strings(excludes);
+
+    lines.push("[project]".to_string());
+    if let Some(language) = primary_language {
+        lines.push(format!("primary_language = {:?}", language));
+    }
+    if !shape.effective_archetypes.is_empty() {
+        lines.push(format!(
+            "archetypes = [{}]",
+            quoted_list(&shape.effective_archetypes)
+        ));
+    }
+    if !excludes.is_empty() {
+        lines.push(format!("exclude = [{}]", quoted_list(&excludes)));
+    }
+
+    for contract in &shape.module_contracts {
+        lines.push(String::new());
+        lines.push("[[module_contract]]".to_string());
+        lines.push(format!("id = {:?}", contract.id));
+        lines.push(format!("root = {:?}", contract.root));
+        lines.push(format!(
+            "public_api = [{}]",
+            quoted_list(&contract.public_api)
+        ));
+        lines.push("forbid_cross_module_deep_imports = true".to_string());
+    }
+
+    if !shape.boundary_roots.is_empty() {
+        lines.push(String::new());
+        lines.push("# Candidate boundary roots detected from repo shape:".to_string());
+        for boundary in &shape.boundary_roots {
+            lines.push(format!(
+                "# - {} at {} ({})",
+                boundary.kind,
+                boundary.root,
+                boundary.evidence.join(", ")
+            ));
+        }
+    }
+
+    lines.join("\n") + "\n"
+}
+
+fn read_package_manifest_signals(root: &Path) -> Option<PackageManifestSignals> {
+    let package_json = root.join("package.json");
+    let source = std::fs::read_to_string(package_json).ok()?;
+    let payload = serde_json::from_str::<serde_json::Value>(&source).ok()?;
+
+    let mut dependencies = BTreeSet::new();
+    collect_manifest_keys(payload.get("dependencies"), &mut dependencies);
+    collect_manifest_keys(payload.get("devDependencies"), &mut dependencies);
+
+    Some(PackageManifestSignals {
+        has_next: dependencies.contains("next"),
+        has_react: dependencies.contains("react"),
+        has_react_query: dependencies.contains("@tanstack/react-query"),
+        has_zustand: dependencies.contains("zustand"),
+    })
+}
+
+fn collect_manifest_keys(
+    section: Option<&serde_json::Value>,
+    dependencies: &mut BTreeSet<String>,
+) {
+    let Some(section) = section.and_then(|value| value.as_object()) else {
+        return;
+    };
+    for key in section.keys() {
+        dependencies.insert(key.to_string());
+    }
+}
+
+fn detect_capabilities(
+    file_paths: &[String],
+    workspace_files: &[String],
+    package_signals: &PackageManifestSignals,
+) -> Vec<String> {
+    let mut capabilities = Vec::new();
+    let has_src_app = file_paths.iter().any(|path| path.starts_with("src/app/"));
+    let has_app_router_entries = file_paths.iter().any(|path| is_app_router_entry_path(path));
+    let has_api_routes = file_paths
+        .iter()
+        .any(|path| path.starts_with("src/app/api/") && is_route_handler_path(path));
+    let has_modules_root = file_paths.iter().any(|path| path.starts_with("src/modules/"));
+    let feature_module_count = feature_module_names(file_paths).len();
+    let has_service_layer = file_paths
+        .iter()
+        .any(|path| path.starts_with("src/services/") || path.contains("/services/"));
+    let has_provider_stack = file_paths.iter().any(|path| {
+        path == "src/app/providers.tsx"
+            || path.starts_with("src/providers/")
+            || path.contains("/providers/")
+            || path.starts_with("src/contexts/")
+            || path.contains("/contexts/")
+    });
+    let has_state_layer = file_paths.iter().any(|path| {
+        path.starts_with("src/store/")
+            || path.contains("/store/")
+            || path.ends_with(".store.ts")
+            || path.ends_with(".store.tsx")
+    });
+    let has_query_layer = file_paths.iter().any(|path| {
+        path.starts_with("src/hooks/queries/")
+            || path.contains("/hooks/queries/")
+            || path.contains("/controllers/use-")
+            || path.contains("/hooks/use-")
+    });
+    let has_localized_routing = file_paths.iter().any(|path| path.starts_with("src/app/[locale]/"));
+
+    if package_signals.has_next || workspace_files.iter().any(|path| path.starts_with("next.config")) {
+        capabilities.push("nextjs".to_string());
+    }
+    if package_signals.has_react {
+        capabilities.push("react".to_string());
+    }
+    if has_src_app && has_app_router_entries {
+        capabilities.push("app_router".to_string());
+    }
+    if has_api_routes {
+        capabilities.push("api_routes".to_string());
+    }
+    if has_modules_root && feature_module_count >= 1 {
+        capabilities.push("feature_modules".to_string());
+    }
+    if has_service_layer {
+        capabilities.push("service_layer".to_string());
+    }
+    if has_provider_stack {
+        capabilities.push("provider_stack".to_string());
+    }
+    if has_state_layer || package_signals.has_zustand {
+        capabilities.push("client_state".to_string());
+    }
+    if has_query_layer || package_signals.has_react_query {
+        capabilities.push("query_layer".to_string());
+    }
+    if has_localized_routing {
+        capabilities.push("localized_routing".to_string());
+    }
+
+    dedupe_strings(capabilities)
+}
+
+fn detect_archetypes(
+    file_paths: &[String],
+    capabilities: &[String],
+    package_signals: &PackageManifestSignals,
+    configured_archetypes: &[String],
+) -> Vec<ProjectArchetypeMatch> {
+    let mut archetypes = Vec::new();
+    let has = |capability: &str| capabilities.iter().any(|entry| entry == capability);
+
+    if has("nextjs") && has("app_router") && has("feature_modules") {
+        archetypes.push(ProjectArchetypeMatch {
+            id: "modular_nextjs_frontend".to_string(),
+            confidence: "high".to_string(),
+            reasons: dedupe_strings(vec![
+                "nextjs_runtime_detected".to_string(),
+                "app_router_entries_detected".to_string(),
+                "feature_module_packages_detected".to_string(),
+            ]),
+        });
+    } else if has("nextjs") && has("app_router") {
+        archetypes.push(ProjectArchetypeMatch {
+            id: "nextjs_app_router_frontend".to_string(),
+            confidence: "high".to_string(),
+            reasons: dedupe_strings(vec![
+                "nextjs_runtime_detected".to_string(),
+                "app_router_entries_detected".to_string(),
+            ]),
+        });
+    } else if has("feature_modules") && package_signals.has_react {
+        archetypes.push(ProjectArchetypeMatch {
+            id: "modular_react_frontend".to_string(),
+            confidence: "medium".to_string(),
+            reasons: dedupe_strings(vec![
+                "react_runtime_detected".to_string(),
+                "feature_module_packages_detected".to_string(),
+            ]),
+        });
+    }
+
+    if configured_archetypes.is_empty() && package_signals.has_react && !file_paths.is_empty() {
+        archetypes.push(ProjectArchetypeMatch {
+            id: "react_frontend".to_string(),
+            confidence: "medium".to_string(),
+            reasons: vec!["react_runtime_detected".to_string()],
+        });
+    }
+
+    dedupe_archetypes(archetypes)
+}
+
+fn detect_boundary_roots(
+    file_paths: &[String],
+    capabilities: &[String],
+) -> Vec<BoundaryRootSuggestion> {
+    let mut roots = Vec::new();
+    if capabilities.iter().any(|entry| entry == "feature_modules") {
+        roots.push(BoundaryRootSuggestion {
+            kind: "feature_modules".to_string(),
+            root: "src/modules".to_string(),
+            evidence: vec![
+                "feature-module barrels detected".to_string(),
+                "cross-module public API likely lives in index.ts".to_string(),
+            ],
+        });
+    }
+    if capabilities.iter().any(|entry| entry == "api_routes") {
+        roots.push(BoundaryRootSuggestion {
+            kind: "api_routes".to_string(),
+            root: "src/app/api".to_string(),
+            evidence: vec!["Next.js route handlers detected".to_string()],
+        });
+    }
+    if file_paths.iter().any(|path| path.starts_with("src/services/")) {
+        roots.push(BoundaryRootSuggestion {
+            kind: "service_layer".to_string(),
+            root: "src/services".to_string(),
+            evidence: vec!["top-level service layer detected".to_string()],
+        });
+    }
+    if file_paths.iter().any(|path| path.starts_with("src/store/")) {
+        roots.push(BoundaryRootSuggestion {
+            kind: "client_state".to_string(),
+            root: "src/store".to_string(),
+            evidence: vec!["top-level client state layer detected".to_string()],
+        });
+    }
+    if capabilities.iter().any(|entry| entry == "provider_stack") {
+        if file_paths.iter().any(|path| path.starts_with("src/providers/")) {
+            roots.push(BoundaryRootSuggestion {
+                kind: "provider_stack".to_string(),
+                root: "src/providers".to_string(),
+                evidence: vec!["top-level provider stack detected".to_string()],
+            });
+        }
+        if file_paths.iter().any(|path| path.starts_with("src/contexts/")) {
+            roots.push(BoundaryRootSuggestion {
+                kind: "provider_stack".to_string(),
+                root: "src/contexts".to_string(),
+                evidence: vec!["top-level shared context layer detected".to_string()],
+            });
+        }
+    }
+    if capabilities.iter().any(|entry| entry == "query_layer")
+        && file_paths.iter().any(|path| path.starts_with("src/hooks/queries/"))
+    {
+        roots.push(BoundaryRootSuggestion {
+            kind: "query_layer".to_string(),
+            root: "src/hooks/queries".to_string(),
+            evidence: vec!["top-level query hook layer detected".to_string()],
+        });
+    }
+
+    roots
+}
+
+fn detect_module_contracts(
+    boundary_roots: &[BoundaryRootSuggestion],
+) -> Vec<ModuleContractSuggestion> {
+    boundary_roots
+        .iter()
+        .filter(|boundary| boundary.kind == "feature_modules")
+        .map(|boundary| ModuleContractSuggestion {
+            id: "feature_modules".to_string(),
+            root: boundary.root.clone(),
+            public_api: vec!["index.ts".to_string(), "index.tsx".to_string()],
+            evidence: boundary.evidence.clone(),
+        })
+        .collect()
+}
+
+fn effective_archetypes(
+    configured_archetypes: &[String],
+    detected_archetypes: &[ProjectArchetypeMatch],
+) -> Vec<String> {
+    let mut effective = configured_archetypes.to_vec();
+    effective.extend(
+        detected_archetypes
+            .iter()
+            .map(|archetype| archetype.id.clone()),
+    );
+    dedupe_strings(effective)
+}
+
+fn suggest_excludes(shape: &ProjectShapeReport) -> Vec<String> {
+    let mut excludes = vec![
+        "node_modules/**".to_string(),
+        "coverage/**".to_string(),
+    ];
+
+    if shape
+        .effective_archetypes
+        .iter()
+        .any(|entry| entry.contains("nextjs"))
+    {
+        excludes.push(".next/**".to_string());
+    }
+    if shape
+        .capabilities
+        .iter()
+        .any(|entry| entry == "feature_modules")
+    {
+        excludes.push("tmp/**".to_string());
+    }
+
+    excludes
+}
+
+fn feature_module_names(file_paths: &[String]) -> BTreeSet<String> {
+    file_paths
+        .iter()
+        .filter_map(|path| {
+            let remainder = path.strip_prefix("src/modules/")?;
+            let module_name = remainder.split('/').next()?;
+            (!module_name.is_empty()).then(|| module_name.to_string())
+        })
+        .collect()
+}
+
+fn is_app_router_entry_path(path: &str) -> bool {
+    path.starts_with("src/app/")
+        && (path.ends_with("/page.tsx")
+            || path.ends_with("/page.ts")
+            || path.ends_with("/layout.tsx")
+            || path.ends_with("/layout.ts")
+            || path.ends_with("/loading.tsx")
+            || path.ends_with("/loading.ts")
+            || path.ends_with("/error.tsx")
+            || path.ends_with("/error.ts")
+            || path.ends_with("/not-found.tsx")
+            || path.ends_with("/not-found.ts")
+            || is_route_handler_path(path))
+}
+
+fn is_route_handler_path(path: &str) -> bool {
+    path.ends_with("/route.ts") || path.ends_with("/route.tsx")
+}
+
+fn quoted_list(values: &[String]) -> String {
+    values
+        .iter()
+        .map(|value| format!("{value:?}"))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn dedupe_archetypes(values: Vec<ProjectArchetypeMatch>) -> Vec<ProjectArchetypeMatch> {
+    let mut seen = BTreeSet::new();
+    let mut deduped = Vec::new();
+    for value in values {
+        if seen.insert(value.id.clone()) {
+            deduped.push(value);
+        }
+    }
+    deduped
+}
+
+fn dedupe_strings(values: Vec<String>) -> Vec<String> {
+    let mut seen = BTreeSet::new();
+    let mut deduped = Vec::new();
+    for value in values {
+        if seen.insert(value.clone()) {
+            deduped.push(value);
+        }
+    }
+    deduped
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{detect_project_shape, render_starter_rules};
+
+    #[test]
+    fn detects_modular_nextjs_frontend_shape() {
+        let file_paths = vec![
+            "src/app/[locale]/layout.tsx".to_string(),
+            "src/app/api/rag/jobs/route.ts".to_string(),
+            "src/modules/home/index.ts".to_string(),
+            "src/modules/file-manager/index.ts".to_string(),
+            "src/services/users.ts".to_string(),
+            "src/providers/query-provider.tsx".to_string(),
+            "src/store/chat-input.store.ts".to_string(),
+        ];
+
+        let shape = detect_project_shape(
+            None,
+            &file_paths,
+            &["package.json".to_string(), "next.config.ts".to_string()],
+            &[],
+        );
+
+        assert_eq!(
+            shape.primary_archetype.as_deref(),
+            Some("modular_nextjs_frontend")
+        );
+        assert!(shape.capabilities.iter().any(|entry| entry == "app_router"));
+        assert!(shape.capabilities.iter().any(|entry| entry == "feature_modules"));
+        assert!(shape
+            .boundary_roots
+            .iter()
+            .any(|boundary| boundary.root == "src/modules"));
+        assert!(shape
+            .module_contracts
+            .iter()
+            .any(|contract| contract.root == "src/modules"));
+    }
+
+    #[test]
+    fn renders_starter_rules_with_module_contracts() {
+        let file_paths = vec![
+            "src/app/layout.tsx".to_string(),
+            "src/modules/home/index.ts".to_string(),
+            "src/modules/file-manager/index.ts".to_string(),
+        ];
+        let shape = detect_project_shape(
+            None,
+            &file_paths,
+            &["package.json".to_string(), "next.config.ts".to_string()],
+            &[],
+        );
+
+        let rendered = render_starter_rules(&shape, Some("typescript"), &[]);
+
+        assert!(rendered.contains("[project]"));
+        assert!(rendered.contains("archetypes = ["));
+        assert!(rendered.contains("[[module_contract]]"));
+        assert!(rendered.contains("root = \"src/modules\""));
+    }
+
+    #[test]
+    fn detects_nextjs_from_config_and_single_feature_module() {
+        let file_paths = vec![
+            "src/app/layout.tsx".to_string(),
+            "src/modules/home/index.ts".to_string(),
+        ];
+
+        let shape = detect_project_shape(
+            None,
+            &file_paths,
+            &["next.config.ts".to_string()],
+            &[],
+        );
+
+        assert_eq!(
+            shape.primary_archetype.as_deref(),
+            Some("modular_nextjs_frontend")
+        );
+    }
+
+    #[test]
+    fn detects_provider_and_query_boundary_roots() {
+        let file_paths = vec![
+            "src/app/layout.tsx".to_string(),
+            "src/providers/auth-provider.tsx".to_string(),
+            "src/contexts/organization.tsx".to_string(),
+            "src/hooks/queries/use-users-queries.ts".to_string(),
+        ];
+
+        let shape = detect_project_shape(
+            None,
+            &file_paths,
+            &["package.json".to_string(), "next.config.ts".to_string()],
+            &[],
+        );
+
+        assert!(shape
+            .boundary_roots
+            .iter()
+            .any(|boundary| boundary.kind == "provider_stack" && boundary.root == "src/providers"));
+        assert!(shape
+            .boundary_roots
+            .iter()
+            .any(|boundary| boundary.kind == "provider_stack" && boundary.root == "src/contexts"));
+        assert!(shape
+            .boundary_roots
+            .iter()
+            .any(|boundary| boundary.kind == "query_layer" && boundary.root == "src/hooks/queries"));
+    }
+}

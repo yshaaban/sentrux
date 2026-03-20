@@ -18,8 +18,8 @@ pub mod v2;
 
 pub use self::checks::{Constraints, RuleCheckResult, RuleViolation, Severity};
 pub use self::v2::{
-    compute_rule_coverage, ConceptRule, ContractRule, ProjectRuleConfig, RuleCoverage,
-    StateModelRule, SuppressionRule,
+    compute_rule_coverage, ConceptRule, ContractRule, ModuleContractRule, ProjectRuleConfig,
+    RuleCoverage, StateModelRule, SuppressionRule,
 };
 use serde::Deserialize;
 use std::path::Path;
@@ -74,6 +74,10 @@ pub struct RulesConfig {
     #[serde(default)]
     pub state_model: Vec<StateModelRule>,
 
+    /// Generic module public-API and deep-import contracts.
+    #[serde(default)]
+    pub module_contract: Vec<ModuleContractRule>,
+
     /// Approved exceptions and time-boxed suppressions.
     #[serde(default)]
     pub suppress: Vec<SuppressionRule>,
@@ -102,6 +106,7 @@ impl RulesConfig {
             &self.concept,
             &self.contract,
             &self.state_model,
+            &self.module_contract,
             &self.suppress,
         )
     }
@@ -230,6 +235,11 @@ pub fn check_rules(
     for boundary in &config.boundaries {
         rules_checked += 1;
         violations.extend(check_boundary(boundary, edges));
+    }
+
+    for module_contract in &config.module_contract {
+        rules_checked += 1;
+        violations.extend(check_module_contract(module_contract, edges));
     }
 
     let passed = violations.iter().all(|v| v.severity != Severity::Error);
@@ -361,4 +371,51 @@ fn check_boundary(rule: &BoundaryRule, edges: &[ImportEdge]) -> Vec<RuleViolatio
     }
 
     violations
+}
+
+fn check_module_contract(rule: &ModuleContractRule, edges: &[ImportEdge]) -> Vec<RuleViolation> {
+    if !rule.forbid_cross_module_deep_imports || rule.root.is_empty() || rule.public_api.is_empty() {
+        return Vec::new();
+    }
+
+    let mut violations = Vec::new();
+    for edge in edges {
+        let Some(target_module) = module_contract_module_name(&edge.to_file, &rule.root) else {
+            continue;
+        };
+        if module_contract_module_name(&edge.from_file, &rule.root) == Some(target_module) {
+            continue;
+        }
+        if module_contract_is_public_api(&edge.to_file, &rule.root, &rule.public_api) {
+            continue;
+        }
+
+        violations.push(RuleViolation {
+            rule: "module_contract".into(),
+            severity: Severity::Error,
+            message: format!(
+                "Module contract violation: {} imports {} by deep path across module boundary '{}'",
+                edge.from_file, edge.to_file, rule.id
+            ),
+            files: vec![edge.from_file.clone(), edge.to_file.clone()],
+        });
+    }
+
+    violations.sort_by(|left, right| left.message.cmp(&right.message));
+    violations.dedup_by(|left, right| left.message == right.message);
+    violations
+}
+
+fn module_contract_module_name<'a>(path: &'a str, root: &str) -> Option<&'a str> {
+    let remainder = path.strip_prefix(root)?.strip_prefix('/')?;
+    remainder.split('/').next().filter(|name| !name.is_empty())
+}
+
+fn module_contract_is_public_api(path: &str, root: &str, public_api: &[String]) -> bool {
+    let Some(module_name) = module_contract_module_name(path, root) else {
+        return false;
+    };
+    public_api
+        .iter()
+        .any(|file_name| path == format!("{root}/{module_name}/{file_name}"))
 }

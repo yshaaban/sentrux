@@ -11,6 +11,9 @@ use super::{
     session_v2_schema_supported, McpState, PatchSafetyAnalysisCache, RulesCacheIdentity,
     ScanCacheIdentity, SessionV2Baseline, SessionV2ConfidenceSnapshot, SESSION_V2_SCHEMA_VERSION,
 };
+use crate::analysis::project_shape::{
+    detect_project_shape, render_starter_rules, ProjectShapeReport,
+};
 use crate::analysis::scanner;
 use crate::analysis::scanner::common::ScanMetadata;
 use crate::analysis::semantic::SemanticSnapshot;
@@ -114,6 +117,55 @@ fn scan_trust_json(metadata: &ScanMetadata) -> Value {
             "internal_confidence_0_10000": resolution_confidence,
         },
     })
+}
+
+fn snapshot_file_paths(snapshot: &Snapshot) -> Vec<String> {
+    crate::core::snapshot::flatten_files_ref(snapshot.root.as_ref())
+        .into_iter()
+        .filter(|file| !file.is_dir)
+        .map(|file| file.path.clone())
+        .collect()
+}
+
+fn project_shape_report(root: &Path, snapshot: &Snapshot, config: &RulesConfig) -> ProjectShapeReport {
+    let workspace_files = crate::analysis::semantic::discover_project(root)
+        .map(|project| project.workspace_files)
+        .unwrap_or_default();
+    let file_paths = snapshot_file_paths(snapshot);
+    detect_project_shape(
+        Some(root),
+        &file_paths,
+        &workspace_files,
+        &config.project.archetypes,
+    )
+}
+
+fn project_shape_json(root: &Path, snapshot: &Snapshot, config: &RulesConfig) -> Value {
+    let shape = project_shape_report(root, snapshot, config);
+    json!({
+        "primary_archetype": shape.primary_archetype,
+        "configured_archetypes": shape.configured_archetypes,
+        "detected_archetypes": shape.detected_archetypes,
+        "effective_archetypes": shape.effective_archetypes,
+        "capabilities": shape.capabilities,
+        "boundary_roots": shape.boundary_roots,
+        "module_contracts": shape.module_contracts,
+        "starter_rules_toml": render_starter_rules(
+            &shape,
+            config.project.primary_language.as_deref(),
+            &config.project.exclude,
+        ),
+    })
+}
+
+fn optional_project_shape_json(root: &Path, snapshot: Option<&Snapshot>, config: &RulesConfig) -> Value {
+    let Some(snapshot) = snapshot else {
+        return json!({
+            "available": false,
+            "error": "No scan data. Call 'scan' first.",
+        });
+    };
+    project_shape_json(root, snapshot, config)
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -345,6 +397,7 @@ fn empty_rules_config() -> crate::metrics::rules::RulesConfig {
         concept: Vec::new(),
         contract: Vec::new(),
         state_model: Vec::new(),
+        module_contract: Vec::new(),
         suppress: Vec::new(),
     }
 }
@@ -2556,6 +2609,7 @@ fn handle_scan(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<Value
         "import_edges": bundle.snapshot.import_graph.len(),
         "scan_trust": scan_trust_json(&bundle.metadata),
         "confidence": confidence,
+        "project_shape": project_shape_json(&root, &bundle.snapshot, &rules_config),
         "baseline_loaded": baseline.is_some(),
         "baseline_path": baseline_path,
         "baseline_error": baseline_error,
@@ -2638,6 +2692,11 @@ fn handle_health(_args: &Value, tier: &Tier, state: &mut McpState) -> Result<Val
         "cross_module_edges": h.cross_module_edges,
         "scan_trust": scan_trust_json(&metadata),
         "confidence": build_v2_confidence_report(&metadata, &rules_config, session_v2_status),
+        "project_shape": project_shape_json(
+            &root,
+            state.cached_snapshot.as_ref().ok_or("No scan data. Call 'scan' first.")?,
+            &rules_config,
+        ),
         "baseline_delta": legacy_baseline_delta_json(baseline_delta.as_ref()),
         "baseline_error": baseline_error,
         "rules_error": config_error,
@@ -2818,6 +2877,10 @@ fn handle_findings(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<V
             &rules_config,
             session_v2_status
         )),
+    );
+    result.insert(
+        "project_shape".to_string(),
+        project_shape_json(&root, &snapshot, &rules_config),
     );
     result.insert(
         "clone_group_count".to_string(),
@@ -5685,6 +5748,8 @@ mod tests {
                 workspace_files: vec!["package.json".to_string()],
                 primary_language: Some("typescript".to_string()),
                 fingerprint: "fixture".to_string(),
+                repo_archetype: None,
+                detected_archetypes: Vec::new(),
             },
             analyzed_files: 6,
             capabilities: vec![
@@ -5793,6 +5858,8 @@ mod tests {
                 workspace_files: Vec::new(),
                 primary_language: Some("typescript".to_string()),
                 fingerprint: "state-fixture".to_string(),
+                repo_archetype: None,
+                detected_archetypes: Vec::new(),
             },
             analyzed_files: 2,
             capabilities: vec![
@@ -8018,6 +8085,136 @@ mod tests {
     }
 
     #[test]
+    fn project_shape_tool_surfaces_archetypes_and_starter_rules() {
+        let root = temp_root("project-shape-tool");
+        write_file(
+            &root,
+            "package.json",
+            r#"{
+              "dependencies": {
+                "next": "15.0.0",
+                "react": "19.0.0"
+              }
+            }"#,
+        );
+        write_file(&root, "next.config.ts", "export default {};\n");
+        write_file(
+            &root,
+            "src/app/[locale]/layout.tsx",
+            "export default function Layout({ children }: { children: React.ReactNode }) { return children; }\n",
+        );
+        write_file(
+            &root,
+            "src/app/api/health/route.ts",
+            "export async function GET() { return Response.json({ ok: true }); }\n",
+        );
+        write_file(&root, "src/modules/home/index.ts", "export * from './components';\n");
+        write_file(
+            &root,
+            "src/modules/users/index.ts",
+            "export * from './components';\n",
+        );
+        write_file(
+            &root,
+            "src/services/users.ts",
+            "export async function listUsers() { return []; }\n",
+        );
+        write_file(
+            &root,
+            "src/store/session.store.ts",
+            "export const sessionStore = {};\n",
+        );
+
+        let mut state = fresh_mcp_state();
+        handle_scan(
+            &json!({"path": root.to_string_lossy().to_string()}),
+            &Tier::Free,
+            &mut state,
+        )
+        .expect("scan fixture");
+
+        let response = super::handle_project_shape(&json!({}), &Tier::Free, &mut state)
+            .expect("project shape");
+
+        assert_eq!(response["kind"], "project_shape");
+        assert!(response["rules_error"].is_null());
+        assert_eq!(
+            response["shape"]["primary_archetype"],
+            "modular_nextjs_frontend"
+        );
+        assert!(response["shape"]["effective_archetypes"]
+            .as_array()
+            .expect("effective archetypes")
+            .iter()
+            .any(|value| value == "modular_nextjs_frontend"));
+        assert!(response["shape"]["boundary_roots"]
+            .as_array()
+            .expect("boundary roots")
+            .iter()
+            .any(|value| {
+                value["kind"] == "feature_modules" && value["root"] == "src/modules"
+            }));
+        assert!(response["shape"]["module_contracts"]
+            .as_array()
+            .expect("module contracts")
+            .iter()
+            .any(|value| {
+                value["id"] == "feature_modules" && value["root"] == "src/modules"
+            }));
+        assert!(response["shape"]["starter_rules_toml"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("[[module_contract]]"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn check_rules_truncates_module_contracts_in_free_tier() {
+        let root = temp_root("module-contract-truncation");
+        write_file(
+            &root,
+            ".sentrux/rules.toml",
+            r#"
+                [[module_contract]]
+                id = "feature_modules_a"
+                root = "src/modules"
+
+                [[module_contract]]
+                id = "feature_modules_b"
+                root = "src/modules"
+
+                [[module_contract]]
+                id = "feature_modules_c"
+                root = "src/modules"
+
+                [[module_contract]]
+                id = "feature_modules_d"
+                root = "src/modules"
+            "#,
+        );
+        write_file(&root, "src/app/page.tsx", "export default function Page() { return null; }\n");
+        write_file(&root, "src/modules/a/index.ts", "export const a = 1;\n");
+        write_file(&root, "src/modules/b/index.ts", "export const b = 2;\n");
+
+        let mut state = fresh_mcp_state();
+        handle_scan(
+            &json!({"path": root.to_string_lossy().to_string()}),
+            &Tier::Free,
+            &mut state,
+        )
+        .expect("scan fixture");
+
+        let response =
+            super::handle_check_rules(&json!({}), &Tier::Free, &mut state).expect("check rules");
+
+        assert_eq!(response["truncated"]["total_rules_defined"], 4);
+        assert_eq!(response["truncated"]["rules_checked"], 3);
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
     fn state_tool_returns_reports_and_findings() {
         let root = state_fixture_root();
         let semantic = state_fixture_semantic(&root);
@@ -8226,6 +8423,8 @@ mod tests {
                 workspace_files: Vec::new(),
                 primary_language: Some("typescript".to_string()),
                 fingerprint: "broken-rules".to_string(),
+                repo_archetype: None,
+                detected_archetypes: Vec::new(),
             },
             analyzed_files: 1,
             capabilities: vec![SemanticCapability::Symbols],
@@ -8275,6 +8474,8 @@ mod tests {
                 workspace_files: Vec::new(),
                 primary_language: Some("typescript".to_string()),
                 fingerprint: "zero-config".to_string(),
+                repo_archetype: None,
+                detected_archetypes: Vec::new(),
             },
             analyzed_files: 1,
             capabilities: vec![
@@ -8838,6 +9039,40 @@ pub fn concepts_def() -> ToolDef {
     }
 }
 
+pub fn project_shape_def() -> ToolDef {
+    ToolDef {
+        name: "project_shape",
+        description: "Detect repo archetypes, candidate boundary roots, module public-API contracts, and starter v2 rules for onboarding a new project shape.",
+        input_schema: json!({ "type": "object", "properties": {} }),
+        min_tier: Tier::Free,
+        handler: handle_project_shape,
+        invalidates_evolution: false,
+    }
+}
+
+fn handle_project_shape(
+    _args: &Value,
+    _tier: &Tier,
+    state: &mut McpState,
+) -> Result<Value, String> {
+    let root = state
+        .scan_root
+        .clone()
+        .ok_or("No scan root. Call 'scan' first.")?;
+    let snapshot = state
+        .cached_snapshot
+        .clone()
+        .ok_or("No scan data. Call 'scan' first.")?;
+    let (config, rules_error) = load_v2_rules_config(state, &root);
+
+    Ok(json!({
+        "kind": "project_shape",
+        "project": config.project,
+        "rules_error": rules_error,
+        "shape": project_shape_json(&root, &snapshot, &config),
+    }))
+}
+
 fn handle_concepts(_args: &Value, _tier: &Tier, state: &mut McpState) -> Result<Value, String> {
     let root = state
         .scan_root
@@ -8868,6 +9103,7 @@ fn handle_concepts(_args: &Value, _tier: &Tier, state: &mut McpState) -> Result<
     Ok(json!({
         "kind": "concepts",
         "project": config.project,
+        "project_shape": optional_project_shape_json(&root, state.cached_snapshot.as_deref(), &config),
         "rule_coverage": coverage,
         "rules_error": rules_error,
         "semantic_error": semantic_error,
@@ -9408,11 +9644,13 @@ fn handle_check_rules(_args: &Value, tier: &Tier, state: &mut McpState) -> Resul
     let mut config = load_rules_config(root)?;
 
     // Free tier: max 3 rules (constraints count as 1 if any thresholds set,
-    // plus layers and boundaries each count as 1 rule).
-    let total_rules =
-        config.constraints.count_active() + config.layers.len() + config.boundaries.len();
+    // plus layers, boundaries, and module contracts each count as 1 rule).
+    let total_rules = config.constraints.count_active()
+        + config.layers.len()
+        + config.boundaries.len()
+        + config.module_contract.len();
     let truncated = if !tier.is_pro() && total_rules > 3 {
-        // Keep constraints (1 rule) + first 2 of layers/boundaries
+        // Keep constraints (1 rule) + first 2 of layers/boundaries/module contracts.
         let mut remaining = 3usize.saturating_sub(if config.constraints.count_active() > 0 {
             1
         } else {
@@ -9423,6 +9661,10 @@ fn handle_check_rules(_args: &Value, tier: &Tier, state: &mut McpState) -> Resul
         config
             .boundaries
             .truncate(remaining.min(config.boundaries.len()));
+        remaining = remaining.saturating_sub(config.boundaries.len());
+        config
+            .module_contract
+            .truncate(remaining.min(config.module_contract.len()));
         true
     } else {
         false

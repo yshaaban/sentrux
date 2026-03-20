@@ -1,5 +1,6 @@
 //! Project discovery for semantic frontends.
 
+use crate::analysis::project_shape::detect_project_shape;
 use super::types::ProjectModel;
 use crate::analysis::scanner::common::normalize_path;
 use ignore::WalkBuilder;
@@ -8,11 +9,16 @@ use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 
 const PROJECT_DISCOVERY_MAX_DEPTH: usize = 4;
+const PROJECT_SHAPE_DISCOVERY_MAX_DEPTH: usize = 8;
 const WORKSPACE_FILENAMES: &[&str] = &[
     "package.json",
     "pnpm-workspace.yaml",
     "turbo.json",
     "lerna.json",
+    "next.config.js",
+    "next.config.mjs",
+    "next.config.cjs",
+    "next.config.ts",
 ];
 
 pub fn discover_project(root: &Path) -> Result<ProjectModel, String> {
@@ -28,6 +34,8 @@ pub fn discover_project(root: &Path) -> Result<ProjectModel, String> {
         None
     };
     let fingerprint = fingerprint_paths(&tsconfig_paths, &workspace_files);
+    let discovery_paths = collect_discovery_paths(root);
+    let shape = detect_project_shape(Some(root), &discovery_paths, &workspace_files, &[]);
 
     Ok(ProjectModel {
         root: normalize_path(root.to_string_lossy()),
@@ -35,6 +43,8 @@ pub fn discover_project(root: &Path) -> Result<ProjectModel, String> {
         workspace_files,
         primary_language,
         fingerprint,
+        repo_archetype: shape.primary_archetype,
+        detected_archetypes: shape.detected_archetypes,
     })
 }
 
@@ -61,6 +71,21 @@ fn collect_workspace_files(root: &Path) -> Vec<String> {
     files.sort();
     files.dedup();
     files
+}
+
+fn collect_discovery_paths(root: &Path) -> Vec<String> {
+    WalkBuilder::new(root)
+        .hidden(true)
+        .git_ignore(true)
+        .git_global(true)
+        .git_exclude(true)
+        .max_depth(Some(PROJECT_SHAPE_DISCOVERY_MAX_DEPTH))
+        .build()
+        .filter_map(Result::ok)
+        .map(|entry| entry.into_path())
+        .filter(|path| path.is_file())
+        .filter_map(|path| relative_normalized(root, &path))
+        .collect()
 }
 
 fn relative_normalized(root: &Path, path: &Path) -> Option<String> {
