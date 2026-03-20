@@ -6,8 +6,9 @@
 //! - MCP mode (`sentrux mcp`): Model Context Protocol server for AI agent integration
 //! - Check mode (`sentrux check [path]`): CLI architectural rules enforcement
 //! - Gate mode (`sentrux gate [--save] [path]`): touched-concept or structural regression testing
+//! - Brief mode (`sentrux brief --mode patch [path]`): structured v2 agent guidance JSON
 
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use sentrux_core::analysis;
 use sentrux_core::app;
 use sentrux_core::core;
@@ -91,6 +92,25 @@ enum Command {
         path: String,
     },
 
+    /// Emit a structured v2 agent guidance brief as JSON
+    Brief {
+        /// Brief mode to generate
+        #[arg(long, value_enum, default_value_t = BriefModeArg::Patch)]
+        mode: BriefModeArg,
+
+        /// Treat introduced medium-severity findings as blocking in pre_merge mode
+        #[arg(long)]
+        strict: bool,
+
+        /// Maximum number of primary targets to include
+        #[arg(long, default_value_t = 3)]
+        limit: usize,
+
+        /// Directory to analyze
+        #[arg(default_value = ".")]
+        path: String,
+    },
+
     /// Open the GUI with a pre-loaded directory
     Scan {
         /// Directory to visualize
@@ -157,6 +177,23 @@ enum PluginAction {
     },
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+enum BriefModeArg {
+    RepoOnboarding,
+    Patch,
+    PreMerge,
+}
+
+impl BriefModeArg {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::RepoOnboarding => "repo_onboarding",
+            Self::Patch => "patch",
+            Self::PreMerge => "pre_merge",
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
@@ -190,6 +227,14 @@ pub fn run() -> eframe::Result<()> {
         }
         Some(Command::Gate { save, strict, path }) => {
             std::process::exit(run_gate(&path, save, strict));
+        }
+        Some(Command::Brief {
+            mode,
+            strict,
+            limit,
+            path,
+        }) => {
+            std::process::exit(run_brief(&path, mode, strict, limit));
         }
         Some(Command::Mcp) => {
             app::mcp_server::run_mcp_server(None);
@@ -431,6 +476,36 @@ fn run_v2_gate(root: &std::path::Path, save_mode: bool, strict: bool) -> i32 {
         }
         Err(error) => {
             eprintln!("v2 gate failed: {error}");
+            1
+        }
+    }
+}
+
+fn run_brief(path: &str, mode: BriefModeArg, strict: bool, limit: usize) -> i32 {
+    let root = std::path::Path::new(path);
+    if !root.is_dir() {
+        eprintln!("Error: not a directory: {path}");
+        return 1;
+    }
+
+    match sentrux_core::app::mcp_server::handlers::cli_agent_brief(
+        root,
+        mode.as_str(),
+        strict,
+        limit,
+    ) {
+        Ok(payload) => match serde_json::to_string_pretty(&payload) {
+            Ok(text) => {
+                println!("{text}");
+                0
+            }
+            Err(error) => {
+                eprintln!("Failed to serialize brief JSON: {error}");
+                1
+            }
+        },
+        Err(error) => {
+            eprintln!("agent brief failed: {error}");
             1
         }
     }

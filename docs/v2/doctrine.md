@@ -14,6 +14,8 @@ The core product question is:
 
 > What did this patch change, what architectural obligations did that create, what objective debt signals or watchpoints did it expose, and what did the agent fail to update?
 
+That question should be answered through a mode-aware `agent_brief`, not by making the agent stitch together raw tool output.
+
 ## Priority Order
 
 Priority order for v2:
@@ -25,6 +27,7 @@ Priority order for v2:
 
 This means:
 
+- `agent_brief` is the primary structured guidance surface
 - a patch-scoped missing obligation matters more than a repo-wide depth penalty
 - a new multi-writer regression matters more than a low modularity score
 - objective findings matter more than elegant composite math
@@ -44,13 +47,24 @@ Secondary users:
 
 The product surface must be ordered like this:
 
-1. findings
-2. obligations
-3. session delta
-4. scorecard
-5. confidence
+1. agent_brief
+2. findings
+3. obligations
+4. session delta
+5. scorecard
+6. confidence
 
 The scorecard is useful, but it is not the core wedge. Any optimization-like output is a sorting aid, not a roadmap decision.
+
+## Agent Brief Modes
+
+`agent_brief` should support exactly three mode families:
+
+- `repo_onboarding`: explain repo shape, critical concepts, rules, exclusions, and first steps
+- `patch`: explain what changed, what it touched, what obligations were created, and what is still missing
+- `pre_merge`: explain merge readiness, remaining blockers, and confidence before land
+
+The brief should synthesize findings, obligations, session delta, and confidence. It should not replace those outputs.
 
 ## Core Wedge
 

@@ -10,6 +10,7 @@
 //! - `handlers_evo.rs`: Evolution/analysis tool handlers + definitions
 //! - `tools.rs`: build_registry() — single registration point
 
+mod agent_brief;
 pub mod handlers;
 pub mod handlers_evo;
 pub mod registry;
@@ -311,6 +312,7 @@ pub fn build_registry() -> registry::ToolRegistry {
     reg.register(handlers::parity_def());
     reg.register(handlers::state_def());
     reg.register(handlers::concentration_def());
+    reg.register(handlers::agent_brief_def());
 
     // Health — one true score + root-cause-organized diagnostics
     reg.register(handlers::health_def());

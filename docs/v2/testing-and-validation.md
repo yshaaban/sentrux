@@ -94,6 +94,7 @@ Required golden targets:
 
 Golden outputs should include:
 
+- agent briefs
 - findings
 - obligations
 - session delta
@@ -110,6 +111,7 @@ Current status:
 - `private-benchmark-repo` now has a checked-in benchmark artifact in [examples/private-benchmark-repo-benchmark.md](./examples/private-benchmark-repo-benchmark.md)
 - scoped `private-frontend` goldens now exist in [examples/private-frontend-golden](./examples/private-frontend-golden/README.md)
 - `private-frontend` now has a checked-in benchmark artifact in [examples/private-frontend-benchmark.md](./examples/private-frontend-benchmark.md)
+- the checked-in benchmark repos now include mode-aware `agent_brief` outputs for repo onboarding, patch guidance, and pre-merge guidance
 - synthetic touched-concept gate and `session_end` regression scenarios now exist in the MCP handler test suite
 - migration/coexistence coverage now verifies that `gate` and `session_end` still work when only the v2 session baseline is usable, when the v2 session baseline is missing, and when copied or incompatible baselines are present
 - confidence regression coverage now checks incompatible schema and project-mismatch session baselines

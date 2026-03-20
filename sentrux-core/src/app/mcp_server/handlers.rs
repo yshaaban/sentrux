@@ -8,6 +8,7 @@
 
 use super::registry::ToolDef;
 use super::{
+    agent_brief::{build_agent_brief, AgentBriefInput, AgentBriefMode},
     session_v2_schema_supported, McpState, PatchSafetyAnalysisCache, RulesCacheIdentity,
     ScanCacheIdentity, SessionV2Baseline, SessionV2ConfidenceSnapshot, SESSION_V2_SCHEMA_VERSION,
 };
@@ -127,7 +128,11 @@ fn snapshot_file_paths(snapshot: &Snapshot) -> Vec<String> {
         .collect()
 }
 
-fn project_shape_report(root: &Path, snapshot: &Snapshot, config: &RulesConfig) -> ProjectShapeReport {
+fn project_shape_report(
+    root: &Path,
+    snapshot: &Snapshot,
+    config: &RulesConfig,
+) -> ProjectShapeReport {
     let workspace_files = crate::analysis::semantic::discover_project(root)
         .map(|project| project.workspace_files)
         .unwrap_or_default();
@@ -158,7 +163,11 @@ fn project_shape_json(root: &Path, snapshot: &Snapshot, config: &RulesConfig) ->
     })
 }
 
-fn optional_project_shape_json(root: &Path, snapshot: Option<&Snapshot>, config: &RulesConfig) -> Value {
+fn optional_project_shape_json(
+    root: &Path,
+    snapshot: Option<&Snapshot>,
+    config: &RulesConfig,
+) -> Value {
     let Some(snapshot) = snapshot else {
         return json!({
             "available": false,
@@ -2543,6 +2552,28 @@ pub fn cli_save_v2_session(root: &Path) -> Result<Value, String> {
 pub fn cli_evaluate_v2_gate(root: &Path, strict: bool) -> Result<Value, String> {
     let mut state = fresh_mcp_state();
     compute_touched_concept_gate(&mut state, root, strict)
+}
+
+pub fn cli_agent_brief(
+    root: &Path,
+    mode: &str,
+    strict: bool,
+    limit: usize,
+) -> Result<Value, String> {
+    let mut state = fresh_mcp_state();
+    let path = root
+        .to_str()
+        .ok_or("Invalid path encoding for agent brief root")?;
+    handle_scan(&json!({ "path": path }), &Tier::Free, &mut state)?;
+    handle_agent_brief(
+        &json!({
+            "mode": mode,
+            "strict": strict,
+            "limit": limit,
+        }),
+        &Tier::Free,
+        &mut state,
+    )
 }
 
 fn severity_of_value(value: &Value) -> &str {
@@ -5345,9 +5376,8 @@ mod tests {
         handle_trace_symbol, load_persisted_session_v2, load_session_v2_baseline_status,
         load_v2_rules_config, overall_confidence_0_10000, prepare_patch_check_context,
         project_fingerprint, save_session_v2_baseline, state_model_ids_from_findings,
-        state_model_ids_from_reports,
-        update_scan_cache, DebtSignal, DebtSignalMetrics, FindingDetail, FindingDetailMetrics,
-        InspectionWatchpoint,
+        state_model_ids_from_reports, update_scan_cache, DebtSignal, DebtSignalMetrics,
+        FindingDetail, FindingDetailMetrics, InspectionWatchpoint,
     };
     use crate::analysis::scanner::common::{ScanMetadata, ScanMode};
     use crate::analysis::semantic::typescript::default_bridge_config;
@@ -8108,7 +8138,11 @@ mod tests {
             "src/app/api/health/route.ts",
             "export async function GET() { return Response.json({ ok: true }); }\n",
         );
-        write_file(&root, "src/modules/home/index.ts", "export * from './components';\n");
+        write_file(
+            &root,
+            "src/modules/home/index.ts",
+            "export * from './components';\n",
+        );
         write_file(
             &root,
             "src/modules/users/index.ts",
@@ -8151,16 +8185,12 @@ mod tests {
             .as_array()
             .expect("boundary roots")
             .iter()
-            .any(|value| {
-                value["kind"] == "feature_modules" && value["root"] == "src/modules"
-            }));
+            .any(|value| { value["kind"] == "feature_modules" && value["root"] == "src/modules" }));
         assert!(response["shape"]["module_contracts"]
             .as_array()
             .expect("module contracts")
             .iter()
-            .any(|value| {
-                value["id"] == "feature_modules" && value["root"] == "src/modules"
-            }));
+            .any(|value| { value["id"] == "feature_modules" && value["root"] == "src/modules" }));
         assert!(response["shape"]["starter_rules_toml"]
             .as_str()
             .unwrap_or_default()
@@ -8193,7 +8223,11 @@ mod tests {
                 root = "src/modules"
             "#,
         );
-        write_file(&root, "src/app/page.tsx", "export default function Page() { return null; }\n");
+        write_file(
+            &root,
+            "src/app/page.tsx",
+            "export default function Page() { return null; }\n",
+        );
         write_file(&root, "src/modules/a/index.ts", "export const a = 1;\n");
         write_file(&root, "src/modules/b/index.ts", "export const b = 2;\n");
 
@@ -9071,6 +9105,425 @@ fn handle_project_shape(
         "rules_error": rules_error,
         "shape": project_shape_json(&root, &snapshot, &config),
     }))
+}
+
+pub fn agent_brief_def() -> ToolDef {
+    ToolDef {
+        name: "agent_brief",
+        description: "Compose a structured guidance brief for coding agents from v2 findings, obligations, project shape, and patch-safety context.",
+        input_schema: json!({
+            "type": "object",
+            "properties": {
+                "mode": {
+                    "type": "string",
+                    "enum": ["repo_onboarding", "patch", "pre_merge"],
+                    "description": "Guidance mode. Defaults to patch."
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Maximum number of primary targets to include (default 3, max 10)."
+                },
+                "strict": {
+                    "type": "boolean",
+                    "description": "Pre-merge strictness. Reserved for pre_merge mode."
+                }
+            }
+        }),
+        min_tier: Tier::Free,
+        handler: handle_agent_brief,
+        invalidates_evolution: true,
+    }
+}
+
+fn handle_agent_brief(args: &Value, _tier: &Tier, state: &mut McpState) -> Result<Value, String> {
+    let mode = AgentBriefMode::parse(args.get("mode").and_then(|value| value.as_str()))?;
+    let limit = args
+        .get("limit")
+        .and_then(|value| value.as_u64())
+        .unwrap_or(3)
+        .clamp(1, 10) as usize;
+    let strict = args.get("strict").and_then(|value| value.as_bool());
+
+    match mode {
+        AgentBriefMode::RepoOnboarding => handle_onboarding_agent_brief(state, limit, strict),
+        AgentBriefMode::Patch => handle_patch_agent_brief(state, limit),
+        AgentBriefMode::PreMerge => {
+            handle_pre_merge_agent_brief(state, limit, strict.unwrap_or(false))
+        }
+    }
+}
+
+fn handle_onboarding_agent_brief(
+    state: &mut McpState,
+    limit: usize,
+    strict: Option<bool>,
+) -> Result<Value, String> {
+    let health = state
+        .cached_health
+        .clone()
+        .ok_or("No scan data. Call 'scan' first.")?;
+    let snapshot = state
+        .cached_snapshot
+        .as_ref()
+        .cloned()
+        .ok_or("No scan data. Call 'scan' first.")?;
+    let root = state
+        .scan_root
+        .clone()
+        .ok_or("No scan root. Call 'scan' first.")?;
+    let metadata = state
+        .cached_scan_metadata
+        .as_ref()
+        .cloned()
+        .ok_or("No scan data. Call 'scan' first.")?;
+    let (rules_config, rules_error) = load_v2_rules_config(state, &root);
+    let (_, session_v2_status) = load_session_v2_baseline_status(&root);
+    let (clone_payload, clone_error) = clone_findings_for_health(
+        state,
+        &root,
+        &snapshot,
+        &health,
+        health.duplicate_groups.len(),
+    );
+    let (semantic_findings, obligations, semantic_error) = semantic_findings_and_obligations(
+        state,
+        &root,
+        Some(&snapshot),
+        crate::metrics::v2::ObligationScope::All,
+        &BTreeSet::new(),
+    );
+    let structural_reports =
+        crate::metrics::v2::build_structural_debt_reports_with_root(&root, &snapshot, &health);
+    let other_findings = combined_other_finding_values(&semantic_findings, &structural_reports);
+    let merged_findings = merge_findings(
+        clone_payload.prioritized_findings.clone(),
+        other_findings,
+        usize::MAX,
+    );
+    let (suppression_application, suppression_error) =
+        apply_root_suppressions(state, &root, merged_findings);
+    let (visible_findings, experimental_findings) =
+        partition_experimental_findings(&suppression_application.visible_findings, limit);
+    let visible_findings = visible_findings
+        .into_iter()
+        .map(|finding| decorate_finding_with_classification(&finding))
+        .collect::<Vec<_>>();
+    let experimental_findings = experimental_findings
+        .into_iter()
+        .map(|finding| decorate_finding_with_classification(&finding))
+        .collect::<Vec<_>>();
+    let visible_clone_ids = visible_clone_ids(&visible_findings);
+    let clone_families = filter_clone_values_by_visible_clone_ids(
+        clone_payload.families,
+        &visible_clone_ids,
+        "clone_ids",
+        limit,
+    );
+    let debt_outputs = build_debt_report_outputs(
+        state,
+        &root,
+        &snapshot,
+        &health,
+        &visible_findings,
+        &obligations,
+        &clone_families,
+        &BTreeSet::new(),
+        limit,
+    );
+    let semantic_or_rules_error = merge_optional_errors(
+        merge_optional_errors(rules_error.clone(), suppression_error),
+        semantic_error,
+    );
+    let freshness = json!({
+        "baseline_loaded": session_v2_status.loaded,
+        "session_baseline_compatible": session_v2_status.compatible,
+        "git_head": current_git_head(&root),
+        "working_tree_path_count": working_tree_changed_files(&root).unwrap_or_default().len(),
+    });
+
+    let mut brief = build_agent_brief(AgentBriefInput {
+        mode: AgentBriefMode::RepoOnboarding,
+        repo_shape: project_shape_json(&root, &snapshot, &rules_config),
+        findings: visible_findings,
+        experimental_findings,
+        missing_obligations: Vec::new(),
+        watchpoints: serialized_values(&debt_outputs.watchpoints),
+        resolved_findings: Vec::new(),
+        changed_files: Vec::new(),
+        changed_concepts: Vec::new(),
+        decision: None,
+        summary: None,
+        confidence: json!(build_v2_confidence_report(
+            &metadata,
+            &rules_config,
+            session_v2_status
+        )),
+        scan_trust: scan_trust_json(&metadata),
+        freshness,
+        strict,
+        limit,
+    });
+
+    if let Some(object) = brief.as_object_mut() {
+        object.insert("rules_error".to_string(), json!(rules_error));
+        object.insert(
+            "semantic_error".to_string(),
+            json!(merge_optional_errors(semantic_or_rules_error, clone_error)),
+        );
+        object.insert(
+            "suppression_hits".to_string(),
+            json!(suppression_application.active_matches),
+        );
+        object.insert(
+            "suppressed_finding_count".to_string(),
+            json!(suppression_match_count(
+                &suppression_application.active_matches
+            )),
+        );
+        object.insert(
+            "expired_suppressions".to_string(),
+            json!(suppression_application.expired_matches),
+        );
+        object.insert(
+            "expired_suppression_match_count".to_string(),
+            json!(suppression_match_count(
+                &suppression_application.expired_matches
+            )),
+        );
+    }
+
+    if let Some(error) = debt_outputs.context_error {
+        if let Some(object) = brief.as_object_mut() {
+            object.insert("context_error".to_string(), json!(error));
+        }
+    }
+
+    Ok(brief)
+}
+
+fn handle_patch_agent_brief(state: &mut McpState, limit: usize) -> Result<Value, String> {
+    build_patch_mode_agent_brief(state, AgentBriefMode::Patch, limit, false)
+}
+
+fn handle_pre_merge_agent_brief(
+    state: &mut McpState,
+    limit: usize,
+    strict: bool,
+) -> Result<Value, String> {
+    build_patch_mode_agent_brief(state, AgentBriefMode::PreMerge, limit, strict)
+}
+
+fn build_patch_mode_agent_brief(
+    state: &mut McpState,
+    mode: AgentBriefMode,
+    limit: usize,
+    strict: bool,
+) -> Result<Value, String> {
+    let root = state
+        .scan_root
+        .clone()
+        .ok_or("No scan root. Call 'scan' first.")?;
+    let (session_v2, session_v2_status) = current_session_v2_baseline_with_status(state, &root)?;
+    let context = prepare_patch_check_context(state, &root, session_v2.as_ref())?;
+    let patch_cache_identity = current_patch_safety_cache_identity(state, &context);
+    let bundle = context.bundle;
+    let changed_files = context.changed_files;
+    let persisted_baseline = load_persisted_baseline(&root).ok().flatten();
+
+    if !context.reused_cached_scan {
+        state.cached_semantic = None;
+        state.cached_evolution = None;
+    }
+    let analysis = build_patch_safety_analysis(
+        state,
+        &root,
+        &bundle,
+        &changed_files,
+        session_v2.as_ref(),
+        patch_cache_identity,
+    );
+    let current_finding_payloads = finding_payload_map(&analysis.visible_findings);
+    let (rules_config, rules_error) = load_v2_rules_config(state, &root);
+    let changed_concepts = analysis
+        .changed_touched_concepts
+        .iter()
+        .cloned()
+        .collect::<Vec<_>>();
+    let missing_obligations = analysis
+        .changed_obligations
+        .iter()
+        .filter(|obligation| !obligation.missing_sites.is_empty())
+        .cloned()
+        .collect::<Vec<_>>();
+
+    let introduced_findings = session_v2
+        .as_ref()
+        .map(|session_v2| {
+            current_finding_payloads
+                .iter()
+                .filter(|(key, _)| !session_v2.finding_payloads.contains_key(*key))
+                .map(|(_, payload)| payload.clone())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_else(|| analysis.changed_visible_findings.clone());
+    let (visible_introduced_findings, experimental_introduced_findings) =
+        partition_experimental_findings(&introduced_findings, limit.max(10));
+
+    let blocking_findings = visible_introduced_findings
+        .iter()
+        .filter(|finding| {
+            let severity = severity_of_value(finding);
+            severity == "high"
+                || (mode == AgentBriefMode::PreMerge && strict && severity == "medium")
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    let resolved_findings = session_v2
+        .as_ref()
+        .map(|session_v2| {
+            session_v2
+                .finding_payloads
+                .iter()
+                .filter(|(key, _)| !current_finding_payloads.contains_key(*key))
+                .map(|(_, payload)| payload.clone())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let resolved_findings = resolved_findings
+        .into_iter()
+        .filter(|finding| !is_experimental_finding(finding))
+        .map(|finding| decorate_finding_with_classification(&finding))
+        .collect::<Vec<_>>();
+
+    let candidate_findings = visible_introduced_findings
+        .into_iter()
+        .map(|finding| decorate_finding_with_classification(&finding))
+        .collect::<Vec<_>>();
+    let experimental_findings = experimental_introduced_findings
+        .into_iter()
+        .map(|finding| decorate_finding_with_classification(&finding))
+        .collect::<Vec<_>>();
+    let blocking_findings = blocking_findings
+        .into_iter()
+        .map(|finding| decorate_finding_with_classification(&finding))
+        .collect::<Vec<_>>();
+    let debt_outputs = build_debt_report_outputs(
+        state,
+        &root,
+        &bundle.snapshot,
+        &bundle.health,
+        &candidate_findings,
+        &analysis.changed_obligations,
+        &[],
+        &changed_files,
+        limit.max(5),
+    );
+    let gate_decision = if !missing_obligations.is_empty() || !blocking_findings.is_empty() {
+        "fail"
+    } else if candidate_findings.is_empty() {
+        "pass"
+    } else {
+        "warn"
+    };
+    let semantic_error = patch_safety_semantic_error(&analysis);
+    let freshness = json!({
+        "baseline_loaded": session_v2_status.loaded,
+        "session_baseline_compatible": session_v2_status.compatible,
+        "git_head": current_git_head(&root),
+        "working_tree_path_count": changed_files.len(),
+    });
+    let preserved_semantic = state.cached_semantic.clone();
+    let preserved_evolution = state.cached_evolution.clone();
+    let preserved_patch_safety = state.cached_patch_safety.clone();
+
+    let mut brief = build_agent_brief(AgentBriefInput {
+        mode,
+        repo_shape: project_shape_json(&root, &bundle.snapshot, &rules_config),
+        findings: candidate_findings.clone(),
+        experimental_findings,
+        missing_obligations: serialized_values(&missing_obligations),
+        watchpoints: serialized_values(&debt_outputs.watchpoints),
+        resolved_findings: resolved_findings.clone(),
+        changed_files: changed_files.iter().cloned().collect(),
+        changed_concepts: changed_concepts.clone(),
+        decision: Some(gate_decision.to_string()),
+        summary: None,
+        confidence: json!(build_v2_confidence_report(
+            &bundle.metadata,
+            &rules_config,
+            session_v2_status
+        )),
+        scan_trust: scan_trust_json(&bundle.metadata),
+        freshness,
+        strict: Some(strict),
+        limit,
+    });
+
+    if let Some(object) = brief.as_object_mut() {
+        object.insert(
+            "changed_files".to_string(),
+            json!(changed_files.iter().cloned().collect::<Vec<_>>()),
+        );
+        object.insert("changed_concepts".to_string(), json!(changed_concepts));
+        object.insert(
+            "introduced_finding_count".to_string(),
+            json!(candidate_findings.len()),
+        );
+        object.insert("introduced_findings".to_string(), json!(candidate_findings));
+        object.insert(
+            "blocking_finding_count".to_string(),
+            json!(blocking_findings.len()),
+        );
+        object.insert("blocking_findings".to_string(), json!(blocking_findings));
+        object.insert(
+            "touched_concept_gate".to_string(),
+            json!({
+                "decision": gate_decision,
+                "strict": strict,
+            }),
+        );
+        object.insert("rules_error".to_string(), json!(analysis.rules_error));
+        object.insert("semantic_error".to_string(), json!(semantic_error));
+        object.insert(
+            "suppression_hits".to_string(),
+            json!(analysis.suppression_hits),
+        );
+        object.insert(
+            "suppressed_finding_count".to_string(),
+            json!(analysis.suppressed_finding_count),
+        );
+        object.insert(
+            "expired_suppressions".to_string(),
+            json!(analysis.expired_suppressions),
+        );
+        object.insert(
+            "expired_suppression_match_count".to_string(),
+            json!(analysis.expired_suppression_match_count),
+        );
+    }
+
+    if let Some(error) = merge_optional_errors(rules_error, debt_outputs.context_error) {
+        if let Some(object) = brief.as_object_mut() {
+            object.insert("context_error".to_string(), json!(error));
+        }
+    }
+
+    if !context.reused_cached_scan {
+        update_scan_cache(
+            state,
+            root,
+            bundle,
+            persisted_baseline.or(state.baseline.clone()),
+            context.scan_identity,
+        );
+        state.cached_semantic = preserved_semantic;
+        state.cached_evolution = preserved_evolution;
+        state.cached_patch_safety = preserved_patch_safety;
+    } else if persisted_baseline.is_some() {
+        state.baseline = persisted_baseline;
+    }
+
+    Ok(brief)
 }
 
 fn handle_concepts(_args: &Value, _tier: &Tier, state: &mut McpState) -> Result<Value, String> {

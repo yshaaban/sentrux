@@ -15,6 +15,7 @@ The loop validates three separate things:
 3. the baseline and migration story around v1 and v2 coexistence
 4. proof-and-improvement runs on disposable clones
 5. finding-class usefulness and trust-tier calibration
+6. mode-specific `agent_brief` coverage for `repo_onboarding`, `patch`, and `pre_merge`
 
 ## Commands
 
@@ -130,6 +131,7 @@ The validation runner compares the checked-in `parallel-code-golden` files again
 - `gate-fail.json`
 - `session-end-pass.json`
 - `session-end-fail.json`
+- `agent_brief` outputs for the supported modes when they are part of the checked-in golden set
 - `metadata.json`
 
 The `metadata.json` check ignores the timestamp field and verifies the stable payload instead.
@@ -165,7 +167,7 @@ If the benchmark fails:
 Use this when the goal is to improve `parallel-code`, not just validate analyzer stability.
 
 1. freeze the current baseline outputs
-2. review the top findings, concept summaries, debt signals, and watchpoints
+2. review the relevant `agent_brief` first, then the top findings, concept summaries, debt signals, and watchpoints
 3. select one ownership/boundary target, one propagation/obligation target, and one duplication/hotspot target
 4. make one refactor at a time in a disposable clone
 5. rerun the proof loop after each refactor

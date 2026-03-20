@@ -7,20 +7,36 @@ V2 should be consumable by agents without breaking the current MCP workflow.
 That means:
 
 - keep existing tools working
+- add a mode-aware `agent_brief` as the primary structured guidance surface
 - add patch-safety-first v2 tools
-- make `session_end` the primary agent touchpoint
+- make `agent_brief` the primary guided entrypoint and `session_end` the primary patch-safety touchpoint
 - return objective findings, debt signals, watchpoints, and patch risks before score summaries
+
+## Guidance Surface
+
+`agent_brief` is the primary structured guidance surface for agents.
+
+It should package the existing evidence into one mode-aware brief instead of forcing the agent to reconstruct workflow from raw tool output.
+
+Modes:
+
+- `repo_onboarding`: explain repo shape, critical concepts, rules, exclusions, and where to start
+- `patch`: summarize the current change, findings, obligations, and touched-concept risk
+- `pre_merge`: summarize remaining blockers, unresolved obligations, and merge readiness
+
+The brief is the entry point. `session_end`, `findings`, `obligations`, `gate`, and `scorecard` remain the underlying structured evidence.
 
 ## Product Surface Priority
 
 For v2 integrations, the preferred order is:
 
-1. `session_end`
-2. `findings`
-3. `obligations`
-4. `gate`
-5. `scorecard`
-6. concept and parity inspection tools
+1. `agent_brief`
+2. `session_end`
+3. `findings`
+4. `obligations`
+5. `gate`
+6. `scorecard`
+7. concept and parity inspection tools
 
 This ordering should shape both MCP and CLI design. Any ranking or optimization-like output is a sorting aid, not the final decision.
 
@@ -70,6 +86,35 @@ For v2:
 Agents should use v2 tools for patch-safety decisions.
 
 ## New Primary Tools
+
+## `agent_brief`
+
+Purpose:
+
+- return the mode-aware structured guidance brief for the current repo, patch, or merge state
+
+Arguments:
+
+- `mode = "repo_onboarding" | "patch" | "pre_merge"`
+- `limit`
+- `strict` for `pre_merge`
+
+Returns:
+
+- mode-specific summary
+- prioritized guidance
+- linked findings and obligations
+- touched-concept risk and gate readiness
+- relevant concepts, trust tiers, and leverage classes
+- confidence
+
+CLI parity:
+
+- `sentrux brief --mode repo-onboarding [path]`
+- `sentrux brief --mode patch [path]`
+- `sentrux brief --mode pre-merge --strict [path]`
+
+The CLI command should print the same structured JSON contract rather than inventing a separate prose summary.
 
 ## `findings`
 

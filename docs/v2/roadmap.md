@@ -25,6 +25,8 @@ Build order for v2:
 
 If work does not improve one of the first two tiers, it is not on the critical path. Engineers own final prioritization; v2 should keep the evidence objective.
 
+The trust-and-output tier should include a mode-aware `agent_brief` for `repo_onboarding`, `patch`, and `pre_merge` guidance before raw findings.
+
 ## Tier 0: Trust And Output Foundation
 
 Status: partial
@@ -35,6 +37,7 @@ Goal:
 
 Deliverables:
 
+- mode-aware `agent_brief` for repo onboarding, patch guidance, and pre-merge readiness
 - tracked plus untracked scan scope
 - vendor/generated/build classification
 - internal versus external unresolved split
@@ -45,6 +48,7 @@ Deliverables:
 
 Tasks:
 
+- [x] add mode-aware `agent_brief` composition in MCP and CLI
 - [x] include untracked files in scan scope
 - [x] classify excluded files into vendor/generated/build/fixture/cache buckets
 - [x] split unresolved imports into internal failures versus external expected references
@@ -63,6 +67,7 @@ Tasks:
 
 Exit criteria:
 
+- agents can get repo onboarding, patch guidance, and pre-merge guidance from `agent_brief`
 - scan reports what was excluded and why
 - scan reports confidence-related scope gaps directly
 - agents see bottleneck and delta before they see a single composite number

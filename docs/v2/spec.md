@@ -21,6 +21,7 @@ Sentrux v2 is a static patch-safety and architectural conformance engine.
 
 It should tell an AI agent:
 
+- how to orient to a repo with a structured `agent_brief`
 - which concepts its patch touched
 - which architecture rules apply to those concepts
 - which findings the patch introduced
@@ -46,13 +47,22 @@ Priority order for v2:
 
 Output order for v2:
 
-1. findings
-2. obligations
-3. session delta
-4. scorecard
-5. confidence
+1. agent_brief
+2. findings
+3. obligations
+4. session delta
+5. scorecard
+6. confidence
 
 The scorecard remains useful, but it is secondary.
+
+`agent_brief` is the primary structured guidance surface. It should be mode-aware rather than one generic blob:
+
+- `repo_onboarding`: explain repo shape, critical concepts, rules, exclusions, and first steps
+- `patch`: explain what changed, what it touched, what obligations were created, and what is still missing
+- `pre_merge`: explain merge readiness, remaining blockers, and confidence before land
+
+The brief should be assembled from the diagnostic outputs, not replace them.
 
 ## Core Wedge
 
@@ -139,11 +149,17 @@ V2 is not trying to:
 
 ## Output Model
 
-V2 emits five first-class outputs.
+V2 emits six first-class outputs.
 
-## 1. Findings
+## 1. Agent Brief
 
-Findings are the primary output.
+The agent brief is the primary structured guidance layer.
+
+It should point the agent at the right output mix for the current mode and explain how to interpret the rest of the surface.
+
+## 2. Findings
+
+Findings are the primary diagnostic output.
 
 They are concrete static problems with evidence, severity, and likely fix sites.
 
@@ -169,7 +185,7 @@ Each finding must include:
 - estimated fix cost
 - whether it is new in the current patch
 
-## 2. Obligations
+## 3. Obligations
 
 Obligations are the required update set implied by a changed concept.
 
@@ -181,7 +197,7 @@ Examples:
 
 This is the core agent-facing feature.
 
-## 3. Session Delta
+## 4. Session Delta
 
 Session delta compares a changed working tree against a baseline and answers:
 
@@ -191,7 +207,7 @@ Session delta compares a changed working tree against a baseline and answers:
 - whether touched concepts regressed
 - whether the patch should warn or fail in CI
 
-## 4. Scorecard
+## 5. Scorecard
 
 The scorecard is supporting context.
 
@@ -217,7 +233,7 @@ It is not a single number. It is a grouped set of tracks with numerators, denomi
 
 `State Integrity` should not become a required beta track until the underlying analyzers are mature enough to avoid noisy guidance.
 
-## 5. Confidence
+## 6. Confidence
 
 Confidence is emitted with every top-level output.
 

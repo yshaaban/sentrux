@@ -28,6 +28,7 @@ pub struct V2Analysis {
     pub structural: std::sync::Arc<Snapshot>,
     pub project: ProjectModel,
     pub semantic: SemanticSnapshot,
+    pub agent_brief: Option<AgentBrief>,
     pub concepts: ConceptGraph,
     pub findings: Vec<Finding>,
     pub obligations: Vec<Obligation>,
@@ -40,7 +41,37 @@ pub struct V2Analysis {
 
 The field order is intentional.
 
-V2 should assemble and expose patch-safety outputs before score summaries.
+V2 should assemble and expose the guidance brief and patch-safety outputs before score summaries.
+
+## Agent Brief
+
+`AgentBrief` is the primary structured guidance surface.
+
+```rust
+pub enum AgentBriefMode {
+    RepoOnboarding,
+    Patch,
+    PreMerge,
+}
+
+pub struct AgentBrief {
+    pub mode: AgentBriefMode,
+    pub summary: String,
+    pub guidance_points: Vec<String>,
+    pub linked_findings: Vec<String>,
+    pub linked_obligations: Vec<String>,
+    pub linked_track_deltas: Vec<TrackDelta>,
+    pub confidence: ConfidenceReport,
+}
+```
+
+Mode meaning:
+
+- `RepoOnboarding`: explain repo shape, critical concepts, rules, exclusions, and first steps
+- `Patch`: explain what changed, what it touched, what obligations were created, and what is still missing
+- `PreMerge`: explain merge readiness, remaining blockers, and confidence before land
+
+The brief is a composition layer over findings, obligations, session delta, and confidence. It should not duplicate those outputs wholesale.
 
 ## Project Model
 

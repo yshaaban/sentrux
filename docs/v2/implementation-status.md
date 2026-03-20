@@ -23,6 +23,7 @@ Working estimate:
 
 The product shape in code matches the doctrine in [doctrine.md](./doctrine.md):
 
+- `agent_brief` is now the primary structured guidance surface in MCP and CLI
 - patch safety is primary
 - findings, obligations, and session delta are primary MCP outputs
 - TypeScript-first deep analysis is real
@@ -63,6 +64,7 @@ The strongest completed work is:
 - warm-path rules-config caching across repeated MCP requests
 - generic archetype detection with `project_shape` output, starter-rule generation, and framework-aware role defaults for modular Next.js and React frontend repos
 - generic `module_contract` rules for module public APIs and cross-module deep-import enforcement
+- mode-aware `agent_brief` composition for repo onboarding, patch guidance, and pre-merge readiness in MCP and CLI
 - legacy MCP and CLI surfaces now frame structural output as context rather than the main v2 story
 - desktop structural panels and export flow now frame structural output as supporting context
 - `findings` now includes a top-level confidence summary
@@ -92,6 +94,7 @@ Status: mostly complete
 
 Delivered:
 
+- mode-aware `agent_brief` in MCP and CLI
 - tracked plus untracked scan scope
 - exclusion buckets
 - internal vs external unresolved split
