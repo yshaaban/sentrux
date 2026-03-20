@@ -1,0 +1,234 @@
+{
+  "blocking_finding_count": 0,
+  "blocking_findings": [],
+  "changed_concepts": [],
+  "changed_files": [],
+  "confidence": {
+    "rule_coverage_0_10000": 10000,
+    "scan_confidence_0_10000": 8297,
+    "semantic_rules_loaded": true,
+    "session_baseline": {
+      "compatible": true,
+      "error": null,
+      "loaded": true,
+      "schema_version": 3
+    }
+  },
+  "decision": "continue",
+  "do_not_chase": [],
+  "do_not_chase_count": 0,
+  "expired_suppression_match_count": 0,
+  "expired_suppressions": [],
+  "freshness": {
+    "baseline_loaded": true,
+    "git_head": "424a7d78f4251dbb3394d7e9306ff112ac68c542",
+    "session_baseline_compatible": true,
+    "working_tree_path_count": 0
+  },
+  "introduced_finding_count": 0,
+  "introduced_findings": [],
+  "kind": "agent_brief",
+  "missing_obligation_count": 0,
+  "missing_obligations": [],
+  "mode": "patch",
+  "primary_target_count": 0,
+  "primary_targets": [],
+  "repo_shape": {
+    "boundary_roots": [
+      "src/store"
+    ],
+    "effective_archetypes": [],
+    "primary_archetype": null,
+    "starter_rules_toml": "[project]\nprimary_language = \"typescript\"\nexclude = [\"vendor/**\", \"dist/**\", \"coverage/**\", \"build/**\", \"node_modules/**\"]\n\n# Candidate boundary roots detected from repo shape:\n# - client_state at src/store (top-level client state layer detected)\n"
+  },
+  "resolved_finding_count": 0,
+  "resolved_findings": [],
+  "rules_error": null,
+  "scan_trust": {
+    "candidate_files": 787,
+    "exclusions": {
+      "bucketed": {
+        "build": 12,
+        "cache": 0,
+        "fixture": 7,
+        "generated": 0,
+        "vendor": 102
+      },
+      "ignored_extension": 11,
+      "metadata_error": 0,
+      "too_large": 2,
+      "total": 134
+    },
+    "fallback_reason": null,
+    "kept_files": 653,
+    "mode": "git",
+    "overall_confidence_0_10000": 8297,
+    "partial": false,
+    "resolution": {
+      "internal_confidence_0_10000": 9995,
+      "resolved": 2000,
+      "unresolved_external": 531,
+      "unresolved_internal": 1,
+      "unresolved_unknown": 86
+    },
+    "scope_coverage_0_10000": 8297,
+    "tracked_candidates": 787,
+    "truncated": false,
+    "untracked_candidates": 0
+  },
+  "semantic_error": null,
+  "summary": "Patch brief: decision=continue, 0 primary target(s), 0 missing obligation(s), 0 changed file(s), 0 changed concept(s)",
+  "suppressed_finding_count": 0,
+  "suppression_hits": [],
+  "touched_concept_gate": {
+    "decision": "pass",
+    "strict": false
+  },
+  "watchpoint_count": 2,
+  "watchpoints": [
+    {
+      "boundary_pressure_count": 0,
+      "candidate_split_axes": [
+        "guarded boundary cut",
+        "app store boundary"
+      ],
+      "clone_family_count": 0,
+      "evidence": [
+        "cycle size: 37",
+        "total lines in cycle: 5535",
+        "peak function complexity inside cycle: 72",
+        "candidate cuts: 3",
+        "best cut candidate: src/store/core.ts -> src/store/store.ts (removes 9 cyclic files)",
+        "role tags in cycle: guarded_seam, state_container, guarded_boundary, component_barrel"
+      ],
+      "files": [
+        "src/app/task-command-lease-runtime-subscriptions.ts",
+        "src/app/task-command-lease-runtime.ts",
+        "src/app/task-command-lease-session.ts",
+        "src/app/task-command-lease-takeover.ts",
+        "src/app/task-command-lease.ts",
+        "src/app/task-presentation-status.ts",
+        "src/lib/runtime-client-id.ts",
+        "src/store/agent-output-activity.ts",
+        "src/store/agents.ts",
+        "src/store/auto-trust.ts",
+        "src/store/client-session.ts",
+        "src/store/completion.ts",
+        "src/store/core.ts",
+        "src/store/focus.ts",
+        "src/store/navigation.ts",
+        "src/store/notification.ts",
+        "src/store/peer-presence.ts",
+        "src/store/persistence-codecs.ts",
+        "src/store/persistence-load-context.ts",
+        "src/store/persistence-load.ts",
+        "src/store/persistence-projects.ts",
+        "src/store/persistence-save.ts",
+        "src/store/persistence-terminal-restore.ts",
+        "src/store/persistence.ts",
+        "src/store/projects.ts",
+        "src/store/review.ts",
+        "src/store/sidebar-order.ts",
+        "src/store/state.ts",
+        "src/store/store.ts",
+        "src/store/task-command-controllers.ts",
+        "src/store/task-command-takeovers.ts",
+        "src/store/task-git-status.ts",
+        "src/store/task-state-cleanup.ts",
+        "src/store/taskStatus.ts",
+        "src/store/tasks.ts",
+        "src/store/terminals.ts",
+        "src/store/ui.ts"
+      ],
+      "hotspot_count": 0,
+      "impact": "The cycle touches a component-facing barrel, which makes it harder to keep broad component access separate from deeper app and runtime seams.",
+      "inspection_focus": [
+        "inspect whether the best cut keeps component-facing barrel access while moving deeper orchestration behind a narrower seam",
+        "inspect whether app or runtime dependencies can stop flowing back through the shared barrel"
+      ],
+      "kind": "cycle_cluster",
+      "leverage_class": "architecture_signal",
+      "leverage_reasons": [
+        "shared_barrel_boundary_hub",
+        "guardrail_backed_boundary_pressure",
+        "client_state_hub_pressure",
+        "mixed_cycle_pressure",
+        "high_leverage_cycle_cut"
+      ],
+      "missing_site_count": 0,
+      "presentation_class": "watchpoint",
+      "related_surfaces": [
+        "src/store/core.ts",
+        "src/store/store.ts",
+        "src/store/auto-trust.ts",
+        "src/app/task-command-lease.ts",
+        "src/store/persistence-codecs.ts",
+        "src/app/task-command-lease-runtime-subscriptions.ts",
+        "src/app/task-command-lease-runtime.ts",
+        "src/app/task-command-lease-session.ts"
+      ],
+      "role_tags": [
+        "guarded_seam",
+        "state_container",
+        "guarded_boundary",
+        "component_barrel"
+      ],
+      "scope": "cycle:src/app/task-command-lease-runtime-subscriptions.ts|src/app/task-command-lease-runtime.ts|src/app/task-command-lease-session.ts|src/app/task-command-lease-takeover.ts|src/app/task-command-lease.ts|src/app/task-presentation-status.ts|src/lib/runtime-client-id.ts|src/store/agent-output-activity.ts|src/store/agents.ts|src/store/auto-trust.ts|src/store/client-session.ts|src/store/completion.ts|src/store/core.ts|src/store/focus.ts|src/store/navigation.ts|src/store/notification.ts|src/store/peer-presence.ts|src/store/persistence-codecs.ts|src/store/persistence-load-context.ts|src/store/persistence-load.ts|src/store/persistence-projects.ts|src/store/persistence-save.ts|src/store/persistence-terminal-restore.ts|src/store/persistence.ts|src/store/projects.ts|src/store/review.ts|src/store/sidebar-order.ts|src/store/state.ts|src/store/store.ts|src/store/task-command-controllers.ts|src/store/task-command-takeovers.ts|src/store/task-git-status.ts|src/store/task-state-cleanup.ts|src/store/taskStatus.ts|src/store/tasks.ts|src/store/terminals.ts|src/store/ui.ts",
+      "score_0_10000": 10000,
+      "severity": "high",
+      "signal_families": [
+        "dependency",
+        "layering"
+      ],
+      "summary": "Files src/app/task-command-lease-runtime-subscriptions.ts, src/app/task-command-lease-runtime.ts, src/app/task-command-lease-session.ts, src/app/task-command-lease-takeover.ts, src/app/task-command-lease.ts, src/app/task-presentation-status.ts, src/lib/runtime-client-id.ts, src/store/agent-output-activity.ts, src/store/agents.ts, src/store/auto-trust.ts, src/store/client-session.ts, src/store/completion.ts, src/store/core.ts, src/store/focus.ts, src/store/navigation.ts, src/store/notification.ts, src/store/peer-presence.ts, src/store/persistence-codecs.ts, src/store/persistence-load-context.ts, src/store/persistence-load.ts, src/store/persistence-projects.ts, src/store/persistence-save.ts, src/store/persistence-terminal-restore.ts, src/store/persistence.ts, src/store/projects.ts, src/store/review.ts, src/store/sidebar-order.ts, src/store/state.ts, src/store/store.ts, src/store/task-command-controllers.ts, src/store/task-command-takeovers.ts, src/store/task-git-status.ts, src/store/task-state-cleanup.ts, src/store/taskStatus.ts, src/store/tasks.ts, src/store/terminals.ts, src/store/ui.ts form a dependency cycle",
+      "trust_tier": "watchpoint"
+    },
+    {
+      "boundary_pressure_count": 0,
+      "candidate_split_axes": [
+        "local module split"
+      ],
+      "clone_family_count": 0,
+      "evidence": [
+        "cycle size: 2",
+        "total lines in cycle: 133",
+        "peak function complexity inside cycle: 4",
+        "candidate cuts: 2",
+        "best cut candidate: electron/ipc/handlers.ts -> electron/ipc/notification-handlers.ts (removes 2 cyclic files)",
+        "role tags: none"
+      ],
+      "files": [
+        "electron/ipc/handlers.ts",
+        "electron/ipc/notification-handlers.ts"
+      ],
+      "hotspot_count": 0,
+      "impact": "The cycle prevents clean layering and makes initialization order and refactors harder to isolate.",
+      "inspection_focus": [
+        "inspect whether one back-edge can be removed by splitting contracts from implementations",
+        "inspect whether shared types can move to a lower-dependency seam"
+      ],
+      "kind": "cycle_cluster",
+      "leverage_class": "architecture_signal",
+      "leverage_reasons": [
+        "mixed_cycle_pressure",
+        "high_leverage_cycle_cut"
+      ],
+      "missing_site_count": 0,
+      "presentation_class": "watchpoint",
+      "related_surfaces": [
+        "electron/ipc/handlers.ts",
+        "electron/ipc/notification-handlers.ts"
+      ],
+      "role_tags": [],
+      "scope": "cycle:electron/ipc/handlers.ts|electron/ipc/notification-handlers.ts",
+      "score_0_10000": 6829,
+      "severity": "high",
+      "signal_families": [
+        "dependency",
+        "layering"
+      ],
+      "summary": "Files electron/ipc/handlers.ts, electron/ipc/notification-handlers.ts form a dependency cycle",
+      "trust_tier": "watchpoint"
+    }
+  ]
+}

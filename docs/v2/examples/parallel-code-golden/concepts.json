@@ -332,7 +332,7 @@
     },
     {
       "anchors": [
-        "src/app/desktop-notification-runtime.test.tsx::store.activeTaskId"
+        "src/app/task-lifecycle-workflows.ts::store.activeTaskId"
       ],
       "confidence_0_10000": 7500,
       "evidence": [
@@ -387,7 +387,7 @@
     },
     {
       "anchors": [
-        "src/app/desktop-notification-runtime.ts::store.collapsedTaskOrder"
+        "src/app/desktop-session-startup.ts::store.collapsedTaskOrder"
       ],
       "confidence_0_10000": 7500,
       "evidence": [
@@ -405,17 +405,6 @@
         "symbol 'store.customAgents' is touched from 4 file(s)"
       ],
       "id": "store_custom_agents",
-      "kind": "store_like_symbol"
-    },
-    {
-      "anchors": [
-        "src/app/desktop-notification-runtime.test.tsx::store.desktopNotificationsEnabled"
-      ],
-      "confidence_0_10000": 7500,
-      "evidence": [
-        "symbol 'store.desktopNotificationsEnabled' is touched from 6 file(s)"
-      ],
-      "id": "store_desktop_notifications_enabled",
       "kind": "store_like_symbol"
     },
     {
@@ -578,7 +567,7 @@
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.projects' is touched from 18 file(s)"
+        "symbol 'store.projects' is touched from 20 file(s)"
       ],
       "id": "store_projects",
       "kind": "store_like_symbol"
@@ -596,7 +585,7 @@
     },
     {
       "anchors": [
-        "src/components/Sidebar.tsx::store.projects.length"
+        "src/app/new-task-dialog-workflows.ts::store.projects.length"
       ],
       "confidence_0_10000": 7500,
       "evidence": [
@@ -684,6 +673,17 @@
     },
     {
       "anchors": [
+        "src/components/SidebarFooter.test.tsx::store.sidebarSectionCollapsed"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.sidebarSectionCollapsed' is touched from 6 file(s)"
+      ],
+      "id": "store_sidebar_section_collapsed",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
         "src/App.tsx::store.sidebarVisible"
       ],
       "confidence_0_10000": 7500,
@@ -728,24 +728,35 @@
     },
     {
       "anchors": [
-        "src/app/desktop-notification-runtime.test.tsx::store.taskOrder"
+        "src/app/task-notification-runtime.test.tsx::store.taskNotificationsEnabled"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.taskNotificationsEnabled' is touched from 9 file(s)"
+      ],
+      "id": "store_task_notifications_enabled",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/store/client-session.test.ts::store.taskNotificationsPreferenceInitialized"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.taskNotificationsPreferenceInitialized' is touched from 5 file(s)"
+      ],
+      "id": "store_task_notifications_preference_initialized",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/desktop-session-startup.ts::store.taskOrder"
       ],
       "confidence_0_10000": 7500,
       "evidence": [
         "symbol 'store.taskOrder' is touched from 25 file(s)"
       ],
       "id": "store_task_order",
-      "kind": "store_like_symbol"
-    },
-    {
-      "anchors": [
-        "src/components/TilingLayout.tsx::store.taskOrder.length"
-      ],
-      "confidence_0_10000": 7500,
-      "evidence": [
-        "symbol 'store.taskOrder.length' is touched from 4 file(s)"
-      ],
-      "id": "store_task_order_length",
       "kind": "store_like_symbol"
     },
     {
@@ -761,11 +772,11 @@
     },
     {
       "anchors": [
-        "src/app/desktop-notification-runtime.ts::store.tasks"
+        "src/app/desktop-session-startup.ts::store.tasks"
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.tasks' is touched from 36 file(s)"
+        "symbol 'store.tasks' is touched from 38 file(s)"
       ],
       "id": "store_tasks",
       "kind": "store_like_symbol"
@@ -867,6 +878,17 @@
         "closed domain 'AnyServerStateBootstrapSnapshot' has 1 exhaustiveness site(s)"
       ],
       "id": "any_server_state_bootstrap_snapshot",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/app/app-startup-status.ts::AppStartupPhase"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'AppStartupPhase' has 1 exhaustiveness site(s)"
+      ],
+      "id": "app_startup_phase",
       "kind": "closed_domain"
     },
     {
@@ -1025,6 +1047,17 @@
     },
     {
       "anchors": [
+        "src/components/TilingLayout.tsx::store.taskOrder.length"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "symbol 'store.taskOrder.length' is touched from 3 file(s)"
+      ],
+      "id": "store_task_order_length",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
         "src/app/task-presentation-status.ts::TaskAttentionTone"
       ],
       "confidence_0_10000": 7000,
@@ -1043,6 +1076,17 @@
         "closed domain 'TaskCommandTakeoverDecision' has 1 exhaustiveness site(s)"
       ],
       "id": "task_command_takeover_decision",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/domain/task-notification.ts::TaskNotificationPermission"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'TaskNotificationPermission' has 1 exhaustiveness site(s)"
+      ],
+      "id": "task_notification_permission",
       "kind": "closed_domain"
     },
     {
@@ -1212,7 +1256,7 @@
     },
     {
       "anchors": [
-        "src/store/persistence-codecs.ts::store.collapsedTaskOrder.filter"
+        "src/app/project-workflows.ts::store.collapsedTaskOrder.filter"
       ],
       "confidence_0_10000": 6500,
       "evidence": [
@@ -1333,6 +1377,17 @@
     },
     {
       "anchors": [
+        "src/app/task-notification-runtime.test.tsx::store.peerSessions"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.peerSessions' is touched from 2 file(s)"
+      ],
+      "id": "store_peer_sessions",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
         "src/components/TaskPanel.tsx::store.pendingAction"
       ],
       "confidence_0_10000": 6500,
@@ -1340,6 +1395,17 @@
         "symbol 'store.pendingAction' is touched from 2 file(s)"
       ],
       "id": "store_pending_action",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/components/TaskPanel.test.tsx::store.permissionRequests"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.permissionRequests' is touched from 2 file(s)"
+      ],
+      "id": "store_permission_requests",
       "kind": "store_like_symbol"
     },
     {
@@ -1388,13 +1454,13 @@
     },
     {
       "anchors": [
-        "src/components/sidebar/SidebarTaskList.test.tsx::store.taskOrder.indexOf"
+        "src/components/TilingLayout.tsx::store.taskOrder.map"
       ],
       "confidence_0_10000": 6500,
       "evidence": [
-        "symbol 'store.taskOrder.indexOf' is touched from 2 file(s)"
+        "symbol 'store.taskOrder.map' is touched from 2 file(s)"
       ],
-      "id": "store_task_order_index_of",
+      "id": "store_task_order_map",
       "kind": "store_like_symbol"
     },
     {
@@ -1466,6 +1532,7 @@
   ],
   "kind": "concepts",
   "project": {
+    "archetypes": [],
     "exclude": [
       "vendor/**",
       "dist/**",
@@ -1474,12 +1541,34 @@
     ],
     "primary_language": "typescript"
   },
+  "project_shape": {
+    "boundary_roots": [
+      {
+        "evidence": [
+          "top-level client state layer detected"
+        ],
+        "kind": "client_state",
+        "root": "src/store"
+      }
+    ],
+    "capabilities": [
+      "client_state"
+    ],
+    "configured_archetypes": [],
+    "detected_archetypes": [],
+    "effective_archetypes": [],
+    "module_contracts": [],
+    "primary_archetype": null,
+    "starter_rules_toml": "[project]\nprimary_language = \"typescript\"\nexclude = [\"vendor/**\", \"dist/**\", \"coverage/**\", \"build/**\", \"node_modules/**\"]\n\n# Candidate boundary roots detected from repo shape:\n# - client_state at src/store (top-level client state layer detected)\n"
+  },
   "rule_coverage": {
     "concepts_declared": 3,
     "concepts_machine_checkable": 3,
     "contracts_declared": 1,
     "contracts_machine_checkable": 1,
     "coverage_0_10000": 10000,
+    "module_contracts_declared": 0,
+    "module_contracts_machine_checkable": 0,
     "state_models_declared": 2,
     "state_models_machine_checkable": 2,
     "suppressions_declared": 0,
@@ -1511,7 +1600,7 @@
     "configured_concept_count": 3,
     "contract_count": 1,
     "guardrail_test_count": 7,
-    "inferred_concept_count": 118,
+    "inferred_concept_count": 124,
     "matched_guardrail_test_count": 1,
     "state_model_count": 2
   },

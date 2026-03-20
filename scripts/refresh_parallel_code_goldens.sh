@@ -87,9 +87,12 @@ cat > "$tmpdir/requests.jsonl" <<EOF
 {"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"obligations","arguments":{"concept":"task_presentation_status"}}}
 {"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"parity","arguments":{"contract":"server_state_bootstrap"}}}
 {"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"state","arguments":{}}}
-{"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"session_start","arguments":{}}}
-{"jsonrpc":"2.0","id":11,"method":"tools/call","params":{"name":"gate","arguments":{}}}
-{"jsonrpc":"2.0","id":12,"method":"tools/call","params":{"name":"session_end","arguments":{}}}
+{"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"agent_brief","arguments":{"mode":"repo_onboarding","limit":3}}}
+{"jsonrpc":"2.0","id":11,"method":"tools/call","params":{"name":"session_start","arguments":{}}}
+{"jsonrpc":"2.0","id":12,"method":"tools/call","params":{"name":"agent_brief","arguments":{"mode":"patch","limit":3}}}
+{"jsonrpc":"2.0","id":13,"method":"tools/call","params":{"name":"gate","arguments":{}}}
+{"jsonrpc":"2.0","id":14,"method":"tools/call","params":{"name":"agent_brief","arguments":{"mode":"pre_merge","limit":3}}}
+{"jsonrpc":"2.0","id":15,"method":"tools/call","params":{"name":"session_end","arguments":{}}}
 EOF
 
 HOME="$PLUGIN_HOME" "$SENTRUX_BIN" --mcp < "$tmpdir/requests.jsonl" | grep '^[{]' > "$tmpdir/responses.jsonl"
@@ -121,9 +124,12 @@ const outputs = [
   [7, 'obligations-task_presentation_status.json'],
   [8, 'parity-server_state_bootstrap.json'],
   [9, 'state.json'],
-  [10, 'session-start.json'],
-  [11, 'gate-pass.json'],
-  [12, 'session-end-pass.json'],
+  [10, 'agent-brief-onboarding.json'],
+  [11, 'session-start.json'],
+  [12, 'agent-brief-patch.json'],
+  [13, 'gate-pass.json'],
+  [14, 'agent-brief-pre-merge.json'],
+  [15, 'session-end-pass.json'],
 ];
 
 function sanitizeValue(value) {

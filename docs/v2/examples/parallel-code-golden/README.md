@@ -26,6 +26,9 @@ That matters for two reasons:
 - `obligations-task_presentation_status.json`
 - `parity-server_state_bootstrap.json`
 - `state.json`
+- `agent-brief-onboarding.json`
+- `agent-brief-patch.json`
+- `agent-brief-pre-merge.json`
 - `session-start.json`
 - `gate-pass.json`
 - `gate-fail.json`
@@ -45,6 +48,7 @@ These goldens currently demonstrate several important v2 gaps:
 - zero-config exhaustiveness no longer lets giant transport domains like `IPC` dominate the top findings
 - clone findings now have stable ids, git-aware churn/code-age context, deterministic instance ordering, and distinct-file recent-activity accounting
 - clone findings still need family-level prioritization because related production clone groups can crowd the top list
+- mode-aware `agent_brief` outputs now capture repo onboarding, patch guidance, and pre-merge guidance from the same MCP scan state
 - real-repo `session_start`, `gate`, and `session_end` pass outputs are now checked in using a temporary local clone rather than the live working tree
 - real-repo regression-path `gate` and `session_end` fail outputs now exist using a deterministic mutation in `src/components/SidebarTaskRow.tsx`
 - the current regression fixture is intentionally minimal: one injected forbidden raw read that should fail patch safety on a real `parallel-code` rule

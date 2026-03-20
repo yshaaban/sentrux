@@ -4,7 +4,7 @@
   "baseline_path": "<parallel-code-root>/.sentrux/baseline.json",
   "confidence": {
     "rule_coverage_0_10000": 10000,
-    "scan_confidence_0_10000": 8248,
+    "scan_confidence_0_10000": 8297,
     "semantic_rules_loaded": true,
     "session_baseline": {
       "compatible": false,
@@ -13,12 +13,32 @@
       "schema_version": null
     }
   },
-  "files": 631,
-  "import_edges": 1907,
-  "lines": 139806,
+  "files": 653,
+  "import_edges": 1999,
+  "lines": 144038,
+  "project_shape": {
+    "boundary_roots": [
+      {
+        "evidence": [
+          "top-level client state layer detected"
+        ],
+        "kind": "client_state",
+        "root": "src/store"
+      }
+    ],
+    "capabilities": [
+      "client_state"
+    ],
+    "configured_archetypes": [],
+    "detected_archetypes": [],
+    "effective_archetypes": [],
+    "module_contracts": [],
+    "primary_archetype": null,
+    "starter_rules_toml": "[project]\nprimary_language = \"typescript\"\nexclude = [\"vendor/**\", \"dist/**\", \"coverage/**\", \"build/**\", \"node_modules/**\"]\n\n# Candidate boundary roots detected from repo shape:\n# - client_state at src/store (top-level client state layer detected)\n"
+  },
   "rules_error": null,
   "scan_trust": {
-    "candidate_files": 765,
+    "candidate_files": 787,
     "exclusions": {
       "bucketed": {
         "build": 12,
@@ -33,19 +53,19 @@
       "total": 134
     },
     "fallback_reason": null,
-    "kept_files": 631,
+    "kept_files": 653,
     "mode": "git",
-    "overall_confidence_0_10000": 8248,
+    "overall_confidence_0_10000": 8297,
     "partial": false,
     "resolution": {
       "internal_confidence_0_10000": 9995,
-      "resolved": 1908,
-      "unresolved_external": 518,
+      "resolved": 2000,
+      "unresolved_external": 531,
       "unresolved_internal": 1,
-      "unresolved_unknown": 83
+      "unresolved_unknown": 86
     },
-    "scope_coverage_0_10000": 8248,
-    "tracked_candidates": 765,
+    "scope_coverage_0_10000": 8297,
+    "tracked_candidates": 787,
     "truncated": false,
     "untracked_candidates": 0
   },

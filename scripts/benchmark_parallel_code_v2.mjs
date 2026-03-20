@@ -88,6 +88,16 @@ function summarizeState(payload) {
   };
 }
 
+function summarizeAgentBrief(payload) {
+  return {
+    mode: payload.mode ?? null,
+    decision: payload.decision ?? null,
+    primary_target_count: payload.primary_target_count ?? null,
+    missing_obligation_count: payload.missing_obligation_count ?? null,
+    watchpoint_count: payload.watchpoint_count ?? null,
+  };
+}
+
 function summarizeGate(payload) {
   return {
     decision: payload.decision ?? null,
@@ -213,11 +223,15 @@ function buildBenchmarkComparison(currentResult, previousResult) {
     ['cold_process_total_ms', 'cold process total'],
     ['cold.scan.elapsed_ms', 'cold scan'],
     ['cold.concepts.elapsed_ms', 'cold concepts'],
+    ['cold.agent_brief_onboarding.elapsed_ms', 'cold agent_brief onboarding'],
     ['warm_cached_total_ms', 'warm cached total'],
     ['warm_cached.findings.elapsed_ms', 'warm findings'],
+    ['warm_cached.agent_brief_onboarding.elapsed_ms', 'warm agent_brief onboarding'],
     ['warm_patch_safety_total_ms', 'warm patch-safety total'],
     ['warm_patch_safety.session_start.elapsed_ms', 'warm session_start'],
+    ['warm_patch_safety.agent_brief_patch.elapsed_ms', 'warm agent_brief patch'],
     ['warm_patch_safety.gate.elapsed_ms', 'warm gate'],
+    ['warm_patch_safety.agent_brief_pre_merge.elapsed_ms', 'warm agent_brief pre_merge'],
     ['warm_patch_safety.session_end.elapsed_ms', 'warm session_end'],
   ];
 
@@ -507,6 +521,13 @@ async function runBenchmarkSession(parallelCodeWorkRoot, homeOverride) {
       {},
       summarizeState,
     );
+    cold.agent_brief_onboarding = await measureRequest(
+      session,
+      'agent_brief_onboarding',
+      'agent_brief',
+      { mode: 'repo_onboarding', limit: 3 },
+      summarizeAgentBrief,
+    );
     const coldProcessTotalMs = roundMs(nowMs() - coldStartedAt);
 
     const warmStartedAt = nowMs();
@@ -552,6 +573,13 @@ async function runBenchmarkSession(parallelCodeWorkRoot, homeOverride) {
       {},
       summarizeState,
     );
+    warm.agent_brief_onboarding = await measureRequest(
+      session,
+      'agent_brief_onboarding',
+      'agent_brief',
+      { mode: 'repo_onboarding', limit: 3 },
+      summarizeAgentBrief,
+    );
     const warmCachedTotalMs = roundMs(nowMs() - warmStartedAt);
 
     const patchSafetyStartedAt = nowMs();
@@ -562,12 +590,26 @@ async function runBenchmarkSession(parallelCodeWorkRoot, homeOverride) {
       {},
       summarizeSessionSave,
     );
+    warmPatchSafety.agent_brief_patch = await measureRequest(
+      session,
+      'agent_brief_patch',
+      'agent_brief',
+      { mode: 'patch', limit: 3 },
+      summarizeAgentBrief,
+    );
     warmPatchSafety.gate = await measureRequest(
       session,
       'gate',
       'gate',
       {},
       summarizeGate,
+    );
+    warmPatchSafety.agent_brief_pre_merge = await measureRequest(
+      session,
+      'agent_brief_pre_merge',
+      'agent_brief',
+      { mode: 'pre_merge', limit: 3 },
+      summarizeAgentBrief,
     );
     warmPatchSafety.session_end = await measureRequest(
       session,

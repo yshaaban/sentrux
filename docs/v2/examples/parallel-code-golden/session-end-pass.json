@@ -1,13 +1,13 @@
 {
   "baseline_delta": {
     "available": true,
-    "coupling_after": 0.4604090194022024,
-    "coupling_before": 0.4604090194022024,
+    "coupling_after": 0.4807403701850925,
+    "coupling_before": 0.4807403701850925,
     "cycles_after": 2,
     "cycles_before": 2,
     "degraded": false,
-    "signal_after": 4400,
-    "signal_before": 4400,
+    "signal_after": 4348,
+    "signal_before": 4348,
     "signal_delta": 0
   },
   "baseline_error": null,
@@ -17,7 +17,7 @@
   "concept_summary_count": 0,
   "confidence": {
     "rule_coverage_0_10000": 10000,
-    "scan_confidence_0_10000": 8248,
+    "scan_confidence_0_10000": 8297,
     "semantic_rules_loaded": true,
     "session_baseline": {
       "compatible": true,
@@ -27,8 +27,8 @@
     }
   },
   "coupling_change": [
-    0.4604090194022024,
-    0.4604090194022024
+    0.4807403701850925,
+    0.4807403701850925
   ],
   "cycles_change": [
     2,
@@ -38,33 +38,22 @@
   "debt_clusters": [
     {
       "evidence": [
-        "overlapping signals: 6",
+        "overlapping signals: 5",
         "signal kinds: unstable_hotspot, cycle_cluster, large_file, dependency_sprawl",
-        "affected files: 50",
-        "role tags: guarded_seam, guarded_boundary, component_barrel",
-        "unstable_hotspot: Component-facing barrel 'src/store/store.ts' has 48 inbound references and remains unstable",
-        "cycle_cluster: Files src/app/agent-catalog.ts, src/app/remote-access.ts, src/app/task-attention.ts, src/app/task-close-state.ts, src/app/task-command-dispatch.ts, src/app/task-command-lease-runtime-subscriptions.ts, src/app/task-command-lease-runtime.ts, src/app/task-command-lease-session.ts, src/app/task-command-lease-takeover.ts, src/app/task-command-lease.ts, src/app/task-convergence.ts, src/app/task-lifecycle-workflows.ts, src/app/task-presentation-status.ts, src/app/task-prompt-workflows.ts, src/app/task-review-state.ts, src/app/task-shell-workflows.ts, src/app/task-workflows.ts, src/lib/runtime-client-id.ts, src/store/agent-output-activity.ts, src/store/agents.ts, src/store/auto-trust.ts, src/store/client-session.ts, src/store/completion.ts, src/store/core.ts, src/store/focus.ts, src/store/keyed-snapshot-record.ts, src/store/navigation.ts, src/store/notification.ts, src/store/peer-presence.ts, src/store/persistence-codecs.ts, src/store/persistence-load-context.ts, src/store/persistence-load.ts, src/store/persistence-projects.ts, src/store/persistence-save.ts, src/store/persistence-terminal-restore.ts, src/store/persistence.ts, src/store/projects.ts, src/store/remote.ts, src/store/review.ts, src/store/sidebar-order.ts, src/store/state.ts, src/store/store.ts, src/store/task-command-controllers.ts, src/store/task-command-takeovers.ts, src/store/task-git-status.ts, src/store/task-state-cleanup.ts, src/store/taskStatus.ts, src/store/tasks.ts, src/store/terminals.ts, src/store/ui.ts form a dependency cycle",
-        "large_file: File 'src/store/focus.ts' is 503 lines, above the typescript threshold of 500"
+        "affected files: 37",
+        "role tags: guarded_seam, guarded_boundary, component_barrel, state_container",
+        "unstable_hotspot: Component-facing barrel 'src/store/store.ts' has 45 inbound references and remains unstable",
+        "cycle_cluster: Files src/app/task-command-lease-runtime-subscriptions.ts, src/app/task-command-lease-runtime.ts, src/app/task-command-lease-session.ts, src/app/task-command-lease-takeover.ts, src/app/task-command-lease.ts, src/app/task-presentation-status.ts, src/lib/runtime-client-id.ts, src/store/agent-output-activity.ts, src/store/agents.ts, src/store/auto-trust.ts, src/store/client-session.ts, src/store/completion.ts, src/store/core.ts, src/store/focus.ts, src/store/navigation.ts, src/store/notification.ts, src/store/peer-presence.ts, src/store/persistence-codecs.ts, src/store/persistence-load-context.ts, src/store/persistence-load.ts, src/store/persistence-projects.ts, src/store/persistence-save.ts, src/store/persistence-terminal-restore.ts, src/store/persistence.ts, src/store/projects.ts, src/store/review.ts, src/store/sidebar-order.ts, src/store/state.ts, src/store/store.ts, src/store/task-command-controllers.ts, src/store/task-command-takeovers.ts, src/store/task-git-status.ts, src/store/task-state-cleanup.ts, src/store/taskStatus.ts, src/store/tasks.ts, src/store/terminals.ts, src/store/ui.ts form a dependency cycle",
+        "large_file: File 'src/store/focus.ts' is 506 lines, above the typescript threshold of 500"
       ],
       "files": [
         "src/store/store.ts",
-        "src/app/agent-catalog.ts",
-        "src/app/remote-access.ts",
-        "src/app/task-attention.ts",
-        "src/app/task-close-state.ts",
-        "src/app/task-command-dispatch.ts",
         "src/app/task-command-lease-runtime-subscriptions.ts",
         "src/app/task-command-lease-runtime.ts",
         "src/app/task-command-lease-session.ts",
         "src/app/task-command-lease-takeover.ts",
         "src/app/task-command-lease.ts",
-        "src/app/task-convergence.ts",
-        "src/app/task-lifecycle-workflows.ts",
         "src/app/task-presentation-status.ts",
-        "src/app/task-prompt-workflows.ts",
-        "src/app/task-review-state.ts",
-        "src/app/task-shell-workflows.ts",
-        "src/app/task-workflows.ts",
         "src/lib/runtime-client-id.ts",
         "src/store/agent-output-activity.ts",
         "src/store/agents.ts",
@@ -73,7 +62,6 @@
         "src/store/completion.ts",
         "src/store/core.ts",
         "src/store/focus.ts",
-        "src/store/keyed-snapshot-record.ts",
         "src/store/navigation.ts",
         "src/store/notification.ts",
         "src/store/peer-presence.ts",
@@ -85,7 +73,6 @@
         "src/store/persistence-terminal-restore.ts",
         "src/store/persistence.ts",
         "src/store/projects.ts",
-        "src/store/remote.ts",
         "src/store/review.ts",
         "src/store/sidebar-order.ts",
         "src/store/state.ts",
@@ -105,22 +92,32 @@
         "inspect whether the best cut keeps component-facing barrel access while moving deeper orchestration behind a narrower seam",
         "inspect whether app or runtime dependencies can stop flowing back through the shared barrel"
       ],
+      "leverage_class": "architecture_signal",
+      "leverage_reasons": [
+        "shared_barrel_boundary_hub",
+        "guardrail_backed_boundary_pressure",
+        "client_state_hub_pressure",
+        "high_inbound_dependency_pressure",
+        "mixed_cycle_pressure",
+        "high_leverage_cycle_cut"
+      ],
       "metrics": {
         "clone_family_count": 0,
         "concept_count": 0,
-        "file_count": 50,
+        "file_count": 37,
         "hotspot_count": 1,
-        "signal_count": 6,
-        "structural_signal_count": 6
+        "signal_count": 5,
+        "structural_signal_count": 5
       },
       "presentation_class": "structural_debt",
       "role_tags": [
         "guarded_seam",
         "guarded_boundary",
-        "component_barrel"
+        "component_barrel",
+        "state_container"
       ],
-      "scope": "cluster:src/store/store.ts|src/app/agent-catalog.ts|src/app/remote-access.ts|src/app/task-attention.ts|src/app/task-close-state.ts|src/app/task-command-dispatch.ts|src/app/task-command-lease-runtime-subscriptions.ts|src/app/task-command-lease-runtime.ts|src/app/task-command-lease-session.ts|src/app/task-command-lease-takeover.ts|src/app/task-command-lease.ts|src/app/task-convergence.ts|src/app/task-lifecycle-workflows.ts|src/app/task-presentation-status.ts|src/app/task-prompt-workflows.ts|src/app/task-review-state.ts|src/app/task-shell-workflows.ts|src/app/task-workflows.ts|src/lib/runtime-client-id.ts|src/store/agent-output-activity.ts|src/store/agents.ts|src/store/auto-trust.ts|src/store/client-session.ts|src/store/completion.ts|src/store/core.ts|src/store/focus.ts|src/store/keyed-snapshot-record.ts|src/store/navigation.ts|src/store/notification.ts|src/store/peer-presence.ts|src/store/persistence-codecs.ts|src/store/persistence-load-context.ts|src/store/persistence-load.ts|src/store/persistence-projects.ts|src/store/persistence-save.ts|src/store/persistence-terminal-restore.ts|src/store/persistence.ts|src/store/projects.ts|src/store/remote.ts|src/store/review.ts|src/store/sidebar-order.ts|src/store/state.ts|src/store/task-command-controllers.ts|src/store/task-command-takeovers.ts|src/store/task-git-status.ts|src/store/task-state-cleanup.ts|src/store/taskStatus.ts|src/store/tasks.ts|src/store/terminals.ts|src/store/ui.ts",
-      "score_0_10000": 9180,
+      "scope": "cluster:src/store/store.ts|src/app/task-command-lease-runtime-subscriptions.ts|src/app/task-command-lease-runtime.ts|src/app/task-command-lease-session.ts|src/app/task-command-lease-takeover.ts|src/app/task-command-lease.ts|src/app/task-presentation-status.ts|src/lib/runtime-client-id.ts|src/store/agent-output-activity.ts|src/store/agents.ts|src/store/auto-trust.ts|src/store/client-session.ts|src/store/completion.ts|src/store/core.ts|src/store/focus.ts|src/store/navigation.ts|src/store/notification.ts|src/store/peer-presence.ts|src/store/persistence-codecs.ts|src/store/persistence-load-context.ts|src/store/persistence-load.ts|src/store/persistence-projects.ts|src/store/persistence-save.ts|src/store/persistence-terminal-restore.ts|src/store/persistence.ts|src/store/projects.ts|src/store/review.ts|src/store/sidebar-order.ts|src/store/state.ts|src/store/task-command-controllers.ts|src/store/task-command-takeovers.ts|src/store/task-git-status.ts|src/store/task-state-cleanup.ts|src/store/taskStatus.ts|src/store/tasks.ts|src/store/terminals.ts|src/store/ui.ts",
+      "score_0_10000": 10000,
       "severity": "high",
       "signal_families": [
         "coupling",
@@ -136,7 +133,58 @@
         "large_file",
         "dependency_sprawl"
       ],
-      "summary": "Files src/store/store.ts, src/app/agent-catalog.ts, src/app/remote-access.ts, and 47 more intersect 6 debt signals: unstable_hotspot, cycle_cluster, large_file, dependency_sprawl",
+      "summary": "Files src/store/store.ts, src/app/task-command-lease-runtime-subscriptions.ts, src/app/task-command-lease-runtime.ts, and 34 more intersect 5 debt signals: unstable_hotspot, cycle_cluster, large_file, dependency_sprawl",
+      "trust_tier": "trusted"
+    },
+    {
+      "evidence": [
+        "overlapping signals: 2",
+        "signal kinds: dependency_sprawl, cycle_cluster",
+        "affected files: 2",
+        "dependency_sprawl: File 'electron/ipc/handlers.ts' depends on 16 real surfaces, above the typescript threshold of 15",
+        "cycle_cluster: Files electron/ipc/handlers.ts, electron/ipc/notification-handlers.ts form a dependency cycle"
+      ],
+      "files": [
+        "electron/ipc/handlers.ts",
+        "electron/ipc/notification-handlers.ts"
+      ],
+      "impact": "Multiple overlapping debt signals in the same surface increase change cost and make regressions harder to isolate.",
+      "inspection_focus": [
+        "inspect whether orchestration and policy code can move behind narrower helpers",
+        "inspect whether unrelated adapter dependencies are accumulating in one module",
+        "inspect whether one back-edge can be removed by splitting contracts from implementations",
+        "inspect whether shared types can move to a lower-dependency seam"
+      ],
+      "leverage_class": "architecture_signal",
+      "leverage_reasons": [
+        "contained_dependency_pressure",
+        "mixed_cycle_pressure",
+        "high_leverage_cycle_cut"
+      ],
+      "metrics": {
+        "clone_family_count": 0,
+        "concept_count": 0,
+        "file_count": 2,
+        "hotspot_count": 0,
+        "signal_count": 2,
+        "structural_signal_count": 2
+      },
+      "presentation_class": "structural_debt",
+      "role_tags": [],
+      "scope": "cluster:electron/ipc/handlers.ts|electron/ipc/notification-handlers.ts",
+      "score_0_10000": 7329,
+      "severity": "high",
+      "signal_families": [
+        "coupling",
+        "coordination",
+        "dependency",
+        "layering"
+      ],
+      "signal_kinds": [
+        "dependency_sprawl",
+        "cycle_cluster"
+      ],
+      "summary": "Files electron/ipc/handlers.ts, electron/ipc/notification-handlers.ts intersect 2 debt signals: dependency_sprawl, cycle_cluster",
       "trust_tier": "trusted"
     },
     {
@@ -157,6 +205,11 @@
         "inspect whether callers or owner modules can take decisions outside the facade",
         "inspect whether orchestration, adapters, and data shaping are accumulating in one file",
         "inspect whether the file can be split along responsibility boundaries instead of line-count slices"
+      ],
+      "leverage_class": "boundary_discipline",
+      "leverage_reasons": [
+        "guarded_or_transport_facade",
+        "heavy_inbound_seam_pressure"
       ],
       "metrics": {
         "clone_family_count": 0,
@@ -193,7 +246,7 @@
         "affected files: 1",
         "role tags: guarded_seam, facade_with_extracted_owners",
         "dependency_sprawl: File 'src/components/terminal-view/terminal-session.ts' depends on 22 real surfaces, above the typescript threshold of 15",
-        "large_file: Guarded facade file 'src/components/terminal-view/terminal-session.ts' is 629 lines, above the typescript threshold of 500"
+        "large_file: Guarded facade file 'src/components/terminal-view/terminal-session.ts' is 641 lines, above the typescript threshold of 500"
       ],
       "files": [
         "src/components/terminal-view/terminal-session.ts"
@@ -204,6 +257,10 @@
         "inspect whether unrelated adapter dependencies are accumulating in one module",
         "inspect whether remaining coordination belongs in extracted owner modules instead of the public facade",
         "inspect whether guardrail-backed owner seams are staying thin or accumulating new logic"
+      ],
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "secondary_facade_cleanup"
       ],
       "metrics": {
         "clone_family_count": 0,
@@ -251,6 +308,11 @@
         "inspect whether orchestration, adapters, and data shaping are accumulating in one file",
         "inspect whether the file can be split along responsibility boundaries instead of line-count slices"
       ],
+      "leverage_class": "local_refactor_target",
+      "leverage_reasons": [
+        "contained_dependency_pressure",
+        "supporting_size_pressure"
+      ],
       "metrics": {
         "clone_family_count": 0,
         "concept_count": 0,
@@ -275,51 +337,6 @@
       ],
       "summary": "File 'electron/ipc/system-handlers.ts' intersects 2 debt signals: dependency_sprawl, large_file",
       "trust_tier": "trusted"
-    },
-    {
-      "evidence": [
-        "overlapping signals: 2",
-        "signal kinds: dependency_sprawl, cycle_cluster",
-        "affected files: 2",
-        "dependency_sprawl: File 'electron/ipc/handlers.ts' depends on 16 real surfaces, above the typescript threshold of 15",
-        "cycle_cluster: Files electron/ipc/handlers.ts, electron/ipc/notification-handlers.ts form a dependency cycle"
-      ],
-      "files": [
-        "electron/ipc/handlers.ts",
-        "electron/ipc/notification-handlers.ts"
-      ],
-      "impact": "Multiple overlapping debt signals in the same surface increase change cost and make regressions harder to isolate.",
-      "inspection_focus": [
-        "inspect whether orchestration and policy code can move behind narrower helpers",
-        "inspect whether unrelated adapter dependencies are accumulating in one module",
-        "inspect whether one back-edge can be removed by splitting contracts from implementations",
-        "inspect whether shared types can move to a lower-dependency seam"
-      ],
-      "metrics": {
-        "clone_family_count": 0,
-        "concept_count": 0,
-        "file_count": 2,
-        "hotspot_count": 0,
-        "signal_count": 2,
-        "structural_signal_count": 2
-      },
-      "presentation_class": "structural_debt",
-      "role_tags": [],
-      "scope": "cluster:electron/ipc/handlers.ts|electron/ipc/notification-handlers.ts",
-      "score_0_10000": 5310,
-      "severity": "medium",
-      "signal_families": [
-        "coupling",
-        "coordination",
-        "dependency",
-        "layering"
-      ],
-      "signal_kinds": [
-        "dependency_sprawl",
-        "cycle_cluster"
-      ],
-      "summary": "Files electron/ipc/handlers.ts, electron/ipc/notification-handlers.ts intersect 2 debt signals: dependency_sprawl, cycle_cluster",
-      "trust_tier": "trusted"
     }
   ],
   "debt_context_error": null,
@@ -328,15 +345,15 @@
     {
       "candidate_split_axes": [
         "components dependency boundary",
-        "lib dependency boundary",
-        "app dependency boundary"
+        "app dependency boundary",
+        "lib dependency boundary"
       ],
       "evidence": [
-        "fan-out: 32",
+        "fan-out: 34",
         "fan-out threshold: 15",
         "instability: 0.97",
-        "dominant dependency categories: components(16), lib(5), app(3)",
-        "sample dependencies: src/app/app-action-keys.ts, src/app/desktop-session.ts, src/app/task-command-lease.ts",
+        "dominant dependency categories: components(16), app(5), lib(5)",
+        "sample dependencies: src/app/app-action-keys.ts, src/app/app-startup-status.ts, src/app/desktop-session.ts",
         "guardrail tests: src/app/store-boundary.architecture.test.ts"
       ],
       "files": [
@@ -348,22 +365,27 @@
         "inspect whether shell responsibilities are spreading across too many direct imports"
       ],
       "kind": "dependency_sprawl",
+      "leverage_class": "regrowth_watchpoint",
+      "leverage_reasons": [
+        "intentionally_central_surface",
+        "fan_out_regrowth_pressure"
+      ],
       "metrics": {
         "fan_in": 1,
-        "fan_out": 32,
+        "fan_out": 34,
         "file_count": 1,
         "function_count": 29,
         "guardrail_test_count": 1,
-        "instability_0_10000": 9697,
-        "line_count": 398,
+        "instability_0_10000": 9714,
+        "line_count": 404,
         "max_complexity": 2,
         "role_count": 2
       },
       "presentation_class": "structural_debt",
       "related_surfaces": [
         "src/app/app-action-keys.ts",
+        "src/app/app-startup-status.ts",
         "src/app/desktop-session.ts",
-        "src/app/task-command-lease.ts",
         "src/app/store-boundary.architecture.test.ts"
       ],
       "role_tags": [
@@ -371,14 +393,14 @@
         "composition_root"
       ],
       "scope": "src/App.tsx",
-      "score_0_10000": 8424,
+      "score_0_10000": 8428,
       "severity": "high",
       "signal_class": "debt",
       "signal_families": [
         "coupling",
         "coordination"
       ],
-      "summary": "Composition root 'src/App.tsx' depends on 32 real surfaces, above the typescript threshold of 15",
+      "summary": "Composition root 'src/App.tsx' depends on 34 real surfaces, above the typescript threshold of 15",
       "trust_tier": "trusted"
     },
     {
@@ -388,13 +410,13 @@
         "store dependency boundary"
       ],
       "evidence": [
-        "fan-out: 28",
+        "fan-out: 30",
         "fan-out threshold: 15",
-        "instability: 0.93",
-        "dominant dependency categories: components(19), lib(4), store(3)",
-        "sample dependencies: src/app/task-ports.ts, src/components/CloseTaskDialog.tsx, src/components/DiffViewerDialog.tsx",
+        "instability: 0.94",
+        "dominant dependency categories: components(20), lib(4), store(3)",
+        "sample dependencies: src/app/task-ports.ts, src/app/task-workflows.ts, src/components/CloseTaskDialog.tsx",
         "guardrail tests: src/components/TaskPanel.architecture.test.ts",
-        "extracted owner factories: createTaskPanelFocusRuntime, createTaskPanelPreviewController, createTaskPanelDialogState"
+        "extracted owner factories: createTaskPanelFocusRuntime, createTaskPanelPreviewController, createTaskPanelDialogState, createTaskPanelPermissionController"
       ],
       "files": [
         "src/components/TaskPanel.tsx"
@@ -405,22 +427,29 @@
         "inspect whether unrelated adapter dependencies are accumulating in one module"
       ],
       "kind": "dependency_sprawl",
+      "leverage_class": "local_refactor_target",
+      "leverage_reasons": [
+        "extracted_owner_shell_pressure",
+        "guardrail_backed_refactor_surface",
+        "contained_refactor_surface",
+        "contained_dependency_pressure"
+      ],
       "metrics": {
         "fan_in": 2,
-        "fan_out": 28,
+        "fan_out": 30,
         "file_count": 1,
-        "function_count": 59,
+        "function_count": 57,
         "guardrail_test_count": 1,
-        "instability_0_10000": 9333,
-        "line_count": 423,
+        "instability_0_10000": 9375,
+        "line_count": 414,
         "max_complexity": 4,
         "role_count": 2
       },
       "presentation_class": "structural_debt",
       "related_surfaces": [
         "src/app/task-ports.ts",
+        "src/app/task-workflows.ts",
         "src/components/CloseTaskDialog.tsx",
-        "src/components/DiffViewerDialog.tsx",
         "src/components/TaskPanel.architecture.test.ts"
       ],
       "role_tags": [
@@ -428,14 +457,14 @@
         "facade_with_extracted_owners"
       ],
       "scope": "src/components/TaskPanel.tsx",
-      "score_0_10000": 7906,
+      "score_0_10000": 8343,
       "severity": "high",
       "signal_class": "debt",
       "signal_families": [
         "coupling",
         "coordination"
       ],
-      "summary": "File 'src/components/TaskPanel.tsx' depends on 28 real surfaces, above the typescript threshold of 15",
+      "summary": "File 'src/components/TaskPanel.tsx' depends on 30 real surfaces, above the typescript threshold of 15",
       "trust_tier": "trusted"
     },
     {
@@ -445,14 +474,14 @@
         "store dependency boundary"
       ],
       "evidence": [
-        "fan-in: 48",
+        "fan-in: 45",
         "hotspot threshold: 20",
-        "fan-out: 20",
-        "instability: 0.29",
-        "dominant dependent categories: components(34), store(11), arena(2)",
+        "fan-out: 19",
+        "instability: 0.30",
+        "dominant dependent categories: components(31), store(11), arena(2)",
         "sample dependents: src/App.tsx, src/arena/ConfigScreen.tsx, src/arena/ResultsScreen.tsx",
         "guardrail tests: src/app/store-boundary.architecture.test.ts, src/components/TaskPanel.architecture.test.ts",
-        "guarded boundary literals: store/core, store/store, store.taskCommandControllers, store.focusedPanel[, setTaskFocusedPanel"
+        "guarded boundary literals: store/core, store/store, store.taskCommandControllers, store.focusedPanel[, ../app/task-workflows, ../app/agent-catalog, runWithAgentTaskCommandLease, IPC.WriteToAgent, loadAgents(, pickAndAddProject, closeTask(, handlePermissionResponse, permissionRequests[, setTaskFocusedPanel"
       ],
       "files": [
         "src/store/store.ts"
@@ -463,16 +492,23 @@
         "inspect whether broad inbound traffic is hiding a smaller set of volatility-heavy owner modules"
       ],
       "kind": "unstable_hotspot",
+      "leverage_class": "architecture_signal",
+      "leverage_reasons": [
+        "shared_barrel_boundary_hub",
+        "guardrail_backed_boundary_pressure",
+        "client_state_hub_pressure",
+        "high_inbound_dependency_pressure"
+      ],
       "metrics": {
-        "fan_in": 48,
-        "fan_out": 20,
+        "fan_in": 45,
+        "fan_out": 19,
         "file_count": 1,
         "function_count": 0,
         "guardrail_test_count": 2,
-        "instability_0_10000": 2941,
-        "line_count": 203,
+        "instability_0_10000": 2969,
+        "line_count": 178,
         "max_complexity": 0,
-        "role_count": 3
+        "role_count": 4
       },
       "presentation_class": "structural_debt",
       "related_surfaces": [
@@ -485,17 +521,18 @@
       "role_tags": [
         "guarded_seam",
         "guarded_boundary",
-        "component_barrel"
+        "component_barrel",
+        "state_container"
       ],
       "scope": "src/store/store.ts",
-      "score_0_10000": 7180,
+      "score_0_10000": 7189,
       "severity": "high",
       "signal_class": "debt",
       "signal_families": [
         "coupling",
         "blast_radius"
       ],
-      "summary": "Component-facing barrel 'src/store/store.ts' has 48 inbound references and remains unstable",
+      "summary": "Component-facing barrel 'src/store/store.ts' has 45 inbound references and remains unstable",
       "trust_tier": "trusted"
     },
     {
@@ -520,6 +557,10 @@
         "inspect whether the file can be split along responsibility boundaries instead of line-count slices"
       ],
       "kind": "large_file",
+      "leverage_class": "tooling_debt",
+      "leverage_reasons": [
+        "tooling_surface_maintenance_burden"
+      ],
       "metrics": {
         "fan_out": 2,
         "file_count": 1,
@@ -559,8 +600,8 @@
         "hotspot threshold: 20",
         "fan-out: 12",
         "instability: 0.15",
-        "dominant dependent categories: app(19), components(13), store(13)",
-        "sample dependents: src/App.tsx, src/app/agent-catalog.ts, src/app/desktop-notification-runtime.ts"
+        "dominant dependent categories: app(21), components(12), store(12)",
+        "sample dependents: src/App.tsx, src/app/agent-catalog.ts, src/app/desktop-session-startup.ts"
       ],
       "files": [
         "src/lib/ipc.ts"
@@ -571,6 +612,11 @@
         "inspect whether callers or owner modules can take decisions outside the facade"
       ],
       "kind": "unstable_hotspot",
+      "leverage_class": "boundary_discipline",
+      "leverage_reasons": [
+        "guarded_or_transport_facade",
+        "heavy_inbound_seam_pressure"
+      ],
       "metrics": {
         "fan_in": 67,
         "fan_out": 12,
@@ -586,7 +632,7 @@
       "related_surfaces": [
         "src/App.tsx",
         "src/app/agent-catalog.ts",
-        "src/app/desktop-notification-runtime.ts"
+        "src/app/desktop-session-startup.ts"
       ],
       "role_tags": [
         "transport_facade"
@@ -608,50 +654,10 @@
     {
       "candidate_split_axes": [],
       "evidence": [
-        "dead private functions: 18",
-        "dead private lines: 272",
-        "sample dead functions: LineWithInsertions, highlightSearchMatches, highlightSearchInHtml",
-        "total file lines: 838"
-      ],
-      "files": [
-        "src/components/ScrollingDiffView.tsx"
-      ],
-      "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
-      "inspection_focus": [
-        "inspect whether the dead helpers should be deleted or intentionally reconnected",
-        "inspect whether the file still reflects the supported control flow"
-      ],
-      "kind": "dead_private_code_cluster",
-      "metrics": {
-        "dead_line_count": 272,
-        "dead_symbol_count": 18,
-        "file_count": 1,
-        "function_count": 30,
-        "line_count": 838,
-        "max_complexity": 9,
-        "role_count": 0
-      },
-      "presentation_class": "experimental",
-      "related_surfaces": [],
-      "role_tags": [],
-      "scope": "src/components/ScrollingDiffView.tsx",
-      "score_0_10000": 7900,
-      "severity": "high",
-      "signal_class": "watchpoint",
-      "signal_families": [
-        "staleness",
-        "maintainability"
-      ],
-      "summary": "File 'src/components/ScrollingDiffView.tsx' contains 18 uncalled private functions totaling 272 lines",
-      "trust_tier": "experimental"
-    },
-    {
-      "candidate_split_axes": [],
-      "evidence": [
-        "dead private functions: 10",
-        "dead private lines: 121",
-        "sample dead functions: handlePermissionResponse, updateReviewComment, markCommentsSent",
-        "total file lines: 163"
+        "dead private functions: 9",
+        "dead private lines: 105",
+        "sample dead functions: updateReviewComment, markCommentsSent, expirePermissions",
+        "total file lines: 143"
       ],
       "files": [
         "src/store/review.ts"
@@ -662,39 +668,46 @@
         "inspect whether the file still reflects the supported control flow"
       ],
       "kind": "dead_private_code_cluster",
+      "leverage_class": "experimental",
+      "leverage_reasons": [
+        "detector_under_evaluation"
+      ],
       "metrics": {
-        "dead_line_count": 121,
-        "dead_symbol_count": 10,
+        "dead_line_count": 105,
+        "dead_symbol_count": 9,
         "file_count": 1,
-        "function_count": 12,
-        "line_count": 163,
+        "function_count": 11,
+        "line_count": 143,
         "max_complexity": 6,
-        "role_count": 0
+        "role_count": 2
       },
       "presentation_class": "experimental",
       "related_surfaces": [],
-      "role_tags": [],
+      "role_tags": [
+        "guarded_seam",
+        "state_container"
+      ],
       "scope": "src/store/review.ts",
-      "score_0_10000": 7278,
+      "score_0_10000": 6990,
       "severity": "high",
       "signal_class": "watchpoint",
       "signal_families": [
         "staleness",
         "maintainability"
       ],
-      "summary": "File 'src/store/review.ts' contains 10 uncalled private functions totaling 121 lines",
+      "summary": "File 'src/store/review.ts' contains 9 uncalled private functions totaling 105 lines",
       "trust_tier": "experimental"
     },
     {
       "candidate_split_axes": [],
       "evidence": [
-        "dead private functions: 21",
-        "dead private lines: 115",
-        "sample dead functions: getAvailablePortsFallbackMessage, handleCustomExpose, OpenTabIcon",
-        "total file lines: 895"
+        "dead private functions: 6",
+        "dead private lines: 79",
+        "sample dead functions: getFlowStats, getRoundTripStats, getRenderLatencyStats",
+        "total file lines: 370"
       ],
       "files": [
-        "src/components/PreviewPanel.tsx"
+        "src/lib/terminalLatency.ts"
       ],
       "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
       "inspection_focus": [
@@ -702,39 +715,43 @@
         "inspect whether the file still reflects the supported control flow"
       ],
       "kind": "dead_private_code_cluster",
+      "leverage_class": "experimental",
+      "leverage_reasons": [
+        "detector_under_evaluation"
+      ],
       "metrics": {
-        "dead_line_count": 115,
-        "dead_symbol_count": 21,
+        "dead_line_count": 79,
+        "dead_symbol_count": 6,
         "file_count": 1,
-        "function_count": 39,
-        "line_count": 895,
-        "max_complexity": 11,
+        "function_count": 29,
+        "line_count": 370,
+        "max_complexity": 7,
         "role_count": 0
       },
       "presentation_class": "experimental",
       "related_surfaces": [],
       "role_tags": [],
-      "scope": "src/components/PreviewPanel.tsx",
-      "score_0_10000": 7170,
+      "scope": "src/lib/terminalLatency.ts",
+      "score_0_10000": 6522,
       "severity": "high",
       "signal_class": "watchpoint",
       "signal_families": [
         "staleness",
         "maintainability"
       ],
-      "summary": "File 'src/components/PreviewPanel.tsx' contains 21 uncalled private functions totaling 115 lines",
+      "summary": "File 'src/lib/terminalLatency.ts' contains 6 uncalled private functions totaling 79 lines",
       "trust_tier": "experimental"
     },
     {
       "candidate_split_axes": [],
       "evidence": [
-        "dead private functions: 3",
-        "dead private lines: 193",
-        "sample dead functions: startRemoteServer, handleListening, handleError",
-        "total file lines: 211"
+        "dead private functions: 4",
+        "dead private lines: 28",
+        "sample dead functions: markBattleCompetitorExited, resetForRematch, returnToHistory",
+        "total file lines: 290"
       ],
       "files": [
-        "electron/remote/server.ts"
+        "src/arena/store.ts"
       ],
       "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
       "inspection_focus": [
@@ -742,41 +759,43 @@
         "inspect whether the file still reflects the supported control flow"
       ],
       "kind": "dead_private_code_cluster",
+      "leverage_class": "experimental",
+      "leverage_reasons": [
+        "detector_under_evaluation"
+      ],
       "metrics": {
-        "dead_line_count": 193,
-        "dead_symbol_count": 3,
+        "dead_line_count": 28,
+        "dead_symbol_count": 4,
         "file_count": 1,
-        "function_count": 19,
-        "line_count": 211,
-        "max_complexity": 12,
-        "role_count": 1
+        "function_count": 29,
+        "line_count": 290,
+        "max_complexity": 13,
+        "role_count": 0
       },
       "presentation_class": "experimental",
       "related_surfaces": [],
-      "role_tags": [
-        "entry_surface"
-      ],
-      "scope": "electron/remote/server.ts",
-      "score_0_10000": 7000,
-      "severity": "high",
+      "role_tags": [],
+      "scope": "src/arena/store.ts",
+      "score_0_10000": 5604,
+      "severity": "medium",
       "signal_class": "watchpoint",
       "signal_families": [
         "staleness",
         "maintainability"
       ],
-      "summary": "File 'electron/remote/server.ts' contains 3 uncalled private functions totaling 193 lines",
+      "summary": "File 'src/arena/store.ts' contains 4 uncalled private functions totaling 28 lines",
       "trust_tier": "experimental"
     },
     {
       "candidate_split_axes": [],
       "evidence": [
-        "dead private functions: 16",
-        "dead private lines: 100",
-        "sample dead functions: InlineAttentionIndicator, boxShadow, getPrimaryTaskAgentDef",
-        "total file lines: 538"
+        "dead private functions: 2",
+        "dead private lines: 118",
+        "sample dead functions: getDiffSelection, acceptNode",
+        "total file lines: 110"
       ],
       "files": [
-        "src/components/SidebarTaskRow.tsx"
+        "src/lib/diff-selection.ts"
       ],
       "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
       "inspection_focus": [
@@ -784,29 +803,78 @@
         "inspect whether the file still reflects the supported control flow"
       ],
       "kind": "dead_private_code_cluster",
+      "leverage_class": "experimental",
+      "leverage_reasons": [
+        "detector_under_evaluation"
+      ],
       "metrics": {
-        "dead_line_count": 100,
-        "dead_symbol_count": 16,
+        "dead_line_count": 118,
+        "dead_symbol_count": 2,
         "file_count": 1,
-        "function_count": 43,
-        "line_count": 538,
-        "max_complexity": 4,
-        "role_count": 1
+        "function_count": 2,
+        "line_count": 110,
+        "max_complexity": 29,
+        "role_count": 0
       },
       "presentation_class": "experimental",
       "related_surfaces": [],
-      "role_tags": [
-        "guarded_seam"
-      ],
-      "scope": "src/components/SidebarTaskRow.tsx",
-      "score_0_10000": 6900,
-      "severity": "high",
+      "role_tags": [],
+      "scope": "src/lib/diff-selection.ts",
+      "score_0_10000": 5424,
+      "severity": "medium",
       "signal_class": "watchpoint",
       "signal_families": [
         "staleness",
         "maintainability"
       ],
-      "summary": "File 'src/components/SidebarTaskRow.tsx' contains 16 uncalled private functions totaling 100 lines",
+      "summary": "File 'src/lib/diff-selection.ts' contains 2 uncalled private functions totaling 118 lines",
+      "trust_tier": "experimental"
+    },
+    {
+      "candidate_split_axes": [],
+      "evidence": [
+        "dead private functions: 4",
+        "dead private lines: 12",
+        "sample dead functions: setHydraForceDispatchFromPromptPanel, getGlobalScale, setTerminalFont",
+        "total file lines: 141"
+      ],
+      "files": [
+        "src/store/ui.ts"
+      ],
+      "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
+      "inspection_focus": [
+        "inspect whether the dead helpers should be deleted or intentionally reconnected",
+        "inspect whether the file still reflects the supported control flow"
+      ],
+      "kind": "dead_private_code_cluster",
+      "leverage_class": "experimental",
+      "leverage_reasons": [
+        "detector_under_evaluation"
+      ],
+      "metrics": {
+        "dead_line_count": 12,
+        "dead_symbol_count": 4,
+        "file_count": 1,
+        "function_count": 21,
+        "line_count": 141,
+        "max_complexity": 7,
+        "role_count": 2
+      },
+      "presentation_class": "experimental",
+      "related_surfaces": [],
+      "role_tags": [
+        "guarded_seam",
+        "state_container"
+      ],
+      "scope": "src/store/ui.ts",
+      "score_0_10000": 5316,
+      "severity": "medium",
+      "signal_class": "watchpoint",
+      "signal_families": [
+        "staleness",
+        "maintainability"
+      ],
+      "summary": "File 'src/store/ui.ts' contains 4 uncalled private functions totaling 12 lines",
       "trust_tier": "experimental"
     }
   ],
@@ -824,33 +892,22 @@
     {
       "boundary_pressure_count": 0,
       "clone_family_count": 0,
-      "concept_id": "cycle:src/app/agent-catalog.ts|src/app/remote-access.ts|src/app/task-attention.ts|src/app/task-close-state.ts|src/app/task-command-dispatch.ts|src/app/task-command-lease-runtime-subscriptions.ts|src/app/task-command-lease-runtime.ts|src/app/task-command-lease-session.ts|src/app/task-command-lease-takeover.ts|src/app/task-command-lease.ts|src/app/task-convergence.ts|src/app/task-lifecycle-workflows.ts|src/app/task-presentation-status.ts|src/app/task-prompt-workflows.ts|src/app/task-review-state.ts|src/app/task-shell-workflows.ts|src/app/task-workflows.ts|src/lib/runtime-client-id.ts|src/store/agent-output-activity.ts|src/store/agents.ts|src/store/auto-trust.ts|src/store/client-session.ts|src/store/completion.ts|src/store/core.ts|src/store/focus.ts|src/store/keyed-snapshot-record.ts|src/store/navigation.ts|src/store/notification.ts|src/store/peer-presence.ts|src/store/persistence-codecs.ts|src/store/persistence-load-context.ts|src/store/persistence-load.ts|src/store/persistence-projects.ts|src/store/persistence-save.ts|src/store/persistence-terminal-restore.ts|src/store/persistence.ts|src/store/projects.ts|src/store/remote.ts|src/store/review.ts|src/store/sidebar-order.ts|src/store/state.ts|src/store/store.ts|src/store/task-command-controllers.ts|src/store/task-command-takeovers.ts|src/store/task-git-status.ts|src/store/task-state-cleanup.ts|src/store/taskStatus.ts|src/store/tasks.ts|src/store/terminals.ts|src/store/ui.ts",
+      "concept_id": "cycle:src/app/task-command-lease-runtime-subscriptions.ts|src/app/task-command-lease-runtime.ts|src/app/task-command-lease-session.ts|src/app/task-command-lease-takeover.ts|src/app/task-command-lease.ts|src/app/task-presentation-status.ts|src/lib/runtime-client-id.ts|src/store/agent-output-activity.ts|src/store/agents.ts|src/store/auto-trust.ts|src/store/client-session.ts|src/store/completion.ts|src/store/core.ts|src/store/focus.ts|src/store/navigation.ts|src/store/notification.ts|src/store/peer-presence.ts|src/store/persistence-codecs.ts|src/store/persistence-load-context.ts|src/store/persistence-load.ts|src/store/persistence-projects.ts|src/store/persistence-save.ts|src/store/persistence-terminal-restore.ts|src/store/persistence.ts|src/store/projects.ts|src/store/review.ts|src/store/sidebar-order.ts|src/store/state.ts|src/store/store.ts|src/store/task-command-controllers.ts|src/store/task-command-takeovers.ts|src/store/task-git-status.ts|src/store/task-state-cleanup.ts|src/store/taskStatus.ts|src/store/tasks.ts|src/store/terminals.ts|src/store/ui.ts",
       "evidence": [
-        "cycle size: 50",
-        "total lines in cycle: 6827",
+        "cycle size: 37",
+        "total lines in cycle: 5535",
         "peak function complexity inside cycle: 72",
         "candidate cuts: 3",
-        "best cut candidate: src/store/core.ts -> src/store/store.ts (removes 14 cyclic files)",
-        "role tags in cycle: guarded_seam, guarded_boundary, component_barrel"
+        "best cut candidate: src/store/core.ts -> src/store/store.ts (removes 9 cyclic files)",
+        "role tags in cycle: guarded_seam, state_container, guarded_boundary, component_barrel"
       ],
       "files": [
-        "src/app/agent-catalog.ts",
-        "src/app/remote-access.ts",
-        "src/app/task-attention.ts",
-        "src/app/task-close-state.ts",
-        "src/app/task-command-dispatch.ts",
         "src/app/task-command-lease-runtime-subscriptions.ts",
         "src/app/task-command-lease-runtime.ts",
         "src/app/task-command-lease-session.ts",
         "src/app/task-command-lease-takeover.ts",
         "src/app/task-command-lease.ts",
-        "src/app/task-convergence.ts",
-        "src/app/task-lifecycle-workflows.ts",
         "src/app/task-presentation-status.ts",
-        "src/app/task-prompt-workflows.ts",
-        "src/app/task-review-state.ts",
-        "src/app/task-shell-workflows.ts",
-        "src/app/task-workflows.ts",
         "src/lib/runtime-client-id.ts",
         "src/store/agent-output-activity.ts",
         "src/store/agents.ts",
@@ -859,7 +916,6 @@
         "src/store/completion.ts",
         "src/store/core.ts",
         "src/store/focus.ts",
-        "src/store/keyed-snapshot-record.ts",
         "src/store/navigation.ts",
         "src/store/notification.ts",
         "src/store/peer-presence.ts",
@@ -871,7 +927,6 @@
         "src/store/persistence-terminal-restore.ts",
         "src/store/persistence.ts",
         "src/store/projects.ts",
-        "src/store/remote.ts",
         "src/store/review.ts",
         "src/store/sidebar-order.ts",
         "src/store/state.ts",
@@ -887,13 +942,13 @@
       ],
       "hotspot_count": 0,
       "missing_site_count": 0,
-      "score_0_10000": 7168,
+      "score_0_10000": 10000,
       "severity": "high",
       "suggested_actions": [
         "inspect whether the best cut keeps component-facing barrel access while moving deeper orchestration behind a narrower seam",
         "inspect whether app or runtime dependencies can stop flowing back through the shared barrel"
       ],
-      "summary": "Files src/app/agent-catalog.ts, src/app/remote-access.ts, src/app/task-attention.ts, src/app/task-close-state.ts, src/app/task-command-dispatch.ts, src/app/task-command-lease-runtime-subscriptions.ts, src/app/task-command-lease-runtime.ts, src/app/task-command-lease-session.ts, src/app/task-command-lease-takeover.ts, src/app/task-command-lease.ts, src/app/task-convergence.ts, src/app/task-lifecycle-workflows.ts, src/app/task-presentation-status.ts, src/app/task-prompt-workflows.ts, src/app/task-review-state.ts, src/app/task-shell-workflows.ts, src/app/task-workflows.ts, src/lib/runtime-client-id.ts, src/store/agent-output-activity.ts, src/store/agents.ts, src/store/auto-trust.ts, src/store/client-session.ts, src/store/completion.ts, src/store/core.ts, src/store/focus.ts, src/store/keyed-snapshot-record.ts, src/store/navigation.ts, src/store/notification.ts, src/store/peer-presence.ts, src/store/persistence-codecs.ts, src/store/persistence-load-context.ts, src/store/persistence-load.ts, src/store/persistence-projects.ts, src/store/persistence-save.ts, src/store/persistence-terminal-restore.ts, src/store/persistence.ts, src/store/projects.ts, src/store/remote.ts, src/store/review.ts, src/store/sidebar-order.ts, src/store/state.ts, src/store/store.ts, src/store/task-command-controllers.ts, src/store/task-command-takeovers.ts, src/store/task-git-status.ts, src/store/task-state-cleanup.ts, src/store/taskStatus.ts, src/store/tasks.ts, src/store/terminals.ts, src/store/ui.ts form a dependency cycle"
+      "summary": "Files src/app/task-command-lease-runtime-subscriptions.ts, src/app/task-command-lease-runtime.ts, src/app/task-command-lease-session.ts, src/app/task-command-lease-takeover.ts, src/app/task-command-lease.ts, src/app/task-presentation-status.ts, src/lib/runtime-client-id.ts, src/store/agent-output-activity.ts, src/store/agents.ts, src/store/auto-trust.ts, src/store/client-session.ts, src/store/completion.ts, src/store/core.ts, src/store/focus.ts, src/store/navigation.ts, src/store/notification.ts, src/store/peer-presence.ts, src/store/persistence-codecs.ts, src/store/persistence-load-context.ts, src/store/persistence-load.ts, src/store/persistence-projects.ts, src/store/persistence-save.ts, src/store/persistence-terminal-restore.ts, src/store/persistence.ts, src/store/projects.ts, src/store/review.ts, src/store/sidebar-order.ts, src/store/state.ts, src/store/store.ts, src/store/task-command-controllers.ts, src/store/task-command-takeovers.ts, src/store/task-git-status.ts, src/store/task-state-cleanup.ts, src/store/taskStatus.ts, src/store/tasks.ts, src/store/terminals.ts, src/store/ui.ts form a dependency cycle"
     },
     {
       "boundary_pressure_count": 0,
@@ -901,7 +956,7 @@
       "concept_id": "cycle:electron/ipc/handlers.ts|electron/ipc/notification-handlers.ts",
       "evidence": [
         "cycle size: 2",
-        "total lines in cycle: 131",
+        "total lines in cycle: 133",
         "peak function complexity inside cycle: 4",
         "candidate cuts: 2",
         "best cut candidate: electron/ipc/handlers.ts -> electron/ipc/notification-handlers.ts (removes 2 cyclic files)",
@@ -913,8 +968,8 @@
       ],
       "hotspot_count": 0,
       "missing_site_count": 0,
-      "score_0_10000": 4810,
-      "severity": "medium",
+      "score_0_10000": 6829,
+      "severity": "high",
       "suggested_actions": [
         "inspect whether one back-edge can be removed by splitting contracts from implementations",
         "inspect whether shared types can move to a lower-dependency seam"
@@ -927,11 +982,11 @@
   "quality_opportunities": [
     {
       "evidence": [
-        "fan-out: 32",
+        "fan-out: 34",
         "fan-out threshold: 15",
         "instability: 0.97",
-        "dominant dependency categories: components(16), lib(5), app(3)",
-        "sample dependencies: src/app/app-action-keys.ts, src/app/desktop-session.ts, src/app/task-command-lease.ts",
+        "dominant dependency categories: components(16), app(5), lib(5)",
+        "sample dependencies: src/app/app-action-keys.ts, src/app/app-startup-status.ts, src/app/desktop-session.ts",
         "guardrail tests: src/app/store-boundary.architecture.test.ts"
       ],
       "files": [
@@ -940,23 +995,23 @@
       "impact": "Broad dependency fan-out in a composition root makes shell wiring and runtime ownership harder to keep separate.",
       "kind": "dependency_sprawl",
       "scope": "src/App.tsx",
-      "score_0_10000": 8424,
+      "score_0_10000": 8428,
       "severity": "high",
       "suggested_actions": [
         "inspect whether view composition can stay separate from runtime or session wiring",
         "inspect whether shell responsibilities are spreading across too many direct imports"
       ],
-      "summary": "Composition root 'src/App.tsx' depends on 32 real surfaces, above the typescript threshold of 15"
+      "summary": "Composition root 'src/App.tsx' depends on 34 real surfaces, above the typescript threshold of 15"
     },
     {
       "evidence": [
-        "fan-out: 28",
+        "fan-out: 30",
         "fan-out threshold: 15",
-        "instability: 0.93",
-        "dominant dependency categories: components(19), lib(4), store(3)",
-        "sample dependencies: src/app/task-ports.ts, src/components/CloseTaskDialog.tsx, src/components/DiffViewerDialog.tsx",
+        "instability: 0.94",
+        "dominant dependency categories: components(20), lib(4), store(3)",
+        "sample dependencies: src/app/task-ports.ts, src/app/task-workflows.ts, src/components/CloseTaskDialog.tsx",
         "guardrail tests: src/components/TaskPanel.architecture.test.ts",
-        "extracted owner factories: createTaskPanelFocusRuntime, createTaskPanelPreviewController, createTaskPanelDialogState"
+        "extracted owner factories: createTaskPanelFocusRuntime, createTaskPanelPreviewController, createTaskPanelDialogState, createTaskPanelPermissionController"
       ],
       "files": [
         "src/components/TaskPanel.tsx"
@@ -964,24 +1019,24 @@
       "impact": "Broad dependency fan-out expands change surface and makes orchestration drift harder to localize.",
       "kind": "dependency_sprawl",
       "scope": "src/components/TaskPanel.tsx",
-      "score_0_10000": 7906,
+      "score_0_10000": 8343,
       "severity": "high",
       "suggested_actions": [
         "inspect whether orchestration and policy code can move behind narrower helpers",
         "inspect whether unrelated adapter dependencies are accumulating in one module"
       ],
-      "summary": "File 'src/components/TaskPanel.tsx' depends on 28 real surfaces, above the typescript threshold of 15"
+      "summary": "File 'src/components/TaskPanel.tsx' depends on 30 real surfaces, above the typescript threshold of 15"
     },
     {
       "evidence": [
-        "fan-in: 48",
+        "fan-in: 45",
         "hotspot threshold: 20",
-        "fan-out: 20",
-        "instability: 0.29",
-        "dominant dependent categories: components(34), store(11), arena(2)",
+        "fan-out: 19",
+        "instability: 0.30",
+        "dominant dependent categories: components(31), store(11), arena(2)",
         "sample dependents: src/App.tsx, src/arena/ConfigScreen.tsx, src/arena/ResultsScreen.tsx",
         "guardrail tests: src/app/store-boundary.architecture.test.ts, src/components/TaskPanel.architecture.test.ts",
-        "guarded boundary literals: store/core, store/store, store.taskCommandControllers, store.focusedPanel[, setTaskFocusedPanel"
+        "guarded boundary literals: store/core, store/store, store.taskCommandControllers, store.focusedPanel[, ../app/task-workflows, ../app/agent-catalog, runWithAgentTaskCommandLease, IPC.WriteToAgent, loadAgents(, pickAndAddProject, closeTask(, handlePermissionResponse, permissionRequests[, setTaskFocusedPanel"
       ],
       "files": [
         "src/store/store.ts"
@@ -989,13 +1044,13 @@
       "impact": "A volatile component-facing barrel makes it harder to keep presentation access broad while keeping deeper orchestration changes contained.",
       "kind": "unstable_hotspot",
       "scope": "src/store/store.ts",
-      "score_0_10000": 7180,
+      "score_0_10000": 7189,
       "severity": "high",
       "suggested_actions": [
         "inspect which component-facing reads really need the shared barrel and which can move behind narrower selectors",
         "inspect whether broad inbound traffic is hiding a smaller set of volatility-heavy owner modules"
       ],
-      "summary": "Component-facing barrel 'src/store/store.ts' has 48 inbound references and remains unstable"
+      "summary": "Component-facing barrel 'src/store/store.ts' has 45 inbound references and remains unstable"
     },
     {
       "evidence": [
@@ -1025,8 +1080,8 @@
         "hotspot threshold: 20",
         "fan-out: 12",
         "instability: 0.15",
-        "dominant dependent categories: app(19), components(13), store(13)",
-        "sample dependents: src/App.tsx, src/app/agent-catalog.ts, src/app/desktop-notification-runtime.ts"
+        "dominant dependent categories: app(21), components(12), store(12)",
+        "sample dependents: src/App.tsx, src/app/agent-catalog.ts, src/app/desktop-session-startup.ts"
       ],
       "files": [
         "src/lib/ipc.ts"
@@ -1047,7 +1102,7 @@
   "resolved_findings": [],
   "rules_error": null,
   "scan_trust": {
-    "candidate_files": 765,
+    "candidate_files": 787,
     "exclusions": {
       "bucketed": {
         "build": 12,
@@ -1062,25 +1117,25 @@
       "total": 134
     },
     "fallback_reason": null,
-    "kept_files": 631,
+    "kept_files": 653,
     "mode": "git",
-    "overall_confidence_0_10000": 8248,
+    "overall_confidence_0_10000": 8297,
     "partial": false,
     "resolution": {
       "internal_confidence_0_10000": 9995,
-      "resolved": 1908,
-      "unresolved_external": 518,
+      "resolved": 2000,
+      "unresolved_external": 531,
       "unresolved_internal": 1,
-      "unresolved_unknown": 83
+      "unresolved_unknown": 86
     },
-    "scope_coverage_0_10000": 8248,
-    "tracked_candidates": 765,
+    "scope_coverage_0_10000": 8297,
+    "tracked_candidates": 787,
     "truncated": false,
     "untracked_candidates": 0
   },
   "semantic_error": null,
-  "signal_after": 4400,
-  "signal_before": 4400,
+  "signal_after": 4348,
+  "signal_before": 4348,
   "signal_delta": 0,
   "summary": "Quality stable or improved",
   "suppressed_finding_count": 0,
@@ -1100,31 +1155,20 @@
       ],
       "clone_family_count": 0,
       "evidence": [
-        "cycle size: 50",
-        "total lines in cycle: 6827",
+        "cycle size: 37",
+        "total lines in cycle: 5535",
         "peak function complexity inside cycle: 72",
         "candidate cuts: 3",
-        "best cut candidate: src/store/core.ts -> src/store/store.ts (removes 14 cyclic files)",
-        "role tags in cycle: guarded_seam, guarded_boundary, component_barrel"
+        "best cut candidate: src/store/core.ts -> src/store/store.ts (removes 9 cyclic files)",
+        "role tags in cycle: guarded_seam, state_container, guarded_boundary, component_barrel"
       ],
       "files": [
-        "src/app/agent-catalog.ts",
-        "src/app/remote-access.ts",
-        "src/app/task-attention.ts",
-        "src/app/task-close-state.ts",
-        "src/app/task-command-dispatch.ts",
         "src/app/task-command-lease-runtime-subscriptions.ts",
         "src/app/task-command-lease-runtime.ts",
         "src/app/task-command-lease-session.ts",
         "src/app/task-command-lease-takeover.ts",
         "src/app/task-command-lease.ts",
-        "src/app/task-convergence.ts",
-        "src/app/task-lifecycle-workflows.ts",
         "src/app/task-presentation-status.ts",
-        "src/app/task-prompt-workflows.ts",
-        "src/app/task-review-state.ts",
-        "src/app/task-shell-workflows.ts",
-        "src/app/task-workflows.ts",
         "src/lib/runtime-client-id.ts",
         "src/store/agent-output-activity.ts",
         "src/store/agents.ts",
@@ -1133,7 +1177,6 @@
         "src/store/completion.ts",
         "src/store/core.ts",
         "src/store/focus.ts",
-        "src/store/keyed-snapshot-record.ts",
         "src/store/navigation.ts",
         "src/store/notification.ts",
         "src/store/peer-presence.ts",
@@ -1145,7 +1188,6 @@
         "src/store/persistence-terminal-restore.ts",
         "src/store/persistence.ts",
         "src/store/projects.ts",
-        "src/store/remote.ts",
         "src/store/review.ts",
         "src/store/sidebar-order.ts",
         "src/store/state.ts",
@@ -1166,31 +1208,40 @@
         "inspect whether app or runtime dependencies can stop flowing back through the shared barrel"
       ],
       "kind": "cycle_cluster",
+      "leverage_class": "architecture_signal",
+      "leverage_reasons": [
+        "shared_barrel_boundary_hub",
+        "guardrail_backed_boundary_pressure",
+        "client_state_hub_pressure",
+        "mixed_cycle_pressure",
+        "high_leverage_cycle_cut"
+      ],
       "missing_site_count": 0,
       "presentation_class": "watchpoint",
       "related_surfaces": [
         "src/store/core.ts",
         "src/store/store.ts",
-        "src/store/tasks.ts",
-        "src/app/task-workflows.ts",
-        "src/store/state.ts",
-        "src/app/agent-catalog.ts",
-        "src/app/remote-access.ts",
-        "src/app/task-attention.ts"
+        "src/store/auto-trust.ts",
+        "src/app/task-command-lease.ts",
+        "src/store/persistence-codecs.ts",
+        "src/app/task-command-lease-runtime-subscriptions.ts",
+        "src/app/task-command-lease-runtime.ts",
+        "src/app/task-command-lease-session.ts"
       ],
       "role_tags": [
         "guarded_seam",
+        "state_container",
         "guarded_boundary",
         "component_barrel"
       ],
-      "scope": "cycle:src/app/agent-catalog.ts|src/app/remote-access.ts|src/app/task-attention.ts|src/app/task-close-state.ts|src/app/task-command-dispatch.ts|src/app/task-command-lease-runtime-subscriptions.ts|src/app/task-command-lease-runtime.ts|src/app/task-command-lease-session.ts|src/app/task-command-lease-takeover.ts|src/app/task-command-lease.ts|src/app/task-convergence.ts|src/app/task-lifecycle-workflows.ts|src/app/task-presentation-status.ts|src/app/task-prompt-workflows.ts|src/app/task-review-state.ts|src/app/task-shell-workflows.ts|src/app/task-workflows.ts|src/lib/runtime-client-id.ts|src/store/agent-output-activity.ts|src/store/agents.ts|src/store/auto-trust.ts|src/store/client-session.ts|src/store/completion.ts|src/store/core.ts|src/store/focus.ts|src/store/keyed-snapshot-record.ts|src/store/navigation.ts|src/store/notification.ts|src/store/peer-presence.ts|src/store/persistence-codecs.ts|src/store/persistence-load-context.ts|src/store/persistence-load.ts|src/store/persistence-projects.ts|src/store/persistence-save.ts|src/store/persistence-terminal-restore.ts|src/store/persistence.ts|src/store/projects.ts|src/store/remote.ts|src/store/review.ts|src/store/sidebar-order.ts|src/store/state.ts|src/store/store.ts|src/store/task-command-controllers.ts|src/store/task-command-takeovers.ts|src/store/task-git-status.ts|src/store/task-state-cleanup.ts|src/store/taskStatus.ts|src/store/tasks.ts|src/store/terminals.ts|src/store/ui.ts",
-      "score_0_10000": 7168,
+      "scope": "cycle:src/app/task-command-lease-runtime-subscriptions.ts|src/app/task-command-lease-runtime.ts|src/app/task-command-lease-session.ts|src/app/task-command-lease-takeover.ts|src/app/task-command-lease.ts|src/app/task-presentation-status.ts|src/lib/runtime-client-id.ts|src/store/agent-output-activity.ts|src/store/agents.ts|src/store/auto-trust.ts|src/store/client-session.ts|src/store/completion.ts|src/store/core.ts|src/store/focus.ts|src/store/navigation.ts|src/store/notification.ts|src/store/peer-presence.ts|src/store/persistence-codecs.ts|src/store/persistence-load-context.ts|src/store/persistence-load.ts|src/store/persistence-projects.ts|src/store/persistence-save.ts|src/store/persistence-terminal-restore.ts|src/store/persistence.ts|src/store/projects.ts|src/store/review.ts|src/store/sidebar-order.ts|src/store/state.ts|src/store/store.ts|src/store/task-command-controllers.ts|src/store/task-command-takeovers.ts|src/store/task-git-status.ts|src/store/task-state-cleanup.ts|src/store/taskStatus.ts|src/store/tasks.ts|src/store/terminals.ts|src/store/ui.ts",
+      "score_0_10000": 10000,
       "severity": "high",
       "signal_families": [
         "dependency",
         "layering"
       ],
-      "summary": "Files src/app/agent-catalog.ts, src/app/remote-access.ts, src/app/task-attention.ts, src/app/task-close-state.ts, src/app/task-command-dispatch.ts, src/app/task-command-lease-runtime-subscriptions.ts, src/app/task-command-lease-runtime.ts, src/app/task-command-lease-session.ts, src/app/task-command-lease-takeover.ts, src/app/task-command-lease.ts, src/app/task-convergence.ts, src/app/task-lifecycle-workflows.ts, src/app/task-presentation-status.ts, src/app/task-prompt-workflows.ts, src/app/task-review-state.ts, src/app/task-shell-workflows.ts, src/app/task-workflows.ts, src/lib/runtime-client-id.ts, src/store/agent-output-activity.ts, src/store/agents.ts, src/store/auto-trust.ts, src/store/client-session.ts, src/store/completion.ts, src/store/core.ts, src/store/focus.ts, src/store/keyed-snapshot-record.ts, src/store/navigation.ts, src/store/notification.ts, src/store/peer-presence.ts, src/store/persistence-codecs.ts, src/store/persistence-load-context.ts, src/store/persistence-load.ts, src/store/persistence-projects.ts, src/store/persistence-save.ts, src/store/persistence-terminal-restore.ts, src/store/persistence.ts, src/store/projects.ts, src/store/remote.ts, src/store/review.ts, src/store/sidebar-order.ts, src/store/state.ts, src/store/store.ts, src/store/task-command-controllers.ts, src/store/task-command-takeovers.ts, src/store/task-git-status.ts, src/store/task-state-cleanup.ts, src/store/taskStatus.ts, src/store/tasks.ts, src/store/terminals.ts, src/store/ui.ts form a dependency cycle",
+      "summary": "Files src/app/task-command-lease-runtime-subscriptions.ts, src/app/task-command-lease-runtime.ts, src/app/task-command-lease-session.ts, src/app/task-command-lease-takeover.ts, src/app/task-command-lease.ts, src/app/task-presentation-status.ts, src/lib/runtime-client-id.ts, src/store/agent-output-activity.ts, src/store/agents.ts, src/store/auto-trust.ts, src/store/client-session.ts, src/store/completion.ts, src/store/core.ts, src/store/focus.ts, src/store/navigation.ts, src/store/notification.ts, src/store/peer-presence.ts, src/store/persistence-codecs.ts, src/store/persistence-load-context.ts, src/store/persistence-load.ts, src/store/persistence-projects.ts, src/store/persistence-save.ts, src/store/persistence-terminal-restore.ts, src/store/persistence.ts, src/store/projects.ts, src/store/review.ts, src/store/sidebar-order.ts, src/store/state.ts, src/store/store.ts, src/store/task-command-controllers.ts, src/store/task-command-takeovers.ts, src/store/task-git-status.ts, src/store/task-state-cleanup.ts, src/store/taskStatus.ts, src/store/tasks.ts, src/store/terminals.ts, src/store/ui.ts form a dependency cycle",
       "trust_tier": "watchpoint"
     },
     {
@@ -1201,7 +1252,7 @@
       "clone_family_count": 0,
       "evidence": [
         "cycle size: 2",
-        "total lines in cycle: 131",
+        "total lines in cycle: 133",
         "peak function complexity inside cycle: 4",
         "candidate cuts: 2",
         "best cut candidate: electron/ipc/handlers.ts -> electron/ipc/notification-handlers.ts (removes 2 cyclic files)",
@@ -1218,6 +1269,11 @@
         "inspect whether shared types can move to a lower-dependency seam"
       ],
       "kind": "cycle_cluster",
+      "leverage_class": "architecture_signal",
+      "leverage_reasons": [
+        "mixed_cycle_pressure",
+        "high_leverage_cycle_cut"
+      ],
       "missing_site_count": 0,
       "presentation_class": "watchpoint",
       "related_surfaces": [
@@ -1226,8 +1282,8 @@
       ],
       "role_tags": [],
       "scope": "cycle:electron/ipc/handlers.ts|electron/ipc/notification-handlers.ts",
-      "score_0_10000": 4810,
-      "severity": "medium",
+      "score_0_10000": 6829,
+      "severity": "high",
       "signal_families": [
         "dependency",
         "layering"
