@@ -170,16 +170,30 @@ pub fn build_state_integrity_findings(reports: &[StateIntegrityReport]) -> Vec<S
             });
         }
 
-        if !report.transition_gap_sites.is_empty() {
+        if !report.transition_gap_sites.is_empty() || !report.missing_transition_variants.is_empty()
+        {
+            let summary = match (
+                report.transition_gap_sites.len(),
+                report.missing_transition_variants.len(),
+            ) {
+                (0, missing_variant_count) => format!(
+                    "State model '{}' is missing explicit transition coverage for {} source variant(s)",
+                    report.id, missing_variant_count
+                ),
+                (gap_count, 0) => format!(
+                    "State model '{}' has {} transition branch(es) without an explicit next-state mapping",
+                    report.id, gap_count
+                ),
+                (gap_count, missing_variant_count) => format!(
+                    "State model '{}' has {} transition branch(es) without an explicit next-state mapping and {} uncovered source variant(s)",
+                    report.id, gap_count, missing_variant_count
+                ),
+            };
             findings.push(SemanticFinding {
                 kind: "state_model_transition_coverage_gap".to_string(),
                 severity: "high".to_string(),
                 concept_id: report.id.clone(),
-                summary: format!(
-                    "State model '{}' has {} transition branch(es) without an explicit next-state mapping",
-                    report.id,
-                    report.transition_gap_sites.len()
-                ),
+                summary,
                 files: report.files.clone(),
                 evidence: report
                     .transition_gap_sites
@@ -188,6 +202,12 @@ pub fn build_state_integrity_findings(reports: &[StateIntegrityReport]) -> Vec<S
                         let source_variant = site.source_variant.as_deref().unwrap_or("unknown");
                         format!("{}:{} [{}]", site.path, site.line, source_variant)
                     })
+                    .chain(
+                        report
+                            .missing_transition_variants
+                            .iter()
+                            .map(|variant| format!("missing transition source '{variant}'")),
+                    )
                     .collect(),
             });
         }
@@ -306,10 +326,8 @@ fn build_state_integrity_report(
         files.insert(site.path.clone());
     }
     let transition_gap_sites = transition_gap_sites(&transition_sites);
-    let missing_transition_variants = transition_gap_sites
-        .iter()
-        .filter_map(|site| site.source_variant.clone())
-        .collect::<BTreeSet<_>>();
+    let missing_transition_variants =
+        missing_transition_variants(&relevant_domains, &transition_sites, &transition_gap_sites);
     let mut context_burden = 0usize;
     for obligation in related_obligations {
         files.extend(obligation.files.iter().cloned());
@@ -478,6 +496,56 @@ fn transition_gap_sites(transition_sites: &[TransitionSite]) -> Vec<TransitionSi
         );
     }
     gaps
+}
+
+fn missing_transition_variants(
+    relevant_domains: &[&crate::analysis::semantic::ClosedDomain],
+    transition_sites: &[TransitionSite],
+    transition_gap_sites: &[TransitionSite],
+) -> BTreeSet<String> {
+    let mut missing_variants = transition_gap_sites
+        .iter()
+        .filter_map(|site| site.source_variant.clone())
+        .collect::<BTreeSet<_>>();
+    if transition_sites.is_empty() {
+        return missing_variants;
+    }
+
+    let expected_variants_by_domain = relevant_domains
+        .iter()
+        .map(|domain| {
+            (
+                domain.symbol_name.as_str(),
+                domain.variants.iter().map(String::as_str).collect::<BTreeSet<_>>(),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    let covered_variants_by_domain = transition_sites
+        .iter()
+        .filter_map(|site| {
+            site.source_variant
+                .as_deref()
+                .map(|variant| (site.domain_symbol_name.as_str(), variant))
+        })
+        .fold(BTreeMap::<&str, BTreeSet<&str>>::new(), |mut groups, (domain, variant)| {
+            groups.entry(domain).or_default().insert(variant);
+            groups
+        });
+
+    for (domain, expected_variants) in expected_variants_by_domain {
+        let covered_variants = covered_variants_by_domain.get(domain);
+        for variant in expected_variants {
+            if covered_variants
+                .map(|variants| variants.contains(variant))
+                .unwrap_or(false)
+            {
+                continue;
+            }
+            missing_variants.insert(variant.to_string());
+        }
+    }
+
+    missing_variants
 }
 
 fn roots_match_path(roots: &[String], path: &str) -> bool {
@@ -718,6 +786,90 @@ mod tests {
             vec!["error".to_string()]
         );
         assert_eq!(reports[0].transition_gap_sites.len(), 1);
+        assert!(findings
+            .iter()
+            .any(|finding| finding.kind == "state_model_transition_coverage_gap"));
+    }
+
+    #[test]
+    fn state_reports_flag_missing_transition_source_variants() {
+        let config: RulesConfig = toml::from_str(
+            r#"
+                [[state_model]]
+                id = "browser_state_sync"
+                roots = ["src/runtime/browser-state-sync-controller.ts"]
+            "#,
+        )
+        .expect("rules config");
+        let semantic = SemanticSnapshot {
+            project: ProjectModel::default(),
+            analyzed_files: 1,
+            capabilities: vec![
+                SemanticCapability::ClosedDomains,
+                SemanticCapability::ClosedDomainSites,
+                SemanticCapability::TransitionSites,
+            ],
+            files: Vec::new(),
+            symbols: Vec::new(),
+            reads: Vec::new(),
+            writes: Vec::new(),
+            closed_domains: vec![ClosedDomain {
+                path: "src/domain/browser-sync-state.ts".to_string(),
+                symbol_name: "BrowserSyncState".to_string(),
+                variants: vec![
+                    "idle".to_string(),
+                    "running".to_string(),
+                    "error".to_string(),
+                ],
+                line: 1,
+            }],
+            closed_domain_sites: vec![ExhaustivenessSite {
+                path: "src/runtime/browser-state-sync-controller.ts".to_string(),
+                domain_symbol_name: "BrowserSyncState".to_string(),
+                site_kind: "switch".to_string(),
+                proof_kind: "switch".to_string(),
+                covered_variants: vec!["idle".to_string(), "running".to_string()],
+                line: 8,
+            }],
+            transition_sites: vec![
+                TransitionSite {
+                    path: "src/runtime/browser-state-sync-controller.ts".to_string(),
+                    domain_symbol_name: "BrowserSyncState".to_string(),
+                    group_id: "src/runtime/browser-state-sync-controller.ts:8:BrowserSyncState"
+                        .to_string(),
+                    transition_kind: "switch_case".to_string(),
+                    source_variant: Some("idle".to_string()),
+                    target_variants: vec!["running".to_string()],
+                    line: 9,
+                },
+                TransitionSite {
+                    path: "src/runtime/browser-state-sync-controller.ts".to_string(),
+                    domain_symbol_name: "BrowserSyncState".to_string(),
+                    group_id: "src/runtime/browser-state-sync-controller.ts:8:BrowserSyncState"
+                        .to_string(),
+                    transition_kind: "switch_case".to_string(),
+                    source_variant: Some("running".to_string()),
+                    target_variants: vec!["error".to_string()],
+                    line: 13,
+                },
+            ],
+        };
+
+        let reports = build_state_integrity_reports(
+            &config,
+            &semantic,
+            &[],
+            StateScope::All,
+            &BTreeSet::new(),
+        );
+        let findings = build_state_integrity_findings(&reports);
+
+        assert_eq!(reports.len(), 1);
+        assert!(reports[0].transition_gap_sites.is_empty());
+        assert_eq!(
+            reports[0].missing_transition_variants,
+            vec!["error".to_string()]
+        );
         assert!(findings
             .iter()
             .any(|finding| finding.kind == "state_model_transition_coverage_gap"));
