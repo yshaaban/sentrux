@@ -166,6 +166,21 @@ export function Screen(): any {
     }
 
     #[test]
+    fn typescript_parser_marks_exported_functions_public() {
+        let code = br#"
+export function updateReviewComment(): void {}
+
+export async function markCommentsSent(): Promise<void> {}
+"#;
+        let sa = parse_bytes(code, "typescript").expect("ts parse failed");
+        let functions = sa.functions.as_ref().expect("no functions");
+
+        assert!(functions
+            .iter()
+            .all(|function| function.is_public));
+    }
+
+    #[test]
     fn typescript_parser_ignores_same_file_comment_and_string_mentions() {
         let code = br#"
 function helper(): string {

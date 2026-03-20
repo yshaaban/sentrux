@@ -301,6 +301,7 @@ fn compute_complexity(
 fn detect_visibility(
     node: tree_sitter::Node,
     body: &str,
+    content: &[u8],
     profile: &crate::analysis::plugin::profile::LanguageProfile,
 ) -> bool {
     let keywords = &profile.semantics.public_keywords;
@@ -312,6 +313,24 @@ fn detect_visibility(
             .iter()
             .any(|kw: &String| text.starts_with(kw.as_str()))
     };
+    if !is_public && !keywords.is_empty() {
+        let mut ancestor = node.parent();
+        while let Some(parent) = ancestor {
+            let prefix = content
+                .get(parent.start_byte()..node.start_byte())
+                .and_then(|bytes| std::str::from_utf8(bytes).ok())
+                .map(str::trim_start)
+                .unwrap_or("");
+            if keywords
+                .iter()
+                .any(|kw: &String| prefix.starts_with(kw.as_str()))
+            {
+                is_public = true;
+                break;
+            }
+            ancestor = parent.parent();
+        }
+    }
     if !is_public && !profile.semantics.method_parent_kinds.is_empty() {
         let mut ancestor = node.parent();
         while let Some(parent) = ancestor {
@@ -377,7 +396,7 @@ pub(super) fn process_func_def(
         let (cc, cog) = compute_complexity(node, pctx.content, profile);
         let pc = count_parameters(node, pctx.content, pctx.lang);
         let bh = hash_body(body, pctx.lang);
-        let is_public = detect_visibility(node, body, profile);
+        let is_public = detect_visibility(node, body, pctx.content, profile);
         let is_test = detect_is_test(node, body, pctx.content, profile);
         functions.push(FuncInfo {
             n: name,

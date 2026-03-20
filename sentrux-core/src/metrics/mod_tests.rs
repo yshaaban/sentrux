@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod tests {
+    use crate::analysis::parser::parse_bytes;
     use crate::core::snapshot::Snapshot;
     use crate::core::types::{EntryPoint, ImportEdge};
     use crate::core::types::{FileNode, FuncInfo, StructuralAnalysis};
@@ -421,6 +422,38 @@ mod tests {
 
         assert_eq!(report.dead_functions.len(), 1);
         assert_eq!(report.dead_functions[0].func, "helper");
+    }
+
+    #[test]
+    fn dead_functions_ignore_exported_typescript_functions() {
+        let sa = parse_bytes(
+            br#"
+export function updateReviewComment(): void {}
+
+export async function markCommentsSent(): Promise<void> {}
+"#,
+            "typescript",
+        )
+        .expect("ts parse failed");
+        let file = FileNode {
+            path: "src/review.ts".to_string(),
+            name: "review.ts".to_string(),
+            is_dir: false,
+            lines: 6,
+            logic: 4,
+            comments: 0,
+            blanks: 2,
+            funcs: 2,
+            mtime: 0.0,
+            gs: String::new(),
+            lang: "typescript".to_string(),
+            sa: Some(sa),
+            children: None,
+        };
+        let snap = snap_with_edges(Vec::new(), vec![file]);
+        let report = compute_health(&snap);
+
+        assert!(report.dead_functions.is_empty());
     }
 
     // ── Shannon entropy: single cross-module pair = 0 entropy ──
