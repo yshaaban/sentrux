@@ -41,6 +41,70 @@ pub enum SemanticCapability {
     TransitionSites,
 }
 
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExhaustivenessSiteKind {
+    #[default]
+    Switch,
+    Record,
+    Satisfies,
+}
+
+impl ExhaustivenessSiteKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Switch => "switch",
+            Self::Record => "record",
+            Self::Satisfies => "satisfies",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Default, serde::Serialize, serde::Deserialize)]
+pub enum ExhaustivenessProofKind {
+    #[serde(rename = "switch")]
+    #[default]
+    Switch,
+    #[serde(rename = "assertNever")]
+    AssertNever,
+    #[serde(rename = "Record")]
+    Record,
+    #[serde(rename = "satisfies")]
+    Satisfies,
+}
+
+impl ExhaustivenessProofKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Switch => "switch",
+            Self::AssertNever => "assertNever",
+            Self::Record => "Record",
+            Self::Satisfies => "satisfies",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TransitionKind {
+    RecordEntry,
+    #[default]
+    SwitchCase,
+    IfBranch,
+    IfElse,
+}
+
+impl TransitionKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::RecordEntry => "record_entry",
+            Self::SwitchCase => "switch_case",
+            Self::IfBranch => "if_branch",
+            Self::IfElse => "if_else",
+        }
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
 pub struct SemanticFileFact {
     pub path: String,
@@ -86,8 +150,8 @@ pub struct ClosedDomain {
 pub struct ExhaustivenessSite {
     pub path: String,
     pub domain_symbol_name: String,
-    pub site_kind: String,
-    pub proof_kind: String,
+    pub site_kind: ExhaustivenessSiteKind,
+    pub proof_kind: ExhaustivenessProofKind,
     pub covered_variants: Vec<String>,
     pub line: u32,
 }
@@ -97,7 +161,7 @@ pub struct TransitionSite {
     pub path: String,
     pub domain_symbol_name: String,
     pub group_id: String,
-    pub transition_kind: String,
+    pub transition_kind: TransitionKind,
     pub source_variant: Option<String>,
     pub target_variants: Vec<String>,
     pub line: u32,

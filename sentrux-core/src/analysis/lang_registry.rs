@@ -1,11 +1,14 @@
 //! Language registry — maps file extensions to tree-sitter grammars and queries.
 //!
-//! All languages are loaded as runtime plugins from ~/.sentrux/plugins/.
-//! No grammars are compiled into the binary. This keeps the binary small (~5MB)
-//! and allows anyone to add language support without recompilation.
+//! Plugin manifests and language profiles are indexed eagerly, but runtime grammars are
+//! loaded lazily on first use. That keeps unrelated broken plugins from crashing every scan.
 
+use crate::analysis::plugin::loader::{load_single_plugin, prepared_plugins_dir};
+use crate::analysis::plugin::manifest::PluginManifest;
 use crate::analysis::plugin::profile::{LanguageProfile, DEFAULT_PROFILE};
 use std::collections::HashMap;
+use std::path::PathBuf;
+use std::sync::OnceLock;
 use tree_sitter::{Language, Query};
 
 /// Configuration for a runtime-loaded language plugin.
@@ -22,12 +25,48 @@ pub struct PluginLangConfig {
     pub profile: LanguageProfile,
 }
 
-/// Central registry mapping language names and file extensions to loaded plugins.
+struct PluginRegistration {
+    profile: LanguageProfile,
+    plugin_dir: PathBuf,
+    loaded: OnceLock<Result<PluginLangConfig, String>>,
+}
+
+impl PluginRegistration {
+    fn load(&self) -> Option<&PluginLangConfig> {
+        match self.loaded.get_or_init(|| self.load_config()) {
+            Ok(config) => Some(config),
+            Err(_) => None,
+        }
+    }
+
+    fn load_config(&self) -> Result<PluginLangConfig, String> {
+        let plugin = load_single_plugin(&self.plugin_dir).map_err(|error| {
+            let message = format!("{}: {}", self.plugin_dir.display(), error);
+            crate::debug_log!("[plugin] {}", message);
+            message
+        })?;
+
+        let query = Query::new(&plugin.grammar, &plugin.query_src).map_err(|error| {
+            let message = format!("{}: query failed: {:?}", plugin.name, error);
+            crate::debug_log!("[plugin] {}", message);
+            message
+        })?;
+
+        Ok(PluginLangConfig {
+            name: plugin.name,
+            grammar: plugin.grammar,
+            query,
+            extensions: plugin.extensions,
+            profile: plugin.profile,
+        })
+    }
+}
+
+/// Central registry mapping language names and file extensions to plugin registrations.
 pub struct LangRegistry {
-    by_name: HashMap<String, usize>,
-    by_ext: HashMap<String, usize>,
-    configs: Vec<PluginLangConfig>,
-    /// Plugins that failed to load (logged, not fatal).
+    by_name: HashMap<String, PluginRegistration>,
+    by_ext: HashMap<String, String>,
+    /// Plugins that failed to parse/register (logged, not fatal).
     failed: Vec<String>,
     /// Extension → language name for ALL known plugins (including those without grammars).
     /// Used for display-only language detection (file counting, coloring).
@@ -51,12 +90,12 @@ fn parse_toml_inline_array(line: &str) -> Vec<&str> {
     let inner = &trimmed[bracket_start + 1..bracket_end];
     inner
         .split(',')
-        .map(|s| s.trim().trim_matches('"').trim())
-        .filter(|s| !s.is_empty())
+        .map(|segment| segment.trim().trim_matches('"').trim())
+        .filter(|segment| !segment.is_empty())
         .collect()
 }
 
-/// Global singleton — loads plugins from ~/.sentrux/plugins/ once at startup.
+/// Global singleton — indexes plugin manifests once at startup.
 static REGISTRY: std::sync::LazyLock<LangRegistry> = std::sync::LazyLock::new(LangRegistry::init);
 
 impl LangRegistry {
@@ -64,23 +103,22 @@ impl LangRegistry {
         let mut registry = LangRegistry {
             by_name: HashMap::new(),
             by_ext: HashMap::new(),
-            configs: Vec::new(),
             failed: Vec::new(),
             ext_display: HashMap::new(),
             filename_map: HashMap::new(),
             filename_prefix_map: Vec::new(),
         };
         registry.load_display_index();
-        registry.load_plugins();
+        registry.discover_plugins();
 
-        let count = registry.configs.len();
+        let count = registry.by_name.len();
         if count == 0 {
             eprintln!(
-                "[lang_registry] No language plugins loaded. \
+                "[lang_registry] No language plugins discovered. \
                  Run `sentrux plugin add-standard` to install standard languages."
             );
         } else {
-            crate::debug_log!("[lang_registry] {} language plugins loaded", count);
+            crate::debug_log!("[lang_registry] {} language plugins indexed", count);
         }
 
         registry
@@ -93,6 +131,65 @@ impl LangRegistry {
             self.index_extensions(name, toml_content);
             self.index_filenames(name, toml_content);
         }
+    }
+
+    fn discover_plugins(&mut self) {
+        let Some(dir) = prepared_plugins_dir() else {
+            return;
+        };
+        let entries = match std::fs::read_dir(&dir) {
+            Ok(entries) => entries,
+            Err(error) => {
+                let message = format!("{}: {}", dir.display(), error);
+                crate::debug_log!("[plugin] Failed to read plugins dir: {}", message);
+                self.failed.push(message);
+                return;
+            }
+        };
+
+        for entry in entries.flatten() {
+            let plugin_dir = entry.path();
+            if !plugin_dir.is_dir() {
+                continue;
+            }
+            self.register_plugin_dir(plugin_dir);
+        }
+    }
+
+    fn register_plugin_dir(&mut self, plugin_dir: PathBuf) {
+        let manifest = match PluginManifest::load(&plugin_dir) {
+            Ok(manifest) => manifest,
+            Err(error) => {
+                let message = format!("{}: {}", plugin_dir.display(), error);
+                crate::debug_log!("[plugin] {}", message);
+                self.failed.push(message);
+                return;
+            }
+        };
+
+        let name = manifest.plugin.name.clone();
+        let profile = LanguageProfile {
+            name: name.clone(),
+            semantics: manifest.semantics,
+            thresholds: manifest.thresholds,
+            color_rgb: manifest.plugin.color_rgb.unwrap_or([80, 85, 90]),
+        };
+
+        for extension in &manifest.plugin.extensions {
+            self.by_ext.insert(extension.clone(), name.clone());
+            self.ext_display
+                .entry(extension.clone())
+                .or_insert_with(|| name.clone());
+        }
+        self.index_manifest_filenames(&name, &manifest.plugin.filenames);
+        self.by_name.insert(
+            name,
+            PluginRegistration {
+                profile,
+                plugin_dir,
+                loaded: OnceLock::new(),
+            },
+        );
     }
 
     /// Index file extensions from a plugin TOML for display language detection.
@@ -114,98 +211,66 @@ impl LangRegistry {
         for line in toml_content.lines() {
             let trimmed = line.trim();
             if trimmed.starts_with("filenames") {
-                for fname in parse_toml_inline_array(trimmed) {
-                    if fname.ends_with('*') {
-                        let prefix = &fname[..fname.len() - 1];
-                        self.filename_prefix_map
-                            .push((prefix.to_string(), name.to_string()));
-                    } else {
-                        self.filename_map
-                            .insert(fname.to_string(), name.to_string());
-                    }
-                }
+                self.index_manifest_filenames(name, &parse_toml_inline_array(trimmed));
             }
         }
     }
 
-    /// Load all plugins from ~/.sentrux/plugins/.
-    fn load_plugins(&mut self) {
-        let (plugins, errors) = crate::analysis::plugin::load_all_plugins();
-        for err in &errors {
-            crate::debug_log!(
-                "[plugin] Error: {}: {}",
-                err.plugin_dir.display(),
-                err.error
-            );
-            self.failed
-                .push(format!("{}: {}", err.plugin_dir.display(), err.error));
-        }
-        for plugin in plugins {
-            match Query::new(&plugin.grammar, &plugin.query_src) {
-                Ok(query) => {
-                    let idx = self.configs.len();
-                    let name = plugin.name.clone();
-                    let extensions = plugin.extensions.clone();
-                    self.configs.push(PluginLangConfig {
-                        name: plugin.name,
-                        grammar: plugin.grammar,
-                        query,
-                        extensions: plugin.extensions,
-                        profile: plugin.profile,
-                    });
-                    self.by_name.insert(name, idx);
-                    for ext in extensions {
-                        self.by_ext.insert(ext, idx);
-                    }
-                }
-                Err(e) => {
-                    let msg = format!("{}: query failed: {:?}", plugin.name, e);
-                    crate::debug_log!("[plugin] {}", msg);
-                    self.failed.push(msg);
-                }
+    fn index_manifest_filenames<T>(&mut self, name: &str, filenames: &[T])
+    where
+        T: AsRef<str>,
+    {
+        for filename in filenames {
+            let filename = filename.as_ref();
+            if let Some(prefix) = filename.strip_suffix('*') {
+                self.filename_prefix_map
+                    .push((prefix.to_string(), name.to_string()));
+            } else {
+                self.filename_map
+                    .insert(filename.to_string(), name.to_string());
             }
         }
     }
 
     /// Look up by language name.
     pub fn get(&self, name: &str) -> Option<&PluginLangConfig> {
-        self.by_name.get(name).map(|&idx| &self.configs[idx])
+        self.by_name.get(name)?.load()
     }
 
     /// Get the language profile by name. Returns default profile if not found.
     pub fn profile(&self, name: &str) -> &LanguageProfile {
-        self.get(name)
-            .map(|c| &c.profile)
+        self.by_name
+            .get(name)
+            .map(|registration| &registration.profile)
             .unwrap_or(&DEFAULT_PROFILE)
-    }
-
-    /// Look up by file extension (without dot).
-    pub fn get_by_ext(&self, ext: &str) -> Option<&PluginLangConfig> {
-        self.by_ext.get(ext).map(|&idx| &self.configs[idx])
     }
 
     /// All registered file extensions.
     pub fn all_extensions(&self) -> Vec<&str> {
-        self.by_ext.keys().map(|s| s.as_str()).collect()
+        self.by_ext
+            .keys()
+            .map(|extension| extension.as_str())
+            .collect()
     }
 
-    /// Number of loaded languages.
+    /// Number of discovered languages.
     pub fn count(&self) -> usize {
-        self.configs.len()
+        self.by_name.len()
     }
 
-    /// All manifest files across all loaded plugins (for project boundary detection).
+    /// All manifest files across all discovered plugins (for project boundary detection).
     pub fn all_manifest_files(&self) -> Vec<&str> {
         let mut files: Vec<&str> = self
-            .configs
-            .iter()
-            .flat_map(|c| {
-                c.profile
+            .by_name
+            .values()
+            .flat_map(|registration| {
+                registration
+                    .profile
                     .semantics
                     .project
                     .manifest_files
                     .iter()
-                    .map(|s| s.as_str())
+                    .map(|path| path.as_str())
             })
             .collect();
         files.sort_unstable();
@@ -213,68 +278,74 @@ impl LangRegistry {
         files
     }
 
-    /// All ignored directories across all loaded plugins (merged set).
+    /// All ignored directories across all discovered plugins (merged set).
     pub fn all_ignored_dirs(&self) -> std::collections::HashSet<&str> {
-        self.configs
-            .iter()
-            .flat_map(|c| {
-                c.profile
+        self.by_name
+            .values()
+            .flat_map(|registration| {
+                registration
+                    .profile
                     .semantics
                     .project
                     .ignored_dirs
                     .iter()
-                    .map(|s| s.as_str())
+                    .map(|path| path.as_str())
             })
             .collect()
     }
 
-    /// All source dirs across all loaded plugins (merged set for module boundary detection).
+    /// All source dirs across all discovered plugins (merged set for module boundary detection).
     pub fn all_source_dirs(&self) -> std::collections::HashSet<&str> {
-        self.configs
-            .iter()
-            .flat_map(|c| {
-                c.profile
+        self.by_name
+            .values()
+            .flat_map(|registration| {
+                registration
+                    .profile
                     .semantics
                     .project
                     .source_dirs
                     .iter()
-                    .map(|s| s.as_str())
+                    .map(|path| path.as_str())
             })
             .collect()
     }
 
-    /// All mod_declaration_files across all loaded plugins (merged set).
+    /// All mod_declaration_files across all discovered plugins (merged set).
     pub fn all_mod_declaration_files(&self) -> std::collections::HashSet<&str> {
-        self.configs
-            .iter()
-            .flat_map(|c| {
-                c.profile
+        self.by_name
+            .values()
+            .flat_map(|registration| {
+                registration
+                    .profile
                     .semantics
                     .project
                     .mod_declaration_files
                     .iter()
-                    .map(|s| s.as_str())
+                    .map(|path| path.as_str())
             })
             .collect()
     }
 
-    /// All package_index_files across all loaded plugins (merged set).
+    /// All package_index_files across all discovered plugins (merged set).
     pub fn all_package_index_files(&self) -> std::collections::HashSet<&str> {
-        self.configs
-            .iter()
-            .flat_map(|c| {
-                c.profile
+        self.by_name
+            .values()
+            .flat_map(|registration| {
+                registration
+                    .profile
                     .semantics
                     .package_index_files
                     .iter()
-                    .map(|s| s.as_str())
+                    .map(|path| path.as_str())
             })
             .collect()
     }
 
-    /// Iterate over all loaded profiles.
+    /// Iterate over all discovered profiles.
     pub fn all_profiles(&self) -> impl Iterator<Item = &LanguageProfile> {
-        self.configs.iter().map(|c| &c.profile)
+        self.by_name
+            .values()
+            .map(|registration| &registration.profile)
     }
 
     /// Failed plugin descriptions (for UI display).
@@ -290,14 +361,16 @@ pub fn get(name: &str) -> Option<&'static PluginLangConfig> {
     REGISTRY.get(name)
 }
 
-/// Get language profile by name. Returns default profile if no plugin loaded.
+/// Get language profile by name. Returns default profile if no plugin is registered.
 pub fn profile(name: &str) -> &'static LanguageProfile {
     REGISTRY.profile(name)
 }
 
 /// Get grammar + query for a language name.
 pub fn get_grammar_and_query(name: &str) -> Option<(&'static Language, &'static Query)> {
-    REGISTRY.get(name).map(|c| (&c.grammar, &c.query))
+    REGISTRY
+        .get(name)
+        .map(|config| (&config.grammar, &config.query))
 }
 
 /// All registered extensions.
@@ -305,47 +378,47 @@ pub fn all_extensions() -> Vec<&'static str> {
     REGISTRY.all_extensions()
 }
 
-/// Number of loaded language plugins.
+/// Number of discovered language plugins.
 pub fn plugin_count() -> usize {
     REGISTRY.count()
 }
 
-/// All manifest files across all loaded plugins.
+/// All manifest files across all discovered plugins.
 pub fn all_manifest_files() -> Vec<&'static str> {
     REGISTRY.all_manifest_files()
 }
 
-/// All ignored dirs across all loaded plugins (merged).
+/// All ignored dirs across all discovered plugins (merged).
 pub fn all_ignored_dirs() -> std::collections::HashSet<&'static str> {
     REGISTRY.all_ignored_dirs()
 }
 
-/// All source dirs across all loaded plugins (merged).
+/// All source dirs across all discovered plugins (merged).
 pub fn all_source_dirs() -> std::collections::HashSet<&'static str> {
     REGISTRY.all_source_dirs()
 }
 
-/// All mod_declaration_files across all loaded plugins (merged).
+/// All mod_declaration_files across all discovered plugins (merged).
 pub fn all_mod_declaration_files() -> std::collections::HashSet<&'static str> {
     REGISTRY.all_mod_declaration_files()
 }
 
-/// All package_index_files across all loaded plugins (merged).
+/// All package_index_files across all discovered plugins (merged).
 pub fn all_package_index_files() -> std::collections::HashSet<&'static str> {
     REGISTRY.all_package_index_files()
 }
 
-/// Iterate over all loaded language profiles.
+/// Iterate over all discovered language profiles.
 pub fn all_profiles() -> impl Iterator<Item = &'static LanguageProfile> {
     REGISTRY.all_profiles()
 }
 
 /// Detect language name from file extension string.
-/// First checks loaded plugins (with grammars), then falls back to the
+/// First checks discovered plugins, then falls back to the
 /// display-only index (all embedded plugins, even without grammars).
 pub fn detect_lang_from_ext(ext: &str) -> String {
-    if let Some(config) = REGISTRY.get_by_ext(ext) {
-        return config.name.clone();
+    if let Some(name) = REGISTRY.by_ext.get(ext) {
+        return name.clone();
     }
     if let Some(name) = REGISTRY.ext_display.get(ext) {
         return name.clone();
@@ -357,11 +430,9 @@ pub fn detect_lang_from_ext(ext: &str) -> String {
 /// Reads from plugin.toml `filenames` field — no hardcoded language names.
 pub fn detect_lang_from_filename(filename: &str) -> Option<String> {
     let base = filename.rsplit('/').next().unwrap_or(filename);
-    // Exact match first
     if let Some(name) = REGISTRY.filename_map.get(base) {
         return Some(name.clone());
     }
-    // Prefix match (e.g., "Dockerfile.*" matches "Dockerfile.prod")
     for (prefix, name) in &REGISTRY.filename_prefix_map {
         if base.starts_with(prefix.as_str()) {
             return Some(name.clone());
@@ -388,12 +459,9 @@ mod tests {
 
     #[test]
     fn test_detect_lang_from_filename() {
-        // These now read from embedded plugin TOML data
-        // (plugins must declare filenames = [...] to be detected)
         let df = detect_lang_from_filename("Dockerfile");
         let mf = detect_lang_from_filename("Makefile");
         let none = detect_lang_from_filename("random.txt");
-        // dockerfile and bash plugins should declare these filenames
         assert!(
             df.is_some() || df.is_none(),
             "detection works without panic"
@@ -407,7 +475,6 @@ mod tests {
 
     #[test]
     fn test_registry_loads() {
-        // Should not panic even if no plugins are installed
         let _ = &*REGISTRY;
     }
 }

@@ -1,7 +1,7 @@
 //! Project discovery for semantic frontends.
 
-use crate::analysis::project_shape::detect_project_shape;
 use super::types::ProjectModel;
+use crate::analysis::project_shape::detect_project_shape;
 use crate::analysis::scanner::common::normalize_path;
 use ignore::WalkBuilder;
 use std::collections::hash_map::DefaultHasher;

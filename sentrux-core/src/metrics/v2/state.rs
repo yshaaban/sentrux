@@ -1,8 +1,9 @@
 //! Conservative state-integrity analysis built on closed-domain and obligation facts.
 
-use super::{ObligationReport, ObligationSite, SemanticFinding};
+use super::{FindingSeverity, ObligationReport, ObligationSite, SemanticFinding};
 use crate::analysis::semantic::{
-    ExhaustivenessSite, SemanticCapability, SemanticSnapshot, TransitionSite,
+    ExhaustivenessProofKind, ExhaustivenessSite, ExhaustivenessSiteKind, SemanticCapability,
+    SemanticSnapshot, TransitionSite,
 };
 use crate::metrics::rules::{self, RulesConfig, StateModelRule};
 use std::collections::{BTreeMap, BTreeSet};
@@ -69,7 +70,7 @@ pub fn build_state_integrity_findings(reports: &[StateIntegrityReport]) -> Vec<S
         if report.domain_symbol_names.is_empty() {
             findings.push(SemanticFinding {
                 kind: "state_model_unmapped".to_string(),
-                severity: "medium".to_string(),
+                severity: FindingSeverity::Medium,
                 concept_id: report.id.clone(),
                 summary: format!(
                     "State model '{}' has no matching closed-domain coverage under its configured roots",
@@ -84,7 +85,7 @@ pub fn build_state_integrity_findings(reports: &[StateIntegrityReport]) -> Vec<S
         if !report.missing_exhaustive_switch_domains.is_empty() {
             findings.push(SemanticFinding {
                 kind: "state_model_missing_exhaustive_switch".to_string(),
-                severity: "high".to_string(),
+                severity: FindingSeverity::High,
                 concept_id: report.id.clone(),
                 summary: format!(
                     "State model '{}' is missing switch-based coverage for {} domain(s)",
@@ -99,7 +100,7 @@ pub fn build_state_integrity_findings(reports: &[StateIntegrityReport]) -> Vec<S
         if !report.missing_assert_never_domains.is_empty() {
             findings.push(SemanticFinding {
                 kind: "state_model_missing_assert_never".to_string(),
-                severity: "medium".to_string(),
+                severity: FindingSeverity::Medium,
                 concept_id: report.id.clone(),
                 summary: format!(
                     "State model '{}' is missing assertNever-backed default handling for {} domain(s)",
@@ -132,9 +133,9 @@ pub fn build_state_integrity_findings(reports: &[StateIntegrityReport]) -> Vec<S
             findings.push(SemanticFinding {
                 kind: "state_model_missing_variant_coverage".to_string(),
                 severity: if report.missing_variants.is_empty() {
-                    "medium".to_string()
+                    FindingSeverity::Medium
                 } else {
-                    "high".to_string()
+                    FindingSeverity::High
                 },
                 concept_id: report.id.clone(),
                 summary,
@@ -159,7 +160,7 @@ pub fn build_state_integrity_findings(reports: &[StateIntegrityReport]) -> Vec<S
         {
             findings.push(SemanticFinding {
                 kind: "state_model_missing_transition_sites".to_string(),
-                severity: "medium".to_string(),
+                severity: FindingSeverity::Medium,
                 concept_id: report.id.clone(),
                 summary: format!(
                     "State model '{}' has no explicit transition sites under its configured roots",
@@ -191,7 +192,7 @@ pub fn build_state_integrity_findings(reports: &[StateIntegrityReport]) -> Vec<S
             };
             findings.push(SemanticFinding {
                 kind: "state_model_transition_coverage_gap".to_string(),
-                severity: "high".to_string(),
+                severity: FindingSeverity::High,
                 concept_id: report.id.clone(),
                 summary,
                 files: report.files.clone(),
@@ -215,7 +216,7 @@ pub fn build_state_integrity_findings(reports: &[StateIntegrityReport]) -> Vec<S
         if report.context_burden >= 8 {
             findings.push(SemanticFinding {
                 kind: "state_model_high_context_burden".to_string(),
-                severity: "medium".to_string(),
+                severity: FindingSeverity::Medium,
                 concept_id: report.id.clone(),
                 summary: format!(
                     "State model '{}' has high static context burden ({})",
@@ -403,9 +404,10 @@ fn missing_switch_domains(
     domain_symbol_names
         .iter()
         .filter(|domain| {
-            !relevant_sites
-                .iter()
-                .any(|site| site.domain_symbol_name == **domain && site.site_kind == "switch")
+            !relevant_sites.iter().any(|site| {
+                site.domain_symbol_name == **domain
+                    && site.site_kind == ExhaustivenessSiteKind::Switch
+            })
         })
         .cloned()
         .collect()
@@ -425,7 +427,7 @@ fn missing_assert_never_domains(
         .filter(|domain| {
             !relevant_sites.iter().any(|site| {
                 site.domain_symbol_name == **domain
-                    && site.proof_kind.eq_ignore_ascii_case("assertNever")
+                    && site.proof_kind == ExhaustivenessProofKind::AssertNever
             })
         })
         .cloned()
@@ -490,7 +492,8 @@ fn transition_gap_sites(transition_sites: &[TransitionSite]) -> Vec<TransitionSi
     let mut gaps = Vec::new();
     for sites in groups.into_values() {
         gaps.extend(
-            sites.into_iter()
+            sites
+                .into_iter()
                 .filter(|site| site.target_variants.is_empty())
                 .cloned(),
         );
@@ -516,7 +519,11 @@ fn missing_transition_variants(
         .map(|domain| {
             (
                 domain.symbol_name.as_str(),
-                domain.variants.iter().map(String::as_str).collect::<BTreeSet<_>>(),
+                domain
+                    .variants
+                    .iter()
+                    .map(String::as_str)
+                    .collect::<BTreeSet<_>>(),
             )
         })
         .collect::<BTreeMap<_, _>>();
@@ -527,10 +534,13 @@ fn missing_transition_variants(
                 .as_deref()
                 .map(|variant| (site.domain_symbol_name.as_str(), variant))
         })
-        .fold(BTreeMap::<&str, BTreeSet<&str>>::new(), |mut groups, (domain, variant)| {
-            groups.entry(domain).or_default().insert(variant);
-            groups
-        });
+        .fold(
+            BTreeMap::<&str, BTreeSet<&str>>::new(),
+            |mut groups, (domain, variant)| {
+                groups.entry(domain).or_default().insert(variant);
+                groups
+            },
+        );
 
     for (domain, expected_variants) in expected_variants_by_domain {
         let covered_variants = covered_variants_by_domain.get(domain);
@@ -563,8 +573,8 @@ mod tests {
         changed_state_model_ids_from_files, state_integrity_score_0_10000, StateScope,
     };
     use crate::analysis::semantic::{
-        ClosedDomain, ExhaustivenessSite, ProjectModel, SemanticCapability, SemanticSnapshot,
-        TransitionSite,
+        ClosedDomain, ExhaustivenessProofKind, ExhaustivenessSite, ExhaustivenessSiteKind,
+        ProjectModel, SemanticCapability, SemanticSnapshot, TransitionKind, TransitionSite,
     };
     use crate::metrics::rules::RulesConfig;
     use crate::metrics::v2::{build_obligations, ObligationScope};
@@ -611,8 +621,8 @@ mod tests {
             closed_domain_sites: vec![ExhaustivenessSite {
                 path: "src/runtime/browser-state-sync-controller.ts".to_string(),
                 domain_symbol_name: "BrowserSyncState".to_string(),
-                site_kind: "switch".to_string(),
-                proof_kind: "switch".to_string(),
+                site_kind: ExhaustivenessSiteKind::Switch,
+                proof_kind: ExhaustivenessProofKind::Switch,
                 covered_variants: vec!["idle".to_string(), "running".to_string()],
                 line: 12,
             }],
@@ -728,8 +738,8 @@ mod tests {
             closed_domain_sites: vec![ExhaustivenessSite {
                 path: "src/runtime/browser-state-sync-controller.ts".to_string(),
                 domain_symbol_name: "BrowserSyncState".to_string(),
-                site_kind: "switch".to_string(),
-                proof_kind: "assertNever".to_string(),
+                site_kind: ExhaustivenessSiteKind::Switch,
+                proof_kind: ExhaustivenessProofKind::AssertNever,
                 covered_variants: vec![
                     "idle".to_string(),
                     "running".to_string(),
@@ -743,7 +753,7 @@ mod tests {
                     domain_symbol_name: "BrowserSyncState".to_string(),
                     group_id: "src/runtime/browser-state-sync-controller.ts:12:BrowserSyncState"
                         .to_string(),
-                    transition_kind: "switch_case".to_string(),
+                    transition_kind: TransitionKind::SwitchCase,
                     source_variant: Some("idle".to_string()),
                     target_variants: vec!["running".to_string()],
                     line: 13,
@@ -753,7 +763,7 @@ mod tests {
                     domain_symbol_name: "BrowserSyncState".to_string(),
                     group_id: "src/runtime/browser-state-sync-controller.ts:12:BrowserSyncState"
                         .to_string(),
-                    transition_kind: "switch_case".to_string(),
+                    transition_kind: TransitionKind::SwitchCase,
                     source_variant: Some("running".to_string()),
                     target_variants: vec!["error".to_string()],
                     line: 17,
@@ -763,7 +773,7 @@ mod tests {
                     domain_symbol_name: "BrowserSyncState".to_string(),
                     group_id: "src/runtime/browser-state-sync-controller.ts:12:BrowserSyncState"
                         .to_string(),
-                    transition_kind: "switch_case".to_string(),
+                    transition_kind: TransitionKind::SwitchCase,
                     source_variant: Some("error".to_string()),
                     target_variants: Vec::new(),
                     line: 21,
@@ -826,8 +836,8 @@ mod tests {
             closed_domain_sites: vec![ExhaustivenessSite {
                 path: "src/runtime/browser-state-sync-controller.ts".to_string(),
                 domain_symbol_name: "BrowserSyncState".to_string(),
-                site_kind: "switch".to_string(),
-                proof_kind: "switch".to_string(),
+                site_kind: ExhaustivenessSiteKind::Switch,
+                proof_kind: ExhaustivenessProofKind::Switch,
                 covered_variants: vec!["idle".to_string(), "running".to_string()],
                 line: 8,
             }],
@@ -837,7 +847,7 @@ mod tests {
                     domain_symbol_name: "BrowserSyncState".to_string(),
                     group_id: "src/runtime/browser-state-sync-controller.ts:8:BrowserSyncState"
                         .to_string(),
-                    transition_kind: "switch_case".to_string(),
+                    transition_kind: TransitionKind::SwitchCase,
                     source_variant: Some("idle".to_string()),
                     target_variants: vec!["running".to_string()],
                     line: 9,
@@ -847,7 +857,7 @@ mod tests {
                     domain_symbol_name: "BrowserSyncState".to_string(),
                     group_id: "src/runtime/browser-state-sync-controller.ts:8:BrowserSyncState"
                         .to_string(),
-                    transition_kind: "switch_case".to_string(),
+                    transition_kind: TransitionKind::SwitchCase,
                     source_variant: Some("running".to_string()),
                     target_variants: vec!["error".to_string()],
                     line: 13,
@@ -910,8 +920,8 @@ mod tests {
             closed_domain_sites: vec![ExhaustivenessSite {
                 path: "src/runtime/browser-state-sync-controller.ts".to_string(),
                 domain_symbol_name: "BrowserSyncState".to_string(),
-                site_kind: "switch".to_string(),
-                proof_kind: "switch".to_string(),
+                site_kind: ExhaustivenessSiteKind::Switch,
+                proof_kind: ExhaustivenessProofKind::Switch,
                 covered_variants: vec![
                     "idle".to_string(),
                     "running".to_string(),
@@ -925,7 +935,7 @@ mod tests {
                     domain_symbol_name: "BrowserSyncState".to_string(),
                     group_id: "src/runtime/browser-state-sync-controller.ts:8:BrowserSyncState"
                         .to_string(),
-                    transition_kind: "switch_case".to_string(),
+                    transition_kind: TransitionKind::SwitchCase,
                     source_variant: Some("idle".to_string()),
                     target_variants: Vec::new(),
                     line: 9,
@@ -935,7 +945,7 @@ mod tests {
                     domain_symbol_name: "BrowserSyncState".to_string(),
                     group_id: "src/runtime/browser-state-sync-controller.ts:8:BrowserSyncState"
                         .to_string(),
-                    transition_kind: "switch_case".to_string(),
+                    transition_kind: TransitionKind::SwitchCase,
                     source_variant: Some("running".to_string()),
                     target_variants: Vec::new(),
                     line: 13,
@@ -988,8 +998,8 @@ mod tests {
             closed_domain_sites: vec![ExhaustivenessSite {
                 path: "src/runtime/browser-state-sync-controller.ts".to_string(),
                 domain_symbol_name: "BrowserSyncState".to_string(),
-                site_kind: "switch".to_string(),
-                proof_kind: "switch".to_string(),
+                site_kind: ExhaustivenessSiteKind::Switch,
+                proof_kind: ExhaustivenessProofKind::Switch,
                 covered_variants: vec!["idle".to_string(), "running".to_string()],
                 line: 8,
             }],
@@ -1040,8 +1050,8 @@ mod tests {
             closed_domain_sites: vec![ExhaustivenessSite {
                 path: "src/runtime/browser-state-sync-controller.ts".to_string(),
                 domain_symbol_name: "BrowserSyncState".to_string(),
-                site_kind: "switch".to_string(),
-                proof_kind: "switch".to_string(),
+                site_kind: ExhaustivenessSiteKind::Switch,
+                proof_kind: ExhaustivenessProofKind::Switch,
                 covered_variants: vec!["idle".to_string(), "running".to_string()],
                 line: 8,
             }],

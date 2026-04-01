@@ -9,6 +9,7 @@ pub mod typescript;
 
 pub use project::discover_project;
 pub use types::{
-    ClosedDomain, ExhaustivenessSite, ProjectModel, ReadFact, SemanticCapability, SemanticFileFact,
-    SemanticSnapshot, SymbolFact, TransitionSite, WriteFact,
+    ClosedDomain, ExhaustivenessProofKind, ExhaustivenessSite, ExhaustivenessSiteKind,
+    ProjectModel, ReadFact, SemanticCapability, SemanticFileFact, SemanticSnapshot, SymbolFact,
+    TransitionKind, TransitionSite, WriteFact,
 };

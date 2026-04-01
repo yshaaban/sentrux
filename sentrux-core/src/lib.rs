@@ -26,3 +26,6 @@ pub mod layout;
 pub mod license;
 pub mod metrics;
 pub mod renderer;
+
+#[cfg(test)]
+pub mod test_support;

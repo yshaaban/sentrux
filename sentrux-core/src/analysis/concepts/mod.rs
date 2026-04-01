@@ -417,11 +417,11 @@ fn scoped_path_targets<'a>(values: impl IntoIterator<Item = &'a str>) -> HashSet
 mod tests {
     use super::{detect_guardrail_tests, extract_concept_graph, infer_concepts};
     use crate::analysis::semantic::{
-        ClosedDomain, ExhaustivenessSite, ProjectModel, ReadFact, SemanticSnapshot, SymbolFact,
-        WriteFact,
+        ClosedDomain, ExhaustivenessProofKind, ExhaustivenessSite, ExhaustivenessSiteKind,
+        ProjectModel, ReadFact, SemanticSnapshot, SymbolFact, WriteFact,
     };
     use crate::metrics::rules::RulesConfig;
-    use std::time::{SystemTime, UNIX_EPOCH};
+    use crate::test_support::temp_root;
 
     #[test]
     fn extracts_v2_concepts_from_rules() {
@@ -455,22 +455,9 @@ mod tests {
         assert_eq!(graph.concepts[0].id, "task_git_status");
     }
 
-    fn temp_root(label: &str) -> std::path::PathBuf {
-        let unique = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("clock")
-            .as_nanos();
-        let root = std::env::temp_dir().join(format!(
-            "sentrux-concepts-{label}-{}-{unique}",
-            std::process::id()
-        ));
-        std::fs::create_dir_all(&root).expect("create temp root");
-        root
-    }
-
     #[test]
     fn detects_guardrail_tests_with_matching_concepts() {
-        let root = temp_root("guardrails");
+        let root = temp_root("sentrux-concepts", "guardrails", &[]);
         let tests_dir = root.join("src/components");
         std::fs::create_dir_all(&tests_dir).expect("create test dir");
         std::fs::write(
@@ -580,8 +567,8 @@ mod tests {
             closed_domain_sites: vec![ExhaustivenessSite {
                 path: "src/app/task-view.ts".to_string(),
                 domain_symbol_name: "TaskState".to_string(),
-                site_kind: "switch".to_string(),
-                proof_kind: "switch".to_string(),
+                site_kind: ExhaustivenessSiteKind::Switch,
+                proof_kind: ExhaustivenessProofKind::Switch,
                 covered_variants: vec!["idle".to_string()],
                 line: 10,
             }],

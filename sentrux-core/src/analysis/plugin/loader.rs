@@ -10,7 +10,10 @@
 
 use super::manifest::PluginManifest;
 use super::profile::LanguageProfile;
+use object::{Object, ObjectSymbol};
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
+use tree_sitter::ffi::TSLanguage;
 use tree_sitter::Language;
 
 /// Result of loading a single plugin.
@@ -39,6 +42,11 @@ pub struct PluginLoadError {
     pub error: String,
 }
 
+fn loaded_libraries() -> &'static Mutex<Vec<libloading::Library>> {
+    static LIBRARIES: OnceLock<Mutex<Vec<libloading::Library>>> = OnceLock::new();
+    LIBRARIES.get_or_init(|| Mutex::new(Vec::new()))
+}
+
 /// Get the user's plugins directory path (~/.sentrux/plugins/).
 pub fn plugins_dir() -> Option<PathBuf> {
     dirs::home_dir().map(|h| h.join(".sentrux").join("plugins"))
@@ -63,16 +71,10 @@ pub fn load_all_plugins() -> (Vec<LoadedPlugin>, Vec<PluginLoadError>) {
     let mut loaded = Vec::new();
     let mut errors = Vec::new();
 
-    let dir = match plugins_dir() {
-        Some(d) if d.is_dir() => d,
+    let dir = match prepared_plugins_dir() {
+        Some(d) => d,
         _ => return (loaded, errors),
     };
-
-    // If bundled plugins exist, copy any missing grammars to user dir
-    // This handles: fresh install from distribution archive
-    if let Some(bundled) = bundled_plugins_dir() {
-        copy_bundled_grammars(&bundled, &dir);
-    }
 
     let entries = match std::fs::read_dir(&dir) {
         Ok(e) => e,
@@ -105,8 +107,20 @@ pub fn load_all_plugins() -> (Vec<LoadedPlugin>, Vec<PluginLoadError>) {
     (loaded, errors)
 }
 
+/// Prepare the user plugin directory and sync bundled grammars into it when present.
+pub fn prepared_plugins_dir() -> Option<PathBuf> {
+    let dir = match plugins_dir() {
+        Some(path) if path.is_dir() => path,
+        _ => return None,
+    };
+    if let Some(bundled) = bundled_plugins_dir() {
+        copy_bundled_grammars(&bundled, &dir);
+    }
+    Some(dir)
+}
+
 /// Load a single plugin from a directory.
-fn load_single_plugin(plugin_dir: &Path) -> Result<LoadedPlugin, String> {
+pub fn load_single_plugin(plugin_dir: &Path) -> Result<LoadedPlugin, String> {
     // 1. Parse manifest
     let manifest = PluginManifest::load(plugin_dir)?;
 
@@ -198,11 +212,37 @@ fn verify_checksum(
     Ok(())
 }
 
+fn verify_grammar_exports(path: &Path, symbol_name: &str) -> Result<(), String> {
+    let bytes = std::fs::read(path)
+        .map_err(|e| format!("Failed to read grammar binary for validation: {e}"))?;
+    let object = object::File::parse(bytes.as_slice())
+        .map_err(|e| format!("Failed to parse grammar binary: {e}"))?;
+
+    let has_export = object
+        .dynamic_symbols()
+        .chain(object.symbols())
+        .filter_map(|symbol| symbol.name().ok())
+        .any(|name| name == symbol_name);
+
+    if has_export {
+        return Ok(());
+    }
+
+    Err(format!(
+        "Grammar binary {} does not export required symbol '{}'.",
+        path.display(),
+        symbol_name
+    ))
+}
+
 /// Load a tree-sitter Language from a dynamic library (.so/.dylib).
 ///
 /// The library must export a function named `tree_sitter_<name>` that returns
 /// a `*const TSLanguage` pointer. This is the standard tree-sitter convention.
 fn load_grammar_dynamic(path: &Path, lang_name: &str) -> Result<Language, String> {
+    let func_name = format!("tree_sitter_{}", lang_name);
+    verify_grammar_exports(path, &func_name)?;
+
     // Safety: we're loading a tree-sitter grammar .so/.dylib which exports
     // a single `tree_sitter_<name>()` function returning *const TSLanguage.
     // This is the same mechanism nvim-treesitter, helix, and zed use.
@@ -211,8 +251,7 @@ fn load_grammar_dynamic(path: &Path, lang_name: &str) -> Result<Language, String
             .map_err(|e| format!("Failed to load {}: {}", path.display(), e))?;
 
         // tree-sitter convention: exported function is `tree_sitter_<name>`
-        let func_name = format!("tree_sitter_{}", lang_name);
-        let func: libloading::Symbol<unsafe extern "C" fn() -> Language> =
+        let func: libloading::Symbol<unsafe extern "C" fn() -> *const TSLanguage> =
             lib.get(func_name.as_bytes()).map_err(|e| {
                 format!(
                     "Symbol '{}' not found in {}: {}. The grammar must export tree_sitter_{}().",
@@ -223,11 +262,22 @@ fn load_grammar_dynamic(path: &Path, lang_name: &str) -> Result<Language, String
                 )
             })?;
 
-        let language = func();
+        let language_ptr = func();
+        if language_ptr.is_null() {
+            return Err(format!(
+                "Grammar symbol '{}' returned a null language pointer in {}.",
+                func_name,
+                path.display()
+            ));
+        }
+        let language = Language::from_raw(language_ptr);
 
-        // Leak the library to keep it alive for the lifetime of the process.
+        // Keep the library alive for the lifetime of the process.
         // tree-sitter Language holds pointers into the library's memory.
-        std::mem::forget(lib);
+        loaded_libraries()
+            .lock()
+            .map_err(|_| "Failed to retain loaded grammar library".to_string())?
+            .push(lib);
 
         Ok(language)
     }
@@ -265,6 +315,7 @@ fn copy_bundled_grammars(bundled_dir: &Path, user_dir: &Path) {
 
 #[cfg(test)]
 mod tests {
+    use super::verify_grammar_exports;
     use super::*;
 
     #[test]
@@ -279,6 +330,26 @@ mod tests {
         let (loaded, errors) = load_all_plugins();
         // Should not crash even if dir doesn't exist
         let _ = (loaded, errors);
+    }
+
+    #[test]
+    fn rejects_invalid_grammar_binary_before_dynamic_load() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "sentrux-loader-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&temp_dir).expect("create temp dir");
+        let path = temp_dir.join("bad-grammar.so");
+        std::fs::write(&path, b"not an elf shared library").expect("write invalid library");
+
+        let error = verify_grammar_exports(&path, "tree_sitter_bash").expect_err("invalid library");
+        assert!(error.contains("Failed to parse grammar binary"));
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_dir(&temp_dir);
     }
 
     /// Diagnostic: dump all node types for grammars that fail to load.

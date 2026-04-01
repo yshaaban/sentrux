@@ -14,6 +14,7 @@ license = "MIT"
 source = "https://github.com/tree-sitter-grammars/tree-sitter-markdown"
 ref = "split_parser"
 abi_version = 14
+symbol_name = "markdown_inline"
 
 [queries]
 capabilities = []

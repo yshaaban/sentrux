@@ -550,10 +550,7 @@ fn print_v2_gate_save(payload: &serde_json::Value) {
     {
         println!("Supporting structural context: {quality_signal}");
     }
-    if let Some(error) = payload
-        .get("semantic_error")
-        .and_then(|value| value.as_str())
-    {
+    if let Some(error) = diagnostics_error(payload, "semantic") {
         println!("\nSemantic note: {error}");
     }
     if let Some(message) = payload.get("message").and_then(|value| value.as_str()) {
@@ -665,16 +662,10 @@ fn print_v2_gate_result(payload: &serde_json::Value) -> i32 {
         }
     }
 
-    if let Some(error) = payload
-        .get("semantic_error")
-        .and_then(|value| value.as_str())
-    {
+    if let Some(error) = diagnostics_error(payload, "semantic") {
         println!("\nSemantic note: {error}");
     }
-    if let Some(error) = payload
-        .get("baseline_error")
-        .and_then(|value| value.as_str())
-    {
+    if let Some(error) = diagnostics_error(payload, "baseline") {
         println!("Baseline note: {error}");
     }
 
@@ -732,6 +723,14 @@ fn print_cli_suppression_match(matched: &serde_json::Value) {
         .and_then(|value| value.as_str())
         .unwrap_or("suppressed");
     println!("  - kind={kind} concept={concept} file={file} count={count} reason={reason}");
+}
+
+fn diagnostics_error<'a>(payload: &'a serde_json::Value, key: &str) -> Option<&'a str> {
+    payload
+        .get("diagnostics")
+        .and_then(|value| value.get("errors"))
+        .and_then(|value| value.get(key))
+        .and_then(|value| value.as_str())
 }
 
 fn severity_of_value(value: &serde_json::Value) -> &str {
@@ -1426,6 +1425,32 @@ fn cli_scan_limits() -> analysis::scanner::common::ScanLimits {
     }
 }
 
+fn grammar_install_state_path(
+    dir: &std::path::Path,
+    version: &str,
+    platform_key: &str,
+) -> std::path::PathBuf {
+    dir.join(format!(
+        ".grammar-install-state-{version}-{platform_key}.json"
+    ))
+}
+
+fn read_recorded_missing_grammars(path: &std::path::Path) -> Option<Vec<String>> {
+    let contents = std::fs::read_to_string(path).ok()?;
+    serde_json::from_str(&contents).ok()
+}
+
+fn write_recorded_missing_grammars(path: &std::path::Path, missing: &[String]) {
+    if missing.is_empty() {
+        let _ = std::fs::remove_file(path);
+        return;
+    }
+
+    if let Ok(serialized) = serde_json::to_string(missing) {
+        let _ = std::fs::write(path, serialized);
+    }
+}
+
 /// Ensure grammar binaries are installed for all embedded plugins.
 /// Downloads ONE tarball with ALL grammars — not 49 individual downloads.
 ///
@@ -1452,18 +1477,24 @@ fn ensure_grammars_installed() {
 
     let _ = std::fs::create_dir_all(&dir);
 
-    // Check if ANY grammar is missing
-    let any_missing = sentrux_core::analysis::plugin::embedded::EMBEDDED_PLUGINS
+    let mut missing = sentrux_core::analysis::plugin::embedded::EMBEDDED_PLUGINS
         .iter()
-        .any(|&(name, toml, _)| {
-            toml.contains("[grammar]") && !dir.join(name).join("grammars").join(platform).exists()
-        });
+        .filter_map(|&(name, toml, _)| {
+            let grammar_path = dir.join(name).join("grammars").join(platform);
+            (toml.contains("[grammar]") && !grammar_path.exists()).then(|| name.to_string())
+        })
+        .collect::<Vec<_>>();
 
-    if !any_missing {
+    if missing.is_empty() {
         return;
     }
 
     let version = env!("CARGO_PKG_VERSION");
+    let state_path = grammar_install_state_path(&dir, version, platform_key);
+    if read_recorded_missing_grammars(&state_path).as_deref() == Some(missing.as_slice()) {
+        return;
+    }
+
     let url = format!(
         "https://github.com/sentrux/sentrux/releases/download/v{version}/grammars-{platform_key}.tar.gz"
     );
@@ -1496,12 +1527,24 @@ fn ensure_grammars_installed() {
         let _ = std::fs::remove_file(&tarball);
 
         if extracted {
+            missing = sentrux_core::analysis::plugin::embedded::EMBEDDED_PLUGINS
+                .iter()
+                .filter_map(|&(name, toml, _)| {
+                    let grammar_path = dir.join(name).join("grammars").join(platform);
+                    (toml.contains("[grammar]") && !grammar_path.exists()).then(|| name.to_string())
+                })
+                .collect();
+            write_recorded_missing_grammars(&state_path, &missing);
+
             // Count how many grammars we now have
             let count = sentrux_core::analysis::plugin::embedded::EMBEDDED_PLUGINS
                 .iter()
                 .filter(|&&(name, _, _)| dir.join(name).join("grammars").join(platform).exists())
                 .count();
             eprintln!("  {count} language grammars ready.");
+            if !missing.is_empty() {
+                eprintln!("  Still missing grammars for: {}", missing.join(", "));
+            }
         } else {
             eprintln!("  Failed to extract grammars archive.");
         }

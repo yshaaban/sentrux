@@ -9,7 +9,7 @@ use crate::analysis::semantic::typescript::{
 use crate::analysis::semantic::{ProjectModel, SemanticSnapshot};
 use serde::de::DeserializeOwned;
 use std::io::{BufRead, BufReader, Read, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 
 #[derive(Debug)]
@@ -40,6 +40,18 @@ pub struct TypeScriptBridgeSupervisor {
     initialized: bool,
     capabilities: Option<BridgeInitializeResult>,
 }
+
+const REQUIRED_BRIDGE_DIST_FILES: &[&str] = &[
+    "index.js",
+    "transport.js",
+    "analysis.js",
+    "protocol.js",
+    "types.js",
+    "analysis-utils.js",
+    "analysis-types.js",
+    "analysis-closed-domains.js",
+    "analysis-transitions.js",
+];
 
 impl TypeScriptBridgeSupervisor {
     pub fn new(config: TypeScriptBridgeConfig) -> Self {
@@ -75,21 +87,12 @@ impl TypeScriptBridgeSupervisor {
             self.terminate_process()?;
         }
 
-        if !Path::new(&self.config.entrypoint).is_file() {
-            return Err(BridgeError::Unavailable(format!(
-                "TypeScript bridge entrypoint is unavailable: {}",
-                self.config.entrypoint
-            )));
-        }
+        ensure_bridge_runtime_ready(&self.config)?;
 
         let command = bridge_command(&self.config);
         let mut child = spawn_bridge_process(&command)?;
-        let stdin = child.stdin.take().ok_or_else(|| {
-            BridgeError::Io("TypeScript bridge started without stdin pipe".to_string())
-        })?;
-        let stdout = child.stdout.take().ok_or_else(|| {
-            BridgeError::Io("TypeScript bridge started without stdout pipe".to_string())
-        })?;
+        let stdin = take_required_pipe(child.stdin.take(), "stdin")?;
+        let stdout = take_required_pipe(child.stdout.take(), "stdout")?;
 
         self.stdin = Some(stdin);
         self.stdout = Some(BufReader::new(stdout));
@@ -220,6 +223,110 @@ impl TypeScriptBridgeSupervisor {
         self.reset_handles();
         result
     }
+}
+
+fn ensure_bridge_runtime_ready(config: &TypeScriptBridgeConfig) -> Result<(), BridgeError> {
+    let missing_paths = missing_bridge_runtime_paths(config);
+    if missing_paths.is_empty() {
+        return Ok(());
+    }
+
+    if should_attempt_bridge_build(config) {
+        build_bridge_runtime(config)?;
+    }
+
+    let missing_paths = missing_bridge_runtime_paths(config);
+    if missing_paths.is_empty() {
+        return Ok(());
+    }
+
+    Err(BridgeError::Unavailable(format!(
+        "TypeScript bridge runtime is incomplete; missing {}",
+        join_missing_paths(&missing_paths)
+    )))
+}
+
+fn take_required_pipe<T>(pipe: Option<T>, pipe_name: &str) -> Result<T, BridgeError> {
+    pipe.ok_or_else(|| {
+        BridgeError::Io(format!(
+            "TypeScript bridge started without {pipe_name} pipe"
+        ))
+    })
+}
+
+fn missing_bridge_runtime_paths(config: &TypeScriptBridgeConfig) -> Vec<PathBuf> {
+    let entrypoint = Path::new(&config.entrypoint);
+    let Some(dist_dir) = entrypoint.parent() else {
+        return vec![entrypoint.to_path_buf()];
+    };
+
+    let mut missing = Vec::new();
+    for relative_path in REQUIRED_BRIDGE_DIST_FILES {
+        let absolute_path = dist_dir.join(relative_path);
+        if !absolute_path.is_file() {
+            missing.push(absolute_path);
+        }
+    }
+
+    missing
+}
+
+fn should_attempt_bridge_build(config: &TypeScriptBridgeConfig) -> bool {
+    let package_dir = Path::new(&config.package_dir);
+    package_dir
+        .file_name()
+        .is_some_and(|name| name == "ts-bridge")
+        && package_dir.join("package.json").is_file()
+}
+
+fn build_bridge_runtime(config: &TypeScriptBridgeConfig) -> Result<(), BridgeError> {
+    let output = Command::new("npm")
+        .args(["run", "build"])
+        .current_dir(&config.package_dir)
+        .output()
+        .map_err(|error| {
+            if error.kind() == std::io::ErrorKind::NotFound {
+                BridgeError::Unavailable(format!(
+                    "TypeScript bridge runtime is incomplete and npm is unavailable: {error}"
+                ))
+            } else {
+                BridgeError::Io(format!(
+                    "Failed to rebuild TypeScript bridge runtime in {}: {error}",
+                    config.package_dir
+                ))
+            }
+        })?;
+
+    if output.status.success() {
+        return Ok(());
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let detail = format_command_output(&stdout, &stderr);
+    Err(BridgeError::Unavailable(format!(
+        "TypeScript bridge runtime rebuild failed in {}: {}{}",
+        config.package_dir, output.status, detail
+    )))
+}
+
+fn format_command_output(stdout: &str, stderr: &str) -> String {
+    let trimmed_stdout = stdout.trim();
+    let trimmed_stderr = stderr.trim();
+    match (trimmed_stdout.is_empty(), trimmed_stderr.is_empty()) {
+        (true, true) => String::new(),
+        (false, true) => format!(" ({trimmed_stdout})"),
+        (true, false) => format!(" ({trimmed_stderr})"),
+        (false, false) => format!(" (stdout: {trimmed_stdout}; stderr: {trimmed_stderr})"),
+    }
+}
+
+fn join_missing_paths(paths: &[PathBuf]) -> String {
+    paths
+        .iter()
+        .map(|path| path.to_string_lossy().into_owned())
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 impl Drop for TypeScriptBridgeSupervisor {
@@ -410,24 +517,13 @@ fn terminate_child(child: Option<&mut Child>) -> Result<(), BridgeError> {
 
 #[cfg(test)]
 mod tests {
-    use super::TypeScriptBridgeSupervisor;
-    use crate::analysis::semantic::{discover_project, SemanticCapability};
+    use super::{
+        missing_bridge_runtime_paths, should_attempt_bridge_build, TypeScriptBridgeSupervisor,
+    };
     use crate::analysis::semantic::typescript::TypeScriptBridgeConfig;
+    use crate::analysis::semantic::{discover_project, SemanticCapability};
+    use crate::test_support::temp_root;
     use std::process::Command;
-    use std::time::{SystemTime, UNIX_EPOCH};
-
-    fn temp_root(label: &str) -> std::path::PathBuf {
-        let unique = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("clock")
-            .as_nanos();
-        let root = std::env::temp_dir().join(format!(
-            "sentrux-bridge-{label}-{}-{unique}",
-            std::process::id()
-        ));
-        std::fs::create_dir_all(&root).expect("create temp root");
-        root
-    }
 
     fn write_file(root: &std::path::Path, relative_path: &str, contents: &str) {
         let absolute_path = root.join(relative_path);
@@ -447,6 +543,39 @@ mod tests {
 
         let error = supervisor.start().expect_err("missing binary should fail");
         assert!(error.to_string().contains("unavailable"));
+    }
+
+    #[test]
+    fn missing_split_bridge_runtime_files_are_detected() {
+        let package_dir = temp_root("sentrux-bridge", "incomplete-runtime", &[]).join("custom");
+        std::fs::create_dir_all(package_dir.join("dist")).expect("create dist directory");
+        std::fs::write(
+            package_dir.join("dist/index.js"),
+            "import './transport.js';\n",
+        )
+        .expect("write entrypoint");
+        let config = TypeScriptBridgeConfig {
+            node_binary: "node".to_string(),
+            package_dir: package_dir.to_string_lossy().into_owned(),
+            entrypoint: package_dir
+                .join("dist/index.js")
+                .to_string_lossy()
+                .into_owned(),
+        };
+
+        let missing = missing_bridge_runtime_paths(&config);
+
+        assert!(!missing.is_empty());
+        assert!(missing
+            .iter()
+            .any(|path| path.ends_with("dist/transport.js")));
+        assert!(!should_attempt_bridge_build(&config));
+    }
+
+    #[test]
+    fn default_ts_bridge_package_is_eligible_for_runtime_rebuild() {
+        let config = crate::analysis::semantic::typescript::default_bridge_config();
+        assert!(should_attempt_bridge_build(&config));
     }
 
     #[test]
@@ -495,7 +624,7 @@ mod tests {
             return;
         }
 
-        let root = temp_root("property-symbols");
+        let root = temp_root("sentrux-bridge", "property-symbols", &[]);
         write_file(
             &root,
             "tsconfig.json",
@@ -541,7 +670,7 @@ mod tests {
             return;
         }
 
-        let root = temp_root("transition-sites");
+        let root = temp_root("sentrux-bridge", "transition-sites", &[]);
         write_file(
             &root,
             "tsconfig.json",
@@ -584,15 +713,24 @@ export function nextState(state: BrowserSyncState): BrowserSyncState {
             .iter()
             .any(|capability| matches!(capability, SemanticCapability::TransitionSites)));
         assert_eq!(snapshot.transition_sites.len(), 3);
-        assert_eq!(snapshot.transition_sites[0].source_variant.as_deref(), Some("idle"));
+        assert_eq!(
+            snapshot.transition_sites[0].source_variant.as_deref(),
+            Some("idle")
+        );
         assert!(snapshot.transition_sites[0]
             .target_variants
             .contains(&"running".to_string()));
-        assert_eq!(snapshot.transition_sites[1].source_variant.as_deref(), Some("running"));
+        assert_eq!(
+            snapshot.transition_sites[1].source_variant.as_deref(),
+            Some("running")
+        );
         assert!(snapshot.transition_sites[1]
             .target_variants
             .contains(&"error".to_string()));
-        assert_eq!(snapshot.transition_sites[2].source_variant.as_deref(), Some("error"));
+        assert_eq!(
+            snapshot.transition_sites[2].source_variant.as_deref(),
+            Some("error")
+        );
         assert!(snapshot.transition_sites[2]
             .target_variants
             .contains(&"idle".to_string()));
@@ -606,7 +744,7 @@ export function nextState(state: BrowserSyncState): BrowserSyncState {
             return;
         }
 
-        let root = temp_root("transition-free-switch");
+        let root = temp_root("sentrux-bridge", "transition-free-switch", &[]);
         write_file(
             &root,
             "tsconfig.json",
@@ -654,7 +792,7 @@ export function renderStateLabel(state: BrowserSyncState): string {
             return;
         }
 
-        let root = temp_root("transition-helper-switch");
+        let root = temp_root("sentrux-bridge", "transition-helper-switch", &[]);
         write_file(
             &root,
             "tsconfig.json",
@@ -710,7 +848,7 @@ export function nextState(state: BrowserSyncState): BrowserSyncState {
             return;
         }
 
-        let root = temp_root("transition-inequality-if");
+        let root = temp_root("sentrux-bridge", "transition-inequality-if", &[]);
         write_file(
             &root,
             "tsconfig.json",
