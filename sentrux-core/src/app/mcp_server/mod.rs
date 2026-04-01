@@ -17,6 +17,7 @@ pub mod registry;
 mod response;
 mod semantic_cache;
 
+use crate::analysis::project_shape::ProjectShapeReport;
 use crate::analysis::scanner::common::ScanMetadata;
 use crate::analysis::semantic::SemanticSnapshot;
 use crate::app::bridge::TypeScriptBridgeSupervisor;
@@ -87,6 +88,7 @@ pub struct RulesCacheIdentity {
 pub struct PatchSafetyAnalysisCache {
     pub scan_identity: Option<ScanCacheIdentity>,
     pub session_signature: Option<u64>,
+    pub allow_cold_evolution: bool,
     pub visible_findings: Vec<Value>,
     pub suppression_hits: Vec<Value>,
     pub suppressed_finding_count: usize,
@@ -114,6 +116,8 @@ pub struct McpState {
     pub cached_semantic_source: Option<SemanticCacheSource>,
     pub cached_health: Option<metrics::HealthReport>,
     pub cached_arch: Option<arch::ArchReport>,
+    pub cached_project_shape: Option<ProjectShapeReport>,
+    pub cached_project_shape_identity: Option<ScanCacheIdentity>,
     pub baseline: Option<arch::ArchBaseline>,
     pub session_v2: Option<SessionV2Baseline>,
     pub cached_evolution: Option<evolution::EvolutionReport>,
@@ -151,6 +155,8 @@ pub fn run_mcp_server(register_extra: Option<&dyn Fn(&mut registry::ToolRegistry
         cached_semantic_source: None,
         cached_health: None,
         cached_arch: None,
+        cached_project_shape: None,
+        cached_project_shape_identity: None,
         baseline: None,
         session_v2: None,
         cached_evolution: None,
@@ -314,6 +320,7 @@ pub fn build_registry() -> registry::ToolRegistry {
     reg.register(handlers::session_start_def());
     reg.register(handlers::session_end_def());
     reg.register(handlers::gate_def());
+    reg.register(handlers::check_def());
     reg.register(handlers::findings_def());
     reg.register(handlers::obligations_def());
     reg.register(handlers::parity_def());

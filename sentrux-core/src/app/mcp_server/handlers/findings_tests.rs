@@ -3,7 +3,7 @@ use super::test_support::{
 };
 use super::{
     apply_suppressions, build_exact_clone_findings, distinct_file_count, fresh_mcp_state,
-    handle_findings, handle_scan, overall_confidence_0_10000,
+    handle_concentration, handle_findings, handle_scan, overall_confidence_0_10000,
 };
 use crate::analysis::scanner::common::{ScanMetadata, ScanMode};
 use crate::license::Tier;
@@ -137,4 +137,29 @@ fn findings_surface_structural_debt_signals() {
         .get("kind")
         .and_then(|value| value.as_str())
         .is_some()));
+}
+
+#[test]
+fn concentration_reports_evolution_unavailable_fast_path_without_computing_history() {
+    let root = concept_fixture_root();
+    let mut state = fresh_mcp_state();
+    handle_scan(
+        &json!({"path": root.to_string_lossy().to_string()}),
+        &Tier::Free,
+        &mut state,
+    )
+    .expect("scan concept fixture");
+
+    let response =
+        handle_concentration(&json!({}), &Tier::Free, &mut state).expect("concentration");
+
+    assert_eq!(
+        response["diagnostics"]["errors"]["evolution"],
+        json!("Evolution context unavailable on fast path.")
+    );
+    assert_eq!(
+        response["diagnostics"]["availability"]["evolution"],
+        json!(false)
+    );
+    assert_eq!(response["diagnostics"]["partial_results"], json!(true));
 }

@@ -194,7 +194,13 @@ fn looks_like_transport_facade_scope(scope: &str) -> bool {
 fn is_watchpoint_presentation_kind(kind: &str) -> bool {
     matches!(
         kind,
-        "cycle_cluster" | "dead_island" | "clone_family" | "clone_group" | "exact_clone_group"
+        "cycle_cluster"
+            | "dead_island"
+            | "clone_family"
+            | "clone_group"
+            | "exact_clone_group"
+            | "missing_test_coverage"
+            | "zero_config_boundary_violation"
     )
 }
 
@@ -653,7 +659,10 @@ fn finding_leverage_reasons(finding: &Value) -> Vec<String> {
 
 fn trust_tier_for_kind(kind: &str, default: FindingTrustTier) -> FindingTrustTier {
     match kind {
-        "cycle_cluster" | "dead_island" => FindingTrustTier::Watchpoint,
+        "cycle_cluster"
+        | "dead_island"
+        | "missing_test_coverage"
+        | "zero_config_boundary_violation" => FindingTrustTier::Watchpoint,
         "dead_private_code_cluster" => FindingTrustTier::Experimental,
         _ => default,
     }

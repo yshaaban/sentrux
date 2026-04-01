@@ -51,7 +51,7 @@ pub(crate) fn handle_scan(
         "import_edges": bundle.snapshot.import_graph.len(),
         "scan_trust": scan_trust_json(&bundle.metadata),
         "confidence": confidence,
-        "project_shape": project_shape_json(&root, &bundle.snapshot, &rules_config),
+        "project_shape": project_shape_json_cached(state, &root, &bundle.snapshot, &rules_config),
         "baseline_loaded": baseline.is_some(),
         "baseline_path": baseline_path,
     });
@@ -108,7 +108,7 @@ pub(crate) fn handle_rescan(
         "files": bundle.snapshot.total_files,
         "scan_trust": scan_trust_json(&bundle.metadata),
         "confidence": confidence,
-        "project_shape": project_shape_json(&root, &bundle.snapshot, &rules_config),
+        "project_shape": project_shape_json_cached(state, &root, &bundle.snapshot, &rules_config),
         "baseline_loaded": baseline.is_some(),
     });
     if let Some(object) = result.as_object_mut() {

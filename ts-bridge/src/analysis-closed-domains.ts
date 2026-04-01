@@ -11,6 +11,7 @@ import {
   lineOfNode,
   literalExpressionText,
   objectLiteralKeys,
+  relativePath,
   unwrapObjectLiteralExpression,
 } from "./analysis-utils.js";
 
@@ -23,6 +24,7 @@ export function collectClosedDomain(context: FileAnalysisContext, node: ts.Node)
         symbol_name: node.name.text,
         variants,
         line: lineOfNode(context.sourceFile, node.name),
+        defining_file: context.relativePath,
       });
     }
     return;
@@ -39,6 +41,7 @@ export function collectClosedDomain(context: FileAnalysisContext, node: ts.Node)
         symbol_name: node.name.text,
         variants,
         line: lineOfNode(context.sourceFile, node.name),
+        defining_file: context.relativePath,
       });
     }
   }
@@ -67,6 +70,7 @@ export function collectClosedDomainSite(context: FileAnalysisContext, node: ts.N
     context.closedDomainSites.push({
       path: context.relativePath,
       domain_symbol_name: recordInfo.domainSymbolName,
+      defining_file: recordInfo.definingFile,
       site_kind: ExhaustivenessSiteKind.Record,
       proof_kind: ExhaustivenessProofKind.Record,
       covered_variants: objectLiteralKeys(initializerObjectLiteral),
@@ -89,6 +93,7 @@ export function collectClosedDomainSite(context: FileAnalysisContext, node: ts.N
     context.closedDomainSites.push({
       path: context.relativePath,
       domain_symbol_name: recordInfo.domainSymbolName,
+      defining_file: recordInfo.definingFile,
       site_kind: ExhaustivenessSiteKind.Satisfies,
       proof_kind: ExhaustivenessProofKind.Satisfies,
       covered_variants: objectLiteralKeys(objectLiteral),
@@ -129,6 +134,7 @@ function collectSwitchExhaustivenessSite(
   context.closedDomainSites.push({
     path: context.relativePath,
     domain_symbol_name: domainInfo.domainSymbolName,
+    defining_file: domainInfo.definingFile,
     site_kind: ExhaustivenessSiteKind.Switch,
     proof_kind: proofKind,
     covered_variants: coveredVariants,
@@ -139,7 +145,7 @@ function collectSwitchExhaustivenessSite(
 function recordDomainInfoFromTypeNode(
   context: FileAnalysisContext,
   typeNode: ts.TypeNode,
-): { domainSymbolName: string } | null {
+): { domainSymbolName: string; definingFile: string | null } | null {
   if (!ts.isTypeReferenceNode(typeNode)) {
     return null;
   }
@@ -158,10 +164,11 @@ function recordDomainInfoFromTypeNode(
     return null;
   }
 
-  return {
-    domainSymbolName: domainInfo.domainSymbolName,
-  };
-}
+    return {
+      domainSymbolName: domainInfo.domainSymbolName,
+      definingFile: domainInfo.definingFile,
+    };
+  }
 
 export function closedDomainInfoForExpression(
   context: FileAnalysisContext,
@@ -201,6 +208,7 @@ function closedDomainInfoFromType(
     if (domainSymbolName) {
       return {
         domainSymbolName,
+        definingFile: definingFileFromType(context, type),
         variants,
       };
     }
@@ -222,6 +230,7 @@ function closedDomainInfoFromType(
 
   return {
     domainSymbolName,
+    definingFile: definingFileFromType(context, type),
     variants: discriminatedInfo.variants,
   };
 }
@@ -287,6 +296,33 @@ function domainSymbolNameFromType(type: ts.Type): string | null {
   }
 
   return null;
+}
+
+function definingFileFromType(context: FileAnalysisContext, type: ts.Type): string | null {
+  const aliasSymbol = type.aliasSymbol;
+  const aliasDefiningFile = definingFileFromSymbol(context, aliasSymbol);
+  if (aliasDefiningFile) {
+    return aliasDefiningFile;
+  }
+
+  const typeSymbol = type.getSymbol();
+  if (typeSymbol && typeSymbol.getName() !== "__type") {
+    return definingFileFromSymbol(context, typeSymbol);
+  }
+
+  return null;
+}
+
+function definingFileFromSymbol(
+  context: FileAnalysisContext,
+  symbol: ts.Symbol | undefined,
+): string | null {
+  const declaration = symbol?.declarations?.find((node) => !ts.isTypeParameterDeclaration(node));
+  if (!declaration) {
+    return null;
+  }
+
+  return relativePath(context.rootPath, declaration.getSourceFile().fileName);
 }
 
 function discriminantAccessInfo(

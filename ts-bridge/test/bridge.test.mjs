@@ -81,9 +81,17 @@ async function createSampleProject() {
   );
 
   await writeFile(
-    path.join(srcDir, "index.ts"),
+    path.join(srcDir, "domain.ts"),
     [
       'export type Mode = "idle" | "running";',
+      "",
+    ].join("\n"),
+  );
+
+  await writeFile(
+    path.join(srcDir, "index.ts"),
+    [
+      'import type { Mode } from "./domain.js";',
       "",
       "export function bump(value: number): number {",
       "  return value + 1;",
@@ -359,12 +367,21 @@ test("analyzeProject extracts semantic facts from a sample project", async funct
     });
 
     assert.equal(snapshot.project.root, root);
-    assert.equal(snapshot.analyzed_files, 1);
+    assert.equal(snapshot.analyzed_files, 2);
     assert(snapshot.capabilities.includes("ClosedDomains"));
     assert(snapshot.files.some((file) => file.path === "src/index.ts"));
     assert(snapshot.symbols.some((symbol) => symbol.name === "bump"));
     assert(snapshot.closed_domains.some((domain) => domain.symbol_name === "Mode"));
-    assert(snapshot.closed_domain_sites.some((site) => site.domain_symbol_name === "Mode"));
+    const modeDomain = snapshot.closed_domains.find((domain) => domain.symbol_name === "Mode");
+    assert(modeDomain);
+    assert.equal(modeDomain.defining_file, "src/domain.ts");
+    const modeSite = snapshot.closed_domain_sites.find(
+      (site) =>
+        site.domain_symbol_name === "Mode" &&
+        site.site_kind === ExhaustivenessSiteKind.Switch,
+    );
+    assert(modeSite);
+    assert.equal(modeSite.defining_file, "src/domain.ts");
     assert(
       snapshot.closed_domain_sites.some(
         (site) => site.site_kind === ExhaustivenessSiteKind.Switch,
@@ -446,7 +463,7 @@ test("bridge responds over stdio using Content-Length framing", async function (
     assert.equal(stderr, "");
     assert.equal(messages.length, 2);
     assert.equal(messages[0].result.protocolVersion, PROTOCOL_VERSION);
-    assert.equal(messages[1].result.analyzed_files, 1);
+    assert.equal(messages[1].result.analyzed_files, 2);
     assert(messages[1].result.symbols.some((symbol) => symbol.name === "interpret"));
   } finally {
     await rm(root, { recursive: true, force: true });

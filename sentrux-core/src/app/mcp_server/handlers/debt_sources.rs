@@ -41,11 +41,17 @@ pub(crate) fn build_debt_report_outputs(
     clone_families: &[Value],
     extra_files: &BTreeSet<String>,
     limit: usize,
+    allow_cold_evolution: bool,
 ) -> DebtReportOutputs {
     let candidate_files =
         debt_signal_candidate_files(findings, obligations, clone_families, extra_files);
-    let (concentration_reports, context_error) =
-        debt_signal_concentration_reports(state, root, snapshot, &candidate_files);
+    let (concentration_reports, context_error) = debt_signal_concentration_reports(
+        state,
+        root,
+        snapshot,
+        &candidate_files,
+        allow_cold_evolution,
+    );
     let concept_summaries = build_concept_debt_summaries(findings, obligations);
     let structural_reports = structural_reports_for_scope(root, snapshot, health, extra_files);
     let all_debt_signals = collect_debt_signals(

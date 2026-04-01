@@ -24,5 +24,6 @@ export interface FileAnalysisContext {
 
 export interface ClosedDomainInfo {
   domainSymbolName: string;
+  definingFile: string | null;
   variants: string[];
 }

@@ -89,8 +89,36 @@ pub(super) fn domain_is_in_scope(
     semantic
         .closed_domain_sites
         .iter()
-        .filter(|site| site.domain_symbol_name == domain.symbol_name)
+        .filter(|site| domain_matches_site(domain, site))
         .any(|site| changed_files.contains(&site.path))
+}
+
+pub(super) fn zero_config_domain_is_related_to_changed_files(
+    domain: &ClosedDomain,
+    semantic: &SemanticSnapshot,
+    changed_files: &BTreeSet<String>,
+) -> bool {
+    if changed_files.is_empty() {
+        return false;
+    }
+    if changed_files.contains(&domain.path) {
+        return true;
+    }
+    if let Some(defining_file) = domain.defining_file.as_deref() {
+        if changed_files.contains(defining_file) {
+            return true;
+        }
+    }
+
+    relevant_production_exhaustiveness_sites(domain, semantic)
+        .into_iter()
+        .any(|site| {
+            changed_files.contains(&site.path)
+                || site
+                    .defining_file
+                    .as_deref()
+                    .is_some_and(|path| changed_files.contains(path))
+        })
 }
 
 pub(super) fn build_domain_obligation(
@@ -112,8 +140,10 @@ pub(super) fn build_domain_obligation(
             kind: "closed_domain".to_string(),
             line: Some(domain.line),
             detail: format!(
-                "no exhaustive mapping or switch site found for '{}'",
-                domain.symbol_name
+                "domain '{}' in {} has variants [{}], but no exhaustive mapping or switch site was found",
+                domain.symbol_name,
+                domain_file(domain),
+                domain.variants.join(", ")
             ),
         };
         coverage.required_sites.insert(missing_site.clone());
@@ -181,22 +211,36 @@ fn obligation_summary(
     missing_sites: &[ObligationSite],
     missing_variants: &[String],
 ) -> String {
+    let variants = domain.variants.join(", ");
+    let domain_file = domain_file(domain);
     if missing_sites.is_empty() {
         return format!(
-            "Closed domain '{}' is fully covered across {} required sites",
-            label,
-            domain.variants.len()
+            "Domain '{}' in {} is fully covered across variants [{}]",
+            label, domain_file, variants
         );
     }
 
     if missing_variants.is_empty() {
-        return format!("Closed domain '{}' is missing required update sites", label);
+        return format!(
+            "Domain '{}' in {} has variants [{}] but is missing required update sites",
+            label, domain_file, variants
+        );
     }
 
+    let site_context = missing_sites
+        .first()
+        .map(|site| {
+            let line_suffix = site.line.map(|line| format!(":{line}")).unwrap_or_default();
+            format!(" at {}{}", site.path, line_suffix)
+        })
+        .unwrap_or_default();
     format!(
-        "Closed domain '{}' is missing coverage for variants: {}",
+        "Domain '{}' in {} has variants [{}] and is missing coverage for [{}]{}",
         label,
-        missing_variants.join(", ")
+        domain_file,
+        variants,
+        missing_variants.join(", "),
+        site_context
     )
 }
 
@@ -207,7 +251,7 @@ fn relevant_exhaustiveness_sites<'a>(
     semantic
         .closed_domain_sites
         .iter()
-        .filter(|site| site.domain_symbol_name == domain.symbol_name)
+        .filter(|site| domain_matches_site(domain, site))
         .collect()
 }
 
@@ -241,15 +285,22 @@ fn evaluate_domain_site_coverage(
     for site in sites {
         coverage.files.insert(site.path.clone());
         let site_variants = missing_site_variants(domain, site);
+        let domain_file = domain_file(domain);
+        let variant_list = domain.variants.join(", ");
         let detail = if site_variants.is_empty() {
             format!(
-                "covers {} variants via {}",
-                domain.variants.len(),
+                "domain '{}' in {} has variants [{}]; site covers all variants via {}",
+                domain.symbol_name,
+                domain_file,
+                variant_list,
                 site.site_kind.as_str()
             )
         } else {
             format!(
-                "missing variants: {}",
+                "domain '{}' in {} has variants [{}]; site is missing [{}]",
+                domain.symbol_name,
+                domain_file,
+                variant_list,
                 site_variants.iter().cloned().collect::<Vec<_>>().join(", ")
             )
         };
@@ -269,6 +320,24 @@ fn evaluate_domain_site_coverage(
     }
 
     coverage
+}
+
+fn domain_matches_site(domain: &ClosedDomain, site: &ExhaustivenessSite) -> bool {
+    if let (Some(domain_file), Some(site_file)) = (
+        domain.defining_file.as_deref(),
+        site.defining_file.as_deref(),
+    ) {
+        return domain_file == site_file && site.domain_symbol_name == domain.symbol_name;
+    }
+
+    site.domain_symbol_name == domain.symbol_name
+}
+
+fn domain_file(domain: &ClosedDomain) -> &str {
+    domain
+        .defining_file
+        .as_deref()
+        .unwrap_or(domain.path.as_str())
 }
 
 fn missing_site_variants(domain: &ClosedDomain, site: &ExhaustivenessSite) -> BTreeSet<String> {

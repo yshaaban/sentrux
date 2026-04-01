@@ -77,6 +77,7 @@ pub(crate) fn handle_findings(
         &snapshot,
         &health,
         health.duplicate_groups.len(),
+        true,
     );
     let (semantic_findings, obligations, semantic_error) = semantic_findings_and_obligations(
         state,
@@ -138,6 +139,7 @@ pub(crate) fn handle_findings(
         &clone_families,
         &BTreeSet::new(),
         limit.min(FINDINGS_DEBT_SUPPORT_LIMIT),
+        true,
     );
     let mut result = serde_json::Map::new();
     result.insert("kind".to_string(), json!("mixed_findings"));
@@ -151,7 +153,7 @@ pub(crate) fn handle_findings(
     );
     result.insert(
         "project_shape".to_string(),
-        project_shape_json(&root, &snapshot, &rules_config),
+        project_shape_json_cached(state, &root, &snapshot, &rules_config),
     );
     result.insert(
         "clone_group_count".to_string(),
@@ -526,7 +528,7 @@ pub(crate) fn handle_concentration(
         Ok(semantic) => (semantic, None),
         Err(error) => (None, Some(error)),
     };
-    let (history, evolution_error) = concentration_history(state, &root, lookback_days);
+    let (history, evolution_error) = concentration_history(state, &root, lookback_days, false);
     let concentration_result = crate::metrics::v2::build_concentration_reports(
         &root,
         &file_paths,
@@ -563,6 +565,7 @@ pub(crate) fn handle_concentration(
             evolution_error,
             concentration_result.read_warnings,
         );
+        extend_diagnostics_availability(object, vec![("evolution", history.is_some())]);
     }
     Ok(response)
 }

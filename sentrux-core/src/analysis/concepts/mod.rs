@@ -563,10 +563,12 @@ mod tests {
                 symbol_name: "TaskState".to_string(),
                 variants: vec!["idle".to_string(), "running".to_string()],
                 line: 1,
+                defining_file: Some("src/domain/task-state.ts".to_string()),
             }],
             closed_domain_sites: vec![ExhaustivenessSite {
                 path: "src/app/task-view.ts".to_string(),
                 domain_symbol_name: "TaskState".to_string(),
+                defining_file: Some("src/domain/task-state.ts".to_string()),
                 site_kind: ExhaustivenessSiteKind::Switch,
                 proof_kind: ExhaustivenessProofKind::Switch,
                 covered_variants: vec!["idle".to_string()],

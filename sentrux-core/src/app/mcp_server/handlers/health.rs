@@ -95,6 +95,10 @@ pub(crate) fn handle_health(
         .unwrap_or("none");
 
     let s = |v: f64| -> u32 { (v * 10000.0).round() as u32 };
+    let snapshot = state
+        .cached_snapshot
+        .clone()
+        .ok_or("No scan data. Call 'scan' first.")?;
     let mut result = json!({
         "kind": "legacy_structural_context",
         "quality_signal": s(h.quality_signal),
@@ -110,11 +114,7 @@ pub(crate) fn handle_health(
         "cross_module_edges": h.cross_module_edges,
         "scan_trust": scan_trust_json(&metadata),
         "confidence": build_v2_confidence_report(&metadata, &rules_config, session_v2_status),
-        "project_shape": project_shape_json(
-            &root,
-            state.cached_snapshot.as_ref().ok_or("No scan data. Call 'scan' first.")?,
-            &rules_config,
-        ),
+        "project_shape": project_shape_json_cached(state, &root, &snapshot, &rules_config),
         "baseline_delta": legacy_baseline_delta_json(baseline_delta.as_ref()),
     });
 

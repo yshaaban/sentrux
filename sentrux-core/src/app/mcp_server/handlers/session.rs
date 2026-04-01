@@ -4,6 +4,7 @@ use crate::metrics::v2::FindingSeverity;
 pub(crate) struct PatchCheckContext {
     pub(crate) bundle: ScanBundle,
     pub(crate) changed_files: BTreeSet<String>,
+    pub(crate) changed_scope_available: bool,
     pub(crate) reused_cached_scan: bool,
     pub(crate) scan_identity: Option<ScanCacheIdentity>,
 }
@@ -15,17 +16,19 @@ pub(crate) fn prepare_patch_check_context(
 ) -> Result<PatchCheckContext, String> {
     if let Some(bundle) = cached_scan_bundle(state, root) {
         let current_identity = current_scan_identity(root);
-        let changed_files = changed_files_from_session_context(
+        let changed_scope = changed_scope_from_session_context(
             root,
             &bundle.snapshot,
             session_v2,
             current_identity.as_ref(),
         );
+        let changed_files = changed_scope.known_files();
         if changed_files.is_empty() || scan_cache_matches_identity(state, current_identity.as_ref())
         {
             return Ok(PatchCheckContext {
                 bundle,
                 changed_files,
+                changed_scope_available: changed_scope.is_available(),
                 reused_cached_scan: true,
                 scan_identity: None,
             });
@@ -33,12 +36,13 @@ pub(crate) fn prepare_patch_check_context(
     }
 
     let (bundle, scan_identity) = do_scan_with_identity(root)?;
-    let changed_files =
-        changed_files_from_session_context(root, &bundle.snapshot, session_v2, None);
+    let changed_scope =
+        changed_scope_from_session_context(root, &bundle.snapshot, session_v2, None);
 
     Ok(PatchCheckContext {
         bundle,
-        changed_files,
+        changed_files: changed_scope.known_files(),
+        changed_scope_available: changed_scope.is_available(),
         reused_cached_scan: false,
         scan_identity,
     })
@@ -59,11 +63,13 @@ fn cached_patch_safety_analysis(
     state: &McpState,
     scan_identity: Option<&ScanCacheIdentity>,
     session_signature: Option<u64>,
+    allow_cold_evolution: bool,
 ) -> Option<PatchSafetyAnalysisCache> {
     let scan_identity = scan_identity?;
     let cached = state.cached_patch_safety.as_ref()?;
     if cached.scan_identity.as_ref() == Some(scan_identity)
         && cached.session_signature == session_signature
+        && cached.allow_cold_evolution == allow_cold_evolution
     {
         return Some(cached.clone());
     }
@@ -94,11 +100,15 @@ pub(crate) fn build_patch_safety_analysis(
     changed_files: &BTreeSet<String>,
     session_v2: Option<&SessionV2Baseline>,
     cache_identity: Option<ScanCacheIdentity>,
+    allow_cold_evolution: bool,
 ) -> PatchSafetyAnalysisCache {
     let session_signature = session_v2_analysis_signature(session_v2);
-    if let Some(cached) =
-        cached_patch_safety_analysis(state, cache_identity.as_ref(), session_signature)
-    {
+    if let Some(cached) = cached_patch_safety_analysis(
+        state,
+        cache_identity.as_ref(),
+        session_signature,
+        allow_cold_evolution,
+    ) {
         return cached;
     }
 
@@ -108,6 +118,7 @@ pub(crate) fn build_patch_safety_analysis(
         &bundle.snapshot,
         &bundle.health,
         bundle.health.duplicate_groups.len(),
+        allow_cold_evolution,
     );
     let structural_reports = crate::metrics::v2::build_structural_debt_reports_with_root(
         root,
@@ -128,6 +139,7 @@ pub(crate) fn build_patch_safety_analysis(
             let analysis = PatchSafetyAnalysisCache {
                 scan_identity: cache_identity.clone(),
                 session_signature,
+                allow_cold_evolution,
                 visible_findings: suppression_application.visible_findings,
                 suppression_hits: serialized_values(&suppression_application.active_matches),
                 suppressed_finding_count: suppression_match_count(
@@ -178,6 +190,7 @@ pub(crate) fn build_patch_safety_analysis(
     let analysis = PatchSafetyAnalysisCache {
         scan_identity: cache_identity,
         session_signature,
+        allow_cold_evolution,
         visible_findings: suppression_application.visible_findings,
         suppression_hits: serialized_values(&suppression_application.active_matches),
         suppressed_finding_count: suppression_match_count(&suppression_application.active_matches),
@@ -321,6 +334,7 @@ pub(crate) fn handle_session_end(
         &changed_files,
         session_v2.as_ref(),
         patch_cache_identity,
+        true,
     );
     let current_finding_payloads = finding_payload_map(&analysis.visible_findings);
     let (rules_config, _) = load_v2_rules_config(state, &root);
@@ -422,6 +436,7 @@ pub(crate) fn handle_session_end(
         &[],
         &changed_files,
         5,
+        true,
     );
     let signal_before = legacy_diff
         .as_ref()
@@ -615,6 +630,7 @@ fn compute_touched_concept_gate(
         &changed_files,
         session_v2.as_ref(),
         patch_cache_identity,
+        true,
     );
     let current_finding_payloads = finding_payload_map(&analysis.visible_findings);
     let (rules_config, _) = load_v2_rules_config(state, root);

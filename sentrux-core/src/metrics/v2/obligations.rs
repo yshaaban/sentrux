@@ -14,7 +14,7 @@ use self::obligations_contract::summarize_contract_missing_sites;
 use self::obligations_contract::{build_contract_obligation, path_matches};
 use self::obligations_domain::{
     build_domain_obligation, concept_rule_paths, domain_is_in_scope, relevant_domains,
-    relevant_production_exhaustiveness_sites, zero_config_domain_is_actionable,
+    zero_config_domain_is_actionable, zero_config_domain_is_related_to_changed_files,
     DomainObligationPlan,
 };
 
@@ -95,10 +95,7 @@ pub fn build_obligations(
         }
 
         if scope == ObligationScope::Changed
-            && !changed_files.contains(&domain.path)
-            && !relevant_production_exhaustiveness_sites(domain, semantic)
-                .iter()
-                .any(|site| changed_files.contains(&site.path))
+            && !zero_config_domain_is_related_to_changed_files(domain, semantic, changed_files)
         {
             continue;
         }
@@ -125,28 +122,27 @@ pub fn build_obligation_findings(obligations: &[ObligationReport]) -> Vec<Semant
     obligations
         .iter()
         .filter(|obligation| !obligation.missing_sites.is_empty())
-        .map(|obligation| {
-            let severity = if obligation.kind == "closed_domain_exhaustiveness"
-                && !obligation.missing_variants.is_empty()
-            {
-                FindingSeverity::High
-            } else {
-                FindingSeverity::Medium
-            };
-            SemanticFinding {
-                kind: obligation.kind.clone(),
-                severity,
-                concept_id: obligation_concept_id(obligation).to_owned(),
-                summary: obligation.summary.clone(),
-                files: obligation.files.clone(),
-                evidence: obligation
-                    .missing_sites
-                    .iter()
-                    .map(|site| format!("{} [{}]", site.path, site.detail))
-                    .collect(),
-            }
+        .map(|obligation| SemanticFinding {
+            kind: obligation.kind.clone(),
+            severity: obligation_finding_severity(obligation),
+            concept_id: obligation_concept_id(obligation).to_owned(),
+            summary: obligation.summary.clone(),
+            files: obligation.files.clone(),
+            evidence: obligation
+                .missing_sites
+                .iter()
+                .map(|site| format!("{} [{}]", site.path, site.detail))
+                .collect(),
         })
         .collect()
+}
+
+fn obligation_finding_severity(obligation: &ObligationReport) -> FindingSeverity {
+    if obligation.kind == "closed_domain_exhaustiveness" {
+        FindingSeverity::High
+    } else {
+        FindingSeverity::Medium
+    }
 }
 
 pub fn changed_concepts_from_obligations(obligations: &[ObligationReport]) -> Vec<String> {
@@ -205,8 +201,8 @@ fn obligation_concept_id(obligation: &ObligationReport) -> &str {
 #[cfg(test)]
 mod tests {
     use super::{
-        build_obligations, obligation_score_0_10000, summarize_contract_missing_sites,
-        ObligationScope,
+        build_obligation_findings, build_obligations, obligation_score_0_10000,
+        summarize_contract_missing_sites, ObligationScope,
     };
     use crate::analysis::semantic::{
         ClosedDomain, ExhaustivenessProofKind, ExhaustivenessSite, ExhaustivenessSiteKind,
@@ -243,10 +239,12 @@ mod tests {
                 symbol_name: "TaskDotStatus".to_string(),
                 variants: vec!["idle".to_string(), "busy".to_string(), "error".to_string()],
                 line: 4,
+                defining_file: Some("src/app/task-presentation-status.ts".to_string()),
             }],
             closed_domain_sites: vec![ExhaustivenessSite {
                 path: "src/components/Sidebar.tsx".to_string(),
                 domain_symbol_name: "TaskDotStatus".to_string(),
+                defining_file: Some("src/app/task-presentation-status.ts".to_string()),
                 site_kind: ExhaustivenessSiteKind::Switch,
                 proof_kind: ExhaustivenessProofKind::AssertNever,
                 covered_variants: vec!["idle".to_string(), "busy".to_string()],
@@ -270,6 +268,39 @@ mod tests {
             .iter()
             .any(|site| site.kind == "related_test"));
         assert!(obligation_score_0_10000(&obligations) < 10000);
+    }
+
+    #[test]
+    fn closed_domain_exhaustiveness_findings_are_high_severity_without_site_coverage() {
+        let findings = build_obligation_findings(&[super::ObligationReport {
+            id: "task_status".to_string(),
+            kind: "closed_domain_exhaustiveness".to_string(),
+            concept_id: None,
+            domain_symbol_name: Some("TaskStatus".to_string()),
+            summary: "missing exhaustive coverage".to_string(),
+            files: vec!["src/task-status.ts".to_string()],
+            required_sites: vec![ObligationSite {
+                path: "src/task-status.ts".to_string(),
+                kind: "closed_domain".to_string(),
+                line: Some(10),
+                detail: "no exhaustive mapping or switch site found".to_string(),
+            }],
+            satisfied_sites: Vec::new(),
+            missing_sites: vec![ObligationSite {
+                path: "src/task-status.ts".to_string(),
+                kind: "closed_domain".to_string(),
+                line: Some(10),
+                detail: "no exhaustive mapping or switch site found".to_string(),
+            }],
+            missing_variants: Vec::new(),
+            context_burden: 1,
+        }]);
+
+        assert_eq!(findings.len(), 1);
+        assert_eq!(
+            findings[0].severity,
+            crate::metrics::v2::FindingSeverity::High
+        );
     }
 
     #[test]
@@ -299,10 +330,12 @@ mod tests {
                 symbol_name: "TaskState".to_string(),
                 variants: vec!["idle".to_string(), "running".to_string()],
                 line: 1,
+                defining_file: Some("src/domain/task-state.ts".to_string()),
             }],
             closed_domain_sites: vec![ExhaustivenessSite {
                 path: "src/app/presenter.ts".to_string(),
                 domain_symbol_name: "TaskState".to_string(),
+                defining_file: Some("src/domain/task-state.ts".to_string()),
                 site_kind: ExhaustivenessSiteKind::Switch,
                 proof_kind: ExhaustivenessProofKind::AssertNever,
                 covered_variants: vec!["idle".to_string()],
@@ -338,10 +371,12 @@ mod tests {
                 symbol_name: "TaskState".to_string(),
                 variants: vec!["idle".to_string(), "running".to_string()],
                 line: 1,
+                defining_file: Some("src/domain/task-state.ts".to_string()),
             }],
             closed_domain_sites: vec![ExhaustivenessSite {
                 path: "src/domain/task-state.test.ts".to_string(),
                 domain_symbol_name: "TaskState".to_string(),
+                defining_file: Some("src/domain/task-state.ts".to_string()),
                 site_kind: ExhaustivenessSiteKind::Switch,
                 proof_kind: ExhaustivenessProofKind::AssertNever,
                 covered_variants: vec!["idle".to_string()],
@@ -375,10 +410,12 @@ mod tests {
                 symbol_name: "IPC".to_string(),
                 variants: (0..20).map(|index| format!("Variant{index}")).collect(),
                 line: 1,
+                defining_file: Some("src/domain/ipc.ts".to_string()),
             }],
             closed_domain_sites: vec![ExhaustivenessSite {
                 path: "src/app/ipc-switch.ts".to_string(),
                 domain_symbol_name: "IPC".to_string(),
+                defining_file: Some("src/domain/ipc.ts".to_string()),
                 site_kind: ExhaustivenessSiteKind::Switch,
                 proof_kind: ExhaustivenessProofKind::Switch,
                 covered_variants: vec!["Variant0".to_string()],
@@ -973,5 +1010,106 @@ mod tests {
             summary,
             "the required symbol and browser runtime entry surfaces"
         );
+    }
+
+    #[test]
+    fn zero_config_domain_matching_prefers_defining_file() {
+        let config: RulesConfig = toml::from_str("").expect("empty rules config");
+        let semantic = SemanticSnapshot {
+            project: ProjectModel::default(),
+            analyzed_files: 1,
+            capabilities: vec![
+                SemanticCapability::ClosedDomains,
+                SemanticCapability::ClosedDomainSites,
+            ],
+            files: vec![SemanticFileFact::default()],
+            symbols: Vec::new(),
+            reads: Vec::new(),
+            writes: Vec::new(),
+            closed_domains: vec![
+                ClosedDomain {
+                    path: "src/domain/task-state.ts".to_string(),
+                    symbol_name: "TaskState".to_string(),
+                    variants: vec!["idle".to_string(), "running".to_string()],
+                    line: 1,
+                    defining_file: Some("src/domain/task-state.ts".to_string()),
+                },
+                ClosedDomain {
+                    path: "src/legacy/task-state.ts".to_string(),
+                    symbol_name: "TaskState".to_string(),
+                    variants: vec!["ready".to_string(), "done".to_string()],
+                    line: 1,
+                    defining_file: Some("src/legacy/task-state.ts".to_string()),
+                },
+            ],
+            closed_domain_sites: vec![ExhaustivenessSite {
+                path: "src/app/presenter.ts".to_string(),
+                domain_symbol_name: "TaskState".to_string(),
+                defining_file: Some("src/legacy/task-state.ts".to_string()),
+                site_kind: ExhaustivenessSiteKind::Switch,
+                proof_kind: ExhaustivenessProofKind::AssertNever,
+                covered_variants: vec!["ready".to_string()],
+                line: 14,
+            }],
+            transition_sites: Vec::new(),
+        };
+
+        let obligations =
+            build_obligations(&config, &semantic, ObligationScope::All, &BTreeSet::new());
+
+        assert_eq!(obligations.len(), 1);
+        assert!(obligations[0].summary.contains("src/legacy/task-state.ts"));
+        assert_eq!(obligations[0].missing_variants, vec!["done".to_string()]);
+
+        let findings = build_obligation_findings(&obligations);
+        assert_eq!(findings.len(), 1);
+        assert!(findings[0]
+            .evidence
+            .iter()
+            .any(|entry| entry.contains("src/legacy/task-state.ts")));
+        assert!(findings[0]
+            .evidence
+            .iter()
+            .any(|entry| entry.contains("ready, done")));
+    }
+
+    #[test]
+    fn zero_config_domains_are_not_in_changed_scope_when_unrelated_files_change() {
+        let config: RulesConfig = toml::from_str("").expect("empty rules config");
+        let semantic = SemanticSnapshot {
+            project: ProjectModel::default(),
+            analyzed_files: 1,
+            capabilities: vec![
+                SemanticCapability::ClosedDomains,
+                SemanticCapability::ClosedDomainSites,
+            ],
+            files: vec![SemanticFileFact::default()],
+            symbols: Vec::new(),
+            reads: Vec::new(),
+            writes: Vec::new(),
+            closed_domains: vec![ClosedDomain {
+                path: "src/domain/task-state.ts".to_string(),
+                symbol_name: "TaskState".to_string(),
+                variants: vec!["idle".to_string(), "running".to_string()],
+                line: 1,
+                defining_file: Some("src/domain/task-state.ts".to_string()),
+            }],
+            closed_domain_sites: vec![ExhaustivenessSite {
+                path: "src/app/presenter.ts".to_string(),
+                domain_symbol_name: "TaskState".to_string(),
+                defining_file: Some("src/domain/task-state.ts".to_string()),
+                site_kind: ExhaustivenessSiteKind::Switch,
+                proof_kind: ExhaustivenessProofKind::AssertNever,
+                covered_variants: vec!["idle".to_string()],
+                line: 10,
+            }],
+            transition_sites: Vec::new(),
+        };
+        let changed_files = BTreeSet::from(["src/app/unrelated.ts".to_string()]);
+
+        let obligations =
+            build_obligations(&config, &semantic, ObligationScope::Changed, &changed_files);
+
+        assert!(obligations.is_empty());
     }
 }

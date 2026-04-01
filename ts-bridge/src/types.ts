@@ -111,11 +111,13 @@ export interface ClosedDomain {
   symbol_name: string;
   variants: string[];
   line: number;
+  defining_file: string | null;
 }
 
 export interface ExhaustivenessSite {
   path: string;
   domain_symbol_name: string;
+  defining_file: string | null;
   site_kind: ExhaustivenessSiteKind;
   proof_kind: ExhaustivenessProofKind;
   covered_variants: string[];

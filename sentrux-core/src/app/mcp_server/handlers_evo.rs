@@ -86,12 +86,25 @@ fn handle_evolution(args: &Value, tier: &Tier, state: &mut McpState) -> Result<V
         .ok_or("No scan data. Call 'scan' first.")?;
     let days = args.get("days").and_then(|d| d.as_u64()).map(|d| d as u32);
 
+    if days.is_none() {
+        if let Some(report) = &state.cached_evolution {
+            return Ok(render_evolution_response(report, tier));
+        }
+    }
+
     let known = build_known_files(snap);
     let complexity = build_complexity_map(snap);
 
     let report = evolution::compute_evolution(root, &known, &complexity, days)
         .map_err(|e| format!("Evolution analysis failed: {e}"))?;
 
+    let response = render_evolution_response(&report, tier);
+    state.cached_evolution = Some(report);
+
+    Ok(response)
+}
+
+fn render_evolution_response(report: &evolution::EvolutionReport, tier: &Tier) -> Value {
     let mut result = json!({
         "lookback_days": report.lookback_days,
         "commits_analyzed": report.commits_analyzed,
@@ -117,9 +130,7 @@ fn handle_evolution(args: &Value, tier: &Tier, state: &mut McpState) -> Result<V
             .collect::<Vec<_>>());
     }
 
-    state.cached_evolution = Some(report);
-
-    Ok(result)
+    result
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -262,4 +273,78 @@ fn handle_test_gaps(args: &Value, tier: &Tier, state: &mut McpState) -> Result<V
     }
 
     Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::handle_evolution;
+    use crate::app::mcp_server::handlers::handle_scan;
+    use crate::app::mcp_server::handlers::test_support::{
+        commit_all, init_git_repo, temp_root, write_file,
+    };
+    use crate::app::mcp_server::McpState;
+    use crate::license::Tier;
+    use serde_json::json;
+
+    fn fresh_state() -> McpState {
+        McpState {
+            tier: Tier::Free,
+            scan_root: None,
+            cached_snapshot: None,
+            cached_scan_metadata: None,
+            cached_semantic: None,
+            cached_semantic_identity: None,
+            cached_semantic_source: None,
+            cached_health: None,
+            cached_arch: None,
+            cached_project_shape: None,
+            cached_project_shape_identity: None,
+            baseline: None,
+            session_v2: None,
+            cached_evolution: None,
+            cached_scan_identity: None,
+            cached_rules_identity: None,
+            cached_rules_config: None,
+            cached_rules_error: None,
+            cached_patch_safety: None,
+            semantic_bridge: None,
+        }
+    }
+
+    #[test]
+    fn evolution_reuses_cached_report_when_no_lookback_is_requested() {
+        let root = temp_root("evolution-cache");
+        write_file(
+            &root,
+            ".sentrux/rules.toml",
+            r#"
+                [[concept]]
+                id = "task_state"
+                kind = "authoritative_state"
+                anchors = ["src/app.ts::taskState"]
+            "#,
+        );
+        write_file(&root, "src/app.ts", "export const taskState = 'idle';\n");
+        init_git_repo(&root);
+        commit_all(&root, "initial commit");
+
+        let mut state = fresh_state();
+        handle_scan(
+            &json!({"path": root.to_string_lossy().to_string()}),
+            &Tier::Free,
+            &mut state,
+        )
+        .expect("scan fixture");
+
+        let first = handle_evolution(&json!({}), &Tier::Free, &mut state).expect("first evolution");
+        write_file(&root, "src/extra.ts", "export const extra = 1;\n");
+        commit_all(&root, "second commit");
+
+        let second =
+            handle_evolution(&json!({}), &Tier::Free, &mut state).expect("cached evolution");
+
+        assert_eq!(first["commits_analyzed"], second["commits_analyzed"]);
+        assert_eq!(first["files_with_churn"], second["files_with_churn"]);
+        assert_eq!(first["hotspot_count"], second["hotspot_count"]);
+    }
 }

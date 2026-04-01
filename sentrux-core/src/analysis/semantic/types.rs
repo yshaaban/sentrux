@@ -144,12 +144,16 @@ pub struct ClosedDomain {
     pub symbol_name: String,
     pub variants: Vec<String>,
     pub line: u32,
+    #[serde(default)]
+    pub defining_file: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
 pub struct ExhaustivenessSite {
     pub path: String,
     pub domain_symbol_name: String,
+    #[serde(default)]
+    pub defining_file: Option<String>,
     pub site_kind: ExhaustivenessSiteKind,
     pub proof_kind: ExhaustivenessProofKind,
     pub covered_variants: Vec<String>,

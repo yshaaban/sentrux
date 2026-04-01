@@ -373,7 +373,10 @@ fn check_boundary(rule: &BoundaryRule, edges: &[ImportEdge]) -> Vec<RuleViolatio
     violations
 }
 
-fn check_module_contract(rule: &ModuleContractRule, edges: &[ImportEdge]) -> Vec<RuleViolation> {
+pub(crate) fn check_module_contract(
+    rule: &ModuleContractRule,
+    edges: &[ImportEdge],
+) -> Vec<RuleViolation> {
     if !rule.forbid_cross_module_deep_imports || rule.root.is_empty() || rule.public_api.is_empty()
     {
         return Vec::new();

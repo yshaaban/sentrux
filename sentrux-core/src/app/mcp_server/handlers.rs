@@ -10,9 +10,10 @@ use super::registry::ToolDef;
 use super::{
     agent_brief::{build_agent_brief, AgentBriefInput, AgentBriefMode},
     response::{
-        extend_diagnostics, insert_diagnostics, insert_error_diagnostics,
-        insert_rules_semantic_context_diagnostics, insert_rules_semantic_diagnostics,
-        insert_rules_semantic_evolution_diagnostics, insert_semantic_diagnostics, DiagnosticEntry,
+        extend_diagnostics, extend_diagnostics_availability, insert_diagnostics,
+        insert_error_diagnostics, insert_rules_semantic_context_diagnostics,
+        insert_rules_semantic_diagnostics, insert_rules_semantic_evolution_diagnostics,
+        insert_semantic_diagnostics, DiagnosticEntry,
     },
     semantic_cache::{
         current_semantic_cache_identity, load_persisted_semantic_snapshot,
@@ -39,7 +40,9 @@ const FINDINGS_LIMIT_MAX: usize = 50;
 const FINDINGS_CLONE_SUPPORT_LIMIT: usize = 10;
 const FINDINGS_DEBT_SUPPORT_LIMIT: usize = 5;
 
+mod agent_format;
 mod brief;
+mod check;
 #[path = "checkpoint.rs"]
 mod checkpoint;
 mod classification;
@@ -59,8 +62,9 @@ mod view_support;
 
 pub(crate) use self::brief::agent_brief_def;
 pub use self::brief::cli_agent_brief;
+pub(crate) use self::check::check_def;
 pub(crate) use self::checkpoint::{
-    build_v2_confidence_report, changed_files_from_session_context,
+    build_v2_confidence_report, changed_scope_from_session_context,
     compatible_session_baseline_status, current_git_head, current_scan_identity,
     current_session_v2_baseline, current_session_v2_baseline_with_status, load_persisted_baseline,
     load_session_v2_baseline_status, overall_confidence_0_10000, project_fingerprint,
@@ -99,15 +103,20 @@ pub(crate) use self::session::prepare_patch_check_context;
 pub use self::session::{cli_evaluate_v2_gate, cli_save_v2_session};
 pub(crate) use self::session::{gate_def, session_end_def, session_start_def};
 pub(crate) use self::view_support::{
-    legacy_baseline_delta_json, optional_project_shape_json, project_shape_json, scan_trust_json,
+    legacy_baseline_delta_json, optional_project_shape_json, project_shape_json_cached,
+    project_shape_report_cached, scan_trust_json,
 };
 
+#[cfg(test)]
+pub(crate) use self::check::handle_check;
 #[cfg(test)]
 pub(crate) use self::clone_support::build_clone_drift_finding_values;
 #[cfg(test)]
 pub(crate) use self::concepts::{
     handle_concepts, handle_explain_concept, handle_project_shape, handle_trace_symbol,
 };
+#[cfg(test)]
+pub(crate) use self::findings::handle_concentration;
 #[cfg(test)]
 pub(crate) use self::findings::handle_findings;
 pub(crate) use self::scan::handle_scan;
@@ -181,6 +190,8 @@ fn fresh_mcp_state() -> McpState {
         cached_semantic_source: None,
         cached_health: None,
         cached_arch: None,
+        cached_project_shape: None,
+        cached_project_shape_identity: None,
         baseline: None,
         session_v2: None,
         cached_evolution: None,
@@ -262,6 +273,7 @@ fn concentration_history(
     state: &mut McpState,
     root: &Path,
     lookback_days: Option<u32>,
+    allow_compute: bool,
 ) -> (
     Option<crate::metrics::v2::ConcentrationHistory>,
     Option<String>,
@@ -273,6 +285,13 @@ fn concentration_history(
                 None,
             );
         }
+    }
+
+    if !allow_compute {
+        return (
+            None,
+            Some("Evolution context unavailable on fast path.".to_string()),
+        );
     }
 
     let (known_files, complexity_map) = match state.cached_snapshot.as_ref() {
@@ -307,9 +326,17 @@ fn evolution_report_for_snapshot(
     state: &mut McpState,
     root: &Path,
     snapshot: &Snapshot,
+    allow_compute: bool,
 ) -> (Option<crate::metrics::evo::EvolutionReport>, Option<String>) {
     if let Some(report) = &state.cached_evolution {
         return (Some(report.clone()), None);
+    }
+
+    if !allow_compute {
+        return (
+            None,
+            Some("Evolution context unavailable on fast path.".to_string()),
+        );
     }
 
     let known_files = crate::app::mcp_server::handlers_evo::build_known_files(snapshot);
@@ -352,6 +379,8 @@ fn update_scan_cache(
     state.cached_semantic_source = None;
     state.cached_health = Some(bundle.health);
     state.cached_arch = Some(bundle.arch_report);
+    state.cached_project_shape = None;
+    state.cached_project_shape_identity = None;
     state.cached_evolution = None;
     state.cached_scan_identity = identity;
     state.cached_patch_safety = None;
@@ -382,7 +411,7 @@ fn merge_optional_errors(left: Option<String>, right: Option<String>) -> Option<
     }
 }
 
-fn session_v2_analysis_signature(session_v2: Option<&SessionV2Baseline>) -> Option<u64> {
+pub(crate) fn session_v2_analysis_signature(session_v2: Option<&SessionV2Baseline>) -> Option<u64> {
     let session_v2 = session_v2?;
     let mut hasher = DefaultHasher::new();
     session_v2.schema_version.hash(&mut hasher);
@@ -409,8 +438,14 @@ fn build_session_v2_baseline(
     let file_hashes = snapshot_file_hashes(root, snapshot);
     let git_head = current_git_head(root);
     let working_tree_paths = working_tree_changed_files(root).unwrap_or_default();
-    let (clone_payload, clone_error) =
-        clone_findings_for_health(state, root, snapshot, health, health.duplicate_groups.len());
+    let (clone_payload, clone_error) = clone_findings_for_health(
+        state,
+        root,
+        snapshot,
+        health,
+        health.duplicate_groups.len(),
+        true,
+    );
     let (semantic_findings, _, semantic_error) = semantic_findings_and_obligations(
         state,
         root,
@@ -460,6 +495,7 @@ fn debt_signal_concentration_reports(
     root: &Path,
     snapshot: &Snapshot,
     candidate_files: &BTreeSet<String>,
+    allow_cold_evolution: bool,
 ) -> (Vec<crate::metrics::v2::ConcentrationReport>, Option<String>) {
     if candidate_files.is_empty() {
         return (Vec::new(), None);
@@ -471,7 +507,7 @@ fn debt_signal_concentration_reports(
         Ok(semantic) => (semantic, None),
         Err(error) => (None, Some(error)),
     };
-    let (history, evolution_error) = concentration_history(state, root, None);
+    let (history, evolution_error) = concentration_history(state, root, None, allow_cold_evolution);
     let concentration_result = crate::metrics::v2::build_concentration_reports(
         root,
         candidate_files,
@@ -526,6 +562,10 @@ fn distinct_file_count(group: &crate::metrics::DuplicateGroup) -> usize {
         .len()
 }
 
+#[cfg(test)]
+mod brief_tests;
+#[cfg(test)]
+mod check_tests;
 #[cfg(test)]
 mod concepts_tests;
 #[cfg(test)]

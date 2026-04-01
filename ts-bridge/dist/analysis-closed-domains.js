@@ -1,6 +1,6 @@
 import ts from "typescript";
 import { ExhaustivenessProofKind, ExhaustivenessSiteKind, } from "./types.js";
-import { isTopLevelDeclaration, lineOfNode, literalExpressionText, objectLiteralKeys, unwrapObjectLiteralExpression, } from "./analysis-utils.js";
+import { isTopLevelDeclaration, lineOfNode, literalExpressionText, objectLiteralKeys, relativePath, unwrapObjectLiteralExpression, } from "./analysis-utils.js";
 export function collectClosedDomain(context, node) {
     if (ts.isTypeAliasDeclaration(node) && isTopLevelDeclaration(node)) {
         const variants = closedDomainVariantsFromTypeNode(context, node.type);
@@ -10,6 +10,7 @@ export function collectClosedDomain(context, node) {
                 symbol_name: node.name.text,
                 variants,
                 line: lineOfNode(context.sourceFile, node.name),
+                defining_file: context.relativePath,
             });
         }
         return;
@@ -25,6 +26,7 @@ export function collectClosedDomain(context, node) {
                 symbol_name: node.name.text,
                 variants,
                 line: lineOfNode(context.sourceFile, node.name),
+                defining_file: context.relativePath,
             });
         }
     }
@@ -47,6 +49,7 @@ export function collectClosedDomainSite(context, node) {
         context.closedDomainSites.push({
             path: context.relativePath,
             domain_symbol_name: recordInfo.domainSymbolName,
+            defining_file: recordInfo.definingFile,
             site_kind: ExhaustivenessSiteKind.Record,
             proof_kind: ExhaustivenessProofKind.Record,
             covered_variants: objectLiteralKeys(initializerObjectLiteral),
@@ -66,6 +69,7 @@ export function collectClosedDomainSite(context, node) {
         context.closedDomainSites.push({
             path: context.relativePath,
             domain_symbol_name: recordInfo.domainSymbolName,
+            defining_file: recordInfo.definingFile,
             site_kind: ExhaustivenessSiteKind.Satisfies,
             proof_kind: ExhaustivenessProofKind.Satisfies,
             covered_variants: objectLiteralKeys(objectLiteral),
@@ -98,6 +102,7 @@ function collectSwitchExhaustivenessSite(context, node) {
     context.closedDomainSites.push({
         path: context.relativePath,
         domain_symbol_name: domainInfo.domainSymbolName,
+        defining_file: domainInfo.definingFile,
         site_kind: ExhaustivenessSiteKind.Switch,
         proof_kind: proofKind,
         covered_variants: coveredVariants,
@@ -120,6 +125,7 @@ function recordDomainInfoFromTypeNode(context, typeNode) {
     }
     return {
         domainSymbolName: domainInfo.domainSymbolName,
+        definingFile: domainInfo.definingFile,
     };
 }
 export function closedDomainInfoForExpression(context, expression) {
@@ -146,6 +152,7 @@ function closedDomainInfoFromType(context, type, preferredDiscriminant) {
         if (domainSymbolName) {
             return {
                 domainSymbolName,
+                definingFile: definingFileFromType(context, type),
                 variants,
             };
         }
@@ -160,6 +167,7 @@ function closedDomainInfoFromType(context, type, preferredDiscriminant) {
     }
     return {
         domainSymbolName,
+        definingFile: definingFileFromType(context, type),
         variants: discriminatedInfo.variants,
     };
 }
@@ -208,6 +216,25 @@ function domainSymbolNameFromType(type) {
         return typeSymbol.getName();
     }
     return null;
+}
+function definingFileFromType(context, type) {
+    const aliasSymbol = type.aliasSymbol;
+    const aliasDefiningFile = definingFileFromSymbol(context, aliasSymbol);
+    if (aliasDefiningFile) {
+        return aliasDefiningFile;
+    }
+    const typeSymbol = type.getSymbol();
+    if (typeSymbol && typeSymbol.getName() !== "__type") {
+        return definingFileFromSymbol(context, typeSymbol);
+    }
+    return null;
+}
+function definingFileFromSymbol(context, symbol) {
+    const declaration = symbol?.declarations?.find((node) => !ts.isTypeParameterDeclaration(node));
+    if (!declaration) {
+        return null;
+    }
+    return relativePath(context.rootPath, declaration.getSourceFile().fileName);
 }
 function discriminantAccessInfo(expression) {
     if (ts.isPropertyAccessExpression(expression)) {

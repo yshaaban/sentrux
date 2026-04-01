@@ -15,8 +15,10 @@ pub(crate) fn clone_findings_for_health(
     snapshot: &Snapshot,
     health: &metrics::HealthReport,
     limit: usize,
+    allow_cold_evolution: bool,
 ) -> (CloneFindingPayload, Option<String>) {
-    let (evolution, evolution_error) = evolution_report_for_snapshot(state, root, snapshot);
+    let (evolution, evolution_error) =
+        evolution_report_for_snapshot(state, root, snapshot, allow_cold_evolution);
     let report =
         crate::metrics::v2::build_clone_drift_report(&health.duplicate_groups, evolution.as_ref());
     let prioritized_findings = report

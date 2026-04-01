@@ -11,6 +11,25 @@ use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ChangedScope {
+    Known(BTreeSet<String>),
+    Unavailable,
+}
+
+impl ChangedScope {
+    pub(crate) fn is_available(&self) -> bool {
+        matches!(self, Self::Known(_))
+    }
+
+    pub(crate) fn known_files(&self) -> BTreeSet<String> {
+        match self {
+            Self::Known(files) => files.clone(),
+            Self::Unavailable => BTreeSet::new(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize)]
 pub(crate) struct SessionBaselineStatus {
     pub loaded: bool,
@@ -492,37 +511,41 @@ pub(crate) fn filter_changed_files_to_snapshot(
         .collect()
 }
 
-pub(crate) fn changed_files_from_session_context(
+pub(crate) fn changed_scope_from_session_context(
     root: &Path,
     snapshot: &Snapshot,
     session_v2: Option<&SessionV2Baseline>,
     current_identity: Option<&ScanCacheIdentity>,
-) -> BTreeSet<String> {
+) -> ChangedScope {
     match session_v2 {
         Some(session_v2) => {
             if let Some(candidate_paths) =
                 changed_session_candidate_paths(root, snapshot, session_v2, current_identity)
             {
-                if candidate_paths.is_empty() {
-                    return BTreeSet::new();
+                if !candidate_paths.is_empty() {
+                    let current_file_hashes =
+                        snapshot_file_hashes_for_paths(root, snapshot, &candidate_paths);
+                    return ChangedScope::Known(diff_file_hashes_for_paths(
+                        &session_v2.file_hashes,
+                        &current_file_hashes,
+                        &candidate_paths,
+                    ));
                 }
-                let current_file_hashes =
-                    snapshot_file_hashes_for_paths(root, snapshot, &candidate_paths);
-                return diff_file_hashes_for_paths(
-                    &session_v2.file_hashes,
-                    &current_file_hashes,
-                    &candidate_paths,
-                );
             }
 
             let current_file_hashes = snapshot_file_hashes(root, snapshot);
-            diff_file_hashes(&session_v2.file_hashes, &current_file_hashes)
+            ChangedScope::Known(diff_file_hashes(
+                &session_v2.file_hashes,
+                &current_file_hashes,
+            ))
         }
         None => current_identity
             .map(|identity| identity.working_tree_paths.clone())
             .or_else(|| working_tree_changed_files(root))
-            .map(|changed_files| filter_changed_files_to_snapshot(changed_files, snapshot))
-            .unwrap_or_default(),
+            .map(|changed_files| {
+                ChangedScope::Known(filter_changed_files_to_snapshot(changed_files, snapshot))
+            })
+            .unwrap_or(ChangedScope::Unavailable),
     }
 }
 

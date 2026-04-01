@@ -1,11 +1,13 @@
 //! V2 semantic findings built on explicit rules and semantic facts.
 
+mod boundary;
 mod clones;
 mod concentration;
 mod obligations;
 mod parity;
 mod state;
 mod structural;
+mod test_coverage;
 
 use crate::analysis::semantic::{ReadFact, SemanticSnapshot, WriteFact};
 use crate::core::snapshot::Snapshot;
@@ -14,6 +16,7 @@ use crate::metrics::testgap::is_test_file;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
+pub use boundary::build_zero_config_boundary_findings;
 pub use clones::{
     build_clone_drift_findings, build_clone_drift_report, build_clone_remediation_hints,
     CloneDriftFinding, CloneDriftInstance, CloneDriftReport, CloneFamilySummary,
@@ -42,6 +45,7 @@ pub use structural::{
     StructuralDebtReport, StructuralLeverageClass, StructuralPresentationClass,
     StructuralSignalClass, StructuralTrustTier,
 };
+pub use test_coverage::build_missing_test_findings;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]

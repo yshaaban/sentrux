@@ -70,8 +70,32 @@ fn project_shape_report(
     )
 }
 
-pub(crate) fn project_shape_json(root: &Path, snapshot: &Snapshot, config: &RulesConfig) -> Value {
+pub(crate) fn project_shape_report_cached(
+    state: &mut McpState,
+    root: &Path,
+    snapshot: &Snapshot,
+    config: &RulesConfig,
+) -> crate::analysis::project_shape::ProjectShapeReport {
+    if state.scan_root.as_deref() == Some(root)
+        && state.cached_project_shape_identity == state.cached_scan_identity
+    {
+        if let Some(shape) = &state.cached_project_shape {
+            return shape.clone();
+        }
+    }
+
     let shape = project_shape_report(root, snapshot, config);
+    if state.scan_root.as_deref() == Some(root) {
+        state.cached_project_shape = Some(shape.clone());
+        state.cached_project_shape_identity = state.cached_scan_identity.clone();
+    }
+    shape
+}
+
+fn project_shape_to_json(
+    shape: crate::analysis::project_shape::ProjectShapeReport,
+    config: &RulesConfig,
+) -> Value {
     json!({
         "primary_archetype": shape.primary_archetype,
         "configured_archetypes": shape.configured_archetypes,
@@ -88,7 +112,20 @@ pub(crate) fn project_shape_json(root: &Path, snapshot: &Snapshot, config: &Rule
     })
 }
 
+pub(crate) fn project_shape_json_cached(
+    state: &mut McpState,
+    root: &Path,
+    snapshot: &Snapshot,
+    config: &RulesConfig,
+) -> Value {
+    project_shape_to_json(
+        project_shape_report_cached(state, root, snapshot, config),
+        config,
+    )
+}
+
 pub(crate) fn optional_project_shape_json(
+    state: &mut McpState,
     root: &Path,
     snapshot: Option<&Snapshot>,
     config: &RulesConfig,
@@ -99,7 +136,7 @@ pub(crate) fn optional_project_shape_json(
             "error": "No scan data. Call 'scan' first.",
         });
     };
-    project_shape_json(root, snapshot, config)
+    project_shape_json_cached(state, root, snapshot, config)
 }
 
 pub(crate) fn legacy_baseline_delta_json(diff: Option<&arch::ArchDiff>) -> Value {

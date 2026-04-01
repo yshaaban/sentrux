@@ -108,6 +108,7 @@ fn handle_onboarding_agent_brief(
         &snapshot,
         &health,
         health.duplicate_groups.len(),
+        true,
     );
     let (semantic_findings, obligations, semantic_error) = semantic_findings_and_obligations(
         state,
@@ -153,7 +154,9 @@ fn handle_onboarding_agent_brief(
         &clone_families,
         &BTreeSet::new(),
         limit,
+        false,
     );
+    let debt_context_error = debt_outputs.context_error();
     let semantic_or_rules_error = merge_optional_errors(
         merge_optional_errors(rules_error.clone(), suppression_error),
         semantic_error,
@@ -167,7 +170,7 @@ fn handle_onboarding_agent_brief(
 
     let mut brief = build_agent_brief(AgentBriefInput {
         mode: AgentBriefMode::RepoOnboarding,
-        repo_shape: project_shape_json(&root, &snapshot, &rules_config),
+        repo_shape: project_shape_json_cached(state, &root, &snapshot, &rules_config),
         findings: visible_findings,
         experimental_findings,
         missing_obligations: Vec::new(),
@@ -220,7 +223,11 @@ fn handle_onboarding_agent_brief(
             object,
             rules_error,
             merge_optional_errors(semantic_or_rules_error, clone_error),
-            debt_outputs.context_error(),
+            debt_context_error.clone(),
+        );
+        extend_diagnostics_availability(
+            object,
+            vec![("evolution", state.cached_evolution.is_some())],
         );
     }
 
@@ -267,6 +274,7 @@ fn build_patch_mode_agent_brief(
         &changed_files,
         session_v2.as_ref(),
         patch_cache_identity,
+        false,
     );
     let current_finding_payloads = finding_payload_map(&analysis.visible_findings);
     let (rules_config, rules_error) = load_v2_rules_config(state, &root);
@@ -345,6 +353,7 @@ fn build_patch_mode_agent_brief(
         &[],
         &changed_files,
         limit.max(5),
+        false,
     );
     let gate_decision = if !missing_obligations.is_empty() || !blocking_findings.is_empty() {
         "fail"
@@ -362,7 +371,7 @@ fn build_patch_mode_agent_brief(
     });
     let mut brief = build_agent_brief(AgentBriefInput {
         mode,
-        repo_shape: project_shape_json(&root, &bundle.snapshot, &rules_config),
+        repo_shape: project_shape_json_cached(state, &root, &bundle.snapshot, &rules_config),
         findings: candidate_findings.clone(),
         experimental_findings,
         missing_obligations: serialized_values(&missing_obligations),
@@ -382,6 +391,7 @@ fn build_patch_mode_agent_brief(
         strict: Some(strict),
         limit,
     })?;
+    let debt_context_error = debt_outputs.context_error();
 
     if let Some(object) = brief.as_object_mut() {
         object.insert(
@@ -433,7 +443,11 @@ fn build_patch_mode_agent_brief(
             object,
             analysis.rules_error,
             semantic_error,
-            merge_optional_errors(rules_error, debt_outputs.context_error()),
+            merge_optional_errors(rules_error, debt_context_error.clone()),
+        );
+        extend_diagnostics_availability(
+            object,
+            vec![("evolution", state.cached_evolution.is_some())],
         );
     }
 

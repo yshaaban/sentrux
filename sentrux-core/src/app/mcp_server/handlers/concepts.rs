@@ -47,7 +47,7 @@ pub(crate) fn handle_project_shape(
         .clone()
         .ok_or("No scan data. Call 'scan' first.")?;
     let (config, rules_error) = load_v2_rules_config(state, &root);
-    let project_shape = project_shape_json(&root, &snapshot, &config);
+    let project_shape = project_shape_json_cached(state, &root, &snapshot, &config);
 
     let mut response = json!({
         "kind": "project_shape",
@@ -94,11 +94,18 @@ pub(crate) fn handle_concepts(
         .count();
     let guardrail_test_count = guardrail_tests.len();
     let inferred_concept_count = inferred_concepts.len();
+    let snapshot = state.cached_snapshot.clone();
+    let project_shape = optional_project_shape_json(
+        state,
+        &root,
+        snapshot.as_ref().map(|snapshot| snapshot.as_ref()),
+        &config,
+    );
 
     let mut response = json!({
         "kind": "concepts",
         "project": config.project,
-        "project_shape": optional_project_shape_json(&root, state.cached_snapshot.as_deref(), &config),
+        "project_shape": project_shape,
         "semantic_cache": semantic_cache_status_json(state),
         "rule_coverage": coverage,
         "concepts": graph.concepts,
