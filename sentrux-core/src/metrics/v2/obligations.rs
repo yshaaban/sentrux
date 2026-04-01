@@ -136,10 +136,7 @@ pub fn build_obligation_findings(obligations: &[ObligationReport]) -> Vec<Semant
             SemanticFinding {
                 kind: obligation.kind.clone(),
                 severity,
-                concept_id: obligation
-                    .concept_id
-                    .clone()
-                    .unwrap_or_else(|| obligation.domain_symbol_name.clone().unwrap_or_default()),
+                concept_id: obligation_concept_id(obligation).to_owned(),
                 summary: obligation.summary.clone(),
                 files: obligation.files.clone(),
                 evidence: obligation
@@ -155,10 +152,9 @@ pub fn build_obligation_findings(obligations: &[ObligationReport]) -> Vec<Semant
 pub fn changed_concepts_from_obligations(obligations: &[ObligationReport]) -> Vec<String> {
     let mut concepts = BTreeSet::new();
     for obligation in obligations {
-        if let Some(concept_id) = &obligation.concept_id {
-            concepts.insert(concept_id.clone());
-        } else if let Some(domain_symbol_name) = &obligation.domain_symbol_name {
-            concepts.insert(domain_symbol_name.clone());
+        let concept_id = obligation_concept_id(obligation);
+        if !concept_id.is_empty() {
+            concepts.insert(concept_id.to_owned());
         }
     }
     concepts.into_iter().collect()
@@ -196,6 +192,14 @@ pub fn obligation_score_0_10000(obligations: &[ObligationReport]) -> u32 {
         .map(|obligation| obligation.satisfied_sites.len())
         .sum();
     ((satisfied_sites as f64 / total_sites as f64) * 10000.0).round() as u32
+}
+
+fn obligation_concept_id(obligation: &ObligationReport) -> &str {
+    obligation
+        .concept_id
+        .as_deref()
+        .or(obligation.domain_symbol_name.as_deref())
+        .unwrap_or_default()
 }
 
 #[cfg(test)]

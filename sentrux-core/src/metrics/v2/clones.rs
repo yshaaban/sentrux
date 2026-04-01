@@ -412,7 +412,7 @@ fn clone_family_summary(members: Vec<&CloneDriftFinding>) -> Option<CloneFamilyS
     let file_summaries = clone_family_file_summaries(&members);
     let distinct_file_set_count = members
         .iter()
-        .map(|finding| finding.files.clone())
+        .map(|finding| finding.files.iter().map(String::as_str).collect::<Vec<_>>())
         .collect::<BTreeSet<_>>()
         .len();
     let family_metrics = clone_family_metrics(&file_summaries, distinct_file_set_count);
@@ -784,7 +784,7 @@ fn prioritize_clone_findings(
         .collect::<BTreeMap<_, _>>();
     let representative_ids = families
         .iter()
-        .map(|family| family.representative_clone_id.clone())
+        .map(|family| family.representative_clone_id.as_str())
         .collect::<BTreeSet<_>>();
     let mut prioritized = Vec::new();
 
@@ -797,7 +797,7 @@ fn prioritize_clone_findings(
     prioritized.extend(
         findings
             .iter()
-            .filter(|finding| !representative_ids.contains(&finding.clone_id))
+            .filter(|finding| !representative_ids.contains(finding.clone_id.as_str()))
             .cloned(),
     );
     prioritized
