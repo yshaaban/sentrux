@@ -4,6 +4,7 @@ import {
   buildBenchmarkComparison,
   buildBenchmarkPolicy,
   classifyBenchmarkMetric,
+  runCommand,
 } from '../lib/benchmark-harness.mjs';
 
 test('classifyBenchmarkMetric only trips after the configured boundaries', function () {
@@ -80,4 +81,17 @@ test('buildBenchmarkComparison preserves info metrics when thresholds are not cr
     warn_count: 0,
     info_count: 1,
   });
+});
+
+test('runCommand captures stdout, stderr, and exit code', async function () {
+  const result = await runCommand(
+    process.execPath,
+    ['-e', 'console.log("hello"); console.error("warn"); process.exit(3);'],
+  );
+
+  assert.equal(result.exit_code, 3);
+  assert.equal(result.signal, null);
+  assert.match(result.stdout, /hello/);
+  assert.match(result.stderr, /warn/);
+  assert(result.elapsed_ms >= 0);
 });

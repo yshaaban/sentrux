@@ -15,6 +15,7 @@ import {
 } from './lib/benchmark-harness.mjs';
 import {
   summarizeAgentBrief,
+  summarizeCheck,
   summarizeConcepts,
   summarizeExplainConcept,
   summarizeFindings,
@@ -202,6 +203,13 @@ async function runBenchmarkSession(parallelCodeWorkRoot, homeOverride) {
       {},
       summarizeGate,
     );
+    warmPatchSafety.check = await runBenchmarkTool(
+      session,
+      'check',
+      'check',
+      {},
+      summarizeCheck,
+    );
     warmPatchSafety.agent_brief_pre_merge = await runBenchmarkTool(
       session,
       'agent_brief_pre_merge',
@@ -328,6 +336,7 @@ async function main() {
       ['warm_patch_safety.session_start.elapsed_ms', 'warm session_start'],
       ['warm_patch_safety.agent_brief_patch.elapsed_ms', 'warm agent_brief patch'],
       ['warm_patch_safety.gate.elapsed_ms', 'warm gate'],
+      ['warm_patch_safety.check.elapsed_ms', 'warm check'],
       ['warm_patch_safety.agent_brief_pre_merge.elapsed_ms', 'warm agent_brief pre_merge'],
       ['warm_patch_safety.session_end.elapsed_ms', 'warm session_end'],
     ],

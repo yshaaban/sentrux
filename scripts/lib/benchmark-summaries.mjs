@@ -112,6 +112,16 @@ export function summarizeSessionEnd(payload) {
   };
 }
 
+export function summarizeCheck(payload) {
+  return {
+    gate: payload.gate ?? null,
+    issue_count: countItems(payload.issues),
+    changed_file_count: countItems(payload.changed_files),
+    partial_results: payload.diagnostics?.partial_results ?? null,
+    changed_scope_available: payload.diagnostics?.availability?.changed_scope ?? null,
+  };
+}
+
 export function summarizeProjectShape(payload) {
   const projectShape = payload.project_shape;
 
