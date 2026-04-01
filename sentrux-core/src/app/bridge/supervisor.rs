@@ -535,11 +535,9 @@ mod tests {
 
     #[test]
     fn missing_node_binary_is_reported_as_unavailable() {
-        let mut supervisor = TypeScriptBridgeSupervisor::new(TypeScriptBridgeConfig {
-            node_binary: "definitely-not-a-real-node-binary".to_string(),
-            package_dir: ".".to_string(),
-            entrypoint: "missing.js".to_string(),
-        });
+        let mut config = crate::analysis::semantic::typescript::default_bridge_config();
+        config.node_binary = "definitely-not-a-real-node-binary".to_string();
+        let mut supervisor = TypeScriptBridgeSupervisor::new(config);
 
         let error = supervisor.start().expect_err("missing binary should fail");
         assert!(error.to_string().contains("unavailable"));

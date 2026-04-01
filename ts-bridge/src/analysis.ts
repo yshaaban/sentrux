@@ -17,6 +17,10 @@ import { collectClosedDomain, collectClosedDomainSite } from "./analysis-closed-
 import { collectTransitionSite } from "./analysis-transitions.js";
 import {
   createProgramFromTsconfig,
+  expressionName,
+  expressionPath,
+  isAssignmentOperator,
+  isMutationOperator,
   isTopLevelDeclaration,
   isTopLevelVariableDeclaration,
   lineOfNode,
@@ -300,51 +304,6 @@ function collectWriteFacts(context: FileAnalysisContext, node: ts.Node): void {
   }
 }
 
-function expressionName(expression: ts.Expression): string | null {
-  if (ts.isIdentifier(expression)) {
-    return expression.text;
-  }
-
-  if (ts.isPropertyAccessExpression(expression)) {
-    return expression.name.text;
-  }
-
-  if (ts.isElementAccessExpression(expression)) {
-    return expression.argumentExpression?.getText() ?? null;
-  }
-
-  return null;
-}
-
-function expressionPath(expression: ts.Expression): string | null {
-  if (ts.isIdentifier(expression)) {
-    return expression.text;
-  }
-
-  if (ts.isPropertyAccessExpression(expression)) {
-    const base = expressionPath(expression.expression);
-    if (!base) {
-      return null;
-    }
-    return `${base}.${expression.name.text}`;
-  }
-
-  if (
-    ts.isElementAccessExpression(expression) &&
-    expression.argumentExpression &&
-    (ts.isStringLiteral(expression.argumentExpression) ||
-      ts.isNumericLiteral(expression.argumentExpression))
-  ) {
-    const base = expressionPath(expression.expression);
-    if (!base) {
-      return null;
-    }
-    return `${base}.${expression.argumentExpression.text}`;
-  }
-
-  return null;
-}
-
 function isWriteTarget(node: ts.Expression): boolean {
   const parent = node.parent;
   if (!parent) {
@@ -395,32 +354,4 @@ function setStoreTarget(argumentsList: readonly ts.Expression[]): string | null 
   }
 
   return `store.${segments.join(".")}`;
-}
-
-function isAssignmentOperator(kind: ts.SyntaxKind): boolean {
-  switch (kind) {
-    case ts.SyntaxKind.EqualsToken:
-    case ts.SyntaxKind.PlusEqualsToken:
-    case ts.SyntaxKind.MinusEqualsToken:
-    case ts.SyntaxKind.AsteriskEqualsToken:
-    case ts.SyntaxKind.AsteriskAsteriskEqualsToken:
-    case ts.SyntaxKind.SlashEqualsToken:
-    case ts.SyntaxKind.PercentEqualsToken:
-    case ts.SyntaxKind.AmpersandEqualsToken:
-    case ts.SyntaxKind.BarEqualsToken:
-    case ts.SyntaxKind.CaretEqualsToken:
-    case ts.SyntaxKind.LessThanLessThanEqualsToken:
-    case ts.SyntaxKind.GreaterThanGreaterThanEqualsToken:
-    case ts.SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken:
-    case ts.SyntaxKind.QuestionQuestionEqualsToken:
-    case ts.SyntaxKind.BarBarEqualsToken:
-    case ts.SyntaxKind.AmpersandAmpersandEqualsToken:
-      return true;
-    default:
-      return false;
-  }
-}
-
-function isMutationOperator(kind: ts.SyntaxKind): boolean {
-  return kind === ts.SyntaxKind.PlusPlusToken || kind === ts.SyntaxKind.MinusMinusToken;
 }
