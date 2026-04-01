@@ -1,13 +1,8 @@
 #[cfg(test)]
 mod tests {
     use crate::analysis::parser::parse_bytes;
-    use crate::core::snapshot::Snapshot;
-    use crate::core::types::{EntryPoint, ImportEdge};
     use crate::core::types::{FileNode, FuncInfo, StructuralAnalysis};
-    use crate::metrics::stability::module_of;
     use crate::metrics::*;
-    use std::collections::HashMap;
-    use std::sync::Arc;
 
     use crate::metrics::test_helpers::{edge, file, snap_with_edges};
 

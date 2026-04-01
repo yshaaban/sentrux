@@ -30,6 +30,93 @@ impl AgentBriefMode {
     }
 }
 
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+enum BriefSeverity {
+    Low,
+    Medium,
+    High,
+}
+
+impl BriefSeverity {
+    fn from_value(value: &Value) -> Self {
+        match value
+            .get("severity")
+            .and_then(Value::as_str)
+            .unwrap_or("low")
+        {
+            "high" => Self::High,
+            "medium" => Self::Medium,
+            _ => Self::Low,
+        }
+    }
+
+    const fn should_include_pre_merge(self, include_medium: bool) -> bool {
+        match self {
+            Self::High => true,
+            Self::Medium => include_medium,
+            Self::Low => false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+enum BriefTrustTier {
+    Trusted,
+    Watchpoint,
+    Experimental,
+}
+
+impl BriefTrustTier {
+    fn from_value(value: &Value) -> Self {
+        match value
+            .get("trust_tier")
+            .and_then(Value::as_str)
+            .unwrap_or("trusted")
+        {
+            "watchpoint" => Self::Watchpoint,
+            "experimental" => Self::Experimental,
+            _ => Self::Trusted,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+enum BriefLeverageClass {
+    SecondaryCleanup,
+    LocalRefactorTarget,
+    ArchitectureSignal,
+    RegrowthWatchpoint,
+    ToolingDebt,
+    BoundaryDiscipline,
+    HardeningNote,
+    Experimental,
+}
+
+impl BriefLeverageClass {
+    fn from_value(finding: &Value) -> Self {
+        match finding.get("leverage_class").and_then(Value::as_str) {
+            Some("local_refactor_target") => Self::LocalRefactorTarget,
+            Some("architecture_signal") => Self::ArchitectureSignal,
+            Some("regrowth_watchpoint") => Self::RegrowthWatchpoint,
+            Some("tooling_debt") => Self::ToolingDebt,
+            Some("boundary_discipline") => Self::BoundaryDiscipline,
+            Some("hardening_note") => Self::HardeningNote,
+            Some("experimental") => Self::Experimental,
+            _ => Self::SecondaryCleanup,
+        }
+    }
+
+    const fn is_high_leverage(self) -> bool {
+        matches!(
+            self,
+            Self::ArchitectureSignal | Self::LocalRefactorTarget | Self::BoundaryDiscipline
+        )
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct AgentBriefInput {
     pub mode: AgentBriefMode,
@@ -76,9 +163,9 @@ struct AgentBrief {
 struct AgentBriefTarget {
     scope: String,
     kind: String,
-    severity: String,
-    trust_tier: String,
-    leverage_class: String,
+    severity: BriefSeverity,
+    trust_tier: BriefTrustTier,
+    leverage_class: BriefLeverageClass,
     summary: String,
     why_now: Vec<String>,
     likely_fix_sites: Vec<String>,
@@ -100,7 +187,7 @@ struct DeferredItem {
     summary: String,
 }
 
-pub fn build_agent_brief(input: AgentBriefInput) -> Value {
+pub fn build_agent_brief(input: AgentBriefInput) -> Result<Value, String> {
     let mut primary_targets = match input.mode {
         AgentBriefMode::RepoOnboarding => select_onboarding_targets(&input),
         AgentBriefMode::Patch => select_patch_targets(&input),
@@ -132,7 +219,7 @@ pub fn build_agent_brief(input: AgentBriefInput) -> Value {
         scan_trust: input.scan_trust,
         freshness: input.freshness,
     })
-    .unwrap_or_else(|_| json!({}))
+    .map_err(|error| format!("Failed to serialize agent brief: {error}"))
 }
 
 fn summarize_repo_shape(repo_shape: &Value) -> Value {
@@ -205,8 +292,7 @@ fn select_pre_merge_targets(input: &AgentBriefInput) -> Vec<AgentBriefTarget> {
     let include_medium = input.strict.unwrap_or(false);
 
     for finding in &input.findings {
-        let severity = severity_of_value(finding);
-        if severity != "high" && !(include_medium && severity == "medium") {
+        if !severity_of_value(finding).should_include_pre_merge(include_medium) {
             continue;
         }
         let target = target_from_finding(finding, input);
@@ -251,9 +337,9 @@ fn target_from_obligation(obligation: &Value, input: &AgentBriefInput) -> AgentB
     AgentBriefTarget {
         scope: concept.clone(),
         kind: "missing_obligation".to_string(),
-        severity: "high".to_string(),
-        trust_tier: "trusted".to_string(),
-        leverage_class: "hardening_note".to_string(),
+        severity: BriefSeverity::High,
+        trust_tier: BriefTrustTier::Trusted,
+        leverage_class: BriefLeverageClass::HardeningNote,
         summary: obligation
             .get("summary")
             .and_then(Value::as_str)
@@ -289,15 +375,16 @@ fn target_from_finding(finding: &Value, input: &AgentBriefInput) -> AgentBriefTa
         string_field(finding, "summary", &kind),
         signal_band(finding)
     );
-    let leverage_class = string_field(finding, "leverage_class", "secondary_cleanup");
+    let trust_tier = BriefTrustTier::from_value(finding);
+    let leverage_class = BriefLeverageClass::from_value(finding);
     let likely_fix_sites = likely_fix_sites(finding);
 
     AgentBriefTarget {
         scope: scope.clone(),
         kind: kind.clone(),
-        severity: severity_of_value(finding).to_string(),
-        trust_tier: string_field(finding, "trust_tier", "trusted"),
-        leverage_class: leverage_class.clone(),
+        severity: severity_of_value(finding),
+        trust_tier,
+        leverage_class,
         summary,
         why_now: why_now(finding, input),
         likely_fix_sites,
@@ -316,20 +403,18 @@ fn why_now(finding: &Value, input: &AgentBriefInput) -> Vec<String> {
     {
         reasons.push("touched_concept".to_string());
     }
-    if string_field(finding, "trust_tier", "trusted") == "trusted" {
+    if BriefTrustTier::from_value(finding) == BriefTrustTier::Trusted {
         reasons.push("high_trust".to_string());
     }
-    let leverage_class = string_field(finding, "leverage_class", "secondary_cleanup");
-    if matches!(
-        leverage_class.as_str(),
-        "architecture_signal" | "local_refactor_target" | "boundary_discipline"
-    ) {
+    if BriefLeverageClass::from_value(finding).is_high_leverage() {
         reasons.push("high_leverage".to_string());
     }
     if !likely_fix_sites(finding).is_empty() {
         reasons.push("clear_fix_surface".to_string());
     }
-    if matches!(input.mode, AgentBriefMode::PreMerge) && severity_of_value(finding) == "high" {
+    if matches!(input.mode, AgentBriefMode::PreMerge)
+        && severity_of_value(finding) == BriefSeverity::High
+    {
         reasons.push("merge_blocker_candidate".to_string());
     }
     if reasons.is_empty() {
@@ -382,7 +467,7 @@ fn decide(input: &AgentBriefInput, primary_targets: &[AgentBriefTarget]) -> Stri
         AgentBriefMode::RepoOnboarding => {
             if primary_targets
                 .iter()
-                .any(|target| target.trust_tier == "trusted")
+                .any(|target| target.trust_tier == BriefTrustTier::Trusted)
             {
                 "fix_now".to_string()
             } else {
@@ -391,9 +476,10 @@ fn decide(input: &AgentBriefInput, primary_targets: &[AgentBriefTarget]) -> Stri
         }
         AgentBriefMode::Patch => {
             if !input.missing_obligations.is_empty()
-                || primary_targets
-                    .iter()
-                    .any(|target| target.severity == "high" && target.trust_tier == "trusted")
+                || primary_targets.iter().any(|target| {
+                    target.severity == BriefSeverity::High
+                        && target.trust_tier == BriefTrustTier::Trusted
+                })
             {
                 "fix_now".to_string()
             } else {
@@ -537,11 +623,8 @@ fn string_array_field(value: &Value, key: &str, limit: usize) -> Vec<String> {
         .unwrap_or_default()
 }
 
-fn severity_of_value(value: &Value) -> &str {
-    value
-        .get("severity")
-        .and_then(Value::as_str)
-        .unwrap_or("low")
+fn severity_of_value(value: &Value) -> BriefSeverity {
+    BriefSeverity::from_value(value)
 }
 
 fn file_list(value: &Value) -> Vec<String> {
@@ -629,7 +712,8 @@ mod tests {
             freshness: json!({ "baseline_loaded": false }),
             strict: None,
             limit: 3,
-        });
+        })
+        .expect("agent brief");
 
         assert_eq!(brief["kind"], "agent_brief");
         assert_eq!(brief["mode"], "repo_onboarding");
@@ -645,6 +729,12 @@ mod tests {
         assert_eq!(
             brief["primary_targets"][0]["next_tools"][0]["tool"],
             "explain_concept"
+        );
+        assert_eq!(brief["primary_targets"][0]["severity"], "high");
+        assert_eq!(brief["primary_targets"][0]["trust_tier"], "trusted");
+        assert_eq!(
+            brief["primary_targets"][0]["leverage_class"],
+            "boundary_discipline"
         );
         assert_eq!(brief["do_not_chase_count"], 1);
         assert_eq!(brief["do_not_chase"][0]["reason"], "experimental_detector");
@@ -693,7 +783,8 @@ mod tests {
             freshness: json!({ "baseline_loaded": true }),
             strict: Some(false),
             limit: 3,
-        });
+        })
+        .expect("agent brief");
 
         assert_eq!(brief["mode"], "patch");
         assert_eq!(brief["decision"], "fix_now");
@@ -749,7 +840,8 @@ mod tests {
             freshness: json!({ "baseline_loaded": true }),
             strict: Some(true),
             limit: 3,
-        });
+        })
+        .expect("agent brief");
 
         assert_eq!(brief["mode"], "pre_merge");
         assert_eq!(brief["decision"], "block");
@@ -800,7 +892,8 @@ mod tests {
             freshness: json!({ "baseline_loaded": true }),
             strict: Some(true),
             limit: 3,
-        });
+        })
+        .expect("agent brief");
 
         assert_eq!(brief["mode"], "pre_merge");
         assert_eq!(brief["decision"], "block");

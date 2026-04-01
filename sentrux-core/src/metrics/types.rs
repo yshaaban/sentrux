@@ -190,6 +190,7 @@ pub(crate) struct ModuleMetrics {
     pub(crate) cross_module_edges: usize,
     pub(crate) entropy: f64,
     pub(crate) entropy_bits: f64,
+    #[allow(dead_code)] // Stored for report/debug output; not every caller reads it.
     pub(crate) entropy_num_pairs: usize,
     pub(crate) avg_cohesion: Option<f64>,
     pub(crate) max_depth: u32,

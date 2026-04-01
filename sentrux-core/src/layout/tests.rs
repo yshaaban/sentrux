@@ -2,7 +2,6 @@ use super::*;
 use crate::core::settings::Settings;
 use crate::core::snapshot::Snapshot;
 use crate::core::types::FileNode;
-use crate::core::types::{CallEdge, ImportEdge};
 use crate::layout::test_helpers::{
     default_focus, empty_entry_points, make_dir, make_file, no_hidden, simple_snapshot,
 };

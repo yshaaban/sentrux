@@ -28,7 +28,7 @@
 //! Respects SENTRUX_DEV=1 to tag pings as internal/dev traffic.
 
 use std::path::PathBuf;
-use std::sync::{Mutex, OnceLock};
+use std::sync::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /// Stores the latest available version if newer than current.

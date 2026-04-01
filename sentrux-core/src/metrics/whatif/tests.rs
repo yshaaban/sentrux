@@ -7,7 +7,6 @@
 //! (moving a file not in the graph is a no-op).
 
 use super::*;
-use crate::core::types::ImportEdge;
 use crate::metrics::test_helpers::edge;
 
 // ── MoveFile tests ──

@@ -296,8 +296,6 @@ fn stale_imports_ready_rejected_by_generation() {
 fn layout_version_not_bumped_on_full_channel() {
     let (tx, _rx) = bounded::<LayoutRequest>(1);
     let snap = Arc::new(dummy_snapshot());
-    let mut layout_version: u64 = 0;
-    let mut layout_pending = false;
 
     let req = LayoutRequest {
         snapshot: Arc::clone(&snap),
@@ -316,9 +314,7 @@ fn layout_version_not_bumped_on_full_channel() {
         impact_files: None,
     };
     tx.try_send(req).unwrap();
-    layout_version = 1;
 
-    let next_version = layout_version + 1;
     let req2 = LayoutRequest {
         snapshot: Arc::clone(&snap),
         size_mode: SizeMode::Lines,
@@ -327,7 +323,7 @@ fn layout_version_not_bumped_on_full_channel() {
         viewport_w: 800.0,
         viewport_h: 600.0,
         drill_path: None,
-        version: next_version,
+        version: 2,
         heat_map: None,
         settings: crate::core::settings::Settings::default(),
         focus_mode: crate::layout::types::FocusMode::All,
@@ -335,23 +331,9 @@ fn layout_version_not_bumped_on_full_channel() {
         hidden_paths: std::sync::Arc::new(std::collections::HashSet::new()),
         impact_files: None,
     };
-    match tx.try_send(req2) {
-        Ok(()) => {
-            layout_version = next_version;
-            layout_pending = true;
-        }
-        Err(_) => {
-            layout_pending = true;
-        }
-    }
-
-    assert_eq!(
-        layout_version, 1,
-        "Version must stay at 1 when channel is full"
-    );
     assert!(
-        layout_pending,
-        "layout_pending should be set even on failure"
+        tx.try_send(req2).is_err(),
+        "full channel should reject the second layout request"
     );
 }
 
@@ -359,28 +341,23 @@ fn layout_version_not_bumped_on_full_channel() {
 
 #[test]
 fn layout_pending_cleared_when_version_matches() {
-    let layout_version: u64 = 5;
+    let requested_version: u64 = 5;
     let rendered_version: u64 = 0;
 
-    let incoming = 5u64;
+    let incoming = requested_version;
     assert!(incoming >= rendered_version);
-    let layout_pending = incoming < layout_version;
-    assert!(
-        !layout_pending,
-        "layout_pending should be false when received version matches requested"
-    );
+    assert_eq!(incoming, requested_version);
 }
 
 #[test]
 fn layout_pending_stays_when_version_behind() {
-    let layout_version: u64 = 7;
+    let requested_version: u64 = 7;
     let rendered_version: u64 = 0;
 
     let incoming = 5u64;
     assert!(incoming >= rendered_version);
-    let layout_pending = incoming < layout_version;
     assert!(
-        layout_pending,
+        incoming < requested_version,
         "layout_pending should remain true when newer request is outstanding"
     );
 }

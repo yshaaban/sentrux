@@ -662,7 +662,10 @@ fn is_probable_jsx_tag_reference(line: &str, identifier: &str, start: usize) -> 
 }
 
 fn previous_non_whitespace(line: &str, start: usize) -> Option<char> {
-    line[..start].chars().rev().find(|character| !character.is_whitespace())
+    line[..start]
+        .chars()
+        .rev()
+        .find(|character| !character.is_whitespace())
 }
 
 fn previous_non_whitespace_index(line: &str, start: usize) -> Option<usize> {
@@ -674,7 +677,9 @@ fn previous_non_whitespace_index(line: &str, start: usize) -> Option<usize> {
 }
 
 fn next_non_whitespace(line: &str, end: usize) -> Option<char> {
-    line[end..].chars().find(|character| !character.is_whitespace())
+    line[end..]
+        .chars()
+        .find(|character| !character.is_whitespace())
 }
 
 fn previous_token(line: &str, start: usize) -> Option<String> {

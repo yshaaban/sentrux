@@ -7,7 +7,6 @@
 //! Key function tested: `build_dsm`.
 
 use super::*;
-use crate::core::types::ImportEdge;
 use crate::metrics::test_helpers::edge;
 
 #[test]

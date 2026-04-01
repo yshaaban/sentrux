@@ -175,9 +175,7 @@ export async function markCommentsSent(): Promise<void> {}
         let sa = parse_bytes(code, "typescript").expect("ts parse failed");
         let functions = sa.functions.as_ref().expect("no functions");
 
-        assert!(functions
-            .iter()
-            .all(|function| function.is_public));
+        assert!(functions.iter().all(|function| function.is_public));
     }
 
     #[test]

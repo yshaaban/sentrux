@@ -176,7 +176,8 @@ pub fn compute_rule_coverage(
         .filter(|suppression| suppression.expires.is_some())
         .count();
 
-    let declared_total = concepts.len() + contracts.len() + state_models.len() + module_contracts.len();
+    let declared_total =
+        concepts.len() + contracts.len() + state_models.len() + module_contracts.len();
     let machine_checkable_total = concepts_machine_checkable
         + contracts_machine_checkable
         + state_models_machine_checkable

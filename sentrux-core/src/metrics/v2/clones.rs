@@ -1,5 +1,6 @@
 //! Git-aware clone-drift findings built on duplicate groups plus evolution context.
 
+use super::FindingSeverity;
 use crate::metrics::evolution::EvolutionReport;
 use crate::metrics::testgap::is_test_file;
 use crate::metrics::DuplicateGroup;
@@ -25,7 +26,7 @@ pub struct CloneDriftInstance {
 pub struct CloneDriftFinding {
     pub kind: String,
     pub clone_id: String,
-    pub severity: String,
+    pub severity: FindingSeverity,
     pub instance_count: usize,
     pub production_instance_count: usize,
     pub total_lines: u32,
@@ -45,7 +46,7 @@ pub struct CloneDriftFinding {
 pub struct CloneFamilySummary {
     pub kind: String,
     pub family_id: String,
-    pub severity: String,
+    pub severity: FindingSeverity,
     pub family_score: u32,
     pub divergence_score: u32,
     pub member_count: usize,
@@ -64,10 +65,29 @@ pub struct CloneFamilySummary {
     pub remediation_hints: Vec<CloneRemediationHint>,
 }
 
+#[derive(Debug, Clone, Copy, Eq, PartialEq, serde::Serialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum RemediationPriority {
+    Low,
+    #[default]
+    Medium,
+    High,
+}
+
+impl RemediationPriority {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Low => "low",
+            Self::Medium => "medium",
+            Self::High => "high",
+        }
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, Default)]
 pub struct CloneRemediationHint {
     pub kind: String,
-    pub priority: String,
+    pub priority: RemediationPriority,
     pub summary: String,
     pub files: Vec<String>,
     pub clone_ids: Vec<String>,
@@ -225,7 +245,7 @@ fn clone_drift_finding(
     Some(CloneDriftFinding {
         kind: "exact_clone_group".to_string(),
         clone_id: clone_id(group.hash),
-        severity: severity.to_string(),
+        severity,
         instance_count,
         production_instance_count,
         total_lines,
@@ -243,27 +263,22 @@ fn clone_drift_finding(
 }
 
 fn compare_clone_findings(left: &CloneDriftFinding, right: &CloneDriftFinding) -> Ordering {
-    severity_priority(&right.severity)
-        .cmp(&severity_priority(&left.severity))
+    severity_priority(right.severity)
+        .cmp(&severity_priority(left.severity))
         .then_with(|| right.risk_score.cmp(&left.risk_score))
         .then_with(|| left.clone_id.cmp(&right.clone_id))
 }
 
 fn compare_clone_families(left: &CloneFamilySummary, right: &CloneFamilySummary) -> Ordering {
-    severity_priority(&right.severity)
-        .cmp(&severity_priority(&left.severity))
+    severity_priority(right.severity)
+        .cmp(&severity_priority(left.severity))
         .then_with(|| right.divergence_score.cmp(&left.divergence_score))
         .then_with(|| right.family_score.cmp(&left.family_score))
         .then_with(|| left.family_id.cmp(&right.family_id))
 }
 
-fn severity_priority(severity: &str) -> u8 {
-    match severity {
-        "high" => 3,
-        "medium" => 2,
-        "low" => 1,
-        _ => 0,
-    }
+fn severity_priority(severity: FindingSeverity) -> u8 {
+    severity.priority()
 }
 
 fn clone_risk_score(
@@ -288,21 +303,21 @@ fn clone_severity(
     max_lines: u32,
     max_commit_count: u32,
     asymmetric_recent_change: bool,
-) -> &'static str {
+) -> FindingSeverity {
     if max_lines >= 20
         || (production_instance_count >= 2
             && max_lines >= 10
             && (asymmetric_recent_change || max_commit_count >= 3))
         || (instance_count >= 3 && max_lines >= 8)
     {
-        "high"
+        FindingSeverity::High
     } else if max_lines >= 8
         || (asymmetric_recent_change && max_commit_count >= 1)
         || (instance_count >= 3 && max_lines >= 5)
     {
-        "medium"
+        FindingSeverity::Medium
     } else {
-        "low"
+        FindingSeverity::Low
     }
 }
 
@@ -424,7 +439,7 @@ fn clone_family_summary(members: Vec<&CloneDriftFinding>) -> Option<CloneFamilyS
     Some(CloneFamilySummary {
         kind: "clone_family".to_string(),
         family_id,
-        severity: representative.severity.clone(),
+        severity: representative.severity,
         family_score,
         divergence_score: family_metrics.divergence_score,
         member_count: members.len(),
@@ -587,9 +602,9 @@ fn clone_family_remediation_hints(
         hints.push(CloneRemediationHint {
             kind: "review_family_boundaries".to_string(),
             priority: if family_metrics.divergence_score >= 12 {
-                "high".to_string()
+                RemediationPriority::High
             } else {
-                "medium".to_string()
+                RemediationPriority::Medium
             },
             summary: format!(
                 "Review the overlapping clone family boundaries across {} sibling file set(s) and decide whether these copies should stay synchronized or be split into separate abstractions.",
@@ -622,7 +637,7 @@ fn clone_family_remediation_hints(
 
         hints.push(CloneRemediationHint {
             kind: "sync_recent_divergence".to_string(),
-            priority: "high".to_string(),
+            priority: RemediationPriority::High,
             summary: if detail.is_empty() {
                 "Review recent edits across clone siblings and either synchronize the shared behavior or intentionally split the implementations."
                     .to_string()
@@ -640,10 +655,10 @@ fn clone_family_remediation_hints(
     if member_count >= 2 && file_count >= 2 {
         hints.push(CloneRemediationHint {
             kind: "extract_shared_helper".to_string(),
-            priority: if representative.severity == "high" {
-                "high".to_string()
+            priority: if representative.severity == FindingSeverity::High {
+                RemediationPriority::High
             } else {
-                "medium".to_string()
+                RemediationPriority::Medium
             },
             summary: format!(
                 "Extract the repeated logic into a shared helper or module used by the {} clone groups across these files.",
@@ -657,7 +672,7 @@ fn clone_family_remediation_hints(
     if member_count >= 3 || file_count >= 3 {
         hints.push(CloneRemediationHint {
             kind: "collapse_clone_family".to_string(),
-            priority: "medium".to_string(),
+            priority: RemediationPriority::Medium,
             summary: format!(
                 "Collapse the {} repeated clone groups behind one named abstraction instead of maintaining copies in {} files.",
                 member_count, file_count
@@ -667,10 +682,12 @@ fn clone_family_remediation_hints(
         });
     }
 
-    if representative.severity == "high" && family_metrics.recently_touched_file_count > 0 {
+    if representative.severity == FindingSeverity::High
+        && family_metrics.recently_touched_file_count > 0
+    {
         hints.push(CloneRemediationHint {
             kind: "add_shared_behavior_tests".to_string(),
-            priority: "medium".to_string(),
+            priority: RemediationPriority::Medium,
             summary:
                 "Add focused tests around the shared behavior before deduplicating the clone family so the extraction does not hide drift."
                     .to_string(),
@@ -840,9 +857,10 @@ fn clone_group_files(group: &DuplicateGroup) -> Vec<String> {
     group
         .instances
         .iter()
-        .map(|(file, _, _)| file.clone())
+        .map(|(file, _, _)| file.as_str())
         .collect::<BTreeSet<_>>()
         .into_iter()
+        .map(str::to_string)
         .collect()
 }
 
@@ -925,7 +943,7 @@ fn production_instance_count(group: &DuplicateGroup) -> usize {
 mod tests {
     use super::{
         build_clone_drift_findings, build_clone_drift_report, build_clone_remediation_hints,
-        CloneFamilySummary, CloneRemediationHint,
+        CloneFamilySummary, CloneRemediationHint, FindingSeverity, RemediationPriority,
     };
     use crate::metrics::evolution::{
         AuthorInfo, CouplingPair, EvolutionReport, FileChurn, TemporalHotspot,
@@ -985,7 +1003,7 @@ mod tests {
         assert_eq!(findings[0].max_commit_count, 4);
         assert_eq!(findings[0].youngest_age_days, Some(3));
         assert!(findings[0].asymmetric_recent_change);
-        assert_eq!(findings[0].severity, "high");
+        assert_eq!(findings[0].severity, FindingSeverity::High);
     }
 
     #[test]
@@ -1236,14 +1254,14 @@ mod tests {
                 remediation_hints: vec![
                     CloneRemediationHint {
                         kind: "sync_recent_divergence".to_string(),
-                        priority: "high".to_string(),
+                        priority: RemediationPriority::High,
                         summary: "sync".to_string(),
                         files: vec!["src/a.ts".to_string(), "src/b.ts".to_string()],
                         clone_ids: vec!["clone-a".to_string()],
                     },
                     CloneRemediationHint {
                         kind: "extract_shared_helper".to_string(),
-                        priority: "medium".to_string(),
+                        priority: RemediationPriority::Medium,
                         summary: "extract".to_string(),
                         files: vec!["src/a.ts".to_string(), "src/b.ts".to_string()],
                         clone_ids: vec!["clone-a".to_string()],
@@ -1255,7 +1273,7 @@ mod tests {
                 family_id: "family-b".to_string(),
                 remediation_hints: vec![CloneRemediationHint {
                     kind: "collapse_clone_family".to_string(),
-                    priority: "medium".to_string(),
+                    priority: RemediationPriority::Medium,
                     summary: "collapse".to_string(),
                     files: vec!["src/c.ts".to_string(), "src/d.ts".to_string()],
                     clone_ids: vec!["clone-b".to_string()],
@@ -1270,5 +1288,20 @@ mod tests {
         assert_eq!(hints[0].kind, "sync_recent_divergence");
         assert_eq!(hints[1].kind, "collapse_clone_family");
         assert_eq!(hints[2].kind, "extract_shared_helper");
+    }
+
+    #[test]
+    fn remediation_priority_serializes_to_legacy_strings() {
+        let hint = CloneRemediationHint {
+            kind: "sync_recent_divergence".to_string(),
+            priority: RemediationPriority::High,
+            summary: "sync".to_string(),
+            files: vec!["src/a.ts".to_string()],
+            clone_ids: vec!["clone-a".to_string()],
+        };
+
+        let value = serde_json::to_value(&hint).expect("serialize hint");
+
+        assert_eq!(value["priority"], "high");
     }
 }

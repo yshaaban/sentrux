@@ -56,10 +56,16 @@ pub fn detect_project_shape(
     workspace_files: &[String],
     configured_archetypes: &[String],
 ) -> ProjectShapeReport {
-    let package_signals = root.and_then(read_package_manifest_signals).unwrap_or_default();
+    let package_signals = root
+        .and_then(read_package_manifest_signals)
+        .unwrap_or_default();
     let capabilities = detect_capabilities(file_paths, workspace_files, &package_signals);
-    let detected_archetypes =
-        detect_archetypes(file_paths, &capabilities, &package_signals, configured_archetypes);
+    let detected_archetypes = detect_archetypes(
+        file_paths,
+        &capabilities,
+        &package_signals,
+        configured_archetypes,
+    );
     let boundary_roots = detect_boundary_roots(file_paths, &capabilities);
     let module_contracts = detect_module_contracts(&boundary_roots, file_paths);
     let effective_archetypes = effective_archetypes(configured_archetypes, &detected_archetypes);
@@ -152,10 +158,7 @@ fn read_package_manifest_signals(root: &Path) -> Option<PackageManifestSignals> 
     })
 }
 
-fn collect_manifest_keys(
-    section: Option<&serde_json::Value>,
-    dependencies: &mut BTreeSet<String>,
-) {
+fn collect_manifest_keys(section: Option<&serde_json::Value>, dependencies: &mut BTreeSet<String>) {
     let Some(section) = section.and_then(|value| value.as_object()) else {
         return;
     };
@@ -175,7 +178,9 @@ fn detect_capabilities(
     let has_api_routes = file_paths
         .iter()
         .any(|path| path.starts_with("src/app/api/") && is_route_handler_path(path));
-    let has_modules_root = file_paths.iter().any(|path| path.starts_with("src/modules/"));
+    let has_modules_root = file_paths
+        .iter()
+        .any(|path| path.starts_with("src/modules/"));
     let feature_module_count = feature_module_names(file_paths).len();
     let has_http_handlers = file_paths.iter().any(|path| {
         path.starts_with("src/routes/")
@@ -219,9 +224,15 @@ fn detect_capabilities(
             || path.ends_with("/middleware.ts")
             || path.ends_with("/middleware.tsx")
     });
-    let has_localized_routing = file_paths.iter().any(|path| path.starts_with("src/app/[locale]/"));
+    let has_localized_routing = file_paths
+        .iter()
+        .any(|path| path.starts_with("src/app/[locale]/"));
 
-    if package_signals.has_next || workspace_files.iter().any(|path| path.starts_with("next.config")) {
+    if package_signals.has_next
+        || workspace_files
+            .iter()
+            .any(|path| path.starts_with("next.config"))
+    {
         capabilities.push("nextjs".to_string());
     }
     if package_signals.has_react {
@@ -368,21 +379,30 @@ fn detect_boundary_roots(
             evidence: vec!["Next.js route handlers detected".to_string()],
         });
     }
-    if file_paths.iter().any(|path| path.starts_with("src/routes/")) {
+    if file_paths
+        .iter()
+        .any(|path| path.starts_with("src/routes/"))
+    {
         roots.push(BoundaryRootSuggestion {
             kind: "http_handlers".to_string(),
             root: "src/routes".to_string(),
             evidence: vec!["top-level route handlers detected".to_string()],
         });
     }
-    if file_paths.iter().any(|path| path.starts_with("src/controllers/")) {
+    if file_paths
+        .iter()
+        .any(|path| path.starts_with("src/controllers/"))
+    {
         roots.push(BoundaryRootSuggestion {
             kind: "http_handlers".to_string(),
             root: "src/controllers".to_string(),
             evidence: vec!["top-level controller layer detected".to_string()],
         });
     }
-    if file_paths.iter().any(|path| path.starts_with("src/services/")) {
+    if file_paths
+        .iter()
+        .any(|path| path.starts_with("src/services/"))
+    {
         roots.push(BoundaryRootSuggestion {
             kind: "service_layer".to_string(),
             root: "src/services".to_string(),
@@ -397,14 +417,20 @@ fn detect_boundary_roots(
         });
     }
     if capabilities.iter().any(|entry| entry == "provider_stack") {
-        if file_paths.iter().any(|path| path.starts_with("src/providers/")) {
+        if file_paths
+            .iter()
+            .any(|path| path.starts_with("src/providers/"))
+        {
             roots.push(BoundaryRootSuggestion {
                 kind: "provider_stack".to_string(),
                 root: "src/providers".to_string(),
                 evidence: vec!["top-level provider stack detected".to_string()],
             });
         }
-        if file_paths.iter().any(|path| path.starts_with("src/contexts/")) {
+        if file_paths
+            .iter()
+            .any(|path| path.starts_with("src/contexts/"))
+        {
             roots.push(BoundaryRootSuggestion {
                 kind: "provider_stack".to_string(),
                 root: "src/contexts".to_string(),
@@ -413,7 +439,9 @@ fn detect_boundary_roots(
         }
     }
     if capabilities.iter().any(|entry| entry == "query_layer")
-        && file_paths.iter().any(|path| path.starts_with("src/hooks/queries/"))
+        && file_paths
+            .iter()
+            .any(|path| path.starts_with("src/hooks/queries/"))
     {
         roots.push(BoundaryRootSuggestion {
             kind: "query_layer".to_string(),
@@ -421,7 +449,10 @@ fn detect_boundary_roots(
             evidence: vec!["top-level query hook layer detected".to_string()],
         });
     }
-    if file_paths.iter().any(|path| path.starts_with("src/repositories/")) {
+    if file_paths
+        .iter()
+        .any(|path| path.starts_with("src/repositories/"))
+    {
         roots.push(BoundaryRootSuggestion {
             kind: "persistence_layer".to_string(),
             root: "src/repositories".to_string(),
@@ -435,7 +466,10 @@ fn detect_boundary_roots(
             evidence: vec!["top-level database layer detected".to_string()],
         });
     }
-    if file_paths.iter().any(|path| path.starts_with("src/middleware/")) {
+    if file_paths
+        .iter()
+        .any(|path| path.starts_with("src/middleware/"))
+    {
         roots.push(BoundaryRootSuggestion {
             kind: "middleware_stack".to_string(),
             root: "src/middleware".to_string(),
@@ -478,10 +512,7 @@ fn effective_archetypes(
 }
 
 fn suggest_excludes(shape: &ProjectShapeReport) -> Vec<String> {
-    let mut excludes = vec![
-        "node_modules/**".to_string(),
-        "coverage/**".to_string(),
-    ];
+    let mut excludes = vec!["node_modules/**".to_string(), "coverage/**".to_string()];
 
     if shape
         .effective_archetypes
@@ -617,7 +648,10 @@ mod tests {
             Some("modular_nextjs_frontend")
         );
         assert!(shape.capabilities.iter().any(|entry| entry == "app_router"));
-        assert!(shape.capabilities.iter().any(|entry| entry == "feature_modules"));
+        assert!(shape
+            .capabilities
+            .iter()
+            .any(|entry| entry == "feature_modules"));
         assert!(shape
             .boundary_roots
             .iter()
@@ -658,12 +692,7 @@ mod tests {
             "src/modules/home/index.ts".to_string(),
         ];
 
-        let shape = detect_project_shape(
-            None,
-            &file_paths,
-            &["next.config.ts".to_string()],
-            &[],
-        );
+        let shape = detect_project_shape(None, &file_paths, &["next.config.ts".to_string()], &[]);
 
         assert_eq!(
             shape.primary_archetype.as_deref(),
@@ -695,10 +724,13 @@ mod tests {
             .boundary_roots
             .iter()
             .any(|boundary| boundary.kind == "provider_stack" && boundary.root == "src/contexts"));
-        assert!(shape
-            .boundary_roots
-            .iter()
-            .any(|boundary| boundary.kind == "query_layer" && boundary.root == "src/hooks/queries"));
+        assert!(
+            shape
+                .boundary_roots
+                .iter()
+                .any(|boundary| boundary.kind == "query_layer"
+                    && boundary.root == "src/hooks/queries")
+        );
     }
 
     #[test]

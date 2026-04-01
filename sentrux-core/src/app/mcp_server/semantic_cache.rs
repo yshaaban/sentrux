@@ -36,6 +36,12 @@ struct PersistedSemanticSnapshot {
     snapshot: SemanticSnapshot,
 }
 
+#[derive(Serialize)]
+struct PersistedSemanticSnapshotRef<'a> {
+    identity: &'a SemanticCacheIdentity,
+    snapshot: &'a SemanticSnapshot,
+}
+
 pub fn current_semantic_cache_identity(
     project: &ProjectModel,
     git_head: Option<String>,
@@ -89,15 +95,10 @@ pub fn save_persisted_semantic_snapshot(
         .ok_or_else(|| format!("Invalid semantic cache path: {}", cache_path.display()))?;
     std::fs::create_dir_all(parent)
         .map_err(|error| format!("Failed to create {}: {error}", parent.display()))?;
-    let payload = PersistedSemanticSnapshot {
-        identity: identity.clone(),
-        snapshot: snapshot.clone(),
-    };
-    let bytes = serde_json::to_vec_pretty(&payload)
+    let bytes = serde_json::to_vec_pretty(&PersistedSemanticSnapshotRef { identity, snapshot })
         .map_err(|error| format!("Failed to encode semantic cache: {error}"))?;
     std::fs::write(&cache_path, bytes)
         .map_err(|error| format!("Failed to write {}: {error}", cache_path.display()))?;
 
     Ok(cache_path)
 }
-

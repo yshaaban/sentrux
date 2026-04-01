@@ -21,6 +21,8 @@ pub fn no_hidden() -> HashSet<String> {
 }
 
 /// Build LayoutConfig and call compute_layout_from_snapshot with common defaults.
+#[cfg(test)]
+#[allow(dead_code)]
 pub fn run_layout(
     snap: &Snapshot,
     size_mode: SizeMode,

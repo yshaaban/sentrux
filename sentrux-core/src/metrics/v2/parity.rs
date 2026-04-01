@@ -1,10 +1,81 @@
 //! Conservative contract parity analyzer driven by explicit contract rules.
 
-use super::SemanticFinding;
+use super::{FindingSeverity, SemanticFinding};
 use crate::analysis::semantic::SemanticSnapshot;
 use crate::metrics::rules::{self, ConceptRule, ContractRule, RulesConfig};
 use std::collections::{BTreeSet, HashSet};
 use std::path::Path;
+
+const VERSIONING_MARKER_KIND: &str = "versioning";
+const SATISFIED_STATUS: &str = "satisfied";
+const MISSING_STATUS: &str = "missing";
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+enum ParityFindingKind {
+    MissingBrowserPath,
+    MissingElectronPath,
+    ParityVersionGap,
+    SnapshotWithoutLiveUpdate,
+    MissingLiveUpdatePath,
+    MissingContractSymbol,
+}
+
+impl ParityFindingKind {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::MissingBrowserPath => "missing_browser_path",
+            Self::MissingElectronPath => "missing_electron_path",
+            Self::ParityVersionGap => "parity_version_gap",
+            Self::SnapshotWithoutLiveUpdate => "snapshot_without_live_update",
+            Self::MissingLiveUpdatePath => "missing_live_update_path",
+            Self::MissingContractSymbol => "missing_contract_symbol",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+enum ParityCellKind {
+    CategoriesSymbol,
+    PayloadMapSymbol,
+    RegistrySymbol,
+    BrowserEntry,
+    ElectronEntry,
+    BrowserLiveUpdateBinding,
+    ElectronLiveUpdateBinding,
+    VersioningMarker,
+    SnapshotWithoutLiveUpdate,
+}
+
+impl ParityCellKind {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::CategoriesSymbol => "categories_symbol",
+            Self::PayloadMapSymbol => "payload_map_symbol",
+            Self::RegistrySymbol => "registry_symbol",
+            Self::BrowserEntry => "browser_entry",
+            Self::ElectronEntry => "electron_entry",
+            Self::BrowserLiveUpdateBinding => "browser_live_update_binding",
+            Self::ElectronLiveUpdateBinding => "electron_live_update_binding",
+            Self::VersioningMarker => VERSIONING_MARKER_KIND,
+            Self::SnapshotWithoutLiveUpdate => "snapshot_without_live_update",
+        }
+    }
+
+    fn from_str(value: &str) -> Option<Self> {
+        match value {
+            "categories_symbol" => Some(Self::CategoriesSymbol),
+            "payload_map_symbol" => Some(Self::PayloadMapSymbol),
+            "registry_symbol" => Some(Self::RegistrySymbol),
+            "browser_entry" => Some(Self::BrowserEntry),
+            "electron_entry" => Some(Self::ElectronEntry),
+            "browser_live_update_binding" => Some(Self::BrowserLiveUpdateBinding),
+            "electron_live_update_binding" => Some(Self::ElectronLiveUpdateBinding),
+            VERSIONING_MARKER_KIND => Some(Self::VersioningMarker),
+            "snapshot_without_live_update" => Some(Self::SnapshotWithoutLiveUpdate),
+            _ => None,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum ParityScope {
@@ -32,21 +103,33 @@ pub struct ContractParityReport {
     pub summary: String,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct ParityBuildResult {
+    pub reports: Vec<ContractParityReport>,
+    pub read_warnings: Vec<String>,
+}
+
 pub fn build_parity_reports(
     config: &RulesConfig,
     semantic: &SemanticSnapshot,
     root: &Path,
     scope: ParityScope,
     changed_files: &BTreeSet<String>,
-) -> Vec<ContractParityReport> {
+) -> ParityBuildResult {
+    let mut read_warnings = Vec::new();
     let mut reports = config
         .contract
         .iter()
         .filter(|contract| contract_in_scope(contract, scope, changed_files))
-        .map(|contract| build_contract_parity_report(config, contract, semantic, root))
+        .map(|contract| {
+            build_contract_parity_report(config, contract, semantic, root, &mut read_warnings)
+        })
         .collect::<Vec<_>>();
     reports.sort_by(|left, right| left.id.cmp(&right.id));
-    reports
+    ParityBuildResult {
+        reports,
+        read_warnings,
+    }
 }
 
 pub fn build_parity_findings(reports: &[ContractParityReport]) -> Vec<SemanticFinding> {
@@ -56,8 +139,8 @@ pub fn build_parity_findings(reports: &[ContractParityReport]) -> Vec<SemanticFi
         for cell in &report.missing_cells {
             let (kind, severity) = finding_kind_and_severity(cell);
             findings.push(SemanticFinding {
-                kind: kind.to_string(),
-                severity: severity.to_string(),
+                kind: kind.as_str().to_string(),
+                severity,
                 concept_id: report.id.clone(),
                 summary: format!("Contract '{}' is missing {}", report.id, cell.kind),
                 files: cell.path.iter().cloned().collect(),
@@ -90,6 +173,7 @@ fn build_contract_parity_report(
     contract: &ContractRule,
     semantic: &SemanticSnapshot,
     root: &Path,
+    read_warnings: &mut Vec<String>,
 ) -> ContractParityReport {
     let mut satisfied = BTreeSet::new();
     let mut missing = BTreeSet::new();
@@ -101,7 +185,7 @@ fn build_contract_parity_report(
         &mut files,
         semantic,
         contract.categories_symbol.as_deref(),
-        "categories_symbol",
+        ParityCellKind::CategoriesSymbol,
         "categories symbol declared",
     );
     push_symbol_cell(
@@ -110,7 +194,7 @@ fn build_contract_parity_report(
         &mut files,
         semantic,
         contract.payload_map_symbol.as_deref(),
-        "payload_map_symbol",
+        ParityCellKind::PayloadMapSymbol,
         "payload map symbol declared",
     );
     push_symbol_cell(
@@ -119,7 +203,7 @@ fn build_contract_parity_report(
         &mut files,
         semantic,
         contract.registry_symbol.as_deref(),
-        "registry_symbol",
+        ParityCellKind::RegistrySymbol,
         "registry symbol declared",
     );
     push_file_cell(
@@ -128,7 +212,7 @@ fn build_contract_parity_report(
         &mut files,
         root,
         contract.browser_entry.as_deref(),
-        "browser_entry",
+        ParityCellKind::BrowserEntry,
         "browser entry present",
     );
     let browser_entry_present = contract
@@ -142,7 +226,7 @@ fn build_contract_parity_report(
         &mut files,
         root,
         contract.electron_entry.as_deref(),
-        "electron_entry",
+        ParityCellKind::ElectronEntry,
         "electron entry present",
     );
     let electron_entry_present = contract
@@ -156,13 +240,27 @@ fn build_contract_parity_report(
         && contract
             .browser_entry
             .as_deref()
-            .map(|path| file_mentions_any_symbol(root, path, &contract_symbol_names))
+            .map(|path| {
+                file_mentions_any_symbol(root, path, &contract_symbol_names).unwrap_or_else(
+                    |error| {
+                        read_warnings.push(error);
+                        false
+                    },
+                )
+            })
             .unwrap_or(false);
     let electron_has_binding = electron_entry_present
         && contract
             .electron_entry
             .as_deref()
-            .map(|path| file_mentions_any_symbol(root, path, &contract_symbol_names))
+            .map(|path| {
+                file_mentions_any_symbol(root, path, &contract_symbol_names).unwrap_or_else(
+                    |error| {
+                        read_warnings.push(error);
+                        false
+                    },
+                )
+            })
             .unwrap_or(false);
 
     if contract
@@ -176,7 +274,7 @@ fn build_contract_parity_report(
                 &mut missing,
                 contract.browser_entry.as_deref(),
                 browser_has_binding,
-                "browser_live_update_binding",
+                ParityCellKind::BrowserLiveUpdateBinding,
             );
         }
         if electron_entry_present {
@@ -185,7 +283,7 @@ fn build_contract_parity_report(
                 &mut missing,
                 contract.electron_entry.as_deref(),
                 electron_has_binding,
-                "electron_live_update_binding",
+                ParityCellKind::ElectronLiveUpdateBinding,
             );
         }
     }
@@ -198,15 +296,23 @@ fn build_contract_parity_report(
         && !browser_has_binding
         && !electron_has_binding
     {
-        missing.insert(ParityCell {
-            kind: "snapshot_without_live_update".to_string(),
-            status: "missing".to_string(),
-            detail: "snapshot contract exists without any runtime binding".to_string(),
-            path: contract
-                .browser_entry
-                .clone()
-                .or_else(|| contract.electron_entry.clone()),
-        });
+        if let Some(path) = contract
+            .browser_entry
+            .as_deref()
+            .or(contract.electron_entry.as_deref())
+        {
+            push_presence_cell(
+                &mut satisfied,
+                &mut missing,
+                ParityCellInput {
+                    files: None,
+                    path,
+                    kind: ParityCellKind::SnapshotWithoutLiveUpdate,
+                    present: false,
+                    detail: "snapshot contract exists without any runtime binding".to_string(),
+                },
+            );
+        }
     }
 
     if contract
@@ -219,11 +325,11 @@ fn build_contract_parity_report(
             .iter()
             .any(|path| file_has_version_marker(root, path));
         let cell = ParityCell {
-            kind: "versioning".to_string(),
+            kind: ParityCellKind::VersioningMarker.as_str().to_string(),
             status: if has_versioning {
-                "satisfied"
+                SATISFIED_STATUS
             } else {
-                "missing"
+                MISSING_STATUS
             }
             .to_string(),
             detail: if has_versioning {
@@ -287,7 +393,7 @@ fn push_symbol_cell(
     files: &mut BTreeSet<String>,
     semantic: &SemanticSnapshot,
     target: Option<&str>,
-    kind: &str,
+    kind: ParityCellKind,
     label: &str,
 ) {
     let Some(target) = target else {
@@ -302,21 +408,21 @@ fn push_symbol_cell(
         .symbols
         .iter()
         .any(|symbol| symbol.path == path && symbol.name == symbol_name);
-    let cell = ParityCell {
-        kind: kind.to_string(),
-        status: if present { "satisfied" } else { "missing" }.to_string(),
-        detail: if present {
-            format!("{label}: {target}")
-        } else {
-            format!("{label} missing: {target}")
+    push_presence_cell(
+        satisfied,
+        missing,
+        ParityCellInput {
+            files: Some(files),
+            path,
+            kind,
+            present,
+            detail: if present {
+                format!("{label}: {target}")
+            } else {
+                format!("{label} missing: {target}")
+            },
         },
-        path: Some(path.to_string()),
-    };
-    if present {
-        satisfied.insert(cell);
-    } else {
-        missing.insert(cell);
-    }
+    );
 }
 
 fn push_file_cell(
@@ -325,29 +431,28 @@ fn push_file_cell(
     files: &mut BTreeSet<String>,
     root: &Path,
     path: Option<&str>,
-    kind: &str,
+    kind: ParityCellKind,
     label: &str,
 ) {
     let Some(path) = path else {
         return;
     };
-    files.insert(path.to_string());
     let present = root.join(path).exists();
-    let cell = ParityCell {
-        kind: kind.to_string(),
-        status: if present { "satisfied" } else { "missing" }.to_string(),
-        detail: if present {
-            format!("{label}: {path}")
-        } else {
-            format!("{label} missing: {path}")
+    push_presence_cell(
+        satisfied,
+        missing,
+        ParityCellInput {
+            files: Some(files),
+            path,
+            kind,
+            present,
+            detail: if present {
+                format!("{label}: {path}")
+            } else {
+                format!("{label} missing: {path}")
+            },
         },
-        path: Some(path.to_string()),
-    };
-    if present {
-        satisfied.insert(cell);
-    } else {
-        missing.insert(cell);
-    }
+    );
 }
 
 fn push_runtime_binding_cell(
@@ -355,19 +460,61 @@ fn push_runtime_binding_cell(
     missing: &mut BTreeSet<ParityCell>,
     path: Option<&str>,
     present: bool,
-    kind: &str,
+    kind: ParityCellKind,
 ) {
     let Some(path) = path else {
         return;
     };
-    let cell = ParityCell {
-        kind: kind.to_string(),
-        status: if present { "satisfied" } else { "missing" }.to_string(),
-        detail: if present {
-            format!("runtime entry references contract-family symbols: {path}")
-        } else {
-            format!("runtime entry does not reference contract-family symbols: {path}")
+    push_presence_cell(
+        satisfied,
+        missing,
+        ParityCellInput {
+            files: None,
+            path,
+            kind,
+            present,
+            detail: if present {
+                format!("runtime entry references contract-family symbols: {path}")
+            } else {
+                format!("runtime entry does not reference contract-family symbols: {path}")
+            },
         },
+    );
+}
+
+struct ParityCellInput<'a> {
+    files: Option<&'a mut BTreeSet<String>>,
+    path: &'a str,
+    kind: ParityCellKind,
+    present: bool,
+    detail: String,
+}
+
+fn push_presence_cell(
+    satisfied: &mut BTreeSet<ParityCell>,
+    missing: &mut BTreeSet<ParityCell>,
+    input: ParityCellInput<'_>,
+) {
+    let ParityCellInput {
+        files,
+        path,
+        kind,
+        present,
+        detail,
+    } = input;
+    if let Some(files) = files {
+        files.insert(path.to_string());
+    }
+
+    let cell = ParityCell {
+        kind: kind.as_str().to_string(),
+        status: if present {
+            SATISFIED_STATUS
+        } else {
+            MISSING_STATUS
+        }
+        .to_string(),
+        detail,
         path: Some(path.to_string()),
     };
     if present {
@@ -470,17 +617,20 @@ fn contract_scoped_symbols(contract: &ContractRule) -> impl Iterator<Item = &str
     .flatten()
 }
 
-fn file_mentions_any_symbol(root: &Path, path: &str, symbol_names: &HashSet<String>) -> bool {
+fn file_mentions_any_symbol(
+    root: &Path,
+    path: &str,
+    symbol_names: &HashSet<String>,
+) -> Result<bool, String> {
     if symbol_names.is_empty() {
-        return false;
+        return Ok(false);
     }
-    let Ok(content) = std::fs::read_to_string(root.join(path)) else {
-        return false;
-    };
+    let content = std::fs::read_to_string(root.join(path))
+        .map_err(|error| format!("Failed to read parity source '{path}': {error}"))?;
     let tokens = identifier_tokens(&content);
-    symbol_names
+    Ok(symbol_names
         .iter()
-        .any(|symbol_name| tokens.contains(symbol_name))
+        .any(|symbol_name| tokens.contains(symbol_name)))
 }
 
 fn file_exists(root: &Path, path: &str) -> bool {
@@ -508,16 +658,31 @@ fn identifier_tokens(content: &str) -> HashSet<String> {
         .collect()
 }
 
-fn finding_kind_and_severity(cell: &ParityCell) -> (&'static str, &'static str) {
-    match cell.kind.as_str() {
-        "browser_entry" => ("missing_browser_path", "high"),
-        "electron_entry" => ("missing_electron_path", "high"),
-        "versioning" => ("parity_version_gap", "medium"),
-        "snapshot_without_live_update" => ("snapshot_without_live_update", "high"),
-        "browser_live_update_binding" | "electron_live_update_binding" => {
-            ("missing_live_update_path", "high")
+fn finding_kind_and_severity(cell: &ParityCell) -> (ParityFindingKind, FindingSeverity) {
+    match ParityCellKind::from_str(cell.kind.as_str()) {
+        Some(ParityCellKind::BrowserEntry) => {
+            (ParityFindingKind::MissingBrowserPath, FindingSeverity::High)
         }
-        _ => ("missing_contract_symbol", "high"),
+        Some(ParityCellKind::ElectronEntry) => (
+            ParityFindingKind::MissingElectronPath,
+            FindingSeverity::High,
+        ),
+        Some(ParityCellKind::VersioningMarker) => {
+            (ParityFindingKind::ParityVersionGap, FindingSeverity::Medium)
+        }
+        Some(ParityCellKind::SnapshotWithoutLiveUpdate) => (
+            ParityFindingKind::SnapshotWithoutLiveUpdate,
+            FindingSeverity::High,
+        ),
+        Some(ParityCellKind::BrowserLiveUpdateBinding)
+        | Some(ParityCellKind::ElectronLiveUpdateBinding) => (
+            ParityFindingKind::MissingLiveUpdatePath,
+            FindingSeverity::High,
+        ),
+        _ => (
+            ParityFindingKind::MissingContractSymbol,
+            FindingSeverity::High,
+        ),
     }
 }
 
@@ -532,23 +697,8 @@ mod tests {
         ProjectModel, SemanticCapability, SemanticFileFact, SemanticSnapshot, SymbolFact,
     };
     use crate::metrics::rules::RulesConfig;
+    use crate::test_support::temp_root;
     use std::collections::BTreeSet;
-    use std::time::{SystemTime, UNIX_EPOCH};
-
-    fn temp_root(label: &str) -> std::path::PathBuf {
-        let unique = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("clock")
-            .as_nanos();
-        let root = std::env::temp_dir().join(format!(
-            "sentrux-parity-{label}-{}-{unique}",
-            std::process::id()
-        ));
-        std::fs::create_dir_all(root.join("src/domain")).expect("create domain dir");
-        std::fs::create_dir_all(root.join("src/app")).expect("create app dir");
-        std::fs::create_dir_all(root.join("src/runtime")).expect("create runtime dir");
-        root
-    }
 
     fn report_by_id<'a>(reports: &'a [ContractParityReport], id: &str) -> &'a ContractParityReport {
         reports
@@ -559,7 +709,11 @@ mod tests {
 
     #[test]
     fn reports_missing_runtime_and_versioning_cells() {
-        let root = temp_root("missing-runtime");
+        let root = temp_root(
+            "sentrux-parity",
+            "missing-runtime",
+            &["src/domain", "src/app", "src/runtime"],
+        );
         std::fs::write(
             root.join("src/domain/bootstrap.ts"),
             "export const SERVER_STATE_BOOTSTRAP_CATEGORIES = ['task'];\n",
@@ -616,7 +770,8 @@ mod tests {
             &root,
             ParityScope::All,
             &BTreeSet::new(),
-        );
+        )
+        .reports;
         let report = report_by_id(&reports, "server_state_bootstrap");
 
         assert!(report
@@ -638,7 +793,11 @@ mod tests {
 
     #[test]
     fn changed_scope_filters_untouched_contracts() {
-        let root = temp_root("changed-scope");
+        let root = temp_root(
+            "sentrux-parity",
+            "changed-scope",
+            &["src/domain", "src/app", "src/runtime"],
+        );
         let config: RulesConfig = toml::from_str(
             r#"
                 [[contract]]
@@ -658,7 +817,8 @@ mod tests {
             &root,
             ParityScope::Changed,
             &changed_files,
-        );
+        )
+        .reports;
 
         assert_eq!(reports.len(), 1);
 
@@ -667,7 +827,11 @@ mod tests {
 
     #[test]
     fn runtime_binding_requires_exact_identifier_match() {
-        let root = temp_root("binding-token");
+        let root = temp_root(
+            "sentrux-parity",
+            "binding-token",
+            &["src/domain", "src/app", "src/runtime"],
+        );
         std::fs::write(
             root.join("src/domain/bootstrap.ts"),
             "export const SERVER_STATE_BOOTSTRAP_CATEGORIES = ['task'];\n",
@@ -730,7 +894,8 @@ mod tests {
             &root,
             ParityScope::All,
             &BTreeSet::new(),
-        );
+        )
+        .reports;
         let report = report_by_id(&reports, "bootstrap");
 
         assert!(report
@@ -743,7 +908,11 @@ mod tests {
 
     #[test]
     fn runtime_binding_accepts_related_contract_family_symbols() {
-        let root = temp_root("binding-family");
+        let root = temp_root(
+            "sentrux-parity",
+            "binding-family",
+            &["src/domain", "src/app", "src/runtime"],
+        );
         std::fs::write(
             root.join("src/domain/bootstrap.ts"),
             r#"
@@ -837,7 +1006,8 @@ mod tests {
             &root,
             ParityScope::All,
             &BTreeSet::new(),
-        );
+        )
+        .reports;
         let report = report_by_id(&reports, "bootstrap");
 
         assert!(report
@@ -858,7 +1028,11 @@ mod tests {
 
     #[test]
     fn report_without_assessable_cells_scores_zero() {
-        let root = temp_root("no-cells");
+        let root = temp_root(
+            "sentrux-parity",
+            "no-cells",
+            &["src/domain", "src/app", "src/runtime"],
+        );
         let config: RulesConfig = toml::from_str(
             r#"
                 [[contract]]
@@ -873,7 +1047,8 @@ mod tests {
             &root,
             ParityScope::All,
             &BTreeSet::new(),
-        );
+        )
+        .reports;
         let report = report_by_id(&reports, "empty_contract");
 
         assert_eq!(report.score_0_10000, 0);

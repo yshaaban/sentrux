@@ -7,7 +7,6 @@
 //! Per-language extractors live in lang_extractors.rs.
 
 use std::collections::hash_map::DefaultHasher;
-use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 
 use super::lang_extractors;

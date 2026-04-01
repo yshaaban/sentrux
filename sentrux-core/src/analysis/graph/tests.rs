@@ -2,7 +2,6 @@
 mod tests {
     use crate::analysis::graph::*;
     use crate::analysis::test_helpers::make_file;
-    use crate::core::types::ImportEdge;
     use crate::core::types::{FileNode, StructuralAnalysis};
 
     #[test]

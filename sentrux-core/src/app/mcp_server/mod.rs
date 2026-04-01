@@ -14,6 +14,7 @@ mod agent_brief;
 pub mod handlers;
 pub mod handlers_evo;
 pub mod registry;
+mod response;
 mod semantic_cache;
 
 use crate::analysis::scanner::common::ScanMetadata;
@@ -24,6 +25,7 @@ use crate::license::{self, Tier};
 use crate::metrics;
 use crate::metrics::arch;
 use crate::metrics::evolution;
+use semantic_cache::{SemanticCacheIdentity, SemanticCacheSource};
 use serde_json::{json, Value};
 use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
@@ -31,7 +33,6 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     sync::Arc,
 };
-use semantic_cache::{SemanticCacheIdentity, SemanticCacheSource};
 
 pub const SESSION_V2_SCHEMA_VERSION: u32 = 3;
 const MIN_SUPPORTED_SESSION_V2_SCHEMA_VERSION: u32 = 1;

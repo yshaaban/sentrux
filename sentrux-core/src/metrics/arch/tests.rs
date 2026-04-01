@@ -1,6 +1,5 @@
 use super::*;
-use crate::core::snapshot::Snapshot;
-use crate::core::types::{EntryPoint, ImportEdge};
+use crate::core::types::EntryPoint;
 use crate::metrics::test_helpers::edge;
 
 fn entry(file: &str) -> EntryPoint {

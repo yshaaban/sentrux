@@ -1,11 +1,30 @@
 //! Concentration-risk context analyzer for coordination hotspots.
 
-use super::relevant_production_writes;
+use super::{relevant_production_writes, FindingSeverity};
 use crate::analysis::semantic::SemanticSnapshot;
 use crate::metrics::evo::EvolutionReport;
 use crate::metrics::rules::RulesConfig;
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::Path;
+
+const AUTHORITY_NORMALIZATION_MAX: f64 = 3.0;
+const SIDE_EFFECT_NORMALIZATION_MAX: f64 = 12.0;
+const TIMER_RETRY_NORMALIZATION_MAX: f64 = 8.0;
+const ASYNC_BRANCH_NORMALIZATION_MAX: f64 = 12.0;
+const COMPLEXITY_NORMALIZATION_MAX: f64 = 25.0;
+const CHURN_NORMALIZATION_MAX: f64 = 20.0;
+const HOTSPOT_RISK_NORMALIZATION_MAX: f64 = 250.0;
+
+const AUTHORITY_WEIGHT: f64 = 0.22;
+const SIDE_EFFECT_WEIGHT: f64 = 0.20;
+const TIMER_RETRY_WEIGHT: f64 = 0.16;
+const ASYNC_BRANCH_WEIGHT: f64 = 0.14;
+const COMPLEXITY_WEIGHT: f64 = 0.14;
+const HISTORY_WEIGHT: f64 = 0.14;
+const STATIC_ONLY_ACTIVE_WEIGHT: f64 = 0.86;
+
+const HOTSPOT_FINDING_MIN_SCORE: u32 = 3000;
+const HOTSPOT_HIGH_SEVERITY_MIN_SCORE: u32 = 6500;
 
 const SIDE_EFFECT_PATTERNS: &[&str] = &[
     "setStore(",
@@ -64,11 +83,17 @@ pub struct ConcentrationReport {
 #[derive(Debug, Clone, serde::Serialize, Default)]
 pub struct ConcentrationFinding {
     pub kind: String,
-    pub severity: String,
+    pub severity: FindingSeverity,
     pub path: String,
     pub score_0_10000: u32,
     pub summary: String,
     pub reasons: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ConcentrationBuildResult {
+    pub reports: Vec<ConcentrationReport>,
+    pub read_warnings: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -104,12 +129,22 @@ pub fn build_concentration_reports(
     config: &RulesConfig,
     semantic: Option<&SemanticSnapshot>,
     history: Option<&ConcentrationHistory>,
-) -> Vec<ConcentrationReport> {
+) -> ConcentrationBuildResult {
     let authority_by_file = authority_breadth_by_file(config, semantic);
+    let mut read_warnings = Vec::new();
     let mut reports = file_paths
         .iter()
         .map(|path| {
-            let contents = std::fs::read_to_string(root.join(path)).unwrap_or_default();
+            let contents = match std::fs::read_to_string(root.join(path)) {
+                Ok(contents) => contents,
+                Err(error) => {
+                    read_warnings.push(format!(
+                        "Failed to read concentration source '{}': {error}",
+                        path
+                    ));
+                    String::new()
+                }
+            };
             let signal_source = scrub_non_code_regions(&contents);
             let side_effect_api_weight =
                 capped_pattern_hits(&signal_source, SIDE_EFFECT_PATTERNS, 3);
@@ -184,7 +219,10 @@ pub fn build_concentration_reports(
             .then_with(|| right.max_complexity.cmp(&left.max_complexity))
             .then_with(|| left.path.cmp(&right.path))
     });
-    reports
+    ConcentrationBuildResult {
+        reports,
+        read_warnings,
+    }
 }
 
 pub fn build_concentration_findings(
@@ -193,17 +231,17 @@ pub fn build_concentration_findings(
 ) -> Vec<ConcentrationFinding> {
     reports
         .iter()
-        .filter(|report| report.score_0_10000 >= 3000)
+        .filter(|report| report.score_0_10000 >= HOTSPOT_FINDING_MIN_SCORE)
         .take(limit)
         .map(|report| {
-            let severity = if report.score_0_10000 >= 6500 {
-                "high"
+            let severity = if report.score_0_10000 >= HOTSPOT_HIGH_SEVERITY_MIN_SCORE {
+                FindingSeverity::High
             } else {
-                "medium"
+                FindingSeverity::Medium
             };
             ConcentrationFinding {
                 kind: "coordination_hotspot".to_string(),
-                severity: severity.to_string(),
+                severity,
                 path: report.path.clone(),
                 score_0_10000: report.score_0_10000,
                 summary: format!(
@@ -391,19 +429,28 @@ fn concentration_score_0_10000(
     hotspot_risk: u64,
     history_available: bool,
 ) -> u32 {
-    let authority = normalize(authority_breadth, 3.0);
-    let side_effects = normalize(side_effect_breadth, 12.0);
-    let timer_retry = normalize(timer_retry_weight, 8.0);
-    let async_branch = normalize(async_branch_weight, 12.0);
-    let complexity = normalize(max_complexity, 25.0);
-    let churn = normalize(churn_commits, 20.0).max(normalize_u64(hotspot_risk, 250.0));
-    let static_weighted = (authority * 0.22)
-        + (side_effects * 0.20)
-        + (timer_retry * 0.16)
-        + (async_branch * 0.14)
-        + (complexity * 0.14);
-    let history_weighted = if history_available { churn * 0.14 } else { 0.0 };
-    let active_weight = if history_available { 1.0 } else { 0.86 };
+    let authority = normalize(authority_breadth, AUTHORITY_NORMALIZATION_MAX);
+    let side_effects = normalize(side_effect_breadth, SIDE_EFFECT_NORMALIZATION_MAX);
+    let timer_retry = normalize(timer_retry_weight, TIMER_RETRY_NORMALIZATION_MAX);
+    let async_branch = normalize(async_branch_weight, ASYNC_BRANCH_NORMALIZATION_MAX);
+    let complexity = normalize(max_complexity, COMPLEXITY_NORMALIZATION_MAX);
+    let churn = normalize(churn_commits, CHURN_NORMALIZATION_MAX)
+        .max(normalize_u64(hotspot_risk, HOTSPOT_RISK_NORMALIZATION_MAX));
+    let static_weighted = (authority * AUTHORITY_WEIGHT)
+        + (side_effects * SIDE_EFFECT_WEIGHT)
+        + (timer_retry * TIMER_RETRY_WEIGHT)
+        + (async_branch * ASYNC_BRANCH_WEIGHT)
+        + (complexity * COMPLEXITY_WEIGHT);
+    let history_weighted = if history_available {
+        churn * HISTORY_WEIGHT
+    } else {
+        0.0
+    };
+    let active_weight = if history_available {
+        1.0
+    } else {
+        STATIC_ONLY_ACTIVE_WEIGHT
+    };
     if active_weight <= f64::EPSILON {
         return 0;
     }
@@ -469,28 +516,15 @@ fn concentration_reasons(
 mod tests {
     use super::{
         build_concentration_findings, build_concentration_reports, capped_pattern_hits,
-        scrub_non_code_regions, ConcentrationHistory, TIMER_RETRY_PATTERNS,
+        scrub_non_code_regions, ConcentrationHistory, FindingSeverity, TIMER_RETRY_PATTERNS,
     };
     use crate::analysis::semantic::{
         ProjectModel, SemanticCapability, SemanticSnapshot, WriteFact,
     };
     use crate::metrics::rules::RulesConfig;
+    use crate::test_support::temp_root;
     use std::collections::{BTreeSet, HashMap};
     use std::path::Path;
-    use std::time::{SystemTime, UNIX_EPOCH};
-
-    fn temp_root(label: &str) -> std::path::PathBuf {
-        let unique = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("clock")
-            .as_nanos();
-        let root = std::env::temp_dir().join(format!(
-            "sentrux-concentration-{label}-{}-{unique}",
-            std::process::id()
-        ));
-        std::fs::create_dir_all(&root).expect("create temp root");
-        root
-    }
 
     fn write_file(root: &Path, relative_path: &str, contents: &str) {
         let absolute_path = root.join(relative_path);
@@ -502,7 +536,7 @@ mod tests {
 
     #[test]
     fn concentration_reports_rank_coordination_file_above_simple_file() {
-        let root = temp_root("ranking");
+        let root = temp_root("sentrux-concentration", "ranking", &[]);
         write_file(
             &root,
             "src/lease.ts",
@@ -555,7 +589,7 @@ mod tests {
             ]),
         };
 
-        let reports = build_concentration_reports(
+        let build_result = build_concentration_reports(
             &root,
             &file_paths,
             &complexity,
@@ -563,6 +597,7 @@ mod tests {
             Some(&semantic),
             Some(&history),
         );
+        let reports = build_result.reports;
 
         assert_eq!(reports[0].path, "src/lease.ts");
         assert!(reports[0].score_0_10000 > reports[1].score_0_10000);
@@ -595,7 +630,7 @@ mod tests {
 
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].kind, "coordination_hotspot");
-        assert_eq!(findings[0].severity, "high");
+        assert_eq!(findings[0].severity, FindingSeverity::High);
         assert_eq!(findings[0].path, "src/lease.ts");
     }
 
@@ -640,7 +675,7 @@ mod tests {
 
     #[test]
     fn concentration_findings_do_not_require_git_history() {
-        let root = temp_root("no-history-finding");
+        let root = temp_root("sentrux-concentration", "no-history-finding", &[]);
         write_file(
             &root,
             "src/lease.ts",
@@ -675,7 +710,7 @@ mod tests {
             transition_sites: Vec::new(),
         };
 
-        let reports = build_concentration_reports(
+        let build_result = build_concentration_reports(
             &root,
             &file_paths,
             &complexity,
@@ -683,6 +718,7 @@ mod tests {
             Some(&semantic),
             None,
         );
+        let reports = build_result.reports;
         let findings = build_concentration_findings(&reports, 10);
 
         assert_eq!(reports.len(), 1);

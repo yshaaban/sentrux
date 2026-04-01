@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 /// Per-language statistics aggregated from the snapshot.
-pub(crate) struct LangStat {
+pub struct LangStat {
     pub files: u32,
     pub lines: u32,
     pub funcs: u32,

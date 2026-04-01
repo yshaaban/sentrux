@@ -11,16 +11,17 @@ use crate::analysis::semantic::{ReadFact, SemanticSnapshot, WriteFact};
 use crate::core::snapshot::Snapshot;
 use crate::metrics::rules::{self, ConceptRule, RulesConfig};
 use crate::metrics::testgap::is_test_file;
+use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 pub use clones::{
     build_clone_drift_findings, build_clone_drift_report, build_clone_remediation_hints,
     CloneDriftFinding, CloneDriftInstance, CloneDriftReport, CloneFamilySummary,
-    CloneRemediationHint,
+    CloneRemediationHint, RemediationPriority,
 };
 pub use concentration::{
-    build_concentration_findings, build_concentration_reports, ConcentrationFinding,
-    ConcentrationHistory, ConcentrationReport,
+    build_concentration_findings, build_concentration_reports, ConcentrationBuildResult,
+    ConcentrationFinding, ConcentrationHistory, ConcentrationReport,
 };
 pub use obligations::{
     build_obligation_findings, build_obligations, changed_concept_ids_from_files,
@@ -29,7 +30,7 @@ pub use obligations::{
 };
 pub use parity::{
     build_parity_findings, build_parity_reports, parity_score_0_10000, ContractParityReport,
-    ParityCell, ParityScope,
+    ParityBuildResult, ParityCell, ParityScope,
 };
 pub use state::{
     build_state_integrity_findings, build_state_integrity_reports,
@@ -38,13 +39,52 @@ pub use state::{
 };
 pub use structural::{
     build_structural_debt_reports, build_structural_debt_reports_with_root, StructuralDebtMetrics,
-    StructuralDebtReport,
+    StructuralDebtReport, StructuralLeverageClass, StructuralPresentationClass,
+    StructuralSignalClass, StructuralTrustTier,
 };
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum FindingSeverity {
+    Low,
+    Medium,
+    High,
+}
+
+impl FindingSeverity {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Low => "low",
+            Self::Medium => "medium",
+            Self::High => "high",
+        }
+    }
+
+    pub const fn priority(self) -> u8 {
+        match self {
+            Self::High => 3,
+            Self::Medium => 2,
+            Self::Low => 1,
+        }
+    }
+}
+
+impl Default for FindingSeverity {
+    fn default() -> Self {
+        Self::Low
+    }
+}
+
+impl std::fmt::Display for FindingSeverity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SemanticFinding {
     pub kind: String,
-    pub severity: String,
+    pub severity: FindingSeverity,
     pub concept_id: String,
     pub summary: String,
     pub files: Vec<String>,
@@ -91,7 +131,7 @@ fn multi_writer_findings(
 
     vec![SemanticFinding {
         kind: "multi_writer_concept".to_string(),
-        severity: "high".to_string(),
+        severity: FindingSeverity::High,
         concept_id: concept.id.clone(),
         summary: format!(
             "Concept '{}' is mutated from {} files",
@@ -140,7 +180,7 @@ fn writer_policy_findings(
         .into_iter()
         .map(|(path, evidence)| SemanticFinding {
             kind: "forbidden_writer".to_string(),
-            severity: "high".to_string(),
+            severity: FindingSeverity::High,
             concept_id: concept.id.clone(),
             summary: format!(
                 "Concept '{}' is written from forbidden location {}",
@@ -154,7 +194,7 @@ fn writer_policy_findings(
             .into_iter()
             .map(|(path, evidence)| SemanticFinding {
                 kind: "writer_outside_allowlist".to_string(),
-                severity: "high".to_string(),
+                severity: FindingSeverity::High,
                 concept_id: concept.id.clone(),
                 summary: format!(
                     "Concept '{}' is written outside its allowed writer set at {}",
@@ -189,7 +229,7 @@ fn raw_access_findings(concept: &ConceptRule, semantic: &SemanticSnapshot) -> Ve
         .into_iter()
         .map(|(path, evidence)| SemanticFinding {
             kind: "forbidden_raw_read".to_string(),
-            severity: "medium".to_string(),
+            severity: FindingSeverity::Medium,
             concept_id: concept.id.clone(),
             summary: format!(
                 "Concept '{}' is read from a forbidden raw access path at {}",
@@ -248,16 +288,16 @@ fn authoritative_import_bypass_findings(
     }
 
     let severity = if concept.priority.as_deref() == Some("critical") {
-        "high"
+        FindingSeverity::High
     } else {
-        "medium"
+        FindingSeverity::Medium
     };
     let preferred_entry_summary = preferred_entry_summary(&preferred_entry_paths);
     let mut findings = bypasses
         .iter()
         .map(|(path, evidence)| SemanticFinding {
             kind: "authoritative_import_bypass".to_string(),
-            severity: severity.to_string(),
+            severity,
             concept_id: concept.id.clone(),
             summary: format!(
                 "Concept '{}' bypasses {} at {}",
@@ -271,7 +311,7 @@ fn authoritative_import_bypass_findings(
     if bypasses.len() > 1 {
         findings.push(SemanticFinding {
             kind: "concept_boundary_pressure".to_string(),
-            severity: severity.to_string(),
+            severity,
             concept_id: concept.id.clone(),
             summary: format!(
                 "Concept '{}' is bypassing {} from {} files",
@@ -538,6 +578,7 @@ pub(crate) fn symbol_pattern_matches(pattern: &str, symbol_name: &str) -> bool {
 mod tests {
     use super::{
         build_authority_and_access_findings, build_authority_and_access_findings_with_snapshot,
+        FindingSeverity,
     };
     use crate::analysis::semantic::{
         ProjectModel, ReadFact, SemanticCapability, SemanticSnapshot, WriteFact,
@@ -848,7 +889,7 @@ mod tests {
             .filter(|finding| finding.kind == "authoritative_import_bypass")
             .collect::<Vec<_>>();
         assert_eq!(bypasses.len(), 1);
-        assert_eq!(bypasses[0].severity, "high");
+        assert_eq!(bypasses[0].severity, FindingSeverity::High);
         assert_eq!(bypasses[0].files, vec!["src/app/task-workflows.ts"]);
         assert_eq!(bypasses[0].summary, "Concept 'task_git_status' bypasses canonical entrypoint src/store/store.ts at src/app/task-workflows.ts");
         assert_eq!(
@@ -1095,7 +1136,7 @@ mod tests {
             .iter()
             .find(|finding| finding.kind == "concept_boundary_pressure")
             .expect("concept boundary pressure finding");
-        assert_eq!(pressure.severity, "medium");
+        assert_eq!(pressure.severity, FindingSeverity::Medium);
         assert_eq!(
             pressure.files,
             vec!["src/app/sidebar.ts", "src/app/task-workflows.ts"]
