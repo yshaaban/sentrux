@@ -376,22 +376,14 @@ async function main() {
     ),
     finding_details: compactList(findings.finding_details, 10, compactFindingDetail),
     concept_summaries: compactList(findings.concept_summaries, 5, compactConceptSummary),
-    debt_signals: compactList(
-      findings.debt_signals ?? findings.quality_opportunities,
-      5,
-      compactDebtSignal,
-    ),
+    debt_signals: compactList(findings.debt_signals, 5, compactDebtSignal),
     experimental_debt_signals: compactList(
       findings.experimental_debt_signals,
       5,
       compactDebtSignal,
     ),
     debt_clusters: compactList(findings.debt_clusters, 5, compactDebtCluster),
-    watchpoints: compactList(
-      findings.watchpoints ?? findings.optimization_priorities,
-      5,
-      compactWatchpoint,
-    ),
+    watchpoints: compactList(findings.watchpoints, 5, compactWatchpoint),
     proof_targets: null,
     benchmark: {
       cold_process_total_ms: benchmark.benchmark?.cold_process_total_ms ?? null,

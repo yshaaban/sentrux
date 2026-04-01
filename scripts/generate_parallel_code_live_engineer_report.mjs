@@ -11,12 +11,17 @@ import {
   collectRepoIdentity,
 } from './lib/repo-identity.mjs';
 import { assertPathExists } from './lib/disposable-repo.mjs';
+import { resolveWorkspaceRepoRoot } from './lib/path-roots.mjs';
 import { selectLeverageBuckets } from './lib/v2-report-selection.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, '..');
-const parallelCodeRoot = process.env.PARALLEL_CODE_ROOT ?? '<parallel-code-root>';
+const parallelCodeRoot = resolveWorkspaceRepoRoot(
+  process.env.PARALLEL_CODE_ROOT,
+  'parallel-code',
+  repoRoot,
+);
 const goldenDir =
   process.env.GOLDEN_DIR ?? path.join(repoRoot, 'docs/v2/examples/parallel-code-golden');
 const benchmarkPath =

@@ -9,13 +9,18 @@ import {
   assertPathExists,
   createDisposableRepoClone,
 } from './lib/disposable-repo.mjs';
+import { resolveWorkspaceRepoRoot } from './lib/path-roots.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, '..');
 
 const sentruxBin = process.env.SENTRUX_BIN ?? path.join(repoRoot, 'target/debug/sentrux');
-const parallelCodeRoot = process.env.PARALLEL_CODE_ROOT ?? '<parallel-code-root>';
+const parallelCodeRoot = resolveWorkspaceRepoRoot(
+  process.env.PARALLEL_CODE_ROOT,
+  'parallel-code',
+  repoRoot,
+);
 const rulesSource =
   process.env.RULES_SOURCE ?? path.join(repoRoot, 'docs/v2/examples/parallel-code.rules.toml');
 const outputDir =
@@ -155,8 +160,24 @@ function replaceSpan(source, startNeedle, endNeedle, replacement, label) {
   return `${source.slice(0, startIndex)}${replacement}${source.slice(endIndex)}`;
 }
 
+function sameSortedFiles(expectedFiles, candidateFiles) {
+  const sortedExpectedFiles = [...expectedFiles].sort();
+  const sortedCandidateFiles = [...candidateFiles].sort();
+
+  return (
+    sortedCandidateFiles.length === sortedExpectedFiles.length &&
+    sortedCandidateFiles.every((file, index) => file === sortedExpectedFiles[index])
+  );
+}
+
+function findEntryForFiles(entries, expectedFiles) {
+  return (entries ?? []).find((entry) => sameSortedFiles(expectedFiles, entry.files ?? [])) ?? null;
+}
+
 function summarizeTaskGitStatusFindings(findingsPayload) {
-  return (findingsPayload.findings ?? []).filter((finding) => finding.concept_id === 'task_git_status');
+  return (findingsPayload.findings ?? []).filter(
+    (finding) => finding.concept_id === 'task_git_status',
+  );
 }
 
 function summarizeTaskPresentation(findingsPayload, obligationsPayload) {
@@ -171,25 +192,9 @@ function summarizeTaskPresentation(findingsPayload, obligationsPayload) {
 }
 
 function summarizeCloneFamily(findingsPayload, expectedFiles) {
-  const sortedFiles = [...expectedFiles].sort();
-  const matchesExpectedFiles = (files) => {
-    const candidateFiles = [...files].sort();
-    return (
-      candidateFiles.length === sortedFiles.length &&
-      candidateFiles.every((file, index) => file === sortedFiles[index])
-    );
-  };
-  const family =
-    (findingsPayload.clone_families ?? []).find((entry) => {
-      return matchesExpectedFiles(entry.files ?? []);
-    }) ?? null;
-
   return {
-    family,
-    debt_signal:
-      (findingsPayload.debt_signals ?? findingsPayload.quality_opportunities ?? []).find((entry) => {
-        return matchesExpectedFiles(entry.files ?? []);
-      }) ?? null,
+    family: findEntryForFiles(findingsPayload.clone_families, expectedFiles),
+    debt_signal: findEntryForFiles(findingsPayload.debt_signals, expectedFiles),
   };
 }
 

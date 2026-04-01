@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { selectLeverageBuckets } from '../lib/v2-report-selection.mjs';
+import {
+  compactSelectedCandidate,
+  selectLeverageBuckets,
+  scoreBandLabel,
+} from '../lib/v2-report-selection.mjs';
 
 function candidate({
   scope,
@@ -120,6 +124,22 @@ test('selectLeverageBuckets keeps architecture and local targets ahead of harden
   assert(!buckets.trusted_watchpoints.some((entry) => entry.scope === 'cycle:store-app'));
 });
 
+test('selectLeverageBuckets returns empty buckets for empty payloads', function () {
+  const buckets = selectLeverageBuckets({});
+
+  assert.deepEqual(buckets.summary_candidates, []);
+  assert.deepEqual(buckets.architecture_signals, []);
+  assert.deepEqual(buckets.local_refactor_targets, []);
+  assert.deepEqual(buckets.boundary_discipline, []);
+  assert.deepEqual(buckets.regrowth_watchpoints, []);
+  assert.deepEqual(buckets.secondary_cleanup, []);
+  assert.deepEqual(buckets.hardening_notes, []);
+  assert.deepEqual(buckets.tooling_debt, []);
+  assert.deepEqual(buckets.trusted_watchpoints, []);
+  assert.deepEqual(buckets.lead_candidates, []);
+  assert.deepEqual(buckets.secondary_hotspots, []);
+});
+
 test('selectLeverageBuckets deduplicates summary scopes and keeps compatibility aliases', function () {
   const findingsPayload = {
     finding_details: [
@@ -153,6 +173,47 @@ test('selectLeverageBuckets deduplicates summary scopes and keeps compatibility 
     buckets.secondary_hotspots.map((entry) => entry.scope),
     buckets.secondary_cleanup.map((entry) => entry.scope).slice(0, 2),
   );
+});
+
+test('selectLeverageBuckets sorts equal-priority candidates deterministically by scope', function () {
+  const findingsPayload = {
+    finding_details: [
+      candidate({
+        scope: 'src/zeta.ts',
+        kind: 'dependency_sprawl',
+        leverageClass: 'secondary_cleanup',
+        severity: 'medium',
+        score: 5100,
+        metrics: null,
+      }),
+      candidate({
+        scope: 'src/alpha.ts',
+        kind: 'dependency_sprawl',
+        leverageClass: 'secondary_cleanup',
+        severity: 'medium',
+        score: 5100,
+        metrics: null,
+      }),
+    ],
+    watchpoints: [],
+    debt_signals: [],
+    debt_clusters: [],
+  };
+
+  const buckets = selectLeverageBuckets(findingsPayload);
+
+  assert.equal(buckets.secondary_cleanup[0].scope, 'src/alpha.ts');
+  assert.equal(buckets.secondary_cleanup[1].scope, 'src/zeta.ts');
+});
+
+test('scoreBandLabel respects the documented score bands', function () {
+  assert.equal(scoreBandLabel(0), 'supporting_signal');
+  assert.equal(scoreBandLabel(3999), 'supporting_signal');
+  assert.equal(scoreBandLabel(4000), 'moderate_signal');
+  assert.equal(scoreBandLabel(6499), 'moderate_signal');
+  assert.equal(scoreBandLabel(6500), 'high_signal');
+  assert.equal(scoreBandLabel(8499), 'high_signal');
+  assert.equal(scoreBandLabel(8500), 'very_high_signal');
 });
 
 test('selectLeverageBuckets prefers contained local refactor targets over broader peers', function () {
@@ -243,4 +304,61 @@ test('selectLeverageBuckets surfaces generic ranking reasons for cycle-heavy arc
   assert.equal(candidateEntry.score_band, 'very_high_signal');
   assert(candidateEntry.ranking_reasons.includes('shared_barrel_boundary_hub'));
   assert(candidateEntry.ranking_reasons.includes('high_leverage_cut_candidate'));
+});
+
+test('compactSelectedCandidate preserves nullish fields and defaults arrays', function () {
+  assert.deepEqual(compactSelectedCandidate(null), {
+    kind: null,
+    trust_tier: null,
+    presentation_class: null,
+    leverage_class: null,
+    leverage_reasons: [],
+    ranking_reasons: [],
+    scope: null,
+    severity: null,
+    score_band: null,
+    score_0_10000: null,
+    within_bucket_strength_0_10000: null,
+    summary: null,
+    impact: null,
+    candidate_split_axes: [],
+    related_surfaces: [],
+  });
+
+  assert.deepEqual(
+    compactSelectedCandidate({
+      kind: 'dependency_sprawl',
+      trust_tier: 'trusted',
+      presentation_class: 'structural_debt',
+      leverage_class: 'secondary_cleanup',
+      leverage_reasons: null,
+      ranking_reasons: null,
+      scope: 'src/example.ts',
+      severity: 'medium',
+      score_band: 'moderate_signal',
+      score_0_10000: 6400,
+      within_bucket_strength_0_10000: 7200,
+      summary: 'example',
+      impact: 'impact',
+      candidate_split_axes: null,
+      related_surfaces: null,
+    }),
+    {
+      kind: 'dependency_sprawl',
+      trust_tier: 'trusted',
+      presentation_class: 'structural_debt',
+      leverage_class: 'secondary_cleanup',
+      leverage_reasons: [],
+      ranking_reasons: [],
+      scope: 'src/example.ts',
+      severity: 'medium',
+      score_band: 'moderate_signal',
+      score_0_10000: 6400,
+      within_bucket_strength_0_10000: 7200,
+      summary: 'example',
+      impact: 'impact',
+      candidate_split_axes: [],
+      related_surfaces: [],
+    },
+  );
 });
