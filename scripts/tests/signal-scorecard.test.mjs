@@ -61,6 +61,8 @@ test('buildSignalScorecard aggregates seeded, review, and remediation metrics', 
           followup_checks: 1,
           target_cleared: 1,
           followup_regressions: 0,
+          sessions_clean: 2,
+          total_checks_to_clear: 3,
         },
       ],
     },
@@ -75,6 +77,8 @@ test('buildSignalScorecard aggregates seeded, review, and remediation metrics', 
   assert.equal(scorecard.signals[0].useful_precision, 1);
   assert.equal(scorecard.signals[0].remediation_success_rate, 1);
   assert.equal(scorecard.signals[0].session_resolution_rate, 1);
+  assert.equal(scorecard.signals[0].session_clean_rate, 1);
+  assert.equal(scorecard.signals[0].average_checks_to_clear, 3);
   assert.equal(scorecard.signals[0].latency_ms, 134.2);
 });
 
@@ -177,6 +181,8 @@ test('formatSignalScorecardMarkdown renders the score table', function () {
         useful_precision: null,
         remediation_success_rate: null,
         session_resolution_rate: 0.5,
+        session_clean_rate: 0.5,
+        average_checks_to_clear: 2,
         latency_ms: 134.2,
         promotion_recommendation: 'keep_watchpoint',
       },

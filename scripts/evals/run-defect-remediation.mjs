@@ -8,6 +8,7 @@ import { createMcpSession, runTool } from '../lib/benchmark-harness.mjs';
 import { resolveWorkspaceRepoRoot } from '../lib/path-roots.mjs';
 import { prepareTypeScriptBenchmarkHome } from '../lib/benchmark-plugin-home.mjs';
 import { runClaudeCode } from './providers/claude-code.mjs';
+import { runCodexExec } from './providers/codex-cli.mjs';
 import { createDogfoodCatalog, createParallelCodeCatalog, selectDefects } from '../defect-injection/catalog.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -21,6 +22,7 @@ function parseArgs(argv) {
     defects: [],
     analysisMode: 'head_clone',
     dryRun: false,
+    provider: process.env.EVAL_PROVIDER ?? 'claude-code',
     model: process.env.EVAL_MODEL ?? null,
     timeoutMs: Number(process.env.EVAL_TIMEOUT_MS ?? '1800000'),
     outputJsonPath: null,
@@ -45,6 +47,11 @@ function parseArgs(argv) {
     }
     if (value === '--dry-run') {
       result.dryRun = true;
+      continue;
+    }
+    if (value === '--provider') {
+      index += 1;
+      result.provider = argv[index];
       continue;
     }
     if (value === '--output-json') {
@@ -152,6 +159,29 @@ function providerRunSucceeded(providerRun, dryRun) {
   return providerRun?.exit_code === 0 && !providerRun?.timed_out;
 }
 
+async function runProvider(options) {
+  if (options.provider === 'claude-code') {
+    return runClaudeCode({
+      cwd: options.cwd,
+      prompt: options.prompt,
+      model: options.model,
+      timeoutMs: options.timeoutMs,
+      tools: 'default',
+    });
+  }
+
+  if (options.provider === 'codex-cli') {
+    return runCodexExec({
+      cwd: options.cwd,
+      prompt: options.prompt,
+      model: options.model,
+      timeoutMs: options.timeoutMs,
+    });
+  }
+
+  throw new Error(`Unsupported provider: ${options.provider}`);
+}
+
 function buildRemediationStatus({ dryRun, fixed, targetRemoved, regressionFree }) {
   if (dryRun) {
     return 'dry_run';
@@ -185,12 +215,12 @@ async function runRemediation(defect, repoConfig, options) {
 
     let providerRun = null;
     if (!options.dryRun) {
-      providerRun = await runClaudeCode({
+      providerRun = await runProvider({
+        provider: options.provider,
         cwd: clone.workRoot,
         prompt: buildRemediationPrompt(defect, initialCheck),
         model: options.model,
         timeoutMs: options.timeoutMs,
-        tools: 'default',
       });
     }
 
@@ -235,6 +265,7 @@ async function runRemediation(defect, repoConfig, options) {
             timed_out: providerRun.timed_out,
             stdout: providerRun.stdout,
             stderr: providerRun.stderr,
+            last_message: providerRun.last_message ?? null,
           }
         : null,
     };

@@ -45,6 +45,8 @@ function createEmptySignalEntry(signalKind, overrides = {}) {
     session_followups: 0,
     session_cleared: 0,
     session_regressions: 0,
+    session_clean: 0,
+    session_total_checks_to_clear: 0,
     ...overrides,
   };
 }
@@ -166,6 +168,8 @@ function applySessionTelemetry(signalMap, sessionTelemetry) {
     entry.session_followups += signal.followup_checks ?? 0;
     entry.session_cleared += signal.target_cleared ?? 0;
     entry.session_regressions += signal.followup_regressions ?? 0;
+    entry.session_clean += signal.sessions_clean ?? 0;
+    entry.session_total_checks_to_clear += signal.total_checks_to_clear ?? 0;
   }
 }
 
@@ -193,6 +197,7 @@ function buildPromotionRecommendation(entry) {
     entry.session_cleared ?? 0,
     entry.session_followups ?? 0,
   );
+  const sessionCleanRate = safeRatio(entry.session_clean ?? 0, entry.session_top_actions ?? 0);
 
   if (reviewedTotal > 0 && falsePositives > 0) {
     return 'degrade_or_quarantine';
@@ -210,6 +215,9 @@ function buildPromotionRecommendation(entry) {
     return 'improve_fix_guidance';
   }
   if (sessionResolution !== null && sessionResolution < 0.6) {
+    return 'improve_fix_guidance';
+  }
+  if (sessionCleanRate !== null && sessionCleanRate < 0.6) {
     return 'improve_fix_guidance';
   }
   return `keep_${entry.promotion_status ?? 'unspecified'}`;
@@ -243,6 +251,8 @@ export function buildSignalScorecard({
       const sessionFollowups = entry.session_followups ?? 0;
       const sessionCleared = entry.session_cleared ?? 0;
       const sessionRegressions = entry.session_regressions ?? 0;
+      const sessionClean = entry.session_clean ?? 0;
+      const sessionTotalChecksToClear = entry.session_total_checks_to_clear ?? 0;
       const useful = truePositive + acceptableWarning;
       const latencyEligible = entry.seeded_check_supported > 0;
 
@@ -286,6 +296,12 @@ export function buildSignalScorecard({
         session_cleared: sessionCleared,
         session_regressions: sessionRegressions,
         session_resolution_rate: safeRatio(sessionCleared, sessionFollowups),
+        session_clean: sessionClean,
+        session_clean_rate: safeRatio(sessionClean, sessionTopActions),
+        average_checks_to_clear: safeRatio(
+          sessionTotalChecksToClear,
+          sessionCleared,
+        ),
         latency_ms: latencyEligible ? latencyMs : null,
         promotion_recommendation: buildPromotionRecommendation({
           ...entry,
@@ -337,12 +353,12 @@ export function formatSignalScorecardMarkdown(scorecard) {
   lines.push(`- needs review: ${scorecard.summary.needs_review_count}`);
   lines.push(`- degrade or quarantine: ${scorecard.summary.degrade_count}`);
   lines.push('');
-  lines.push('| Signal | Family | Status | Primary Lane | Seeded Recall | Primary Recall | Reviewed Precision | Useful Precision | Remediation Success | Session Resolution | Latency | Recommendation |');
-  lines.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
+  lines.push('| Signal | Family | Status | Primary Lane | Seeded Recall | Primary Recall | Reviewed Precision | Useful Precision | Remediation Success | Session Resolution | Session Clean Rate | Avg Checks To Clear | Latency | Recommendation |');
+  lines.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
 
   for (const signal of scorecard.signals) {
     lines.push(
-      `| \`${signal.signal_kind}\` | \`${signal.signal_family}\` | \`${signal.promotion_status}\` | \`${signal.primary_lane ?? 'n/a'}\` | ${signal.seeded_recall ?? 'n/a'} | ${signal.primary_recall ?? 'n/a'} | ${signal.reviewed_precision ?? 'n/a'} | ${signal.useful_precision ?? 'n/a'} | ${signal.remediation_success_rate ?? 'n/a'} | ${signal.session_resolution_rate ?? 'n/a'} | ${signal.latency_ms ?? 'n/a'} | \`${signal.promotion_recommendation}\` |`,
+      `| \`${signal.signal_kind}\` | \`${signal.signal_family}\` | \`${signal.promotion_status}\` | \`${signal.primary_lane ?? 'n/a'}\` | ${signal.seeded_recall ?? 'n/a'} | ${signal.primary_recall ?? 'n/a'} | ${signal.reviewed_precision ?? 'n/a'} | ${signal.useful_precision ?? 'n/a'} | ${signal.remediation_success_rate ?? 'n/a'} | ${signal.session_resolution_rate ?? 'n/a'} | ${signal.session_clean_rate ?? 'n/a'} | ${signal.average_checks_to_clear ?? 'n/a'} | ${signal.latency_ms ?? 'n/a'} | \`${signal.promotion_recommendation}\` |`,
     );
   }
 

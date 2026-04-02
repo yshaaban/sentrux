@@ -29,11 +29,13 @@ function runChecked(command, args) {
 export async function createDisposableRepoClone({
   sourceRoot,
   label,
-  rulesSource,
+  rulesSource = null,
   analysisMode = 'head_clone',
 }) {
   assertPathExists(sourceRoot, `${label} repo`);
-  assertPathExists(rulesSource, `${label} rules source`);
+  if (rulesSource) {
+    assertPathExists(rulesSource, `${label} rules source`);
+  }
 
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), `sentrux-${label}-`));
   const workRoot = path.join(tempRoot, label);
@@ -44,8 +46,10 @@ export async function createDisposableRepoClone({
   if (analysisMode === 'working_tree') {
     await overlayWorkingTreeChanges({ sourceRoot, targetRoot: workRoot });
   }
-  await mkdir(sentruxDir, { recursive: true });
-  await cp(rulesSource, rulesPath);
+  if (rulesSource) {
+    await mkdir(sentruxDir, { recursive: true });
+    await cp(rulesSource, rulesPath);
+  }
 
   return {
     tempRoot,

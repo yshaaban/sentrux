@@ -5,6 +5,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runClaudeCode } from './providers/claude-code.mjs';
+import { runCodexExec } from './providers/codex-cli.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -153,6 +154,7 @@ function parseArgs(argv) {
     timeoutMs: Number(process.env.EVAL_TIMEOUT_MS ?? '1800000'),
     concurrency: Number(process.env.EVAL_CONCURRENCY ?? '1'),
     claudeBin: process.env.CLAUDE_BIN ?? 'claude',
+    codexBin: process.env.CODEX_BIN ?? 'codex',
     dryRun: false,
     help: false,
   };
@@ -205,6 +207,11 @@ function parseArgs(argv) {
     if (value === '--claude-bin') {
       i += 1;
       result.claudeBin = argv[i];
+      continue;
+    }
+    if (value === '--codex-bin') {
+      i += 1;
+      result.codexBin = argv[i];
       continue;
     }
     fail(`Unknown argument: ${value}`);
@@ -613,6 +620,33 @@ function extractResponsePayload(providerOutput, task) {
   };
 }
 
+async function runProvider(options) {
+  if (options.provider === 'claude-code') {
+    return runClaudeCode({
+      cwd: options.cwd,
+      prompt: options.prompt,
+      model: options.model,
+      jsonSchema: options.jsonSchema,
+      appendSystemPrompt: options.appendSystemPrompt,
+      timeoutMs: options.timeoutMs,
+      claudeBin: options.claudeBin,
+    });
+  }
+
+  if (options.provider === 'codex-cli') {
+    return runCodexExec({
+      cwd: options.cwd,
+      prompt: options.prompt,
+      model: options.model,
+      jsonSchema: options.jsonSchema,
+      timeoutMs: options.timeoutMs,
+      codexBin: options.codexBin,
+    });
+  }
+
+  fail(`Unsupported provider: ${options.provider}`);
+}
+
 function parseMaybeJson(text) {
   if (typeof text !== 'string') {
     return null;
@@ -643,6 +677,30 @@ function buildResultPath(outputDir, scenario, task) {
   return path.join(outputDir, scenario.scenario_id, task.task_id, 'result.json');
 }
 
+function buildDryRunProviderOutput(options, repoRoot) {
+  const executable = options.provider === 'codex-cli' ? options.codexBin : options.claudeBin;
+
+  return {
+    provider: options.provider,
+    provider_version: null,
+    command: {
+      executable,
+      args: [],
+    },
+    cwd: repoRoot,
+    started_at: nowIso(),
+    duration_ms: 0,
+    exit_code: 0,
+    signal: null,
+    timed_out: false,
+    stdout: '',
+    stderr: '',
+    stdout_json: null,
+    stdout_jsonl: [],
+    last_message: null,
+  };
+}
+
 async function runTask({ scenario, scenarioPath, task, outputDir, options }) {
   const repoRoot = resolveRepoRoot(scenario);
   if (!existsSync(repoRoot)) {
@@ -650,21 +708,9 @@ async function runTask({ scenario, scenarioPath, task, outputDir, options }) {
   }
 
   const providerOutput = options.dryRun
-    ? {
+    ? buildDryRunProviderOutput(options, repoRoot)
+    : await runProvider({
         provider: options.provider,
-        provider_version: null,
-        command: { executable: options.claudeBin, args: [] },
-        cwd: repoRoot,
-        started_at: nowIso(),
-        duration_ms: 0,
-        exit_code: 0,
-        signal: null,
-        timed_out: false,
-        stdout: '',
-        stderr: '',
-        stdout_json: null,
-      }
-    : await runClaudeCode({
         cwd: repoRoot,
         prompt: buildTaskPrompt(scenario, task),
         model: options.model,
@@ -672,6 +718,7 @@ async function runTask({ scenario, scenarioPath, task, outputDir, options }) {
         appendSystemPrompt: BASE_APPEND_SYSTEM_PROMPT,
         timeoutMs: options.timeoutMs,
         claudeBin: options.claudeBin,
+        codexBin: options.codexBin,
       });
 
   const responsePayload = extractResponsePayload(providerOutput, task);
@@ -764,6 +811,7 @@ Options:
   --timeout-ms <n>      Provider timeout in milliseconds
   --concurrency <n>    Number of tasks to run in parallel
   --claude-bin <path>   Path to the Claude Code CLI binary
+  --codex-bin <path>    Path to the Codex CLI binary
   --dry-run             Validate scenarios without calling any provider
   --help                Show this help text
 `);
@@ -774,10 +822,6 @@ async function main() {
   if (options.help) {
     printHelp();
     return;
-  }
-
-  if (options.provider !== 'claude-code') {
-    fail(`Unsupported provider: ${options.provider}`);
   }
 
   const runId = `eval-${new Date().toISOString().replace(/[:.]/g, '-')}`;

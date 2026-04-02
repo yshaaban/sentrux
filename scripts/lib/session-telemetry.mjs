@@ -54,6 +54,41 @@ function actionKindsForRun(run) {
   return Array.isArray(run?.action_kinds) ? run.action_kinds : [];
 }
 
+function finalGateForSession(checkRuns, sessionEndEvent) {
+  if (sessionEndEvent?.decision) {
+    return sessionEndEvent.decision;
+  }
+
+  return checkRuns.at(-1)?.gate ?? null;
+}
+
+function isFinalSessionClean(checkRuns, sessionEndEvent) {
+  if (sessionEndEvent) {
+    return sessionEndEvent.decision === 'pass' && (sessionEndEvent.action_count ?? 0) === 0;
+  }
+
+  const lastCheck = checkRuns.at(-1);
+  if (!lastCheck) {
+    return false;
+  }
+
+  return lastCheck.gate === 'pass' && actionKindsForRun(lastCheck).length === 0;
+}
+
+function checksUntilActionClears(topActionKind, checkRuns) {
+  if (!topActionKind) {
+    return null;
+  }
+
+  for (let index = 1; index < checkRuns.length; index += 1) {
+    if (!actionKindsForRun(checkRuns[index]).includes(topActionKind)) {
+      return index;
+    }
+  }
+
+  return null;
+}
+
 function createSignalEntry(signalKind) {
   return {
     signal_kind: signalKind,
@@ -61,6 +96,22 @@ function createSignalEntry(signalKind) {
     followup_checks: 0,
     target_cleared: 0,
     followup_regressions: 0,
+    sessions_cleared: 0,
+    sessions_clean: 0,
+    total_checks_to_clear: 0,
+  };
+}
+
+function cloneSignalEntry(signal) {
+  return {
+    signal_kind: signal.signal_kind,
+    top_action_presented: signal.top_action_presented ?? 0,
+    followup_checks: signal.followup_checks ?? 0,
+    target_cleared: signal.target_cleared ?? 0,
+    followup_regressions: signal.followup_regressions ?? 0,
+    sessions_cleared: signal.sessions_cleared ?? 0,
+    sessions_clean: signal.sessions_clean ?? 0,
+    total_checks_to_clear: signal.total_checks_to_clear ?? 0,
   };
 }
 
@@ -78,6 +129,13 @@ function summarizeSession(sessionRunId, events, signalMap) {
   const sessionEndEvent = findLastEventByType(events, 'session_ended');
   const decision = sessionEndEvent?.decision ?? null;
   const checkRuns = events.filter((event) => event.event_type === 'check_run');
+  const initialCheck = checkRuns[0] ?? null;
+  const initialTopActionKind = initialCheck?.top_action_kind ?? null;
+  const checksToClearTopAction = checksUntilActionClears(initialTopActionKind, checkRuns);
+  const topActionCleared = checksToClearTopAction !== null;
+  const finalGate = finalGateForSession(checkRuns, sessionEndEvent);
+  const finalSessionClean = isFinalSessionClean(checkRuns, sessionEndEvent);
+  let followupRegressionIntroduced = false;
 
   for (let index = 0; index < checkRuns.length; index += 1) {
     const currentRun = checkRuns[index];
@@ -103,6 +161,18 @@ function summarizeSession(sessionRunId, events, signalMap) {
     const introducedKinds = nextActionKinds.filter((kind) => !currentActionKinds.has(kind));
     if (introducedKinds.length > 0) {
       entry.followup_regressions += 1;
+      followupRegressionIntroduced = true;
+    }
+  }
+
+  if (initialTopActionKind) {
+    const entry = ensureSignalEntry(signalMap, initialTopActionKind);
+    if (topActionCleared) {
+      entry.sessions_cleared += 1;
+      entry.total_checks_to_clear += checksToClearTopAction;
+    }
+    if (finalSessionClean) {
+      entry.sessions_clean += 1;
     }
   }
 
@@ -111,7 +181,14 @@ function summarizeSession(sessionRunId, events, signalMap) {
     session_mode: events[0]?.session_mode ?? 'implicit',
     session_started: sessionStarted,
     session_ended: sessionEnded,
+    initial_gate: initialCheck?.gate ?? null,
+    initial_top_action_kind: initialTopActionKind,
+    top_action_cleared: topActionCleared,
+    checks_to_clear_top_action: checksToClearTopAction,
+    followup_regression_introduced: followupRegressionIntroduced,
     final_decision: decision,
+    final_gate: finalGate,
+    final_session_clean: finalSessionClean,
     check_run_count: checkRuns.length,
     top_action_kinds: checkRuns
       .map((event) => event.top_action_kind)
@@ -148,6 +225,9 @@ export function buildSessionTelemetrySummary(events, overrides = {}) {
       ...entry,
       resolution_rate: safeRatio(entry.target_cleared, entry.followup_checks),
       regression_rate: safeRatio(entry.followup_regressions, entry.followup_checks),
+      session_clear_rate: safeRatio(entry.sessions_cleared, entry.top_action_presented),
+      session_clean_rate: safeRatio(entry.sessions_clean, entry.top_action_presented),
+      average_checks_to_clear: safeRatio(entry.total_checks_to_clear, entry.sessions_cleared),
     }))
     .sort((left, right) => left.signal_kind.localeCompare(right.signal_kind));
 
@@ -168,6 +248,76 @@ export function buildSessionTelemetrySummary(events, overrides = {}) {
   };
 }
 
+export function mergeSessionTelemetrySummaries(summaries, overrides = {}) {
+  const mergedSignals = new Map();
+  const sessions = [];
+  let eventCount = 0;
+  let explicitSessionCount = 0;
+  let implicitSessionCount = 0;
+  let checkRunCount = 0;
+
+  for (const summary of summaries ?? []) {
+    if (!summary) {
+      continue;
+    }
+
+    eventCount += summary.summary?.event_count ?? 0;
+    explicitSessionCount += summary.summary?.explicit_session_count ?? 0;
+    implicitSessionCount += summary.summary?.implicit_session_count ?? 0;
+    checkRunCount += summary.summary?.check_run_count ?? 0;
+    sessions.push(...(summary.sessions ?? []));
+
+    for (const signal of summary.signals ?? []) {
+      const signalKind = signal.signal_kind;
+      if (!signalKind) {
+        continue;
+      }
+
+      if (!mergedSignals.has(signalKind)) {
+        mergedSignals.set(signalKind, cloneSignalEntry(signal));
+        continue;
+      }
+
+      const entry = mergedSignals.get(signalKind);
+      entry.top_action_presented += signal.top_action_presented ?? 0;
+      entry.followup_checks += signal.followup_checks ?? 0;
+      entry.target_cleared += signal.target_cleared ?? 0;
+      entry.followup_regressions += signal.followup_regressions ?? 0;
+      entry.sessions_cleared += signal.sessions_cleared ?? 0;
+      entry.sessions_clean += signal.sessions_clean ?? 0;
+      entry.total_checks_to_clear += signal.total_checks_to_clear ?? 0;
+    }
+  }
+
+  const signals = [...mergedSignals.values()]
+    .map((entry) => ({
+      ...entry,
+      resolution_rate: safeRatio(entry.target_cleared, entry.followup_checks),
+      regression_rate: safeRatio(entry.followup_regressions, entry.followup_checks),
+      session_clear_rate: safeRatio(entry.sessions_cleared, entry.top_action_presented),
+      session_clean_rate: safeRatio(entry.sessions_clean, entry.top_action_presented),
+      average_checks_to_clear: safeRatio(entry.total_checks_to_clear, entry.sessions_cleared),
+    }))
+    .sort((left, right) => left.signal_kind.localeCompare(right.signal_kind));
+
+  return {
+    schema_version: 1,
+    generated_at: new Date().toISOString(),
+    repo_root: overrides.repoRoot ?? summaries?.find((summary) => summary?.repo_root)?.repo_root ?? null,
+    source_path: overrides.sourcePath ?? null,
+    source_paths: overrides.sourcePaths ?? [],
+    summary: {
+      event_count: eventCount,
+      session_count: sessions.length,
+      explicit_session_count: explicitSessionCount,
+      implicit_session_count: implicitSessionCount,
+      check_run_count: checkRunCount,
+    },
+    sessions,
+    signals,
+  };
+}
+
 export function formatSessionTelemetrySummaryMarkdown(summary) {
   const lines = [];
   lines.push('# Session Telemetry Summary');
@@ -180,12 +330,12 @@ export function formatSessionTelemetrySummaryMarkdown(summary) {
   lines.push(`- implicit sessions: ${summary.summary.implicit_session_count}`);
   lines.push(`- check runs: ${summary.summary.check_run_count}`);
   lines.push('');
-  lines.push('| Signal | Top Action Presented | Follow-up Checks | Target Cleared | Follow-up Regressions | Resolution Rate | Regression Rate |');
-  lines.push('| --- | --- | --- | --- | --- | --- | --- |');
+  lines.push('| Signal | Top Action Presented | Follow-up Checks | Target Cleared | Follow-up Regressions | Resolution Rate | Regression Rate | Session Clean Rate | Avg Checks To Clear |');
+  lines.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- |');
 
   for (const signal of summary.signals) {
     lines.push(
-      `| \`${signal.signal_kind}\` | ${signal.top_action_presented} | ${signal.followup_checks} | ${signal.target_cleared} | ${signal.followup_regressions} | ${signal.resolution_rate ?? 'n/a'} | ${signal.regression_rate ?? 'n/a'} |`,
+      `| \`${signal.signal_kind}\` | ${signal.top_action_presented} | ${signal.followup_checks} | ${signal.target_cleared} | ${signal.followup_regressions} | ${signal.resolution_rate ?? 'n/a'} | ${signal.regression_rate ?? 'n/a'} | ${signal.session_clean_rate ?? 'n/a'} | ${signal.average_checks_to_clear ?? 'n/a'} |`,
     );
   }
 
