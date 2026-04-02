@@ -60,7 +60,9 @@ mod session;
 pub(crate) mod test_support;
 mod view_support;
 
-pub(crate) use self::agent_format::{actions_from_findings_and_obligations, AgentAction};
+pub(crate) use self::agent_format::{
+    actions_from_findings_and_obligations, AgentAction, AgentGate, CheckDiagnostics,
+};
 pub(crate) use self::brief::agent_brief_def;
 pub use self::brief::cli_agent_brief;
 pub(crate) use self::check::check_def;
@@ -123,6 +125,8 @@ pub(crate) use self::findings::handle_findings;
 pub(crate) use self::scan::handle_scan;
 #[cfg(test)]
 pub(crate) use self::session::handle_session_end;
+#[cfg(test)]
+pub(crate) use self::session::handle_session_start;
 
 // ── Scan helper (shared by scan, rescan, session_end) ──
 
@@ -202,6 +206,7 @@ fn fresh_mcp_state() -> McpState {
         cached_rules_error: None,
         cached_patch_safety: None,
         semantic_bridge: None,
+        agent_session: super::session_telemetry::AgentSessionState::new(),
     }
 }
 

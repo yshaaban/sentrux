@@ -10,6 +10,7 @@ target/
 
 # Runtime data
 .sentrux/baseline.json
+.sentrux/agent-session-events.jsonl
 *.key
 
 # IDE

@@ -284,6 +284,17 @@ pub(crate) fn handle_session_start(
     if let Some(object) = response.as_object_mut() {
         insert_rules_semantic_diagnostics(object, rules_error, semantic_error, Vec::new());
     }
+    crate::app::mcp_server::session_telemetry::record_session_started(
+        state,
+        &root,
+        (signal * 10000.0).round() as u32,
+        state
+            .session_v2
+            .as_ref()
+            .map(|baseline| baseline.finding_payloads.len())
+            .unwrap_or(0),
+        &session_v2_baseline_path,
+    );
     Ok(response)
 }
 
@@ -575,6 +586,22 @@ pub(crate) fn handle_session_end(
             DiagnosticEntry::new("baseline", baseline_error.clone()),
         ],
         Vec::new(),
+    );
+    crate::app::mcp_server::session_telemetry::record_session_ended(
+        state,
+        &root,
+        crate::app::mcp_server::session_telemetry::SessionEndTelemetry {
+            changed_files: &changed_files,
+            decision: gate_decision,
+            action_payloads: &action_payloads,
+            introduced_finding_kinds: introduced_findings
+                .iter()
+                .map(|finding| finding_kind(finding).to_string())
+                .collect(),
+            missing_obligation_count: missing_obligations.len(),
+            introduced_clone_finding_count: introduced_clone_findings.len(),
+            reused_cached_scan: context.reused_cached_scan,
+        },
     );
     let result = Value::Object(result);
 

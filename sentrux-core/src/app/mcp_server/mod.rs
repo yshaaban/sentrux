@@ -16,6 +16,7 @@ pub mod handlers_evo;
 pub mod registry;
 mod response;
 mod semantic_cache;
+mod session_telemetry;
 
 use crate::analysis::project_shape::ProjectShapeReport;
 use crate::analysis::scanner::common::ScanMetadata;
@@ -127,6 +128,7 @@ pub struct McpState {
     pub cached_rules_error: Option<String>,
     pub cached_patch_safety: Option<PatchSafetyAnalysisCache>,
     pub semantic_bridge: Option<TypeScriptBridgeSupervisor>,
+    pub(crate) agent_session: session_telemetry::AgentSessionState,
 }
 
 /// Run the MCP server loop. Blocks until stdin is closed.
@@ -166,6 +168,7 @@ pub fn run_mcp_server(register_extra: Option<&dyn Fn(&mut registry::ToolRegistry
         cached_rules_error: None,
         cached_patch_safety: None,
         semantic_bridge: None,
+        agent_session: session_telemetry::AgentSessionState::new(),
     };
 
     for line in stdin.lock().lines() {

@@ -3,11 +3,12 @@ use super::agent_format::{
     IssueSource,
 };
 use super::test_support::{commit_all, init_git_repo, temp_root, write_file};
-use super::{fresh_mcp_state, handle_check, handle_scan};
+use super::{fresh_mcp_state, handle_check, handle_scan, handle_session_start};
 use crate::analysis::project_shape::{ModuleContractSuggestion, ProjectShapeReport};
 use crate::license::Tier;
 use crate::metrics::v2::FindingSeverity;
 use serde_json::json;
+use std::fs;
 
 #[test]
 fn check_returns_partial_when_changed_scope_is_unavailable() {
@@ -231,4 +232,38 @@ fn actions_prioritize_explicit_rule_breaks_over_structural_watchpoints() {
     assert_eq!(actions.len(), 2);
     assert_eq!(actions[0].kind, "forbidden_raw_read");
     assert_eq!(actions[1].kind, "dependency_sprawl");
+}
+
+#[test]
+fn check_records_repo_local_session_events() {
+    let root = temp_root("check-session-telemetry");
+    write_file(
+        &root,
+        "src/app.ts",
+        "export function render(): number { return 1; }\n",
+    );
+    init_git_repo(&root);
+    commit_all(&root, "initial");
+    write_file(
+        &root,
+        "src/app.ts",
+        "export function render(): number { return 2; }\n",
+    );
+
+    let mut state = fresh_mcp_state();
+    handle_scan(
+        &json!({"path": root.to_string_lossy().to_string()}),
+        &Tier::Free,
+        &mut state,
+    )
+    .expect("scan fixture");
+    handle_session_start(&json!({}), &Tier::Free, &mut state).expect("session start");
+    handle_check(&json!({}), &Tier::Free, &mut state).expect("check response");
+
+    let event_log = root.join(".sentrux").join("agent-session-events.jsonl");
+    let source = fs::read_to_string(event_log).expect("read event log");
+
+    assert!(source.contains("\"event_type\":\"session_started\""));
+    assert!(source.contains("\"event_type\":\"check_run\""));
+    assert!(source.contains("\"session_mode\":\"explicit\""));
 }

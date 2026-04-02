@@ -6,6 +6,7 @@ use super::*;
 use crate::metrics::v2::{FindingSeverity, SemanticFinding};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
+use std::time::Instant;
 
 pub fn check_def() -> ToolDef {
     ToolDef {
@@ -27,6 +28,7 @@ pub(crate) fn handle_check(
     _tier: &Tier,
     state: &mut McpState,
 ) -> Result<Value, String> {
+    let started_at = Instant::now();
     let root = state
         .scan_root
         .clone()
@@ -73,6 +75,20 @@ pub(crate) fn handle_check(
         changed_files: changed_files.iter().cloned().collect(),
         diagnostics,
     };
+    crate::app::mcp_server::session_telemetry::record_check_run(
+        state,
+        &root,
+        crate::app::mcp_server::session_telemetry::CheckRunTelemetry {
+            changed_files: &changed_files,
+            gate: response.gate,
+            actions: &response.actions,
+            issue_count: response.issues.len(),
+            diagnostics: &response.diagnostics,
+            session_baseline_available: session_v2.is_some(),
+            reused_cached_scan: context.reused_cached_scan,
+            elapsed_ms: started_at.elapsed().as_millis() as u64,
+        },
+    );
 
     if !context.reused_cached_scan {
         update_scan_cache(

@@ -308,6 +308,7 @@ mod tests {
             cached_rules_error: None,
             cached_patch_safety: None,
             semantic_bridge: None,
+            agent_session: crate::app::mcp_server::session_telemetry::AgentSessionState::new(),
         }
     }
 
