@@ -216,6 +216,7 @@ fn writer_policy_findings(
 fn raw_access_findings(concept: &ConceptRule, semantic: &SemanticSnapshot) -> Vec<SemanticFinding> {
     let reads = relevant_production_reads(concept, semantic);
     let mut forbidden_reads = BTreeMap::<String, BTreeSet<String>>::new();
+    let preferred_accessors = concept.canonical_accessors.clone();
 
     for read in reads {
         if !pattern_list_matches(&concept.forbid_raw_reads, &read.path, &read.symbol_name) {
@@ -231,18 +232,32 @@ fn raw_access_findings(concept: &ConceptRule, semantic: &SemanticSnapshot) -> Ve
 
     forbidden_reads
         .into_iter()
-        .map(|(path, evidence)| SemanticFinding {
-            kind: "forbidden_raw_read".to_string(),
-            severity: FindingSeverity::Medium,
-            concept_id: concept.id.clone(),
-            summary: format!(
-                "Concept '{}' is read from a forbidden raw access path at {}",
-                concept.id, path
-            ),
-            files: vec![path],
-            evidence: evidence.into_iter().collect(),
+        .map(|(path, evidence)| {
+            let mut evidence = evidence.into_iter().collect::<Vec<_>>();
+            append_preferred_accessor_evidence(&mut evidence, &preferred_accessors);
+
+            SemanticFinding {
+                kind: "forbidden_raw_read".to_string(),
+                severity: FindingSeverity::Medium,
+                concept_id: concept.id.clone(),
+                summary: format!(
+                    "Concept '{}' is read from a forbidden raw access path at {}",
+                    concept.id, path
+                ),
+                files: vec![path],
+                evidence,
+            }
         })
         .collect()
+}
+
+fn append_preferred_accessor_evidence(evidence: &mut Vec<String>, preferred_accessors: &[String]) {
+    for accessor in preferred_accessors {
+        let accessor_evidence = format!("preferred accessor: {accessor}");
+        if !evidence.contains(&accessor_evidence) {
+            evidence.push(accessor_evidence);
+        }
+    }
 }
 
 fn authoritative_import_bypass_findings(
@@ -784,6 +799,60 @@ mod tests {
         assert!(findings
             .iter()
             .all(|finding| finding.kind != "writer_outside_allowlist"));
+    }
+
+    #[test]
+    fn forbidden_raw_reads_carry_preferred_accessor_evidence() {
+        let config: RulesConfig = toml::from_str(
+            r#"
+                [[concept]]
+                id = "task_presentation_status"
+                kind = "projection"
+                anchors = ["src/app/task-presentation-status.ts::getTaskDotStatus"]
+                authoritative_inputs = ["src/store/core.ts::store.taskGitStatus"]
+                canonical_accessors = [
+                    "src/app/task-presentation-status.ts::getTaskDotStatus",
+                    "src/app/task-presentation-status.ts::getTaskDotStatusLabel",
+                ]
+                forbid_raw_reads = ["src/components/**::store.taskGitStatus"]
+            "#,
+        )
+        .expect("rules config");
+        let semantic = SemanticSnapshot {
+            project: ProjectModel::default(),
+            analyzed_files: 0,
+            capabilities: vec![SemanticCapability::Reads],
+            files: Vec::new(),
+            symbols: Vec::new(),
+            reads: vec![ReadFact {
+                path: "src/components/SidebarTaskRow.tsx".to_string(),
+                symbol_name: "store.taskGitStatus".to_string(),
+                read_kind: "property_access".to_string(),
+                line: 42,
+            }],
+            writes: Vec::new(),
+            closed_domains: Vec::new(),
+            closed_domain_sites: Vec::new(),
+            transition_sites: Vec::new(),
+        };
+
+        let findings = build_authority_and_access_findings(&config, &semantic);
+        let raw_read = findings
+            .iter()
+            .find(|finding| finding.kind == "forbidden_raw_read")
+            .expect("forbidden raw read finding");
+
+        assert!(raw_read.evidence.iter().any(|entry| {
+            entry == "preferred accessor: src/app/task-presentation-status.ts::getTaskDotStatus"
+        }));
+        assert_eq!(
+            raw_read.evidence[1],
+            "preferred accessor: src/app/task-presentation-status.ts::getTaskDotStatus"
+        );
+        assert_eq!(
+            raw_read.evidence[2],
+            "preferred accessor: src/app/task-presentation-status.ts::getTaskDotStatusLabel"
+        );
     }
 
     #[test]

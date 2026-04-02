@@ -1,6 +1,6 @@
 use super::agent_format::{
-    actions_from_issues, compare_agent_issues, AgentIssue, IssueConfidence, IssueOrigin,
-    IssueSource,
+    actions_from_issues, compare_agent_issues, to_agent_issue, AgentIssue, IssueConfidence,
+    IssueOrigin, IssueSource,
 };
 use super::test_support::{commit_all, init_git_repo, temp_root, write_file};
 use super::{fresh_mcp_state, handle_check, handle_scan, handle_session_start};
@@ -232,6 +232,30 @@ fn actions_prioritize_explicit_rule_breaks_over_structural_watchpoints() {
     assert_eq!(actions.len(), 2);
     assert_eq!(actions[0].kind, "forbidden_raw_read");
     assert_eq!(actions[1].kind, "dependency_sprawl");
+}
+
+#[test]
+fn forbidden_raw_read_actions_name_the_preferred_accessor_when_available() {
+    let primary_accessor = "src/app/task-presentation-status.ts::getTaskDotStatus";
+    let secondary_accessor = "src/app/task-presentation-status.ts::getTaskDotStatusLabel";
+    let issue = to_agent_issue(&json!({
+        "kind": "forbidden_raw_read",
+        "concept_id": "task_presentation_status",
+        "summary": "Concept 'task_presentation_status' is read from a forbidden raw access path at src/components/SidebarTaskRow.tsx",
+        "files": ["src/components/SidebarTaskRow.tsx"],
+        "evidence": [
+            "src/components/SidebarTaskRow.tsx::store.taskGitStatus",
+            format!("preferred accessor: {primary_accessor}"),
+            format!("preferred accessor: {secondary_accessor}")
+        ]
+    }));
+
+    assert_eq!(
+        issue.fix_hint.as_deref(),
+        Some(
+            "Replace the raw read with src/app/task-presentation-status.ts::getTaskDotStatus instead of recreating the projection in the caller."
+        )
+    );
 }
 
 #[test]

@@ -3,6 +3,8 @@ use crate::metrics::v2::FindingSeverity;
 use serde::Serialize;
 use std::collections::BTreeMap;
 
+const PREFERRED_ACCESSOR_PREFIX: &str = "preferred accessor: ";
+
 #[derive(Debug, Clone, Copy, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum IssueSource {
@@ -109,7 +111,7 @@ pub(crate) fn to_agent_issue(finding: &Value) -> AgentIssue {
             .unwrap_or_else(|| finding_kind(finding))
             .to_string(),
         severity: severity_of_value(finding),
-        fix_hint: fix_hint_for_kind(&kind),
+        fix_hint: fix_hint_for_value(finding, &kind),
         evidence: finding
             .get("evidence")
             .and_then(|value| value.as_array())
@@ -162,6 +164,32 @@ pub(crate) fn obligation_value_to_agent_issue(obligation: &Value) -> AgentIssue 
         origin: obligation_origin(obligation),
         confidence: obligation_confidence(obligation),
     }
+}
+
+fn fix_hint_for_value(finding: &Value, kind: &str) -> Option<String> {
+    if kind == "forbidden_raw_read" {
+        if let Some(accessor) = preferred_accessor_from_finding(finding) {
+            return Some(format!(
+                "Replace the raw read with {accessor} instead of recreating the projection in the caller."
+            ));
+        }
+    }
+
+    fix_hint_for_kind(kind)
+}
+
+fn preferred_accessor_from_finding(finding: &Value) -> Option<String> {
+    finding
+        .get("evidence")
+        .and_then(Value::as_array)
+        .and_then(|values| {
+            values.iter().find_map(|value| {
+                value
+                    .as_str()
+                    .and_then(|evidence| evidence.strip_prefix(PREFERRED_ACCESSOR_PREFIX))
+                    .map(str::to_string)
+            })
+        })
 }
 
 pub(crate) fn issue_blocks_gate(issue: &AgentIssue) -> bool {
