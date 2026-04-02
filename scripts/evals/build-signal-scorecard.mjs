@@ -14,6 +14,7 @@ const repoRoot = path.resolve(__dirname, '../..');
 
 function parseArgs(argv) {
   const result = {
+    repoLabel: null,
     defectReportPath: null,
     reviewVerdictsPath: null,
     remediationReportPath: null,
@@ -25,6 +26,11 @@ function parseArgs(argv) {
 
   for (let index = 2; index < argv.length; index += 1) {
     const value = argv[index];
+    if (value === '--repo-label') {
+      index += 1;
+      result.repoLabel = argv[index];
+      continue;
+    }
     if (value === '--defect-report') {
       index += 1;
       result.defectReportPath = argv[index];
@@ -63,11 +69,34 @@ function parseArgs(argv) {
     throw new Error(`Unknown argument: ${value}`);
   }
 
-  if (!result.defectReportPath) {
-    throw new Error('Missing required --defect-report path');
+  if (!hasAnyScorecardInput(result)) {
+    throw new Error(
+      'Provide at least one scorecard input: --defect-report, --review-verdicts, --remediation-report, --benchmark, or --session-telemetry',
+    );
   }
 
   return result;
+}
+
+function hasAnyScorecardInput(args) {
+  return Boolean(
+    args.defectReportPath ||
+      args.reviewVerdictsPath ||
+      args.remediationReportPath ||
+      args.benchmarkPath ||
+      args.sessionTelemetryPath,
+  );
+}
+
+function inferRepoLabel(args, defectReport, reviewVerdicts, remediationReport, sessionTelemetry) {
+  return (
+    args.repoLabel ??
+    defectReport?.repo_label ??
+    reviewVerdicts?.repo ??
+    remediationReport?.repo_label ??
+    sessionTelemetry?.repo_root ??
+    null
+  );
 }
 
 async function readJson(targetPath) {
@@ -85,7 +114,7 @@ async function writeMaybe(targetPath, text) {
 
 async function main() {
   const args = parseArgs(process.argv);
-  const defectReport = await readJson(args.defectReportPath);
+  const defectReport = args.defectReportPath ? await readJson(args.defectReportPath) : null;
   const reviewVerdicts = args.reviewVerdictsPath
     ? await readJson(args.reviewVerdictsPath)
     : null;
@@ -98,7 +127,13 @@ async function main() {
     : null;
 
   const scorecard = buildSignalScorecard({
-    repoLabel: defectReport.repo_label ?? reviewVerdicts?.repo ?? remediationReport?.repo_label ?? null,
+    repoLabel: inferRepoLabel(
+      args,
+      defectReport,
+      reviewVerdicts,
+      remediationReport,
+      sessionTelemetry,
+    ),
     defectReport,
     reviewVerdicts,
     remediationReport,

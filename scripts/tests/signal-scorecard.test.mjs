@@ -158,6 +158,40 @@ test('buildSignalScorecard respects an explicit repo label override', function (
   assert.equal(scorecard.repo_label, 'telemetry-fixture');
 });
 
+test('buildSignalScorecard builds a review-and-session-only scorecard without seeded defects', function () {
+  const scorecard = buildSignalScorecard({
+    repoLabel: 'review-only',
+    reviewVerdicts: {
+      verdicts: [
+        {
+          kind: 'missing_test_coverage',
+          category: 'acceptable_warning',
+        },
+      ],
+    },
+    sessionTelemetry: {
+      signals: [
+        {
+          signal_kind: 'missing_test_coverage',
+          top_action_presented: 1,
+          followup_checks: 1,
+          target_cleared: 1,
+          followup_regressions: 0,
+          sessions_clean: 1,
+          total_checks_to_clear: 2,
+        },
+      ],
+    },
+  });
+
+  assert.equal(scorecard.repo_label, 'review-only');
+  assert.equal(scorecard.signals.length, 1);
+  assert.equal(scorecard.signals[0].signal_kind, 'missing_test_coverage');
+  assert.equal(scorecard.signals[0].seeded_total, 0);
+  assert.equal(scorecard.signals[0].reviewed_precision, 1);
+  assert.equal(scorecard.signals[0].session_clean_rate, 1);
+});
+
 test('formatSignalScorecardMarkdown renders the score table', function () {
   const markdown = formatSignalScorecardMarkdown({
     repo_label: 'parallel-code',

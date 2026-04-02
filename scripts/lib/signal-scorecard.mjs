@@ -52,6 +52,10 @@ function createEmptySignalEntry(signalKind, overrides = {}) {
 }
 
 function buildSeededEntries(defectReport) {
+  if (!defectReport) {
+    return new Map();
+  }
+
   const defectById = new Map((defectReport.defects ?? []).map((defect) => [defect.id, defect]));
   const signalMap = new Map();
 
