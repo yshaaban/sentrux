@@ -137,7 +137,7 @@ export async function runClaudeCode(options = {}) {
   ];
 
   if (tools) {
-    args.push('--tools', tools);
+    args.push(`--tools=${tools}`);
   }
 
   if (appendSystemPrompt) {

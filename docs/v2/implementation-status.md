@@ -1,6 +1,6 @@
 # Sentrux V2 Implementation Status
 
-Last audited: 2026-03-20
+Last audited: 2026-04-02
 
 ## Overall Verdict
 
@@ -11,7 +11,7 @@ Current assessment:
 - doctrine alignment: strong
 - core patch-safety wedge: strongly implemented
 - full roadmap: partially implemented
-- cross-cutting proof and validation: materially improved, still behind the full roadmap
+- cross-cutting proof and validation: materially improved, with fast-path `check`, defect injection, and signal-quality scorecard foundations now landed
 
 Working estimate:
 
@@ -23,7 +23,8 @@ Working estimate:
 
 The product shape in code matches the doctrine in [doctrine.md](./doctrine.md):
 
-- `agent_brief` is now the primary structured guidance surface in MCP and CLI
+- `check` is now the primary fast-path structured patch surface in MCP and CLI
+- `agent_brief` is the synthesized guidance surface when more context is needed
 - patch safety is primary
 - findings, obligations, and session delta are primary MCP outputs
 - TypeScript-first deep analysis is real
@@ -69,6 +70,10 @@ The strongest completed work is:
 - explicit transition-table extraction for rule-declared state domains in the TS bridge
 - external Claude-backed eval harness scaffolding plus a focused `dead_private` review loop
 - mode-aware `agent_brief` composition for repo onboarding, patch guidance, and pre-merge readiness in MCP and CLI
+- fast-path `check` with flat issue output, ranked actions, explicit changed-scope availability, missing-test watchpoints, and inferred zero-config boundary findings
+- project-shape caching with adoption-ready `working_rules_toml`
+- seeded defect-injection harness and dogfood loop for `check`
+- review-packet builder, remediation-eval runner, and per-signal scorecard tooling
 - legacy MCP and CLI surfaces now frame structural output as context rather than the main v2 story
 - desktop structural panels and export flow now frame structural output as supporting context
 - `findings` now includes a top-level confidence summary
@@ -81,14 +86,14 @@ The strongest completed work is:
 | Tier 1A | Mostly complete | Clone drift findings now have stable ids, git-aware risk context, divergence-aware family clustering, remediation hints, and cleaner production-first ranking | no history-aware rename/copy tracing and no dedicated clone-drift CLI surface yet |
 | Tier 1B | Mostly complete | TS bridge, semantic facts, persisted semantic cache reuse, proof artifacts, and explicit benchmark policy now exist across `parallel-code` and `private-benchmark-repo` | warm-path structural cost is still higher than desired and the cache story is not yet fully incremental |
 | Tier 1C | Mostly complete | v2 rules, concept graph, suppression enforcement, archetype-aware starter rules, and module-contract support now exist | broader policy UX and validation are still incomplete |
-| Tier 1D | Mostly complete | authority/access findings now include stronger public-boundary bypass and concept-boundary pressure summaries | no full scorecard track and limited generic public-entry inference |
+| Tier 1D | Mostly complete | authority/access findings now include stronger public-boundary bypass and concept-boundary pressure summaries | limited generic public-entry inference and scorecard calibration still need more real-repo evidence |
 | Tier 1E | Mostly complete | obligation engine now handles closed-domain and initial contract-driven triggers | richer contract families and finer changed-symbol precision are still incomplete |
 | Tier 1F | Mostly complete | `session_end` and `gate` now work in MCP and CLI on the same touched-concept model, including suppression-aware decisions and shared patch-safety analysis reuse | release-grade gate validation is still incomplete |
 | Tier 2A | Mostly complete | parity analyzer, MCP tool, and real proof now exist on more than one repo shape | broader contract families still need more false-positive review and non-happy-path validation |
 | Tier 2B | Mostly complete | concentration analysis exists and is tested | not yet benchmarked or validated on the real case-study repo |
 | Tier 2C | Mostly complete | inspection tools, adoption helpers, trust-tiered debt signals, structural debt findings, debt clusters, `project_shape`, and three real benchmark repos now exist | broader onboarding proof and evidence-quality validation are still incomplete |
 | Tier 3 | Partial | conservative state-integrity slice now includes explicit transition-site modeling and transition-coverage findings for rule-declared state domains | implicit lifecycle heuristics and broader invalid-state-risk inference are still not built |
-| Validation | Mostly complete | unit tests, synthetic gate/session regression scenarios, three real benchmark repos, multi-repo goldens, versioned benchmark comparison, explicit benchmark policy, confidence/migration checks, and an external eval harness now exist | no full migration suite and benchmark-repo unhappy-path coverage is still incomplete |
+| Validation | Mostly complete | unit tests, synthetic gate/session regression scenarios, three real benchmark repos, multi-repo goldens, versioned benchmark comparison, explicit benchmark policy, confidence/migration checks, defect injection, review packets, remediation eval scaffolding, and signal scorecards now exist | no full migration suite and benchmark-repo unhappy-path coverage is still incomplete |
 
 ## Tier-By-Tier Status
 

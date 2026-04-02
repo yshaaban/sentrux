@@ -1,0 +1,221 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-02T12:13:05.484Z",
+  "repo_root": "<parallel-code-root>",
+  "tool": "findings",
+  "samples": [
+    {
+      "review_id": "findings-1",
+      "kind": "cycle_cluster",
+      "scope": "cycle:src/app/markdown-viewer.ts|src/app/task-command-lease-runtime-subscriptions.ts|src/app/task-command-lease-runtime.ts|src/app/task-command-lease-session.ts|src/app/task-command-lease-takeover.ts|src/app/task-command-lease.ts|src/app/task-presentation-status.ts|src/domain/renderer-invoke.ts|src/domain/task-closing.ts|src/lib/browser-http-ipc.ts|src/lib/dialog.ts|src/lib/ipc.ts|src/lib/runtime-client-id.ts|src/store/agent-output-activity.ts|src/store/agents.ts|src/store/auto-trust.ts|src/store/client-session.ts|src/store/completion.ts|src/store/core.ts|src/store/focus.ts|src/store/navigation.ts|src/store/notification.ts|src/store/peer-presence.ts|src/store/persistence-agent-defaults.ts|src/store/persistence-codecs.ts|src/store/persistence-legacy-state.ts|src/store/persistence-load-context.ts|src/store/persistence-load.ts|src/store/persistence-projects.ts|src/store/persistence-save.ts|src/store/persistence-task-hydration.ts|src/store/persistence-terminal-restore.ts|src/store/persistence.ts|src/store/projects.ts|src/store/review.ts|src/store/sidebar-order.ts|src/store/sidebar-section-state.ts|src/store/state.ts|src/store/store.ts|src/store/task-command-controllers.ts|src/store/task-command-takeovers.ts|src/store/task-git-isolation.ts|src/store/task-git-status.ts|src/store/task-state-cleanup.ts|src/store/taskStatus.ts|src/store/tasks.ts|src/store/terminals.ts|src/store/types.ts|src/store/ui.ts",
+      "severity": "high",
+      "summary": "Files src/app/markdown-viewer.ts, src/app/task-command-lease-runtime-subscriptions.ts, src/app/task-command-lease-runtime.ts, src/app/task-command-lease-session.ts, src/app/task-command-lease-takeover.ts, src/app/task-command-lease.ts, src/app/task-presentation-status.ts, src/domain/renderer-invoke.ts, src/domain/task-closing.ts, src/lib/browser-http-ipc.ts, src/lib/dialog.ts, src/lib/ipc.ts, src/lib/runtime-client-id.ts, src/store/agent-output-activity.ts, src/store/agents.ts, src/store/auto-trust.ts, src/store/client-session.ts, src/store/completion.ts, src/store/core.ts, src/store/focus.ts, src/store/navigation.ts, src/store/notification.ts, src/store/peer-presence.ts, src/store/persistence-agent-defaults.ts, src/store/persistence-codecs.ts, src/store/persistence-legacy-state.ts, src/store/persistence-load-context.ts, src/store/persistence-load.ts, src/store/persistence-projects.ts, src/store/persistence-save.ts, src/store/persistence-task-hydration.ts, src/store/persistence-terminal-restore.ts, src/store/persistence.ts, src/store/projects.ts, src/store/review.ts, src/store/sidebar-order.ts, src/store/sidebar-section-state.ts, src/store/state.ts, src/store/store.ts, src/store/task-command-controllers.ts, src/store/task-command-takeovers.ts, src/store/task-git-isolation.ts, src/store/task-git-status.ts, src/store/task-state-cleanup.ts, src/store/taskStatus.ts, src/store/tasks.ts, src/store/terminals.ts, src/store/types.ts, src/store/ui.ts form a dependency cycle",
+      "evidence": [
+        "cycle size: 49",
+        "total lines in cycle: 9701",
+        "peak function complexity inside cycle: 72",
+        "candidate cuts: 3",
+        "best cut candidate: src/store/core.ts -> src/store/store.ts (removes 10 cyclic files)",
+        "role tags in cycle: guarded_seam, transport_facade, state_container, guarded_boundary, component_barrel"
+      ],
+      "classification": null,
+      "notes": "",
+      "action": ""
+    },
+    {
+      "review_id": "findings-2",
+      "kind": "large_file",
+      "scope": "scripts/terminal-ui-fluidity-matrix.mjs",
+      "severity": "high",
+      "summary": "File 'scripts/terminal-ui-fluidity-matrix.mjs' is 1120 lines, above the javascript threshold of 500",
+      "evidence": [
+        "line count: 1120",
+        "large-file threshold: 500",
+        "function count: 23",
+        "peak function complexity: 49",
+        "outbound dependencies: 2"
+      ],
+      "classification": null,
+      "notes": "",
+      "action": ""
+    },
+    {
+      "review_id": "findings-3",
+      "kind": "large_file",
+      "scope": "src/components/TerminalView.tsx",
+      "severity": "high",
+      "summary": "File 'src/components/TerminalView.tsx' is 1492 lines, above the typescript threshold of 500",
+      "evidence": [
+        "line count: 1492",
+        "large-file threshold: 500",
+        "function count: 70",
+        "peak function complexity: 145",
+        "outbound dependencies: 26"
+      ],
+      "classification": null,
+      "notes": "",
+      "action": ""
+    },
+    {
+      "review_id": "findings-4",
+      "kind": "large_file",
+      "scope": "src/components/terminal-view/terminal-input-pipeline.ts",
+      "severity": "high",
+      "summary": "File 'src/components/terminal-view/terminal-input-pipeline.ts' is 1232 lines, above the typescript threshold of 500",
+      "evidence": [
+        "line count: 1232",
+        "large-file threshold: 500",
+        "function count: 83",
+        "peak function complexity: 193",
+        "outbound dependencies: 12",
+        "guardrail tests: src/app/store-boundary.architecture.test.ts"
+      ],
+      "classification": null,
+      "notes": "",
+      "action": ""
+    },
+    {
+      "review_id": "findings-5",
+      "kind": "large_file",
+      "scope": "src/components/terminal-view/terminal-output-pipeline.ts",
+      "severity": "high",
+      "summary": "File 'src/components/terminal-view/terminal-output-pipeline.ts' is 1073 lines, above the typescript threshold of 500",
+      "evidence": [
+        "line count: 1073",
+        "large-file threshold: 500",
+        "function count: 89",
+        "peak function complexity: 155",
+        "outbound dependencies: 17"
+      ],
+      "classification": null,
+      "notes": "",
+      "action": ""
+    },
+    {
+      "review_id": "findings-6",
+      "kind": "large_file",
+      "scope": "src/components/terminal-view/terminal-recovery-runtime.ts",
+      "severity": "high",
+      "summary": "File 'src/components/terminal-view/terminal-recovery-runtime.ts' is 1529 lines, above the typescript threshold of 500",
+      "evidence": [
+        "line count: 1529",
+        "large-file threshold: 500",
+        "function count: 68",
+        "peak function complexity: 260",
+        "outbound dependencies: 14"
+      ],
+      "classification": null,
+      "notes": "",
+      "action": ""
+    },
+    {
+      "review_id": "findings-7",
+      "kind": "large_file",
+      "scope": "src/components/terminal-view/terminal-session.ts",
+      "severity": "high",
+      "summary": "Guarded facade file 'src/components/terminal-view/terminal-session.ts' is 1310 lines, above the typescript threshold of 500",
+      "evidence": [
+        "line count: 1310",
+        "large-file threshold: 500",
+        "function count: 94",
+        "peak function complexity: 188",
+        "outbound dependencies: 28",
+        "guardrail tests: src/components/terminal-view/terminal-session.architecture.test.ts",
+        "extracted owner factories: createTerminalInputPipeline, createTerminalOutputPipeline, createTerminalRecoveryRuntime"
+      ],
+      "classification": null,
+      "notes": "",
+      "action": ""
+    },
+    {
+      "review_id": "findings-8",
+      "kind": "large_file",
+      "scope": "tests/browser/harness/fixtures.ts",
+      "severity": "high",
+      "summary": "File 'tests/browser/harness/fixtures.ts' is 1142 lines, above the typescript threshold of 500",
+      "evidence": [
+        "line count: 1142",
+        "large-file threshold: 500",
+        "function count: 58",
+        "peak function complexity: 54",
+        "outbound dependencies: 6"
+      ],
+      "classification": null,
+      "notes": "",
+      "action": ""
+    },
+    {
+      "review_id": "findings-9",
+      "kind": "dependency_sprawl",
+      "scope": "src/App.tsx",
+      "severity": "high",
+      "summary": "Composition root 'src/App.tsx' depends on 36 real surfaces, above the typescript threshold of 15",
+      "evidence": [
+        "fan-out: 36",
+        "fan-out threshold: 15",
+        "instability: 0.95",
+        "dominant dependency categories: components(17), app(6), lib(5)",
+        "sample dependencies: src/app/app-action-keys.ts, src/app/app-startup-status.ts, src/app/desktop-session.ts",
+        "guardrail tests: src/app/store-boundary.architecture.test.ts"
+      ],
+      "classification": null,
+      "notes": "",
+      "action": ""
+    },
+    {
+      "review_id": "findings-10",
+      "kind": "dependency_sprawl",
+      "scope": "src/components/TaskPanel.tsx",
+      "severity": "high",
+      "summary": "File 'src/components/TaskPanel.tsx' depends on 35 real surfaces, above the typescript threshold of 15",
+      "evidence": [
+        "fan-out: 35",
+        "fan-out threshold: 15",
+        "instability: 0.95",
+        "dominant dependency categories: components(19), app(7), lib(5)",
+        "sample dependencies: src/app/task-activity-clock.ts, src/app/task-containers.ts, src/app/task-ports.ts",
+        "guardrail tests: src/components/TaskPanel.architecture.test.ts",
+        "extracted owner factories: createTaskPanelFocusRuntime, createTaskPanelPreviewController, createTaskPanelDialogState, createTaskPanelPermissionController"
+      ],
+      "classification": null,
+      "notes": "",
+      "action": ""
+    },
+    {
+      "review_id": "findings-11",
+      "kind": "large_file",
+      "scope": "scripts/profile-terminal-ui-fluidity.mjs",
+      "severity": "high",
+      "summary": "File 'scripts/profile-terminal-ui-fluidity.mjs' is 2758 lines, above the javascript threshold of 500",
+      "evidence": [
+        "line count: 2758",
+        "large-file threshold: 500",
+        "function count: 112",
+        "peak function complexity: 38",
+        "outbound dependencies: 3"
+      ],
+      "classification": null,
+      "notes": "",
+      "action": ""
+    },
+    {
+      "review_id": "findings-12",
+      "kind": "dependency_sprawl",
+      "scope": "src/components/terminal-view/terminal-session.ts",
+      "severity": "high",
+      "summary": "File 'src/components/terminal-view/terminal-session.ts' depends on 28 real surfaces, above the typescript threshold of 15",
+      "evidence": [
+        "fan-out: 28",
+        "fan-out threshold: 15",
+        "instability: 0.90",
+        "dominant dependency categories: lib(16), components(5), store(3)",
+        "sample dependencies: electron/ipc/channels.ts, src/app/runtime-diagnostics.ts, src/app/terminal-interactivity-governor.ts",
+        "guardrail tests: src/components/terminal-view/terminal-session.architecture.test.ts",
+        "extracted owner factories: createTerminalInputPipeline, createTerminalOutputPipeline, createTerminalRecoveryRuntime"
+      ],
+      "classification": null,
+      "notes": "",
+      "action": ""
+    }
+  ]
+}

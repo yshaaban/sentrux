@@ -16,7 +16,9 @@ The loop validates three separate things:
 4. proof-and-improvement runs on disposable clones
 5. finding-class usefulness and trust-tier calibration
 6. mode-specific `agent_brief` coverage for `repo_onboarding`, `patch`, and `pre_merge`
-7. external evaluator calibration for agent guidance and experimental detectors
+7. fast-path `check` coverage and ranked action quality
+8. external evaluator calibration for agent guidance and experimental detectors
+9. remediation success on seeded defects
 
 ## Commands
 
@@ -146,6 +148,7 @@ The benchmark harness records and compares:
 - warm cached semantic latency
 - warm persisted semantic latency from a fresh process
 - warm patch-safety latency
+- warm `check` latency
 - regression thresholds across benchmark runs
 
 The checked-in benchmark artifact is versioned so incompatible benchmark shapes do not get compared accidentally.
@@ -227,6 +230,18 @@ This loop should drive product changes such as:
 - adding fixability metadata when a finding is real but not design-actionable yet
 - adjusting leverage classification when the raw finding is right but the engineering meaning is wrong
 - improving within-bucket ranking when two valid findings should not be treated as peers
+
+## Signal-Quality Loop
+
+Use the seeded defect harness, review packets, and remediation evals together.
+
+1. run `node scripts/defect-injection/run-injection.mjs`
+2. generate or refresh a review packet with `node scripts/evals/build-check-review-packet.mjs`
+3. classify reviewed findings using the false-positive workflow
+4. run remediation evals with `node scripts/evals/run-defect-remediation.mjs`
+5. aggregate the result into a per-signal scorecard with `node scripts/evals/build-signal-scorecard.mjs`
+
+Signals should only be promoted when seeded recall, reviewed precision, and remediation success all support the promotion.
 
 Current promotion note:
 

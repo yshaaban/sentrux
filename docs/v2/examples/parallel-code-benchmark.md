@@ -44,41 +44,42 @@ Comparison policy defaults:
 
 Primary captured run:
 
-- cold `scan`: `9284.6ms`
-- first semantic call (`concepts`): `2800.3ms`
-- total first-round session through `state`: `15739.4ms`
-- warm cached semantic round: `369.1ms`
-- warm `session_start`: `124.6ms`
-- warm `gate`: `3251.0ms`
-- warm `session_end`: `3470.8ms`
-- total warm patch-safety round: `6846.8ms`
+- cold `scan`: `14031.7ms`
+- first semantic call (`concepts`): `5440.1ms`
+- total first-round session through `state`: `24880.8ms`
+- warm cached semantic round: `7512.9ms`
+- warm `session_start`: `1003.1ms`
+- warm `check`: `66.7ms`
+- warm `gate`: `1032.1ms`
+- warm `session_end`: `1489.3ms`
+- total warm patch-safety round: `5383.9ms`
 
 ## What We Learned
 
-1. the warm semantic path is in very good shape for MCP usage
-   - the roadmap target in [analyzer-pipeline.md](../analyzer-pipeline.md) was under `3s`
-   - the current cached semantic round is well under `0.5s`
+1. the fast-path `check` loop is in very good shape for MCP usage
+   - the current warm `check` call is `66.7ms`
+   - that keeps the primary agent feedback surface comfortably inside the patch-loop budget
 
-2. the cold path is still dominated by `scan`
-   - the first-round cost is still mostly structural scan plus startup overhead
-   - the first semantic materialization is meaningful, but not the main bottleneck
+2. the cold path is still dominated by `scan` and first semantic materialization
+   - the first-round cost is still mostly structural scan, startup overhead, and the first semantic bridge pass
+   - this is acceptable for onboarding and repo-wide inspection, but not the interactive loop
 
-3. the TypeScript bridge architecture is not the current interactive bottleneck
-   - the bridge and cached semantic facts are fast enough for repeated MCP calls
-   - the next ROI is no longer bridge startup or semantic caching
+3. the warm patch-safety path improved materially in `head_clone` mode
+   - warm `gate` is down to `1032.1ms`
+   - warm `session_end` is down to `1489.3ms`
+   - total warm patch-safety is `5383.9ms`
 
-4. the shared patch-safety analysis reuse materially improved the warm no-change path
-   - warm `gate` improved from the previous artifact (`3377.3ms` -> `3251.0ms`)
-   - warm `session_end` regressed slightly but stayed within the benchmark threshold (`3362.2ms` -> `3470.8ms`)
-   - total warm patch-safety remained slightly better overall (`6863.4ms` -> `6846.8ms`)
-   - the dominant remaining cost is now scan-bound structural work and changed-file bookkeeping, not duplicate semantic analysis
+4. the remaining interactive bottleneck is no longer `check`
+   - `check` is the fast path and should stay narrow
+   - the dominant remaining costs are still `agent_brief`, `gate`, and `session_end`
+   - those paths still carry broader patch-safety work than the minimal `check` surface
 
-5. the benchmark harness is now stable enough for guarded comparison, but the cold path is still noisier than the warm path
-   - this run did not trigger any benchmark regressions
-   - warm patch-safety comparisons remain the most useful signal for this part of the roadmap
+5. comparison quality depends on using a controlled repo identity
+   - `working_tree` runs on a dirty repo can look catastrophically worse than the checked-in head-clone artifact
+   - use `ANALYSIS_MODE=head_clone` for apples-to-apples regression checks
 
 6. the benchmark harness now needs stable inputs as well as stable timings
-   - the artifact is now format-versioned so regression comparison does not compare incompatible benchmark shapes
+   - the artifact is format-versioned so regression comparison does not compare incompatible benchmark shapes
    - future regression runs should prefer a controlled repo state or temp copy when possible
 
 ## Validation Flow
@@ -93,9 +94,9 @@ The benchmark is part of the broader validation loop:
 
 The next implementation step should focus on two things:
 
-1. patch-safety performance
-   - reduce remaining scan-bound and changed-file bookkeeping work for `gate` and `session_end`
-   - preserve the already-good warm semantic path while improving the still-expensive patch-safety tools
+1. patch-safety performance beyond `check`
+   - keep `check` narrow and fast
+   - reduce remaining changed-file bookkeeping and report assembly cost for `gate`, `agent_brief`, and `session_end`
 
 2. analyzer promotion criteria
    - define when warning-tier benchmark drift is acceptable

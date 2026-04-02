@@ -141,12 +141,14 @@ async function runDefect(workRoot, homeOverride, defect) {
     const injection = await defect.inject(workRoot);
     const postScan = await runTool(postSession, 'scan', { path: workRoot });
     const check = await runTool(postSession, 'check', {});
+    const checkRules = await runTool(postSession, 'check_rules', {});
     const gate = await runTool(postSession, 'gate', {});
     const findings = await runTool(postSession, 'findings', { limit: 12 });
     const sessionEnd = await runTool(postSession, 'session_end', {});
 
     const artifacts = {
       check: check.payload,
+      check_rules: checkRules.payload,
       gate: gate.payload,
       findings: findings.payload,
       session_end: sessionEnd.payload,
@@ -162,9 +164,13 @@ async function runDefect(workRoot, homeOverride, defect) {
       post_scan: summarizeScan(postScan.payload),
       check_summary: summarizeCheck(check.payload),
       check: assertion.check,
-      gate: summarizeGate(gate.payload),
-      findings: summarizeFindings(findings.payload),
-      session_end: summarizeSessionEnd(sessionEnd.payload),
+      check_rules: assertion.check_rules,
+      gate: assertion.gate,
+      gate_summary: summarizeGate(gate.payload),
+      findings: assertion.findings,
+      findings_summary: summarizeFindings(findings.payload),
+      session_end: assertion.session_end,
+      session_end_summary: summarizeSessionEnd(sessionEnd.payload),
       assertions: assertion,
       detected: assertion.detected,
       status: assertion.status,
@@ -218,6 +224,10 @@ export async function runDefectInjection(options) {
       id: defect.id,
       title: defect.title,
       target_path: defect.target_path,
+      signal_kind: defect.signal_kind,
+      signal_family: defect.signal_family,
+      promotion_status: defect.promotion_status,
+      blocking_intent: defect.blocking_intent,
       check_supported: defect.check_support.supported,
     })),
     results,

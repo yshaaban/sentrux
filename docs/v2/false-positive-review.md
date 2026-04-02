@@ -31,6 +31,16 @@ Every review should include:
 4. the top findings or affected findings under review
 5. the reviewer classification for each sampled finding
 
+The fastest way to build a reusable packet for this review is:
+
+```bash
+node scripts/evals/build-check-review-packet.mjs --tool check
+```
+
+That packet is meant to be reviewed, classified, and then fed into the signal-quality scorecard flow.
+
+Use `--tool check` when you have a changed or seeded patch to review. On a clean repo, `check` may correctly return zero samples; for repo-wide false-positive review, build a `findings` or `session_end` packet instead.
+
 Minimum repo set for wedge analyzers:
 
 1. `parallel-code`

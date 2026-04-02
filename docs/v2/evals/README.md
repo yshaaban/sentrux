@@ -99,3 +99,16 @@ Each task run emits a JSON result with:
 - check results and summary status
 
 The schema is intentionally stable so future providers can slot into the same runner.
+
+## Signal-Quality Extensions
+
+The external provider runner is only one part of the quality loop.
+
+Supporting scripts now cover:
+
+- `node scripts/evals/build-check-review-packet.mjs`
+  Build a reusable review packet from `check`, `findings`, or `session_end` for manual false-positive review.
+- `node scripts/evals/run-defect-remediation.mjs`
+  Seed a defect, let a provider attempt a fix in a disposable clone, rerun `check`, and record whether the signal actually helped the agent repair the issue.
+- `node scripts/evals/build-signal-scorecard.mjs`
+  Merge defect-injection results, reviewed verdicts, remediation outcomes, and benchmark latency into a per-signal scorecard.

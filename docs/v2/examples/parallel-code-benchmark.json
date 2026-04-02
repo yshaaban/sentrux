@@ -1,22 +1,25 @@
 {
   "benchmark_format_version": 3,
-  "generated_at": "2026-03-20T04:30:59.453Z",
+  "generated_at": "2026-04-02T11:06:27.125Z",
   "parallel_code_root": "<parallel-code-root>",
   "analysis_mode": "head_clone",
   "source_tree_identity": {
-    "commit": "515044a4bd3867142d6fff31bcbb0a31d76e34c5",
-    "dirty_paths": [],
-    "dirty_paths_count": 0,
-    "dirty_paths_fingerprint": "53c1562521679823f3ee3c10c2585dec4c3ecd862d145f868947047fd32725ac",
-    "tree_fingerprint": "1a927458c65a57174c31a70ba48b0dcd1fe18c80681512eed86f5710da511d7c",
+    "commit": "be23faef6ed5654ae3f9ce146cfd653182699a72",
+    "dirty_paths": [
+      ".gitignore",
+      "src/app/markdown-viewer.ts"
+    ],
+    "dirty_paths_count": 2,
+    "dirty_paths_fingerprint": "38c584409ec4333f9ebae5a9509b9093f55645026596b43d66198420cf52bd5b",
+    "tree_fingerprint": "92d4d8a6205160c8942ee3af3d4394687e8c25ab7ae5495fceb37bb0495388e6",
     "analysis_mode": "head_clone"
   },
   "analyzed_tree_identity": {
-    "commit": "515044a4bd3867142d6fff31bcbb0a31d76e34c5",
+    "commit": "be23faef6ed5654ae3f9ce146cfd653182699a72",
     "dirty_paths": [],
     "dirty_paths_count": 0,
     "dirty_paths_fingerprint": "53c1562521679823f3ee3c10c2585dec4c3ecd862d145f868947047fd32725ac",
-    "tree_fingerprint": "1a927458c65a57174c31a70ba48b0dcd1fe18c80681512eed86f5710da511d7c",
+    "tree_fingerprint": "b14fb9062e2e32f73a706557162f2414c102a195c178c715e0b17a2d35d08d5c",
     "analysis_mode": "head_clone"
   },
   "rules_identity": {
@@ -27,66 +30,71 @@
   "binary_identity": {
     "path": "<sentrux-root>/target/debug/sentrux",
     "exists": true,
-    "sha256": "b62d359d09b76d40dc2b4b79bad6a9b60d7333998d0f974aaef785332f2af764"
+    "sha256": "f9d71e715363761130dd0f609213bb02285418eb6d65d27a4412e97c9a4daa0d"
   },
   "sentrux_binary": "<sentrux-root>/target/debug/sentrux",
   "benchmark": {
-    "cold_process_total_ms": 16393.2,
+    "cold_process_total_ms": 36083.3,
     "cold": {
       "scan": {
         "label": "scan",
         "tool": "scan",
-        "elapsed_ms": 2223.3,
+        "elapsed_ms": 14031.7,
         "summary": {
-          "files": 655,
-          "import_edges": 2007,
-          "quality_signal": 4371,
-          "overall_confidence_0_10000": 8302,
-          "resolved": 2008,
+          "files": 813,
+          "import_edges": 2621,
+          "quality_signal": 4224,
+          "overall_confidence_0_10000": 8531,
+          "resolved": 2622,
           "unresolved_internal": 1
         }
       },
       "concepts": {
         "label": "concepts",
         "tool": "concepts",
-        "elapsed_ms": 3143.4,
+        "elapsed_ms": 5440.1,
         "summary": {
           "configured_concept_count": 3,
+          "contract_count": 1,
           "matched_guardrail_test_count": 1,
-          "inferred_concept_count": 124,
+          "inferred_concept_count": 162,
+          "state_model_count": 2,
           "semantic_cache_source": "bridge"
         }
       },
       "findings": {
         "label": "findings_top12",
         "tool": "findings",
-        "elapsed_ms": 4904.6,
+        "elapsed_ms": 9381.1,
         "summary": {
-          "clone_group_count": 22,
+          "clone_group_count": 44,
+          "clone_family_count": 7,
           "finding_count": 12,
-          "semantic_finding_count": 5
+          "semantic_finding_count": 4,
+          "debt_signal_count": 5,
+          "watchpoint_count": 5
         }
       },
       "explain_task_git_status": {
         "label": "explain_task_git_status",
         "tool": "explain_concept",
-        "elapsed_ms": 441.2,
+        "elapsed_ms": 1135.6,
         "summary": {
           "finding_count": 0,
           "obligation_count": 0,
-          "read_count": 7,
-          "write_count": 7,
+          "read_count": 8,
+          "write_count": 12,
           "related_test_count": 4
         }
       },
       "explain_task_presentation_status": {
         "label": "explain_task_presentation_status",
         "tool": "explain_concept",
-        "elapsed_ms": 433.1,
+        "elapsed_ms": 1584.8,
         "summary": {
           "finding_count": 1,
           "obligation_count": 1,
-          "read_count": 28,
+          "read_count": 40,
           "write_count": 0,
           "related_test_count": 4
         }
@@ -94,7 +102,7 @@
       "parity_server_state_bootstrap": {
         "label": "parity_server_state_bootstrap",
         "tool": "parity",
-        "elapsed_ms": 95.3,
+        "elapsed_ms": 497.8,
         "summary": {
           "contract_count": 1,
           "missing_cell_count": 0,
@@ -105,7 +113,7 @@
       "state": {
         "label": "state",
         "tool": "state",
-        "elapsed_ms": 144.7,
+        "elapsed_ms": 693.1,
         "summary": {
           "state_model_count": 2,
           "finding_count": 3,
@@ -115,7 +123,7 @@
       "agent_brief_onboarding": {
         "label": "agent_brief_onboarding",
         "tool": "agent_brief",
-        "elapsed_ms": 5005.5,
+        "elapsed_ms": 3316.5,
         "summary": {
           "mode": "repo_onboarding",
           "decision": "fix_now",
@@ -126,49 +134,54 @@
         }
       }
     },
-    "warm_cached_total_ms": 6778.3,
+    "warm_cached_total_ms": 7512.9,
     "warm_cached": {
       "concepts": {
         "label": "concepts",
         "tool": "concepts",
-        "elapsed_ms": 145,
+        "elapsed_ms": 590.9,
         "summary": {
           "configured_concept_count": 3,
+          "contract_count": 1,
           "matched_guardrail_test_count": 1,
-          "inferred_concept_count": 124,
+          "inferred_concept_count": 162,
+          "state_model_count": 2,
           "semantic_cache_source": "memory"
         }
       },
       "findings": {
         "label": "findings_top12",
         "tool": "findings",
-        "elapsed_ms": 824.8,
+        "elapsed_ms": 2447.2,
         "summary": {
-          "clone_group_count": 22,
+          "clone_group_count": 44,
+          "clone_family_count": 7,
           "finding_count": 12,
-          "semantic_finding_count": 5
+          "semantic_finding_count": 4,
+          "debt_signal_count": 5,
+          "watchpoint_count": 5
         }
       },
       "explain_task_git_status": {
         "label": "explain_task_git_status",
         "tool": "explain_concept",
-        "elapsed_ms": 344.6,
+        "elapsed_ms": 950.4,
         "summary": {
           "finding_count": 0,
           "obligation_count": 0,
-          "read_count": 7,
-          "write_count": 7,
+          "read_count": 8,
+          "write_count": 12,
           "related_test_count": 4
         }
       },
       "explain_task_presentation_status": {
         "label": "explain_task_presentation_status",
         "tool": "explain_concept",
-        "elapsed_ms": 363,
+        "elapsed_ms": 857.4,
         "summary": {
           "finding_count": 1,
           "obligation_count": 1,
-          "read_count": 28,
+          "read_count": 40,
           "write_count": 0,
           "related_test_count": 4
         }
@@ -176,7 +189,7 @@
       "parity_server_state_bootstrap": {
         "label": "parity_server_state_bootstrap",
         "tool": "parity",
-        "elapsed_ms": 75.5,
+        "elapsed_ms": 210,
         "summary": {
           "contract_count": 1,
           "missing_cell_count": 0,
@@ -187,7 +200,7 @@
       "state": {
         "label": "state",
         "tool": "state",
-        "elapsed_ms": 136.4,
+        "elapsed_ms": 313,
         "summary": {
           "state_model_count": 2,
           "finding_count": 3,
@@ -197,7 +210,7 @@
       "agent_brief_onboarding": {
         "label": "agent_brief_onboarding",
         "tool": "agent_brief",
-        "elapsed_ms": 4888,
+        "elapsed_ms": 2142.4,
         "summary": {
           "mode": "repo_onboarding",
           "decision": "fix_now",
@@ -208,46 +221,51 @@
         }
       }
     },
-    "warm_persisted_total_ms": 11951.3,
+    "warm_persisted_total_ms": 22477.4,
     "warm_persisted": {
       "scan": {
         "label": "persisted_scan",
         "tool": "scan",
-        "elapsed_ms": 2052.6,
+        "elapsed_ms": 7883.2,
         "summary": {
-          "files": 655,
-          "import_edges": 2007,
-          "quality_signal": 4371,
-          "overall_confidence_0_10000": 8302,
-          "resolved": 2008,
+          "files": 813,
+          "import_edges": 2621,
+          "quality_signal": 4224,
+          "overall_confidence_0_10000": 8531,
+          "resolved": 2622,
           "unresolved_internal": 1
         }
       },
       "concepts": {
         "label": "persisted_concepts",
         "tool": "concepts",
-        "elapsed_ms": 233.9,
+        "elapsed_ms": 533,
         "summary": {
           "configured_concept_count": 3,
+          "contract_count": 1,
           "matched_guardrail_test_count": 1,
-          "inferred_concept_count": 124,
+          "inferred_concept_count": 162,
+          "state_model_count": 2,
           "semantic_cache_source": "disk"
         }
       },
       "findings": {
         "label": "persisted_findings_top12",
         "tool": "findings",
-        "elapsed_ms": 4849.4,
+        "elapsed_ms": 12506.8,
         "summary": {
-          "clone_group_count": 22,
+          "clone_group_count": 44,
+          "clone_family_count": 7,
           "finding_count": 12,
-          "semantic_finding_count": 5
+          "semantic_finding_count": 4,
+          "debt_signal_count": 5,
+          "watchpoint_count": 5
         }
       },
       "agent_brief_onboarding": {
         "label": "persisted_agent_brief_onboarding",
         "tool": "agent_brief",
-        "elapsed_ms": 4812.7,
+        "elapsed_ms": 1550.6,
         "summary": {
           "mode": "repo_onboarding",
           "decision": "fix_now",
@@ -258,21 +276,21 @@
         }
       }
     },
-    "warm_patch_safety_total_ms": 5275.9,
+    "warm_patch_safety_total_ms": 5383.9,
     "warm_patch_safety": {
       "session_start": {
         "label": "session_start",
         "tool": "session_start",
-        "elapsed_ms": 393.1,
+        "elapsed_ms": 1003.1,
         "summary": {
-          "session_finding_count": 117,
+          "session_finding_count": 194,
           "suppressed_finding_count": 0
         }
       },
       "agent_brief_patch": {
         "label": "agent_brief_patch",
         "tool": "agent_brief",
-        "elapsed_ms": 4532.9,
+        "elapsed_ms": 894.8,
         "summary": {
           "mode": "patch",
           "decision": "continue",
@@ -285,7 +303,7 @@
       "gate": {
         "label": "gate",
         "tool": "gate",
-        "elapsed_ms": 41,
+        "elapsed_ms": 1032.1,
         "summary": {
           "decision": "pass",
           "changed_file_count": 0,
@@ -294,10 +312,22 @@
           "obligation_completeness_0_10000": 10000
         }
       },
+      "check": {
+        "label": "check",
+        "tool": "check",
+        "elapsed_ms": 66.7,
+        "summary": {
+          "gate": "pass",
+          "issue_count": 0,
+          "changed_file_count": 0,
+          "partial_results": false,
+          "changed_scope_available": true
+        }
+      },
       "agent_brief_pre_merge": {
         "label": "agent_brief_pre_merge",
         "tool": "agent_brief",
-        "elapsed_ms": 186.8,
+        "elapsed_ms": 896.6,
         "summary": {
           "mode": "pre_merge",
           "decision": "continue",
@@ -310,7 +340,7 @@
       "session_end": {
         "label": "session_end",
         "tool": "session_end",
-        "elapsed_ms": 121.4,
+        "elapsed_ms": 1489.3,
         "summary": {
           "pass": true,
           "changed_file_count": 0,
@@ -322,156 +352,11 @@
     },
     "stdout_log": [],
     "stderr_log": [
-      "[build_project_map] 655 files, 33 unique dirs, 32 cache misses, 1.1ms",
-      "[resolve] 2008 resolved, 1 unresolved_internal, 533 unresolved_external, 86 unresolved_unknown (of 2628 total specs)",
-      "[resolve_imports] project_map 1.7ms, suffix_idx 3.7ms, suffix_resolve 16.7ms, total 22.2ms",
-      "[build_graphs] 655 files | maps 6.2ms, imports 22.5ms, calls+inherit 28.5ms, total 57.2ms | 2007 import, 4321 call, 0 inherit edges",
-      "[evolution] walked 874 commits, skipped 90 (oid_err=0, commit_err=0, unparseable=90)",
-      "[evolution] walked 874 commits, skipped 90 (oid_err=0, commit_err=0, unparseable=90)",
-      "[evolution] walked 874 commits, skipped 90 (oid_err=0, commit_err=0, unparseable=90)",
-      "[evolution] walked 874 commits, skipped 90 (oid_err=0, commit_err=0, unparseable=90)"
+      "[build_project_map] 813 files, 33 unique dirs, 33 cache misses, 6.9ms",
+      "[resolve] 2622 resolved, 1 unresolved_internal, 755 unresolved_external, 111 unresolved_unknown (of 3489 total specs)",
+      "[resolve_imports] project_map 8.1ms, suffix_idx 26.4ms, suffix_resolve 143.5ms, total 178.1ms",
+      "[build_graphs] 813 files | maps 14.2ms, imports 179.4ms, calls+inherit 78.7ms, total 272.3ms | 2621 import, 6394 call, 0 inherit edges",
+      "[evolution] walked 954 commits, skipped 92 (oid_err=0, commit_err=0, unparseable=92)"
     ]
-  },
-  "comparison": {
-    "compared_to": "<sentrux-root>/docs/v2/examples/parallel-code-benchmark.json",
-    "previous_generated_at": "2026-03-20T03:28:32.994Z",
-    "policy": {
-      "fail": {
-        "max_regression_ms": 250,
-        "max_regression_percent": 20
-      },
-      "warn": {
-        "max_regression_ms": 150,
-        "max_regression_percent": 10
-      },
-      "mode": "delta_ms_and_percent"
-    },
-    "metrics": [
-      {
-        "metric": "cold process total",
-        "path": "cold_process_total_ms",
-        "previous_ms": 15890.8,
-        "current_ms": 16393.2,
-        "delta_ms": 502.4,
-        "delta_percent": 3.2,
-        "classification": "info"
-      },
-      {
-        "metric": "cold scan",
-        "path": "cold.scan.elapsed_ms",
-        "previous_ms": 2169.6,
-        "current_ms": 2223.3,
-        "delta_ms": 53.7,
-        "delta_percent": 2.5,
-        "classification": "info"
-      },
-      {
-        "metric": "cold concepts",
-        "path": "cold.concepts.elapsed_ms",
-        "previous_ms": 3046.2,
-        "current_ms": 3143.4,
-        "delta_ms": 97.2,
-        "delta_percent": 3.2,
-        "classification": "info"
-      },
-      {
-        "metric": "cold agent_brief onboarding",
-        "path": "cold.agent_brief_onboarding.elapsed_ms",
-        "previous_ms": 4849.5,
-        "current_ms": 5005.5,
-        "delta_ms": 156,
-        "delta_percent": 3.2,
-        "classification": "info"
-      },
-      {
-        "metric": "warm cached total",
-        "path": "warm_cached_total_ms",
-        "previous_ms": 6389.9,
-        "current_ms": 6778.3,
-        "delta_ms": 388.4,
-        "delta_percent": 6.1,
-        "classification": "info"
-      },
-      {
-        "metric": "warm findings",
-        "path": "warm_cached.findings.elapsed_ms",
-        "previous_ms": 733.5,
-        "current_ms": 824.8,
-        "delta_ms": 91.3,
-        "delta_percent": 12.4,
-        "classification": "info"
-      },
-      {
-        "metric": "warm agent_brief onboarding",
-        "path": "warm_cached.agent_brief_onboarding.elapsed_ms",
-        "previous_ms": 4922.3,
-        "current_ms": 4888,
-        "delta_ms": -34.3,
-        "delta_percent": -0.7,
-        "classification": "info"
-      },
-      {
-        "metric": "warm patch-safety total",
-        "path": "warm_patch_safety_total_ms",
-        "previous_ms": 5385.8,
-        "current_ms": 5275.9,
-        "delta_ms": -109.9,
-        "delta_percent": -2,
-        "classification": "info"
-      },
-      {
-        "metric": "warm session_start",
-        "path": "warm_patch_safety.session_start.elapsed_ms",
-        "previous_ms": 366.9,
-        "current_ms": 393.1,
-        "delta_ms": 26.2,
-        "delta_percent": 7.1,
-        "classification": "info"
-      },
-      {
-        "metric": "warm agent_brief patch",
-        "path": "warm_patch_safety.agent_brief_patch.elapsed_ms",
-        "previous_ms": 4665.5,
-        "current_ms": 4532.9,
-        "delta_ms": -132.6,
-        "delta_percent": -2.8,
-        "classification": "info"
-      },
-      {
-        "metric": "warm gate",
-        "path": "warm_patch_safety.gate.elapsed_ms",
-        "previous_ms": 44.4,
-        "current_ms": 41,
-        "delta_ms": -3.4,
-        "delta_percent": -7.7,
-        "classification": "info"
-      },
-      {
-        "metric": "warm agent_brief pre_merge",
-        "path": "warm_patch_safety.agent_brief_pre_merge.elapsed_ms",
-        "previous_ms": 179.7,
-        "current_ms": 186.8,
-        "delta_ms": 7.1,
-        "delta_percent": 4,
-        "classification": "info"
-      },
-      {
-        "metric": "warm session_end",
-        "path": "warm_patch_safety.session_end.elapsed_ms",
-        "previous_ms": 128.3,
-        "current_ms": 121.4,
-        "delta_ms": -6.9,
-        "delta_percent": -5.4,
-        "classification": "info"
-      }
-    ],
-    "summary": {
-      "total": 13,
-      "fail_count": 0,
-      "warn_count": 0,
-      "info_count": 13
-    },
-    "regressions": [],
-    "warnings": []
   }
 }

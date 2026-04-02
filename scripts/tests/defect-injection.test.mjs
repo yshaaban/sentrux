@@ -25,10 +25,11 @@ test('catalogs expose the expected defect ids', function () {
   );
   assert.deepEqual(
     createDogfoodCatalog().map((defect) => defect.id),
-    ['self_large_file', 'self_cycle_introduction', 'self_clone_injection'],
+    ['self_large_file', 'self_cycle_introduction', 'self_boundary_violation'],
   );
   assert.equal(createParallelCodeCatalog()[2].check_support.supported, false);
   assert.equal(createDogfoodCatalog()[2].check_support.supported, false);
+  assert.equal(createDogfoodCatalog()[2].expected_check_rules_kinds[0], 'boundary');
 });
 
 test('selectDefects filters by requested ids', function () {
@@ -102,6 +103,7 @@ test('formatInjectionReportMarkdown summarizes the run', function () {
         title: 'Append 120 lines',
         status: 'partial',
         check: { supported: false, matched: false, evidence: [] },
+        check_rules: { matched: true, evidence: ['$.violations[0].rule:boundary'] },
         gate: { matched: true, evidence: ['$.gate:introduced_findings[0].kind:large_file'] },
         findings: { matched: true, evidence: ['$.findings[0].kind:large_file'] },
         session_end: { matched: false, evidence: [] },
@@ -114,4 +116,5 @@ test('formatInjectionReportMarkdown summarizes the run', function () {
   assert.match(markdown, /Defect Injection Report/);
   assert.match(markdown, /large_file_growth/);
   assert.match(markdown, /partial/);
+  assert.match(markdown, /check_rules matched/);
 });

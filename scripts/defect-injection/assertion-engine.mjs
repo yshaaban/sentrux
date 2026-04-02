@@ -59,6 +59,14 @@ function evaluatePayloadExpectation(expectation, payload) {
   const expectedKinds = new Set(expectation?.kinds ?? []);
   const expectsKinds = expectedKinds.size > 0;
   const expectsDecision = typeof expectation?.decision === 'string';
+  if (!expectsKinds && !expectsDecision) {
+    return {
+      supported: false,
+      matched: false,
+      evidence: [],
+      matched_kinds: [],
+    };
+  }
   const matches = expectedKinds.size > 0 ? collectKindMatches(payload, expectedKinds) : [];
   const evidence = matches.map((match) => `${match.path}:${match.kind}`);
   const matchedKinds = [...new Set(matches.map((match) => match.kind))];
@@ -82,6 +90,10 @@ function evaluatePayloadExpectation(expectation, payload) {
 
 export function evaluateDefectAssertion(defect, artifacts) {
   const check = evaluateCheckExpectation(defect.check_support, artifacts.check);
+  const checkRules = evaluatePayloadExpectation(
+    { kinds: defect.expected_check_rules_kinds },
+    artifacts.check_rules,
+  );
   const gate = evaluatePayloadExpectation(
     {
       decision: defect.expected_gate_decision,
@@ -98,7 +110,8 @@ export function evaluateDefectAssertion(defect, artifacts) {
     artifacts.session_end,
   );
 
-  const detected = check.matched || gate.matched || findings.matched || sessionEnd.matched;
+  const detected =
+    check.matched || checkRules.matched || gate.matched || findings.matched || sessionEnd.matched;
   const supportedPrimary = check.supported;
 
   return {
@@ -106,6 +119,7 @@ export function evaluateDefectAssertion(defect, artifacts) {
     title: defect.title,
     supported_primary: supportedPrimary,
     check,
+    check_rules: checkRules,
     gate,
     findings,
     session_end: sessionEnd,
@@ -123,6 +137,7 @@ export function assertDefectAssertion(defect, artifacts) {
         `Defect '${defect.id}' was not detected by the check or follow-up assertions.`,
         `Check supported: ${result.check.supported}`,
         `Check matched: ${result.check.matched}`,
+        `Check rules matched: ${result.check_rules.matched}`,
         `Gate matched: ${result.gate.matched}`,
         `Findings matched: ${result.findings.matched}`,
         `Session end matched: ${result.session_end.matched}`,

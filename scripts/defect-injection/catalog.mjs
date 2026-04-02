@@ -105,16 +105,31 @@ function buildCycleImportSnippet(importPath, importedName) {
   ].join('\n');
 }
 
+function buildRendererBoundaryViolationSnippet() {
+  return [
+    '',
+    'use crate::analysis::scanner;',
+    '',
+    'const _: fn(&str) -> bool = scanner::common::is_probably_generated_path;',
+    '',
+  ].join('\n');
+}
+
 function createDefect({
   id,
   title,
   repoLabel,
   targetPath,
   inject,
+  signalKind,
+  signalFamily,
+  promotionStatus = 'trusted',
+  blockingIntent = 'blocking',
   checkSupport = {
     supported: false,
     reason: 'The current fast check path does not guarantee this signal.',
   },
+  checkRulesKinds = [],
   gateKinds = [],
   findingKinds = [],
   sessionEndKinds = [],
@@ -125,7 +140,12 @@ function createDefect({
     title,
     repo_label: repoLabel,
     target_path: targetPath,
+    signal_kind: signalKind,
+    signal_family: signalFamily,
+    promotion_status: promotionStatus,
+    blocking_intent: blockingIntent,
     check_support: checkSupport,
+    expected_check_rules_kinds: checkRulesKinds,
     expected_gate_decision: expectedGateDecision,
     expected_gate_kinds: gateKinds,
     expected_finding_kinds: findingKinds,
@@ -146,6 +166,9 @@ function buildParallelCodeCatalog() {
       title: 'Append 120 lines to SidebarTaskRow.tsx',
       repoLabel: 'parallel-code',
       targetPath: 'src/components/SidebarTaskRow.tsx',
+      signalKind: 'large_file',
+      signalFamily: 'structural',
+      blockingIntent: 'watchpoint',
       checkSupport: {
         supported: true,
         kinds: ['large_file'],
@@ -167,6 +190,8 @@ function buildParallelCodeCatalog() {
       title: 'Read task status directly from SidebarTaskRow.tsx',
       repoLabel: 'parallel-code',
       targetPath: 'src/components/SidebarTaskRow.tsx',
+      signalKind: 'forbidden_raw_read',
+      signalFamily: 'rules',
       checkSupport: {
         supported: true,
         gate: 'fail',
@@ -188,6 +213,10 @@ function buildParallelCodeCatalog() {
       title: 'Duplicate the network access helper into the remote HTTP handler',
       repoLabel: 'parallel-code',
       targetPath: 'electron/remote/http-handler.ts',
+      signalKind: 'exact_clone_group',
+      signalFamily: 'clone',
+      blockingIntent: 'full_path_only',
+      promotionStatus: 'watchpoint',
       checkSupport: {
         supported: false,
         reason: 'Clone findings are not guaranteed on the check fast path.',
@@ -208,6 +237,8 @@ function buildParallelCodeCatalog() {
       title: 'Add a TaskDotStatus variant without updating consumers',
       repoLabel: 'parallel-code',
       targetPath: 'src/app/task-presentation-status.ts',
+      signalKind: 'closed_domain_exhaustiveness',
+      signalFamily: 'obligation',
       checkSupport: {
         supported: true,
         gate: 'fail',
@@ -230,6 +261,10 @@ function buildParallelCodeCatalog() {
       title: 'Add a new production helper without a sibling test',
       repoLabel: 'parallel-code',
       targetPath: 'src/app/task-health-monitor.ts',
+      signalKind: 'missing_test_coverage',
+      signalFamily: 'structural',
+      promotionStatus: 'watchpoint',
+      blockingIntent: 'watchpoint',
       checkSupport: {
         supported: true,
         gate: 'pass',
@@ -256,6 +291,9 @@ function buildDogfoodCatalog() {
       title: 'Append 120 lines to the benchmark harness',
       repoLabel: 'sentrux',
       targetPath: 'scripts/lib/benchmark-harness.mjs',
+      signalKind: 'large_file',
+      signalFamily: 'structural',
+      blockingIntent: 'watchpoint',
       checkSupport: {
         supported: true,
         gate: 'warn',
@@ -277,6 +315,10 @@ function buildDogfoodCatalog() {
       title: 'Introduce a dependency cycle between benchmark support modules',
       repoLabel: 'sentrux',
       targetPath: 'scripts/lib/benchmark-harness.mjs',
+      signalKind: 'cycle_cluster',
+      signalFamily: 'structural',
+      promotionStatus: 'watchpoint',
+      blockingIntent: 'watchpoint',
       gateKinds: ['cycle_cluster'],
       findingKinds: ['cycle_cluster'],
       sessionEndKinds: ['cycle_cluster'],
@@ -294,22 +336,22 @@ function buildDogfoodCatalog() {
       },
     }),
     createDefect({
-      id: 'self_clone_injection',
-      title: 'Duplicate text-line helpers into the validation library',
+      id: 'self_boundary_violation',
+      title: 'Introduce a renderer-to-analysis boundary shortcut',
       repoLabel: 'sentrux',
-      targetPath: 'scripts/lib/v2-validation.mjs',
+      targetPath: 'sentrux-core/src/renderer/mod.rs',
+      signalKind: 'check_rules',
+      signalFamily: 'rules',
       checkSupport: {
         supported: false,
-        reason: 'Clone findings are not guaranteed on the check fast path.',
+        reason: 'Explicit boundary rules currently surface through check_rules, not fast-path check.',
       },
-      gateKinds: ['clone_family', 'exact_clone_group'],
-      findingKinds: ['clone_family', 'exact_clone_group'],
-      sessionEndKinds: ['clone_family', 'exact_clone_group'],
+      checkRulesKinds: ['boundary'],
       async inject(workRoot) {
         return appendToFile(
           workRoot,
-          'scripts/lib/v2-validation.mjs',
-          buildDuplicateTextLineHelpers(),
+          'sentrux-core/src/renderer/mod.rs',
+          buildRendererBoundaryViolationSnippet(),
         );
       },
     }),

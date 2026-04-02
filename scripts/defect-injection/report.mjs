@@ -8,6 +8,7 @@ function summarizeResults(results) {
     partial: 0,
     failed: 0,
     check_supported: 0,
+    check_rules_detected: 0,
   };
 
   for (const result of results) {
@@ -21,6 +22,9 @@ function summarizeResults(results) {
     }
     if (result.check.supported) {
       summary.check_supported += 1;
+    }
+    if (result.check_rules?.matched) {
+      summary.check_rules_detected += 1;
     }
   }
 
@@ -55,7 +59,8 @@ export function formatInjectionReportMarkdown(report) {
   lines.push(`- detected: ${report.summary.detected}`);
   lines.push(`- partial: ${report.summary.partial}`);
   lines.push(`- failed: ${report.summary.failed}`);
-  lines.push(`- check supported: ${report.summary.check_supported}`);
+    lines.push(`- check supported: ${report.summary.check_supported}`);
+  lines.push(`- check_rules detected: ${report.summary.check_rules_detected}`);
   lines.push('');
   lines.push('## Results');
   lines.push('');
@@ -67,6 +72,7 @@ export function formatInjectionReportMarkdown(report) {
     lines.push(`- status: \`${result.status}\``);
     lines.push(`- check supported: ${result.check.supported}`);
     lines.push(`- check matched: ${result.check.matched}`);
+    lines.push(`- check_rules matched: ${result.check_rules?.matched ?? false}`);
     lines.push(`- gate matched: ${result.gate.matched}`);
     lines.push(`- findings matched: ${result.findings.matched}`);
     lines.push(`- session_end matched: ${result.session_end.matched}`);
@@ -75,6 +81,9 @@ export function formatInjectionReportMarkdown(report) {
     }
     if (result.gate.evidence.length > 0) {
       lines.push(`- gate evidence: \`${result.gate.evidence.join(', ')}\``);
+    }
+    if ((result.check_rules?.evidence ?? []).length > 0) {
+      lines.push(`- check_rules evidence: \`${result.check_rules.evidence.join(', ')}\``);
     }
     if (result.findings.evidence.length > 0) {
       lines.push(`- findings evidence: \`${result.findings.evidence.join(', ')}\``);

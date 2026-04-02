@@ -1,0 +1,713 @@
+{
+  "repo_label": "parallel-code",
+  "repo_root": "<parallel-code-root>",
+  "generated_at": "2026-04-02T11:08:25.644Z",
+  "summary": {
+    "total": 4,
+    "detected": 4,
+    "partial": 0,
+    "failed": 0,
+    "check_supported": 4,
+    "check_rules_detected": 0
+  },
+  "defects": [
+    {
+      "id": "large_file_growth",
+      "title": "Append 120 lines to SidebarTaskRow.tsx",
+      "target_path": "src/components/SidebarTaskRow.tsx",
+      "signal_kind": "large_file",
+      "signal_family": "structural",
+      "promotion_status": "trusted",
+      "blocking_intent": "watchpoint",
+      "check_supported": true
+    },
+    {
+      "id": "forbidden_raw_read",
+      "title": "Read task status directly from SidebarTaskRow.tsx",
+      "target_path": "src/components/SidebarTaskRow.tsx",
+      "signal_kind": "forbidden_raw_read",
+      "signal_family": "rules",
+      "promotion_status": "trusted",
+      "blocking_intent": "blocking",
+      "check_supported": true
+    },
+    {
+      "id": "missing_exhaustiveness",
+      "title": "Add a TaskDotStatus variant without updating consumers",
+      "target_path": "src/app/task-presentation-status.ts",
+      "signal_kind": "closed_domain_exhaustiveness",
+      "signal_family": "obligation",
+      "promotion_status": "trusted",
+      "blocking_intent": "blocking",
+      "check_supported": true
+    },
+    {
+      "id": "missing_test",
+      "title": "Add a new production helper without a sibling test",
+      "target_path": "src/app/task-health-monitor.ts",
+      "signal_kind": "missing_test_coverage",
+      "signal_family": "structural",
+      "promotion_status": "watchpoint",
+      "blocking_intent": "watchpoint",
+      "check_supported": true
+    }
+  ],
+  "results": [
+    {
+      "defect_id": "large_file_growth",
+      "title": "Append 120 lines to SidebarTaskRow.tsx",
+      "injected_paths": [
+        "/tmp/sentrux-defect-injection-parallel-code-large_file_growth-p5byRg/defect-injection-parallel-code-large_file_growth/src/components/SidebarTaskRow.tsx"
+      ],
+      "baseline_scan": {
+        "files": 813,
+        "import_edges": 2621,
+        "quality_signal": 4224,
+        "overall_confidence_0_10000": 8531,
+        "resolved": 2622,
+        "unresolved_internal": 1
+      },
+      "baseline_session_start": {
+        "session_finding_count": 194,
+        "suppressed_finding_count": 0
+      },
+      "post_scan": {
+        "files": 813,
+        "import_edges": 2621,
+        "quality_signal": 4224,
+        "overall_confidence_0_10000": 8531,
+        "resolved": 2622,
+        "unresolved_internal": 1
+      },
+      "check_summary": {
+        "gate": "fail",
+        "issue_count": 3,
+        "changed_file_count": 1,
+        "partial_results": false,
+        "changed_scope_available": true
+      },
+      "check": {
+        "supported": true,
+        "matched": true,
+        "evidence": [
+          "$.actions[2]:large_file",
+          "$.issues[2]:large_file"
+        ]
+      },
+      "check_rules": {
+        "supported": false,
+        "matched": false,
+        "evidence": [],
+        "matched_kinds": []
+      },
+      "gate": {
+        "supported": true,
+        "matched": true,
+        "evidence": [
+          "$.introduced_findings[0]:large_file"
+        ],
+        "matched_kinds": [
+          "large_file"
+        ]
+      },
+      "gate_summary": {
+        "decision": "fail",
+        "changed_file_count": 1,
+        "introduced_finding_count": 2,
+        "missing_obligation_count": 1,
+        "obligation_completeness_0_10000": 0
+      },
+      "findings": {
+        "supported": true,
+        "matched": true,
+        "evidence": [
+          "$.debt_signals[0]:large_file",
+          "$.debt_signals[1]:large_file",
+          "$.debt_signals[2]:large_file",
+          "$.debt_signals[3]:large_file",
+          "$.debt_signals[4]:large_file",
+          "$.finding_details[3]:large_file",
+          "$.finding_details[4]:large_file",
+          "$.finding_details[5]:large_file",
+          "$.finding_details[6]:large_file",
+          "$.finding_details[7]:large_file",
+          "$.finding_details[8]:large_file",
+          "$.finding_details[9]:large_file",
+          "$.findings[3]:large_file",
+          "$.findings[4]:large_file",
+          "$.findings[5]:large_file",
+          "$.findings[6]:large_file",
+          "$.findings[7]:large_file",
+          "$.findings[8]:large_file",
+          "$.findings[9]:large_file"
+        ],
+        "matched_kinds": [
+          "large_file"
+        ]
+      },
+      "findings_summary": {
+        "clone_group_count": 44,
+        "clone_family_count": 7,
+        "finding_count": 12,
+        "semantic_finding_count": 4,
+        "debt_signal_count": 5,
+        "watchpoint_count": 5
+      },
+      "session_end": {
+        "supported": true,
+        "matched": true,
+        "evidence": [
+          "$.actions[2]:large_file",
+          "$.debt_signals[1]:large_file",
+          "$.finding_details[0]:large_file",
+          "$.introduced_findings[0]:large_file",
+          "$.resolved_findings[0]:large_file"
+        ],
+        "matched_kinds": [
+          "large_file"
+        ]
+      },
+      "session_end_summary": {
+        "pass": false,
+        "changed_file_count": 1,
+        "introduced_finding_count": 2,
+        "missing_obligation_count": 1,
+        "gate_decision": "fail"
+      },
+      "assertions": {
+        "defect_id": "large_file_growth",
+        "title": "Append 120 lines to SidebarTaskRow.tsx",
+        "supported_primary": true,
+        "check": {
+          "supported": true,
+          "matched": true,
+          "evidence": [
+            "$.actions[2]:large_file",
+            "$.issues[2]:large_file"
+          ]
+        },
+        "check_rules": {
+          "supported": false,
+          "matched": false,
+          "evidence": [],
+          "matched_kinds": []
+        },
+        "gate": {
+          "supported": true,
+          "matched": true,
+          "evidence": [
+            "$.introduced_findings[0]:large_file"
+          ],
+          "matched_kinds": [
+            "large_file"
+          ]
+        },
+        "findings": {
+          "supported": true,
+          "matched": true,
+          "evidence": [
+            "$.debt_signals[0]:large_file",
+            "$.debt_signals[1]:large_file",
+            "$.debt_signals[2]:large_file",
+            "$.debt_signals[3]:large_file",
+            "$.debt_signals[4]:large_file",
+            "$.finding_details[3]:large_file",
+            "$.finding_details[4]:large_file",
+            "$.finding_details[5]:large_file",
+            "$.finding_details[6]:large_file",
+            "$.finding_details[7]:large_file",
+            "$.finding_details[8]:large_file",
+            "$.finding_details[9]:large_file",
+            "$.findings[3]:large_file",
+            "$.findings[4]:large_file",
+            "$.findings[5]:large_file",
+            "$.findings[6]:large_file",
+            "$.findings[7]:large_file",
+            "$.findings[8]:large_file",
+            "$.findings[9]:large_file"
+          ],
+          "matched_kinds": [
+            "large_file"
+          ]
+        },
+        "session_end": {
+          "supported": true,
+          "matched": true,
+          "evidence": [
+            "$.actions[2]:large_file",
+            "$.debt_signals[1]:large_file",
+            "$.finding_details[0]:large_file",
+            "$.introduced_findings[0]:large_file",
+            "$.resolved_findings[0]:large_file"
+          ],
+          "matched_kinds": [
+            "large_file"
+          ]
+        },
+        "detected": true,
+        "status": "pass"
+      },
+      "detected": true,
+      "status": "pass"
+    },
+    {
+      "defect_id": "forbidden_raw_read",
+      "title": "Read task status directly from SidebarTaskRow.tsx",
+      "injected_paths": [
+        "/tmp/sentrux-defect-injection-parallel-code-forbidden_raw_read-yEXPaQ/defect-injection-parallel-code-forbidden_raw_read/src/components/SidebarTaskRow.tsx"
+      ],
+      "baseline_scan": {
+        "files": 813,
+        "import_edges": 2621,
+        "quality_signal": 4224,
+        "overall_confidence_0_10000": 8531,
+        "resolved": 2622,
+        "unresolved_internal": 1
+      },
+      "baseline_session_start": {
+        "session_finding_count": 194,
+        "suppressed_finding_count": 0
+      },
+      "post_scan": {
+        "files": 813,
+        "import_edges": 2621,
+        "quality_signal": 4224,
+        "overall_confidence_0_10000": 8531,
+        "resolved": 2622,
+        "unresolved_internal": 1
+      },
+      "check_summary": {
+        "gate": "fail",
+        "issue_count": 4,
+        "changed_file_count": 1,
+        "partial_results": false,
+        "changed_scope_available": true
+      },
+      "check": {
+        "supported": true,
+        "matched": true,
+        "evidence": [
+          "$.actions[0]:forbidden_raw_read",
+          "$.issues[0]:forbidden_raw_read",
+          "decision=fail"
+        ]
+      },
+      "check_rules": {
+        "supported": false,
+        "matched": false,
+        "evidence": [],
+        "matched_kinds": []
+      },
+      "gate": {
+        "supported": true,
+        "matched": false,
+        "evidence": [
+          "$.introduced_findings[2]:forbidden_raw_read"
+        ],
+        "matched_kinds": [
+          "forbidden_raw_read"
+        ]
+      },
+      "gate_summary": {
+        "decision": "fail",
+        "changed_file_count": 1,
+        "introduced_finding_count": 3,
+        "missing_obligation_count": 1,
+        "obligation_completeness_0_10000": 0
+      },
+      "findings": {
+        "supported": true,
+        "matched": false,
+        "evidence": [],
+        "matched_kinds": []
+      },
+      "findings_summary": {
+        "clone_group_count": 44,
+        "clone_family_count": 7,
+        "finding_count": 12,
+        "semantic_finding_count": 5,
+        "debt_signal_count": 5,
+        "watchpoint_count": 5
+      },
+      "session_end": {
+        "supported": true,
+        "matched": true,
+        "evidence": [
+          "$.actions[0]:forbidden_raw_read",
+          "$.finding_details[2]:forbidden_raw_read",
+          "$.introduced_findings[2]:forbidden_raw_read"
+        ],
+        "matched_kinds": [
+          "forbidden_raw_read"
+        ]
+      },
+      "session_end_summary": {
+        "pass": false,
+        "changed_file_count": 1,
+        "introduced_finding_count": 3,
+        "missing_obligation_count": 1,
+        "gate_decision": "fail"
+      },
+      "assertions": {
+        "defect_id": "forbidden_raw_read",
+        "title": "Read task status directly from SidebarTaskRow.tsx",
+        "supported_primary": true,
+        "check": {
+          "supported": true,
+          "matched": true,
+          "evidence": [
+            "$.actions[0]:forbidden_raw_read",
+            "$.issues[0]:forbidden_raw_read",
+            "decision=fail"
+          ]
+        },
+        "check_rules": {
+          "supported": false,
+          "matched": false,
+          "evidence": [],
+          "matched_kinds": []
+        },
+        "gate": {
+          "supported": true,
+          "matched": false,
+          "evidence": [
+            "$.introduced_findings[2]:forbidden_raw_read"
+          ],
+          "matched_kinds": [
+            "forbidden_raw_read"
+          ]
+        },
+        "findings": {
+          "supported": true,
+          "matched": false,
+          "evidence": [],
+          "matched_kinds": []
+        },
+        "session_end": {
+          "supported": true,
+          "matched": true,
+          "evidence": [
+            "$.actions[0]:forbidden_raw_read",
+            "$.finding_details[2]:forbidden_raw_read",
+            "$.introduced_findings[2]:forbidden_raw_read"
+          ],
+          "matched_kinds": [
+            "forbidden_raw_read"
+          ]
+        },
+        "detected": true,
+        "status": "pass"
+      },
+      "detected": true,
+      "status": "pass"
+    },
+    {
+      "defect_id": "missing_exhaustiveness",
+      "title": "Add a TaskDotStatus variant without updating consumers",
+      "injected_paths": [
+        "/tmp/sentrux-defect-injection-parallel-code-missing_exhaustiveness-HRdcT8/defect-injection-parallel-code-missing_exhaustiveness/src/app/task-presentation-status.ts"
+      ],
+      "baseline_scan": {
+        "files": 813,
+        "import_edges": 2621,
+        "quality_signal": 4224,
+        "overall_confidence_0_10000": 8531,
+        "resolved": 2622,
+        "unresolved_internal": 1
+      },
+      "baseline_session_start": {
+        "session_finding_count": 194,
+        "suppressed_finding_count": 0
+      },
+      "post_scan": {
+        "files": 813,
+        "import_edges": 2621,
+        "quality_signal": 4224,
+        "overall_confidence_0_10000": 8531,
+        "resolved": 2622,
+        "unresolved_internal": 1
+      },
+      "check_summary": {
+        "gate": "fail",
+        "issue_count": 3,
+        "changed_file_count": 1,
+        "partial_results": false,
+        "changed_scope_available": true
+      },
+      "check": {
+        "supported": true,
+        "matched": true,
+        "evidence": [
+          "$.actions[0]:closed_domain_exhaustiveness",
+          "$.issues[0]:closed_domain_exhaustiveness",
+          "decision=fail"
+        ]
+      },
+      "check_rules": {
+        "supported": false,
+        "matched": false,
+        "evidence": [],
+        "matched_kinds": []
+      },
+      "gate": {
+        "supported": true,
+        "matched": false,
+        "evidence": [
+          "$.blocking_findings[1]:closed_domain_exhaustiveness",
+          "$.introduced_findings[2]:closed_domain_exhaustiveness",
+          "$.missing_obligations[0]:closed_domain_exhaustiveness"
+        ],
+        "matched_kinds": [
+          "closed_domain_exhaustiveness"
+        ]
+      },
+      "gate_summary": {
+        "decision": "fail",
+        "changed_file_count": 1,
+        "introduced_finding_count": 3,
+        "missing_obligation_count": 1,
+        "obligation_completeness_0_10000": 0
+      },
+      "findings": {
+        "supported": true,
+        "matched": true,
+        "evidence": [
+          "$.finding_details[0]:closed_domain_exhaustiveness",
+          "$.findings[0]:closed_domain_exhaustiveness"
+        ],
+        "matched_kinds": [
+          "closed_domain_exhaustiveness"
+        ]
+      },
+      "findings_summary": {
+        "clone_group_count": 44,
+        "clone_family_count": 7,
+        "finding_count": 12,
+        "semantic_finding_count": 4,
+        "debt_signal_count": 5,
+        "watchpoint_count": 5
+      },
+      "session_end": {
+        "supported": true,
+        "matched": true,
+        "evidence": [
+          "$.actions[0]:closed_domain_exhaustiveness",
+          "$.actions[1]:closed_domain_exhaustiveness",
+          "$.finding_details[2]:closed_domain_exhaustiveness",
+          "$.introduced_findings[2]:closed_domain_exhaustiveness",
+          "$.missing_obligations[0]:closed_domain_exhaustiveness",
+          "$.resolved_findings[2]:closed_domain_exhaustiveness",
+          "$.touched_concept_gate.blocking_findings[1]:closed_domain_exhaustiveness"
+        ],
+        "matched_kinds": [
+          "closed_domain_exhaustiveness"
+        ]
+      },
+      "session_end_summary": {
+        "pass": false,
+        "changed_file_count": 1,
+        "introduced_finding_count": 3,
+        "missing_obligation_count": 1,
+        "gate_decision": "fail"
+      },
+      "assertions": {
+        "defect_id": "missing_exhaustiveness",
+        "title": "Add a TaskDotStatus variant without updating consumers",
+        "supported_primary": true,
+        "check": {
+          "supported": true,
+          "matched": true,
+          "evidence": [
+            "$.actions[0]:closed_domain_exhaustiveness",
+            "$.issues[0]:closed_domain_exhaustiveness",
+            "decision=fail"
+          ]
+        },
+        "check_rules": {
+          "supported": false,
+          "matched": false,
+          "evidence": [],
+          "matched_kinds": []
+        },
+        "gate": {
+          "supported": true,
+          "matched": false,
+          "evidence": [
+            "$.blocking_findings[1]:closed_domain_exhaustiveness",
+            "$.introduced_findings[2]:closed_domain_exhaustiveness",
+            "$.missing_obligations[0]:closed_domain_exhaustiveness"
+          ],
+          "matched_kinds": [
+            "closed_domain_exhaustiveness"
+          ]
+        },
+        "findings": {
+          "supported": true,
+          "matched": true,
+          "evidence": [
+            "$.finding_details[0]:closed_domain_exhaustiveness",
+            "$.findings[0]:closed_domain_exhaustiveness"
+          ],
+          "matched_kinds": [
+            "closed_domain_exhaustiveness"
+          ]
+        },
+        "session_end": {
+          "supported": true,
+          "matched": true,
+          "evidence": [
+            "$.actions[0]:closed_domain_exhaustiveness",
+            "$.actions[1]:closed_domain_exhaustiveness",
+            "$.finding_details[2]:closed_domain_exhaustiveness",
+            "$.introduced_findings[2]:closed_domain_exhaustiveness",
+            "$.missing_obligations[0]:closed_domain_exhaustiveness",
+            "$.resolved_findings[2]:closed_domain_exhaustiveness",
+            "$.touched_concept_gate.blocking_findings[1]:closed_domain_exhaustiveness"
+          ],
+          "matched_kinds": [
+            "closed_domain_exhaustiveness"
+          ]
+        },
+        "detected": true,
+        "status": "pass"
+      },
+      "detected": true,
+      "status": "pass"
+    },
+    {
+      "defect_id": "missing_test",
+      "title": "Add a new production helper without a sibling test",
+      "injected_paths": [
+        "/tmp/sentrux-defect-injection-parallel-code-missing_test-oaWem2/defect-injection-parallel-code-missing_test/src/app/task-health-monitor.ts"
+      ],
+      "baseline_scan": {
+        "files": 813,
+        "import_edges": 2621,
+        "quality_signal": 4224,
+        "overall_confidence_0_10000": 8531,
+        "resolved": 2622,
+        "unresolved_internal": 1
+      },
+      "baseline_session_start": {
+        "session_finding_count": 194,
+        "suppressed_finding_count": 0
+      },
+      "post_scan": {
+        "files": 814,
+        "import_edges": 2621,
+        "quality_signal": 4224,
+        "overall_confidence_0_10000": 8532,
+        "resolved": 2622,
+        "unresolved_internal": 1
+      },
+      "check_summary": {
+        "gate": "pass",
+        "issue_count": 1,
+        "changed_file_count": 1,
+        "partial_results": false,
+        "changed_scope_available": true
+      },
+      "check": {
+        "supported": true,
+        "matched": true,
+        "evidence": [
+          "$.actions[0]:missing_test_coverage",
+          "$.issues[0]:missing_test_coverage",
+          "decision=pass"
+        ]
+      },
+      "check_rules": {
+        "supported": false,
+        "matched": false,
+        "evidence": [],
+        "matched_kinds": []
+      },
+      "gate": {
+        "supported": true,
+        "matched": true,
+        "evidence": [
+          "decision=pass"
+        ],
+        "matched_kinds": []
+      },
+      "gate_summary": {
+        "decision": "pass",
+        "changed_file_count": 1,
+        "introduced_finding_count": 0,
+        "missing_obligation_count": 0,
+        "obligation_completeness_0_10000": 10000
+      },
+      "findings": {
+        "supported": true,
+        "matched": false,
+        "evidence": [],
+        "matched_kinds": []
+      },
+      "findings_summary": {
+        "clone_group_count": 44,
+        "clone_family_count": 7,
+        "finding_count": 12,
+        "semantic_finding_count": 4,
+        "debt_signal_count": 5,
+        "watchpoint_count": 5
+      },
+      "session_end": {
+        "supported": false,
+        "matched": false,
+        "evidence": [],
+        "matched_kinds": []
+      },
+      "session_end_summary": {
+        "pass": true,
+        "changed_file_count": 1,
+        "introduced_finding_count": 0,
+        "missing_obligation_count": 0,
+        "gate_decision": "pass"
+      },
+      "assertions": {
+        "defect_id": "missing_test",
+        "title": "Add a new production helper without a sibling test",
+        "supported_primary": true,
+        "check": {
+          "supported": true,
+          "matched": true,
+          "evidence": [
+            "$.actions[0]:missing_test_coverage",
+            "$.issues[0]:missing_test_coverage",
+            "decision=pass"
+          ]
+        },
+        "check_rules": {
+          "supported": false,
+          "matched": false,
+          "evidence": [],
+          "matched_kinds": []
+        },
+        "gate": {
+          "supported": true,
+          "matched": true,
+          "evidence": [
+            "decision=pass"
+          ],
+          "matched_kinds": []
+        },
+        "findings": {
+          "supported": true,
+          "matched": false,
+          "evidence": [],
+          "matched_kinds": []
+        },
+        "session_end": {
+          "supported": false,
+          "matched": false,
+          "evidence": [],
+          "matched_kinds": []
+        },
+        "detected": true,
+        "status": "pass"
+      },
+      "detected": true,
+      "status": "pass"
+    }
+  ]
+}
