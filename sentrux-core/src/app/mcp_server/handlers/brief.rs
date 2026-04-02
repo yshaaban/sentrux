@@ -300,6 +300,13 @@ fn build_patch_mode_agent_brief(
                 .collect::<Vec<_>>()
         })
         .unwrap_or_else(|| analysis.changed_visible_findings.clone());
+    let introduced_findings = merge_session_introduced_clone_findings(
+        introduced_findings,
+        &analysis.visible_findings,
+        session_v2.as_ref(),
+        &changed_files,
+        limit.max(10),
+    );
     let (visible_introduced_findings, experimental_introduced_findings) =
         partition_experimental_findings(&introduced_findings, limit.max(10));
 
@@ -337,12 +344,7 @@ fn build_patch_mode_agent_brief(
         .collect::<Vec<_>>();
     let introduced_clone_findings = candidate_findings
         .iter()
-        .filter(|finding| {
-            matches!(
-                finding_kind(finding),
-                "exact_clone_group" | "clone_group" | "clone_family"
-            )
-        })
+        .filter(|finding| finding_kind(finding) == SESSION_INTRODUCED_CLONE_KIND)
         .cloned()
         .collect::<Vec<_>>();
     let experimental_findings = experimental_introduced_findings

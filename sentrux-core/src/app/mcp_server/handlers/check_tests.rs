@@ -2,14 +2,16 @@ use super::agent_format::{
     actions_from_issues, compare_agent_issues, to_agent_issue, AgentIssue, IssueConfidence,
     IssueOrigin, IssueSource,
 };
-use super::test_support::{commit_all, init_git_repo, temp_root, write_file};
+use super::test_support::{
+    commit_all, init_git_repo, temp_root, write_file, write_session_clone_duplicate,
+    write_session_clone_fixture_files,
+};
 use super::{fresh_mcp_state, handle_check, handle_scan, handle_session_start};
 use crate::analysis::project_shape::{ModuleContractSuggestion, ProjectShapeReport};
 use crate::license::Tier;
 use crate::metrics::v2::FindingSeverity;
 use serde_json::json;
 use std::fs;
-
 #[test]
 fn check_returns_partial_when_changed_scope_is_unavailable() {
     let root = temp_root("check-unavailable-scope");
@@ -256,6 +258,41 @@ fn forbidden_raw_read_actions_name_the_preferred_accessor_when_available() {
             "Replace the raw read with src/app/task-presentation-status.ts::getTaskDotStatus instead of recreating the projection in the caller."
         )
     );
+}
+
+#[test]
+fn check_surfaces_session_introduced_clone_actions() {
+    let root = temp_root("check-session-introduced-clone");
+    write_session_clone_fixture_files(&root);
+    init_git_repo(&root);
+    commit_all(&root, "initial");
+
+    let mut state = fresh_mcp_state();
+    handle_scan(
+        &json!({"path": root.to_string_lossy().to_string()}),
+        &Tier::Free,
+        &mut state,
+    )
+    .expect("scan fixture");
+    handle_session_start(&json!({}), &Tier::Free, &mut state).expect("session start");
+    write_session_clone_duplicate(&root);
+    handle_scan(
+        &json!({"path": root.to_string_lossy().to_string()}),
+        &Tier::Free,
+        &mut state,
+    )
+    .expect("rescan fixture");
+    let response = handle_check(&json!({}), &Tier::Free, &mut state).expect("check response");
+    let issues = response["issues"].as_array().expect("issues array");
+    let actions = response["actions"].as_array().expect("actions array");
+
+    assert!(issues
+        .iter()
+        .any(|issue| issue["kind"] == "session_introduced_clone"));
+    assert_eq!(actions[0]["kind"], json!("session_introduced_clone"));
+    assert!(actions[0]["fix_hint"]
+        .as_str()
+        .is_some_and(|hint| hint.contains("Collapse the new duplicate now")));
 }
 
 #[test]

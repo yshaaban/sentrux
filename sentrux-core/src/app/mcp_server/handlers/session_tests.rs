@@ -1,5 +1,7 @@
 use super::test_support::{
-    append_file, cli_gate_fixture_root, concept_fixture_root, concept_fixture_semantic, write_file,
+    append_file, cli_gate_fixture_root, commit_all, concept_fixture_root, concept_fixture_semantic,
+    init_git_repo, temp_root, write_file, write_session_clone_duplicate,
+    write_session_clone_fixture_files,
 };
 use super::{
     cli_evaluate_v2_gate, cli_save_v2_session, fresh_mcp_state, handle_scan, handle_session_end,
@@ -7,7 +9,6 @@ use super::{
 };
 use crate::license::Tier;
 use serde_json::json;
-
 #[test]
 fn patch_check_context_reuses_cached_scan_when_nothing_changed() {
     let root = cli_gate_fixture_root();
@@ -87,4 +88,38 @@ fn session_end_surfaces_debt_signals_for_changed_concept() {
     assert!(response["changed_files"].is_array());
     assert!(response["debt_signals"].is_array());
     assert!(response["actions"].is_array());
+}
+
+#[test]
+fn session_end_promotes_session_introduced_clone_findings() {
+    let root = temp_root("session-introduced-clone");
+    write_session_clone_fixture_files(&root);
+    init_git_repo(&root);
+    commit_all(&root, "initial");
+    cli_save_v2_session(&root).expect("save v2 session");
+    write_session_clone_duplicate(&root);
+
+    let mut state = fresh_mcp_state();
+    handle_scan(
+        &json!({"path": root.to_string_lossy().to_string()}),
+        &Tier::Free,
+        &mut state,
+    )
+    .expect("scan fixture");
+
+    let response = handle_session_end(&json!({}), &Tier::Free, &mut state).expect("session end");
+    let introduced = response["introduced_findings"]
+        .as_array()
+        .expect("introduced findings");
+    let clone_findings = response["introduced_clone_findings"]
+        .as_array()
+        .expect("introduced clone findings");
+
+    assert!(introduced
+        .iter()
+        .any(|finding| finding["kind"] == "session_introduced_clone"));
+    assert!(!clone_findings.is_empty());
+    assert!(clone_findings
+        .iter()
+        .all(|finding| finding["kind"] == "session_introduced_clone"));
 }

@@ -1,5 +1,7 @@
 use super::*;
 
+pub(crate) const SESSION_INTRODUCED_CLONE_KIND: &str = "session_introduced_clone";
+
 pub(crate) struct CloneFindingPayload {
     pub(crate) exact_findings: Vec<Value>,
     pub(crate) prioritized_findings: Vec<Value>,
@@ -94,6 +96,142 @@ pub(crate) fn filter_clone_values_by_visible_clone_ids(
         .filter(|value| clone_value_matches_visible_clone_ids(value, visible_clone_ids, key))
         .take(limit)
         .collect()
+}
+
+pub(crate) fn is_clone_finding_kind(kind: &str) -> bool {
+    matches!(
+        kind,
+        "exact_clone_group" | "clone_group" | "clone_family" | SESSION_INTRODUCED_CLONE_KIND
+    )
+}
+
+pub(crate) fn build_session_introduced_clone_findings(
+    current_findings: &[Value],
+    session_v2: Option<&SessionV2Baseline>,
+    changed_files: &BTreeSet<String>,
+    limit: usize,
+) -> Vec<Value> {
+    let Some(session_v2) = session_v2 else {
+        return Vec::new();
+    };
+
+    let baseline_clone_ids = session_v2
+        .finding_payloads
+        .values()
+        .filter_map(exact_clone_id)
+        .collect::<BTreeSet<_>>();
+    let mut emitted_clone_ids = BTreeSet::new();
+    let mut findings = Vec::new();
+
+    for finding in current_findings {
+        if finding_kind(finding) != "exact_clone_group" {
+            continue;
+        }
+
+        let Some(clone_id) = exact_clone_id(finding) else {
+            continue;
+        };
+        if baseline_clone_ids.contains(clone_id) || !emitted_clone_ids.insert(clone_id.to_string())
+        {
+            continue;
+        }
+        if !finding_touches_changed_files(finding, changed_files) {
+            continue;
+        }
+
+        findings.push(session_introduced_clone_finding(finding));
+        if findings.len() >= limit {
+            break;
+        }
+    }
+
+    findings
+}
+
+pub(crate) fn merge_session_introduced_clone_findings(
+    introduced_findings: Vec<Value>,
+    current_findings: &[Value],
+    session_v2: Option<&SessionV2Baseline>,
+    changed_files: &BTreeSet<String>,
+    limit: usize,
+) -> Vec<Value> {
+    if session_v2.is_none() {
+        return introduced_findings;
+    }
+
+    let introduced_clone_findings =
+        build_session_introduced_clone_findings(current_findings, session_v2, changed_files, limit);
+
+    merge_findings(
+        introduced_clone_findings,
+        introduced_findings
+            .into_iter()
+            .filter(|finding| !is_clone_finding_kind(finding_kind(finding)))
+            .collect(),
+        limit,
+    )
+}
+
+fn exact_clone_id(finding: &Value) -> Option<&str> {
+    finding.get("clone_id").and_then(Value::as_str)
+}
+
+fn finding_touches_changed_files(finding: &Value, changed_files: &BTreeSet<String>) -> bool {
+    if changed_files.is_empty() {
+        return true;
+    }
+
+    finding_files(finding)
+        .iter()
+        .any(|path| changed_files.contains(path))
+}
+
+fn session_introduced_clone_finding(finding: &Value) -> Value {
+    let files = finding_files(finding);
+    let file_count = files.len();
+    let joined_files = match files.as_slice() {
+        [] => "the changed surface".to_string(),
+        [only] => only.clone(),
+        [left, right] => format!("{left} and {right}"),
+        _ => format!("{} files", file_count),
+    };
+    let clone_id = exact_clone_id(finding)
+        .map(str::to_string)
+        .unwrap_or_default();
+    let mut evidence = Vec::new();
+    if !clone_id.is_empty() {
+        evidence.push(format!("introduced clone group: {clone_id}"));
+    }
+    evidence.extend(
+        files
+            .iter()
+            .take(3)
+            .map(|path| format!("duplicate surface: {path}")),
+    );
+    if let Some(summary) = finding.get("summary").and_then(Value::as_str) {
+        evidence.push(summary.to_string());
+    }
+
+    json!({
+        "kind": SESSION_INTRODUCED_CLONE_KIND,
+        "clone_id": clone_id,
+        "scope": finding
+            .get("scope")
+            .cloned()
+            .unwrap_or_else(|| json!(joined_files)),
+        "files": files,
+        "severity": "medium",
+        "summary": format!("This patch introduced a new duplicate implementation across {joined_files}."),
+        "impact": "Fresh duplication is likely to drift on the next change unless the shared logic is collapsed now.",
+        "evidence": evidence,
+        "trust_tier": "trusted",
+        "presentation_class": "structural_debt",
+        "leverage_class": "local_refactor_target",
+        "leverage_reasons": [
+            "duplicate_maintenance_pressure",
+            "introduced_in_patch"
+        ],
+    })
 }
 
 #[cfg(test)]

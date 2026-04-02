@@ -3,7 +3,7 @@ use super::agent_format::{
     AgentCheckResponse, AgentGate, AgentIssue, CheckAvailability, CheckDiagnostics,
 };
 use super::*;
-use crate::metrics::v2::{FindingSeverity, SemanticFinding};
+use crate::metrics::v2::{build_clone_drift_findings, FindingSeverity, SemanticFinding};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use std::time::Instant;
@@ -113,7 +113,7 @@ fn build_fast_check_issues(
     health: &metrics::HealthReport,
     changed_files: &BTreeSet<String>,
     session_v2: Option<&SessionV2Baseline>,
-    expected_patch_cache_identity: Option<&ScanCacheIdentity>,
+    _expected_patch_cache_identity: Option<&ScanCacheIdentity>,
 ) -> (Vec<AgentIssue>, CheckDiagnostics) {
     let (rules_config, rules_error) = load_v2_rules_config(state, root);
     let (semantic, semantic_error, semantic_available) =
@@ -193,11 +193,10 @@ fn build_fast_check_issues(
         );
     }
 
-    findings.extend(cached_clone_finding_values(
-        state,
+    findings.extend(session_introduced_clone_finding_values(
         session_v2,
+        health,
         changed_files,
-        expected_patch_cache_identity,
     ));
 
     let suppression_application = apply_suppressions(&rules_config, findings);
@@ -417,36 +416,15 @@ fn build_changed_structural_finding_values(
     findings
 }
 
-fn cached_clone_finding_values(
-    state: &McpState,
+fn session_introduced_clone_finding_values(
     session_v2: Option<&SessionV2Baseline>,
+    health: &metrics::HealthReport,
     changed_files: &BTreeSet<String>,
-    expected_scan_identity: Option<&ScanCacheIdentity>,
 ) -> Vec<Value> {
-    let Some(cached) = &state.cached_patch_safety else {
-        return Vec::new();
-    };
-    let expected_signature = super::session_v2_analysis_signature(session_v2);
-    if cached.session_signature != expected_signature
-        || cached.scan_identity.as_ref() != expected_scan_identity
-    {
-        return Vec::new();
-    }
-
-    cached
-        .changed_visible_findings
-        .iter()
-        .filter(|finding| {
-            matches!(
-                finding_kind(finding),
-                "exact_clone_group" | "clone_group" | "clone_family"
-            )
-        })
-        .filter(|finding| {
-            finding_files(finding)
-                .iter()
-                .any(|path| changed_files.contains(path))
-        })
-        .cloned()
-        .collect()
+    let current_findings = serialized_values(&build_clone_drift_findings(
+        &health.duplicate_groups,
+        None,
+        health.duplicate_groups.len(),
+    ));
+    build_session_introduced_clone_findings(&current_findings, session_v2, changed_files, 10)
 }

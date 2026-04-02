@@ -39,6 +39,27 @@ pub(crate) fn append_file(root: &Path, relative_path: &str, contents: &str) {
     file.write_all(contents.as_bytes()).expect("append file");
 }
 
+pub(crate) fn write_session_clone_fixture_files(root: &Path) {
+    write_file(
+        root,
+        "src/source.ts",
+        "export function buildAccessUrl(host: string, port: number, token: string): string {\n  return `http://${host}:${port}?token=${token}`;\n}\n\nexport function buildOptionalAccessUrl(\n  host: string | null,\n  port: number,\n  token: string,\n): string | null {\n  if (!host) return null;\n  return buildAccessUrl(host, port, token);\n}\n",
+    );
+    write_file(
+        root,
+        "src/copy.ts",
+        "export function buildTaskLabel(status: string): string {\n  return status === 'done' ? 'done' : 'todo';\n}\n",
+    );
+}
+
+pub(crate) fn write_session_clone_duplicate(root: &Path) {
+    write_file(
+        root,
+        "src/copy.ts",
+        "export function buildAccessUrl(host: string, port: number, token: string): string {\n  return `http://${host}:${port}?token=${token}`;\n}\n\nexport function buildOptionalAccessUrl(\n  host: string | null,\n  port: number,\n  token: string,\n): string | null {\n  if (!host) return null;\n  return buildAccessUrl(host, port, token);\n}\n",
+    );
+}
+
 pub(crate) fn run_git(root: &Path, args: &[&str]) {
     let status = Command::new("git")
         .arg("-C")

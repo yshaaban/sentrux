@@ -246,6 +246,7 @@ fn issue_source_for_kind(kind: &str) -> IssueSource {
             | "unstable_hotspot"
             | "cycle_cluster"
             | "missing_test_coverage"
+            | "session_introduced_clone"
     ) {
         return IssueSource::Structural;
     }
@@ -455,6 +456,9 @@ fn fix_hint_for_kind(kind: &str) -> Option<String> {
         "cycle_cluster" => "Cut the highest-leverage cycle seam first and re-run check.",
         "exact_clone_group" | "clone_group" | "clone_family" => {
             "Extract shared behavior or collapse the duplicated flow."
+        }
+        "session_introduced_clone" => {
+            "Collapse the new duplicate now: extract the shared behavior or route both call sites through the same owner before they drift."
         }
         "missing_test_coverage" => "Add a sibling test covering the new production surface.",
         "zero_config_boundary_violation" => {

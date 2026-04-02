@@ -370,6 +370,13 @@ pub(crate) fn handle_session_end(
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default();
+    let introduced_findings = merge_session_introduced_clone_findings(
+        introduced_findings,
+        &analysis.visible_findings,
+        session_v2.as_ref(),
+        &changed_files,
+        10,
+    );
     let (visible_introduced_findings, experimental_findings) =
         partition_experimental_findings(&introduced_findings, 10);
     let mut blocking_findings = visible_introduced_findings
@@ -425,7 +432,7 @@ pub(crate) fn handle_session_end(
         .collect::<Vec<_>>();
     let introduced_clone_findings = introduced_findings
         .iter()
-        .filter(|finding| is_clone_finding_kind(finding_kind(finding)))
+        .filter(|finding| finding_kind(finding) == SESSION_INTRODUCED_CLONE_KIND)
         .cloned()
         .collect::<Vec<_>>();
     let (opportunity_findings, experimental_findings) = if session_v2.is_some() {
@@ -620,10 +627,6 @@ pub(crate) fn handle_session_end(
     Ok(result)
 }
 
-fn is_clone_finding_kind(kind: &str) -> bool {
-    matches!(kind, "exact_clone_group" | "clone_group" | "clone_family")
-}
-
 pub fn gate_def() -> ToolDef {
     ToolDef {
         name: "gate",
@@ -713,6 +716,13 @@ fn compute_touched_concept_gate(
                 .cloned()
                 .collect::<Vec<_>>()
         });
+    let introduced_findings = merge_session_introduced_clone_findings(
+        introduced_findings,
+        &analysis.visible_findings,
+        session_v2.as_ref(),
+        &changed_files,
+        10,
+    );
     let (visible_introduced_findings, experimental_findings) =
         partition_experimental_findings(&introduced_findings, 10);
     let blocking_findings = visible_introduced_findings
