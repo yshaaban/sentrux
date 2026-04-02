@@ -5,7 +5,7 @@
   "repo_root": "<parallel-code-root>",
   "repo_label": "parallel-code",
   "rules_source": "../../examples/parallel-code.rules.toml",
-  "analysis_mode": "head_clone",
+  "analysis_mode": "working_tree",
   "timeout_ms": 1800000,
   "poll_ms": 4000,
   "codex_bin": "codex",

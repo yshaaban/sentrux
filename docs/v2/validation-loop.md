@@ -258,6 +258,8 @@ node scripts/evals/run-signal-calibration.mjs \
 
 The repo-local MCP event stream lives at `.sentrux/agent-session-events.jsonl`. The calibration loop treats those events as the real-session evidence layer on top of seeded defects and provider remediation runs.
 
+For the checked-in live Codex session manifests under `docs/v2/evals/batches/`, prefer `analysis_mode=working_tree` so the real-work lane reflects local in-progress edits. Reserve `head_clone` for stable committed-HEAD refreshes, replay, and seeded control runs.
+
 ## Repo Calibration Loop
 
 Use the repo calibration manifests to keep the live-session, replay, review, scorecard, and backlog artifacts aligned for a single repo.

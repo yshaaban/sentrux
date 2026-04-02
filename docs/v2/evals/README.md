@@ -178,6 +178,8 @@ All three lanes should feed the same scorecard inputs instead of creating separa
 
 Use checked-in `docs/v2/examples/` artifacts only for intentionally promoted reference runs.
 
+The checked-in live Codex batch manifests default to `analysis_mode: "working_tree"` so the real-work lane includes local uncommitted changes. Use `head_clone` only when you intentionally want a committed-HEAD calibration run.
+
 ## Cohort-Driven Calibration
 
 The recommended operating model is:
