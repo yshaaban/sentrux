@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "batch_id": "sentrux-codex-session-batch",
+  "cohort_id": "agent-loop-core",
+  "repo_root": "<sentrux-root>",
+  "repo_label": "sentrux",
+  "analysis_mode": "head_clone",
+  "timeout_ms": 1800000,
+  "poll_ms": 4000,
+  "codex_bin": "codex",
+  "expected_signal_kinds": [
+    "closed_domain_exhaustiveness",
+    "forbidden_raw_read",
+    "missing_test_coverage",
+    "large_file"
+  ],
+  "tasks": [
+    {
+      "task_id": "sentrux-session-telemetry-hardening",
+      "task_label": "Tighten session telemetry output",
+      "prompt_file": "../prompts/sentrux/session-telemetry-hardening.md",
+      "tags": ["calibration", "telemetry"],
+      "expected_signal_kinds": ["missing_test_coverage"],
+      "expected_fix_surface": "session telemetry"
+    },
+    {
+      "task_id": "sentrux-review-packet-simplification",
+      "task_label": "Simplify review packet generation",
+      "prompt_file": "../prompts/sentrux/review-packet-simplification.md",
+      "tags": ["calibration", "review"],
+      "expected_signal_kinds": ["large_file"],
+      "expected_fix_surface": "eval docs and packet formatting"
+    },
+    {
+      "task_id": "sentrux-scorecard-shape-hardening",
+      "task_label": "Harden scorecard shape and defaults",
+      "prompt_file": "../prompts/sentrux/scorecard-shape-hardening.md",
+      "tags": ["calibration", "scorecard"],
+      "expected_signal_kinds": ["forbidden_raw_read"],
+      "expected_fix_surface": "scorecard aggregation"
+    },
+    {
+      "task_id": "sentrux-batch-loop-tidy",
+      "task_label": "Keep the calibration batch loop tidy",
+      "prompt_file": "../prompts/sentrux/batch-loop-tidy.md",
+      "tags": ["calibration", "batch"],
+      "expected_signal_kinds": ["closed_domain_exhaustiveness"],
+      "expected_fix_surface": "repo calibration manifests"
+    }
+  ]
+}

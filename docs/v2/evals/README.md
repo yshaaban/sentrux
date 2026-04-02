@@ -13,10 +13,21 @@ Goals:
 
 - `index.json` - manifest for the checked-in scenarios
 - `signal-cohorts.json` - active signal cohort definitions for calibration
+- `repo-calibration.schema.json` - schema for per-repo calibration manifests
+- `review-verdicts.schema.json` - schema for human review verdict input
+- `review-verdicts.template.json` - starter verdict file for new repos
 - `codex-session-batch.schema.json` - schema for batch Codex task capture manifests
 - `diff-replay-batch.schema.json` - schema for batch replay manifests
 - `scenario.schema.json` - task/scenario schema
 - `result.schema.json` - result schema emitted by the runner
+- `repos/parallel-code.json` - checked-in calibration manifest for `<parallel-code-root>`
+- `repos/sentrux.json` - checked-in calibration manifest for `<sentrux-root>`
+- `batches/parallel-code-codex-session-batch.json` - live Codex batch manifest for `parallel-code`
+- `batches/parallel-code-diff-replay-batch.json` - replay batch manifest for `parallel-code`
+- `batches/sentrux-codex-session-batch.json` - live Codex batch manifest for `sentrux`
+- `batches/sentrux-diff-replay-batch.json` - replay batch manifest for `sentrux`
+- `prompts/parallel-code/*.md` - checked-in prompt files for the `parallel-code` calibration tasks
+- `prompts/sentrux/*.md` - checked-in prompt files for the `sentrux` calibration tasks
 - `scenarios/parallel-code.json` - initial scenarios for `<parallel-code-root>`
 - `scenarios/private-benchmark-repo.json` - initial scenarios for `<private-benchmark-root>`
 - `scenarios/private-frontend.json` - initial scenarios for `<private-frontend-root>`
@@ -109,8 +120,10 @@ The external provider runner is only one part of the quality loop.
 
 Supporting scripts now cover:
 
+- `node scripts/evals/run-repo-calibration-loop.mjs --manifest docs/v2/evals/repos/<repo>.json`
+  Run the full per-repo calibration loop from one checked-in manifest.
 - `node scripts/evals/build-check-review-packet.mjs`
-  Build a reusable review packet from `check`, `findings`, or `session_end` for manual false-positive review.
+  Build a reusable review packet from `check`, `findings`, or `session_end` for manual false-positive review. Artifact mode can read a single bundle, a live Codex batch, or a replay batch without rescanning repo HEAD.
 - `node scripts/evals/build-session-telemetry-summary.mjs --repo-root /path/to/repo`
   Summarize the repo-local `.sentrux/agent-session-events.jsonl` stream into per-session and per-signal resolution metrics.
 - `node scripts/evals/run-codex-session.mjs --source-root /path/to/repo --task-file task.txt`
@@ -170,9 +183,27 @@ Use checked-in `docs/v2/examples/` artifacts only for intentionally promoted ref
 The recommended operating model is:
 
 1. define the active signal cohort in `docs/v2/evals/signal-cohorts.json`
-2. run a live Codex batch with `run-codex-session-batch.mjs`
-3. run a replay batch with `run-diff-replay-batch.mjs`
-4. build a refreshed scorecard
-5. build a backlog with `build-signal-backlog.mjs`
+2. load a per-repo calibration manifest from `docs/v2/evals/repos/`
+3. run a live Codex batch with `run-codex-session-batch.mjs` using the checked-in live batch manifest
+4. run a replay batch with `run-diff-replay-batch.mjs` using the checked-in replay batch manifest
+5. generate a review packet from the captured artifact bundle when you want human verdicts
+6. record verdicts with `review-verdicts.template.json` or the repo-specific verdict file
+7. build a refreshed scorecard
+8. build a backlog with `build-signal-backlog.mjs`
 
 That keeps the current trusted/watchpoint candidates, the real-session evidence, and the “what should we build next?” report on one shared set of artifacts.
+
+For the current checked-in repo manifests, start with:
+
+- `docs/v2/evals/repos/parallel-code.json`
+- `docs/v2/evals/repos/sentrux.json`
+
+End-to-end examples:
+
+```bash
+node scripts/evals/run-repo-calibration-loop.mjs \
+  --manifest docs/v2/evals/repos/parallel-code.json
+
+node scripts/evals/run-repo-calibration-loop.mjs \
+  --manifest docs/v2/evals/repos/sentrux.json
+```

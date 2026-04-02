@@ -1,0 +1,23 @@
+{
+  "repo": "replace-me",
+  "captured_at": "2026-04-03T00:00:00Z",
+  "source_report": "docs/v2/examples/replace-me-review-packet.md",
+  "source_feedback": "Brief note describing how the report was reviewed and what kind of calibration signal the verdicts should provide.",
+  "verdicts": [
+    {
+      "scope": "replace-me/file.ts",
+      "kind": "replace_me_kind",
+      "report_bucket": "replace-me bucket",
+      "category": "useful",
+      "expected_trust_tier": "trusted",
+      "expected_presentation_class": "structural_debt",
+      "expected_leverage_class": "local_refactor_target",
+      "expected_summary_presence": "headline",
+      "preferred_over": [
+        "replace-me/other.ts"
+      ],
+      "engineer_note": "Explain why this finding matters to the maintainer and which nearby signal it should outrank.",
+      "expected_v2_behavior": "Describe the desired ranking, trust, and presentation behavior in one sentence."
+    }
+  ]
+}

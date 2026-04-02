@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Sentrux Repo Calibration Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "repo_id",
+    "repo_root",
+    "cohort_manifest",
+    "live_batch_manifest",
+    "replay_batch_manifest",
+    "artifacts"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "repo_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "repo_label": {
+      "type": "string"
+    },
+    "repo_root": {
+      "type": "string",
+      "minLength": 1
+    },
+    "cohort_manifest": {
+      "type": "string",
+      "minLength": 1
+    },
+    "cohort_id": {
+      "type": "string"
+    },
+    "live_batch_manifest": {
+      "type": "string",
+      "minLength": 1
+    },
+    "replay_batch_manifest": {
+      "type": "string",
+      "minLength": 1
+    },
+    "review_tool": {
+      "type": "string"
+    },
+    "review_limit": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "review_source": {
+      "enum": ["codex", "replay"]
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "review_packet_output",
+        "review_verdicts_input",
+        "review_verdicts_output",
+        "scorecard_output",
+        "backlog_output"
+      ],
+      "properties": {
+        "seeded_defect_report": {
+          "type": ["string", "null"]
+        },
+        "remediation_report": {
+          "type": ["string", "null"]
+        },
+        "benchmark_artifact": {
+          "type": ["string", "null"]
+        },
+        "review_packet_output": {
+          "type": "string"
+        },
+        "review_verdicts_input": {
+          "type": "string"
+        },
+        "review_verdicts_output": {
+          "type": "string"
+        },
+        "scorecard_output": {
+          "type": "string"
+        },
+        "backlog_output": {
+          "type": "string"
+        }
+      }
+    },
+    "batch_notes": {
+      "type": "string"
+    }
+  }
+}

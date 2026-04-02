@@ -1,12 +1,65 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-03-20T00:00:00.000Z",
+  "generated_at": "2026-04-03T00:00:00.000Z",
   "default_provider": "claude-code",
   "runner": "scripts/evals/run.mjs",
+  "calibration_runner": "scripts/evals/run-repo-calibration-loop.mjs",
   "schemas": {
     "scenario": "./scenario.schema.json",
-    "result": "./result.schema.json"
+    "result": "./result.schema.json",
+    "repo_calibration": "./repo-calibration.schema.json",
+    "review_verdicts": "./review-verdicts.schema.json",
+    "codex_session_batch": "./codex-session-batch.schema.json",
+    "diff_replay_batch": "./diff-replay-batch.schema.json"
   },
+  "cohorts": [
+    {
+      "cohort_id": "agent-loop-core",
+      "path": "./signal-cohorts.json"
+    }
+  ],
+  "repo_calibration_manifests": [
+    {
+      "repo_id": "parallel-code",
+      "path": "./repos/parallel-code.json"
+    },
+    {
+      "repo_id": "sentrux",
+      "path": "./repos/sentrux.json"
+    }
+  ],
+  "batch_manifests": [
+    {
+      "batch_id": "parallel-code-codex-session-batch",
+      "path": "./batches/parallel-code-codex-session-batch.json"
+    },
+    {
+      "batch_id": "parallel-code-diff-replay-batch",
+      "path": "./batches/parallel-code-diff-replay-batch.json"
+    },
+    {
+      "batch_id": "sentrux-codex-session-batch",
+      "path": "./batches/sentrux-codex-session-batch.json"
+    },
+    {
+      "batch_id": "sentrux-diff-replay-batch",
+      "path": "./batches/sentrux-diff-replay-batch.json"
+    }
+  ],
+  "review_verdicts": {
+    "schema": "./review-verdicts.schema.json",
+    "template": "./review-verdicts.template.json"
+  },
+  "prompt_sets": [
+    {
+      "repo_id": "parallel-code",
+      "path": "./prompts/parallel-code"
+    },
+    {
+      "repo_id": "sentrux",
+      "path": "./prompts/sentrux"
+    }
+  ],
   "scenarios": [
     {
       "scenario_id": "parallel-code",

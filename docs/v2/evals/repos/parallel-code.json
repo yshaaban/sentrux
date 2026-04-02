@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "repo_id": "parallel-code",
+  "repo_label": "parallel-code",
+  "repo_root": "<parallel-code-root>",
+  "cohort_manifest": "../signal-cohorts.json",
+  "cohort_id": "agent-loop-core",
+  "live_batch_manifest": "../batches/parallel-code-codex-session-batch.json",
+  "replay_batch_manifest": "../batches/parallel-code-diff-replay-batch.json",
+  "artifacts": {
+    "seeded_defect_report": "../../examples/parallel-code-defect-injection.json",
+    "remediation_report": "../../examples/parallel-code-remediation.json",
+    "benchmark_artifact": "../../examples/parallel-code-benchmark.json",
+    "review_packet_output": ".sentrux/evals/parallel-code/check-review-packet.md",
+    "review_verdicts_input": "../../examples/parallel-code-review-verdicts.json",
+    "review_verdicts_output": ".sentrux/evals/parallel-code/review-verdicts.json",
+    "scorecard_output": ".sentrux/evals/parallel-code/signal-scorecard.json",
+    "backlog_output": ".sentrux/evals/parallel-code/signal-backlog.json"
+  },
+  "batch_notes": "Checked-in calibration manifest for the main benchmark repo. The live and replay batch manifests should be kept in sync with the current agent-loop cohort."
+}

@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "batch_id": "parallel-code-diff-replay-batch",
+  "cohort_id": "agent-loop-core",
+  "repo_root": "<parallel-code-root>",
+  "repo_label": "parallel-code",
+  "rules_source": "../../examples/parallel-code.rules.toml",
+  "expected_signal_kinds": [
+    "closed_domain_exhaustiveness",
+    "forbidden_raw_read",
+    "missing_test_coverage",
+    "large_file"
+  ],
+  "default_tags": ["calibration", "replay"],
+  "rev_range": "HEAD~40..HEAD",
+  "max_count": 12
+}

@@ -258,6 +258,35 @@ node scripts/evals/run-signal-calibration.mjs \
 
 The repo-local MCP event stream lives at `.sentrux/agent-session-events.jsonl`. The calibration loop treats those events as the real-session evidence layer on top of seeded defects and provider remediation runs.
 
+## Repo Calibration Loop
+
+Use the repo calibration manifests to keep the live-session, replay, review, scorecard, and backlog artifacts aligned for a single repo.
+
+The checked-in manifests live under:
+
+- `docs/v2/evals/repos/parallel-code.json`
+- `docs/v2/evals/repos/sentrux.json`
+
+Each repo manifest points at:
+
+- one live Codex batch manifest
+- one replay batch manifest
+- one review-verdict input file
+- one review-verdict output file
+- one scorecard output path
+- one backlog output path
+
+The expected loop is:
+
+1. pick the repo manifest
+2. run `node scripts/evals/run-repo-calibration-loop.mjs --manifest docs/v2/evals/repos/<repo>.json`
+3. inspect the generated review packet
+4. apply the verdict template or the repo-specific review verdict file
+5. rerun the same repo-level loop if you want the refreshed scorecard and backlog to incorporate the new verdicts
+6. compare the new outputs against the previous calibration snapshot
+
+The repo-level calibration loop is intentionally manifest-driven so each repo keeps its own prompts, batch inputs, and calibration outputs in one place.
+
 ## Continuous Experiment Lanes
 
 Weekly rituals are not the point. The point is to collect evidence continuously while real work is happening.

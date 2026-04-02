@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "batch_id": "parallel-code-codex-session-batch",
+  "cohort_id": "agent-loop-core",
+  "repo_root": "<parallel-code-root>",
+  "repo_label": "parallel-code",
+  "rules_source": "../../examples/parallel-code.rules.toml",
+  "analysis_mode": "head_clone",
+  "timeout_ms": 1800000,
+  "poll_ms": 4000,
+  "codex_bin": "codex",
+  "expected_signal_kinds": [
+    "closed_domain_exhaustiveness",
+    "forbidden_raw_read",
+    "missing_test_coverage",
+    "large_file"
+  ],
+  "tasks": [
+    {
+      "task_id": "parallel-code-exhaustiveness-hardening",
+      "task_label": "Harden a domain exhaustiveness seam",
+      "prompt_file": "../prompts/parallel-code/exhaustiveness-hardening.md",
+      "tags": ["calibration", "exhaustiveness"],
+      "expected_signal_kinds": ["closed_domain_exhaustiveness"],
+      "expected_fix_surface": "TypeScript exhaustiveness seam"
+    },
+    {
+      "task_id": "parallel-code-raw-read-guardrail",
+      "task_label": "Tighten a raw-read boundary",
+      "prompt_file": "../prompts/parallel-code/raw-read-guardrail.md",
+      "tags": ["calibration", "rules"],
+      "expected_signal_kinds": ["forbidden_raw_read"],
+      "expected_fix_surface": "explicit rule violation"
+    },
+    {
+      "task_id": "parallel-code-test-coverage-gap",
+      "task_label": "Close a missing test gap",
+      "prompt_file": "../prompts/parallel-code/test-coverage-gap.md",
+      "tags": ["calibration", "tests"],
+      "expected_signal_kinds": ["missing_test_coverage"],
+      "expected_fix_surface": "test coverage"
+    },
+    {
+      "task_id": "parallel-code-large-file-tidy",
+      "task_label": "Reduce a large-file maintenance hotspot",
+      "prompt_file": "../prompts/parallel-code/large-file-tidy.md",
+      "tags": ["calibration", "structural"],
+      "expected_signal_kinds": ["large_file"],
+      "expected_fix_surface": "structural debt"
+    }
+  ]
+}

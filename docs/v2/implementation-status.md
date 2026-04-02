@@ -1,6 +1,6 @@
 # Sentrux V2 Implementation Status
 
-Last audited: 2026-04-02
+Last audited: 2026-04-03
 
 ## Overall Verdict
 
@@ -77,6 +77,8 @@ The strongest completed work is:
 - repo-local MCP session telemetry with session-summary generation and calibration-run wiring
 - disposable-clone Codex task capture and historical diff replay now feed the same session-telemetry and scorecard loop
 - cohort-driven batch Codex capture, batch diff replay, and signal-backlog synthesis now exist for continuous calibration
+- checked-in repo calibration manifests, batch manifests, prompt files, and review-verdict schema/template now exist for `parallel-code` and `sentrux`
+- one-command repo calibration orchestration now exists through `run-repo-calibration-loop.mjs`
 - legacy MCP and CLI surfaces now frame structural output as context rather than the main v2 story
 - desktop structural panels and export flow now frame structural output as supporting context
 - `findings` now includes a top-level confidence summary

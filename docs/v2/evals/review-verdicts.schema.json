@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Sentrux Review Verdicts",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["repo", "captured_at", "source_report", "verdicts"],
+  "properties": {
+    "repo": {
+      "type": "string",
+      "minLength": 1
+    },
+    "captured_at": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_report": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_feedback": {
+      "type": "string"
+    },
+    "verdicts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "scope",
+          "kind",
+          "report_bucket",
+          "category",
+          "expected_trust_tier",
+          "expected_presentation_class",
+          "expected_leverage_class",
+          "expected_summary_presence",
+          "engineer_note",
+          "expected_v2_behavior"
+        ],
+        "properties": {
+          "scope": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "type": "string",
+            "minLength": 1
+          },
+          "report_bucket": {
+            "type": "string",
+            "minLength": 1
+          },
+          "category": {
+            "enum": [
+              "useful",
+              "useful_watchpoint",
+              "real_but_overstated",
+              "low_value",
+              "incorrect"
+            ]
+          },
+          "expected_trust_tier": {
+            "enum": ["trusted", "watchpoint", "experimental"]
+          },
+          "expected_presentation_class": {
+            "type": "string",
+            "minLength": 1
+          },
+          "expected_leverage_class": {
+            "type": "string",
+            "minLength": 1
+          },
+          "expected_summary_presence": {
+            "enum": ["headline", "section_present", "side_channel"]
+          },
+          "preferred_over": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "engineer_note": {
+            "type": "string",
+            "minLength": 1
+          },
+          "expected_v2_behavior": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}
