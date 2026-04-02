@@ -239,9 +239,24 @@ Use the seeded defect harness, review packets, and remediation evals together.
 2. generate or refresh a review packet with `node scripts/evals/build-check-review-packet.mjs`
 3. classify reviewed findings using the false-positive workflow
 4. run remediation evals with `node scripts/evals/run-defect-remediation.mjs`
-5. aggregate the result into a per-signal scorecard with `node scripts/evals/build-signal-scorecard.mjs`
+5. summarize real MCP sessions with `node scripts/evals/build-session-telemetry-summary.mjs --repo-root /path/to/repo`
+6. aggregate the result into a per-signal scorecard with `node scripts/evals/build-signal-scorecard.mjs`
 
 Signals should only be promoted when seeded recall, reviewed precision, and remediation success all support the promotion.
+
+To refresh the session summary and scorecard together, use:
+
+```bash
+node scripts/evals/run-signal-calibration.mjs \
+  --repo-root /path/to/repo \
+  --repo-label my-repo \
+  --defect-report /path/to/defect-report.json \
+  --review-verdicts /path/to/review-verdicts.json \
+  --remediation-report /path/to/remediation-report.json \
+  --benchmark /path/to/benchmark.json
+```
+
+The repo-local MCP event stream lives at `.sentrux/agent-session-events.jsonl`. The calibration loop treats those events as the real-session evidence layer on top of seeded defects and provider remediation runs.
 
 Current promotion note:
 

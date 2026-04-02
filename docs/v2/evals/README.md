@@ -108,7 +108,30 @@ Supporting scripts now cover:
 
 - `node scripts/evals/build-check-review-packet.mjs`
   Build a reusable review packet from `check`, `findings`, or `session_end` for manual false-positive review.
+- `node scripts/evals/build-session-telemetry-summary.mjs --repo-root /path/to/repo`
+  Summarize the repo-local `.sentrux/agent-session-events.jsonl` stream into per-session and per-signal resolution metrics.
 - `node scripts/evals/run-defect-remediation.mjs`
   Seed a defect, let a provider attempt a fix in a disposable clone, rerun `check`, and record whether the signal actually helped the agent repair the issue.
 - `node scripts/evals/build-signal-scorecard.mjs`
-  Merge defect-injection results, reviewed verdicts, remediation outcomes, and benchmark latency into a per-signal scorecard.
+  Merge defect-injection results, reviewed verdicts, remediation outcomes, session telemetry, and benchmark latency into a per-signal scorecard.
+- `node scripts/evals/run-signal-calibration.mjs`
+  Build the session telemetry summary and the refreshed scorecard together for the current repo or benchmark artifact set.
+
+## Real Session Instrumentation
+
+MCP `session_start`, `check`, and `session_end` now append best-effort JSONL events to:
+
+```text
+<repo>/.sentrux/agent-session-events.jsonl
+```
+
+Those events are repo-local and intended for product calibration, not network telemetry.
+
+The current event stream records:
+
+- explicit vs implicit session mode
+- `check` gate result, changed-file count, and top action kinds
+- whether the run was partial or reused cached scan state
+- `session_end` decisions, introduced finding kinds, and missing-obligation counts
+
+Use that log as the input to the session-telemetry summary script before rebuilding the scorecard.

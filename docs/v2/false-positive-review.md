@@ -41,6 +41,14 @@ That packet is meant to be reviewed, classified, and then fed into the signal-qu
 
 Use `--tool check` when you have a changed or seeded patch to review. On a clean repo, `check` may correctly return zero samples; for repo-wide false-positive review, build a `findings` or `session_end` packet instead.
 
+When real MCP sessions are available, pair the review packet with:
+
+```bash
+node scripts/evals/build-session-telemetry-summary.mjs --repo-root /path/to/repo
+```
+
+That summary does not replace reviewer judgment. It shows whether the top-ranked `check` action for a signal tends to disappear on the next `check`, and whether the follow-up introduced new regressions.
+
 Minimum repo set for wedge analyzers:
 
 1. `parallel-code`

@@ -53,6 +53,17 @@ test('buildSignalScorecard aggregates seeded, review, and remediation metrics', 
         },
       },
     },
+    sessionTelemetry: {
+      signals: [
+        {
+          signal_kind: 'closed_domain_exhaustiveness',
+          top_action_presented: 2,
+          followup_checks: 1,
+          target_cleared: 1,
+          followup_regressions: 0,
+        },
+      ],
+    },
   });
 
   assert.equal(scorecard.signals.length, 1);
@@ -63,6 +74,7 @@ test('buildSignalScorecard aggregates seeded, review, and remediation metrics', 
   assert.equal(scorecard.signals[0].reviewed_precision, 1);
   assert.equal(scorecard.signals[0].useful_precision, 1);
   assert.equal(scorecard.signals[0].remediation_success_rate, 1);
+  assert.equal(scorecard.signals[0].session_resolution_rate, 1);
   assert.equal(scorecard.signals[0].latency_ms, 134.2);
 });
 
@@ -129,6 +141,19 @@ test('buildSignalScorecard tracks check_rules-only seeded defects through the pr
   assert.equal(scorecard.signals[0].latency_ms, null);
 });
 
+test('buildSignalScorecard respects an explicit repo label override', function () {
+  const scorecard = buildSignalScorecard({
+    repoLabel: 'telemetry-fixture',
+    defectReport: {
+      repo_label: 'parallel-code',
+      defects: [],
+      results: [],
+    },
+  });
+
+  assert.equal(scorecard.repo_label, 'telemetry-fixture');
+});
+
 test('formatSignalScorecardMarkdown renders the score table', function () {
   const markdown = formatSignalScorecardMarkdown({
     repo_label: 'parallel-code',
@@ -151,6 +176,7 @@ test('formatSignalScorecardMarkdown renders the score table', function () {
         reviewed_precision: null,
         useful_precision: null,
         remediation_success_rate: null,
+        session_resolution_rate: 0.5,
         latency_ms: 134.2,
         promotion_recommendation: 'keep_watchpoint',
       },
@@ -160,4 +186,5 @@ test('formatSignalScorecardMarkdown renders the score table', function () {
   assert.match(markdown, /Signal Quality Scorecard/);
   assert.match(markdown, /missing_test_coverage/);
   assert.match(markdown, /keep_watchpoint/);
+  assert.match(markdown, /0.5/);
 });

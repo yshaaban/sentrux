@@ -185,3 +185,4 @@ V2 is succeeding when:
 4. `parallel-code` gets meaningful debt signals and watchpoints that match its own architecture docs and tests
 5. the score is no longer the primary product narrative
 6. seeded defects, false-positive review, and remediation evals all support the signals we promote
+7. real session telemetry shows the top-ranked `check` actions are actually getting cleared without creating new regressions

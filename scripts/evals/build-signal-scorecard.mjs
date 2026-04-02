@@ -18,6 +18,7 @@ function parseArgs(argv) {
     reviewVerdictsPath: null,
     remediationReportPath: null,
     benchmarkPath: null,
+    sessionTelemetryPath: null,
     outputJsonPath: null,
     outputMarkdownPath: null,
   };
@@ -42,6 +43,11 @@ function parseArgs(argv) {
     if (value === '--benchmark') {
       index += 1;
       result.benchmarkPath = argv[index];
+      continue;
+    }
+    if (value === '--session-telemetry') {
+      index += 1;
+      result.sessionTelemetryPath = argv[index];
       continue;
     }
     if (value === '--output-json') {
@@ -87,12 +93,17 @@ async function main() {
     ? await readJson(args.remediationReportPath)
     : null;
   const benchmark = args.benchmarkPath ? await readJson(args.benchmarkPath) : null;
+  const sessionTelemetry = args.sessionTelemetryPath
+    ? await readJson(args.sessionTelemetryPath)
+    : null;
 
   const scorecard = buildSignalScorecard({
+    repoLabel: defectReport.repo_label ?? reviewVerdicts?.repo ?? remediationReport?.repo_label ?? null,
     defectReport,
     reviewVerdicts,
     remediationReport,
     benchmark,
+    sessionTelemetry,
   });
   const markdown = formatSignalScorecardMarkdown(scorecard);
 

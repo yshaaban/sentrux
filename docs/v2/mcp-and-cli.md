@@ -19,6 +19,8 @@ That means:
 
 It should return a ranked list of actions for the current patch in one fast call.
 
+The calibration loop should treat the top-ranked `actions` from `check` as the primary experimental surface. Real session telemetry should record which action was shown first, whether the next `check` cleared it, and whether follow-up edits introduced new regressions.
+
 `agent_brief` packages the same evidence into a mode-aware brief when the agent needs more context instead of forcing the agent to reconstruct workflow from raw tool output.
 
 Modes:
