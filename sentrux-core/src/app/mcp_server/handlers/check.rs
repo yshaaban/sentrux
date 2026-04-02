@@ -1,6 +1,6 @@
 use super::agent_format::{
-    issue_blocks_gate, to_agent_issue, AgentCheckResponse, AgentGate, AgentIssue,
-    CheckAvailability, CheckDiagnostics,
+    actions_from_issues, compare_agent_issues, issue_blocks_gate, to_agent_issue,
+    AgentCheckResponse, AgentGate, AgentIssue, CheckAvailability, CheckDiagnostics,
 };
 use super::*;
 use crate::metrics::v2::{FindingSeverity, SemanticFinding};
@@ -58,6 +58,7 @@ pub(crate) fn handle_check(
         )
     };
     let gate = compute_agent_gate(&issues);
+    let actions = actions_from_issues(&issues, issues.len());
     let summary = build_check_summary(
         &issues,
         context.changed_scope_available,
@@ -66,6 +67,7 @@ pub(crate) fn handle_check(
     );
     let response = AgentCheckResponse {
         issues,
+        actions,
         gate,
         summary,
         changed_files: changed_files.iter().cloned().collect(),
@@ -188,14 +190,7 @@ fn build_fast_check_issues(
         .iter()
         .map(to_agent_issue)
         .collect::<Vec<_>>();
-    issues.sort_by(|left, right| {
-        right
-            .severity
-            .priority()
-            .cmp(&left.severity.priority())
-            .then_with(|| left.file.cmp(&right.file))
-            .then_with(|| left.kind.cmp(&right.kind))
-    });
+    issues.sort_by(compare_agent_issues);
 
     let availability = CheckAvailability {
         semantic: semantic_available,

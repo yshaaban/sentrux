@@ -14,7 +14,7 @@ The core product question is:
 
 > What did this patch change, what architectural obligations did that create, what objective debt signals or watchpoints did it expose, and what did the agent fail to update?
 
-That question should be answered through a mode-aware `agent_brief`, not by making the agent stitch together raw tool output.
+That question should be answered first through fast-path `check`, then through a mode-aware `agent_brief` when the agent needs more context. Agents should never have to stitch together raw tool output to find the next fix.
 
 ## Priority Order
 
@@ -27,7 +27,8 @@ Priority order for v2:
 
 This means:
 
-- `agent_brief` is the primary structured guidance surface
+- `check` is the primary fast-path patch surface
+- `agent_brief` is the synthesized guidance surface
 - a patch-scoped missing obligation matters more than a repo-wide depth penalty
 - a new multi-writer regression matters more than a low modularity score
 - objective findings matter more than elegant composite math
@@ -47,14 +48,15 @@ Secondary users:
 
 The product surface must be ordered like this:
 
-1. agent_brief
-2. findings
-3. obligations
-4. session delta
-5. scorecard
-6. confidence
+1. check
+2. agent_brief
+3. findings
+4. obligations
+5. session delta
+6. scorecard
+7. confidence
 
-The scorecard is useful, but it is not the core wedge. Any optimization-like output is a sorting aid, not a roadmap decision.
+The scorecard is useful, but it is not the core wedge. Any optimization-like output is a sorting aid, not a roadmap decision. `check`, `agent_brief`, and `session_end` should all lead with the same ranked action model.
 
 ## Agent Brief Modes
 
@@ -87,6 +89,8 @@ Zero-config beta findings should be limited to:
 
 - clone drift
 - conservative closed-domain and exhaustiveness checks
+- missing-test watchpoints
+- conservative inferred boundary violations
 
 ## Secondary Context
 
@@ -175,8 +179,9 @@ Do not optimize v2 around:
 
 V2 is succeeding when:
 
-1. agents get fixable findings at `session_end`
+1. agents get fixable findings at `check`
 2. touched-concept regressions can fail CI with high trust
 3. important architectural rules become machine-checkable
 4. `parallel-code` gets meaningful debt signals and watchpoints that match its own architecture docs and tests
 5. the score is no longer the primary product narrative
+6. seeded defects, false-positive review, and remediation evals all support the signals we promote

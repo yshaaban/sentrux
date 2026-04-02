@@ -60,6 +60,7 @@ mod session;
 pub(crate) mod test_support;
 mod view_support;
 
+pub(crate) use self::agent_format::{actions_from_findings_and_obligations, AgentAction};
 pub(crate) use self::brief::agent_brief_def;
 pub use self::brief::cli_agent_brief;
 pub(crate) use self::check::check_def;

@@ -38,4 +38,12 @@ fn patch_brief_marks_evolution_unavailable_on_fast_path() {
         json!(false)
     );
     assert_eq!(response["diagnostics"]["partial_results"], json!(true));
+    assert!(response["actions"].is_array());
+    assert_eq!(
+        response["action_count"],
+        response["actions"]
+            .as_array()
+            .map(|items| items.len())
+            .unwrap_or_default()
+    );
 }

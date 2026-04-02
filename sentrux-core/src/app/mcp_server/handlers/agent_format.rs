@@ -37,6 +37,7 @@ pub(crate) enum AgentGate {
 
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct AgentIssue {
+    pub(crate) scope: String,
     pub(crate) file: String,
     pub(crate) line: Option<u32>,
     pub(crate) kind: String,
@@ -44,6 +45,22 @@ pub(crate) struct AgentIssue {
     pub(crate) severity: FindingSeverity,
     pub(crate) fix_hint: Option<String>,
     pub(crate) evidence: Vec<String>,
+    pub(crate) source: IssueSource,
+    pub(crate) origin: IssueOrigin,
+    pub(crate) confidence: IssueConfidence,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub(crate) struct AgentAction {
+    pub(crate) priority: usize,
+    pub(crate) scope: String,
+    pub(crate) file: String,
+    pub(crate) line: Option<u32>,
+    pub(crate) kind: String,
+    pub(crate) message: String,
+    pub(crate) fix_hint: Option<String>,
+    pub(crate) evidence: Vec<String>,
+    pub(crate) blocking: bool,
     pub(crate) source: IssueSource,
     pub(crate) origin: IssueOrigin,
     pub(crate) confidence: IssueConfidence,
@@ -68,6 +85,7 @@ pub(crate) struct CheckDiagnostics {
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct AgentCheckResponse {
     pub(crate) issues: Vec<AgentIssue>,
+    pub(crate) actions: Vec<AgentAction>,
     pub(crate) gate: AgentGate,
     pub(crate) summary: String,
     pub(crate) changed_files: Vec<String>,
@@ -79,6 +97,7 @@ pub(crate) fn to_agent_issue(finding: &Value) -> AgentIssue {
     let files = finding_files(finding);
     let file = files.first().cloned().unwrap_or_default();
     AgentIssue {
+        scope: issue_scope_for_value(finding, &files, &kind),
         file,
         line: finding
             .get("line")
@@ -108,6 +127,43 @@ pub(crate) fn to_agent_issue(finding: &Value) -> AgentIssue {
     }
 }
 
+pub(crate) fn obligation_value_to_agent_issue(obligation: &Value) -> AgentIssue {
+    let kind = obligation
+        .get("kind")
+        .and_then(Value::as_str)
+        .unwrap_or("missing_obligation")
+        .to_string();
+    let files = obligation_files(obligation);
+    let file = files.first().cloned().unwrap_or_default();
+    let scope = obligation
+        .get("concept_id")
+        .or_else(|| obligation.get("concept"))
+        .and_then(Value::as_str)
+        .map(str::to_string)
+        .or_else(|| files.first().cloned())
+        .unwrap_or_else(|| kind.clone());
+
+    AgentIssue {
+        scope,
+        file,
+        line: obligation_line(obligation),
+        kind: kind.clone(),
+        message: obligation
+            .get("summary")
+            .and_then(Value::as_str)
+            .unwrap_or("Changed concept still has missing update sites")
+            .to_string(),
+        severity: obligation_severity(obligation),
+        fix_hint: Some(
+            "Update the missing sites tied to the changed concept before continuing.".to_string(),
+        ),
+        evidence: obligation_evidence(obligation),
+        source: IssueSource::Obligation,
+        origin: obligation_origin(obligation),
+        confidence: obligation_confidence(obligation),
+    }
+}
+
 pub(crate) fn issue_blocks_gate(issue: &AgentIssue) -> bool {
     match issue.source {
         IssueSource::Obligation => issue.severity == FindingSeverity::High,
@@ -116,6 +172,42 @@ pub(crate) fn issue_blocks_gate(issue: &AgentIssue) -> bool {
         }
         IssueSource::Structural | IssueSource::Clone => false,
     }
+}
+
+pub(crate) fn actions_from_issues(issues: &[AgentIssue], limit: usize) -> Vec<AgentAction> {
+    issues
+        .iter()
+        .take(limit.max(1))
+        .enumerate()
+        .map(|(index, issue)| AgentAction {
+            priority: index + 1,
+            scope: issue.scope.clone(),
+            file: issue.file.clone(),
+            line: issue.line,
+            kind: issue.kind.clone(),
+            message: issue.message.clone(),
+            fix_hint: issue.fix_hint.clone(),
+            evidence: issue.evidence.clone(),
+            blocking: issue_blocks_gate(issue),
+            source: issue.source,
+            origin: issue.origin,
+            confidence: issue.confidence,
+        })
+        .collect()
+}
+
+pub(crate) fn actions_from_findings_and_obligations(
+    findings: &[Value],
+    missing_obligations: &[Value],
+    limit: usize,
+) -> Vec<AgentAction> {
+    let mut issues = missing_obligations
+        .iter()
+        .map(obligation_value_to_agent_issue)
+        .collect::<Vec<_>>();
+    issues.extend(findings.iter().map(to_agent_issue));
+    issues.sort_by(compare_agent_issues);
+    actions_from_issues(&issues, limit)
 }
 
 fn issue_source_for_kind(kind: &str) -> IssueSource {
@@ -136,6 +228,153 @@ fn issue_source_for_kind(kind: &str) -> IssueSource {
         return IssueSource::Obligation;
     }
     IssueSource::Rules
+}
+
+fn obligation_origin(obligation: &Value) -> IssueOrigin {
+    if matches!(
+        obligation.get("origin").and_then(Value::as_str),
+        Some("zero_config")
+    ) || obligation.get("concept_id").is_none()
+    {
+        IssueOrigin::ZeroConfig
+    } else {
+        IssueOrigin::Explicit
+    }
+}
+
+fn obligation_confidence(obligation: &Value) -> IssueConfidence {
+    match obligation_origin(obligation) {
+        IssueOrigin::Explicit => IssueConfidence::High,
+        IssueOrigin::ZeroConfig => IssueConfidence::Medium,
+    }
+}
+
+fn obligation_severity(obligation: &Value) -> FindingSeverity {
+    if obligation
+        .get("kind")
+        .and_then(Value::as_str)
+        .is_some_and(|kind| kind == "closed_domain_exhaustiveness")
+        || obligation
+            .get("missing_variants")
+            .and_then(Value::as_array)
+            .is_some_and(|variants| !variants.is_empty())
+    {
+        FindingSeverity::High
+    } else {
+        FindingSeverity::Medium
+    }
+}
+
+fn obligation_files(obligation: &Value) -> Vec<String> {
+    let files = obligation
+        .get("files")
+        .and_then(Value::as_array)
+        .map(|files| {
+            files
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::to_string)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    if !files.is_empty() {
+        return files;
+    }
+
+    obligation
+        .get("missing_sites")
+        .and_then(Value::as_array)
+        .map(|sites| {
+            sites
+                .iter()
+                .filter_map(|site| site.get("path").and_then(Value::as_str))
+                .map(str::to_string)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default()
+}
+
+fn obligation_line(obligation: &Value) -> Option<u32> {
+    obligation
+        .get("missing_sites")
+        .and_then(Value::as_array)
+        .and_then(|sites| {
+            sites
+                .iter()
+                .find_map(|site| site.get("line").and_then(Value::as_u64))
+        })
+        .map(|line| line as u32)
+}
+
+fn obligation_evidence(obligation: &Value) -> Vec<String> {
+    obligation
+        .get("missing_sites")
+        .and_then(Value::as_array)
+        .map(|sites| {
+            sites
+                .iter()
+                .filter_map(|site| {
+                    let path = site.get("path").and_then(Value::as_str)?;
+                    let detail = site
+                        .get("detail")
+                        .and_then(Value::as_str)
+                        .unwrap_or("missing site");
+                    let line_suffix = site
+                        .get("line")
+                        .and_then(Value::as_u64)
+                        .map(|line| format!(":{line}"))
+                        .unwrap_or_default();
+                    Some(format!("{path}{line_suffix} [{detail}]"))
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default()
+}
+
+fn issue_scope_for_value(finding: &Value, files: &[String], kind: &str) -> String {
+    finding
+        .get("scope")
+        .or_else(|| finding.get("concept_id"))
+        .and_then(Value::as_str)
+        .map(str::to_string)
+        .or_else(|| files.first().cloned())
+        .unwrap_or_else(|| kind.to_string())
+}
+
+fn right_gate_weight(issue: &AgentIssue) -> u8 {
+    if issue_blocks_gate(issue) {
+        1
+    } else {
+        0
+    }
+}
+
+fn issue_source_weight(issue: &AgentIssue) -> u8 {
+    match (issue.source, issue.origin) {
+        (IssueSource::Rules, IssueOrigin::Explicit) => 4,
+        (IssueSource::Obligation, _) => 3,
+        (IssueSource::Rules, IssueOrigin::ZeroConfig) => 2,
+        (IssueSource::Structural, _) => 1,
+        (IssueSource::Clone, _) => 0,
+    }
+}
+
+fn issue_confidence_weight(issue: &AgentIssue) -> u8 {
+    match issue.confidence {
+        IssueConfidence::High => 2,
+        IssueConfidence::Medium => 1,
+        IssueConfidence::Experimental => 0,
+    }
+}
+
+pub(crate) fn compare_agent_issues(left: &AgentIssue, right: &AgentIssue) -> std::cmp::Ordering {
+    right_gate_weight(right)
+        .cmp(&right_gate_weight(left))
+        .then_with(|| issue_source_weight(right).cmp(&issue_source_weight(left)))
+        .then_with(|| right.severity.priority().cmp(&left.severity.priority()))
+        .then_with(|| issue_confidence_weight(right).cmp(&issue_confidence_weight(left)))
+        .then_with(|| left.file.cmp(&right.file))
+        .then_with(|| left.kind.cmp(&right.kind))
 }
 
 fn issue_origin_for_value(finding: &Value, kind: &str) -> IssueOrigin {

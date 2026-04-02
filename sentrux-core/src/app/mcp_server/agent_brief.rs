@@ -1,3 +1,4 @@
+use crate::app::mcp_server::handlers::{actions_from_findings_and_obligations, AgentAction};
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::collections::BTreeSet;
@@ -144,6 +145,8 @@ struct AgentBrief {
     decision: String,
     summary: String,
     repo_shape: Value,
+    action_count: usize,
+    actions: Vec<AgentAction>,
     primary_target_count: usize,
     primary_targets: Vec<AgentBriefTarget>,
     missing_obligation_count: usize,
@@ -198,6 +201,11 @@ pub fn build_agent_brief(input: AgentBriefInput) -> Result<Value, String> {
     let do_not_chase = build_do_not_chase(&input);
     let decision = decide(&input, &primary_targets);
     let summary = summarize(&input, &decision, primary_targets.len());
+    let actions = actions_from_findings_and_obligations(
+        &input.findings,
+        &input.missing_obligations,
+        input.limit.max(1),
+    );
 
     serde_json::to_value(AgentBrief {
         kind: "agent_brief",
@@ -205,6 +213,8 @@ pub fn build_agent_brief(input: AgentBriefInput) -> Result<Value, String> {
         decision,
         summary,
         repo_shape: summarize_repo_shape(&input.repo_shape),
+        action_count: actions.len(),
+        actions,
         primary_target_count: primary_targets.len(),
         primary_targets,
         missing_obligation_count: input.missing_obligations.len(),
@@ -238,6 +248,7 @@ fn summarize_repo_shape(repo_shape: &Value) -> Value {
         "effective_archetypes": repo_shape.get("effective_archetypes").cloned().unwrap_or(json!([])),
         "boundary_roots": boundary_roots,
         "starter_rules_toml": repo_shape.get("starter_rules_toml").cloned().unwrap_or(Value::Null),
+        "working_rules_toml": repo_shape.get("working_rules_toml").cloned().unwrap_or(Value::Null),
     })
 }
 

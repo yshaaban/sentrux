@@ -1,7 +1,12 @@
+use super::agent_format::{
+    actions_from_issues, compare_agent_issues, AgentIssue, IssueConfidence, IssueOrigin,
+    IssueSource,
+};
 use super::test_support::{commit_all, init_git_repo, temp_root, write_file};
 use super::{fresh_mcp_state, handle_check, handle_scan};
 use crate::analysis::project_shape::{ModuleContractSuggestion, ProjectShapeReport};
 use crate::license::Tier;
+use crate::metrics::v2::FindingSeverity;
 use serde_json::json;
 
 #[test]
@@ -24,6 +29,7 @@ fn check_returns_partial_when_changed_scope_is_unavailable() {
     let response = handle_check(&json!({}), &Tier::Free, &mut state).expect("check response");
 
     assert_eq!(response["issues"], json!([]));
+    assert_eq!(response["actions"], json!([]));
     assert_eq!(
         response["diagnostics"]["availability"]["changed_scope"],
         json!(false)
@@ -65,6 +71,7 @@ fn check_returns_clean_result_when_changed_scope_is_known_empty() {
     let response = handle_check(&json!({}), &Tier::Free, &mut state).expect("check response");
 
     assert_eq!(response["issues"], json!([]));
+    assert_eq!(response["actions"], json!([]));
     assert_eq!(response["changed_files"], json!([]));
     assert_eq!(response["gate"], json!("pass"));
     assert_eq!(
@@ -186,4 +193,42 @@ fn check_applies_suppressions_to_inferred_boundary_findings() {
         .expect("issues array")
         .iter()
         .all(|issue| issue["kind"] != "zero_config_boundary_violation"));
+}
+
+#[test]
+fn actions_prioritize_explicit_rule_breaks_over_structural_watchpoints() {
+    let mut issues = vec![
+        AgentIssue {
+            scope: "SidebarTaskRow".to_string(),
+            file: "src/components/SidebarTaskRow.tsx".to_string(),
+            line: Some(12),
+            kind: "dependency_sprawl".to_string(),
+            message: "SidebarTaskRow depends on too many modules.".to_string(),
+            severity: FindingSeverity::Medium,
+            fix_hint: None,
+            evidence: Vec::new(),
+            source: IssueSource::Structural,
+            origin: IssueOrigin::Explicit,
+            confidence: IssueConfidence::High,
+        },
+        AgentIssue {
+            scope: "task_presentation_status".to_string(),
+            file: "src/components/SidebarTaskRow.tsx".to_string(),
+            line: Some(18),
+            kind: "forbidden_raw_read".to_string(),
+            message: "Task presentation status is read directly.".to_string(),
+            severity: FindingSeverity::Medium,
+            fix_hint: None,
+            evidence: Vec::new(),
+            source: IssueSource::Rules,
+            origin: IssueOrigin::Explicit,
+            confidence: IssueConfidence::High,
+        },
+    ];
+    issues.sort_by(compare_agent_issues);
+    let actions = actions_from_issues(&issues, 4);
+
+    assert_eq!(actions.len(), 2);
+    assert_eq!(actions[0].kind, "forbidden_raw_read");
+    assert_eq!(actions[1].kind, "dependency_sprawl");
 }

@@ -87,25 +87,7 @@ pub fn render_starter_rules(
     primary_language: Option<&str>,
     existing_excludes: &[String],
 ) -> String {
-    let mut lines = Vec::new();
-    let mut excludes = existing_excludes.to_vec();
-    excludes.extend(suggest_excludes(shape));
-    excludes = dedupe_strings(excludes);
-
-    lines.push("[project]".to_string());
-    if let Some(language) = primary_language {
-        lines.push(format!("primary_language = {:?}", language));
-    }
-    if !shape.effective_archetypes.is_empty() {
-        lines.push(format!(
-            "archetypes = [{}]",
-            quoted_list(&shape.effective_archetypes)
-        ));
-    }
-    if !excludes.is_empty() {
-        lines.push(format!("exclude = [{}]", quoted_list(&excludes)));
-    }
-
+    let mut lines = render_base_rules_lines(shape, primary_language, existing_excludes);
     for contract in &shape.module_contracts {
         lines.push(String::new());
         lines.push("[[module_contract]]".to_string());
@@ -139,6 +121,58 @@ pub fn render_starter_rules(
     }
 
     lines.join("\n") + "\n"
+}
+
+pub fn render_working_rules(
+    shape: &ProjectShapeReport,
+    primary_language: Option<&str>,
+    existing_excludes: &[String],
+) -> String {
+    let mut lines = render_base_rules_lines(shape, primary_language, existing_excludes);
+    for contract in &shape.module_contracts {
+        lines.push(String::new());
+        lines.push("[[module_contract]]".to_string());
+        lines.push(format!("id = {:?}", contract.id));
+        lines.push(format!("root = {:?}", contract.root));
+        lines.push(format!(
+            "public_api = [{}]",
+            quoted_list(&contract.public_api)
+        ));
+        if !contract.nested_public_api.is_empty() {
+            lines.push(format!(
+                "nested_public_api = [{}]",
+                quoted_list(&contract.nested_public_api)
+            ));
+        }
+        lines.push("forbid_cross_module_deep_imports = true".to_string());
+    }
+    lines.join("\n") + "\n"
+}
+
+fn render_base_rules_lines(
+    shape: &ProjectShapeReport,
+    primary_language: Option<&str>,
+    existing_excludes: &[String],
+) -> Vec<String> {
+    let mut lines = Vec::new();
+    let mut excludes = existing_excludes.to_vec();
+    excludes.extend(suggest_excludes(shape));
+    excludes = dedupe_strings(excludes);
+
+    lines.push("[project]".to_string());
+    if let Some(language) = primary_language {
+        lines.push(format!("primary_language = {:?}", language));
+    }
+    if !shape.effective_archetypes.is_empty() {
+        lines.push(format!(
+            "archetypes = [{}]",
+            quoted_list(&shape.effective_archetypes)
+        ));
+    }
+    if !excludes.is_empty() {
+        lines.push(format!("exclude = [{}]", quoted_list(&excludes)));
+    }
+    lines
 }
 
 fn read_package_manifest_signals(root: &Path) -> Option<PackageManifestSignals> {
@@ -622,7 +656,7 @@ fn dedupe_strings(values: Vec<String>) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{detect_project_shape, render_starter_rules};
+    use super::{detect_project_shape, render_starter_rules, render_working_rules};
 
     #[test]
     fn detects_modular_nextjs_frontend_shape() {
@@ -683,6 +717,35 @@ mod tests {
         assert!(rendered.contains("[[module_contract]]"));
         assert!(rendered.contains("root = \"src/modules\""));
         assert!(rendered.contains("# confidence: high"));
+    }
+
+    #[test]
+    fn renders_working_rules_without_commentary() {
+        let file_paths = vec![
+            "src/app/layout.tsx".to_string(),
+            "src/modules/home/index.ts".to_string(),
+            "src/modules/file-manager/index.ts".to_string(),
+        ];
+        let shape = detect_project_shape(
+            None,
+            &file_paths,
+            &["package.json".to_string(), "next.config.ts".to_string()],
+            &[],
+        );
+
+        let rendered = render_working_rules(&shape, Some("typescript"), &[]);
+
+        assert!(rendered.contains("[[module_contract]]"));
+        assert!(rendered.contains("forbid_cross_module_deep_imports = true"));
+        if shape
+            .module_contracts
+            .iter()
+            .any(|contract| !contract.nested_public_api.is_empty())
+        {
+            assert!(rendered.contains("nested_public_api"));
+        }
+        assert!(!rendered.contains("# confidence:"));
+        assert!(!rendered.contains("Candidate boundary roots"));
     }
 
     #[test]

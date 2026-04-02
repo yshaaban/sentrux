@@ -46,6 +46,7 @@ fn session_end_works_with_v2_session_when_legacy_baseline_is_missing() {
 
     assert!(response.get("summary").is_some());
     assert!(response["diagnostics"]["errors"].is_object());
+    assert!(response["actions"].is_array());
     assert!(response.get("baseline_error").is_none());
 }
 
@@ -85,4 +86,5 @@ fn session_end_surfaces_debt_signals_for_changed_concept() {
 
     assert!(response["changed_files"].is_array());
     assert!(response["debt_signals"].is_array());
+    assert!(response["actions"].is_array());
 }

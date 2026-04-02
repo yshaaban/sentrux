@@ -335,6 +335,16 @@ fn build_patch_mode_agent_brief(
         .into_iter()
         .map(|finding| decorate_finding_with_classification(&finding))
         .collect::<Vec<_>>();
+    let introduced_clone_findings = candidate_findings
+        .iter()
+        .filter(|finding| {
+            matches!(
+                finding_kind(finding),
+                "exact_clone_group" | "clone_group" | "clone_family"
+            )
+        })
+        .cloned()
+        .collect::<Vec<_>>();
     let experimental_findings = experimental_introduced_findings
         .into_iter()
         .map(|finding| decorate_finding_with_classification(&finding))
@@ -408,6 +418,14 @@ fn build_patch_mode_agent_brief(
             json!(candidate_findings.len()),
         );
         object.insert("introduced_findings".to_string(), json!(candidate_findings));
+        object.insert(
+            "introduced_clone_finding_count".to_string(),
+            json!(introduced_clone_findings.len()),
+        );
+        object.insert(
+            "introduced_clone_findings".to_string(),
+            json!(introduced_clone_findings),
+        );
         object.insert(
             "blocking_finding_count".to_string(),
             json!(blocking_findings.len()),

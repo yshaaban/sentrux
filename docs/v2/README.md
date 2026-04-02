@@ -1,6 +1,6 @@
 # Sentrux V2
 
-Status: active implementation with a strong core wedge and multi-repo proof loop
+Status: active implementation with a strong core wedge, fast-path `check`, and a growing signal-quality proof loop
 
 Current implementation audit: [Implementation Status](./implementation-status.md)
 
@@ -76,11 +76,11 @@ The next version should answer questions like:
 
 V2 should produce five classes of output:
 
-1. findings
-2. obligations
-3. session delta
-4. scorecard
-5. confidence
+1. fast patch `check`
+2. agent guidance
+3. findings and obligations
+4. session delta
+5. confidence and signal-quality scorecards
 
 The primary product question changes from:
 
@@ -102,9 +102,11 @@ V2 now also exposes:
 - leverage classes and leverage reasons for engineering meaning
 - candidate split axes and related surfaces for fix-oriented inspection
 - project-shape detection, archetype matches, and starter-rule suggestions for repo onboarding
+- adoption-ready working rules generated from project shape
 - module-contract rules for module public APIs and cross-module deep-import enforcement
 - persisted semantic cache reuse across repeated MCP requests and fresh-process reruns when the repo fingerprint still matches
 - external evaluator harness scaffolding plus a focused `dead_private` review loop
+- defect-injection, review-packet, remediation-eval, and signal-scorecard tooling for proving signal quality
 
 Any compatibility fields that still mention quality opportunities or optimization-style sorting should be treated as legacy aliases for inspection candidates only. Engineers own the final prioritization.
 
@@ -118,7 +120,7 @@ The highest-ROI v2 wedge is deliberately narrow:
 
 For beta:
 
-- zero-config findings should come from clone drift and conservative closed-domain checks
+- zero-config findings should come from clone drift, conservative closed-domain checks, missing-test watchpoints, and conservative inferred boundary checks
 - concept-level authority, access, and obligation findings should rely on explicit critical concept rules
 
 Everything else is either support context or later-stage analysis.
@@ -158,13 +160,15 @@ The shortest path to usefulness is:
 Current reality:
 
 1. the patch-safety wedge is working in MCP and CLI
-2. proof artifacts now exist for `parallel-code` and `private-benchmark-repo`
-3. proof artifacts now also exist for `private-frontend` as the modular Next.js frontend benchmark repo
-4. findings and `session_end` now include concept summaries, structural debt signals, debt clusters, normalized finding details, and watchpoints
-5. trusted findings, watchpoints, and experimental findings are now separated in the primary MCP surfaces
-6. cycle-cluster reports now include concrete cut-candidate evidence instead of only SCC membership
-7. v2 now includes a generic archetype/onboarding layer with `project_shape` output, framework-aware role defaults, and starter-rule generation
-8. the remaining gaps are broader unhappy-path validation, proof-run refresh follow-through, dead-private detector promotion beyond experimental, deeper cache incrementality, and broader Tier 3 analysis beyond the new explicit transition-integrity slice
+2. `check` is now the default fast-path patch surface for agents
+3. proof artifacts now exist for `parallel-code` and `private-benchmark-repo`
+4. proof artifacts now also exist for `private-frontend` as the modular Next.js frontend benchmark repo
+5. findings and `session_end` now include concept summaries, structural debt signals, debt clusters, normalized finding details, and watchpoints
+6. trusted findings, watchpoints, and experimental findings are now separated in the primary MCP surfaces
+7. cycle-cluster reports now include concrete cut-candidate evidence instead of only SCC membership
+8. v2 now includes a generic archetype/onboarding layer with `project_shape` output, framework-aware role defaults, starter-rule generation, and adoption-ready working rules
+9. the quality loop now includes seeded defect injection, review packets, remediation eval scaffolding, and per-signal scorecards
+10. the remaining gaps are broader unhappy-path validation, proof-run refresh follow-through, dead-private detector promotion beyond experimental, deeper cache incrementality, and broader Tier 3 analysis beyond the new explicit transition-integrity slice
 
 ## Exit Criteria For V2 Beta
 

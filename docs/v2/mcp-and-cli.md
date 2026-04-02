@@ -7,16 +7,19 @@ V2 should be consumable by agents without breaking the current MCP workflow.
 That means:
 
 - keep existing tools working
-- add a mode-aware `agent_brief` as the primary structured guidance surface
+- add a fast-path `check` as the primary patch surface
+- add a mode-aware `agent_brief` as the synthesized guidance surface
 - add patch-safety-first v2 tools
-- make `agent_brief` the primary guided entrypoint and `session_end` the primary patch-safety touchpoint
+- make `check` the primary guided entrypoint and `session_end` the primary confirmation touchpoint
 - return objective findings, debt signals, watchpoints, and patch risks before score summaries
 
 ## Guidance Surface
 
-`agent_brief` is the primary structured guidance surface for agents.
+`check` is the primary structured guidance surface for agents in the coding loop.
 
-It should package the existing evidence into one mode-aware brief instead of forcing the agent to reconstruct workflow from raw tool output.
+It should return a ranked list of actions for the current patch in one fast call.
+
+`agent_brief` packages the same evidence into a mode-aware brief when the agent needs more context instead of forcing the agent to reconstruct workflow from raw tool output.
 
 Modes:
 
@@ -24,19 +27,20 @@ Modes:
 - `patch`: summarize the current change, findings, obligations, and touched-concept risk
 - `pre_merge`: summarize remaining blockers, unresolved obligations, and merge readiness
 
-The brief is the entry point. `session_end`, `findings`, `obligations`, `gate`, and `scorecard` remain the underlying structured evidence.
+`check` is the entry point. `agent_brief`, `session_end`, `findings`, `obligations`, `gate`, and `scorecard` remain the broader structured evidence.
 
 ## Product Surface Priority
 
 For v2 integrations, the preferred order is:
 
-1. `agent_brief`
-2. `session_end`
-3. `findings`
-4. `obligations`
-5. `gate`
-6. `scorecard`
-7. concept and parity inspection tools
+1. `check`
+2. `agent_brief`
+3. `session_end`
+4. `findings`
+5. `obligations`
+6. `gate`
+7. `scorecard`
+8. concept and parity inspection tools
 
 This ordering should shape both MCP and CLI design. Any ranking or optimization-like output is a sorting aid, not the final decision.
 
@@ -87,6 +91,27 @@ Agents should use v2 tools for patch-safety decisions.
 
 ## New Primary Tools
 
+## `check`
+
+Purpose:
+
+- return fast changed-scope issues for the current patch as a flat, ranked action list
+
+Arguments:
+
+- none
+
+Returns:
+
+- gate
+- summary
+- changed files
+- ranked `actions`
+- flat `issues`
+- diagnostics and availability
+
+`check` is the default tool for mid-loop agent feedback. It should stay fast-path only and never fall back to all-scope expensive analysis.
+
 ## `agent_brief`
 
 Purpose:
@@ -102,6 +127,7 @@ Arguments:
 Returns:
 
 - mode-specific summary
+- ranked `actions`
 - prioritized guidance
 - linked findings and obligations
 - touched-concept risk and gate readiness
@@ -184,13 +210,15 @@ Returns:
 
 ## `session_end` Upgrade
 
-The upgraded `session_end` response is the primary v2 product surface.
+The upgraded `session_end` response is the primary confirmation surface after `check`.
 
 It should add:
 
+- ranked `actions`
 - changed files
 - changed concepts
 - introduced findings
+- introduced clone findings
 - experimental findings
 - resolved findings
 - missing obligations
@@ -208,7 +236,7 @@ It should add:
 
 Purpose:
 
-- return grouped v2 tracks as supporting context
+- return grouped v2 tracks and signal-quality status as supporting context
 
 Arguments:
 

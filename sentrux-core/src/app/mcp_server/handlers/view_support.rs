@@ -1,6 +1,6 @@
 use super::*;
 use crate::analysis::project_shape::{
-    detect_project_shape, render_starter_rules, ProjectShapeReport,
+    detect_project_shape, render_starter_rules, render_working_rules, ProjectShapeReport,
 };
 
 pub(crate) fn scan_trust_json(metadata: &ScanMetadata) -> Value {
@@ -105,6 +105,11 @@ fn project_shape_to_json(
         "boundary_roots": shape.boundary_roots,
         "module_contracts": shape.module_contracts,
         "starter_rules_toml": render_starter_rules(
+            &shape,
+            config.project.primary_language.as_deref(),
+            &config.project.exclude,
+        ),
+        "working_rules_toml": render_working_rules(
             &shape,
             config.project.primary_language.as_deref(),
             &config.project.exclude,

@@ -412,6 +412,11 @@ pub(crate) fn handle_session_end(
         .iter()
         .map(decorate_finding_with_classification)
         .collect::<Vec<_>>();
+    let introduced_clone_findings = introduced_findings
+        .iter()
+        .filter(|finding| is_clone_finding_kind(finding_kind(finding)))
+        .cloned()
+        .collect::<Vec<_>>();
     let (opportunity_findings, experimental_findings) = if session_v2.is_some() {
         (visible_introduced_findings.clone(), experimental_findings)
     } else {
@@ -426,6 +431,11 @@ pub(crate) fn handle_session_end(
         .map(|finding| decorate_finding_with_classification(&finding))
         .collect::<Vec<_>>();
     let finding_details = build_finding_details(&opportunity_findings, 10);
+    let action_payloads = actions_from_findings_and_obligations(
+        &introduced_findings,
+        &serialized_values(&missing_obligations),
+        10,
+    );
     let debt_outputs = build_debt_report_outputs(
         state,
         &root,
@@ -485,7 +495,17 @@ pub(crate) fn handle_session_end(
         "introduced_findings".to_string(),
         json!(introduced_findings),
     );
+    result.insert(
+        "introduced_clone_finding_count".to_string(),
+        json!(introduced_clone_findings.len()),
+    );
+    result.insert(
+        "introduced_clone_findings".to_string(),
+        json!(introduced_clone_findings),
+    );
     result.insert("resolved_findings".to_string(), json!(resolved_findings));
+    result.insert("action_count".to_string(), json!(action_payloads.len()));
+    result.insert("actions".to_string(), json!(action_payloads));
     result.insert(
         "finding_detail_count".to_string(),
         json!(finding_details.len()),
@@ -571,6 +591,10 @@ pub(crate) fn handle_session_end(
     }
 
     Ok(result)
+}
+
+fn is_clone_finding_kind(kind: &str) -> bool {
+    matches!(kind, "exact_clone_group" | "clone_group" | "clone_family")
 }
 
 pub fn gate_def() -> ToolDef {
