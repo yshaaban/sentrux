@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Diff Replay Batch Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "repo_root"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "batch_id": { "type": "string" },
+    "cohort_id": { "type": "string" },
+    "repo_root": { "type": "string", "minLength": 1 },
+    "repo_label": { "type": "string" },
+    "rules_source": { "type": "string" },
+    "expected_signal_kinds": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "default_tags": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string" } }
+      ]
+    },
+    "rev_range": { "type": "string" },
+    "max_count": { "type": "integer", "minimum": 1 },
+    "replays": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["commit"],
+        "properties": {
+          "replay_id": { "type": "string" },
+          "commit": { "type": "string", "minLength": 1 },
+          "base_commit": { "type": "string" },
+          "tags": {
+            "oneOf": [
+              { "type": "string" },
+              { "type": "array", "items": { "type": "string" } }
+            ]
+          },
+          "expected_signal_kinds": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "expected_fix_surface": { "type": "string" }
+        }
+      }
+    }
+  }
+}

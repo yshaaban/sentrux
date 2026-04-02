@@ -75,6 +75,8 @@ The strongest completed work is:
 - seeded defect-injection harness and dogfood loop for `check`
 - review-packet builder, remediation-eval runner, and per-signal scorecard tooling
 - repo-local MCP session telemetry with session-summary generation and calibration-run wiring
+- disposable-clone Codex task capture and historical diff replay now feed the same session-telemetry and scorecard loop
+- cohort-driven batch Codex capture, batch diff replay, and signal-backlog synthesis now exist for continuous calibration
 - legacy MCP and CLI surfaces now frame structural output as context rather than the main v2 story
 - desktop structural panels and export flow now frame structural output as supporting context
 - `findings` now includes a top-level confidence summary

@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "default_cohort_id": "agent-loop-core",
+  "cohorts": [
+    {
+      "cohort_id": "agent-loop-core",
+      "title": "Agent Loop Core",
+      "description": "Initial high-ROI signal cohort for fast coding-agent feedback calibration.",
+      "signals": [
+        {
+          "signal_kind": "closed_domain_exhaustiveness",
+          "signal_family": "obligation",
+          "promotion_status": "trusted",
+          "rationale": "High-value semantic completeness signal for TypeScript agent edits."
+        },
+        {
+          "signal_kind": "forbidden_raw_read",
+          "signal_family": "rules",
+          "promotion_status": "trusted",
+          "rationale": "Strong explicit-rule regression that should block unsafe agent shortcuts."
+        },
+        {
+          "signal_kind": "missing_test_coverage",
+          "signal_family": "structural",
+          "promotion_status": "watchpoint",
+          "rationale": "Common omission signal that should stay visible without over-blocking."
+        },
+        {
+          "signal_kind": "large_file",
+          "signal_family": "structural",
+          "promotion_status": "watchpoint",
+          "rationale": "Regrowth warning that is valuable when it stays actionable."
+        }
+      ],
+      "next_candidates": [
+        "zero_config_boundary_violation",
+        "session_introduced_clone",
+        "incomplete_propagation"
+      ]
+    }
+  ]
+}

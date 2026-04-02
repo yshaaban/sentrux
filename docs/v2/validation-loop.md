@@ -258,6 +258,37 @@ node scripts/evals/run-signal-calibration.mjs \
 
 The repo-local MCP event stream lives at `.sentrux/agent-session-events.jsonl`. The calibration loop treats those events as the real-session evidence layer on top of seeded defects and provider remediation runs.
 
+## Continuous Experiment Lanes
+
+Weekly rituals are not the point. The point is to collect evidence continuously while real work is happening.
+
+Use three lanes in parallel:
+
+1. real Codex task capture
+   - `node scripts/evals/run-codex-session.mjs --source-root /path/to/repo --task-file task.txt`
+   - runs Codex CLI inside a disposable clone
+   - captures intermediate `check` snapshots whenever the working tree changes
+   - writes a bundle under `<repo>/.sentrux/evals/`
+2. diff replay
+   - `node scripts/evals/run-diff-replay.mjs --source-root /path/to/repo --commit <sha>`
+   - reconstructs a session from a real historical commit
+   - produces the same telemetry and outcome bundle shape as the live Codex lane
+3. seeded defect + remediation
+   - `node scripts/evals/run-defect-remediation.mjs --provider codex-cli`
+   - keeps deterministic coverage for the promoted signal cohort
+
+The real Codex lane tells us whether ranked actions help during actual work. The replay lane scales that check across realistic historical diffs. The seeded lane keeps detector and fix-hint regressions obvious while the other two accumulate.
+
+To make that repeatable instead of ad hoc:
+
+1. define the active cohort in `docs/v2/evals/signal-cohorts.json`
+2. capture a live-task batch with `node scripts/evals/run-codex-session-batch.mjs --manifest batch.json`
+3. capture a replay batch with `node scripts/evals/run-diff-replay-batch.mjs --manifest replay-batch.json`
+4. merge the results into a refreshed scorecard
+5. build the next-work backlog with `node scripts/evals/build-signal-backlog.mjs`
+
+The backlog output is not a substitute for human judgment, but it makes the weak-signal set, the high-friction live sessions, and the repeated out-of-cohort misses explicit enough to guide the next tranche.
+
 Current promotion note:
 
 - `dead_private_code_cluster` remains intentionally `experimental` until broader TS/TSX reference precision is validated beyond the current same-file callback/JSX suppression fix, exported-symbol visibility fix, and external review-loop evidence

@@ -12,6 +12,9 @@ Goals:
 ## Layout
 
 - `index.json` - manifest for the checked-in scenarios
+- `signal-cohorts.json` - active signal cohort definitions for calibration
+- `codex-session-batch.schema.json` - schema for batch Codex task capture manifests
+- `diff-replay-batch.schema.json` - schema for batch replay manifests
 - `scenario.schema.json` - task/scenario schema
 - `result.schema.json` - result schema emitted by the runner
 - `scenarios/parallel-code.json` - initial scenarios for `<parallel-code-root>`
@@ -110,10 +113,20 @@ Supporting scripts now cover:
   Build a reusable review packet from `check`, `findings`, or `session_end` for manual false-positive review.
 - `node scripts/evals/build-session-telemetry-summary.mjs --repo-root /path/to/repo`
   Summarize the repo-local `.sentrux/agent-session-events.jsonl` stream into per-session and per-signal resolution metrics.
+- `node scripts/evals/run-codex-session.mjs --source-root /path/to/repo --task-file task.txt`
+  Run a real Codex CLI task inside a disposable clone, capture intermediate `check` snapshots, and bundle the resulting session telemetry and outcome summary.
+- `node scripts/evals/run-codex-session-batch.mjs --manifest batch.json`
+  Run a cohort-oriented batch of real Codex tasks and emit one batch index plus a merged session summary.
+- `node scripts/evals/run-diff-replay.mjs --source-root /path/to/repo --commit <sha>`
+  Reconstruct a before/after session from a real git commit by checking out the parent revision in a disposable clone, applying the patch, and recording the resulting `check` / `session_end` artifacts.
+- `node scripts/evals/run-diff-replay-batch.mjs --manifest replay-batch.json`
+  Replay a selected set of commits, emit one batch index, and merge the resulting telemetry into one summary.
 - `node scripts/evals/run-defect-remediation.mjs`
-  Seed a defect, let a provider attempt a fix in a disposable clone, rerun `check`, and record whether the signal actually helped the agent repair the issue.
+  Seed a defect, let a provider attempt a fix in a disposable clone, rerun `check`, and record whether the signal actually helped the agent repair the issue. Both `claude-code` and `codex-cli` are supported.
 - `node scripts/evals/build-signal-scorecard.mjs`
   Merge defect-injection results, reviewed verdicts, remediation outcomes, session telemetry, and benchmark latency into a per-signal scorecard.
+- `node scripts/evals/build-signal-backlog.mjs`
+  Combine the active cohort, scorecard, and live/replay batch outputs into a weak-signal and false-negative backlog.
 - `node scripts/evals/run-signal-calibration.mjs`
   Build the session telemetry summary and the refreshed scorecard together for the current repo or benchmark artifact set.
 
@@ -135,3 +148,31 @@ The current event stream records:
 - `session_end` decisions, introduced finding kinds, and missing-obligation counts
 
 Use that log as the input to the session-telemetry summary script before rebuilding the scorecard.
+
+## Real-Work And Replay Lanes
+
+The fastest signal-calibration loop now uses three complementary lanes:
+
+- real Codex task capture via `run-codex-session.mjs`
+- diff replay over historical commits via `run-diff-replay.mjs`
+- seeded defect and remediation evals via `run-defect-remediation.mjs`
+
+All three lanes should feed the same scorecard inputs instead of creating separate review systems. The default local artifact root is:
+
+```text
+<repo>/.sentrux/evals/
+```
+
+Use checked-in `docs/v2/examples/` artifacts only for intentionally promoted reference runs.
+
+## Cohort-Driven Calibration
+
+The recommended operating model is:
+
+1. define the active signal cohort in `docs/v2/evals/signal-cohorts.json`
+2. run a live Codex batch with `run-codex-session-batch.mjs`
+3. run a replay batch with `run-diff-replay-batch.mjs`
+4. build a refreshed scorecard
+5. build a backlog with `build-signal-backlog.mjs`
+
+That keeps the current trusted/watchpoint candidates, the real-session evidence, and the “what should we build next?” report on one shared set of artifacts.
