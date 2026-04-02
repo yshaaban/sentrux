@@ -19,6 +19,7 @@ test('catalogs expose the expected defect ids', function () {
       'large_file_growth',
       'forbidden_raw_read',
       'clone_injection',
+      'session_introduced_clone',
       'missing_exhaustiveness',
       'missing_test',
     ],
@@ -27,9 +28,26 @@ test('catalogs expose the expected defect ids', function () {
     createDogfoodCatalog().map((defect) => defect.id),
     ['self_large_file', 'self_cycle_introduction', 'self_boundary_violation'],
   );
-  assert.equal(createParallelCodeCatalog()[2].check_support.supported, false);
-  assert.equal(createDogfoodCatalog()[2].check_support.supported, false);
-  assert.equal(createDogfoodCatalog()[2].expected_check_rules_kinds[0], 'boundary');
+  assert.equal(
+    createParallelCodeCatalog().find((defect) => defect.id === 'clone_injection').check_support
+      .supported,
+    false,
+  );
+  assert.equal(
+    createParallelCodeCatalog().find((defect) => defect.id === 'session_introduced_clone')
+      .check_support.supported,
+    true,
+  );
+  assert.equal(
+    createDogfoodCatalog().find((defect) => defect.id === 'self_boundary_violation').check_support
+      .supported,
+    false,
+  );
+  assert.equal(
+    createDogfoodCatalog().find((defect) => defect.id === 'self_boundary_violation')
+      .expected_check_rules_kinds[0],
+    'boundary',
+  );
 });
 
 test('selectDefects filters by requested ids', function () {

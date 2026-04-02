@@ -233,6 +233,31 @@ function buildParallelCodeCatalog() {
       },
     }),
     createDefect({
+      id: 'session_introduced_clone',
+      title: 'Introduce a fresh duplicate helper into the remote HTTP handler',
+      repoLabel: 'parallel-code',
+      targetPath: 'electron/remote/http-handler.ts',
+      signalKind: 'session_introduced_clone',
+      signalFamily: 'clone',
+      blockingIntent: 'watchpoint',
+      checkSupport: {
+        supported: true,
+        gate: 'pass',
+        kinds: ['session_introduced_clone'],
+      },
+      gateKinds: ['session_introduced_clone'],
+      findingKinds: ['exact_clone_group'],
+      sessionEndKinds: ['session_introduced_clone'],
+      expectedGateDecision: 'pass',
+      async inject(workRoot) {
+        return appendToFile(
+          workRoot,
+          'electron/remote/http-handler.ts',
+          buildDuplicateNetworkHelpers(),
+        );
+      },
+    }),
+    createDefect({
       id: 'missing_exhaustiveness',
       title: 'Add a TaskDotStatus variant without updating consumers',
       repoLabel: 'parallel-code',
