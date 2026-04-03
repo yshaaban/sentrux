@@ -12,7 +12,8 @@
     "closed_domain_exhaustiveness",
     "forbidden_raw_read",
     "missing_test_coverage",
-    "large_file"
+    "large_file",
+    "session_introduced_clone"
   ],
   "tasks": [
     {
@@ -46,6 +47,14 @@
       "tags": ["calibration", "batch"],
       "expected_signal_kinds": ["closed_domain_exhaustiveness"],
       "expected_fix_surface": "repo calibration manifests"
+    },
+    {
+      "task_id": "sentrux-clone-cleanup",
+      "task_label": "Fold a fresh duplicate back into its owner",
+      "prompt_file": "../prompts/sentrux/clone-cleanup.md",
+      "tags": ["calibration", "clone"],
+      "expected_signal_kinds": ["session_introduced_clone"],
+      "expected_fix_surface": "duplicate helper cleanup"
     }
   ]
 }

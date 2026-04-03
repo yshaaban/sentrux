@@ -21,6 +21,7 @@ test('catalogs expose the expected defect ids', function () {
       'clone_injection',
       'session_introduced_clone',
       'missing_exhaustiveness',
+      'incomplete_propagation',
       'missing_test',
     ],
   );
@@ -35,6 +36,11 @@ test('catalogs expose the expected defect ids', function () {
   );
   assert.equal(
     createParallelCodeCatalog().find((defect) => defect.id === 'session_introduced_clone')
+      .check_support.supported,
+    true,
+  );
+  assert.equal(
+    createParallelCodeCatalog().find((defect) => defect.id === 'incomplete_propagation')
       .check_support.supported,
     true,
   );

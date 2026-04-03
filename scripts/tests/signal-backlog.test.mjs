@@ -10,6 +10,7 @@ test('buildSignalBacklog highlights weak cohort signals and next candidates', fu
       signals: [
         { signal_kind: 'closed_domain_exhaustiveness' },
         { signal_kind: 'forbidden_raw_read' },
+        { signal_kind: 'session_introduced_clone' },
       ],
     },
     scorecard: {
@@ -33,7 +34,7 @@ test('buildSignalBacklog highlights weak cohort signals and next candidates', fu
         {
           task_id: 'task-1',
           task_label: 'Fix boundary break',
-          expected_signal_kinds: ['session_introduced_clone'],
+          expected_signal_kinds: ['incomplete_propagation'],
           outcome: {
             initial_top_action_kind: null,
             initial_action_kinds: [],
@@ -49,7 +50,7 @@ test('buildSignalBacklog highlights weak cohort signals and next candidates', fu
         {
           replay_id: 'commit-1',
           commit: 'abc123',
-          expected_signal_kinds: ['session_introduced_clone', 'forbidden_raw_read'],
+          expected_signal_kinds: ['incomplete_propagation', 'forbidden_raw_read'],
           outcome: {
             initial_top_action_kind: 'forbidden_raw_read',
             initial_action_kinds: ['forbidden_raw_read'],
@@ -65,8 +66,8 @@ test('buildSignalBacklog highlights weak cohort signals and next candidates', fu
 
   assert.equal(backlog.weak_signals.length, 1);
   assert.equal(backlog.weak_signals[0].signal_kind, 'forbidden_raw_read');
-  assert.equal(backlog.summary.recommended_next_signal, 'session_introduced_clone');
-  assert.equal(backlog.next_signal_candidates[0].signal_kind, 'session_introduced_clone');
+  assert.equal(backlog.summary.recommended_next_signal, 'incomplete_propagation');
+  assert.equal(backlog.next_signal_candidates[0].signal_kind, 'incomplete_propagation');
   assert.equal(backlog.next_signal_candidates[0].miss_count, 2);
   assert.equal(backlog.active_signal_misses[0].signal_kind, 'forbidden_raw_read');
   assert.equal(backlog.active_signal_misses[0].regression_followup_count, 1);
@@ -82,7 +83,7 @@ test('formatSignalBacklogMarkdown renders the backlog summary', function () {
       weak_signal_count: 1,
       live_miss_count: 1,
       replay_miss_count: 1,
-      recommended_next_signal: 'session_introduced_clone',
+      recommended_next_signal: 'incomplete_propagation',
     },
     weak_signals: [
       {
@@ -94,7 +95,7 @@ test('formatSignalBacklogMarkdown renders the backlog summary', function () {
     ],
     next_signal_candidates: [
       {
-        signal_kind: 'session_introduced_clone',
+        signal_kind: 'incomplete_propagation',
         miss_count: 2,
         live_miss_count: 1,
         replay_miss_count: 1,
@@ -105,5 +106,5 @@ test('formatSignalBacklogMarkdown renders the backlog summary', function () {
 
   assert.match(markdown, /Signal Calibration Backlog/);
   assert.match(markdown, /forbidden_raw_read/);
-  assert.match(markdown, /session_introduced_clone/);
+  assert.match(markdown, /incomplete_propagation/);
 });

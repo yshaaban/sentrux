@@ -97,6 +97,56 @@ function buildMissingTestSource() {
   ].join('\n');
 }
 
+function buildServerStateBootstrapPayloadMapLines() {
+  return [
+    "  'git-status': GitStatusSyncSnapshotEvent[];",
+    "  'remote-status': RemoteAccessStatus;",
+    "  'peer-presence': PeerPresenceSnapshot[];",
+    "  'task-command-controller': TaskCommandControllerSnapshot[];",
+    "  'agent-supervision': AgentSupervisionSnapshot[];",
+    "  'task-convergence': TaskConvergenceSnapshot[];",
+    "  'task-review': TaskReviewSnapshot[];",
+    "  'task-ports': TaskPortSnapshot[];",
+    "  'session-diagnostics': RemoteAccessStatus;",
+  ];
+}
+
+function buildServerStateEventPayloadMapLines() {
+  return [
+    "  'git-status': GitStatusSyncEvent;",
+    "  'remote-status': RemoteAccessStatus;",
+    "  'peer-presence': PeerPresenceSnapshot[];",
+    "  'task-command-controller': TaskCommandControllerSnapshot;",
+    "  'agent-supervision': AgentSupervisionEvent;",
+    "  'task-convergence': TaskConvergenceEvent;",
+    "  'task-review': TaskReviewEvent;",
+    "  'task-ports': TaskPortsEvent;",
+    "  'session-diagnostics': RemoteAccessStatus;",
+  ];
+}
+
+function buildIncompletePropagationCategoryPatch() {
+  return {
+    matcher:
+      /  'task-ports',\n\] as const;\n[\s\S]*?export interface ServerStateBootstrapPayloadMap \{\n([\s\S]*?)\n\}\n\nexport interface ServerStateEventPayloadMap \{\n([\s\S]*?)\n\}/m,
+    replacement: [
+      "  'task-ports',",
+      "  'session-diagnostics',",
+      '] as const;',
+      '',
+      'export type ServerStateBootstrapCategory = (typeof SERVER_STATE_BOOTSTRAP_CATEGORIES)[number];',
+      '',
+      'export interface ServerStateBootstrapPayloadMap {',
+      ...buildServerStateBootstrapPayloadMapLines(),
+      '}',
+      '',
+      'export interface ServerStateEventPayloadMap {',
+      ...buildServerStateEventPayloadMapLines(),
+      '}',
+    ].join('\n'),
+  };
+}
+
 function buildCycleImportSnippet(importPath, importedName) {
   return [
     '',
@@ -278,6 +328,30 @@ function buildParallelCodeCatalog() {
           'src/app/task-presentation-status.ts',
           "| 'failed';",
           "| 'failed'\n  | 'attention-needed';",
+        );
+      },
+    }),
+    createDefect({
+      id: 'incomplete_propagation',
+      title: 'Add a server bootstrap category without updating the contract siblings',
+      repoLabel: 'parallel-code',
+      targetPath: 'src/domain/server-state-bootstrap.ts',
+      signalKind: 'incomplete_propagation',
+      signalFamily: 'obligation',
+      checkSupport: {
+        supported: true,
+        kinds: ['incomplete_propagation'],
+      },
+      gateKinds: ['contract_surface_completeness'],
+      findingKinds: ['contract_surface_completeness'],
+      sessionEndKinds: ['contract_surface_completeness'],
+      async inject(workRoot) {
+        const { matcher, replacement } = buildIncompletePropagationCategoryPatch();
+        return replaceInFile(
+          workRoot,
+          'src/domain/server-state-bootstrap.ts',
+          matcher,
+          replacement,
         );
       },
     }),

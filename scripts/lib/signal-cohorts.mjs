@@ -26,6 +26,13 @@ function buildAgentLoopCoreSignals() {
       promotion_status: 'watchpoint',
       rationale: 'Useful regrowth warning that should be tracked for actionability, not just correctness.',
     },
+    {
+      signal_kind: 'session_introduced_clone',
+      signal_family: 'clone',
+      promotion_status: 'watchpoint',
+      rationale:
+        'Fresh duplication introduced in the current session is a high-ROI agent mistake signal when it stays session-scoped and concrete.',
+    },
   ];
 }
 
@@ -40,11 +47,7 @@ export function buildDefaultSignalCohorts() {
         description:
           'Initial high-ROI signal cohort for calibrating fast patch feedback in the coding loop.',
         signals: buildAgentLoopCoreSignals(),
-        next_candidates: [
-          'zero_config_boundary_violation',
-          'session_introduced_clone',
-          'incomplete_propagation',
-        ],
+        next_candidates: ['zero_config_boundary_violation', 'incomplete_propagation'],
       },
     ],
   };

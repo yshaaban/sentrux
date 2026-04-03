@@ -13,7 +13,8 @@
     "closed_domain_exhaustiveness",
     "forbidden_raw_read",
     "missing_test_coverage",
-    "large_file"
+    "large_file",
+    "session_introduced_clone"
   ],
   "tasks": [
     {
@@ -47,6 +48,14 @@
       "tags": ["calibration", "structural"],
       "expected_signal_kinds": ["large_file"],
       "expected_fix_surface": "structural debt"
+    },
+    {
+      "task_id": "parallel-code-clone-cleanup",
+      "task_label": "Collapse a fresh duplicate path",
+      "prompt_file": "../prompts/parallel-code/clone-cleanup.md",
+      "tags": ["calibration", "clone"],
+      "expected_signal_kinds": ["session_introduced_clone"],
+      "expected_fix_surface": "duplicate helper cleanup"
     }
   ]
 }

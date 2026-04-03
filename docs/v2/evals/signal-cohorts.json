@@ -30,11 +30,16 @@
           "signal_family": "structural",
           "promotion_status": "watchpoint",
           "rationale": "Regrowth warning that is valuable when it stays actionable."
+        },
+        {
+          "signal_kind": "session_introduced_clone",
+          "signal_family": "clone",
+          "promotion_status": "watchpoint",
+          "rationale": "Fresh duplication introduced in the current session is a high-ROI agent mistake signal when it stays session-scoped and concrete."
         }
       ],
       "next_candidates": [
         "zero_config_boundary_violation",
-        "session_introduced_clone",
         "incomplete_propagation"
       ]
     }

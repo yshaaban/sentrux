@@ -8,7 +8,8 @@
     "closed_domain_exhaustiveness",
     "forbidden_raw_read",
     "missing_test_coverage",
-    "large_file"
+    "large_file",
+    "session_introduced_clone"
   ],
   "default_tags": ["calibration", "replay"],
   "rev_range": "HEAD~40..HEAD",
