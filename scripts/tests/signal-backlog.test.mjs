@@ -11,6 +11,7 @@ test('buildSignalBacklog highlights weak cohort signals and next candidates', fu
         { signal_kind: 'closed_domain_exhaustiveness' },
         { signal_kind: 'forbidden_raw_read' },
         { signal_kind: 'session_introduced_clone' },
+        { signal_kind: 'incomplete_propagation' },
       ],
     },
     scorecard: {
@@ -66,13 +67,44 @@ test('buildSignalBacklog highlights weak cohort signals and next candidates', fu
 
   assert.equal(backlog.weak_signals.length, 1);
   assert.equal(backlog.weak_signals[0].signal_kind, 'forbidden_raw_read');
-  assert.equal(backlog.summary.recommended_next_signal, 'incomplete_propagation');
-  assert.equal(backlog.next_signal_candidates[0].signal_kind, 'incomplete_propagation');
-  assert.equal(backlog.next_signal_candidates[0].miss_count, 2);
-  assert.equal(backlog.active_signal_misses[0].signal_kind, 'forbidden_raw_read');
-  assert.equal(backlog.active_signal_misses[0].regression_followup_count, 1);
+  assert.equal(backlog.summary.recommended_next_signal, null);
+  assert.equal(backlog.next_signal_candidates.length, 0);
+  assert.equal(backlog.active_signal_misses[0].signal_kind, 'incomplete_propagation');
+  assert.equal(backlog.active_signal_misses[0].miss_count, 2);
+  assert.equal(backlog.active_signal_misses[1].signal_kind, 'forbidden_raw_read');
+  assert.equal(backlog.active_signal_misses[1].regression_followup_count, 1);
   assert.equal(backlog.live_misses.length, 1);
   assert.equal(backlog.replay_misses.length, 1);
+});
+
+test('buildSignalBacklog ignores clean sessions that simply lacked an expected signal', function () {
+  const backlog = buildSignalBacklog({
+    cohort: {
+      cohort_id: 'agent-loop-core',
+      signals: [{ signal_kind: 'missing_test_coverage' }],
+    },
+    scorecard: { signals: [] },
+    codexBatch: {
+      results: [
+        {
+          task_id: 'task-clean',
+          task_label: 'Clean task',
+          expected_signal_kinds: ['missing_test_coverage'],
+          outcome: {
+            initial_top_action_kind: null,
+            initial_action_kinds: [],
+            final_gate: 'pass',
+            final_session_clean: true,
+            followup_regression_introduced: false,
+          },
+        },
+      ],
+    },
+  });
+
+  assert.equal(backlog.live_misses.length, 0);
+  assert.equal(backlog.summary.live_miss_count, 0);
+  assert.equal(backlog.active_signal_misses.length, 0);
 });
 
 test('formatSignalBacklogMarkdown renders the backlog summary', function () {
@@ -83,7 +115,7 @@ test('formatSignalBacklogMarkdown renders the backlog summary', function () {
       weak_signal_count: 1,
       live_miss_count: 1,
       replay_miss_count: 1,
-      recommended_next_signal: 'incomplete_propagation',
+      recommended_next_signal: null,
     },
     weak_signals: [
       {
@@ -93,7 +125,8 @@ test('formatSignalBacklogMarkdown renders the backlog summary', function () {
         remediation_success_rate: 0.5,
       },
     ],
-    next_signal_candidates: [
+    next_signal_candidates: [],
+    active_signal_misses: [
       {
         signal_kind: 'incomplete_propagation',
         miss_count: 2,
@@ -106,5 +139,7 @@ test('formatSignalBacklogMarkdown renders the backlog summary', function () {
 
   assert.match(markdown, /Signal Calibration Backlog/);
   assert.match(markdown, /forbidden_raw_read/);
+  assert.match(markdown, /Active Signal Misses/);
   assert.match(markdown, /incomplete_propagation/);
+  assert.doesNotMatch(markdown, /recommended next signal: `incomplete_propagation`/);
 });

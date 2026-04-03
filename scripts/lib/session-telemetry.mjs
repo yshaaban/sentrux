@@ -54,6 +54,20 @@ function actionKindsForRun(run) {
   return Array.isArray(run?.action_kinds) ? run.action_kinds : [];
 }
 
+function firstSurfacedTopAction(checkRuns) {
+  for (let index = 0; index < checkRuns.length; index += 1) {
+    const topActionKind = checkRuns[index]?.top_action_kind ?? null;
+    if (topActionKind) {
+      return {
+        index,
+        kind: topActionKind,
+      };
+    }
+  }
+
+  return null;
+}
+
 function finalGateForSession(checkRuns, sessionEndEvent) {
   if (sessionEndEvent?.decision) {
     return sessionEndEvent.decision;
@@ -75,14 +89,14 @@ function isFinalSessionClean(checkRuns, sessionEndEvent) {
   return lastCheck.gate === 'pass' && actionKindsForRun(lastCheck).length === 0;
 }
 
-function checksUntilActionClears(topActionKind, checkRuns) {
-  if (!topActionKind) {
+function checksUntilActionClears(topAction, checkRuns) {
+  if (!topAction?.kind) {
     return null;
   }
 
-  for (let index = 1; index < checkRuns.length; index += 1) {
-    if (!actionKindsForRun(checkRuns[index]).includes(topActionKind)) {
-      return index;
+  for (let index = topAction.index + 1; index < checkRuns.length; index += 1) {
+    if (!actionKindsForRun(checkRuns[index]).includes(topAction.kind)) {
+      return index - topAction.index;
     }
   }
 
@@ -130,8 +144,9 @@ function summarizeSession(sessionRunId, events, signalMap) {
   const decision = sessionEndEvent?.decision ?? null;
   const checkRuns = events.filter((event) => event.event_type === 'check_run');
   const initialCheck = checkRuns[0] ?? null;
-  const initialTopActionKind = initialCheck?.top_action_kind ?? null;
-  const checksToClearTopAction = checksUntilActionClears(initialTopActionKind, checkRuns);
+  const firstTopAction = firstSurfacedTopAction(checkRuns);
+  const initialTopActionKind = firstTopAction?.kind ?? null;
+  const checksToClearTopAction = checksUntilActionClears(firstTopAction, checkRuns);
   const topActionCleared = checksToClearTopAction !== null;
   const finalGate = finalGateForSession(checkRuns, sessionEndEvent);
   const finalSessionClean = isFinalSessionClean(checkRuns, sessionEndEvent);

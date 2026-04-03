@@ -70,10 +70,11 @@ function buildMissEntries(results, lane, activeSignalKinds, candidateMap) {
     const initialTopActionKind = outcome.initial_top_action_kind ?? null;
     const initialActionKinds = new Set(asArray(outcome.initial_action_kinds));
     const missingExpectedKinds = expectedKinds.filter((kind) => !initialActionKinds.has(kind));
+    const missedExpectedSignal = expectedKinds.length > 0 && missingExpectedKinds.length > 0;
     const needsAttention =
       !outcome.final_session_clean ||
       outcome.followup_regression_introduced ||
-      (expectedKinds.length > 0 && missingExpectedKinds.length > 0);
+      (missedExpectedSignal && outcome.final_session_clean === false);
 
     if (!needsAttention) {
       continue;
@@ -127,6 +128,23 @@ function cleanRateForResults(results) {
     normalizedResults.filter((result) => result.outcome?.final_session_clean).length,
     normalizedResults.length,
   );
+}
+
+function appendCandidateSection(lines, title, candidates) {
+  lines.push(title);
+  lines.push('');
+
+  if (candidates.length === 0) {
+    lines.push('- none');
+  } else {
+    for (const candidate of candidates.slice(0, 10)) {
+      lines.push(
+        `- \`${candidate.signal_kind}\`: misses=${candidate.miss_count}, live=${candidate.live_miss_count}, replay=${candidate.replay_miss_count}, regression_followups=${candidate.regression_followup_count}`,
+      );
+    }
+  }
+
+  lines.push('');
 }
 
 export function buildSignalBacklog({ cohort, scorecard, codexBatch = null, replayBatch = null }) {
@@ -194,17 +212,7 @@ export function formatSignalBacklogMarkdown(backlog) {
     }
   }
   lines.push('');
-  lines.push('## Next Signal Candidates');
-  lines.push('');
-  if (backlog.next_signal_candidates.length === 0) {
-    lines.push('- none');
-  } else {
-    for (const candidate of backlog.next_signal_candidates.slice(0, 10)) {
-      lines.push(
-        `- \`${candidate.signal_kind}\`: misses=${candidate.miss_count}, live=${candidate.live_miss_count}, replay=${candidate.replay_miss_count}, regression_followups=${candidate.regression_followup_count}`,
-      );
-    }
-  }
-  lines.push('');
+  appendCandidateSection(lines, '## Active Signal Misses', backlog.active_signal_misses);
+  appendCandidateSection(lines, '## Next Signal Candidates', backlog.next_signal_candidates);
   return `${lines.join('\n')}\n`;
 }

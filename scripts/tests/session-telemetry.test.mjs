@@ -69,6 +69,70 @@ test('buildSessionTelemetrySummary tracks top-action follow-up resolution', func
   assert.equal(summary.signals[0].average_checks_to_clear, 1);
 });
 
+test('buildSessionTelemetrySummary tracks the first surfaced action when a session starts clean', function () {
+  const summary = buildSessionTelemetrySummary([
+    {
+      event_type: 'session_started',
+      session_run_id: 'session-2',
+      server_run_id: 'mcp-2',
+      session_mode: 'explicit',
+      event_index: 1,
+      repo_root: '/tmp/parallel-code',
+    },
+    {
+      event_type: 'check_run',
+      session_run_id: 'session-2',
+      server_run_id: 'mcp-2',
+      session_mode: 'explicit',
+      event_index: 2,
+      repo_root: '/tmp/parallel-code',
+      gate: 'pass',
+      top_action_kind: null,
+      action_kinds: [],
+    },
+    {
+      event_type: 'check_run',
+      session_run_id: 'session-2',
+      server_run_id: 'mcp-2',
+      session_mode: 'explicit',
+      event_index: 3,
+      repo_root: '/tmp/parallel-code',
+      gate: 'fail',
+      top_action_kind: 'closed_domain_exhaustiveness',
+      action_kinds: ['closed_domain_exhaustiveness'],
+    },
+    {
+      event_type: 'check_run',
+      session_run_id: 'session-2',
+      server_run_id: 'mcp-2',
+      session_mode: 'explicit',
+      event_index: 4,
+      repo_root: '/tmp/parallel-code',
+      gate: 'pass',
+      top_action_kind: null,
+      action_kinds: [],
+    },
+    {
+      event_type: 'session_ended',
+      session_run_id: 'session-2',
+      server_run_id: 'mcp-2',
+      session_mode: 'explicit',
+      event_index: 5,
+      repo_root: '/tmp/parallel-code',
+      decision: 'pass',
+      action_count: 0,
+    },
+  ]);
+
+  assert.equal(summary.sessions[0].initial_gate, 'pass');
+  assert.equal(summary.sessions[0].initial_top_action_kind, 'closed_domain_exhaustiveness');
+  assert.equal(summary.sessions[0].top_action_cleared, true);
+  assert.equal(summary.sessions[0].checks_to_clear_top_action, 1);
+  assert.equal(summary.signals[0].signal_kind, 'closed_domain_exhaustiveness');
+  assert.equal(summary.signals[0].sessions_cleared, 1);
+  assert.equal(summary.signals[0].sessions_clean, 1);
+});
+
 test('formatSessionTelemetrySummaryMarkdown renders the telemetry table', function () {
   const markdown = formatSessionTelemetrySummaryMarkdown({
     repo_root: '/tmp/parallel-code',
