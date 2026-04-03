@@ -235,6 +235,7 @@ fn raw_access_findings(concept: &ConceptRule, semantic: &SemanticSnapshot) -> Ve
         .map(|(path, evidence)| {
             let mut evidence = evidence.into_iter().collect::<Vec<_>>();
             append_preferred_accessor_evidence(&mut evidence, &preferred_accessors);
+            append_canonical_owner_evidence(&mut evidence, concept);
 
             SemanticFinding {
                 kind: "forbidden_raw_read".to_string(),
@@ -257,6 +258,21 @@ fn append_preferred_accessor_evidence(evidence: &mut Vec<String>, preferred_acce
         if !evidence.contains(&accessor_evidence) {
             evidence.push(accessor_evidence);
         }
+    }
+}
+
+fn append_canonical_owner_evidence(evidence: &mut Vec<String>, concept: &ConceptRule) {
+    let Some(owner) = concept
+        .anchors
+        .first()
+        .or_else(|| concept.authoritative_inputs.first())
+    else {
+        return;
+    };
+
+    let owner_evidence = format!("canonical owner: {owner}");
+    if !evidence.contains(&owner_evidence) {
+        evidence.push(owner_evidence);
     }
 }
 

@@ -204,11 +204,15 @@ fn is_watchpoint_presentation_kind(kind: &str) -> bool {
     )
 }
 
-fn is_hardening_note_kind(kind: &str) -> bool {
+fn is_contract_surface_propagation_kind(kind: &str) -> bool {
     matches!(
         kind,
-        "closed_domain_exhaustiveness" | "contract_surface_completeness"
+        "contract_surface_completeness" | "incomplete_propagation"
     )
+}
+
+fn is_hardening_note_kind(kind: &str) -> bool {
+    kind == "closed_domain_exhaustiveness" || is_contract_surface_propagation_kind(kind)
 }
 
 fn role_tags_include(role_tags: &[String], tag: &str) -> bool {
@@ -739,6 +743,23 @@ mod tests {
                 ],
                 &[],
                 1,
+                1,
+                0,
+                1,
+            ),
+            "hardening_note"
+        );
+        assert_eq!(
+            classify_presentation_class(
+                "incomplete_propagation",
+                "trusted",
+                "server_state_bootstrap",
+                &[
+                    "src/domain/server-state-bootstrap.ts".to_string(),
+                    "src/app/server-state-bootstrap-registry.ts".to_string(),
+                ],
+                &[],
+                2,
                 1,
                 0,
                 1,

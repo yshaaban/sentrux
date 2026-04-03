@@ -119,12 +119,24 @@ fn finding_detail_related_surfaces(finding: &Value) -> Vec<String> {
     finding_files(finding).into_iter().take(5).collect()
 }
 
+fn is_contract_surface_propagation_kind(kind: &str) -> bool {
+    matches!(
+        kind,
+        "contract_surface_completeness" | "incomplete_propagation"
+    )
+}
+
 fn finding_detail_impact(finding: &Value) -> String {
     if let Some(impact) = finding.get("impact").and_then(|value| value.as_str()) {
         return impact.to_string();
     }
 
-    match finding_kind(finding) {
+    let kind = finding_kind(finding);
+    if is_contract_surface_propagation_kind(kind) {
+        return "Related contract surfaces are no longer aligned, so runtime paths can diverge or partially break.".to_string();
+    }
+
+    match kind {
         "multi_writer_concept" => {
             "Multiple write paths make the concept easier to update inconsistently and harder to debug.".to_string()
         }
@@ -139,9 +151,6 @@ fn finding_detail_impact(finding: &Value) -> String {
         }
         "closed_domain_exhaustiveness" => {
             "Finite-domain changes can silently miss one surface unless all required cases stay in sync.".to_string()
-        }
-        "contract_surface_completeness" => {
-            "Related contract surfaces are no longer aligned, so runtime paths can diverge or partially break.".to_string()
         }
         "state_integrity_missing_site" | "state_integrity_unmapped_root" => {
             "State model drift makes lifecycle and restore behavior easier to break through partial edits.".to_string()
@@ -162,7 +171,16 @@ fn finding_detail_inspection_focus(finding: &Value) -> Vec<String> {
         return focus;
     }
 
-    let focus = match finding_kind(finding) {
+    let kind = finding_kind(finding);
+    let focus = if kind == "closed_domain_exhaustiveness"
+        || is_contract_surface_propagation_kind(kind)
+    {
+        vec![
+            "inspect which required surfaces should change together and add explicit coverage there"
+                .to_string(),
+        ]
+    } else {
+        match kind {
         "multi_writer_concept" | "forbidden_writer" | "writer_outside_allowlist" => vec![
             "inspect which module should own writes for this concept".to_string(),
             "inspect whether the extra write path can be removed or routed through the owner"
@@ -174,15 +192,12 @@ fn finding_detail_inspection_focus(finding: &Value) -> Vec<String> {
                     .to_string(),
             ]
         }
-        "closed_domain_exhaustiveness" | "contract_surface_completeness" => vec![
-            "inspect which required surfaces should change together and add explicit coverage there"
-                .to_string(),
-        ],
         "exact_clone_group" | "clone_family" => clone_family_inspection_focus(finding),
         _ => vec![
             "inspect the files and evidence behind this finding before choosing a design fix"
                 .to_string(),
         ],
+        }
     };
 
     let mut focus = dedupe_strings_preserve_order(focus);
@@ -330,7 +345,7 @@ mod tests {
             vec![json!({"kind": "clone_family", "severity": "low"})],
             vec![
                 json!({"kind": "multi_writer_concept", "severity": "high"}),
-                json!({"kind": "contract_surface_completeness", "severity": "medium"}),
+                json!({"kind": "incomplete_propagation", "severity": "medium"}),
             ],
             3,
         );
@@ -338,6 +353,31 @@ mod tests {
         assert_eq!(merged[0]["severity"], "high");
         assert_eq!(merged[1]["severity"], "medium");
         assert_eq!(merged[2]["severity"], "low");
+    }
+
+    #[test]
+    fn incomplete_propagation_reuses_contract_surface_detail_copy() {
+        let detail = build_finding_details(
+            &[json!({
+                "kind": "incomplete_propagation",
+                "summary": "Propagation is incomplete for 'server_state_bootstrap'.",
+                "severity": "medium",
+                "files": [
+                    "src/domain/server-state-bootstrap.ts",
+                    "src/app/server-state-bootstrap-registry.ts"
+                ]
+            })],
+            1,
+        );
+
+        assert_eq!(
+            detail[0].impact,
+            "Related contract surfaces are no longer aligned, so runtime paths can diverge or partially break."
+        );
+        assert!(detail[0]
+            .inspection_focus
+            .iter()
+            .any(|focus| focus.contains("required surfaces should change together")));
     }
 
     #[test]

@@ -88,4 +88,9 @@ fn patch_brief_surfaces_session_introduced_clone_actions() {
         response["actions"][0]["kind"],
         json!("session_introduced_clone")
     );
+    assert!(response["actions"][0]["fix_hint"]
+        .as_str()
+        .is_some_and(|hint| {
+            hint.contains("src/copy.ts::") && hint.contains("src/source.ts::")
+        }));
 }

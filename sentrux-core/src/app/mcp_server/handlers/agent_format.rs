@@ -4,8 +4,11 @@ use serde::Serialize;
 use std::collections::BTreeMap;
 
 const PREFERRED_ACCESSOR_PREFIX: &str = "preferred accessor: ";
+const CANONICAL_OWNER_PREFIX: &str = "canonical owner: ";
+const INTRODUCED_DUPLICATE_PREFIX: &str = "introduced duplicate: ";
+const PREFERRED_OWNER_PREFIX: &str = "preferred owner: ";
 
-#[derive(Debug, Clone, Copy, Serialize)]
+#[derive(Debug, Clone, Copy, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum IssueSource {
     Obligation,
@@ -21,7 +24,7 @@ pub(crate) enum IssueOrigin {
     ZeroConfig,
 }
 
-#[derive(Debug, Clone, Copy, Serialize)]
+#[derive(Debug, Clone, Copy, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum IssueConfidence {
     High,
@@ -95,7 +98,7 @@ pub(crate) struct AgentCheckResponse {
 }
 
 pub(crate) fn to_agent_issue(finding: &Value) -> AgentIssue {
-    let kind = finding_kind(finding).to_string();
+    let kind = canonical_issue_kind(finding_kind(finding)).to_string();
     let files = finding_files(finding);
     let file = files.first().cloned().unwrap_or_default();
     AgentIssue {
@@ -124,7 +127,7 @@ pub(crate) fn to_agent_issue(finding: &Value) -> AgentIssue {
             .unwrap_or_default(),
         source: issue_source_for_kind(&kind),
         origin: issue_origin_for_value(finding, &kind),
-        confidence: issue_confidence_for_value(finding),
+        confidence: issue_confidence_for_value(finding, &kind),
         kind,
     }
 }
@@ -133,6 +136,7 @@ pub(crate) fn obligation_value_to_agent_issue(obligation: &Value) -> AgentIssue 
     let kind = obligation
         .get("kind")
         .and_then(Value::as_str)
+        .map(derived_obligation_issue_kind)
         .unwrap_or("missing_obligation")
         .to_string();
     let files = obligation_files(obligation);
@@ -150,15 +154,9 @@ pub(crate) fn obligation_value_to_agent_issue(obligation: &Value) -> AgentIssue 
         file,
         line: obligation_line(obligation),
         kind: kind.clone(),
-        message: obligation
-            .get("summary")
-            .and_then(Value::as_str)
-            .unwrap_or("Changed concept still has missing update sites")
-            .to_string(),
+        message: obligation_message(obligation, &kind),
         severity: obligation_severity(obligation),
-        fix_hint: Some(
-            "Update the missing sites tied to the changed concept before continuing.".to_string(),
-        ),
+        fix_hint: obligation_fix_hint(&kind),
         evidence: obligation_evidence(obligation),
         source: IssueSource::Obligation,
         origin: obligation_origin(obligation),
@@ -168,9 +166,38 @@ pub(crate) fn obligation_value_to_agent_issue(obligation: &Value) -> AgentIssue 
 
 fn fix_hint_for_value(finding: &Value, kind: &str) -> Option<String> {
     if kind == "forbidden_raw_read" {
-        if let Some(accessor) = preferred_accessor_from_finding(finding) {
+        let preferred_accessor = evidence_value_for_prefix(finding, PREFERRED_ACCESSOR_PREFIX);
+        let canonical_owner = evidence_value_for_prefix(finding, CANONICAL_OWNER_PREFIX);
+        if let Some(accessor) = preferred_accessor {
+            if let Some(owner) = canonical_owner {
+                return Some(format!(
+                    "Replace the raw read with {accessor} from {owner} instead of recreating the projection in the caller."
+                ));
+            }
             return Some(format!(
                 "Replace the raw read with {accessor} instead of recreating the projection in the caller."
+            ));
+        }
+        if let Some(owner) = canonical_owner {
+            return Some(format!(
+                "Move the read behind {owner} instead of recreating the projection in the caller."
+            ));
+        }
+    }
+
+    if kind == "session_introduced_clone" {
+        let introduced_duplicate = evidence_value_for_prefix(finding, INTRODUCED_DUPLICATE_PREFIX);
+        let preferred_owner = evidence_value_for_prefix(finding, PREFERRED_OWNER_PREFIX);
+        if let (Some(introduced_duplicate), Some(preferred_owner)) =
+            (introduced_duplicate, preferred_owner.as_ref())
+        {
+            return Some(format!(
+                "Collapse the new duplicate {introduced_duplicate} into {preferred_owner} instead of maintaining both paths."
+            ));
+        }
+        if let Some(preferred_owner) = preferred_owner {
+            return Some(format!(
+                "Route the new duplicate back through {preferred_owner} before the two paths drift."
             ));
         }
     }
@@ -178,7 +205,7 @@ fn fix_hint_for_value(finding: &Value, kind: &str) -> Option<String> {
     fix_hint_for_kind(kind)
 }
 
-fn preferred_accessor_from_finding(finding: &Value) -> Option<String> {
+fn evidence_value_for_prefix(finding: &Value, prefix: &str) -> Option<String> {
     finding
         .get("evidence")
         .and_then(Value::as_array)
@@ -186,7 +213,7 @@ fn preferred_accessor_from_finding(finding: &Value) -> Option<String> {
             values.iter().find_map(|value| {
                 value
                     .as_str()
-                    .and_then(|evidence| evidence.strip_prefix(PREFERRED_ACCESSOR_PREFIX))
+                    .and_then(|evidence| evidence.strip_prefix(prefix))
                     .map(str::to_string)
             })
         })
@@ -246,17 +273,64 @@ fn issue_source_for_kind(kind: &str) -> IssueSource {
             | "unstable_hotspot"
             | "cycle_cluster"
             | "missing_test_coverage"
-            | "session_introduced_clone"
     ) {
         return IssueSource::Structural;
+    }
+    if kind == "session_introduced_clone" {
+        return IssueSource::Clone;
     }
     if matches!(kind, "exact_clone_group" | "clone_group" | "clone_family") {
         return IssueSource::Clone;
     }
-    if kind == "closed_domain_exhaustiveness" {
+    if matches!(
+        kind,
+        "closed_domain_exhaustiveness" | "incomplete_propagation"
+    ) {
         return IssueSource::Obligation;
     }
     IssueSource::Rules
+}
+
+fn derived_obligation_issue_kind(kind: &str) -> &str {
+    canonical_issue_kind(kind)
+}
+
+fn canonical_issue_kind(kind: &str) -> &str {
+    if kind == "contract_surface_completeness" {
+        "incomplete_propagation"
+    } else {
+        kind
+    }
+}
+
+fn obligation_message(obligation: &Value, kind: &str) -> String {
+    if kind == "incomplete_propagation" {
+        let scope = obligation
+            .get("concept_id")
+            .or_else(|| obligation.get("concept"))
+            .and_then(Value::as_str)
+            .unwrap_or("changed contract");
+        return format!(
+            "Propagation is incomplete for '{}': update the remaining sibling surfaces listed in the evidence.",
+            scope
+        );
+    }
+
+    obligation
+        .get("summary")
+        .and_then(Value::as_str)
+        .unwrap_or("Changed concept still has missing update sites")
+        .to_string()
+}
+
+fn obligation_fix_hint(kind: &str) -> Option<String> {
+    let hint = match kind {
+        "incomplete_propagation" => {
+            "Update the remaining sibling surfaces listed in the evidence before considering the change complete."
+        }
+        _ => "Update the missing sites tied to the changed concept before continuing.",
+    };
+    Some(hint.to_string())
 }
 
 fn obligation_origin(obligation: &Value) -> IssueOrigin {
@@ -379,6 +453,10 @@ fn right_gate_weight(issue: &AgentIssue) -> u8 {
 }
 
 fn issue_source_weight(issue: &AgentIssue) -> u8 {
+    if issue.kind == "session_introduced_clone" {
+        return 2;
+    }
+
     match (issue.source, issue.origin) {
         (IssueSource::Rules, IssueOrigin::Explicit) => 4,
         (IssueSource::Obligation, _) => 3,
@@ -419,14 +497,17 @@ fn issue_origin_for_value(finding: &Value, kind: &str) -> IssueOrigin {
     IssueOrigin::Explicit
 }
 
-fn issue_confidence_for_value(finding: &Value) -> IssueConfidence {
+fn issue_confidence_for_value(finding: &Value, kind: &str) -> IssueConfidence {
     match finding.get("trust_tier").and_then(|value| value.as_str()) {
         Some("experimental") => IssueConfidence::Experimental,
         Some("watchpoint") => IssueConfidence::Medium,
         _ => match finding.get("confidence").and_then(|value| value.as_str()) {
             Some("experimental") => IssueConfidence::Experimental,
             Some("medium") => IssueConfidence::Medium,
-            _ => IssueConfidence::High,
+            _ => match issue_origin_for_value(finding, kind) {
+                IssueOrigin::Explicit => IssueConfidence::High,
+                IssueOrigin::ZeroConfig => IssueConfidence::Medium,
+            },
         },
     }
 }
@@ -459,6 +540,9 @@ fn fix_hint_for_kind(kind: &str) -> Option<String> {
         }
         "session_introduced_clone" => {
             "Collapse the new duplicate now: extract the shared behavior or route both call sites through the same owner before they drift."
+        }
+        "incomplete_propagation" => {
+            "Update the remaining sibling surfaces listed in the evidence before considering the change complete."
         }
         "missing_test_coverage" => "Add a sibling test covering the new production surface.",
         "zero_config_boundary_violation" => {

@@ -3,8 +3,8 @@ use super::agent_format::{
     IssueOrigin, IssueSource,
 };
 use super::test_support::{
-    commit_all, init_git_repo, temp_root, write_file, write_session_clone_duplicate,
-    write_session_clone_fixture_files,
+    commit_all, init_git_repo, temp_root, write_contract_propagation_fixture_files, write_file,
+    write_session_clone_duplicate, write_session_clone_fixture_files,
 };
 use super::{fresh_mcp_state, handle_check, handle_scan, handle_session_start};
 use crate::analysis::project_shape::{ModuleContractSuggestion, ProjectShapeReport};
@@ -240,6 +240,7 @@ fn actions_prioritize_explicit_rule_breaks_over_structural_watchpoints() {
 fn forbidden_raw_read_actions_name_the_preferred_accessor_when_available() {
     let primary_accessor = "src/app/task-presentation-status.ts::getTaskDotStatus";
     let secondary_accessor = "src/app/task-presentation-status.ts::getTaskDotStatusLabel";
+    let canonical_owner = "src/store/core.ts::store.taskGitStatus";
     let issue = to_agent_issue(&json!({
         "kind": "forbidden_raw_read",
         "concept_id": "task_presentation_status",
@@ -247,6 +248,7 @@ fn forbidden_raw_read_actions_name_the_preferred_accessor_when_available() {
         "files": ["src/components/SidebarTaskRow.tsx"],
         "evidence": [
             "src/components/SidebarTaskRow.tsx::store.taskGitStatus",
+            format!("canonical owner: {canonical_owner}"),
             format!("preferred accessor: {primary_accessor}"),
             format!("preferred accessor: {secondary_accessor}")
         ]
@@ -255,7 +257,7 @@ fn forbidden_raw_read_actions_name_the_preferred_accessor_when_available() {
     assert_eq!(
         issue.fix_hint.as_deref(),
         Some(
-            "Replace the raw read with src/app/task-presentation-status.ts::getTaskDotStatus instead of recreating the projection in the caller."
+            "Replace the raw read with src/app/task-presentation-status.ts::getTaskDotStatus from src/store/core.ts::store.taskGitStatus instead of recreating the projection in the caller."
         )
     );
 }
@@ -290,9 +292,113 @@ fn check_surfaces_session_introduced_clone_actions() {
         .iter()
         .any(|issue| issue["kind"] == "session_introduced_clone"));
     assert_eq!(actions[0]["kind"], json!("session_introduced_clone"));
-    assert!(actions[0]["fix_hint"]
-        .as_str()
-        .is_some_and(|hint| hint.contains("Collapse the new duplicate now")));
+    assert!(
+        actions[0]["fix_hint"].as_str().is_some_and(|hint| {
+            hint.contains("src/copy.ts::") && hint.contains("src/source.ts::")
+        }),
+        "unexpected check response: {response}"
+    );
+}
+
+#[test]
+fn session_introduced_clone_actions_rank_above_structural_watchpoints() {
+    let mut issues = vec![
+        AgentIssue {
+            scope: "src/app.ts".to_string(),
+            file: "src/app.ts".to_string(),
+            line: None,
+            kind: "large_file".to_string(),
+            message: "src/app.ts grew to 900 lines.".to_string(),
+            severity: FindingSeverity::Medium,
+            fix_hint: None,
+            evidence: Vec::new(),
+            source: IssueSource::Structural,
+            origin: IssueOrigin::ZeroConfig,
+            confidence: IssueConfidence::Medium,
+        },
+        AgentIssue {
+            scope: "src/source.ts and src/copy.ts".to_string(),
+            file: "src/copy.ts".to_string(),
+            line: None,
+            kind: "session_introduced_clone".to_string(),
+            message: "Patch introduced a duplicate helper.".to_string(),
+            severity: FindingSeverity::Medium,
+            fix_hint: None,
+            evidence: Vec::new(),
+            source: IssueSource::Clone,
+            origin: IssueOrigin::Explicit,
+            confidence: IssueConfidence::High,
+        },
+    ];
+    issues.sort_by(compare_agent_issues);
+
+    assert_eq!(issues[0].kind, "session_introduced_clone");
+}
+
+#[test]
+fn check_surfaces_incomplete_propagation_for_contract_updates() {
+    let root = temp_root("check-incomplete-propagation");
+    write_contract_propagation_fixture_files(&root);
+    init_git_repo(&root);
+    commit_all(&root, "initial");
+    write_file(
+        &root,
+        "src/domain/server-state-bootstrap.ts",
+        "export const SERVER_STATE_BOOTSTRAP_CATEGORIES = ['task', 'project'];\nexport type ServerStateBootstrapPayloadMap = { task: { id: string }, project: { id: string } };\n",
+    );
+
+    let mut state = fresh_mcp_state();
+    handle_scan(
+        &json!({"path": root.to_string_lossy().to_string()}),
+        &Tier::Free,
+        &mut state,
+    )
+    .expect("scan fixture");
+
+    let response = handle_check(&json!({}), &Tier::Free, &mut state).expect("check response");
+    let actions = response["actions"].as_array().expect("actions array");
+
+    assert!(
+        actions
+            .iter()
+            .any(|action| action["kind"] == "incomplete_propagation"),
+        "unexpected check response: {response}"
+    );
+    assert!(actions
+        .iter()
+        .find(|action| action["kind"] == "incomplete_propagation")
+        .and_then(|action| action["fix_hint"].as_str())
+        .is_some_and(|hint| hint.contains("remaining sibling surfaces")));
+}
+
+#[test]
+fn raw_contract_surface_findings_map_to_incomplete_propagation_actions() {
+    let issue = to_agent_issue(&json!({
+        "kind": "contract_surface_completeness",
+        "summary": "Related contract surfaces are no longer aligned.",
+        "files": ["src/domain/server-state-bootstrap.ts"],
+        "evidence": ["missing required site: src/app/server-state-bootstrap-registry.ts"]
+    }));
+
+    assert_eq!(issue.kind, "incomplete_propagation");
+    assert_eq!(issue.source, IssueSource::Obligation);
+    assert!(issue
+        .fix_hint
+        .as_deref()
+        .is_some_and(|hint| hint.contains("remaining sibling surfaces")));
+}
+
+#[test]
+fn zero_config_boundary_findings_default_to_medium_confidence() {
+    let issue = to_agent_issue(&json!({
+        "kind": "zero_config_boundary_violation",
+        "summary": "Feature module bypasses inferred public API.",
+        "files": ["src/app/feature.ts"],
+        "evidence": ["inferred boundary confidence: high"]
+    }));
+
+    assert_eq!(issue.origin, IssueOrigin::ZeroConfig);
+    assert_eq!(issue.confidence, IssueConfidence::Medium);
 }
 
 #[test]

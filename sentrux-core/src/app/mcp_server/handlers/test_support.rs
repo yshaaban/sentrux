@@ -60,6 +60,61 @@ pub(crate) fn write_session_clone_duplicate(root: &Path) {
     );
 }
 
+pub(crate) fn write_contract_propagation_fixture_files(root: &Path) {
+    write_file(
+        root,
+        "package.json",
+        r#"{ "name": "contract-propagation-fixture", "type": "module" }"#,
+    );
+    write_file(
+        root,
+        "tsconfig.json",
+        r#"
+                {
+                  "compilerOptions": {
+                    "module": "esnext",
+                    "target": "es2020",
+                    "strict": true
+                  },
+                  "include": ["src/**/*.ts"]
+                }
+            "#,
+    );
+    write_file(
+        root,
+        ".sentrux/rules.toml",
+        r#"
+                [[contract]]
+                id = "server_state_bootstrap"
+                categories_symbol = "src/domain/server-state-bootstrap.ts::SERVER_STATE_BOOTSTRAP_CATEGORIES"
+                payload_map_symbol = "src/domain/server-state-bootstrap.ts::ServerStateBootstrapPayloadMap"
+                registry_symbol = "src/app/server-state-bootstrap-registry.ts::SERVER_STATE_BOOTSTRAP_REGISTRY"
+                browser_entry = "src/runtime/browser-session.ts"
+                electron_entry = "src/app/desktop-session.ts"
+            "#,
+    );
+    write_file(
+        root,
+        "src/domain/server-state-bootstrap.ts",
+        "export const SERVER_STATE_BOOTSTRAP_CATEGORIES = ['task'];\nexport type ServerStateBootstrapPayloadMap = { task: { id: string } };\n",
+    );
+    write_file(
+        root,
+        "src/app/server-state-bootstrap-registry.ts",
+        "export const SERVER_STATE_BOOTSTRAP_REGISTRY = { task: true };\n",
+    );
+    write_file(
+        root,
+        "src/runtime/browser-session.ts",
+        "import { SERVER_STATE_BOOTSTRAP_REGISTRY } from '../app/server-state-bootstrap-registry';\nvoid SERVER_STATE_BOOTSTRAP_REGISTRY;\n",
+    );
+    write_file(
+        root,
+        "src/app/desktop-session.ts",
+        "import { SERVER_STATE_BOOTSTRAP_REGISTRY } from './server-state-bootstrap-registry';\nvoid SERVER_STATE_BOOTSTRAP_REGISTRY;\n",
+    );
+}
+
 pub(crate) fn run_git(root: &Path, args: &[&str]) {
     let status = Command::new("git")
         .arg("-C")

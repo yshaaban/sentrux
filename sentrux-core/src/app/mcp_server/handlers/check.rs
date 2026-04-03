@@ -143,7 +143,7 @@ fn build_fast_check_issues(
         .obligations
         .iter()
         .filter(|obligation| !obligation.missing_sites.is_empty())
-        .map(obligation_finding_value)
+        .map(obligation_issue_value)
         .collect::<Vec<_>>();
     findings.extend(
         changed_analysis
@@ -330,14 +330,37 @@ fn semantic_finding_value(finding: &SemanticFinding) -> Value {
     serde_json::to_value(finding).unwrap_or_else(|_| json!({}))
 }
 
-fn obligation_finding_value(obligation: &crate::metrics::v2::ObligationReport) -> Value {
+fn derived_obligation_kind(obligation: &crate::metrics::v2::ObligationReport) -> &str {
+    if obligation.kind == "contract_surface_completeness" {
+        "incomplete_propagation"
+    } else {
+        obligation.kind.as_str()
+    }
+}
+
+fn obligation_issue_value(obligation: &crate::metrics::v2::ObligationReport) -> Value {
     let severity = obligation_finding_severity(obligation);
+    let kind = derived_obligation_kind(obligation);
+    let summary = if kind == "incomplete_propagation" {
+        let concept = obligation
+            .concept_id
+            .as_deref()
+            .or(obligation.domain_symbol_name.as_deref())
+            .unwrap_or("changed contract");
+        format!(
+            "Propagation is incomplete for '{}': update the remaining sibling surfaces listed in the evidence.",
+            concept
+        )
+    } else {
+        obligation.summary.clone()
+    };
     json!({
-        "kind": obligation.kind,
+        "kind": kind,
         "severity": severity,
         "concept_id": obligation.concept_id.clone().unwrap_or_else(|| obligation.domain_symbol_name.clone().unwrap_or_default()),
-        "summary": obligation.summary,
+        "summary": summary,
         "files": obligation.files,
+        "missing_sites": obligation.missing_sites,
         "evidence": obligation.missing_sites.iter().map(|site| {
             let line_suffix = site.line.map(|line| format!(":{line}")).unwrap_or_default();
             format!("{}{} [{}]", site.path, line_suffix, site.detail)

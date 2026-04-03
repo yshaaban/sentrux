@@ -122,4 +122,9 @@ fn session_end_promotes_session_introduced_clone_findings() {
     assert!(clone_findings
         .iter()
         .all(|finding| finding["kind"] == "session_introduced_clone"));
+    assert!(response["actions"][0]["fix_hint"]
+        .as_str()
+        .is_some_and(|hint| {
+            hint.contains("src/copy.ts::") && hint.contains("src/source.ts::")
+        }));
 }

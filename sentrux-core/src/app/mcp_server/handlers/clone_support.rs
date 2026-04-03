@@ -139,7 +139,7 @@ pub(crate) fn build_session_introduced_clone_findings(
             continue;
         }
 
-        findings.push(session_introduced_clone_finding(finding));
+        findings.push(session_introduced_clone_finding(finding, changed_files));
         if findings.len() >= limit {
             break;
         }
@@ -186,8 +186,18 @@ fn finding_touches_changed_files(finding: &Value, changed_files: &BTreeSet<Strin
         .any(|path| changed_files.contains(path))
 }
 
-fn session_introduced_clone_finding(finding: &Value) -> Value {
+fn session_introduced_clone_finding(finding: &Value, changed_files: &BTreeSet<String>) -> Value {
     let files = finding_files(finding);
+    let instances = clone_instance_labels(finding);
+    let introduced_duplicate = instances
+        .iter()
+        .find(|(file, _)| changed_files.contains(file))
+        .map(|(_, label)| label.clone());
+    let preferred_owner = instances
+        .iter()
+        .find(|(file, _)| !changed_files.contains(file))
+        .or_else(|| instances.first())
+        .map(|(_, label)| label.clone());
     let file_count = files.len();
     let joined_files = match files.as_slice() {
         [] => "the changed surface".to_string(),
@@ -202,6 +212,12 @@ fn session_introduced_clone_finding(finding: &Value) -> Value {
     if !clone_id.is_empty() {
         evidence.push(format!("introduced clone group: {clone_id}"));
     }
+    if let Some(label) = &introduced_duplicate {
+        evidence.push(format!("introduced duplicate: {label}"));
+    }
+    if let Some(label) = &preferred_owner {
+        evidence.push(format!("preferred owner: {label}"));
+    }
     evidence.extend(
         files
             .iter()
@@ -211,6 +227,18 @@ fn session_introduced_clone_finding(finding: &Value) -> Value {
     if let Some(summary) = finding.get("summary").and_then(Value::as_str) {
         evidence.push(summary.to_string());
     }
+    let summary = match (&introduced_duplicate, &preferred_owner) {
+        (Some(introduced), Some(owner)) if introduced != owner => format!(
+            "This patch introduced a duplicate implementation in {introduced} instead of extending {owner}."
+        ),
+        _ => format!("This patch introduced a new duplicate implementation across {joined_files}."),
+    };
+    let impact = match &preferred_owner {
+        Some(owner) => format!(
+            "Fresh duplication is likely to drift on the next change unless the new path is folded back into {owner} now."
+        ),
+        None => "Fresh duplication is likely to drift on the next change unless the shared logic is collapsed now.".to_string(),
+    };
 
     json!({
         "kind": SESSION_INTRODUCED_CLONE_KIND,
@@ -221,8 +249,8 @@ fn session_introduced_clone_finding(finding: &Value) -> Value {
             .unwrap_or_else(|| json!(joined_files)),
         "files": files,
         "severity": "medium",
-        "summary": format!("This patch introduced a new duplicate implementation across {joined_files}."),
-        "impact": "Fresh duplication is likely to drift on the next change unless the shared logic is collapsed now.",
+        "summary": summary,
+        "impact": impact,
         "evidence": evidence,
         "trust_tier": "trusted",
         "presentation_class": "structural_debt",
@@ -232,6 +260,28 @@ fn session_introduced_clone_finding(finding: &Value) -> Value {
             "introduced_in_patch"
         ],
     })
+}
+
+fn clone_instance_labels(finding: &Value) -> Vec<(String, String)> {
+    finding
+        .get("instances")
+        .and_then(Value::as_array)
+        .map(|instances| {
+            instances
+                .iter()
+                .filter_map(|instance| {
+                    let file = instance.get("file").and_then(Value::as_str)?;
+                    let label = instance
+                        .get("func")
+                        .and_then(Value::as_str)
+                        .filter(|func| !func.is_empty())
+                        .map(|func| format!("{file}::{func}"))
+                        .unwrap_or_else(|| file.to_string());
+                    Some((file.to_string(), label))
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default()
 }
 
 #[cfg(test)]

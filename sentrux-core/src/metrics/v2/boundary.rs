@@ -38,11 +38,21 @@ pub fn build_zero_config_boundary_findings(
             }
 
             let mut evidence = suggestion.evidence.clone();
+            evidence.push(format!(
+                "inferred boundary confidence: {}",
+                suggestion.confidence
+            ));
             evidence.push(format!("inferred module root: {}", suggestion.root));
             evidence.push(format!(
                 "public API files: {}",
                 suggestion.public_api.join(", ")
             ));
+            if !suggestion.nested_public_api.is_empty() {
+                evidence.push(format!(
+                    "nested public API files: {}",
+                    suggestion.nested_public_api.join(", ")
+                ));
+            }
 
             findings.push(SemanticFinding {
                 kind: "zero_config_boundary_violation".to_string(),
