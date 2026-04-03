@@ -9,13 +9,6 @@
   "timeout_ms": 1800000,
   "poll_ms": 4000,
   "codex_bin": "codex",
-  "expected_signal_kinds": [
-    "closed_domain_exhaustiveness",
-    "forbidden_raw_read",
-    "missing_test_coverage",
-    "large_file",
-    "session_introduced_clone"
-  ],
   "tasks": [
     {
       "task_id": "parallel-code-exhaustiveness-hardening",
@@ -56,6 +49,14 @@
       "tags": ["calibration", "clone"],
       "expected_signal_kinds": ["session_introduced_clone"],
       "expected_fix_surface": "duplicate helper cleanup"
+    },
+    {
+      "task_id": "parallel-code-propagation-hardening",
+      "task_label": "Close an explicit propagation gap",
+      "prompt_file": "../prompts/parallel-code/propagation-hardening.md",
+      "tags": ["calibration", "propagation"],
+      "expected_signal_kinds": ["incomplete_propagation"],
+      "expected_fix_surface": "contract surface propagation"
     }
   ]
 }

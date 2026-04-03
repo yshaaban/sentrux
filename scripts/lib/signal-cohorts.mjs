@@ -33,6 +33,13 @@ function buildAgentLoopCoreSignals() {
       rationale:
         'Fresh duplication introduced in the current session is a high-ROI agent mistake signal when it stays session-scoped and concrete.',
     },
+    {
+      signal_kind: 'incomplete_propagation',
+      signal_family: 'obligation',
+      promotion_status: 'watchpoint',
+      rationale:
+        'Explicit contract-surface propagation misses are sharp enough to calibrate as a conservative watchpoint before broader propagation heuristics.',
+    },
   ];
 }
 
@@ -47,7 +54,7 @@ export function buildDefaultSignalCohorts() {
         description:
           'Initial high-ROI signal cohort for calibrating fast patch feedback in the coding loop.',
         signals: buildAgentLoopCoreSignals(),
-        next_candidates: ['zero_config_boundary_violation', 'incomplete_propagation'],
+        next_candidates: ['zero_config_boundary_violation'],
       },
     ],
   };
