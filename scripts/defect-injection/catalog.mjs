@@ -60,6 +60,17 @@ function buildDuplicateNetworkHelpers() {
   ].join('\n');
 }
 
+function buildRemoteKillHandler(commandName, commandKind = null) {
+  const commandKindSegment = commandKind ? `'${commandKind}', ` : '';
+  return [
+    '      kill: (currentMessage) => {',
+    `        ${commandName}(client, currentMessage.agentId, ${commandKindSegment}() => {`,
+    '          killAgent(currentMessage.agentId);',
+    '        });',
+    '      },',
+  ].join('\n');
+}
+
 function buildDuplicateTextLineHelpers() {
   return [
     '',
@@ -304,6 +315,33 @@ function buildParallelCodeCatalog() {
           workRoot,
           'electron/remote/http-handler.ts',
           buildDuplicateNetworkHelpers(),
+        );
+      },
+    }),
+    createDefect({
+      id: 'clone_propagation_drift',
+      title: 'Change one member of a committed websocket clone pair without syncing its sibling',
+      repoLabel: 'parallel-code',
+      targetPath: 'electron/remote/ws-server.ts',
+      signalKind: 'clone_propagation_drift',
+      signalFamily: 'clone',
+      blockingIntent: 'watchpoint',
+      promotionStatus: 'watchpoint',
+      checkSupport: {
+        supported: true,
+        gate: 'warn',
+        kinds: ['clone_propagation_drift'],
+      },
+      gateKinds: ['clone_propagation_drift'],
+      findingKinds: [],
+      sessionEndKinds: ['clone_propagation_drift'],
+      expectedGateDecision: 'pass',
+      async inject(workRoot) {
+        return replaceInFile(
+          workRoot,
+          'electron/remote/ws-server.ts',
+          buildRemoteKillHandler('runAgentCommand', 'kill'),
+          buildRemoteKillHandler('runRemoteKillCommand'),
         );
       },
     }),

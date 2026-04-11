@@ -180,6 +180,8 @@ Use checked-in `docs/v2/examples/` artifacts only for intentionally promoted ref
 
 The checked-in live Codex batch manifests default to `analysis_mode: "working_tree"` so the real-work lane includes local uncommitted changes. Use `head_clone` only when you intentionally want a committed-HEAD calibration run.
 
+The checked-in replay batch manifests use explicit commit lists rather than broad `HEAD~N..HEAD` ranges. That keeps the default replay lane focused on code-rich commits and avoids letting docs-only churn dominate the backlog with low-value `large_file` noise.
+
 ## Cohort-Driven Calibration
 
 The recommended operating model is:
@@ -194,6 +196,19 @@ The recommended operating model is:
 8. build a backlog with `build-signal-backlog.mjs`
 
 That keeps the current trusted/watchpoint candidates, the real-session evidence, and the “what should we build next?” report on one shared set of artifacts.
+
+For the duplication family, treat the checked-in signals as distinct surfaces:
+
+- `session_introduced_clone` for fresh duplicates introduced in the current task
+- `clone_propagation_drift` for followthrough misses where one side of an existing clone family changed and the sibling did not
+- `touched_clone_family` as low-priority clone context, not a primary fast-path blocker
+
+Current operating stance after the 2026-04-11 duplication pass:
+
+- use `parallel-code` as the primary duplication calibration repo because replay there surfaced real `session_introduced_clone` pressure and clone-context evidence
+- use Sentrux mainly as a replay noise and ranking check because curated replay there is still dominated by `large_file`
+- keep `touched_clone_family` as contextual clone pressure unless a future pass shows it consistently outranking more important actions
+- prefer `multi_writer_concept` as the next older sharp candidate once the duplication family is fully calibrated
 
 For the current checked-in repo manifests, start with:
 

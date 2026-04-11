@@ -34,6 +34,13 @@ function buildAgentLoopCoreSignals() {
         'Fresh duplication introduced in the current session is a high-ROI agent mistake signal when it stays session-scoped and concrete.',
     },
     {
+      signal_kind: 'clone_propagation_drift',
+      signal_family: 'clone',
+      promotion_status: 'watchpoint',
+      rationale:
+        'Editing one side of an existing duplicate without syncing its sibling is a common agent followthrough miss and should stay visible in the fast loop.',
+    },
+    {
       signal_kind: 'incomplete_propagation',
       signal_family: 'obligation',
       promotion_status: 'watchpoint',
@@ -54,7 +61,12 @@ export function buildDefaultSignalCohorts() {
         description:
           'Initial high-ROI signal cohort for calibrating fast patch feedback in the coding loop.',
         signals: buildAgentLoopCoreSignals(),
-        next_candidates: ['zero_config_boundary_violation'],
+        next_candidates: [
+          'multi_writer_concept',
+          'forbidden_writer',
+          'writer_outside_allowlist',
+          'zero_config_boundary_violation',
+        ],
       },
     ],
   };

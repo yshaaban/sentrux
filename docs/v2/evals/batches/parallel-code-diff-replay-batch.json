@@ -6,6 +6,44 @@
   "repo_label": "parallel-code",
   "rules_source": "../../examples/parallel-code.rules.toml",
   "default_tags": ["calibration", "replay"],
-  "rev_range": "HEAD~40..HEAD",
-  "max_count": 12
+  "replays": [
+    {
+      "replay_id": "typed-browser-bootstrap-projections",
+      "commit": "d6dc00566762472d14438d8c8efbab8fd5a15a1b",
+      "expected_signal_kinds": ["session_introduced_clone"],
+      "tags": ["calibration", "replay", "code", "projection", "refactor"]
+    },
+    {
+      "replay_id": "browser-bootstrap-split",
+      "commit": "55c470e31f7dfbe3c403cb5eaf3743d6cbbd96d4",
+      "expected_signal_kinds": [
+        "closed_domain_exhaustiveness",
+        "incomplete_propagation"
+      ],
+      "tags": ["calibration", "replay", "code", "projection", "refactor"]
+    },
+    {
+      "replay_id": "arena-competitor-preflight",
+      "commit": "c23649c669d05cbad15483c2270b411054f9b68e",
+      "tags": ["calibration", "replay", "code", "feature", "ui"]
+    },
+    {
+      "replay_id": "markdown-viewer-git-isolation",
+      "commit": "027d8353e84bd699a1d61d8600fdf2743af1db02",
+      "expected_signal_kinds": ["forbidden_raw_read"],
+      "tags": ["calibration", "replay", "code", "feature", "boundary"]
+    },
+    {
+      "replay_id": "git-correctness-merge-safety",
+      "commit": "943b6599cf5d5605ba2e04e0f4f970ea5d0c452a",
+      "expected_signal_kinds": ["closed_domain_exhaustiveness"],
+      "tags": ["calibration", "replay", "code", "fix", "git"]
+    },
+    {
+      "replay_id": "clone-config-typing-hardening",
+      "commit": "243649ecef3018579d0c28eb6a88327fcb319b76",
+      "expected_signal_kinds": ["clone_propagation_drift"],
+      "tags": ["calibration", "replay", "code", "refactor", "clone"]
+    }
+  ]
 }

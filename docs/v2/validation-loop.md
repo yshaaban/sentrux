@@ -222,6 +222,42 @@ For each reviewed finding class, capture:
   - `preferred_over`
     - use this when the class is right but the within-bucket order still matters
 
+## Replay Selection Discipline
+
+Treat replay selection as part of the experiment design, not a default git-history dump.
+
+Use replay commits that are:
+
+- code-rich
+- recent enough to reflect current agent work
+- likely to exercise the active cohort
+- varied enough to cover rules, obligations, clone followthrough, and watchpoints
+
+Avoid letting docs-only and broad maintenance commits dominate the default replay lane. They tend to over-sample `large_file` and under-inform the clone and propagation decisions that matter more.
+
+The checked-in replay manifests under `docs/v2/evals/batches/` therefore prefer curated commit lists over broad `HEAD~N..HEAD` ranges.
+
+## Duplication Signal Roles
+
+Treat duplication as a small signal family with different surfaces:
+
+- `session_introduced_clone`
+  Fresh duplication introduced in the current task. Keep this session-scoped and repair-oriented.
+- `clone_propagation_drift`
+  The patch changed one member of an existing clone family without syncing or collapsing its sibling. This is the main followthrough-miss detector.
+- `touched_clone_family`
+  Context-only clone pressure. Useful as a low-priority watchpoint or side-channel, not as a top blocking action by default.
+
+Older structural clone debt signals still belong mainly in review and cleanup loops unless evidence shows they materially improve fast agent outcomes.
+
+Current operating stance after the 2026-04-11 duplication calibration pass:
+
+- keep `session_introduced_clone` and `clone_propagation_drift` in the active loop as clone watchpoints
+- treat `touched_clone_family` as contextual pressure, not a primary top-action target
+- use `parallel-code` as the main duplication evidence repo
+- use Sentrux mostly to confirm that structural noise such as `large_file` stays de-emphasized
+- prefer `multi_writer_concept` over broader zero-config boundaries as the next older sharp candidate once duplication calibration stabilizes
+
 This loop should drive product changes such as:
 
 - promoting a detector to trusted

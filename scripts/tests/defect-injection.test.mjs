@@ -20,6 +20,7 @@ test('catalogs expose the expected defect ids', function () {
       'forbidden_raw_read',
       'clone_injection',
       'session_introduced_clone',
+      'clone_propagation_drift',
       'missing_exhaustiveness',
       'incomplete_propagation',
       'missing_test',
@@ -38,6 +39,21 @@ test('catalogs expose the expected defect ids', function () {
     createParallelCodeCatalog().find((defect) => defect.id === 'session_introduced_clone')
       .check_support.supported,
     true,
+  );
+  assert.equal(
+    createParallelCodeCatalog().find((defect) => defect.id === 'clone_propagation_drift')
+      .check_support.supported,
+    true,
+  );
+  assert.equal(
+    createParallelCodeCatalog().find((defect) => defect.id === 'clone_propagation_drift')
+      .expected_gate_decision,
+    'pass',
+  );
+  assert.deepEqual(
+    createParallelCodeCatalog().find((defect) => defect.id === 'clone_propagation_drift')
+      .expected_gate_kinds,
+    ['clone_propagation_drift'],
   );
   assert.equal(
     createParallelCodeCatalog().find((defect) => defect.id === 'incomplete_propagation')

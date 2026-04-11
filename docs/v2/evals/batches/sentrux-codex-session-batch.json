@@ -48,6 +48,14 @@
       "tags": ["calibration", "clone"],
       "expected_signal_kinds": ["session_introduced_clone"],
       "expected_fix_surface": "duplicate helper cleanup"
+    },
+    {
+      "task_id": "sentrux-clone-followthrough",
+      "task_label": "Keep an edited clone family in sync",
+      "prompt_file": "../prompts/sentrux/clone-followthrough.md",
+      "tags": ["calibration", "clone", "followthrough"],
+      "expected_signal_kinds": ["clone_propagation_drift"],
+      "expected_fix_surface": "duplicate followthrough"
     }
   ]
 }

@@ -5,6 +5,39 @@
   "repo_root": "<sentrux-root>",
   "repo_label": "sentrux",
   "default_tags": ["calibration", "replay"],
-  "rev_range": "HEAD~40..HEAD",
-  "max_count": 12
+  "replays": [
+    {
+      "replay_id": "weak-signal-coverage",
+      "commit": "c5a8dfb2fc19aa5d4dbdcd22ef351b6352f0b6c4",
+      "tags": ["calibration", "replay", "code", "signals", "coverage"]
+    },
+    {
+      "replay_id": "weak-signal-guidance",
+      "commit": "caacc9504d003f1b7ac8ea5c47d97b651ea3610d",
+      "tags": ["calibration", "replay", "code", "signals", "clone", "propagation"]
+    },
+    {
+      "replay_id": "session-introduced-clone-surface",
+      "commit": "2e363e2c6f9610488d5acb8235bc0dbeb405033f",
+      "expected_signal_kinds": ["session_introduced_clone"],
+      "tags": ["calibration", "replay", "code", "clone"]
+    },
+    {
+      "replay_id": "raw-read-guidance",
+      "commit": "35dcf2a207c2b15f31b03a5406ad02126f1fd1b5",
+      "expected_signal_kinds": ["forbidden_raw_read"],
+      "tags": ["calibration", "replay", "code", "rules", "raw-read"]
+    },
+    {
+      "replay_id": "repo-local-session-telemetry",
+      "commit": "9d40bab9e80bc28676c24ab643c91d998e198904",
+      "tags": ["calibration", "replay", "code", "telemetry"]
+    },
+    {
+      "replay_id": "fast-check-zero-config",
+      "commit": "1bbfd4b9d0c94cb3b66919c0b3ec7cdbbacd2ba5",
+      "expected_signal_kinds": ["zero_config_boundary_violation"],
+      "tags": ["calibration", "replay", "code", "check", "boundary"]
+    }
+  ]
 }

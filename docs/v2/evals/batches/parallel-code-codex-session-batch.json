@@ -51,6 +51,14 @@
       "expected_fix_surface": "duplicate helper cleanup"
     },
     {
+      "task_id": "parallel-code-clone-followthrough",
+      "task_label": "Sync an edited clone family",
+      "prompt_file": "../prompts/parallel-code/clone-followthrough.md",
+      "tags": ["calibration", "clone", "followthrough"],
+      "expected_signal_kinds": ["clone_propagation_drift"],
+      "expected_fix_surface": "duplicate followthrough"
+    },
+    {
       "task_id": "parallel-code-propagation-hardening",
       "task_label": "Close an explicit propagation gap",
       "prompt_file": "../prompts/parallel-code/propagation-hardening.md",

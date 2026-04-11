@@ -77,6 +77,41 @@ test('buildSignalBacklog highlights weak cohort signals and next candidates', fu
   assert.equal(backlog.replay_misses.length, 1);
 });
 
+test('buildSignalBacklog honors configured next-candidate ordering', function () {
+  const backlog = buildSignalBacklog({
+    cohort: {
+      cohort_id: 'agent-loop-core',
+      signals: [{ signal_kind: 'closed_domain_exhaustiveness' }],
+      next_candidates: ['multi_writer_concept', 'forbidden_writer'],
+    },
+    scorecard: { signals: [] },
+    replayBatch: {
+      results: [
+        {
+          replay_id: 'commit-2',
+          commit: 'def456',
+          expected_signal_kinds: ['forbidden_writer'],
+          outcome: {
+            initial_top_action_kind: null,
+            initial_action_kinds: [],
+            final_gate: 'warn',
+            final_session_clean: false,
+            followup_regression_introduced: false,
+          },
+        },
+      ],
+    },
+  });
+
+  assert.equal(backlog.summary.recommended_next_signal, 'multi_writer_concept');
+  assert.deepEqual(
+    backlog.next_signal_candidates.map((candidate) => candidate.signal_kind),
+    ['multi_writer_concept', 'forbidden_writer'],
+  );
+  assert.equal(backlog.next_signal_candidates[0].miss_count, 0);
+  assert.equal(backlog.next_signal_candidates[1].miss_count, 1);
+});
+
 test('buildSignalBacklog ignores clean sessions that simply lacked an expected signal', function () {
   const backlog = buildSignalBacklog({
     cohort: {

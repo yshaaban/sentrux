@@ -44,16 +44,20 @@ function createCandidateEntry(signalKind) {
   };
 }
 
+function ensureCandidateEntry(candidateMap, signalKind) {
+  if (!candidateMap.has(signalKind)) {
+    candidateMap.set(signalKind, createCandidateEntry(signalKind));
+  }
+
+  return candidateMap.get(signalKind);
+}
+
 function recordCandidate(candidateMap, signalKind, bucket, activeSignalKinds) {
   if (!signalKind) {
     return;
   }
 
-  if (!candidateMap.has(signalKind)) {
-    candidateMap.set(signalKind, createCandidateEntry(signalKind));
-  }
-
-  const entry = candidateMap.get(signalKind);
+  const entry = ensureCandidateEntry(candidateMap, signalKind);
   entry.miss_count += 1;
   entry[`${bucket}_miss_count`] += 1;
   if (!activeSignalKinds.has(signalKind)) {
@@ -85,10 +89,7 @@ function buildMissEntries(results, lane, activeSignalKinds, candidateMap) {
     }
 
     if (outcome.followup_regression_introduced && initialTopActionKind) {
-      if (!candidateMap.has(initialTopActionKind)) {
-        candidateMap.set(initialTopActionKind, createCandidateEntry(initialTopActionKind));
-      }
-      candidateMap.get(initialTopActionKind).regression_followup_count += 1;
+      ensureCandidateEntry(candidateMap, initialTopActionKind).regression_followup_count += 1;
     }
 
     misses.push({
@@ -120,6 +121,35 @@ function summarizeNextCandidates(candidateMap) {
       }
       return left.signal_kind.localeCompare(right.signal_kind);
     });
+}
+
+function summarizeConfiguredNextCandidates(cohort, candidateSignals, activeSignalKinds) {
+  const configuredCandidates = asArray(cohort?.next_candidates);
+  const candidateBySignal = new Map(
+    candidateSignals.map((candidate) => [candidate.signal_kind, candidate]),
+  );
+  const seen = new Set();
+  const orderedCandidates = [];
+
+  for (const signalKind of configuredCandidates) {
+    if (!signalKind || activeSignalKinds.has(signalKind) || seen.has(signalKind)) {
+      continue;
+    }
+
+    orderedCandidates.push(candidateBySignal.get(signalKind) ?? createCandidateEntry(signalKind));
+    seen.add(signalKind);
+  }
+
+  for (const candidate of candidateSignals) {
+    if (candidate.not_in_active_cohort === 0 || seen.has(candidate.signal_kind)) {
+      continue;
+    }
+
+    orderedCandidates.push(candidate);
+    seen.add(candidate.signal_kind);
+  }
+
+  return orderedCandidates;
 }
 
 function cleanRateForResults(results) {
@@ -164,8 +194,14 @@ export function buildSignalBacklog({ cohort, scorecard, codexBatch = null, repla
     candidateMap,
   );
   const candidateSignals = summarizeNextCandidates(candidateMap);
-  const nextCandidates = candidateSignals.filter((candidate) => candidate.not_in_active_cohort > 0);
-  const activeSignalMisses = candidateSignals.filter((candidate) => candidate.not_in_active_cohort === 0);
+  const nextCandidates = summarizeConfiguredNextCandidates(
+    cohort,
+    candidateSignals,
+    activeSignalKinds,
+  );
+  const activeSignalMisses = candidateSignals.filter(
+    (candidate) => candidate.not_in_active_cohort === 0,
+  );
 
   return {
     schema_version: 1,
