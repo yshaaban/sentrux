@@ -9,6 +9,17 @@ use crate::license::Tier;
 use std::path::Path;
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+const SESSION_CLONE_SOURCE_FIXTURE: &str = "export function buildAccessUrl(host: string, port: number, token: string): string {\n  return `http://${host}:${port}?token=${token}`;\n}\n\nexport function buildOptionalAccessUrl(\n  host: string | null,\n  port: number,\n  token: string,\n): string | null {\n  if (!host) return null;\n  return buildAccessUrl(host, port, token);\n}\n";
+const SESSION_CLONE_COPY_FIXTURE: &str =
+    "export function buildTaskLabel(status: string): string {\n  return status === 'done' ? 'done' : 'todo';\n}\n";
+const SESSION_CLONE_WATCHPOINT_NOTE: &str =
+    "\nexport const CLONE_TOUCH_NOTE = 'keep sibling helper in sync';\n";
+const SESSION_CLONE_FOLLOWTHROUGH_FIXTURE: &str =
+    "export function buildStatusBadge(status: string, isStale: boolean): string {\n  const label = status === 'done' ? 'done' : 'todo';\n  const staleSuffix = isStale ? ' stale' : '';\n  return `${label}${staleSuffix}`;\n}\n";
+const SESSION_CLONE_FOLLOWTHROUGH_DRIFT_SOURCE: &str =
+    "export function buildStatusBadge(status: string, isStale: boolean): string {\n  const label = status === 'done' ? 'done' : 'todo';\n  const staleSuffix = isStale ? ' stale' : '';\n  return `${label.toUpperCase()}${staleSuffix}`;\n}\n";
+
 pub(crate) fn temp_root(label: &str) -> std::path::PathBuf {
     let unique = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -40,23 +51,28 @@ pub(crate) fn append_file(root: &Path, relative_path: &str, contents: &str) {
 }
 
 pub(crate) fn write_session_clone_fixture_files(root: &Path) {
-    write_file(
-        root,
-        "src/source.ts",
-        "export function buildAccessUrl(host: string, port: number, token: string): string {\n  return `http://${host}:${port}?token=${token}`;\n}\n\nexport function buildOptionalAccessUrl(\n  host: string | null,\n  port: number,\n  token: string,\n): string | null {\n  if (!host) return null;\n  return buildAccessUrl(host, port, token);\n}\n",
-    );
-    write_file(
-        root,
-        "src/copy.ts",
-        "export function buildTaskLabel(status: string): string {\n  return status === 'done' ? 'done' : 'todo';\n}\n",
-    );
+    write_file(root, "src/source.ts", SESSION_CLONE_SOURCE_FIXTURE);
+    write_file(root, "src/copy.ts", SESSION_CLONE_COPY_FIXTURE);
 }
 
 pub(crate) fn write_session_clone_duplicate(root: &Path) {
+    write_file(root, "src/copy.ts", SESSION_CLONE_SOURCE_FIXTURE);
+}
+
+pub(crate) fn append_session_clone_watchpoint_note(root: &Path) {
+    append_file(root, "src/source.ts", SESSION_CLONE_WATCHPOINT_NOTE);
+}
+
+pub(crate) fn write_session_clone_followthrough_fixture_files(root: &Path) {
+    write_file(root, "src/source.ts", SESSION_CLONE_FOLLOWTHROUGH_FIXTURE);
+    write_file(root, "src/copy.ts", SESSION_CLONE_FOLLOWTHROUGH_FIXTURE);
+}
+
+pub(crate) fn write_session_clone_followthrough_source_drift(root: &Path) {
     write_file(
         root,
-        "src/copy.ts",
-        "export function buildAccessUrl(host: string, port: number, token: string): string {\n  return `http://${host}:${port}?token=${token}`;\n}\n\nexport function buildOptionalAccessUrl(\n  host: string | null,\n  port: number,\n  token: string,\n): string | null {\n  if (!host) return null;\n  return buildAccessUrl(host, port, token);\n}\n",
+        "src/source.ts",
+        SESSION_CLONE_FOLLOWTHROUGH_DRIFT_SOURCE,
     );
 }
 

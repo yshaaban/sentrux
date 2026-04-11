@@ -449,5 +449,9 @@ fn session_introduced_clone_finding_values(
         None,
         health.duplicate_groups.len(),
     ));
-    build_session_introduced_clone_findings(&current_findings, session_v2, changed_files, 10)
+    let introduced_findings =
+        build_session_introduced_clone_findings(&current_findings, session_v2, changed_files, 10);
+    let followthrough_findings =
+        build_clone_followthrough_findings(&current_findings, session_v2, changed_files, 10);
+    merge_findings(introduced_findings, followthrough_findings, 10)
 }

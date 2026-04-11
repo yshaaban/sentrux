@@ -7,6 +7,8 @@ const PREFERRED_ACCESSOR_PREFIX: &str = "preferred accessor: ";
 const CANONICAL_OWNER_PREFIX: &str = "canonical owner: ";
 const INTRODUCED_DUPLICATE_PREFIX: &str = "introduced duplicate: ";
 const PREFERRED_OWNER_PREFIX: &str = "preferred owner: ";
+const CHANGED_CLONE_MEMBER_PREFIX: &str = "changed clone member: ";
+const UNCHANGED_CLONE_SIBLING_PREFIX: &str = "unchanged clone sibling: ";
 
 #[derive(Debug, Clone, Copy, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "lowercase")]
@@ -202,6 +204,33 @@ fn fix_hint_for_value(finding: &Value, kind: &str) -> Option<String> {
         }
     }
 
+    if kind == "clone_propagation_drift" {
+        let changed_member = evidence_value_for_prefix(finding, CHANGED_CLONE_MEMBER_PREFIX);
+        let unchanged_sibling = evidence_value_for_prefix(finding, UNCHANGED_CLONE_SIBLING_PREFIX);
+        if let (Some(changed_member), Some(unchanged_sibling)) =
+            (changed_member.as_ref(), unchanged_sibling.as_ref())
+        {
+            return Some(format!(
+                "Sync {unchanged_sibling} with the behavior change in {changed_member}, or collapse both paths behind one shared owner."
+            ));
+        }
+        if let Some(unchanged_sibling) = unchanged_sibling {
+            return Some(format!(
+                "Update {unchanged_sibling} to match the changed clone path, or remove the duplicate split."
+            ));
+        }
+    }
+
+    if kind == "touched_clone_family" {
+        if let Some(unchanged_sibling) =
+            evidence_value_for_prefix(finding, UNCHANGED_CLONE_SIBLING_PREFIX)
+        {
+            return Some(format!(
+                "Inspect sibling clone {unchanged_sibling} before finishing the patch, or collapse the duplicate paths behind one shared helper."
+            ));
+        }
+    }
+
     fix_hint_for_kind(kind)
 }
 
@@ -276,7 +305,10 @@ fn issue_source_for_kind(kind: &str) -> IssueSource {
     ) {
         return IssueSource::Structural;
     }
-    if kind == "session_introduced_clone" {
+    if matches!(
+        kind,
+        "session_introduced_clone" | "clone_propagation_drift" | "touched_clone_family"
+    ) {
         return IssueSource::Clone;
     }
     if matches!(kind, "exact_clone_group" | "clone_group" | "clone_family") {
@@ -453,8 +485,14 @@ fn right_gate_weight(issue: &AgentIssue) -> u8 {
 }
 
 fn issue_source_weight(issue: &AgentIssue) -> u8 {
-    if issue.kind == "session_introduced_clone" {
+    if matches!(
+        issue.kind.as_str(),
+        "session_introduced_clone" | "clone_propagation_drift"
+    ) {
         return 2;
+    }
+    if issue.kind == "touched_clone_family" {
+        return 1;
     }
 
     match (issue.source, issue.origin) {
@@ -540,6 +578,12 @@ fn fix_hint_for_kind(kind: &str) -> Option<String> {
         }
         "session_introduced_clone" => {
             "Collapse the new duplicate now: extract the shared behavior or route both call sites through the same owner before they drift."
+        }
+        "clone_propagation_drift" => {
+            "Sync the unchanged sibling clone with the changed path, or collapse both behind one shared owner before behavior drifts."
+        }
+        "touched_clone_family" => {
+            "Inspect the sibling clone surfaces before finishing the patch, even if you keep the duplicate for now."
         }
         "incomplete_propagation" => {
             "Update the remaining sibling surfaces listed in the evidence before considering the change complete."

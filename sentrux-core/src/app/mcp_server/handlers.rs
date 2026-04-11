@@ -81,9 +81,9 @@ pub(crate) use self::classification::{
     merge_findings, partition_experimental_findings, serialized_values, severity_of_value,
 };
 pub(crate) use self::clone_support::{
-    build_session_introduced_clone_findings, clone_findings_for_health,
-    filter_clone_values_by_visible_clone_ids, merge_session_introduced_clone_findings,
-    visible_clone_ids, SESSION_INTRODUCED_CLONE_KIND,
+    build_clone_followthrough_findings, build_session_introduced_clone_findings,
+    clone_findings_for_health, filter_clone_values_by_visible_clone_ids,
+    is_agent_clone_signal_kind, merge_session_introduced_clone_findings, visible_clone_ids,
 };
 pub(crate) use self::concepts::{
     check_rules_def, concepts_def, explain_concept_def, project_shape_def, trace_symbol_def,

@@ -344,7 +344,7 @@ fn build_patch_mode_agent_brief(
         .collect::<Vec<_>>();
     let introduced_clone_findings = candidate_findings
         .iter()
-        .filter(|finding| finding_kind(finding) == SESSION_INTRODUCED_CLONE_KIND)
+        .filter(|finding| is_agent_clone_signal_kind(finding_kind(finding)))
         .cloned()
         .collect::<Vec<_>>();
     let experimental_findings = experimental_introduced_findings

@@ -1,6 +1,8 @@
 use super::*;
 
 pub(crate) const SESSION_INTRODUCED_CLONE_KIND: &str = "session_introduced_clone";
+pub(crate) const CLONE_PROPAGATION_DRIFT_KIND: &str = "clone_propagation_drift";
+pub(crate) const TOUCHED_CLONE_FAMILY_KIND: &str = "touched_clone_family";
 
 pub(crate) struct CloneFindingPayload {
     pub(crate) exact_findings: Vec<Value>,
@@ -9,6 +11,15 @@ pub(crate) struct CloneFindingPayload {
     pub(crate) remediation_hints: Vec<Value>,
     pub(crate) clone_group_count: usize,
     pub(crate) clone_family_count: usize,
+}
+
+struct CloneSignalContext {
+    clone_id: String,
+    scope: Value,
+    files: Vec<String>,
+    evidence: Vec<String>,
+    changed_summary: String,
+    sibling_summary: String,
 }
 
 pub(crate) fn clone_findings_for_health(
@@ -101,7 +112,19 @@ pub(crate) fn filter_clone_values_by_visible_clone_ids(
 pub(crate) fn is_clone_finding_kind(kind: &str) -> bool {
     matches!(
         kind,
-        "exact_clone_group" | "clone_group" | "clone_family" | SESSION_INTRODUCED_CLONE_KIND
+        "exact_clone_group"
+            | "clone_group"
+            | "clone_family"
+            | SESSION_INTRODUCED_CLONE_KIND
+            | CLONE_PROPAGATION_DRIFT_KIND
+            | TOUCHED_CLONE_FAMILY_KIND
+    )
+}
+
+pub(crate) fn is_agent_clone_signal_kind(kind: &str) -> bool {
+    matches!(
+        kind,
+        SESSION_INTRODUCED_CLONE_KIND | CLONE_PROPAGATION_DRIFT_KIND | TOUCHED_CLONE_FAMILY_KIND
     )
 }
 
@@ -161,9 +184,21 @@ pub(crate) fn merge_session_introduced_clone_findings(
 
     let introduced_clone_findings =
         build_session_introduced_clone_findings(current_findings, session_v2, changed_files, limit);
+    let remaining_limit = limit.saturating_sub(introduced_clone_findings.len());
+    let clone_followthrough_findings = build_clone_followthrough_findings(
+        current_findings,
+        session_v2,
+        changed_files,
+        remaining_limit,
+    );
+    let derived_clone_findings = merge_findings(
+        introduced_clone_findings,
+        clone_followthrough_findings,
+        limit,
+    );
 
     merge_findings(
-        introduced_clone_findings,
+        derived_clone_findings,
         introduced_findings
             .into_iter()
             .filter(|finding| !is_clone_finding_kind(finding_kind(finding)))
@@ -174,6 +209,20 @@ pub(crate) fn merge_session_introduced_clone_findings(
 
 fn exact_clone_id(finding: &Value) -> Option<&str> {
     finding.get("clone_id").and_then(Value::as_str)
+}
+
+fn exact_clone_findings(values: &[Value]) -> Vec<&Value> {
+    values
+        .iter()
+        .filter(|finding| finding_kind(finding) == "exact_clone_group")
+        .collect()
+}
+
+fn clone_member_summary(labels: &[String], fallback: &str) -> String {
+    labels
+        .first()
+        .cloned()
+        .unwrap_or_else(|| fallback.to_string())
 }
 
 fn finding_touches_changed_files(finding: &Value, changed_files: &BTreeSet<String>) -> bool {
@@ -262,6 +311,75 @@ fn session_introduced_clone_finding(finding: &Value, changed_files: &BTreeSet<St
     })
 }
 
+pub(crate) fn build_clone_followthrough_findings(
+    current_findings: &[Value],
+    session_v2: Option<&SessionV2Baseline>,
+    changed_files: &BTreeSet<String>,
+    limit: usize,
+) -> Vec<Value> {
+    let Some(session_v2) = session_v2 else {
+        return Vec::new();
+    };
+    if limit == 0 || changed_files.is_empty() {
+        return Vec::new();
+    }
+
+    let current_exact_clone_findings = exact_clone_findings(current_findings);
+    let current_exact_clone_ids = current_exact_clone_findings
+        .iter()
+        .filter_map(|finding| exact_clone_id(finding))
+        .collect::<BTreeSet<_>>();
+    let mut findings = Vec::new();
+
+    for baseline_finding in session_v2
+        .finding_payloads
+        .values()
+        .filter(|finding| finding_kind(finding) == "exact_clone_group")
+    {
+        if !finding_touches_changed_files(baseline_finding, changed_files) {
+            continue;
+        }
+
+        let untouched_siblings =
+            clone_member_labels_excluding_changed_files(baseline_finding, changed_files);
+        if untouched_siblings.is_empty() {
+            continue;
+        }
+
+        let changed_members =
+            clone_member_labels_for_changed_files(baseline_finding, changed_files);
+        let clone_still_exact = exact_clone_id(baseline_finding)
+            .map(|clone_id| current_exact_clone_ids.contains(clone_id))
+            .unwrap_or_else(|| {
+                current_clone_group_still_covers_unchanged_siblings(
+                    &current_exact_clone_findings,
+                    changed_members.as_slice(),
+                    &untouched_siblings,
+                )
+            });
+        let finding = if clone_still_exact {
+            touched_clone_family_finding(
+                baseline_finding,
+                changed_members.as_slice(),
+                untouched_siblings.as_slice(),
+            )
+        } else {
+            clone_propagation_drift_finding(
+                baseline_finding,
+                changed_members.as_slice(),
+                untouched_siblings.as_slice(),
+            )
+        };
+
+        findings.push(finding);
+        if findings.len() >= limit {
+            break;
+        }
+    }
+
+    findings
+}
+
 fn clone_instance_labels(finding: &Value) -> Vec<(String, String)> {
     finding
         .get("instances")
@@ -282,6 +400,180 @@ fn clone_instance_labels(finding: &Value) -> Vec<(String, String)> {
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default()
+}
+
+fn clone_member_labels_for_changed_files(
+    finding: &Value,
+    changed_files: &BTreeSet<String>,
+) -> Vec<String> {
+    clone_instance_labels(finding)
+        .into_iter()
+        .filter(|(file, _)| changed_files.contains(file))
+        .map(|(_, label)| label)
+        .collect()
+}
+
+fn clone_member_labels_excluding_changed_files(
+    finding: &Value,
+    changed_files: &BTreeSet<String>,
+) -> Vec<String> {
+    clone_instance_labels(finding)
+        .into_iter()
+        .filter(|(file, _)| !changed_files.contains(file))
+        .map(|(_, label)| label)
+        .collect()
+}
+
+fn current_clone_group_still_covers_unchanged_siblings(
+    current_findings: &[&Value],
+    changed_members: &[String],
+    untouched_siblings: &[String],
+) -> bool {
+    current_findings.iter().any(|finding| {
+        let labels = clone_instance_labels(finding)
+            .into_iter()
+            .map(|(_, label)| label)
+            .collect::<BTreeSet<_>>();
+        !changed_members.is_empty()
+            && !untouched_siblings.is_empty()
+            && changed_members.iter().all(|label| labels.contains(label))
+            && untouched_siblings
+                .iter()
+                .all(|label| labels.contains(label))
+    })
+}
+
+fn clone_evidence(
+    finding: &Value,
+    changed_members: &[String],
+    untouched_siblings: &[String],
+) -> Vec<String> {
+    let mut evidence = Vec::new();
+    if let Some(clone_id) = exact_clone_id(finding) {
+        evidence.push(format!("baseline clone group: {clone_id}"));
+    }
+    evidence.extend(
+        changed_members
+            .iter()
+            .take(2)
+            .map(|label| format!("changed clone member: {label}")),
+    );
+    evidence.extend(
+        untouched_siblings
+            .iter()
+            .take(2)
+            .map(|label| format!("unchanged clone sibling: {label}")),
+    );
+    evidence.extend(
+        finding_files(finding)
+            .iter()
+            .take(3)
+            .map(|path| format!("baseline clone surface: {path}")),
+    );
+    if let Some(summary) = finding.get("summary").and_then(Value::as_str) {
+        evidence.push(summary.to_string());
+    }
+    evidence
+}
+
+fn build_clone_signal_context(
+    finding: &Value,
+    changed_members: &[String],
+    untouched_siblings: &[String],
+) -> CloneSignalContext {
+    let sibling_summary = clone_member_summary(untouched_siblings, "the sibling clone path");
+    let files = finding_files(finding);
+
+    CloneSignalContext {
+        clone_id: exact_clone_id(finding)
+            .map(str::to_string)
+            .unwrap_or_default(),
+        scope: finding
+            .get("scope")
+            .cloned()
+            .unwrap_or_else(|| json!(sibling_summary.clone())),
+        files: files.clone(),
+        evidence: clone_evidence(finding, changed_members, untouched_siblings),
+        changed_summary: clone_member_summary(changed_members, "the changed clone path"),
+        sibling_summary,
+    }
+}
+
+fn clone_propagation_drift_finding(
+    finding: &Value,
+    changed_members: &[String],
+    untouched_siblings: &[String],
+) -> Value {
+    let context = build_clone_signal_context(finding, changed_members, untouched_siblings);
+
+    json!({
+        "kind": CLONE_PROPAGATION_DRIFT_KIND,
+        "clone_id": context.clone_id,
+        "scope": context.scope,
+        "files": context.files.clone(),
+        "severity": "medium",
+        "summary": format!(
+            "This patch changed {} inside a known clone group, but sibling clone logic still lives in {}.",
+            context.changed_summary, context.sibling_summary
+        ),
+        "impact": "Changing one side of an existing clone group without folding or syncing the sibling path makes the next behavior change easier to miss.".to_string(),
+        "evidence": context.evidence,
+        "trust_tier": "watchpoint",
+        "presentation_class": "hardening_note",
+        "leverage_class": "local_refactor_target",
+        "leverage_reasons": [
+            "duplicate_followthrough_gap",
+            "clone_family_touched_in_patch"
+        ],
+        "inspection_focus": [
+            "inspect whether the unchanged sibling still needs the same behavior update".to_string(),
+            "inspect whether the duplicate paths should collapse behind one shared helper".to_string()
+        ],
+        "candidate_split_axes": [
+            "shared helper boundary".to_string(),
+            "shared behavior test boundary".to_string()
+        ],
+        "related_surfaces": context.files,
+        "origin": "explicit",
+        "confidence": "medium",
+    })
+}
+
+fn touched_clone_family_finding(
+    finding: &Value,
+    changed_members: &[String],
+    untouched_siblings: &[String],
+) -> Value {
+    let context = build_clone_signal_context(finding, changed_members, untouched_siblings);
+
+    json!({
+        "kind": TOUCHED_CLONE_FAMILY_KIND,
+        "clone_id": context.clone_id,
+        "scope": context.scope,
+        "files": context.files.clone(),
+        "severity": "low",
+        "summary": format!(
+            "This patch touches {}, which already belongs to a clone group with sibling path {}.",
+            context.changed_summary, context.sibling_summary
+        ),
+        "impact": "Clone families are easy to miss during localized edits, so a quick sibling check can prevent follow-up drift.".to_string(),
+        "evidence": context.evidence,
+        "trust_tier": "watchpoint",
+        "presentation_class": "watchpoint",
+        "leverage_class": "secondary_cleanup",
+        "leverage_reasons": [
+            "clone_family_touched_in_patch"
+        ],
+        "inspection_focus": [
+            "inspect whether the sibling clone still matches the changed path".to_string()
+        ],
+        "candidate_split_axes": [
+            "shared helper boundary".to_string()
+        ],
+        "related_surfaces": context.files,
+        "origin": "explicit",
+        "confidence": "medium",
+    })
 }
 
 #[cfg(test)]

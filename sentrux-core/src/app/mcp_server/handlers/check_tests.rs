@@ -3,8 +3,10 @@ use super::agent_format::{
     IssueOrigin, IssueSource,
 };
 use super::test_support::{
-    commit_all, init_git_repo, temp_root, write_contract_propagation_fixture_files, write_file,
-    write_session_clone_duplicate, write_session_clone_fixture_files,
+    append_session_clone_watchpoint_note, commit_all, init_git_repo, temp_root,
+    write_contract_propagation_fixture_files, write_file, write_session_clone_duplicate,
+    write_session_clone_fixture_files, write_session_clone_followthrough_fixture_files,
+    write_session_clone_followthrough_source_drift,
 };
 use super::{fresh_mcp_state, handle_check, handle_scan, handle_session_start};
 use crate::analysis::project_shape::{ModuleContractSuggestion, ProjectShapeReport};
@@ -333,6 +335,79 @@ fn session_introduced_clone_actions_rank_above_structural_watchpoints() {
     issues.sort_by(compare_agent_issues);
 
     assert_eq!(issues[0].kind, "session_introduced_clone");
+}
+
+#[test]
+fn check_surfaces_clone_propagation_drift_actions() {
+    let root = temp_root("check-clone-propagation-drift");
+    write_session_clone_followthrough_fixture_files(&root);
+    init_git_repo(&root);
+    commit_all(&root, "initial");
+
+    let mut state = fresh_mcp_state();
+    handle_scan(
+        &json!({"path": root.to_string_lossy().to_string()}),
+        &Tier::Free,
+        &mut state,
+    )
+    .expect("scan fixture");
+    handle_session_start(&json!({}), &Tier::Free, &mut state).expect("session start");
+    write_session_clone_followthrough_source_drift(&root);
+    handle_scan(
+        &json!({"path": root.to_string_lossy().to_string()}),
+        &Tier::Free,
+        &mut state,
+    )
+    .expect("rescan fixture");
+
+    let response = handle_check(&json!({}), &Tier::Free, &mut state).expect("check response");
+    let actions = response["actions"].as_array().expect("actions array");
+    let drift_action = actions
+        .iter()
+        .find(|action| action["kind"] == "clone_propagation_drift")
+        .expect("clone propagation drift action");
+
+    assert_eq!(actions[0]["kind"], json!("clone_propagation_drift"));
+    assert!(drift_action["fix_hint"]
+        .as_str()
+        .is_some_and(|hint| hint.contains("src/copy.ts::buildStatusBadge")
+            && hint.contains("src/source.ts::buildStatusBadge")));
+}
+
+#[test]
+fn check_surfaces_touched_clone_family_watchpoint() {
+    let root = temp_root("check-touched-clone-family");
+    write_session_clone_fixture_files(&root);
+    write_session_clone_duplicate(&root);
+    init_git_repo(&root);
+    commit_all(&root, "initial");
+
+    let mut state = fresh_mcp_state();
+    handle_scan(
+        &json!({"path": root.to_string_lossy().to_string()}),
+        &Tier::Free,
+        &mut state,
+    )
+    .expect("scan fixture");
+    handle_session_start(&json!({}), &Tier::Free, &mut state).expect("session start");
+    append_session_clone_watchpoint_note(&root);
+    handle_scan(
+        &json!({"path": root.to_string_lossy().to_string()}),
+        &Tier::Free,
+        &mut state,
+    )
+    .expect("rescan fixture");
+
+    let response = handle_check(&json!({}), &Tier::Free, &mut state).expect("check response");
+    let actions = response["actions"].as_array().expect("actions array");
+    let family_action = actions
+        .iter()
+        .find(|action| action["kind"] == "touched_clone_family")
+        .expect("touched clone family action");
+
+    assert!(family_action["fix_hint"]
+        .as_str()
+        .is_some_and(|hint| hint.contains("sibling clone")));
 }
 
 #[test]

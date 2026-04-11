@@ -432,7 +432,7 @@ pub(crate) fn handle_session_end(
         .collect::<Vec<_>>();
     let introduced_clone_findings = introduced_findings
         .iter()
-        .filter(|finding| finding_kind(finding) == SESSION_INTRODUCED_CLONE_KIND)
+        .filter(|finding| is_agent_clone_signal_kind(finding_kind(finding)))
         .cloned()
         .collect::<Vec<_>>();
     let (opportunity_findings, experimental_findings) = if session_v2.is_some() {

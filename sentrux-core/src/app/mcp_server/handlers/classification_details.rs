@@ -126,6 +126,14 @@ fn is_contract_surface_propagation_kind(kind: &str) -> bool {
     )
 }
 
+fn clone_followthrough_inspection_focus() -> Vec<String> {
+    vec![
+        "inspect whether the changed path and the sibling clone should collapse behind one shared helper"
+            .to_string(),
+        "inspect whether the unchanged sibling still needs the same behavior update".to_string(),
+    ]
+}
+
 fn finding_detail_impact(finding: &Value) -> String {
     if let Some(impact) = finding.get("impact").and_then(|value| value.as_str()) {
         return impact.to_string();
@@ -158,6 +166,15 @@ fn finding_detail_impact(finding: &Value) -> String {
         "contract_parity_gap" => {
             "Cross-surface parity drift means different runtime paths may no longer implement the same contract.".to_string()
         }
+        "session_introduced_clone" => {
+            "Fresh duplication introduced in the current patch is likely to drift unless the new path is folded back into the original owner now.".to_string()
+        }
+        "clone_propagation_drift" => {
+            "Changing one member of a clone family without syncing its sibling makes the next behavior change easier to miss.".to_string()
+        }
+        "touched_clone_family" => {
+            "Touched clone families increase the chance that a sibling path quietly diverges on the next edit.".to_string()
+        }
         "exact_clone_group" | "clone_family" => {
             "Duplicate logic increases the chance that fixes land in one copy but not the others.".to_string()
         }
@@ -181,22 +198,25 @@ fn finding_detail_inspection_focus(finding: &Value) -> Vec<String> {
         ]
     } else {
         match kind {
-        "multi_writer_concept" | "forbidden_writer" | "writer_outside_allowlist" => vec![
-            "inspect which module should own writes for this concept".to_string(),
-            "inspect whether the extra write path can be removed or routed through the owner"
-                .to_string(),
-        ],
-        "forbidden_raw_read" | "authoritative_import_bypass" | "concept_boundary_pressure" => {
-            vec![
+            "multi_writer_concept" | "forbidden_writer" | "writer_outside_allowlist" => vec![
+                "inspect which module should own writes for this concept".to_string(),
+                "inspect whether the extra write path can be removed or routed through the owner"
+                    .to_string(),
+            ],
+            "forbidden_raw_read" | "authoritative_import_bypass" | "concept_boundary_pressure" => {
+                vec![
                 "inspect whether reads should move behind the canonical accessor or public boundary"
                     .to_string(),
             ]
-        }
-        "exact_clone_group" | "clone_family" => clone_family_inspection_focus(finding),
-        _ => vec![
-            "inspect the files and evidence behind this finding before choosing a design fix"
-                .to_string(),
-        ],
+            }
+            "session_introduced_clone" | "clone_propagation_drift" | "touched_clone_family" => {
+                clone_followthrough_inspection_focus()
+            }
+            "exact_clone_group" | "clone_family" => clone_family_inspection_focus(finding),
+            _ => vec![
+                "inspect the files and evidence behind this finding before choosing a design fix"
+                    .to_string(),
+            ],
         }
     };
 
@@ -218,12 +238,12 @@ pub(crate) fn merge_findings(
     other_findings: Vec<Value>,
     limit: usize,
 ) -> Vec<Value> {
-    let mut merged: Vec<(u8, Value)> = other_findings
+    let mut merged: Vec<(u8, Value)> = clone_findings
         .into_iter()
         .map(|finding| (severity_priority(severity_of_value(&finding)), finding))
         .collect();
     merged.extend(
-        clone_findings
+        other_findings
             .into_iter()
             .map(|finding| (severity_priority(severity_of_value(&finding)), finding)),
     );

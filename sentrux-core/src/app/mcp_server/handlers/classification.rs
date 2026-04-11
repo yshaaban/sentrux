@@ -199,6 +199,7 @@ fn is_watchpoint_presentation_kind(kind: &str) -> bool {
             | "clone_family"
             | "clone_group"
             | "exact_clone_group"
+            | "touched_clone_family"
             | "missing_test_coverage"
             | "zero_config_boundary_violation"
     )
@@ -366,6 +367,9 @@ fn classify_leverage_class_internal(
     if presentation_class == FindingPresentationClass::ToolingDebt {
         return FindingLeverageClass::ToolingDebt;
     }
+    if matches!(kind, "session_introduced_clone" | "clone_propagation_drift") {
+        return FindingLeverageClass::LocalRefactorTarget;
+    }
     if presentation_class == FindingPresentationClass::HardeningNote {
         return FindingLeverageClass::HardeningNote;
     }
@@ -413,7 +417,10 @@ fn classify_leverage_class_internal(
     if boundary_pressure_count > 0 || missing_site_count > 0 {
         return FindingLeverageClass::LocalRefactorTarget;
     }
-    if matches!(kind, "clone_family" | "clone_group" | "exact_clone_group") {
+    if matches!(
+        kind,
+        "clone_family" | "clone_group" | "exact_clone_group" | "touched_clone_family"
+    ) {
         return FindingLeverageClass::SecondaryCleanup;
     }
     if matches!(kind, "dependency_sprawl" | "unstable_hotspot" | "hotspot")
@@ -666,7 +673,9 @@ fn trust_tier_for_kind(kind: &str, default: FindingTrustTier) -> FindingTrustTie
         "cycle_cluster"
         | "dead_island"
         | "missing_test_coverage"
-        | "zero_config_boundary_violation" => FindingTrustTier::Watchpoint,
+        | "zero_config_boundary_violation"
+        | "clone_propagation_drift"
+        | "touched_clone_family" => FindingTrustTier::Watchpoint,
         "dead_private_code_cluster" => FindingTrustTier::Experimental,
         _ => default,
     }
@@ -861,6 +870,64 @@ mod tests {
     }
 
     #[test]
+    fn clone_followthrough_signals_keep_expected_leverage_defaults() {
+        assert_eq!(
+            classify_leverage_class(
+                "session_introduced_clone",
+                "trusted",
+                "structural_debt",
+                &[],
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                0,
+                0,
+            ),
+            "local_refactor_target"
+        );
+        assert_eq!(
+            classify_leverage_class(
+                "clone_propagation_drift",
+                "watchpoint",
+                "hardening_note",
+                &[],
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                0,
+                0,
+            ),
+            "local_refactor_target"
+        );
+        assert_eq!(
+            classify_leverage_class(
+                "touched_clone_family",
+                "watchpoint",
+                "watchpoint",
+                &[],
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                0,
+                0,
+            ),
+            "secondary_cleanup"
+        );
+    }
+
+    #[test]
     fn leverage_reasons_mark_contained_refactor_surfaces() {
         let reasons = classify_leverage_reasons(
             "dependency_sprawl",
@@ -899,6 +966,18 @@ mod tests {
         assert_eq!(merged[0]["severity"], "high");
         assert_eq!(merged[1]["severity"], "medium");
         assert_eq!(merged[2]["severity"], "low");
+    }
+
+    #[test]
+    fn merge_findings_keeps_clone_findings_first_on_equal_severity() {
+        let merged = merge_findings(
+            vec![json!({"kind": "clone_propagation_drift", "severity": "medium"})],
+            vec![json!({"kind": "multi_writer_concept", "severity": "medium"})],
+            2,
+        );
+
+        assert_eq!(merged[0]["kind"], "clone_propagation_drift");
+        assert_eq!(merged[1]["kind"], "multi_writer_concept");
     }
 
     #[test]
