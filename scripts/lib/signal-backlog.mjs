@@ -1,3 +1,5 @@
+import { SIGNAL_BACKLOG_PRIORITY_WEIGHTS } from './signal-calibration-policy.mjs';
+
 function safeRatio(numerator, denominator) {
   if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator <= 0) {
     return null;
@@ -41,6 +43,7 @@ function createCandidateEntry(signalKind) {
     live_miss_count: 0,
     regression_followup_count: 0,
     not_in_active_cohort: 0,
+    priority_score: 0,
   };
 }
 
@@ -112,7 +115,21 @@ function buildMissEntries(results, lane, activeSignalKinds, candidateMap) {
 
 function summarizeNextCandidates(candidateMap) {
   return [...candidateMap.values()]
+    .map((candidate) => ({
+      ...candidate,
+      priority_score:
+        candidate.live_miss_count * SIGNAL_BACKLOG_PRIORITY_WEIGHTS.liveMiss +
+        candidate.replay_miss_count * SIGNAL_BACKLOG_PRIORITY_WEIGHTS.replayMiss +
+        candidate.regression_followup_count *
+          SIGNAL_BACKLOG_PRIORITY_WEIGHTS.regressionFollowup +
+        (candidate.not_in_active_cohort > 0
+          ? SIGNAL_BACKLOG_PRIORITY_WEIGHTS.outOfCohortBonus
+          : 0),
+    }))
     .sort((left, right) => {
+      if (right.priority_score !== left.priority_score) {
+        return right.priority_score - left.priority_score;
+      }
       if (right.not_in_active_cohort !== left.not_in_active_cohort) {
         return right.not_in_active_cohort - left.not_in_active_cohort;
       }
@@ -125,31 +142,55 @@ function summarizeNextCandidates(candidateMap) {
 
 function summarizeConfiguredNextCandidates(cohort, candidateSignals, activeSignalKinds) {
   const configuredCandidates = asArray(cohort?.next_candidates);
+  const configuredRanks = new Map(
+    configuredCandidates.map((signalKind, index) => [signalKind, index]),
+  );
   const candidateBySignal = new Map(
     candidateSignals.map((candidate) => [candidate.signal_kind, candidate]),
   );
-  const seen = new Set();
-  const orderedCandidates = [];
+  const mergedCandidates = new Map();
 
   for (const signalKind of configuredCandidates) {
-    if (!signalKind || activeSignalKinds.has(signalKind) || seen.has(signalKind)) {
+    if (!signalKind || activeSignalKinds.has(signalKind) || mergedCandidates.has(signalKind)) {
       continue;
     }
 
-    orderedCandidates.push(candidateBySignal.get(signalKind) ?? createCandidateEntry(signalKind));
-    seen.add(signalKind);
+    mergedCandidates.set(
+      signalKind,
+      candidateBySignal.get(signalKind) ?? createCandidateEntry(signalKind),
+    );
   }
 
   for (const candidate of candidateSignals) {
-    if (candidate.not_in_active_cohort === 0 || seen.has(candidate.signal_kind)) {
+    if (candidate.not_in_active_cohort === 0 || mergedCandidates.has(candidate.signal_kind)) {
       continue;
     }
 
-    orderedCandidates.push(candidate);
-    seen.add(candidate.signal_kind);
+    mergedCandidates.set(candidate.signal_kind, candidate);
   }
 
-  return orderedCandidates;
+  return [...mergedCandidates.values()].sort((left, right) => {
+    if (right.priority_score !== left.priority_score) {
+      return right.priority_score - left.priority_score;
+    }
+    if (right.miss_count !== left.miss_count) {
+      return right.miss_count - left.miss_count;
+    }
+
+    const leftConfiguredRank = configuredRanks.get(left.signal_kind);
+    const rightConfiguredRank = configuredRanks.get(right.signal_kind);
+    if (leftConfiguredRank != null && rightConfiguredRank != null) {
+      return leftConfiguredRank - rightConfiguredRank;
+    }
+    if (leftConfiguredRank != null) {
+      return -1;
+    }
+    if (rightConfiguredRank != null) {
+      return 1;
+    }
+
+    return left.signal_kind.localeCompare(right.signal_kind);
+  });
 }
 
 function cleanRateForResults(results) {
@@ -169,7 +210,7 @@ function appendCandidateSection(lines, title, candidates) {
   } else {
     for (const candidate of candidates.slice(0, 10)) {
       lines.push(
-        `- \`${candidate.signal_kind}\`: misses=${candidate.miss_count}, live=${candidate.live_miss_count}, replay=${candidate.replay_miss_count}, regression_followups=${candidate.regression_followup_count}`,
+        `- \`${candidate.signal_kind}\`: score=${candidate.priority_score ?? 0}, misses=${candidate.miss_count}, live=${candidate.live_miss_count}, replay=${candidate.replay_miss_count}, regression_followups=${candidate.regression_followup_count}`,
       );
     }
   }
@@ -199,6 +240,8 @@ export function buildSignalBacklog({ cohort, scorecard, codexBatch = null, repla
     candidateSignals,
     activeSignalKinds,
   );
+  const recommendedNextCandidate =
+    nextCandidates.find((candidate) => (candidate.priority_score ?? 0) > 0) ?? null;
   const activeSignalMisses = candidateSignals.filter(
     (candidate) => candidate.not_in_active_cohort === 0,
   );
@@ -212,8 +255,10 @@ export function buildSignalBacklog({ cohort, scorecard, codexBatch = null, repla
       weak_signal_count: weakSignals.length,
       live_miss_count: liveMisses.length,
       replay_miss_count: replayMisses.length,
+      active_signal_miss_count: activeSignalMisses.length,
       next_candidate_count: nextCandidates.length,
-      recommended_next_signal: nextCandidates[0]?.signal_kind ?? null,
+      recommended_next_signal: recommendedNextCandidate?.signal_kind ?? null,
+      recommended_next_signal_score: recommendedNextCandidate?.priority_score ?? null,
       live_clean_rate: cleanRateForResults(codexBatch?.results),
       replay_clean_rate: cleanRateForResults(replayBatch?.results),
     },

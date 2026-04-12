@@ -1,3 +1,5 @@
+import { SIGNAL_PROMOTION_POLICY } from './signal-calibration-policy.mjs';
+
 function normalizeReviewCategory(category) {
   switch (category) {
     case 'true_positive':
@@ -45,9 +47,62 @@ function createEmptySignalEntry(signalKind, overrides = {}) {
     session_followups: 0,
     session_cleared: 0,
     session_regressions: 0,
+    sessions_cleared: 0,
     session_clean: 0,
     session_total_checks_to_clear: 0,
     ...overrides,
+  };
+}
+
+function buildReviewMetrics(reviewedTotal, truePositive, acceptableWarning, falsePositive, inconclusive) {
+  const reviewedHelpfulCount = truePositive + acceptableWarning;
+  const reviewNoiseCount = falsePositive + inconclusive;
+
+  return {
+    reviewed_helpful_count: reviewedHelpfulCount,
+    reviewed_precision: safeRatio(reviewedHelpfulCount, reviewedTotal),
+    true_positive_precision: safeRatio(truePositive, reviewedTotal),
+    review_noise_count: reviewNoiseCount,
+    review_noise_rate: safeRatio(reviewNoiseCount, reviewedTotal),
+    false_positive_rate: safeRatio(falsePositive, reviewedTotal),
+    inconclusive_rate: safeRatio(inconclusive, reviewedTotal),
+  };
+}
+
+function buildSessionMetrics(
+  sessionTopActions,
+  sessionFollowups,
+  sessionCleared,
+  sessionRegressions,
+  sessionsCleared,
+  sessionClean,
+  sessionTotalChecksToClear,
+) {
+  const topActionClearRate = safeRatio(sessionsCleared, sessionTopActions);
+
+  return {
+    session_resolution_rate: safeRatio(sessionCleared, sessionFollowups),
+    session_clear_rate: topActionClearRate,
+    top_action_clear_rate: topActionClearRate,
+    followup_regression_rate: safeRatio(sessionRegressions, sessionFollowups),
+    session_clean_rate: safeRatio(sessionClean, sessionTopActions),
+    average_checks_to_clear: safeRatio(sessionTotalChecksToClear, sessionsCleared),
+  };
+}
+
+function buildCoverageFlags(entry, reviewedTotal, remediationTotal, sessionTopActions) {
+  const hasSeededEvidence = entry.seeded_total > 0;
+  const hasReviewEvidence = reviewedTotal > 0;
+  const hasRemediationEvidence = remediationTotal > 0;
+  const hasSessionEvidence = sessionTopActions > 0;
+
+  return {
+    has_seeded_evidence: hasSeededEvidence,
+    has_review_evidence: hasReviewEvidence,
+    has_remediation_evidence: hasRemediationEvidence,
+    has_session_evidence: hasSessionEvidence,
+    promotion_evidence_complete:
+      hasSeededEvidence && hasReviewEvidence && hasRemediationEvidence && hasSessionEvidence,
   };
 }
 
@@ -172,6 +227,7 @@ function applySessionTelemetry(signalMap, sessionTelemetry) {
     entry.session_followups += signal.followup_checks ?? 0;
     entry.session_cleared += signal.target_cleared ?? 0;
     entry.session_regressions += signal.followup_regressions ?? 0;
+    entry.sessions_cleared += signal.sessions_cleared ?? 0;
     entry.session_clean += signal.sessions_clean ?? 0;
     entry.session_total_checks_to_clear += signal.total_checks_to_clear ?? 0;
   }
@@ -191,14 +247,21 @@ function buildPromotionRecommendation(entry) {
   const reviewedTotal = entry.reviewed_total ?? 0;
   const falsePositives = entry.false_positive ?? 0;
   const inconclusive = entry.inconclusive ?? 0;
-  const useful = (entry.true_positive ?? 0) + (entry.acceptable_warning ?? 0);
-  const usefulPrecision = safeRatio(useful, reviewedTotal);
+  const reviewedPrecision = safeRatio(
+    (entry.true_positive ?? 0) + (entry.acceptable_warning ?? 0),
+    reviewedTotal,
+  );
+  const reviewNoiseRate = safeRatio(falsePositives + inconclusive, reviewedTotal);
   const remediationSuccess = safeRatio(
     entry.remediation_success ?? 0,
     entry.remediation_total ?? 0,
   );
-  const sessionResolution = safeRatio(
-    entry.session_cleared ?? 0,
+  const topActionClearRate = safeRatio(
+    entry.sessions_cleared ?? 0,
+    entry.session_top_actions ?? 0,
+  );
+  const followupRegressionRate = safeRatio(
+    entry.session_regressions ?? 0,
     entry.session_followups ?? 0,
   );
   const sessionCleanRate = safeRatio(entry.session_clean ?? 0, entry.session_top_actions ?? 0);
@@ -206,22 +269,47 @@ function buildPromotionRecommendation(entry) {
   if (reviewedTotal > 0 && falsePositives > 0) {
     return 'degrade_or_quarantine';
   }
-  if (reviewedTotal > 0 && inconclusive / reviewedTotal > 0.2) {
+  if (
+    reviewedTotal > 0 &&
+    reviewNoiseRate !== null &&
+    reviewNoiseRate > SIGNAL_PROMOTION_POLICY.reviewNoiseRateMax
+  ) {
     return 'needs_review';
   }
-  if (seededRecall !== null && seededRecall < 0.95) {
+  if (
+    seededRecall !== null &&
+    seededRecall < SIGNAL_PROMOTION_POLICY.seededRecallMin
+  ) {
     return 'improve_detection';
   }
-  if (usefulPrecision !== null && usefulPrecision < 0.8) {
+  if (
+    reviewedPrecision !== null &&
+    reviewedPrecision < SIGNAL_PROMOTION_POLICY.reviewedPrecisionMin
+  ) {
     return 'reduce_noise';
   }
-  if (remediationSuccess !== null && remediationSuccess < 0.6) {
+  if (
+    remediationSuccess !== null &&
+    remediationSuccess < SIGNAL_PROMOTION_POLICY.remediationSuccessMin
+  ) {
     return 'improve_fix_guidance';
   }
-  if (sessionResolution !== null && sessionResolution < 0.6) {
+  if (
+    topActionClearRate !== null &&
+    topActionClearRate < SIGNAL_PROMOTION_POLICY.topActionClearRateMin
+  ) {
     return 'improve_fix_guidance';
   }
-  if (sessionCleanRate !== null && sessionCleanRate < 0.6) {
+  if (
+    sessionCleanRate !== null &&
+    sessionCleanRate < SIGNAL_PROMOTION_POLICY.sessionCleanRateMin
+  ) {
+    return 'improve_fix_guidance';
+  }
+  if (
+    followupRegressionRate !== null &&
+    followupRegressionRate > SIGNAL_PROMOTION_POLICY.followupRegressionRateMax
+  ) {
     return 'improve_fix_guidance';
   }
   return `keep_${entry.promotion_status ?? 'unspecified'}`;
@@ -255,10 +343,32 @@ export function buildSignalScorecard({
       const sessionFollowups = entry.session_followups ?? 0;
       const sessionCleared = entry.session_cleared ?? 0;
       const sessionRegressions = entry.session_regressions ?? 0;
+      const sessionsCleared = entry.sessions_cleared ?? 0;
       const sessionClean = entry.session_clean ?? 0;
       const sessionTotalChecksToClear = entry.session_total_checks_to_clear ?? 0;
-      const useful = truePositive + acceptableWarning;
       const latencyEligible = entry.seeded_check_supported > 0;
+      const reviewMetrics = buildReviewMetrics(
+        reviewedTotal,
+        truePositive,
+        acceptableWarning,
+        falsePositive,
+        inconclusive,
+      );
+      const sessionMetrics = buildSessionMetrics(
+        sessionTopActions,
+        sessionFollowups,
+        sessionCleared,
+        sessionRegressions,
+        sessionsCleared,
+        sessionClean,
+        sessionTotalChecksToClear,
+      );
+      const coverageFlags = buildCoverageFlags(
+        entry,
+        reviewedTotal,
+        remediationTotal,
+        sessionTopActions,
+      );
 
       return {
         signal_kind: entry.signal_kind,
@@ -285,12 +395,23 @@ export function buildSignalScorecard({
           entry.seeded_check_rules_supported,
         ),
         reviewed_total: reviewedTotal,
+        has_seeded_evidence: coverageFlags.has_seeded_evidence,
+        has_review_evidence: coverageFlags.has_review_evidence,
+        has_remediation_evidence: coverageFlags.has_remediation_evidence,
+        has_session_evidence: coverageFlags.has_session_evidence,
+        promotion_evidence_complete: coverageFlags.promotion_evidence_complete,
         true_positive: truePositive,
         acceptable_warning: acceptableWarning,
         false_positive: falsePositive,
         inconclusive,
-        reviewed_precision: safeRatio(useful, reviewedTotal),
-        useful_precision: safeRatio(truePositive, reviewedTotal),
+        reviewed_helpful_count: reviewMetrics.reviewed_helpful_count,
+        reviewed_precision: reviewMetrics.reviewed_precision,
+        useful_precision: reviewMetrics.true_positive_precision,
+        true_positive_precision: reviewMetrics.true_positive_precision,
+        review_noise_count: reviewMetrics.review_noise_count,
+        review_noise_rate: reviewMetrics.review_noise_rate,
+        false_positive_rate: reviewMetrics.false_positive_rate,
+        inconclusive_rate: reviewMetrics.inconclusive_rate,
         remediation_total: remediationTotal,
         remediation_success: remediationSuccess,
         remediation_regressions: remediationRegressions,
@@ -299,13 +420,14 @@ export function buildSignalScorecard({
         session_followups: sessionFollowups,
         session_cleared: sessionCleared,
         session_regressions: sessionRegressions,
-        session_resolution_rate: safeRatio(sessionCleared, sessionFollowups),
+        sessions_cleared: sessionsCleared,
+        session_resolution_rate: sessionMetrics.session_resolution_rate,
+        session_clear_rate: sessionMetrics.session_clear_rate,
+        top_action_clear_rate: sessionMetrics.top_action_clear_rate,
+        followup_regression_rate: sessionMetrics.followup_regression_rate,
         session_clean: sessionClean,
-        session_clean_rate: safeRatio(sessionClean, sessionTopActions),
-        average_checks_to_clear: safeRatio(
-          sessionTotalChecksToClear,
-          sessionCleared,
-        ),
+        session_clean_rate: sessionMetrics.session_clean_rate,
+        average_checks_to_clear: sessionMetrics.average_checks_to_clear,
         latency_ms: latencyEligible ? latencyMs : null,
         promotion_recommendation: buildPromotionRecommendation({
           ...entry,
@@ -341,6 +463,27 @@ export function buildSignalScorecard({
       degrade_count: signals.filter(
         (signal) => signal.promotion_recommendation === 'degrade_or_quarantine',
       ).length,
+      promotion_evidence_complete_count: signals.filter(
+        (signal) => signal.promotion_evidence_complete,
+      ).length,
+      kpis: {
+        defect_sample_count: defectReport?.results?.length ?? 0,
+        review_sample_count: reviewVerdicts?.verdicts?.length ?? 0,
+        remediation_sample_count: remediationReport?.results?.length ?? 0,
+        session_count:
+          sessionTelemetry?.summary?.session_count ??
+          sessionTelemetry?.sessions?.length ??
+          0,
+      },
+      coverage: {
+        has_seeded_defects: (defectReport?.results?.length ?? 0) > 0,
+        has_review_verdicts: (reviewVerdicts?.verdicts?.length ?? 0) > 0,
+        has_remediation_results: (remediationReport?.results?.length ?? 0) > 0,
+        has_session_telemetry:
+          (sessionTelemetry?.summary?.session_count ?? sessionTelemetry?.sessions?.length ?? 0) >
+          0,
+        has_benchmark: latencyMs !== null,
+      },
     },
   };
 }
@@ -356,13 +499,20 @@ export function formatSignalScorecardMarkdown(scorecard) {
   lines.push(`- watchpoint: ${scorecard.summary.watchpoint_count}`);
   lines.push(`- needs review: ${scorecard.summary.needs_review_count}`);
   lines.push(`- degrade or quarantine: ${scorecard.summary.degrade_count}`);
+  lines.push(`- complete promotion evidence: ${scorecard.summary.promotion_evidence_complete_count ?? 0}`);
+  if (scorecard.summary.kpis) {
+    lines.push(`- seeded samples: ${scorecard.summary.kpis.defect_sample_count ?? 0}`);
+    lines.push(`- reviewed samples: ${scorecard.summary.kpis.review_sample_count ?? 0}`);
+    lines.push(`- remediation samples: ${scorecard.summary.kpis.remediation_sample_count ?? 0}`);
+    lines.push(`- sessions: ${scorecard.summary.kpis.session_count ?? 0}`);
+  }
   lines.push('');
-  lines.push('| Signal | Family | Status | Primary Lane | Seeded Recall | Primary Recall | Reviewed Precision | Useful Precision | Remediation Success | Session Resolution | Session Clean Rate | Avg Checks To Clear | Latency | Recommendation |');
-  lines.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
+  lines.push('| Signal | Family | Status | Primary Lane | Seeded Recall | Primary Recall | Reviewed Precision | Noise Rate | Remediation Success | Top Action Clear | Regression Rate | Session Clean Rate | Avg Checks To Clear | Latency | Recommendation |');
+  lines.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
 
   for (const signal of scorecard.signals) {
     lines.push(
-      `| \`${signal.signal_kind}\` | \`${signal.signal_family}\` | \`${signal.promotion_status}\` | \`${signal.primary_lane ?? 'n/a'}\` | ${signal.seeded_recall ?? 'n/a'} | ${signal.primary_recall ?? 'n/a'} | ${signal.reviewed_precision ?? 'n/a'} | ${signal.useful_precision ?? 'n/a'} | ${signal.remediation_success_rate ?? 'n/a'} | ${signal.session_resolution_rate ?? 'n/a'} | ${signal.session_clean_rate ?? 'n/a'} | ${signal.average_checks_to_clear ?? 'n/a'} | ${signal.latency_ms ?? 'n/a'} | \`${signal.promotion_recommendation}\` |`,
+      `| \`${signal.signal_kind}\` | \`${signal.signal_family}\` | \`${signal.promotion_status}\` | \`${signal.primary_lane ?? 'n/a'}\` | ${signal.seeded_recall ?? 'n/a'} | ${signal.primary_recall ?? 'n/a'} | ${signal.reviewed_precision ?? 'n/a'} | ${signal.review_noise_rate ?? 'n/a'} | ${signal.remediation_success_rate ?? 'n/a'} | ${signal.top_action_clear_rate ?? 'n/a'} | ${signal.followup_regression_rate ?? 'n/a'} | ${signal.session_clean_rate ?? 'n/a'} | ${signal.average_checks_to_clear ?? 'n/a'} | ${signal.latency_ms ?? 'n/a'} | \`${signal.promotion_recommendation}\` |`,
     );
   }
 

@@ -250,13 +250,16 @@ Treat duplication as a small signal family with different surfaces:
 
 Older structural clone debt signals still belong mainly in review and cleanup loops unless evidence shows they materially improve fast agent outcomes.
 
-Current operating stance after the 2026-04-11 duplication calibration pass:
+Current operating stance after the 2026-04-12 calibration refresh:
 
 - keep `session_introduced_clone` and `clone_propagation_drift` in the active loop as clone watchpoints
 - treat `touched_clone_family` as contextual pressure, not a primary top-action target
 - use `parallel-code` as the main duplication evidence repo
-- use Sentrux mostly to confirm that structural noise such as `large_file` stays de-emphasized
-- prefer `multi_writer_concept` over broader zero-config boundaries as the next older sharp candidate once duplication calibration stabilizes
+- use Sentrux as the dogfood calibration repo with checked-in seeded-defect, remediation, benchmark, and curated-review artifacts; replay there is still more useful for ranking pressure than for promoting clone debt
+- treat `zero_config_boundary_violation` as the current next out-of-cohort candidate because the latest Sentrux replay backlog gave it the highest positive priority score
+- keep `multi_writer_concept`, `forbidden_writer`, and `writer_outside_allowlist` queued until they accumulate real live or replay misses
+
+Treat configured `next_candidates` as a queue, not proof by themselves. Backlog `recommended_next_signal` should only be populated when replay or live misses produce positive priority score for an out-of-cohort candidate.
 
 This loop should drive product changes such as:
 
@@ -321,7 +324,7 @@ The expected loop is:
 3. inspect the generated review packet
 4. apply the verdict template or the repo-specific review verdict file
 5. rerun the same repo-level loop if you want the refreshed scorecard and backlog to incorporate the new verdicts
-6. compare the new outputs against the previous calibration snapshot
+6. inspect the loop delta summary and warnings to compare the new outputs against the previous calibration snapshot
 
 The repo-level calibration loop is intentionally manifest-driven so each repo keeps its own prompts, batch inputs, and calibration outputs in one place.
 
@@ -350,11 +353,19 @@ To make that repeatable instead of ad hoc:
 
 1. define the active cohort in `docs/v2/evals/signal-cohorts.json`
 2. capture a live-task batch with `node scripts/evals/run-codex-session-batch.mjs --manifest batch.json`
+   - keep failed or timed-out task metadata and any captured telemetry in the merged batch summary so smoke-lane failures stay visible in calibration evidence
 3. capture a replay batch with `node scripts/evals/run-diff-replay-batch.mjs --manifest replay-batch.json`
 4. merge the results into a refreshed scorecard
 5. build the next-work backlog with `node scripts/evals/build-signal-backlog.mjs`
 
 The backlog output is not a substitute for human judgment, but it makes the weak-signal set, the high-friction live sessions, and the repeated out-of-cohort misses explicit enough to guide the next tranche.
+
+Current metric contract to keep in mind when reading the scorecard:
+
+- `review_noise_rate` means reviewed false positives plus inconclusive cases over reviewed samples
+- `top_action_clear_rate` means sessions where the initial top action cleared over sessions where that signal surfaced as the top action
+- `followup_regression_rate` means follow-up checks that introduced new signal kinds over all follow-up checks for that signal
+- `promotion_evidence_complete` only flips true when the signal has seeded, reviewed, remediation, and session evidence in the current scorecard
 
 Current promotion note:
 

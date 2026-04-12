@@ -61,10 +61,14 @@ test('buildSignalScorecard aggregates seeded, review, and remediation metrics', 
           followup_checks: 1,
           target_cleared: 1,
           followup_regressions: 0,
+          sessions_cleared: 1,
           sessions_clean: 2,
           total_checks_to_clear: 3,
         },
       ],
+      summary: {
+        session_count: 2,
+      },
     },
   });
 
@@ -75,11 +79,15 @@ test('buildSignalScorecard aggregates seeded, review, and remediation metrics', 
   assert.equal(scorecard.signals[0].primary_recall, 1);
   assert.equal(scorecard.signals[0].reviewed_precision, 1);
   assert.equal(scorecard.signals[0].useful_precision, 1);
+  assert.equal(scorecard.signals[0].review_noise_rate, 0);
   assert.equal(scorecard.signals[0].remediation_success_rate, 1);
   assert.equal(scorecard.signals[0].session_resolution_rate, 1);
+  assert.equal(scorecard.signals[0].top_action_clear_rate, 0.5);
   assert.equal(scorecard.signals[0].session_clean_rate, 1);
   assert.equal(scorecard.signals[0].average_checks_to_clear, 3);
+  assert.equal(scorecard.signals[0].promotion_evidence_complete, true);
   assert.equal(scorecard.signals[0].latency_ms, 134.2);
+  assert.equal(scorecard.summary.kpis.session_count, 2);
 });
 
 test('buildSignalScorecard only assigns check latency to fast-path signals', function () {
@@ -177,6 +185,7 @@ test('buildSignalScorecard builds a review-and-session-only scorecard without se
           followup_checks: 1,
           target_cleared: 1,
           followup_regressions: 0,
+          sessions_cleared: 1,
           sessions_clean: 1,
           total_checks_to_clear: 2,
         },
@@ -189,6 +198,7 @@ test('buildSignalScorecard builds a review-and-session-only scorecard without se
   assert.equal(scorecard.signals[0].signal_kind, 'missing_test_coverage');
   assert.equal(scorecard.signals[0].seeded_total, 0);
   assert.equal(scorecard.signals[0].reviewed_precision, 1);
+  assert.equal(scorecard.signals[0].top_action_clear_rate, 1);
   assert.equal(scorecard.signals[0].session_clean_rate, 1);
 });
 
@@ -212,9 +222,10 @@ test('formatSignalScorecardMarkdown renders the score table', function () {
         seeded_recall: 1,
         primary_recall: 1,
         reviewed_precision: null,
-        useful_precision: null,
+        review_noise_rate: null,
         remediation_success_rate: null,
-        session_resolution_rate: 0.5,
+        top_action_clear_rate: 0.5,
+        followup_regression_rate: 0,
         session_clean_rate: 0.5,
         average_checks_to_clear: 2,
         latency_ms: 134.2,

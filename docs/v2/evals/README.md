@@ -121,15 +121,15 @@ The external provider runner is only one part of the quality loop.
 Supporting scripts now cover:
 
 - `node scripts/evals/run-repo-calibration-loop.mjs --manifest docs/v2/evals/repos/<repo>.json`
-  Run the full per-repo calibration loop from one checked-in manifest.
+  Run the full per-repo calibration loop from one checked-in manifest. The loop now snapshots the previous repo-local scorecard/backlog/review packet when available, emits delta summaries, warns when seeded-defect, remediation, or benchmark inputs are missing, and can bootstrap provisional review verdicts from the latest review packet when a repo only has the generic template.
 - `node scripts/evals/build-check-review-packet.mjs`
-  Build a reusable review packet from `check`, `findings`, or `session_end` for manual false-positive review. Artifact mode can read a single bundle, a live Codex batch, or a replay batch without rescanning repo HEAD.
+  Build a reusable review packet from `check`, `findings`, or `session_end` for manual false-positive review. Artifact mode can read a single bundle, a live Codex batch, a replay batch, or a combined live+replay set without rescanning repo HEAD. For `check`, the builder samples the first non-empty ranked payload across recorded snapshots instead of assuming `initial_check` is representative, and it emits a companion verdict-template JSON matching the review-verdict schema.
 - `node scripts/evals/build-session-telemetry-summary.mjs --repo-root /path/to/repo`
   Summarize the repo-local `.sentrux/agent-session-events.jsonl` stream into per-session and per-signal resolution metrics.
 - `node scripts/evals/run-codex-session.mjs --source-root /path/to/repo --task-file task.txt`
   Run a real Codex CLI task inside a disposable clone, capture intermediate `check` snapshots, and bundle the resulting session telemetry and outcome summary.
 - `node scripts/evals/run-codex-session-batch.mjs --manifest batch.json`
-  Run a cohort-oriented batch of real Codex tasks and emit one batch index plus a merged session summary.
+  Run a cohort-oriented batch of real Codex tasks, keep failed or timed-out task metadata visible in the batch index, and merge any captured telemetry from those runs into the shared session summary.
 - `node scripts/evals/run-diff-replay.mjs --source-root /path/to/repo --commit <sha>`
   Reconstruct a before/after session from a real git commit by checking out the parent revision in a disposable clone, applying the patch, and recording the resulting `check` / `session_end` artifacts.
 - `node scripts/evals/run-diff-replay-batch.mjs --manifest replay-batch.json`
@@ -137,9 +137,9 @@ Supporting scripts now cover:
 - `node scripts/evals/run-defect-remediation.mjs`
   Seed a defect, let a provider attempt a fix in a disposable clone, rerun `check`, and record whether the signal actually helped the agent repair the issue. Both `claude-code` and `codex-cli` are supported.
 - `node scripts/evals/build-signal-scorecard.mjs`
-  Merge defect-injection results, reviewed verdicts, remediation outcomes, session telemetry, and benchmark latency into a per-signal scorecard.
+  Merge defect-injection results, reviewed verdicts, remediation outcomes, session telemetry, and benchmark latency into a per-signal scorecard. The scorecard now keeps explicit review-noise, top-action-clear, follow-up regression, and evidence-coverage metrics so weak signals can be distinguished from under-instrumented ones.
 - `node scripts/evals/build-signal-backlog.mjs`
-  Combine the active cohort, scorecard, and live/replay batch outputs into a weak-signal and false-negative backlog.
+  Combine the active cohort, scorecard, and live/replay batch outputs into a weak-signal and false-negative backlog. Candidate ordering now exposes an explicit priority score that weights live misses above replay misses and keeps regression follow-through pressure visible. Configured next candidates stay queued, but the recommended next signal now requires positive evidence instead of defaulting to a zero-score placeholder.
 - `node scripts/evals/run-signal-calibration.mjs`
   Build the session telemetry summary and the refreshed scorecard together for the current repo or benchmark artifact set.
 
@@ -192,6 +192,7 @@ The recommended operating model is:
 4. run a replay batch with `run-diff-replay-batch.mjs` using the checked-in replay batch manifest
 5. generate a review packet from the captured artifact bundle when you want human verdicts
 6. record verdicts with `review-verdicts.template.json` or the repo-specific verdict file
+   When a repo only has the generic template, the loop can bootstrap a provisional repo-local verdict file from the latest review packet so scorecard precision coverage is not empty by default.
 7. build a refreshed scorecard
 8. build a backlog with `build-signal-backlog.mjs`
 
@@ -203,12 +204,19 @@ For the duplication family, treat the checked-in signals as distinct surfaces:
 - `clone_propagation_drift` for followthrough misses where one side of an existing clone family changed and the sibling did not
 - `touched_clone_family` as low-priority clone context, not a primary fast-path blocker
 
-Current operating stance after the 2026-04-11 duplication pass:
+Current operating stance after the 2026-04-12 calibration refresh:
 
-- use `parallel-code` as the primary duplication calibration repo because replay there surfaced real `session_introduced_clone` pressure and clone-context evidence
-- use Sentrux mainly as a replay noise and ranking check because curated replay there is still dominated by `large_file`
+- use `parallel-code` as the primary duplication and structural replay repo because it still surfaces the clearest clone, boundary, and exhaustiveness pressure
+- use Sentrux as the dogfood calibration repo with checked-in seeded-defect, remediation, benchmark, and curated-review artifacts; its replay lane is still most useful for ranking and watchpoint pressure rather than clone promotion
 - keep `touched_clone_family` as contextual clone pressure unless a future pass shows it consistently outranking more important actions
-- prefer `multi_writer_concept` as the next older sharp candidate once the duplication family is fully calibrated
+- treat `zero_config_boundary_violation` as the current next out-of-cohort candidate because the latest Sentrux replay backlog gave it the highest positive priority score
+- keep `multi_writer_concept`, `forbidden_writer`, and `writer_outside_allowlist` queued as configured candidates until they pick up real live or replay misses
+- keep the live smoke interpretation strict: the Sentrux smoke lane now passes structurally, while the `parallel-code` exhaustiveness smoke still fails on a real signal rather than on provider timeout
+
+Current replay-expansion stance after the 2026-04-12 structural pass:
+
+- use `parallel-code` as the primary structural watchpoint replay repo because the checked-in additions now include explicit `large_file` and `missing_test_coverage` stress commits and the live smoke lane still surfaces a real exhaustiveness failure
+- use Sentrux for dogfood artifact coverage, backlog ranking, and clone-followthrough or contract-obligation replay evidence, not as the main structural-watchpoint corpus
 
 For the current checked-in repo manifests, start with:
 
