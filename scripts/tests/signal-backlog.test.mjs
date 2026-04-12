@@ -26,6 +26,8 @@ test('buildSignalBacklog highlights weak cohort signals and next candidates', fu
           promotion_status: 'trusted',
           promotion_recommendation: 'improve_fix_guidance',
           session_clean_rate: 0.4,
+          session_trial_count: 2,
+          session_trial_miss_rate: 0.5,
           remediation_success_rate: 0.5,
         },
       ],
@@ -53,8 +55,8 @@ test('buildSignalBacklog highlights weak cohort signals and next candidates', fu
           commit: 'abc123',
           expected_signal_kinds: ['incomplete_propagation', 'forbidden_raw_read'],
           outcome: {
-            initial_top_action_kind: 'forbidden_raw_read',
-            initial_action_kinds: ['forbidden_raw_read'],
+            initial_top_action_kind: 'large_file',
+            initial_action_kinds: ['large_file'],
             top_action_cleared: true,
             final_gate: 'warn',
             final_session_clean: false,
@@ -69,14 +71,17 @@ test('buildSignalBacklog highlights weak cohort signals and next candidates', fu
   assert.equal(backlog.weak_signals[0].signal_kind, 'forbidden_raw_read');
   assert.equal(backlog.summary.recommended_next_signal, null);
   assert.equal(backlog.next_signal_candidates.length, 0);
+  assert.equal(backlog.weak_signals[0].session_trial_count, 2);
+  assert.equal(backlog.weak_signals[0].session_trial_miss_rate, 0.5);
   assert.equal(backlog.active_signal_misses[0].signal_kind, 'incomplete_propagation');
   assert.equal(backlog.active_signal_misses[0].miss_count, 2);
   assert.equal(backlog.active_signal_misses[0].priority_score, 5);
   assert.equal(backlog.active_signal_misses[1].signal_kind, 'forbidden_raw_read');
-  assert.equal(backlog.active_signal_misses[1].regression_followup_count, 1);
+  assert.equal(backlog.active_signal_misses[1].miss_count, 1);
   assert.equal(backlog.active_signal_misses[1].priority_score, 2);
   assert.equal(backlog.live_misses.length, 1);
   assert.equal(backlog.replay_misses.length, 1);
+  assert.equal(backlog.replay_misses[0].initial_top_action_kind, 'large_file');
 });
 
 test('buildSignalBacklog prioritizes evidenced next candidates ahead of placeholders', function () {
@@ -195,6 +200,7 @@ test('formatSignalBacklogMarkdown renders the backlog summary', function () {
         signal_kind: 'forbidden_raw_read',
         recommendation: 'improve_fix_guidance',
         session_clean_rate: 0.4,
+        session_trial_miss_rate: 0.5,
         remediation_success_rate: 0.5,
       },
     ],
@@ -212,6 +218,7 @@ test('formatSignalBacklogMarkdown renders the backlog summary', function () {
 
   assert.match(markdown, /Signal Calibration Backlog/);
   assert.match(markdown, /forbidden_raw_read/);
+  assert.match(markdown, /trial miss=0.5/);
   assert.match(markdown, /Active Signal Misses/);
   assert.match(markdown, /incomplete_propagation/);
   assert.doesNotMatch(markdown, /recommended next signal: `incomplete_propagation`/);

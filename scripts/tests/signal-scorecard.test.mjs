@@ -70,6 +70,30 @@ test('buildSignalScorecard aggregates seeded, review, and remediation metrics', 
         session_count: 2,
       },
     },
+    codexBatch: {
+      results: [
+        {
+          task_id: 'live-exhaustiveness',
+          expected_signal_kinds: ['closed_domain_exhaustiveness'],
+          outcome: {
+            initial_top_action_kind: 'closed_domain_exhaustiveness',
+            initial_action_kinds: ['closed_domain_exhaustiveness'],
+          },
+        },
+      ],
+    },
+    replayBatch: {
+      results: [
+        {
+          replay_id: 'replay-exhaustiveness',
+          expected_signal_kinds: ['closed_domain_exhaustiveness'],
+          outcome: {
+            initial_top_action_kind: 'large_file',
+            initial_action_kinds: ['large_file'],
+          },
+        },
+      ],
+    },
   });
 
   assert.equal(scorecard.signals.length, 1);
@@ -81,13 +105,85 @@ test('buildSignalScorecard aggregates seeded, review, and remediation metrics', 
   assert.equal(scorecard.signals[0].useful_precision, 1);
   assert.equal(scorecard.signals[0].review_noise_rate, 0);
   assert.equal(scorecard.signals[0].remediation_success_rate, 1);
+  assert.equal(scorecard.signals[0].session_trial_count, 2);
+  assert.equal(scorecard.signals[0].live_session_trial_count, 1);
+  assert.equal(scorecard.signals[0].replay_session_trial_count, 1);
+  assert.equal(scorecard.signals[0].session_expectation_hit_rate, 0.5);
+  assert.equal(scorecard.signals[0].session_expectation_top_action_rate, 0.5);
+  assert.equal(scorecard.signals[0].session_trial_miss_rate, 0.5);
   assert.equal(scorecard.signals[0].session_resolution_rate, 1);
   assert.equal(scorecard.signals[0].top_action_clear_rate, 0.5);
   assert.equal(scorecard.signals[0].session_clean_rate, 1);
   assert.equal(scorecard.signals[0].average_checks_to_clear, 3);
   assert.equal(scorecard.signals[0].promotion_evidence_complete, true);
   assert.equal(scorecard.signals[0].latency_ms, 134.2);
+  assert.equal(scorecard.summary.kpis.session_trial_count, 2);
+  assert.equal(scorecard.summary.coverage.has_session_trials, true);
   assert.equal(scorecard.summary.kpis.session_count, 2);
+});
+
+test('buildSignalScorecard treats missed expected trials as valid session evidence', function () {
+  const scorecard = buildSignalScorecard({
+    repoLabel: 'trial-evidence-only',
+    defectReport: {
+      repo_label: 'trial-evidence-only',
+      defects: [
+        {
+          id: 'raw-read',
+          signal_kind: 'forbidden_raw_read',
+          signal_family: 'rules',
+          promotion_status: 'trusted',
+          blocking_intent: 'blocking',
+        },
+      ],
+      results: [
+        {
+          defect_id: 'raw-read',
+          detected: true,
+          check: { supported: true, matched: true },
+        },
+      ],
+    },
+    reviewVerdicts: {
+      verdicts: [
+        {
+          kind: 'forbidden_raw_read',
+          category: 'useful',
+        },
+      ],
+    },
+    remediationReport: {
+      results: [
+        {
+          signal_kind: 'forbidden_raw_read',
+          fixed: true,
+          regression_free: true,
+        },
+      ],
+    },
+    replayBatch: {
+      results: [
+        {
+          replay_id: 'replay-raw-read',
+          expected_signal_kinds: ['forbidden_raw_read'],
+          outcome: {
+            initial_top_action_kind: 'large_file',
+            initial_action_kinds: ['large_file'],
+          },
+        },
+      ],
+    },
+  });
+
+  assert.equal(scorecard.signals.length, 1);
+  assert.equal(scorecard.signals[0].signal_kind, 'forbidden_raw_read');
+  assert.equal(scorecard.signals[0].has_session_action_evidence, false);
+  assert.equal(scorecard.signals[0].has_session_trial_evidence, true);
+  assert.equal(scorecard.signals[0].has_session_evidence, true);
+  assert.equal(scorecard.signals[0].promotion_evidence_complete, true);
+  assert.equal(scorecard.signals[0].session_trial_count, 1);
+  assert.equal(scorecard.signals[0].session_expectation_misses, 1);
+  assert.equal(scorecard.signals[0].session_trial_miss_rate, 1);
 });
 
 test('buildSignalScorecard only assigns check latency to fast-path signals', function () {
@@ -166,6 +262,48 @@ test('buildSignalScorecard respects an explicit repo label override', function (
   assert.equal(scorecard.repo_label, 'telemetry-fixture');
 });
 
+test('buildSignalScorecard derives a repo label without a defect report', function () {
+  const scorecard = buildSignalScorecard({
+    reviewVerdicts: {
+      repo: 'review-only-repo',
+      verdicts: [
+        {
+          kind: 'large_file',
+          category: 'useful',
+        },
+      ],
+    },
+  });
+
+  assert.equal(scorecard.repo_label, 'review-only-repo');
+  assert.equal(scorecard.signals.length, 1);
+});
+
+test('buildSignalScorecard counts session trials per expected signal kind', function () {
+  const scorecard = buildSignalScorecard({
+    replayBatch: {
+      repo_label: 'multi-signal-replay',
+      results: [
+        {
+          replay_id: 'multi-signal',
+          expected_signal_kinds: ['forbidden_raw_read', 'incomplete_propagation'],
+          outcome: {
+            initial_top_action_kind: 'large_file',
+            initial_action_kinds: ['large_file'],
+          },
+        },
+      ],
+    },
+  });
+
+  assert.equal(scorecard.repo_label, 'multi-signal-replay');
+  assert.equal(scorecard.summary.kpis.session_trial_count, 2);
+  assert.deepEqual(
+    scorecard.signals.map((signal) => signal.signal_kind).sort(),
+    ['forbidden_raw_read', 'incomplete_propagation'],
+  );
+});
+
 test('buildSignalScorecard builds a review-and-session-only scorecard without seeded defects', function () {
   const scorecard = buildSignalScorecard({
     repoLabel: 'review-only',
@@ -224,6 +362,8 @@ test('formatSignalScorecardMarkdown renders the score table', function () {
         reviewed_precision: null,
         review_noise_rate: null,
         remediation_success_rate: null,
+        session_trial_count: 2,
+        session_trial_miss_rate: 0.5,
         top_action_clear_rate: 0.5,
         followup_regression_rate: 0,
         session_clean_rate: 0.5,
@@ -237,5 +377,6 @@ test('formatSignalScorecardMarkdown renders the score table', function () {
   assert.match(markdown, /Signal Quality Scorecard/);
   assert.match(markdown, /missing_test_coverage/);
   assert.match(markdown, /keep_watchpoint/);
+  assert.match(markdown, /Trials/);
   assert.match(markdown, /0.5/);
 });

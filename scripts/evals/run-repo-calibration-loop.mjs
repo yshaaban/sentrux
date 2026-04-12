@@ -92,6 +92,12 @@ async function pathExists(targetPath) {
   }
 }
 
+async function pushExistingPathArg(args, flag, targetPath) {
+  if (targetPath && (await pathExists(targetPath))) {
+    args.push(flag, targetPath);
+  }
+}
+
 async function loadRepoCalibrationManifest(manifestPath) {
   const manifest = await readJson(manifestPath);
   if (manifest?.schema_version !== 1) {
@@ -833,18 +839,14 @@ async function main() {
         scorecardMarkdownPath,
       ];
 
-      if (defectReportPath && (await pathExists(defectReportPath))) {
-        scorecardArgs.push('--defect-report', defectReportPath);
-      }
+      await pushExistingPathArg(scorecardArgs, '--codex-batch', codexBatchResultPath);
+      await pushExistingPathArg(scorecardArgs, '--replay-batch', replayBatchResultPath);
+      await pushExistingPathArg(scorecardArgs, '--defect-report', defectReportPath);
       if (selectedReviewVerdictsPath) {
         scorecardArgs.push('--review-verdicts', selectedReviewVerdictsPath);
       }
-      if (remediationReportPath && (await pathExists(remediationReportPath))) {
-        scorecardArgs.push('--remediation-report', remediationReportPath);
-      }
-      if (benchmarkPath && (await pathExists(benchmarkPath))) {
-        scorecardArgs.push('--benchmark', benchmarkPath);
-      }
+      await pushExistingPathArg(scorecardArgs, '--remediation-report', remediationReportPath);
+      await pushExistingPathArg(scorecardArgs, '--benchmark', benchmarkPath);
 
       runs.push(
         await runNodeScript(

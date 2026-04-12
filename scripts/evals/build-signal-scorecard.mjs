@@ -20,6 +20,8 @@ function parseArgs(argv) {
     remediationReportPath: null,
     benchmarkPath: null,
     sessionTelemetryPath: null,
+    codexBatchPath: null,
+    replayBatchPath: null,
     outputJsonPath: null,
     outputMarkdownPath: null,
   };
@@ -56,6 +58,16 @@ function parseArgs(argv) {
       result.sessionTelemetryPath = argv[index];
       continue;
     }
+    if (value === '--codex-batch') {
+      index += 1;
+      result.codexBatchPath = argv[index];
+      continue;
+    }
+    if (value === '--replay-batch') {
+      index += 1;
+      result.replayBatchPath = argv[index];
+      continue;
+    }
     if (value === '--output-json') {
       index += 1;
       result.outputJsonPath = argv[index];
@@ -71,7 +83,7 @@ function parseArgs(argv) {
 
   if (!hasAnyScorecardInput(result)) {
     throw new Error(
-      'Provide at least one scorecard input: --defect-report, --review-verdicts, --remediation-report, --benchmark, or --session-telemetry',
+      'Provide at least one scorecard input: --defect-report, --review-verdicts, --remediation-report, --benchmark, --session-telemetry, --codex-batch, or --replay-batch',
     );
   }
 
@@ -84,18 +96,9 @@ function hasAnyScorecardInput(args) {
       args.reviewVerdictsPath ||
       args.remediationReportPath ||
       args.benchmarkPath ||
-      args.sessionTelemetryPath,
-  );
-}
-
-function inferRepoLabel(args, defectReport, reviewVerdicts, remediationReport, sessionTelemetry) {
-  return (
-    args.repoLabel ??
-    defectReport?.repo_label ??
-    reviewVerdicts?.repo ??
-    remediationReport?.repo_label ??
-    sessionTelemetry?.repo_root ??
-    null
+      args.sessionTelemetryPath ||
+      args.codexBatchPath ||
+      args.replayBatchPath,
   );
 }
 
@@ -125,20 +128,18 @@ async function main() {
   const sessionTelemetry = args.sessionTelemetryPath
     ? await readJson(args.sessionTelemetryPath)
     : null;
+  const codexBatch = args.codexBatchPath ? await readJson(args.codexBatchPath) : null;
+  const replayBatch = args.replayBatchPath ? await readJson(args.replayBatchPath) : null;
 
   const scorecard = buildSignalScorecard({
-    repoLabel: inferRepoLabel(
-      args,
-      defectReport,
-      reviewVerdicts,
-      remediationReport,
-      sessionTelemetry,
-    ),
+    repoLabel: args.repoLabel,
     defectReport,
     reviewVerdicts,
     remediationReport,
     benchmark,
     sessionTelemetry,
+    codexBatch,
+    replayBatch,
   });
   const markdown = formatSignalScorecardMarkdown(scorecard);
 

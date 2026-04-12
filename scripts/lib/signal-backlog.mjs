@@ -16,23 +16,30 @@ function isKeepRecommendation(value) {
   return typeof value === 'string' && value.startsWith('keep_');
 }
 
-function summarizeWeakSignals(cohort, scorecard) {
+function summarizeWeakSignals(cohort, scorecard, candidateMap) {
   const activeSignalKinds = new Set(cohort.signals.map((signal) => signal.signal_kind));
 
   return asArray(scorecard?.signals)
     .filter((signal) => activeSignalKinds.has(signal.signal_kind))
     .filter((signal) => !isKeepRecommendation(signal.promotion_recommendation))
-    .map((signal) => ({
-      signal_kind: signal.signal_kind,
-      promotion_status: signal.promotion_status,
-      recommendation: signal.promotion_recommendation,
-      seeded_recall: signal.seeded_recall ?? null,
-      reviewed_precision: signal.reviewed_precision ?? null,
-      remediation_success_rate: signal.remediation_success_rate ?? null,
-      session_resolution_rate: signal.session_resolution_rate ?? null,
-      session_clean_rate: signal.session_clean_rate ?? null,
-      average_checks_to_clear: signal.average_checks_to_clear ?? null,
-    }));
+    .map((signal) => {
+      const candidate = candidateMap.get(signal.signal_kind);
+
+      return {
+        signal_kind: signal.signal_kind,
+        promotion_status: signal.promotion_status,
+        recommendation: signal.promotion_recommendation,
+        seeded_recall: signal.seeded_recall ?? null,
+        reviewed_precision: signal.reviewed_precision ?? null,
+        remediation_success_rate: signal.remediation_success_rate ?? null,
+        session_resolution_rate: signal.session_resolution_rate ?? null,
+        session_clean_rate: signal.session_clean_rate ?? null,
+        session_trial_count: signal.session_trial_count ?? 0,
+        session_trial_miss_rate: signal.session_trial_miss_rate ?? null,
+        crowded_out_expected_count: candidate?.crowded_out_expected_count ?? 0,
+        average_checks_to_clear: signal.average_checks_to_clear ?? null,
+      };
+    });
 }
 
 function createCandidateEntry(signalKind) {
@@ -42,6 +49,7 @@ function createCandidateEntry(signalKind) {
     replay_miss_count: 0,
     live_miss_count: 0,
     regression_followup_count: 0,
+    crowded_out_expected_count: 0,
     not_in_active_cohort: 0,
     priority_score: 0,
   };
@@ -91,6 +99,14 @@ function buildMissEntries(results, lane, activeSignalKinds, candidateMap) {
       recordCandidate(candidateMap, signalKind, lane, activeSignalKinds);
     }
 
+    if (
+      missingExpectedKinds.length > 0 &&
+      initialTopActionKind &&
+      !expectedKinds.includes(initialTopActionKind)
+    ) {
+      ensureCandidateEntry(candidateMap, initialTopActionKind).crowded_out_expected_count += 1;
+    }
+
     if (outcome.followup_regression_introduced && initialTopActionKind) {
       ensureCandidateEntry(candidateMap, initialTopActionKind).regression_followup_count += 1;
     }
@@ -129,6 +145,9 @@ function summarizeNextCandidates(candidateMap) {
     .sort((left, right) => {
       if (right.priority_score !== left.priority_score) {
         return right.priority_score - left.priority_score;
+      }
+      if (right.crowded_out_expected_count !== left.crowded_out_expected_count) {
+        return right.crowded_out_expected_count - left.crowded_out_expected_count;
       }
       if (right.not_in_active_cohort !== left.not_in_active_cohort) {
         return right.not_in_active_cohort - left.not_in_active_cohort;
@@ -210,7 +229,7 @@ function appendCandidateSection(lines, title, candidates) {
   } else {
     for (const candidate of candidates.slice(0, 10)) {
       lines.push(
-        `- \`${candidate.signal_kind}\`: score=${candidate.priority_score ?? 0}, misses=${candidate.miss_count}, live=${candidate.live_miss_count}, replay=${candidate.replay_miss_count}, regression_followups=${candidate.regression_followup_count}`,
+        `- \`${candidate.signal_kind}\`: score=${candidate.priority_score ?? 0}, misses=${candidate.miss_count}, live=${candidate.live_miss_count}, replay=${candidate.replay_miss_count}, regression_followups=${candidate.regression_followup_count}, crowded_out=${candidate.crowded_out_expected_count ?? 0}`,
       );
     }
   }
@@ -221,7 +240,6 @@ function appendCandidateSection(lines, title, candidates) {
 export function buildSignalBacklog({ cohort, scorecard, codexBatch = null, replayBatch = null }) {
   const activeSignalKinds = new Set(cohort.signals.map((signal) => signal.signal_kind));
   const candidateMap = new Map();
-  const weakSignals = summarizeWeakSignals(cohort, scorecard);
   const liveMisses = buildMissEntries(
     asArray(codexBatch?.results),
     'live',
@@ -234,6 +252,7 @@ export function buildSignalBacklog({ cohort, scorecard, codexBatch = null, repla
     activeSignalKinds,
     candidateMap,
   );
+  const weakSignals = summarizeWeakSignals(cohort, scorecard, candidateMap);
   const candidateSignals = summarizeNextCandidates(candidateMap);
   const nextCandidates = summarizeConfiguredNextCandidates(
     cohort,
@@ -242,8 +261,8 @@ export function buildSignalBacklog({ cohort, scorecard, codexBatch = null, repla
   );
   const recommendedNextCandidate =
     nextCandidates.find((candidate) => (candidate.priority_score ?? 0) > 0) ?? null;
-  const activeSignalMisses = candidateSignals.filter(
-    (candidate) => candidate.not_in_active_cohort === 0,
+  const activeSignalMisses = candidateSignals.filter((candidate) =>
+    activeSignalKinds.has(candidate.signal_kind),
   );
 
   return {
@@ -288,7 +307,7 @@ export function formatSignalBacklogMarkdown(backlog) {
   } else {
     for (const signal of backlog.weak_signals) {
       lines.push(
-        `- \`${signal.signal_kind}\`: ${signal.recommendation} (session clean=${signal.session_clean_rate ?? 'n/a'}, remediation=${signal.remediation_success_rate ?? 'n/a'})`,
+        `- \`${signal.signal_kind}\`: ${signal.recommendation} (session clean=${signal.session_clean_rate ?? 'n/a'}, trial miss=${signal.session_trial_miss_rate ?? 'n/a'}, crowded out=${signal.crowded_out_expected_count ?? 0}, remediation=${signal.remediation_success_rate ?? 'n/a'})`,
       );
     }
   }
