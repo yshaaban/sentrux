@@ -273,6 +273,33 @@ function buildSelfSessionCloneDistractor() {
   ].join('\n');
 }
 
+function buildSelfTaskStatusModuleIndexSource() {
+  return [
+    "export { formatTaskHealth } from './internal';",
+    '',
+  ].join('\n');
+}
+
+function buildSelfTaskStatusModuleInternalSource() {
+  return [
+    'export function formatTaskHealth(status: string): string {',
+    "  return status === 'ready' ? 'ready' : 'waiting';",
+    '}',
+    '',
+  ].join('\n');
+}
+
+function buildSelfTaskDashboardSource() {
+  return [
+    "import { formatTaskHealth } from '../modules/task-status/internal';",
+    '',
+    'export function renderTaskDashboard(): string {',
+    "  return formatTaskHealth('ready');",
+    '}',
+    '',
+  ].join('\n');
+}
+
 function createDefect({
   id,
   title,
@@ -706,6 +733,49 @@ function buildDogfoodCatalog() {
           {
             path: 'src/notes.ts',
             text: buildSelfSessionCloneDistractor(),
+          },
+        ]);
+      },
+    }),
+    createDefect({
+      id: 'self_zero_config_boundary_violation',
+      title: 'Deep import a task-status helper without a module-contract rule',
+      repoLabel: 'sentrux',
+      targetPath: 'src/app/task-dashboard.ts',
+      signalKind: 'zero_config_boundary_violation',
+      signalFamily: 'rules',
+      promotionStatus: 'watchpoint',
+      blockingIntent: 'watchpoint',
+      checkSupport: {
+        supported: true,
+        gate: 'pass',
+        kinds: ['zero_config_boundary_violation'],
+      },
+      gateKinds: ['zero_config_boundary_violation'],
+      findingKinds: ['zero_config_boundary_violation'],
+      sessionEndKinds: ['zero_config_boundary_violation'],
+      expectedGateDecision: 'pass',
+      async inject(workRoot) {
+        return writeFiles(workRoot, [
+          {
+            path: 'package.json',
+            text: `${buildSelfTypeScriptFixturePackageJson('sentrux-self-zero-config-boundary')}\n`,
+          },
+          {
+            path: 'tsconfig.json',
+            text: `${buildSelfTypeScriptFixtureTsconfig()}\n`,
+          },
+          {
+            path: 'src/modules/task-status/index.ts',
+            text: buildSelfTaskStatusModuleIndexSource(),
+          },
+          {
+            path: 'src/modules/task-status/internal.ts',
+            text: buildSelfTaskStatusModuleInternalSource(),
+          },
+          {
+            path: 'src/app/task-dashboard.ts',
+            text: buildSelfTaskDashboardSource(),
           },
         ]);
       },

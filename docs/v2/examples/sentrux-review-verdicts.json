@@ -1,8 +1,8 @@
 {
   "repo": "sentrux",
-  "captured_at": "2026-04-11T18:18:48.598Z",
+  "captured_at": "2026-04-12T10:39:05.161Z",
   "source_report": "docs/v2/examples/sentrux-review-packet.md",
-  "source_feedback": "Maintainer-curated verdicts for the replay-backed Sentrux review packet. Coverage is intentionally narrow: only replay findings with artifact-backed large_file evidence are promoted here.",
+  "source_feedback": "Maintainer-curated verdicts for the Sentrux review packet plus seeded self-defect and remediation artifacts. Replay-backed large_file watchpoints stay present, and direct seeded verdicts now cover the under-evidenced rule, obligation, clone, and zero-config signals.",
   "verdicts": [
     {
       "scope": "sentrux-core/src/metrics/v2/mod.rs",
@@ -78,6 +78,66 @@
       ],
       "engineer_note": "This is the only replay-backed large-file sample directly sitting on the clone-priority scenario surface, so it should stay visible even though the replay still failed to emit explicit clone kinds.",
       "expected_v2_behavior": "Keep this present as a clone-adjacent watchpoint, but do not promote it to trusted clone evidence until replay or live runs emit the expected clone signal kinds."
+    },
+    {
+      "scope": "src/components/SidebarTaskRow.tsx",
+      "kind": "forbidden_raw_read",
+      "report_bucket": "Seeded Boundary Discipline",
+      "category": "useful",
+      "expected_trust_tier": "trusted",
+      "expected_presentation_class": "boundary_discipline",
+      "expected_leverage_class": "boundary_discipline",
+      "expected_summary_presence": "headline",
+      "preferred_over": [
+        "sentrux-core/src/metrics/v2/mod.rs"
+      ],
+      "engineer_note": "The seeded self-defect and successful remediation both confirm that this raw-read pattern is actionable direct boundary evidence, not just adjacent structural debt.",
+      "expected_v2_behavior": "Promote this as trusted boundary-discipline evidence when the same projection bypass pattern appears in live or replay runs."
+    },
+    {
+      "scope": "scripts/defect-injection/catalog.mjs",
+      "kind": "incomplete_propagation",
+      "report_bucket": "Seeded Boundary Discipline",
+      "category": "useful",
+      "expected_trust_tier": "trusted",
+      "expected_presentation_class": "boundary_discipline",
+      "expected_leverage_class": "architecture_signal",
+      "expected_summary_presence": "headline",
+      "preferred_over": [
+        "sentrux-core/src/app/mcp_server/handlers.rs"
+      ],
+      "engineer_note": "This seeded contract-surface miss reproduced cleanly and remediated cleanly, so it should count as direct propagation evidence instead of leaving the scorecard dependent on large-file stand-ins.",
+      "expected_v2_behavior": "Keep this near the top of the maintainer summary as trusted propagation evidence whenever sibling contract surfaces drift."
+    },
+    {
+      "scope": "src/copy.ts",
+      "kind": "session_introduced_clone",
+      "report_bucket": "Seeded Clone Followthrough",
+      "category": "useful_watchpoint",
+      "expected_trust_tier": "watchpoint",
+      "expected_presentation_class": "duplication_pressure",
+      "expected_leverage_class": "local_refactor_target",
+      "expected_summary_presence": "section_present",
+      "preferred_over": [
+        "sentrux-core/src/app/mcp_server/handlers/session.rs"
+      ],
+      "engineer_note": "The self-defect shows direct post-baseline duplicate introduction and the remediation clears it cleanly, so this is better clone evidence than replay-only large-file followthrough.",
+      "expected_v2_behavior": "Keep this visible as direct clone followthrough evidence while still framing it as a watchpoint until live sessions clear the same pattern reliably."
+    },
+    {
+      "scope": "src/app/task-dashboard.ts",
+      "kind": "zero_config_boundary_violation",
+      "report_bucket": "Seeded Zero-Config Watchpoints",
+      "category": "useful_watchpoint",
+      "expected_trust_tier": "watchpoint",
+      "expected_presentation_class": "boundary_discipline",
+      "expected_leverage_class": "boundary_discipline",
+      "expected_summary_presence": "section_present",
+      "preferred_over": [
+        "sentrux-core/src/metrics/v2/mod.rs"
+      ],
+      "engineer_note": "This seeded deep-import violation gives Sentrux a concrete zero-config boundary sample with both detection and remediation evidence, which was previously missing from the maintained review set.",
+      "expected_v2_behavior": "Keep this as a maintained watchpoint and use it to validate zero-config boundary ranking against large-file crowd-out."
     }
   ]
 }

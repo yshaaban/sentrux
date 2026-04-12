@@ -13,8 +13,29 @@ import {
 } from '../defect-injection/report.mjs';
 
 test('catalogs expose the expected defect ids', function () {
+  const parallelCatalog = createParallelCodeCatalog();
+  const dogfoodCatalog = createDogfoodCatalog();
+
+  function findDefect(catalog, defectId) {
+    return catalog.find((defect) => defect.id === defectId);
+  }
+
+  const cloneInjection = findDefect(parallelCatalog, 'clone_injection');
+  const sessionClone = findDefect(parallelCatalog, 'session_introduced_clone');
+  const clonePropagationDrift = findDefect(parallelCatalog, 'clone_propagation_drift');
+  const incompletePropagation = findDefect(parallelCatalog, 'incomplete_propagation');
+  const multiWriterConcept = findDefect(parallelCatalog, 'multi_writer_concept');
+  const writerOutsideAllowlist = findDefect(parallelCatalog, 'writer_outside_allowlist');
+  const selfForbiddenRawRead = findDefect(dogfoodCatalog, 'self_forbidden_raw_read');
+  const selfIncompletePropagation = findDefect(dogfoodCatalog, 'self_incomplete_propagation');
+  const selfSessionClone = findDefect(dogfoodCatalog, 'self_session_introduced_clone');
+  const zeroConfigBoundaryViolation = findDefect(
+    dogfoodCatalog,
+    'self_zero_config_boundary_violation',
+  );
+
   assert.deepEqual(
-    createParallelCodeCatalog().map((defect) => defect.id),
+    parallelCatalog.map((defect) => defect.id),
     [
       'large_file_growth',
       'forbidden_raw_read',
@@ -29,69 +50,29 @@ test('catalogs expose the expected defect ids', function () {
     ],
   );
   assert.deepEqual(
-    createDogfoodCatalog().map((defect) => defect.id),
+    dogfoodCatalog.map((defect) => defect.id),
     [
       'self_large_file',
       'self_forbidden_raw_read',
       'self_incomplete_propagation',
       'self_session_introduced_clone',
+      'self_zero_config_boundary_violation',
     ],
   );
-  assert.equal(
-    createParallelCodeCatalog().find((defect) => defect.id === 'clone_injection').check_support
-      .supported,
-    false,
-  );
-  assert.equal(
-    createParallelCodeCatalog().find((defect) => defect.id === 'session_introduced_clone')
-      .check_support.supported,
-    true,
-  );
-  assert.equal(
-    createParallelCodeCatalog().find((defect) => defect.id === 'clone_propagation_drift')
-      .check_support.supported,
-    true,
-  );
-  assert.equal(
-    createParallelCodeCatalog().find((defect) => defect.id === 'clone_propagation_drift')
-      .expected_gate_decision,
-    'pass',
-  );
-  assert.deepEqual(
-    createParallelCodeCatalog().find((defect) => defect.id === 'clone_propagation_drift')
-      .expected_gate_kinds,
-    ['clone_propagation_drift'],
-  );
-  assert.equal(
-    createParallelCodeCatalog().find((defect) => defect.id === 'incomplete_propagation')
-      .check_support.supported,
-    true,
-  );
-  assert.equal(
-    createParallelCodeCatalog().find((defect) => defect.id === 'multi_writer_concept')
-      .expected_gate_decision,
-    'fail',
-  );
-  assert.equal(
-    createParallelCodeCatalog().find((defect) => defect.id === 'writer_outside_allowlist')
-      .check_support.supported,
-    true,
-  );
-  assert.equal(
-    createDogfoodCatalog().find((defect) => defect.id === 'self_forbidden_raw_read').check_support
-      .supported,
-    true,
-  );
-  assert.equal(
-    createDogfoodCatalog().find((defect) => defect.id === 'self_incomplete_propagation')
-      .check_support.supported,
-    true,
-  );
-  assert.equal(
-    createDogfoodCatalog().find((defect) => defect.id === 'self_session_introduced_clone')
-      .check_support.supported,
-    true,
-  );
+  assert.equal(cloneInjection.check_support.supported, false);
+  assert.equal(sessionClone.check_support.supported, true);
+  assert.equal(clonePropagationDrift.check_support.supported, true);
+  assert.equal(clonePropagationDrift.expected_gate_decision, 'pass');
+  assert.deepEqual(clonePropagationDrift.expected_gate_kinds, ['clone_propagation_drift']);
+  assert.equal(incompletePropagation.check_support.supported, true);
+  assert.equal(multiWriterConcept.expected_gate_decision, 'fail');
+  assert.equal(writerOutsideAllowlist.check_support.supported, true);
+  assert.equal(selfForbiddenRawRead.check_support.supported, true);
+  assert.equal(selfIncompletePropagation.check_support.supported, true);
+  assert.equal(selfSessionClone.check_support.supported, true);
+  assert.equal(zeroConfigBoundaryViolation.check_support.supported, true);
+  assert.equal(zeroConfigBoundaryViolation.check_support.gate, 'pass');
+  assert.equal(zeroConfigBoundaryViolation.expected_gate_decision, 'pass');
 });
 
 test('selectDefects filters by requested ids', function () {

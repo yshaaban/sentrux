@@ -2,12 +2,12 @@
 
 - repo: `sentrux`
 - root: `<sentrux-root>`
-- generated at: `2026-04-12T09:34:52.135Z`
-- total defects: 4
-- detected: 4
+- generated at: `2026-04-12T10:28:18.549Z`
+- total defects: 5
+- detected: 5
 - partial: 0
 - failed: 0
-- check supported: 4
+- check supported: 5
 - check_rules detected: 0
 
 ## Results
@@ -24,7 +24,7 @@
 - session_end matched: true
 - check evidence: `$.actions[0]:large_file, $.issues[0]:large_file, decision=warn`
 - gate evidence: `$.introduced_findings[0]:large_file`
-- findings evidence: `$.debt_signals[0]:large_file, $.debt_signals[1]:large_file, $.debt_signals[2]:large_file, $.debt_signals[3]:large_file, $.debt_signals[4]:large_file, $.finding_details[0]:large_file, $.finding_details[1]:large_file, $.finding_details[5]:large_file, $.finding_details[6]:large_file, $.finding_details[7]:large_file, $.finding_details[8]:large_file, $.finding_details[9]:large_file, $.finding_details[10]:large_file, $.finding_details[11]:large_file, $.findings[0]:large_file, $.findings[1]:large_file, $.findings[5]:large_file, $.findings[6]:large_file, $.findings[7]:large_file, $.findings[8]:large_file, $.findings[9]:large_file, $.findings[10]:large_file, $.findings[11]:large_file`
+- findings evidence: `$.debt_signals[0]:large_file, $.debt_signals[1]:large_file, $.debt_signals[2]:large_file, $.debt_signals[3]:large_file, $.debt_signals[4]:large_file, $.finding_details[0]:large_file, $.finding_details[1]:large_file, $.finding_details[2]:large_file, $.finding_details[5]:large_file, $.finding_details[6]:large_file, $.finding_details[7]:large_file, $.finding_details[8]:large_file, $.finding_details[9]:large_file, $.finding_details[10]:large_file, $.finding_details[11]:large_file, $.findings[0]:large_file, $.findings[1]:large_file, $.findings[2]:large_file, $.findings[5]:large_file, $.findings[6]:large_file, $.findings[7]:large_file, $.findings[8]:large_file, $.findings[9]:large_file, $.findings[10]:large_file, $.findings[11]:large_file`
 - session_end evidence: `$.actions[0]:large_file, $.debt_signals[0]:large_file, $.finding_details[0]:large_file, $.introduced_findings[0]:large_file`
 
 ### self_forbidden_raw_read
@@ -65,4 +65,17 @@
 - session_end matched: true
 - check evidence: `$.actions[0]:session_introduced_clone, $.actions[1]:session_introduced_clone, $.issues[0]:session_introduced_clone, $.issues[1]:session_introduced_clone`
 - session_end evidence: `$.actions[0]:session_introduced_clone, $.actions[1]:session_introduced_clone, $.finding_details[0]:session_introduced_clone, $.finding_details[1]:session_introduced_clone, $.introduced_clone_findings[0]:session_introduced_clone, $.introduced_clone_findings[1]:session_introduced_clone, $.introduced_findings[0]:session_introduced_clone, $.introduced_findings[1]:session_introduced_clone`
+
+### self_zero_config_boundary_violation
+
+- title: Deep import a task-status helper without a module-contract rule
+- status: `pass`
+- check supported: true
+- check matched: true
+- check_rules matched: false
+- gate matched: false
+- findings matched: false
+- session_end matched: false
+- check evidence: `$.actions[0]:zero_config_boundary_violation, $.issues[0]:zero_config_boundary_violation, decision=pass`
+- gate evidence: `decision=pass`
 
