@@ -158,7 +158,7 @@ pub(crate) fn obligation_value_to_agent_issue(obligation: &Value) -> AgentIssue 
         kind: kind.clone(),
         message: obligation_message(obligation, &kind),
         severity: obligation_severity(obligation),
-        fix_hint: obligation_fix_hint(&kind),
+        fix_hint: obligation_fix_hint(obligation, &kind),
         evidence: obligation_evidence(obligation),
         source: IssueSource::Obligation,
         origin: obligation_origin(obligation),
@@ -328,10 +328,9 @@ fn derived_obligation_issue_kind(kind: &str) -> &str {
 }
 
 fn canonical_issue_kind(kind: &str) -> &str {
-    if kind == "contract_surface_completeness" {
-        "incomplete_propagation"
-    } else {
-        kind
+    match kind {
+        "contract_surface_completeness" => "incomplete_propagation",
+        _ => kind,
     }
 }
 
@@ -348,6 +347,26 @@ fn obligation_message(obligation: &Value, kind: &str) -> String {
         );
     }
 
+    if kind == "closed_domain_exhaustiveness" {
+        let domain = obligation_domain_label(obligation);
+        let missing_variants = obligation_missing_variants(obligation);
+        let site_suffix = obligation_site_suffix(obligation);
+
+        if !missing_variants.is_empty() {
+            return format!(
+                "Domain '{}' still needs explicit handling for variants [{}]{}.",
+                domain,
+                missing_variants.join(", "),
+                site_suffix
+            );
+        }
+
+        return format!(
+            "Domain '{}' still needs an explicit exhaustive branch{}.",
+            domain, site_suffix
+        );
+    }
+
     obligation
         .get("summary")
         .and_then(Value::as_str)
@@ -355,14 +374,71 @@ fn obligation_message(obligation: &Value, kind: &str) -> String {
         .to_string()
 }
 
-fn obligation_fix_hint(kind: &str) -> Option<String> {
+fn obligation_fix_hint(obligation: &Value, kind: &str) -> Option<String> {
     let hint = match kind {
         "incomplete_propagation" => {
             "Update the remaining sibling surfaces listed in the evidence before considering the change complete."
         }
+        "closed_domain_exhaustiveness" => {
+            let site_suffix = obligation_site_suffix(obligation);
+            let missing_variants = obligation_missing_variants(obligation);
+            if !missing_variants.is_empty() {
+                return Some(format!(
+                    "Handle the missing variants [{}] with an explicit exhaustive switch or mapping{site_suffix}, and keep the fallback/default path out of the production branch.",
+                    missing_variants.join(", "),
+                ));
+            }
+
+            return Some(format!(
+                "Add an explicit exhaustive switch or mapping{site_suffix}, and keep the fallback/default path out of the production branch."
+            ));
+        }
         _ => "Update the missing sites tied to the changed concept before continuing.",
     };
     Some(hint.to_string())
+}
+
+fn obligation_domain_label(obligation: &Value) -> String {
+    obligation
+        .get("domain_symbol_name")
+        .or_else(|| obligation.get("concept_id"))
+        .or_else(|| obligation.get("concept"))
+        .and_then(Value::as_str)
+        .unwrap_or("closed domain")
+        .to_string()
+}
+
+fn obligation_missing_variants(obligation: &Value) -> Vec<String> {
+    obligation
+        .get("missing_variants")
+        .and_then(Value::as_array)
+        .map(|variants| {
+            variants
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::to_string)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default()
+}
+
+fn obligation_missing_site(obligation: &Value) -> Option<String> {
+    let sites = obligation.get("missing_sites").and_then(Value::as_array)?;
+    let site = sites.first()?;
+    let path = site.get("path").and_then(Value::as_str)?;
+    let line = site
+        .get("line")
+        .and_then(Value::as_u64)
+        .map(|line| format!(":{line}"))
+        .unwrap_or_default();
+
+    Some(format!("{path}{line}"))
+}
+
+fn obligation_site_suffix(obligation: &Value) -> String {
+    obligation_missing_site(obligation)
+        .map(|site| format!(" at {site}"))
+        .unwrap_or_default()
 }
 
 fn obligation_origin(obligation: &Value) -> IssueOrigin {
@@ -562,7 +638,7 @@ fn fix_hint_for_kind(kind: &str) -> Option<String> {
             "Reduce the concept to one authoritative writer or document the additional writer explicitly."
         }
         "closed_domain_exhaustiveness" => {
-            "Update the switch or mapping so every domain variant is handled."
+            "Handle the missing variants with an explicit exhaustive switch or mapping, and keep the fallback/default branch out of the production path."
         }
         "state_model_missing_exhaustive_switch" | "state_model_missing_assert_never" => {
             "Restore the exhaustive switch and assert-never guard for the state model."
@@ -595,4 +671,61 @@ fn fix_hint_for_kind(kind: &str) -> Option<String> {
         _ => return None,
     };
     Some(hint.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{obligation_value_to_agent_issue, to_agent_issue};
+    use serde_json::json;
+
+    #[test]
+    fn closed_domain_exhaustiveness_guidance_names_the_missing_site_and_variants() {
+        let issue = obligation_value_to_agent_issue(&json!({
+            "kind": "closed_domain_exhaustiveness",
+            "concept_id": "task_presentation_status",
+            "domain_symbol_name": "TaskPresentationStatus",
+            "summary": "Domain 'TaskPresentationStatus' is missing exhaustive handling.",
+            "files": ["src/app/task-presentation-status.ts"],
+            "missing_variants": ["loading", "ready"],
+            "missing_sites": [
+                {
+                    "path": "src/app/task-presentation-status.ts",
+                    "kind": "closed_domain",
+                    "line": 27,
+                    "detail": "missing exhaustive branch"
+                }
+            ]
+        }));
+
+        assert_eq!(issue.kind, "closed_domain_exhaustiveness");
+        assert!(
+            issue.message.contains("TaskPresentationStatus"),
+            "unexpected message: {}",
+            issue.message
+        );
+        assert!(issue.message.contains("loading"));
+        assert!(issue.message.contains("ready"));
+        assert!(issue
+            .message
+            .contains("src/app/task-presentation-status.ts:27"));
+        assert!(issue.fix_hint.as_deref().is_some_and(|hint| {
+            hint.contains("explicit exhaustive switch or mapping")
+                && hint.contains("src/app/task-presentation-status.ts:27")
+                && hint.contains("fallback/default path")
+        }));
+    }
+
+    #[test]
+    fn closed_domain_exhaustiveness_finding_guidance_disallows_fallback_branches() {
+        let issue = to_agent_issue(&json!({
+            "kind": "closed_domain_exhaustiveness",
+            "summary": "Domain 'TaskPresentationStatus' still needs exhaustive handling.",
+            "files": ["src/app/task-presentation-status.ts"]
+        }));
+
+        assert!(issue.fix_hint.as_deref().is_some_and(|hint| {
+            hint.contains("explicit exhaustive switch or mapping")
+                && hint.contains("fallback/default branch")
+        }));
+    }
 }
