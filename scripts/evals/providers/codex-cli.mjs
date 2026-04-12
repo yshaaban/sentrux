@@ -41,6 +41,161 @@ function parseJsonLines(value) {
     .filter(Boolean);
 }
 
+function summarizeCommandItem(item) {
+  if (!item || item.type !== 'command_execution') {
+    return null;
+  }
+
+  return {
+    command: typeof item.command === 'string' ? item.command : null,
+    exit_code: Number.isInteger(item.exit_code) ? item.exit_code : null,
+    status: typeof item.status === 'string' ? item.status : null,
+  };
+}
+
+function createStdoutEventTracker() {
+  let remainder = '';
+  const summary = {
+    event_count: 0,
+    parsed_event_count: 0,
+    unparsed_line_count: 0,
+    turn_count: 0,
+    command_started_count: 0,
+    command_completed_count: 0,
+    completed_item_count: 0,
+    agent_message_count: 0,
+    last_event_type: null,
+    last_event_elapsed_ms: null,
+    last_completed_item_type: null,
+    last_completed_item_elapsed_ms: null,
+    last_started_command: null,
+    last_started_command_elapsed_ms: null,
+    in_progress_command: null,
+    in_progress_command_elapsed_ms: null,
+    last_completed_command: null,
+    last_completed_command_elapsed_ms: null,
+    last_completed_command_exit_code: null,
+    last_completed_command_status: null,
+    last_agent_message: null,
+    last_agent_message_elapsed_ms: null,
+  };
+  const startedMs = nowMs();
+
+  function elapsedMs() {
+    return Number((nowMs() - startedMs).toFixed(1));
+  }
+
+  function updateParsedEvent(parsed, eventElapsedMs) {
+    summary.parsed_event_count += 1;
+    summary.last_event_type = typeof parsed.type === 'string' ? parsed.type : null;
+    summary.last_event_elapsed_ms = eventElapsedMs;
+  }
+
+  function handleStartedCommand(item, eventElapsedMs) {
+    const command = summarizeCommandItem(item);
+
+    summary.command_started_count += 1;
+    summary.last_started_command = command;
+    summary.last_started_command_elapsed_ms = eventElapsedMs;
+    summary.in_progress_command = command;
+    summary.in_progress_command_elapsed_ms = eventElapsedMs;
+  }
+
+  function handleCompletedCommand(item, eventElapsedMs) {
+    const command = summarizeCommandItem(item);
+
+    summary.command_completed_count += 1;
+    summary.last_completed_command = command;
+    summary.last_completed_command_elapsed_ms = eventElapsedMs;
+    summary.last_completed_command_exit_code = command?.exit_code ?? null;
+    summary.last_completed_command_status = command?.status ?? null;
+    summary.in_progress_command = null;
+    summary.in_progress_command_elapsed_ms = null;
+  }
+
+  function handleAgentMessage(item, eventElapsedMs) {
+    summary.agent_message_count += 1;
+    summary.last_agent_message = typeof item.text === 'string' ? item.text : null;
+    summary.last_agent_message_elapsed_ms = eventElapsedMs;
+  }
+
+  function consumeLine(line) {
+    if (!line.trim()) {
+      return;
+    }
+
+    summary.event_count += 1;
+    const parsed = parseJsonLine(line);
+    if (!parsed) {
+      summary.unparsed_line_count += 1;
+      return;
+    }
+
+    const eventElapsedMs = elapsedMs();
+    updateParsedEvent(parsed, eventElapsedMs);
+
+    if (parsed.type === 'turn.started') {
+      summary.turn_count += 1;
+      return;
+    }
+
+    const item = parsed.item ?? null;
+    const itemType = item?.type;
+    if (typeof itemType !== 'string') {
+      return;
+    }
+
+    switch (parsed.type) {
+      case 'item.started':
+        if (itemType === 'command_execution') {
+          handleStartedCommand(item, eventElapsedMs);
+        }
+        return;
+      case 'item.completed':
+        summary.completed_item_count += 1;
+        summary.last_completed_item_type = itemType;
+        summary.last_completed_item_elapsed_ms = eventElapsedMs;
+
+        if (itemType === 'command_execution') {
+          handleCompletedCommand(item, eventElapsedMs);
+          return;
+        }
+        if (itemType === 'agent_message') {
+          handleAgentMessage(item, eventElapsedMs);
+        }
+        return;
+      default:
+        return;
+    }
+  }
+
+  function consume(text) {
+    remainder += text;
+    const lines = remainder.split(/\r?\n/);
+    remainder = lines.pop() ?? '';
+    for (const line of lines) {
+      consumeLine(line);
+    }
+  }
+
+  function finish() {
+    if (remainder) {
+      consumeLine(remainder);
+      remainder = '';
+    }
+  }
+
+  function snapshot() {
+    return JSON.parse(JSON.stringify(summary));
+  }
+
+  return {
+    consume,
+    finish,
+    snapshot,
+  };
+}
+
 function spawnCaptured(command, args, options) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
@@ -62,10 +217,12 @@ function spawnCaptured(command, args, options) {
         : null;
 
     child.stdout.on('data', (chunk) => {
-      stdout += chunk.toString('utf8');
+      const text = chunk.toString('utf8');
+      stdout += text;
     });
     child.stderr.on('data', (chunk) => {
-      stderr += chunk.toString('utf8');
+      const text = chunk.toString('utf8');
+      stderr += text;
     });
     child.on('error', (error) => {
       if (timeout) {
@@ -98,8 +255,12 @@ function startCaptured(command, args, options) {
 
   let stdout = '';
   let stderr = '';
+  let stdoutLength = 0;
+  let stderrLength = 0;
   let timedOut = false;
   let finished = false;
+  let lastOutputAtMs = nowMs();
+  const eventTracker = createStdoutEventTracker();
   const timeout =
     options.timeoutMs && options.timeoutMs > 0
       ? setTimeout(() => {
@@ -110,10 +271,17 @@ function startCaptured(command, args, options) {
 
   const resultPromise = new Promise((resolve, reject) => {
     child.stdout.on('data', (chunk) => {
-      stdout += chunk.toString('utf8');
+      const text = chunk.toString('utf8');
+      stdout += text;
+      stdoutLength += text.length;
+      lastOutputAtMs = nowMs();
+      eventTracker.consume(text);
     });
     child.stderr.on('data', (chunk) => {
-      stderr += chunk.toString('utf8');
+      const text = chunk.toString('utf8');
+      stderr += text;
+      stderrLength += text.length;
+      lastOutputAtMs = nowMs();
     });
     child.on('error', (error) => {
       finished = true;
@@ -127,12 +295,14 @@ function startCaptured(command, args, options) {
       if (timeout) {
         clearTimeout(timeout);
       }
+      eventTracker.finish();
       resolve({
         exitCode,
         signal,
         stdout,
         stderr,
         timedOut,
+        eventSummary: eventTracker.snapshot(),
       });
     });
   });
@@ -141,6 +311,23 @@ function startCaptured(command, args, options) {
     child,
     get finished() {
       return finished;
+    },
+    get stdoutLength() {
+      return stdoutLength;
+    },
+    get stderrLength() {
+      return stderrLength;
+    },
+    get lastOutputAtMs() {
+      return lastOutputAtMs;
+    },
+    get eventSummary() {
+      return eventTracker.snapshot();
+    },
+    kill(signal = 'SIGKILL') {
+      if (!finished) {
+        child.kill(signal);
+      }
     },
     wait() {
       return resultPromise;
@@ -262,6 +449,7 @@ function buildCodexResult({
     stdout_json: lastMessageJson ?? stdoutJsonl.at(-1) ?? null,
     last_message: lastMessage,
     last_message_json: lastMessageJson,
+    event_summary: captured.eventSummary ?? null,
   };
 }
 
@@ -342,6 +530,21 @@ export async function startCodexExec(options = {}) {
     child: captured.child,
     get finished() {
       return captured.finished;
+    },
+    get stdoutLength() {
+      return captured.stdoutLength;
+    },
+    get stderrLength() {
+      return captured.stderrLength;
+    },
+    get lastOutputAtMs() {
+      return captured.lastOutputAtMs;
+    },
+    get eventSummary() {
+      return captured.eventSummary;
+    },
+    kill(signal) {
+      captured.kill(signal);
     },
     wait,
   };

@@ -119,15 +119,16 @@ function buildReplayOptions(replay, manifest, manifestDir, sourceRoot, outputDir
   };
 }
 
-function buildReplayResult(bundle, outputDir) {
+function buildReplayResult(bundle, replay) {
   return {
-    replay_id: bundle.replay_id,
+    replay_id: replay.replayId,
     commit: bundle.replay.commit,
     base_commit: bundle.replay.base_commit,
-    tags: bundle.tags,
-    expected_signal_kinds: bundle.expected_signal_kinds,
+    tags: replay.tags,
+    expected_signal_kinds: replay.expectedSignalKinds,
+    expected_fix_surface: replay.expectedFixSurface,
     telemetry_summary: bundle.telemetry_summary,
-    output_dir: path.join(outputDir, bundle.replay_id ?? bundle.replay.commit.slice(0, 12)),
+    output_dir: replay.outputDir,
     outcome: summarizeBundleOutcome(bundle),
   };
 }
@@ -146,10 +147,15 @@ async function main() {
 
   const replayResults = [];
   for (const replay of replayItems) {
-    const bundle = await runDiffReplay(
-      buildReplayOptions(replay, manifest, manifestDir, sourceRoot, outputDir),
+    const replayOptions = buildReplayOptions(
+      replay,
+      manifest,
+      manifestDir,
+      sourceRoot,
+      outputDir,
     );
-    replayResults.push(buildReplayResult(bundle, outputDir));
+    const bundle = await runDiffReplay(replayOptions);
+    replayResults.push(buildReplayResult(bundle, replayOptions));
   }
 
   const summaries = replayResults.map((result) => result.telemetry_summary);

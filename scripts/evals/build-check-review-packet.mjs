@@ -22,6 +22,7 @@ export function parseArgs(argv) {
     bundlePath: null,
     codexBatchPath: null,
     replayBatchPath: null,
+    kinds: [],
     outputJsonPath: null,
     outputMarkdownPath: null,
   };
@@ -58,6 +59,11 @@ export function parseArgs(argv) {
       result.replayBatchPath = argv[index];
       continue;
     }
+    if (value === '--kind') {
+      index += 1;
+      result.kinds.push(argv[index]);
+      continue;
+    }
     if (value === '--output-json') {
       index += 1;
       result.outputJsonPath = argv[index];
@@ -69,13 +75,6 @@ export function parseArgs(argv) {
       continue;
     }
     throw new Error(`Unknown argument: ${value}`);
-  }
-
-  const artifactSources = [result.bundlePath, result.codexBatchPath, result.replayBatchPath].filter(
-    Boolean,
-  );
-  if (artifactSources.length > 1) {
-    throw new Error('Provide only one of --bundle, --codex-batch, or --replay-batch');
   }
 
   return result;
@@ -107,30 +106,47 @@ function buildToolArgs(tool, limit) {
   return {};
 }
 
-function extractSamples(tool, payload, limit) {
-  const rawSamples = selectRawSamples(tool, payload);
+function selectCheckPayloads(bundle) {
+  const payloads = [];
+  if (bundle.initial_check) {
+    payloads.push({ snapshot_label: 'initial_check', payload: bundle.initial_check });
+  }
+  for (const snapshot of bundle.snapshots ?? []) {
+    if (snapshot.check) {
+      payloads.push({
+        snapshot_label: snapshot.label ?? 'snapshot',
+        payload: snapshot.check,
+      });
+    }
+  }
+  if (bundle.final_check) {
+    payloads.push({ snapshot_label: 'final_check', payload: bundle.final_check });
+  }
 
-  return rawSamples.slice(0, Math.max(limit, 1)).map((sample, index) => ({
-    review_id: `${tool}-${index + 1}`,
-    kind: sample.kind ?? null,
-    scope: sample.scope ?? sample.file ?? null,
-    severity: sample.severity ?? null,
-    summary: sample.summary ?? sample.message ?? null,
-    evidence: sample.evidence ?? [],
-    classification: null,
-    notes: '',
-    action: '',
-  }));
+  return payloads;
 }
 
 function selectArtifactPayload(tool, bundle) {
+  if (tool === 'check') {
+    const payloads = selectCheckPayloads(bundle);
+    for (const payloadEntry of payloads) {
+      if (selectRawSamples(tool, payloadEntry.payload).length > 0) {
+        return payloadEntry;
+      }
+    }
+
+    return payloads.at(-1) ?? null;
+  }
   if (tool === 'findings') {
-    return bundle.findings ?? null;
+    return bundle.findings ? { snapshot_label: 'findings', payload: bundle.findings } : null;
   }
   if (tool === 'session_end') {
-    return bundle.session_end ?? null;
+    return bundle.session_end
+      ? { snapshot_label: 'session_end', payload: bundle.session_end }
+      : null;
   }
-  return bundle.initial_check ?? bundle.final_check ?? null;
+
+  return null;
 }
 
 async function loadBundleArtifact(bundlePath) {
@@ -140,7 +156,26 @@ async function loadBundleArtifact(bundlePath) {
     source_paths: [path.resolve(bundlePath)],
     repo_root: bundle.repo_root ?? bundle.source_root ?? null,
     label: sourceLabelFromPath(bundlePath),
-    bundles: [bundle],
+    entries: [
+      {
+        bundle,
+        bundle_path: path.resolve(bundlePath),
+        output_dir: path.dirname(path.resolve(bundlePath)),
+        source_kind: 'bundle',
+        source_label:
+          bundle.task_label ??
+          bundle.task_id ??
+          bundle.replay_id ??
+          bundle.replay?.commit ??
+          sourceLabelFromPath(bundlePath),
+        task_id: bundle.task_id ?? null,
+        task_label: bundle.task_label ?? null,
+        replay_id: bundle.replay_id ?? null,
+        commit: bundle.replay?.commit ?? null,
+        expected_signal_kinds: bundle.expected_signal_kinds ?? [],
+        expected_fix_surface: bundle.expected_fix_surface ?? null,
+      },
+    ],
   };
 }
 
@@ -148,8 +183,8 @@ async function loadBatchArtifact(batchPath, kind) {
   const batch = await loadJson(batchPath);
   const batchDir = path.dirname(path.resolve(batchPath));
   const bundleFileName = kind === 'codex-batch' ? 'codex-session.json' : 'diff-replay.json';
-  const bundles = [];
   const bundlePaths = [];
+  const entries = [];
 
   for (const result of batch.results ?? []) {
     const outputDir = result.output_dir ? path.resolve(batchDir, result.output_dir) : null;
@@ -163,42 +198,120 @@ async function loadBatchArtifact(batchPath, kind) {
     }
 
     bundlePaths.push(bundlePath);
-    bundles.push(await loadJson(bundlePath));
+    const bundle = await loadJson(bundlePath);
+    entries.push({
+      bundle,
+      bundle_path: bundlePath,
+      output_dir: outputDir,
+      source_kind: kind,
+      source_label:
+        result.task_label ??
+        result.task_id ??
+        result.replay_id ??
+        result.commit ??
+        bundle.task_label ??
+        bundle.task_id ??
+        bundle.replay_id ??
+        bundle.replay?.commit ??
+        sourceLabelFromPath(bundlePath),
+      task_id: result.task_id ?? bundle.task_id ?? null,
+      task_label: result.task_label ?? bundle.task_label ?? null,
+      replay_id: result.replay_id ?? bundle.replay_id ?? null,
+      commit: result.commit ?? bundle.replay?.commit ?? null,
+      expected_signal_kinds: result.expected_signal_kinds ?? bundle.expected_signal_kinds ?? [],
+      expected_fix_surface: result.expected_fix_surface ?? bundle.expected_fix_surface ?? null,
+    });
   }
 
   return {
     source_mode: kind,
     source_paths: [path.resolve(batchPath), ...bundlePaths],
-    repo_root: batch.repo_root ?? bundles[0]?.repo_root ?? null,
+    repo_root: batch.repo_root ?? entries[0]?.bundle?.repo_root ?? null,
     label: sourceLabelFromPath(batchPath),
-    bundles,
+    entries,
   };
 }
 
 export async function loadArtifactInput(args) {
+  const sources = [];
   if (args.bundlePath) {
-    return loadBundleArtifact(args.bundlePath);
+    sources.push(await loadBundleArtifact(args.bundlePath));
   }
   if (args.codexBatchPath) {
-    return loadBatchArtifact(args.codexBatchPath, 'codex-batch');
+    sources.push(await loadBatchArtifact(args.codexBatchPath, 'codex-batch'));
   }
   if (args.replayBatchPath) {
-    return loadBatchArtifact(args.replayBatchPath, 'replay-batch');
+    sources.push(await loadBatchArtifact(args.replayBatchPath, 'replay-batch'));
   }
 
-  return null;
+  if (sources.length === 0) {
+    return null;
+  }
+  if (sources.length === 1) {
+    return sources[0];
+  }
+
+  return {
+    source_mode: 'combined',
+    source_paths: [...new Set(sources.flatMap((source) => source.source_paths))],
+    repo_root: sources[0]?.repo_root ?? null,
+    label: sources.map((source) => source.label).join('-'),
+    entries: sources.flatMap((source) => source.entries),
+  };
 }
 
-function buildPacketSamplesFromBundles(tool, bundles, limit) {
+function extractSamples(tool, payloadEntry, sourceEntry) {
+  const rawSamples = selectRawSamples(tool, payloadEntry.payload);
+
+  return rawSamples.map((sample, index) => ({
+    review_id: `${tool}-${index + 1}`,
+    rank: index + 1,
+    kind: sample.kind ?? null,
+    report_bucket: tool === 'check' ? 'actions' : tool,
+    scope: sample.scope ?? sample.file ?? null,
+    severity: sample.severity ?? null,
+    summary: sample.summary ?? sample.message ?? null,
+    evidence: sample.evidence ?? [],
+    source_kind: sourceEntry.source_kind,
+    source_label: sourceEntry.source_label,
+    snapshot_label: payloadEntry.snapshot_label,
+    task_id: sourceEntry.task_id,
+    task_label: sourceEntry.task_label,
+    replay_id: sourceEntry.replay_id,
+    commit: sourceEntry.commit,
+    output_dir: sourceEntry.output_dir,
+    expected_signal_kinds: sourceEntry.expected_signal_kinds,
+    expected_fix_surface: sourceEntry.expected_fix_surface,
+    classification: null,
+    notes: '',
+    action: '',
+  }));
+}
+
+function filterSamplesByKinds(samples, kinds) {
+  const normalizedKinds = new Set(kinds ?? []);
+  if (normalizedKinds.size === 0) {
+    return samples;
+  }
+
+  return samples.filter((sample) => normalizedKinds.has(sample.kind));
+}
+
+function limitSamples(samples, limit) {
+  return samples.slice(0, Math.max(limit, 1));
+}
+
+function buildPacketSamplesFromEntries(tool, entries, limit, kinds) {
   const samples = [];
-  for (const bundle of bundles) {
-    const payload = selectArtifactPayload(tool, bundle);
-    if (!payload) {
+
+  for (const entry of entries) {
+    const payloadEntry = selectArtifactPayload(tool, entry.bundle);
+    if (!payloadEntry) {
       continue;
     }
 
-    const bundleSamples = extractSamples(tool, payload, limit);
-    for (const sample of bundleSamples) {
+    const entrySamples = filterSamplesByKinds(extractSamples(tool, payloadEntry, entry), kinds);
+    for (const sample of entrySamples) {
       samples.push(sample);
       if (samples.length >= Math.max(limit, 1)) {
         return samples;
@@ -212,25 +325,113 @@ function buildPacketSamplesFromBundles(tool, bundles, limit) {
 function renumberSamples(tool, samples) {
   return samples.map((sample, index) => ({
     ...sample,
+    rank: index + 1,
     review_id: `${tool}-${index + 1}`,
   }));
+}
+
+function buildPacketSummary(samples) {
+  const kindCounts = new Map();
+
+  for (const sample of samples) {
+    const key = sample.kind ?? 'unknown';
+    kindCounts.set(key, (kindCounts.get(key) ?? 0) + 1);
+  }
+
+  return {
+    sample_count: samples.length,
+    kind_counts: [...kindCounts.entries()]
+      .map(([kind, count]) => ({ kind, count }))
+      .sort((left, right) => right.count - left.count || left.kind.localeCompare(right.kind)),
+  };
+}
+
+function buildPacket(args, repoRootValue, sourceMode, sourcePaths, samples) {
+  return {
+    schema_version: 1,
+    generated_at: new Date().toISOString(),
+    repo_root: repoRootValue,
+    tool: args.tool,
+    source_mode: sourceMode,
+    source_paths: sourcePaths,
+    filters: {
+      kinds: args.kinds,
+    },
+    summary: buildPacketSummary(samples),
+    samples,
+  };
+}
+
+function createRepoHeadEntry() {
+  return {
+    source_kind: 'repo-head',
+    source_label: 'repo-head',
+    task_id: null,
+    task_label: null,
+    replay_id: null,
+    commit: null,
+    output_dir: null,
+    expected_signal_kinds: [],
+    expected_fix_surface: null,
+  };
 }
 
 export function buildPacketFromArtifactInput(args, source) {
   const repoRootValue = source.repo_root ?? args.repoRoot;
   const samples = renumberSamples(
     args.tool,
-    buildPacketSamplesFromBundles(args.tool, source.bundles, args.limit),
+    buildPacketSamplesFromEntries(args.tool, source.entries, args.limit, args.kinds),
   );
 
-  return {
-    schema_version: 1,
-    generated_at: new Date().toISOString(),
-    repo_root: repoRootValue,
-    tool: args.tool,
-    source_mode: source.source_mode,
-    source_paths: source.source_paths,
+  return buildPacket(
+    args,
+    repoRootValue,
+    source.source_mode,
+    source.source_paths,
     samples,
+  );
+}
+
+export function buildPacketFromRepoHeadPayload(args, payload) {
+  const repoHeadEntry = createRepoHeadEntry();
+  const samples = renumberSamples(
+    args.tool,
+    limitSamples(
+      filterSamplesByKinds(
+        extractSamples(
+          args.tool,
+          { snapshot_label: 'repo_head', payload },
+          repoHeadEntry,
+        ),
+        args.kinds,
+      ),
+      args.limit,
+    ),
+  );
+
+  return buildPacket(args, args.repoRoot, 'repo-head', [], samples);
+}
+
+function buildVerdictTemplate(packet, sourceReport) {
+  return {
+    repo: packet.repo_root ? path.basename(packet.repo_root) : 'unknown',
+    captured_at: packet.generated_at,
+    source_report: sourceReport,
+    source_feedback:
+      'Replace the placeholder verdict values below after reviewing the packet. Do not use this template as scored evidence until it has been curated by a reviewer.',
+    verdicts: packet.samples.map((sample) => ({
+      scope: sample.scope ?? sample.source_label ?? 'unknown-scope',
+      kind: sample.kind ?? 'unknown-kind',
+      report_bucket: sample.report_bucket,
+      category: 'useful',
+      expected_trust_tier: sample.severity === 'high' ? 'trusted' : 'watchpoint',
+      expected_presentation_class: 'review_required',
+      expected_leverage_class: sample.expected_fix_surface ?? 'local_refactor_target',
+      expected_summary_presence: 'section_present',
+      preferred_over: [],
+      engineer_note: sample.summary ?? 'Replace with reviewer rationale.',
+      expected_v2_behavior: `Confirm the ranking and presentation for ${sample.kind ?? 'this finding'}.`,
+    })),
   };
 }
 
@@ -251,6 +452,9 @@ export function formatPacketMarkdown(packet) {
   lines.push(`- repo root: \`${packet.repo_root}\``);
   lines.push(`- tool: \`${packet.tool}\``);
   lines.push(`- source mode: \`${packet.source_mode ?? 'repo-head'}\``);
+  if (Array.isArray(packet.filters?.kinds) && packet.filters.kinds.length > 0) {
+    lines.push(`- filtered kinds: \`${packet.filters.kinds.join('`, `')}\``);
+  }
   if (Array.isArray(packet.source_paths) && packet.source_paths.length > 0) {
     lines.push(`- source path(s):`);
     for (const sourcePath of packet.source_paths) {
@@ -259,12 +463,15 @@ export function formatPacketMarkdown(packet) {
   }
   lines.push(`- generated at: \`${packet.generated_at}\``);
   lines.push(`- sample count: ${packet.samples.length}`);
+  if (Array.isArray(packet.summary?.kind_counts) && packet.summary.kind_counts.length > 0) {
+    lines.push(`- kind counts: ${packet.summary.kind_counts.map((entry) => `${entry.kind}=${entry.count}`).join(', ')}`);
+  }
   lines.push('');
-  lines.push('| Review ID | Kind | Scope | Severity | Summary | Classification | Action |');
-  lines.push('| --- | --- | --- | --- | --- | --- | --- |');
+  lines.push('| Review ID | Kind | Source | Snapshot | Rank | Scope | Severity | Summary | Classification | Action |');
+  lines.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
   for (const sample of packet.samples) {
     lines.push(
-      `| \`${escapeMarkdownCell(sample.review_id)}\` | \`${escapeMarkdownCell(sample.kind ?? 'unknown')}\` | \`${escapeMarkdownCell(sample.scope ?? 'unknown')}\` | \`${escapeMarkdownCell(sample.severity ?? 'unknown')}\` | ${escapeMarkdownCell(sample.summary ?? '')} |  |  |`,
+      `| \`${escapeMarkdownCell(sample.review_id)}\` | \`${escapeMarkdownCell(sample.kind ?? 'unknown')}\` | \`${escapeMarkdownCell(sample.source_label ?? sample.source_kind ?? 'unknown')}\` | \`${escapeMarkdownCell(sample.snapshot_label ?? 'n/a')}\` | ${escapeMarkdownCell(sample.rank ?? 'n/a')} | \`${escapeMarkdownCell(sample.scope ?? 'unknown')}\` | \`${escapeMarkdownCell(sample.severity ?? 'unknown')}\` | ${escapeMarkdownCell(sample.summary ?? '')} |  |  |`,
     );
   }
   lines.push('');
@@ -276,7 +483,7 @@ async function buildRepoHeadPacket(args) {
   const pluginHome = await prepareTypeScriptBenchmarkHome({ tempRoot });
   const session = createMcpSession({
     binPath: sentruxBin,
-    repoRoot,
+    repoRoot: args.repoRoot,
     homeOverride: pluginHome,
     skipGrammarDownload: process.env.SENTRUX_SKIP_GRAMMAR_DOWNLOAD ?? '1',
     requestTimeoutMs: Number(process.env.REQUEST_TIMEOUT_MS ?? '120000'),
@@ -290,19 +497,19 @@ async function buildRepoHeadPacket(args) {
     const payload = (
       await runTool(session, args.tool, buildToolArgs(args.tool, args.limit))
     ).payload;
-    return {
-      schema_version: 1,
-      generated_at: new Date().toISOString(),
-      repo_root: args.repoRoot,
-      tool: args.tool,
-      source_mode: 'repo-head',
-      source_paths: [],
-      samples: extractSamples(args.tool, payload, args.limit),
-    };
+    return buildPacketFromRepoHeadPayload(args, payload);
   } finally {
     await session.close();
     await rm(tempRoot, { recursive: true, force: true });
   }
+}
+
+function defaultPacketOutputName(artifactInput, tool) {
+  if (artifactInput) {
+    return `${artifactInput.label}-${tool}-review-packet`;
+  }
+
+  return `${tool}-review-packet`;
 }
 
 async function main() {
@@ -311,24 +518,26 @@ async function main() {
   const packet = artifactInput
     ? buildPacketFromArtifactInput(args, artifactInput)
     : await buildRepoHeadPacket(args);
+  const outputName = defaultPacketOutputName(artifactInput, args.tool);
   const jsonPath =
     args.outputJsonPath ??
-    path.join(
-      repoRoot,
-      'docs/v2/examples',
-      `${artifactInput ? `${artifactInput.label}-${args.tool}-review-packet` : `${args.tool}-review-packet`}.json`,
-    );
+    path.join(repoRoot, 'docs/v2/examples', `${outputName}.json`);
   const markdownPath =
     args.outputMarkdownPath ??
-    path.join(
-      repoRoot,
-      'docs/v2/examples',
-      `${artifactInput ? `${artifactInput.label}-${args.tool}-review-packet` : `${args.tool}-review-packet`}.md`,
-    );
+    path.join(repoRoot, 'docs/v2/examples', `${outputName}.md`);
+  const verdictTemplatePath = path.join(
+    path.dirname(jsonPath),
+    `${path.parse(jsonPath).name}-verdicts.template.json`,
+  );
   await mkdir(path.dirname(jsonPath), { recursive: true });
   await writeFile(jsonPath, `${JSON.stringify(packet, null, 2)}\n`, 'utf8');
   await mkdir(path.dirname(markdownPath), { recursive: true });
   await writeFile(markdownPath, formatPacketMarkdown(packet), 'utf8');
+  await writeFile(
+    verdictTemplatePath,
+    `${JSON.stringify(buildVerdictTemplate(packet, markdownPath), null, 2)}\n`,
+    'utf8',
+  );
   console.log(`Wrote ${packet.samples.length} review sample(s) for ${args.tool}.`);
 }
 

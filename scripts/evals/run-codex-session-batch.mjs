@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { mergeSessionTelemetrySummaries } from '../lib/session-telemetry.mjs';
 import { getSignalCohort, loadSignalCohortManifest } from '../lib/signal-cohorts.mjs';
 import {
@@ -101,21 +101,100 @@ function buildTaskSessionOptions(task, manifest, manifestDir, sourceRoot, output
     analysisMode: manifest.analysis_mode ?? 'working_tree',
     model: manifest.model ?? null,
     timeoutMs: manifest.timeout_ms ?? Number(process.env.EVAL_TIMEOUT_MS ?? '1800000'),
+    idleTimeoutMs:
+      manifest.idle_timeout_ms ?? Number(process.env.EVAL_IDLE_TIMEOUT_MS ?? '600000'),
     pollMs: manifest.poll_ms ?? Number(process.env.EVAL_POLL_MS ?? '4000'),
     outputDir: path.join(outputDir, task.task_id ?? `task-${Date.now()}`),
     codexBin: manifest.codex_bin ?? process.env.CODEX_BIN ?? 'codex',
   };
 }
 
-function buildTaskResult(bundle) {
+function buildTaskResult(bundle, taskOptions) {
   return {
-    task_id: bundle.task_id,
-    task_label: bundle.task_label,
-    tags: bundle.tags,
-    expected_signal_kinds: bundle.expected_signal_kinds,
+    status: 'completed',
+    task_id: taskOptions.taskId ?? bundle.task_id ?? null,
+    task_label: taskOptions.taskLabel ?? bundle.task_label ?? null,
+    tags: taskOptions.tags,
+    expected_signal_kinds: taskOptions.expectedSignalKinds,
+    expected_fix_surface: taskOptions.expectedFixSurface,
     telemetry_summary: bundle.telemetry_summary,
-    output_dir: path.dirname(bundle.prompt_path),
+    output_dir: taskOptions.outputDir,
     outcome: summarizeBundleOutcome(bundle),
+  };
+}
+
+function buildTaskFailure(taskOptions, error, bundle = null) {
+  return {
+    status: bundle?.status ?? 'failed',
+    task_id: taskOptions.taskId ?? bundle?.task_id ?? null,
+    task_label: taskOptions.taskLabel ?? bundle?.task_label ?? null,
+    tags: taskOptions.tags,
+    expected_signal_kinds: taskOptions.expectedSignalKinds,
+    expected_fix_surface: taskOptions.expectedFixSurface,
+    telemetry_summary: bundle?.telemetry_summary ?? null,
+    output_dir: taskOptions.outputDir,
+    outcome: bundle ? summarizeBundleOutcome(bundle) : null,
+    provider_exit_code: bundle?.provider_run?.exit_code ?? null,
+    provider_timed_out: bundle?.provider_run?.timed_out ?? false,
+    provider_idle_timed_out: bundle?.provider_run?.idle_timed_out ?? false,
+    provider_timeout_phase: bundle?.provider_timeout_phase ?? null,
+    error_message: error instanceof Error ? error.message : String(error),
+  };
+}
+
+function bundleCompleted(bundle) {
+  return (bundle?.status ?? 'completed') === 'completed';
+}
+
+function telemetrySummaryFromTaskRun(taskRun) {
+  if (taskRun?.type === 'result') {
+    return taskRun.result?.telemetry_summary ?? null;
+  }
+  if (taskRun?.type === 'failure') {
+    return taskRun.failure?.telemetry_summary ?? null;
+  }
+
+  return null;
+}
+
+function telemetrySourcePathFromTaskRun(taskRun) {
+  const telemetrySummary = telemetrySummaryFromTaskRun(taskRun);
+  if (!telemetrySummary) {
+    return null;
+  }
+
+  const outputDir =
+    taskRun?.type === 'result' ? taskRun.result?.output_dir : taskRun.failure?.output_dir;
+  if (!outputDir) {
+    return null;
+  }
+
+  return path.join(outputDir, 'agent-session-events.jsonl');
+}
+
+function stripTaskTelemetry(entry) {
+  const { telemetry_summary, ...rest } = entry;
+  return rest;
+}
+
+export function summarizeTaskRuns(taskRuns, sourceRoot) {
+  const taskResults = taskRuns
+    .filter((entry) => entry?.type === 'result')
+    .map((entry) => entry.result);
+  const taskFailures = taskRuns
+    .filter((entry) => entry?.type === 'failure')
+    .map((entry) => entry.failure);
+  const summaries = taskRuns.map(telemetrySummaryFromTaskRun).filter(Boolean);
+  const sourcePaths = taskRuns.map(telemetrySourcePathFromTaskRun).filter(Boolean);
+  const mergedSummary = mergeSessionTelemetrySummaries(summaries, {
+    repoRoot: sourceRoot,
+    sourcePaths,
+  });
+
+  return {
+    taskResults,
+    taskFailures,
+    mergedSummary,
   };
 }
 
@@ -130,22 +209,44 @@ async function main() {
     args.outputDir ?? defaultBatchOutputDir(sourceRoot, 'codex-batch', manifest.batch_id ?? cohort.cohort_id),
   );
 
-  const taskResults = await runWithConcurrency(
+  const taskRuns = await runWithConcurrency(
     manifest.tasks ?? [],
     args.concurrency,
     async (task) => {
-      const bundle = await runCodexSession(
-        buildTaskSessionOptions(task, manifest, manifestDir, sourceRoot, outputDir),
+      const taskOptions = buildTaskSessionOptions(
+        task,
+        manifest,
+        manifestDir,
+        sourceRoot,
+        outputDir,
       );
-      return buildTaskResult(bundle);
+      console.log(`Running Codex batch task ${taskOptions.taskId ?? taskOptions.taskLabel ?? 'unknown-task'}`);
+      try {
+        const bundle = await runCodexSession(taskOptions);
+        if (!bundleCompleted(bundle)) {
+          return {
+            type: 'failure',
+            failure: buildTaskFailure(
+              taskOptions,
+              new Error(`Provider run ended with status ${bundle.status}`),
+              bundle,
+            ),
+          };
+        }
+
+        return {
+          type: 'result',
+          result: buildTaskResult(bundle, taskOptions),
+        };
+      } catch (error) {
+        return {
+          type: 'failure',
+          failure: buildTaskFailure(taskOptions, error),
+        };
+      }
     },
   );
-
-  const summaries = taskResults.map((result) => result.telemetry_summary);
-  const mergedSummary = mergeSessionTelemetrySummaries(summaries, {
-    repoRoot: sourceRoot,
-    sourcePaths: taskResults.map((result) => path.join(result.output_dir, 'agent-session-events.jsonl')),
-  });
+  const { taskResults, taskFailures, mergedSummary } = summarizeTaskRuns(taskRuns, sourceRoot);
   const batchResult = {
     schema_version: 1,
     generated_at: nowIso(),
@@ -154,8 +255,11 @@ async function main() {
     repo_root: sourceRoot,
     cohort_id: cohort.cohort_id,
     active_signal_kinds: cohort.signals.map((signal) => signal.signal_kind),
-    task_count: taskResults.length,
-    results: taskResults.map(({ telemetry_summary, ...result }) => result),
+    task_count: (manifest.tasks ?? []).length,
+    success_count: taskResults.length,
+    failure_count: taskFailures.length,
+    results: taskResults.map(stripTaskTelemetry),
+    failures: taskFailures.map(stripTaskTelemetry),
     telemetry_summary: mergedSummary,
   };
 
@@ -163,11 +267,15 @@ async function main() {
   await writeJson(path.join(outputDir, 'session-telemetry-summary.json'), mergedSummary);
 
   console.log(
-    `Captured ${taskResults.length} Codex task session(s) for cohort ${cohort.cohort_id}. Artifacts written to ${outputDir}`,
+    `Captured ${taskResults.length} successful Codex task session(s) with ${taskFailures.length} failure(s) for cohort ${cohort.cohort_id}. Artifacts written to ${outputDir}`,
   );
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exitCode = 1;
-});
+const invokedPath = process.argv[1] ? pathToFileURL(path.resolve(process.argv[1])).href : null;
+
+if (invokedPath === import.meta.url) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+  });
+}
