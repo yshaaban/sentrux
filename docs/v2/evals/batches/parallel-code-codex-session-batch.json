@@ -6,18 +6,11 @@
   "repo_label": "parallel-code",
   "rules_source": "../../examples/parallel-code.rules.toml",
   "analysis_mode": "working_tree",
-  "timeout_ms": 1800000,
+  "timeout_ms": 420000,
+  "idle_timeout_ms": 90000,
   "poll_ms": 4000,
   "codex_bin": "codex",
   "tasks": [
-    {
-      "task_id": "parallel-code-exhaustiveness-hardening",
-      "task_label": "Harden a domain exhaustiveness seam",
-      "prompt_file": "../prompts/parallel-code/exhaustiveness-hardening.md",
-      "tags": ["calibration", "exhaustiveness"],
-      "expected_signal_kinds": ["closed_domain_exhaustiveness"],
-      "expected_fix_surface": "TypeScript exhaustiveness seam"
-    },
     {
       "task_id": "parallel-code-raw-read-guardrail",
       "task_label": "Tighten a raw-read boundary",
@@ -27,44 +20,12 @@
       "expected_fix_surface": "explicit rule violation"
     },
     {
-      "task_id": "parallel-code-test-coverage-gap",
-      "task_label": "Close a missing test gap",
-      "prompt_file": "../prompts/parallel-code/test-coverage-gap.md",
-      "tags": ["calibration", "tests"],
-      "expected_signal_kinds": ["missing_test_coverage"],
-      "expected_fix_surface": "test coverage"
-    },
-    {
-      "task_id": "parallel-code-large-file-tidy",
-      "task_label": "Reduce a large-file maintenance hotspot",
-      "prompt_file": "../prompts/parallel-code/large-file-tidy.md",
-      "tags": ["calibration", "structural"],
-      "expected_signal_kinds": ["large_file"],
-      "expected_fix_surface": "structural debt"
-    },
-    {
-      "task_id": "parallel-code-clone-cleanup",
-      "task_label": "Collapse a fresh duplicate path",
-      "prompt_file": "../prompts/parallel-code/clone-cleanup.md",
-      "tags": ["calibration", "clone"],
-      "expected_signal_kinds": ["session_introduced_clone"],
-      "expected_fix_surface": "duplicate helper cleanup"
-    },
-    {
-      "task_id": "parallel-code-clone-followthrough",
-      "task_label": "Sync an edited clone family",
-      "prompt_file": "../prompts/parallel-code/clone-followthrough.md",
-      "tags": ["calibration", "clone", "followthrough"],
-      "expected_signal_kinds": ["clone_propagation_drift"],
-      "expected_fix_surface": "duplicate followthrough"
-    },
-    {
-      "task_id": "parallel-code-propagation-hardening",
-      "task_label": "Close an explicit propagation gap",
-      "prompt_file": "../prompts/parallel-code/propagation-hardening.md",
-      "tags": ["calibration", "propagation"],
-      "expected_signal_kinds": ["incomplete_propagation"],
-      "expected_fix_surface": "contract surface propagation"
+      "task_id": "parallel-code-exhaustiveness-hardening",
+      "task_label": "Harden a domain exhaustiveness seam",
+      "prompt_file": "../prompts/parallel-code/exhaustiveness-hardening.md",
+      "tags": ["calibration", "exhaustiveness"],
+      "expected_signal_kinds": ["closed_domain_exhaustiveness"],
+      "expected_fix_surface": "TypeScript exhaustiveness seam"
     }
   ]
 }

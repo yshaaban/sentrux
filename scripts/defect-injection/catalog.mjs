@@ -33,10 +33,17 @@ async function replaceInFile(workRoot, relativePath, matcher, replacement) {
   return targetPath;
 }
 
-async function appendToFiles(workRoot, patches) {
+async function writeTextFile(workRoot, relativePath, text) {
+  const targetPath = path.join(workRoot, relativePath);
+  await mkdir(path.dirname(targetPath), { recursive: true });
+  await writeFile(targetPath, text, 'utf8');
+  return targetPath;
+}
+
+async function writeFiles(workRoot, patches) {
   const injectedPaths = [];
   for (const patch of patches) {
-    injectedPaths.push(await appendToFile(workRoot, patch.path, patch.text));
+    injectedPaths.push(await writeTextFile(workRoot, patch.path, patch.text));
   }
   return injectedPaths;
 }
@@ -71,24 +78,6 @@ function buildRemoteKillHandler(commandName, commandKind = null) {
   ].join('\n');
 }
 
-function buildDuplicateTextLineHelpers() {
-  return [
-    '',
-    'function roundMsCopy(value: number): number {',
-    '  return Number(value.toFixed(1));',
-    '}',
-    '',
-    'function countTextLinesCopy(value: string): number {',
-    '  if (value.length === 0) {',
-    '    return 0;',
-    '  }',
-    '',
-    '  return value.split(/\\r?\\n/).filter((line) => line.length > 0).length;',
-    '}',
-    '',
-  ].join('\n');
-}
-
 function buildForbiddenRawReadSnippet() {
   return [
     '',
@@ -106,6 +95,23 @@ function buildMissingTestSource() {
     '}',
     '',
   ].join('\n');
+}
+
+async function injectTaskGitStatusOwnershipRegression(workRoot) {
+  const relativePath = 'src/app/task-presentation-status.ts';
+  await replaceInFile(
+    workRoot,
+    relativePath,
+    "import { store } from '../store/state';\n",
+    "import { setStore, store } from '../store/state';\n",
+  );
+
+  return replaceInFile(
+    workRoot,
+    relativePath,
+    '  const gitStatus = store.taskGitStatus[taskId];\n',
+    "  const gitStatus = store.taskGitStatus[taskId];\n  setStore('taskGitStatus', taskId, gitStatus);\n",
+  );
 }
 
 function buildServerStateBootstrapPayloadMapLines() {
@@ -158,20 +164,111 @@ function buildIncompletePropagationCategoryPatch() {
   };
 }
 
-function buildCycleImportSnippet(importPath, importedName) {
+function buildSelfTypeScriptFixturePackageJson(name) {
+  return [
+    '{',
+    `  "name": "${name}",`,
+    '  "type": "module"',
+    '}',
+  ].join('\n');
+}
+
+function buildSelfTypeScriptFixtureTsconfig() {
+  return [
+    '{',
+    '  "compilerOptions": {',
+    '    "module": "esnext",',
+    '    "target": "es2020",',
+    '    "strict": true',
+    '  },',
+    '  "include": ["src/**/*.ts", "src/**/*.tsx"]',
+    '}',
+  ].join('\n');
+}
+
+function buildSelfForbiddenRawReadRules() {
   return [
     '',
-    `import { ${importedName} } from '${importPath}';`,
+    '[[concept]]',
+    'id = "task_presentation_status"',
+    'kind = "projection"',
+    'anchors = ["src/app/task-presentation-status.ts::getTaskDotStatus"]',
+    'authoritative_inputs = ["src/store/core.ts::store.taskGitStatus"]',
+    'canonical_accessors = [',
+    '  "src/app/task-presentation-status.ts::getTaskDotStatus",',
+    '  "src/app/task-presentation-status.ts::getTaskDotStatusLabel",',
+    ']',
+    'forbid_raw_reads = ["src/components/**::store.taskGitStatus"]',
     '',
   ].join('\n');
 }
 
-function buildRendererBoundaryViolationSnippet() {
+function buildSelfTaskStatusStoreSource() {
+  return ['export const store = { taskGitStatus: "idle" };', ''].join('\n');
+}
+
+function buildSelfTaskPresentationStatusSource() {
+  return [
+    "import { store } from '../store/core';",
+    '',
+    'export function getTaskDotStatus(): string {',
+    '  return store.taskGitStatus;',
+    '}',
+    '',
+    'export function getTaskDotStatusLabel(): string {',
+    '  return getTaskDotStatus();',
+    '}',
+    '',
+  ].join('\n');
+}
+
+function buildSelfSidebarTaskRowSource() {
+  return [
+    "import { store } from '../store/core';",
+    '',
+    'export function SidebarTaskRow(): string {',
+    '  return store.taskGitStatus;',
+    '}',
+    '',
+  ].join('\n');
+}
+
+function buildSelfIncompletePropagationRules() {
   return [
     '',
-    'use crate::analysis::scanner;',
+    '[[contract]]',
+    'id = "defect_injection_toolchain"',
+    'categories_symbol = "scripts/defect-injection/catalog.mjs::createDogfoodCatalog"',
+    'registry_symbol = "scripts/defect-injection/run-injection.mjs::runDefectInjection"',
+    'required_symbols = ["scripts/defect-injection/report.mjs::buildInjectionReport"]',
+    'required_files = ["scripts/tests/defect-injection.test.mjs"]',
     '',
-    'const _: fn(&str) -> bool = scanner::common::is_probably_generated_path;',
+  ].join('\n');
+}
+
+function buildSelfSessionCloneSource() {
+  return [
+    'export function buildAccessUrl(host: string, port: number, token: string): string {',
+    '  return `http://${host}:${port}?token=${token}`;',
+    '}',
+    '',
+    'export function buildOptionalAccessUrl(',
+    '  host: string | null,',
+    '  port: number,',
+    '  token: string,',
+    '): string | null {',
+    '  if (!host) return null;',
+    '  return buildAccessUrl(host, port, token);',
+    '}',
+    '',
+  ].join('\n');
+}
+
+function buildSelfSessionCloneDistractor() {
+  return [
+    'export function buildTaskLabel(status: string): string {',
+    "  return status === 'done' ? 'done' : 'todo';",
+    '}',
     '',
   ].join('\n');
 }
@@ -394,6 +491,48 @@ function buildParallelCodeCatalog() {
       },
     }),
     createDefect({
+      id: 'multi_writer_concept',
+      title: 'Write task git status from task-presentation-status.ts',
+      repoLabel: 'parallel-code',
+      targetPath: 'src/app/task-presentation-status.ts',
+      signalKind: 'multi_writer_concept',
+      signalFamily: 'rules',
+      promotionStatus: 'watchpoint',
+      checkSupport: {
+        supported: true,
+        gate: 'fail',
+        kinds: ['multi_writer_concept'],
+      },
+      gateKinds: ['multi_writer_concept'],
+      findingKinds: ['multi_writer_concept'],
+      sessionEndKinds: ['multi_writer_concept'],
+      expectedGateDecision: 'fail',
+      async inject(workRoot) {
+        return injectTaskGitStatusOwnershipRegression(workRoot);
+      },
+    }),
+    createDefect({
+      id: 'writer_outside_allowlist',
+      title: 'Write task git status from a non-owner presentation module',
+      repoLabel: 'parallel-code',
+      targetPath: 'src/app/task-presentation-status.ts',
+      signalKind: 'writer_outside_allowlist',
+      signalFamily: 'rules',
+      promotionStatus: 'watchpoint',
+      checkSupport: {
+        supported: true,
+        gate: 'fail',
+        kinds: ['writer_outside_allowlist'],
+      },
+      gateKinds: ['writer_outside_allowlist'],
+      findingKinds: ['writer_outside_allowlist'],
+      sessionEndKinds: ['writer_outside_allowlist'],
+      expectedGateDecision: 'fail',
+      async inject(workRoot) {
+        return injectTaskGitStatusOwnershipRegression(workRoot);
+      },
+    }),
+    createDefect({
       id: 'missing_test',
       title: 'Add a new production helper without a sibling test',
       repoLabel: 'parallel-code',
@@ -421,75 +560,154 @@ function buildParallelCodeCatalog() {
   ];
 }
 
+function createDogfoodLargeFileDefect({
+  id,
+  title,
+  targetPath,
+  label,
+}) {
+  return createDefect({
+    id,
+    title,
+    repoLabel: 'sentrux',
+    targetPath,
+    signalKind: 'large_file',
+    signalFamily: 'structural',
+    blockingIntent: 'watchpoint',
+    checkSupport: {
+      supported: true,
+      gate: 'warn',
+      kinds: ['large_file'],
+    },
+    gateKinds: ['large_file'],
+    findingKinds: ['large_file'],
+    sessionEndKinds: ['large_file'],
+    async inject(workRoot) {
+      return appendToFile(workRoot, targetPath, buildCommentBlock(label, 120));
+    },
+  });
+}
+
 function buildDogfoodCatalog() {
   return [
-    createDefect({
+    createDogfoodLargeFileDefect({
       id: 'self_large_file',
       title: 'Append 120 lines to the benchmark harness',
-      repoLabel: 'sentrux',
       targetPath: 'scripts/lib/benchmark-harness.mjs',
-      signalKind: 'large_file',
-      signalFamily: 'structural',
+      label: 'self benchmark-harness large-file growth',
+    }),
+    createDefect({
+      id: 'self_forbidden_raw_read',
+      title: 'Read task presentation status through a forbidden raw access path',
+      repoLabel: 'sentrux',
+      targetPath: 'src/components/SidebarTaskRow.tsx',
+      signalKind: 'forbidden_raw_read',
+      signalFamily: 'rules',
+      checkSupport: {
+        supported: true,
+        kinds: ['forbidden_raw_read'],
+      },
+      findingKinds: ['forbidden_raw_read'],
+      expectedGateDecision: null,
+      async inject(workRoot) {
+        const rulesPath = await appendToFile(
+          workRoot,
+          '.sentrux/rules.toml',
+          buildSelfForbiddenRawReadRules(),
+        );
+        const injectedPaths = await writeFiles(workRoot, [
+          {
+            path: 'package.json',
+            text: `${buildSelfTypeScriptFixturePackageJson('sentrux-self-forbidden-raw-read')}
+`,
+          },
+          {
+            path: 'tsconfig.json',
+            text: `${buildSelfTypeScriptFixtureTsconfig()}
+`,
+          },
+          {
+            path: 'src/store/core.ts',
+            text: buildSelfTaskStatusStoreSource(),
+          },
+          {
+            path: 'src/app/task-presentation-status.ts',
+            text: buildSelfTaskPresentationStatusSource(),
+          },
+          {
+            path: 'src/components/SidebarTaskRow.tsx',
+            text: buildSelfSidebarTaskRowSource(),
+          },
+        ]);
+        return [rulesPath, ...injectedPaths];
+      },
+    }),
+    createDefect({
+      id: 'self_incomplete_propagation',
+      title: 'Change one defect-injection surface without updating its sibling contract sites',
+      repoLabel: 'sentrux',
+      targetPath: 'scripts/defect-injection/catalog.mjs',
+      signalKind: 'incomplete_propagation',
+      signalFamily: 'obligation',
+      checkSupport: {
+        supported: true,
+        kinds: ['incomplete_propagation'],
+      },
+      findingKinds: ['contract_surface_completeness'],
+      expectedGateDecision: null,
+      async inject(workRoot) {
+        const rulesPath = await appendToFile(
+          workRoot,
+          '.sentrux/rules.toml',
+          buildSelfIncompletePropagationRules(),
+        );
+        const injectedPath = await appendToFile(
+          workRoot,
+          'scripts/defect-injection/catalog.mjs',
+          buildCommentBlock('self incomplete-propagation trigger', 2),
+        );
+        return [rulesPath, injectedPath];
+      },
+    }),
+    createDefect({
+      id: 'self_session_introduced_clone',
+      title: 'Introduce a fresh duplicate helper after the session baseline',
+      repoLabel: 'sentrux',
+      targetPath: 'src/copy.ts',
+      signalKind: 'session_introduced_clone',
+      signalFamily: 'clone',
       blockingIntent: 'watchpoint',
       checkSupport: {
         supported: true,
-        gate: 'warn',
-        kinds: ['large_file'],
+        kinds: ['session_introduced_clone'],
       },
-      gateKinds: ['large_file'],
-      findingKinds: ['large_file'],
-      sessionEndKinds: ['large_file'],
+      sessionEndKinds: ['session_introduced_clone'],
+      expectedGateDecision: null,
       async inject(workRoot) {
-        return appendToFile(
-          workRoot,
-          'scripts/lib/benchmark-harness.mjs',
-          buildCommentBlock('self large-file growth', 120),
-        );
-      },
-    }),
-    createDefect({
-      id: 'self_cycle_introduction',
-      title: 'Introduce a dependency cycle between benchmark support modules',
-      repoLabel: 'sentrux',
-      targetPath: 'scripts/lib/benchmark-harness.mjs',
-      signalKind: 'cycle_cluster',
-      signalFamily: 'structural',
-      promotionStatus: 'watchpoint',
-      blockingIntent: 'watchpoint',
-      gateKinds: ['cycle_cluster'],
-      findingKinds: ['cycle_cluster'],
-      sessionEndKinds: ['cycle_cluster'],
-      async inject(workRoot) {
-        return appendToFiles(workRoot, [
+        return writeFiles(workRoot, [
           {
-            path: 'scripts/lib/benchmark-harness.mjs',
-            text: buildCycleImportSnippet('./benchmark-summaries.mjs', 'summarizeCheck'),
+            path: 'package.json',
+            text: `${buildSelfTypeScriptFixturePackageJson('sentrux-self-session-introduced-clone')}
+`,
           },
           {
-            path: 'scripts/lib/benchmark-summaries.mjs',
-            text: buildCycleImportSnippet('./benchmark-harness.mjs', 'buildBenchmarkPolicy'),
+            path: 'tsconfig.json',
+            text: `${buildSelfTypeScriptFixtureTsconfig()}
+`,
+          },
+          {
+            path: 'src/source.ts',
+            text: buildSelfSessionCloneSource(),
+          },
+          {
+            path: 'src/copy.ts',
+            text: buildSelfSessionCloneSource(),
+          },
+          {
+            path: 'src/notes.ts',
+            text: buildSelfSessionCloneDistractor(),
           },
         ]);
-      },
-    }),
-    createDefect({
-      id: 'self_boundary_violation',
-      title: 'Introduce a renderer-to-analysis boundary shortcut',
-      repoLabel: 'sentrux',
-      targetPath: 'sentrux-core/src/renderer/mod.rs',
-      signalKind: 'check_rules',
-      signalFamily: 'rules',
-      checkSupport: {
-        supported: false,
-        reason: 'Explicit boundary rules currently surface through check_rules, not fast-path check.',
-      },
-      checkRulesKinds: ['boundary'],
-      async inject(workRoot) {
-        return appendToFile(
-          workRoot,
-          'sentrux-core/src/renderer/mod.rs',
-          buildRendererBoundaryViolationSnippet(),
-        );
       },
     }),
   ];

@@ -1,0 +1,83 @@
+{
+  "repo": "sentrux",
+  "captured_at": "2026-04-11T18:18:48.598Z",
+  "source_report": "docs/v2/examples/sentrux-review-packet.md",
+  "source_feedback": "Maintainer-curated verdicts for the replay-backed Sentrux review packet. Coverage is intentionally narrow: only replay findings with artifact-backed large_file evidence are promoted here.",
+  "verdicts": [
+    {
+      "scope": "sentrux-core/src/metrics/v2/mod.rs",
+      "kind": "large_file",
+      "report_bucket": "Metrics Hotspots",
+      "category": "useful",
+      "expected_trust_tier": "watchpoint",
+      "expected_presentation_class": "structural_debt",
+      "expected_leverage_class": "local_refactor_target",
+      "expected_summary_presence": "headline",
+      "preferred_over": [
+        "sentrux-core/src/app/mcp_server/handlers/agent_format.rs"
+      ],
+      "engineer_note": "This module recurs across multiple replay scenarios and is the clearest concentrated metrics maintenance surface. Keep it ahead of isolated handler helpers when large-file pressure needs triage.",
+      "expected_v2_behavior": "Keep this near the top of the maintainer summary as a replay-backed refactor target, but still frame it as a watchpoint until non-size evidence is stronger."
+    },
+    {
+      "scope": "sentrux-core/src/app/mcp_server/handlers.rs",
+      "kind": "large_file",
+      "report_bucket": "Handler Boundaries",
+      "category": "useful",
+      "expected_trust_tier": "watchpoint",
+      "expected_presentation_class": "structural_debt",
+      "expected_leverage_class": "architecture_signal",
+      "expected_summary_presence": "headline",
+      "preferred_over": [
+        "sentrux-core/src/app/mcp_server/handlers/test_support.rs"
+      ],
+      "engineer_note": "A 3.6k-line handler entry surface is more important than adjacent support-file growth because it indicates boundary aggregation pressure in the MCP server layer.",
+      "expected_v2_behavior": "Surface this as a headline architecture watchpoint and rank it above narrower support-file large-file findings from the same replay family."
+    },
+    {
+      "scope": "sentrux-core/src/app/mcp_server/handlers/session.rs",
+      "kind": "large_file",
+      "report_bucket": "Clone Followthrough Watchpoints",
+      "category": "useful_watchpoint",
+      "expected_trust_tier": "watchpoint",
+      "expected_presentation_class": "structural_debt",
+      "expected_leverage_class": "local_refactor_target",
+      "expected_summary_presence": "section_present",
+      "preferred_over": [
+        "sentrux-core/src/app/mcp_server/handlers/test_support.rs"
+      ],
+      "engineer_note": "This file sits on the session-introduced-clone replay path, so it is a better followthrough watchpoint than generic handler support code growth.",
+      "expected_v2_behavior": "Keep this visible as a clone-followthrough watchpoint without overstating it as direct clone evidence."
+    },
+    {
+      "scope": "sentrux-core/src/app/mcp_server/handlers/classification.rs",
+      "kind": "large_file",
+      "report_bucket": "Handler Boundaries",
+      "category": "useful_watchpoint",
+      "expected_trust_tier": "watchpoint",
+      "expected_presentation_class": "structural_debt",
+      "expected_leverage_class": "secondary_cleanup",
+      "expected_summary_presence": "section_present",
+      "preferred_over": [
+        "sentrux-core/src/app/mcp_server/handlers/agent_format.rs"
+      ],
+      "engineer_note": "The classification handler is materially larger than nearby formatting helpers and is a more credible contained cleanup target inside the same boundary family.",
+      "expected_v2_behavior": "Keep this in the maintainer packet as secondary cleanup and do not let smaller nearby handler files outrank it."
+    },
+    {
+      "scope": "sentrux-core/src/metrics/v2/clones.rs",
+      "kind": "large_file",
+      "report_bucket": "Clone Followthrough Watchpoints",
+      "category": "useful_watchpoint",
+      "expected_trust_tier": "watchpoint",
+      "expected_presentation_class": "structural_debt",
+      "expected_leverage_class": "regrowth_watchpoint",
+      "expected_summary_presence": "section_present",
+      "preferred_over": [
+        "sentrux-core/src/app/mcp_server/handlers/agent_format.rs"
+      ],
+      "engineer_note": "This is the only replay-backed large-file sample directly sitting on the clone-priority scenario surface, so it should stay visible even though the replay still failed to emit explicit clone kinds.",
+      "expected_v2_behavior": "Keep this present as a clone-adjacent watchpoint, but do not promote it to trusted clone evidence until replay or live runs emit the expected clone signal kinds."
+    }
+  ]
+}

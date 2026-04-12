@@ -1,26 +1,16 @@
 {
   "repo_label": "parallel-code",
   "repo_root": "<parallel-code-root>",
-  "generated_at": "2026-04-02T11:08:25.644Z",
+  "generated_at": "2026-04-11T20:29:52.405Z",
   "summary": {
-    "total": 4,
-    "detected": 4,
+    "total": 6,
+    "detected": 6,
     "partial": 0,
     "failed": 0,
-    "check_supported": 4,
+    "check_supported": 6,
     "check_rules_detected": 0
   },
   "defects": [
-    {
-      "id": "large_file_growth",
-      "title": "Append 120 lines to SidebarTaskRow.tsx",
-      "target_path": "src/components/SidebarTaskRow.tsx",
-      "signal_kind": "large_file",
-      "signal_family": "structural",
-      "promotion_status": "trusted",
-      "blocking_intent": "watchpoint",
-      "check_supported": true
-    },
     {
       "id": "forbidden_raw_read",
       "title": "Read task status directly from SidebarTaskRow.tsx",
@@ -29,6 +19,16 @@
       "signal_family": "rules",
       "promotion_status": "trusted",
       "blocking_intent": "blocking",
+      "check_supported": true
+    },
+    {
+      "id": "large_file_growth",
+      "title": "Append 120 lines to SidebarTaskRow.tsx",
+      "target_path": "src/components/SidebarTaskRow.tsx",
+      "signal_kind": "large_file",
+      "signal_family": "structural",
+      "promotion_status": "trusted",
+      "blocking_intent": "watchpoint",
       "check_supported": true
     },
     {
@@ -50,9 +50,180 @@
       "promotion_status": "watchpoint",
       "blocking_intent": "watchpoint",
       "check_supported": true
+    },
+    {
+      "id": "multi_writer_concept",
+      "title": "Write task git status from task-presentation-status.ts",
+      "target_path": "src/app/task-presentation-status.ts",
+      "signal_kind": "multi_writer_concept",
+      "signal_family": "rules",
+      "promotion_status": "watchpoint",
+      "blocking_intent": "blocking",
+      "check_supported": true
+    },
+    {
+      "id": "writer_outside_allowlist",
+      "title": "Write task git status from a non-owner presentation module",
+      "target_path": "src/app/task-presentation-status.ts",
+      "signal_kind": "writer_outside_allowlist",
+      "signal_family": "rules",
+      "promotion_status": "watchpoint",
+      "blocking_intent": "blocking",
+      "check_supported": true
     }
   ],
   "results": [
+    {
+      "defect_id": "forbidden_raw_read",
+      "title": "Read task status directly from SidebarTaskRow.tsx",
+      "injected_paths": [
+        "/tmp/sentrux-defect-injection-parallel-code-forbidden_raw_read-yEXPaQ/defect-injection-parallel-code-forbidden_raw_read/src/components/SidebarTaskRow.tsx"
+      ],
+      "baseline_scan": {
+        "files": 813,
+        "import_edges": 2621,
+        "quality_signal": 4224,
+        "overall_confidence_0_10000": 8531,
+        "resolved": 2622,
+        "unresolved_internal": 1
+      },
+      "baseline_session_start": {
+        "session_finding_count": 194,
+        "suppressed_finding_count": 0
+      },
+      "post_scan": {
+        "files": 813,
+        "import_edges": 2621,
+        "quality_signal": 4224,
+        "overall_confidence_0_10000": 8531,
+        "resolved": 2622,
+        "unresolved_internal": 1
+      },
+      "check_summary": {
+        "gate": "fail",
+        "issue_count": 4,
+        "changed_file_count": 1,
+        "partial_results": false,
+        "changed_scope_available": true
+      },
+      "check": {
+        "supported": true,
+        "matched": true,
+        "evidence": [
+          "$.actions[0]:forbidden_raw_read",
+          "$.issues[0]:forbidden_raw_read",
+          "decision=fail"
+        ]
+      },
+      "check_rules": {
+        "supported": false,
+        "matched": false,
+        "evidence": [],
+        "matched_kinds": []
+      },
+      "gate": {
+        "supported": true,
+        "matched": false,
+        "evidence": [
+          "$.introduced_findings[2]:forbidden_raw_read"
+        ],
+        "matched_kinds": [
+          "forbidden_raw_read"
+        ]
+      },
+      "gate_summary": {
+        "decision": "fail",
+        "changed_file_count": 1,
+        "introduced_finding_count": 3,
+        "missing_obligation_count": 1,
+        "obligation_completeness_0_10000": 0
+      },
+      "findings": {
+        "supported": true,
+        "matched": false,
+        "evidence": [],
+        "matched_kinds": []
+      },
+      "findings_summary": {
+        "clone_group_count": 44,
+        "clone_family_count": 7,
+        "finding_count": 12,
+        "semantic_finding_count": 5,
+        "debt_signal_count": 5,
+        "watchpoint_count": 5
+      },
+      "session_end": {
+        "supported": true,
+        "matched": true,
+        "evidence": [
+          "$.actions[0]:forbidden_raw_read",
+          "$.finding_details[2]:forbidden_raw_read",
+          "$.introduced_findings[2]:forbidden_raw_read"
+        ],
+        "matched_kinds": [
+          "forbidden_raw_read"
+        ]
+      },
+      "session_end_summary": {
+        "pass": false,
+        "changed_file_count": 1,
+        "introduced_finding_count": 3,
+        "missing_obligation_count": 1,
+        "gate_decision": "fail"
+      },
+      "assertions": {
+        "defect_id": "forbidden_raw_read",
+        "title": "Read task status directly from SidebarTaskRow.tsx",
+        "supported_primary": true,
+        "check": {
+          "supported": true,
+          "matched": true,
+          "evidence": [
+            "$.actions[0]:forbidden_raw_read",
+            "$.issues[0]:forbidden_raw_read",
+            "decision=fail"
+          ]
+        },
+        "check_rules": {
+          "supported": false,
+          "matched": false,
+          "evidence": [],
+          "matched_kinds": []
+        },
+        "gate": {
+          "supported": true,
+          "matched": false,
+          "evidence": [
+            "$.introduced_findings[2]:forbidden_raw_read"
+          ],
+          "matched_kinds": [
+            "forbidden_raw_read"
+          ]
+        },
+        "findings": {
+          "supported": true,
+          "matched": false,
+          "evidence": [],
+          "matched_kinds": []
+        },
+        "session_end": {
+          "supported": true,
+          "matched": true,
+          "evidence": [
+            "$.actions[0]:forbidden_raw_read",
+            "$.finding_details[2]:forbidden_raw_read",
+            "$.introduced_findings[2]:forbidden_raw_read"
+          ],
+          "matched_kinds": [
+            "forbidden_raw_read"
+          ]
+        },
+        "detected": true,
+        "status": "pass"
+      },
+      "detected": true,
+      "status": "pass"
+    },
     {
       "defect_id": "large_file_growth",
       "title": "Append 120 lines to SidebarTaskRow.tsx",
@@ -242,157 +413,6 @@
           ],
           "matched_kinds": [
             "large_file"
-          ]
-        },
-        "detected": true,
-        "status": "pass"
-      },
-      "detected": true,
-      "status": "pass"
-    },
-    {
-      "defect_id": "forbidden_raw_read",
-      "title": "Read task status directly from SidebarTaskRow.tsx",
-      "injected_paths": [
-        "/tmp/sentrux-defect-injection-parallel-code-forbidden_raw_read-yEXPaQ/defect-injection-parallel-code-forbidden_raw_read/src/components/SidebarTaskRow.tsx"
-      ],
-      "baseline_scan": {
-        "files": 813,
-        "import_edges": 2621,
-        "quality_signal": 4224,
-        "overall_confidence_0_10000": 8531,
-        "resolved": 2622,
-        "unresolved_internal": 1
-      },
-      "baseline_session_start": {
-        "session_finding_count": 194,
-        "suppressed_finding_count": 0
-      },
-      "post_scan": {
-        "files": 813,
-        "import_edges": 2621,
-        "quality_signal": 4224,
-        "overall_confidence_0_10000": 8531,
-        "resolved": 2622,
-        "unresolved_internal": 1
-      },
-      "check_summary": {
-        "gate": "fail",
-        "issue_count": 4,
-        "changed_file_count": 1,
-        "partial_results": false,
-        "changed_scope_available": true
-      },
-      "check": {
-        "supported": true,
-        "matched": true,
-        "evidence": [
-          "$.actions[0]:forbidden_raw_read",
-          "$.issues[0]:forbidden_raw_read",
-          "decision=fail"
-        ]
-      },
-      "check_rules": {
-        "supported": false,
-        "matched": false,
-        "evidence": [],
-        "matched_kinds": []
-      },
-      "gate": {
-        "supported": true,
-        "matched": false,
-        "evidence": [
-          "$.introduced_findings[2]:forbidden_raw_read"
-        ],
-        "matched_kinds": [
-          "forbidden_raw_read"
-        ]
-      },
-      "gate_summary": {
-        "decision": "fail",
-        "changed_file_count": 1,
-        "introduced_finding_count": 3,
-        "missing_obligation_count": 1,
-        "obligation_completeness_0_10000": 0
-      },
-      "findings": {
-        "supported": true,
-        "matched": false,
-        "evidence": [],
-        "matched_kinds": []
-      },
-      "findings_summary": {
-        "clone_group_count": 44,
-        "clone_family_count": 7,
-        "finding_count": 12,
-        "semantic_finding_count": 5,
-        "debt_signal_count": 5,
-        "watchpoint_count": 5
-      },
-      "session_end": {
-        "supported": true,
-        "matched": true,
-        "evidence": [
-          "$.actions[0]:forbidden_raw_read",
-          "$.finding_details[2]:forbidden_raw_read",
-          "$.introduced_findings[2]:forbidden_raw_read"
-        ],
-        "matched_kinds": [
-          "forbidden_raw_read"
-        ]
-      },
-      "session_end_summary": {
-        "pass": false,
-        "changed_file_count": 1,
-        "introduced_finding_count": 3,
-        "missing_obligation_count": 1,
-        "gate_decision": "fail"
-      },
-      "assertions": {
-        "defect_id": "forbidden_raw_read",
-        "title": "Read task status directly from SidebarTaskRow.tsx",
-        "supported_primary": true,
-        "check": {
-          "supported": true,
-          "matched": true,
-          "evidence": [
-            "$.actions[0]:forbidden_raw_read",
-            "$.issues[0]:forbidden_raw_read",
-            "decision=fail"
-          ]
-        },
-        "check_rules": {
-          "supported": false,
-          "matched": false,
-          "evidence": [],
-          "matched_kinds": []
-        },
-        "gate": {
-          "supported": true,
-          "matched": false,
-          "evidence": [
-            "$.introduced_findings[2]:forbidden_raw_read"
-          ],
-          "matched_kinds": [
-            "forbidden_raw_read"
-          ]
-        },
-        "findings": {
-          "supported": true,
-          "matched": false,
-          "evidence": [],
-          "matched_kinds": []
-        },
-        "session_end": {
-          "supported": true,
-          "matched": true,
-          "evidence": [
-            "$.actions[0]:forbidden_raw_read",
-            "$.finding_details[2]:forbidden_raw_read",
-            "$.introduced_findings[2]:forbidden_raw_read"
-          ],
-          "matched_kinds": [
-            "forbidden_raw_read"
           ]
         },
         "detected": true,
@@ -702,6 +722,340 @@
           "matched": false,
           "evidence": [],
           "matched_kinds": []
+        },
+        "detected": true,
+        "status": "pass"
+      },
+      "detected": true,
+      "status": "pass"
+    },
+    {
+      "defect_id": "multi_writer_concept",
+      "title": "Write task git status from task-presentation-status.ts",
+      "injected_paths": [
+        "/tmp/sentrux-defect-injection-parallel-code-multi_writer_concept-YWxccS/defect-injection-parallel-code-multi_writer_concept/src/app/task-presentation-status.ts"
+      ],
+      "baseline_scan": {
+        "files": 827,
+        "import_edges": 2674,
+        "quality_signal": 4210,
+        "overall_confidence_0_10000": 8552,
+        "resolved": 2675,
+        "unresolved_internal": 1
+      },
+      "baseline_session_start": {
+        "session_finding_count": 198,
+        "suppressed_finding_count": 0
+      },
+      "post_scan": {
+        "files": 827,
+        "import_edges": 2674,
+        "quality_signal": 4210,
+        "overall_confidence_0_10000": 8552,
+        "resolved": 2675,
+        "unresolved_internal": 1
+      },
+      "check_summary": {
+        "gate": "fail",
+        "issue_count": 5,
+        "changed_file_count": 1,
+        "partial_results": false,
+        "changed_scope_available": true
+      },
+      "check": {
+        "supported": true,
+        "matched": true,
+        "evidence": [
+          "$.actions[0]:multi_writer_concept",
+          "$.issues[0]:multi_writer_concept",
+          "decision=fail"
+        ]
+      },
+      "check_rules": {
+        "supported": false,
+        "matched": false,
+        "evidence": [],
+        "matched_kinds": []
+      },
+      "gate": {
+        "supported": true,
+        "matched": true,
+        "evidence": [
+          "$.blocking_findings[1]:multi_writer_concept",
+          "$.introduced_findings[1]:multi_writer_concept",
+          "decision=fail"
+        ],
+        "matched_kinds": [
+          "multi_writer_concept"
+        ]
+      },
+      "gate_summary": {
+        "decision": "fail",
+        "changed_file_count": 1,
+        "introduced_finding_count": 4,
+        "missing_obligation_count": 1,
+        "obligation_completeness_0_10000": 0
+      },
+      "findings": {
+        "supported": true,
+        "matched": true,
+        "evidence": [
+          "$.finding_details[0]:multi_writer_concept",
+          "$.findings[0]:multi_writer_concept"
+        ],
+        "matched_kinds": [
+          "multi_writer_concept"
+        ]
+      },
+      "findings_summary": {
+        "clone_group_count": 46,
+        "clone_family_count": 8,
+        "finding_count": 12,
+        "semantic_finding_count": 6,
+        "debt_signal_count": 5,
+        "watchpoint_count": 5
+      },
+      "session_end": {
+        "supported": true,
+        "matched": true,
+        "evidence": [
+          "$.actions[0]:multi_writer_concept",
+          "$.finding_details[1]:multi_writer_concept",
+          "$.introduced_findings[1]:multi_writer_concept",
+          "$.touched_concept_gate.blocking_findings[1]:multi_writer_concept"
+        ],
+        "matched_kinds": [
+          "multi_writer_concept"
+        ]
+      },
+      "session_end_summary": {
+        "pass": false,
+        "changed_file_count": 1,
+        "introduced_finding_count": 4,
+        "missing_obligation_count": 1,
+        "gate_decision": "fail"
+      },
+      "assertions": {
+        "defect_id": "multi_writer_concept",
+        "title": "Write task git status from task-presentation-status.ts",
+        "supported_primary": true,
+        "check": {
+          "supported": true,
+          "matched": true,
+          "evidence": [
+            "$.actions[0]:multi_writer_concept",
+            "$.issues[0]:multi_writer_concept",
+            "decision=fail"
+          ]
+        },
+        "check_rules": {
+          "supported": false,
+          "matched": false,
+          "evidence": [],
+          "matched_kinds": []
+        },
+        "gate": {
+          "supported": true,
+          "matched": true,
+          "evidence": [
+            "$.blocking_findings[1]:multi_writer_concept",
+            "$.introduced_findings[1]:multi_writer_concept",
+            "decision=fail"
+          ],
+          "matched_kinds": [
+            "multi_writer_concept"
+          ]
+        },
+        "findings": {
+          "supported": true,
+          "matched": true,
+          "evidence": [
+            "$.finding_details[0]:multi_writer_concept",
+            "$.findings[0]:multi_writer_concept"
+          ],
+          "matched_kinds": [
+            "multi_writer_concept"
+          ]
+        },
+        "session_end": {
+          "supported": true,
+          "matched": true,
+          "evidence": [
+            "$.actions[0]:multi_writer_concept",
+            "$.finding_details[1]:multi_writer_concept",
+            "$.introduced_findings[1]:multi_writer_concept",
+            "$.touched_concept_gate.blocking_findings[1]:multi_writer_concept"
+          ],
+          "matched_kinds": [
+            "multi_writer_concept"
+          ]
+        },
+        "detected": true,
+        "status": "pass"
+      },
+      "detected": true,
+      "status": "pass"
+    },
+    {
+      "defect_id": "writer_outside_allowlist",
+      "title": "Write task git status from a non-owner presentation module",
+      "injected_paths": [
+        "/tmp/sentrux-defect-injection-parallel-code-writer_outside_allowlist-7TY6pM/defect-injection-parallel-code-writer_outside_allowlist/src/app/task-presentation-status.ts"
+      ],
+      "baseline_scan": {
+        "files": 827,
+        "import_edges": 2674,
+        "quality_signal": 4210,
+        "overall_confidence_0_10000": 8552,
+        "resolved": 2675,
+        "unresolved_internal": 1
+      },
+      "baseline_session_start": {
+        "session_finding_count": 198,
+        "suppressed_finding_count": 0
+      },
+      "post_scan": {
+        "files": 827,
+        "import_edges": 2674,
+        "quality_signal": 4210,
+        "overall_confidence_0_10000": 8552,
+        "resolved": 2675,
+        "unresolved_internal": 1
+      },
+      "check_summary": {
+        "gate": "fail",
+        "issue_count": 5,
+        "changed_file_count": 1,
+        "partial_results": false,
+        "changed_scope_available": true
+      },
+      "check": {
+        "supported": true,
+        "matched": true,
+        "evidence": [
+          "$.actions[1]:writer_outside_allowlist",
+          "$.issues[1]:writer_outside_allowlist",
+          "decision=fail"
+        ]
+      },
+      "check_rules": {
+        "supported": false,
+        "matched": false,
+        "evidence": [],
+        "matched_kinds": []
+      },
+      "gate": {
+        "supported": true,
+        "matched": true,
+        "evidence": [
+          "$.blocking_findings[2]:writer_outside_allowlist",
+          "$.introduced_findings[2]:writer_outside_allowlist",
+          "decision=fail"
+        ],
+        "matched_kinds": [
+          "writer_outside_allowlist"
+        ]
+      },
+      "gate_summary": {
+        "decision": "fail",
+        "changed_file_count": 1,
+        "introduced_finding_count": 4,
+        "missing_obligation_count": 1,
+        "obligation_completeness_0_10000": 0
+      },
+      "findings": {
+        "supported": true,
+        "matched": true,
+        "evidence": [
+          "$.finding_details[1]:writer_outside_allowlist",
+          "$.findings[1]:writer_outside_allowlist"
+        ],
+        "matched_kinds": [
+          "writer_outside_allowlist"
+        ]
+      },
+      "findings_summary": {
+        "clone_group_count": 46,
+        "clone_family_count": 8,
+        "finding_count": 12,
+        "semantic_finding_count": 6,
+        "debt_signal_count": 5,
+        "watchpoint_count": 5
+      },
+      "session_end": {
+        "supported": true,
+        "matched": true,
+        "evidence": [
+          "$.actions[1]:writer_outside_allowlist",
+          "$.finding_details[2]:writer_outside_allowlist",
+          "$.introduced_findings[2]:writer_outside_allowlist",
+          "$.touched_concept_gate.blocking_findings[2]:writer_outside_allowlist"
+        ],
+        "matched_kinds": [
+          "writer_outside_allowlist"
+        ]
+      },
+      "session_end_summary": {
+        "pass": false,
+        "changed_file_count": 1,
+        "introduced_finding_count": 4,
+        "missing_obligation_count": 1,
+        "gate_decision": "fail"
+      },
+      "assertions": {
+        "defect_id": "writer_outside_allowlist",
+        "title": "Write task git status from a non-owner presentation module",
+        "supported_primary": true,
+        "check": {
+          "supported": true,
+          "matched": true,
+          "evidence": [
+            "$.actions[1]:writer_outside_allowlist",
+            "$.issues[1]:writer_outside_allowlist",
+            "decision=fail"
+          ]
+        },
+        "check_rules": {
+          "supported": false,
+          "matched": false,
+          "evidence": [],
+          "matched_kinds": []
+        },
+        "gate": {
+          "supported": true,
+          "matched": true,
+          "evidence": [
+            "$.blocking_findings[2]:writer_outside_allowlist",
+            "$.introduced_findings[2]:writer_outside_allowlist",
+            "decision=fail"
+          ],
+          "matched_kinds": [
+            "writer_outside_allowlist"
+          ]
+        },
+        "findings": {
+          "supported": true,
+          "matched": true,
+          "evidence": [
+            "$.finding_details[1]:writer_outside_allowlist",
+            "$.findings[1]:writer_outside_allowlist"
+          ],
+          "matched_kinds": [
+            "writer_outside_allowlist"
+          ]
+        },
+        "session_end": {
+          "supported": true,
+          "matched": true,
+          "evidence": [
+            "$.actions[1]:writer_outside_allowlist",
+            "$.finding_details[2]:writer_outside_allowlist",
+            "$.introduced_findings[2]:writer_outside_allowlist",
+            "$.touched_concept_gate.blocking_findings[2]:writer_outside_allowlist"
+          ],
+          "matched_kinds": [
+            "writer_outside_allowlist"
+          ]
         },
         "detected": true,
         "status": "pass"

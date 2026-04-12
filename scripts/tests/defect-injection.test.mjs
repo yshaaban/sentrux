@@ -23,12 +23,19 @@ test('catalogs expose the expected defect ids', function () {
       'clone_propagation_drift',
       'missing_exhaustiveness',
       'incomplete_propagation',
+      'multi_writer_concept',
+      'writer_outside_allowlist',
       'missing_test',
     ],
   );
   assert.deepEqual(
     createDogfoodCatalog().map((defect) => defect.id),
-    ['self_large_file', 'self_cycle_introduction', 'self_boundary_violation'],
+    [
+      'self_large_file',
+      'self_forbidden_raw_read',
+      'self_incomplete_propagation',
+      'self_session_introduced_clone',
+    ],
   );
   assert.equal(
     createParallelCodeCatalog().find((defect) => defect.id === 'clone_injection').check_support
@@ -61,14 +68,29 @@ test('catalogs expose the expected defect ids', function () {
     true,
   );
   assert.equal(
-    createDogfoodCatalog().find((defect) => defect.id === 'self_boundary_violation').check_support
-      .supported,
-    false,
+    createParallelCodeCatalog().find((defect) => defect.id === 'multi_writer_concept')
+      .expected_gate_decision,
+    'fail',
   );
   assert.equal(
-    createDogfoodCatalog().find((defect) => defect.id === 'self_boundary_violation')
-      .expected_check_rules_kinds[0],
-    'boundary',
+    createParallelCodeCatalog().find((defect) => defect.id === 'writer_outside_allowlist')
+      .check_support.supported,
+    true,
+  );
+  assert.equal(
+    createDogfoodCatalog().find((defect) => defect.id === 'self_forbidden_raw_read').check_support
+      .supported,
+    true,
+  );
+  assert.equal(
+    createDogfoodCatalog().find((defect) => defect.id === 'self_incomplete_propagation')
+      .check_support.supported,
+    true,
+  );
+  assert.equal(
+    createDogfoodCatalog().find((defect) => defect.id === 'self_session_introduced_clone')
+      .check_support.supported,
+    true,
   );
 });
 

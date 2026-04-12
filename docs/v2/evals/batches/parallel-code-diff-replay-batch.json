@@ -23,9 +23,24 @@
       "tags": ["calibration", "replay", "code", "projection", "refactor"]
     },
     {
+      "replay_id": "git-isolation-mode-surface",
+      "commit": "8d30d7ee567cc71f3c692d0d566905f963f46c77",
+      "expected_signal_kinds": [
+        "closed_domain_exhaustiveness",
+        "incomplete_propagation"
+      ],
+      "tags": ["calibration", "replay", "code", "obligation", "mode"]
+    },
+    {
       "replay_id": "arena-competitor-preflight",
       "commit": "c23649c669d05cbad15483c2270b411054f9b68e",
       "tags": ["calibration", "replay", "code", "feature", "ui"]
+    },
+    {
+      "replay_id": "task-presentation-status-canonicalization",
+      "commit": "f084150f690522a2f8701e4b2badc22f42bc6c3e",
+      "expected_signal_kinds": ["closed_domain_exhaustiveness"],
+      "tags": ["calibration", "replay", "code", "obligation", "status"]
     },
     {
       "replay_id": "markdown-viewer-git-isolation",
@@ -44,6 +59,27 @@
       "commit": "243649ecef3018579d0c28eb6a88327fcb319b76",
       "expected_signal_kinds": ["clone_propagation_drift"],
       "tags": ["calibration", "replay", "code", "refactor", "clone"]
+    },
+    {
+      "replay_id": "terminal-pipeline-split",
+      "commit": "819831be1ae16cac5a027bee32760cbcf9065a82",
+      "expected_signal_kinds": [
+        "large_file",
+        "missing_test_coverage"
+      ],
+      "tags": ["calibration", "replay", "code", "structural", "terminal"]
+    },
+    {
+      "replay_id": "task-command-control-split",
+      "commit": "2b878a0b2795cd09dc5fbfbac372bbdd2d2a9d8a",
+      "expected_signal_kinds": ["missing_test_coverage"],
+      "tags": ["calibration", "replay", "code", "structural", "ownership"]
+    },
+    {
+      "replay_id": "docker-isolation-mode",
+      "commit": "c646df4291062d40b930694bf9cb25becc658f66",
+      "expected_signal_kinds": ["large_file"],
+      "tags": ["calibration", "replay", "code", "structural", "docker"]
     }
   ]
 }

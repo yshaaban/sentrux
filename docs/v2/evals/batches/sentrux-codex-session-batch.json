@@ -5,34 +5,11 @@
   "repo_root": "<sentrux-root>",
   "repo_label": "sentrux",
   "analysis_mode": "working_tree",
-  "timeout_ms": 1800000,
+  "timeout_ms": 420000,
+  "idle_timeout_ms": 90000,
   "poll_ms": 4000,
   "codex_bin": "codex",
   "tasks": [
-    {
-      "task_id": "sentrux-session-telemetry-hardening",
-      "task_label": "Tighten session telemetry output",
-      "prompt_file": "../prompts/sentrux/session-telemetry-hardening.md",
-      "tags": ["calibration", "telemetry"],
-      "expected_signal_kinds": [],
-      "expected_fix_surface": "session telemetry"
-    },
-    {
-      "task_id": "sentrux-review-packet-simplification",
-      "task_label": "Simplify review packet generation",
-      "prompt_file": "../prompts/sentrux/review-packet-simplification.md",
-      "tags": ["calibration", "review"],
-      "expected_signal_kinds": [],
-      "expected_fix_surface": "eval docs and packet formatting"
-    },
-    {
-      "task_id": "sentrux-scorecard-shape-hardening",
-      "task_label": "Harden scorecard shape and defaults",
-      "prompt_file": "../prompts/sentrux/scorecard-shape-hardening.md",
-      "tags": ["calibration", "scorecard"],
-      "expected_signal_kinds": [],
-      "expected_fix_surface": "scorecard aggregation"
-    },
     {
       "task_id": "sentrux-batch-loop-tidy",
       "task_label": "Keep the calibration batch loop tidy",
@@ -48,14 +25,6 @@
       "tags": ["calibration", "clone"],
       "expected_signal_kinds": ["session_introduced_clone"],
       "expected_fix_surface": "duplicate helper cleanup"
-    },
-    {
-      "task_id": "sentrux-clone-followthrough",
-      "task_label": "Keep an edited clone family in sync",
-      "prompt_file": "../prompts/sentrux/clone-followthrough.md",
-      "tags": ["calibration", "clone", "followthrough"],
-      "expected_signal_kinds": ["clone_propagation_drift"],
-      "expected_fix_surface": "duplicate followthrough"
     }
   ]
 }

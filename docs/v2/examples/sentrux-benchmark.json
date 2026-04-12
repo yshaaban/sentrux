@@ -1,0 +1,520 @@
+{
+  "benchmark_format_version": 3,
+  "generated_at": "2026-04-12T09:23:49.756Z",
+  "repo": "sentrux",
+  "repo_root": "<sentrux-root>",
+  "analysis_mode": "head_clone",
+  "source_tree_identity": {
+    "commit": "e80117287eea97bb46991d93bdd184b10acd536b",
+    "dirty_paths": [
+      "docs/v2/evals/README.md",
+      "docs/v2/evals/batches/parallel-code-codex-session-batch.json",
+      "docs/v2/evals/batches/parallel-code-diff-replay-batch.json",
+      "docs/v2/evals/batches/sentrux-codex-session-batch.json",
+      "docs/v2/evals/batches/sentrux-diff-replay-batch.json",
+      "docs/v2/evals/prompts/parallel-code/exhaustiveness-hardening.md",
+      "docs/v2/evals/prompts/parallel-code/raw-read-guardrail.md",
+      "docs/v2/evals/prompts/sentrux/batch-loop-tidy.md",
+      "docs/v2/evals/prompts/sentrux/clone-cleanup.md",
+      "docs/v2/evals/repos/sentrux.json",
+      "docs/v2/examples/parallel-code-defect-injection.json",
+      "docs/v2/examples/parallel-code-defect-injection.md",
+      "docs/v2/examples/parallel-code-remediation.json",
+      "docs/v2/validation-loop.md",
+      "scripts/defect-injection/catalog.mjs",
+      "scripts/evals/build-check-review-packet.mjs",
+      "scripts/evals/providers/codex-cli.mjs",
+      "scripts/evals/run-codex-session-batch.mjs",
+      "scripts/evals/run-codex-session.mjs",
+      "scripts/evals/run-diff-replay-batch.mjs",
+      "scripts/evals/run-repo-calibration-loop.mjs",
+      "scripts/lib/signal-backlog.mjs",
+      "scripts/lib/signal-scorecard.mjs",
+      "scripts/tests/check-review-packet.test.mjs",
+      "scripts/tests/defect-injection.test.mjs",
+      "scripts/tests/signal-backlog.test.mjs",
+      "scripts/tests/signal-scorecard.test.mjs",
+      "docs/v2/examples/sentrux-benchmark.json",
+      "docs/v2/examples/sentrux-review-packet.md",
+      "docs/v2/examples/sentrux-review-verdicts.json",
+      "scripts/benchmark_sentrux_v2.mjs",
+      "scripts/evals/build-provisional-review-verdicts.mjs",
+      "scripts/lib/signal-calibration-policy.mjs",
+      "scripts/tests/provisional-review-verdicts.test.mjs",
+      "scripts/tests/repo-calibration-loop.test.mjs"
+    ],
+    "dirty_paths_count": 35,
+    "dirty_paths_fingerprint": "0aa035e23b1306af0e83cf3a260b99a14e83a636eb40867a5865261f8f480c2c",
+    "tree_fingerprint": "9946e7b54b346cd66d5559d7e5042bfa245776d0014e7b80e1d13360ff0b00ca",
+    "analysis_mode": "head_clone"
+  },
+  "analyzed_tree_identity": {
+    "commit": "e80117287eea97bb46991d93bdd184b10acd536b",
+    "dirty_paths": [],
+    "dirty_paths_count": 0,
+    "dirty_paths_fingerprint": "53c1562521679823f3ee3c10c2585dec4c3ecd862d145f868947047fd32725ac",
+    "tree_fingerprint": "8cf4d9967c43ded7ab19c6d01c280b557dfd9c5d41c27c65953e239488d8a3ec",
+    "analysis_mode": "head_clone"
+  },
+  "rules_identity": {
+    "path": "<sentrux-root>/.sentrux/rules.toml",
+    "exists": true,
+    "sha256": "b50c7d9738a83d70b37cab15af6e261b2be0abab5bff69736775c01126b0b169"
+  },
+  "binary_identity": {
+    "path": "<sentrux-root>/target/debug/sentrux",
+    "exists": true,
+    "sha256": "9be8403a62f1aa059dc4b246ea19e7564c863fa185333d8deed890b124aadcd8"
+  },
+  "sentrux_binary": "<sentrux-root>/target/debug/sentrux",
+  "benchmark": {
+    "cold_process_total_ms": 8582.8,
+    "cold": {
+      "scan": {
+        "label": "scan",
+        "tool": "scan",
+        "elapsed_ms": 1167.2,
+        "summary": {
+          "files": 573,
+          "import_edges": 117,
+          "quality_signal": 6594,
+          "overall_confidence_0_10000": 9598,
+          "resolved": 117,
+          "unresolved_internal": 4
+        }
+      },
+      "project_shape": {
+        "label": "project_shape",
+        "tool": "project_shape",
+        "elapsed_ms": 118.7,
+        "summary": {
+          "primary_archetype": null,
+          "effective_archetype_count": 0,
+          "capability_count": 1,
+          "boundary_root_count": 0,
+          "module_contract_count": 0
+        }
+      },
+      "concepts": {
+        "label": "concepts",
+        "tool": "concepts",
+        "elapsed_ms": 1004,
+        "summary": {
+          "configured_concept_count": 0,
+          "contract_count": 0,
+          "matched_guardrail_test_count": 0,
+          "inferred_concept_count": 0,
+          "state_model_count": 0,
+          "semantic_cache_source": "bridge"
+        }
+      },
+      "findings": {
+        "label": "findings_top12",
+        "tool": "findings",
+        "elapsed_ms": 5766.8,
+        "summary": {
+          "clone_group_count": 17,
+          "clone_family_count": 2,
+          "finding_count": 12,
+          "semantic_finding_count": 0,
+          "debt_signal_count": 5,
+          "watchpoint_count": 2
+        }
+      },
+      "check_rules": {
+        "label": "check_rules",
+        "tool": "check_rules",
+        "elapsed_ms": 5.2,
+        "summary": {
+          "pass": false,
+          "rules_checked": 4,
+          "violation_count": 2,
+          "coverage_0_10000": 0,
+          "truncated": 4
+        }
+      },
+      "agent_brief_onboarding": {
+        "label": "agent_brief_onboarding",
+        "tool": "agent_brief",
+        "elapsed_ms": 519.5,
+        "summary": {
+          "mode": "repo_onboarding",
+          "decision": "fix_now",
+          "primary_target_count": 3,
+          "missing_obligation_count": 0,
+          "watchpoint_count": 2,
+          "semantic_cache_source": "memory"
+        }
+      }
+    },
+    "warm_cached_total_ms": 1003.5,
+    "warm_cached": {
+      "project_shape": {
+        "label": "project_shape",
+        "tool": "project_shape",
+        "elapsed_ms": 1,
+        "summary": {
+          "primary_archetype": null,
+          "effective_archetype_count": 0,
+          "capability_count": 1,
+          "boundary_root_count": 0,
+          "module_contract_count": 0
+        }
+      },
+      "findings": {
+        "label": "findings_top12",
+        "tool": "findings",
+        "elapsed_ms": 499.1,
+        "summary": {
+          "clone_group_count": 17,
+          "clone_family_count": 2,
+          "finding_count": 12,
+          "semantic_finding_count": 0,
+          "debt_signal_count": 5,
+          "watchpoint_count": 2
+        }
+      },
+      "check_rules": {
+        "label": "check_rules",
+        "tool": "check_rules",
+        "elapsed_ms": 1.5,
+        "summary": {
+          "pass": false,
+          "rules_checked": 4,
+          "violation_count": 2,
+          "coverage_0_10000": 0,
+          "truncated": 4
+        }
+      },
+      "agent_brief_onboarding": {
+        "label": "agent_brief_onboarding",
+        "tool": "agent_brief",
+        "elapsed_ms": 501.3,
+        "summary": {
+          "mode": "repo_onboarding",
+          "decision": "fix_now",
+          "primary_target_count": 3,
+          "missing_obligation_count": 0,
+          "watchpoint_count": 2,
+          "semantic_cache_source": "memory"
+        }
+      }
+    },
+    "warm_persisted_total_ms": 7354.7,
+    "warm_persisted": {
+      "scan": {
+        "label": "persisted_scan",
+        "tool": "scan",
+        "elapsed_ms": 1016.1,
+        "summary": {
+          "files": 573,
+          "import_edges": 117,
+          "quality_signal": 6594,
+          "overall_confidence_0_10000": 9566,
+          "resolved": 117,
+          "unresolved_internal": 4
+        }
+      },
+      "concepts": {
+        "label": "persisted_concepts",
+        "tool": "concepts",
+        "elapsed_ms": 236,
+        "summary": {
+          "configured_concept_count": 0,
+          "contract_count": 0,
+          "matched_guardrail_test_count": 0,
+          "inferred_concept_count": 0,
+          "state_model_count": 0,
+          "semantic_cache_source": "disk"
+        }
+      },
+      "findings": {
+        "label": "persisted_findings_top12",
+        "tool": "findings",
+        "elapsed_ms": 5534.3,
+        "summary": {
+          "clone_group_count": 17,
+          "clone_family_count": 2,
+          "finding_count": 12,
+          "semantic_finding_count": 0,
+          "debt_signal_count": 5,
+          "watchpoint_count": 2
+        }
+      },
+      "agent_brief_onboarding": {
+        "label": "persisted_agent_brief_onboarding",
+        "tool": "agent_brief",
+        "elapsed_ms": 565.3,
+        "summary": {
+          "mode": "repo_onboarding",
+          "decision": "fix_now",
+          "primary_target_count": 3,
+          "missing_obligation_count": 0,
+          "watchpoint_count": 2,
+          "semantic_cache_source": "memory"
+        }
+      }
+    },
+    "warm_patch_safety_total_ms": 422.4,
+    "warm_patch_safety": {
+      "session_start": {
+        "label": "session_start",
+        "tool": "session_start",
+        "elapsed_ms": 159.4,
+        "summary": {
+          "session_finding_count": 91,
+          "suppressed_finding_count": 0
+        }
+      },
+      "check": {
+        "label": "check",
+        "tool": "check",
+        "elapsed_ms": 39.8,
+        "summary": {
+          "gate": "pass",
+          "issue_count": 0,
+          "changed_file_count": 0,
+          "partial_results": false,
+          "changed_scope_available": true
+        }
+      },
+      "gate": {
+        "label": "gate",
+        "tool": "gate",
+        "elapsed_ms": 150,
+        "summary": {
+          "decision": "pass",
+          "changed_file_count": 0,
+          "introduced_finding_count": 0,
+          "missing_obligation_count": 0,
+          "obligation_completeness_0_10000": 10000
+        }
+      },
+      "session_end": {
+        "label": "session_end",
+        "tool": "session_end",
+        "elapsed_ms": 72.5,
+        "summary": {
+          "pass": true,
+          "changed_file_count": 0,
+          "introduced_finding_count": 0,
+          "missing_obligation_count": 0,
+          "gate_decision": "pass"
+        }
+      }
+    },
+    "stdout_log": [],
+    "stderr_log": [
+      "[build_project_map] 573 files, 197 unique dirs, 192 cache misses, 37.8ms",
+      "[resolve] 117 resolved, 4 unresolved_internal, 171 unresolved_external, 0 unresolved_unknown (of 292 total specs)",
+      "[resolve_imports] project_map 38.9ms, suffix_idx 12.5ms, suffix_resolve 14.7ms, total 66.1ms",
+      "[build_graphs] 573 files | maps 2.1ms, imports 66.7ms, calls+inherit 12.7ms, total 81.5ms | 117 import, 343 call, 0 inherit edges",
+      "[evolution] walked 419 commits, skipped 7 (oid_err=0, commit_err=0, unparseable=7)"
+    ]
+  },
+  "comparison": {
+    "compared_to": "<sentrux-root>/docs/v2/examples/sentrux-benchmark.json",
+    "previous_generated_at": "2026-04-12T09:23:03.042Z",
+    "policy": {
+      "fail": {
+        "max_regression_ms": 250,
+        "max_regression_percent": 20
+      },
+      "warn": {
+        "max_regression_ms": 150,
+        "max_regression_percent": 10
+      },
+      "mode": "delta_ms_and_percent"
+    },
+    "metrics": [
+      {
+        "metric": "cold process total",
+        "path": "cold_process_total_ms",
+        "previous_ms": 8282.5,
+        "current_ms": 8582.8,
+        "delta_ms": 300.3,
+        "delta_percent": 3.6,
+        "classification": "info"
+      },
+      {
+        "metric": "cold scan",
+        "path": "cold.scan.elapsed_ms",
+        "previous_ms": 1200.6,
+        "current_ms": 1167.2,
+        "delta_ms": -33.4,
+        "delta_percent": -2.8,
+        "classification": "info"
+      },
+      {
+        "metric": "cold project_shape",
+        "path": "cold.project_shape.elapsed_ms",
+        "previous_ms": 131.8,
+        "current_ms": 118.7,
+        "delta_ms": -13.1,
+        "delta_percent": -9.9,
+        "classification": "info"
+      },
+      {
+        "metric": "cold concepts",
+        "path": "cold.concepts.elapsed_ms",
+        "previous_ms": 1050.7,
+        "current_ms": 1004,
+        "delta_ms": -46.7,
+        "delta_percent": -4.4,
+        "classification": "info"
+      },
+      {
+        "metric": "cold findings",
+        "path": "cold.findings.elapsed_ms",
+        "previous_ms": 5373.1,
+        "current_ms": 5766.8,
+        "delta_ms": 393.7,
+        "delta_percent": 7.3,
+        "classification": "info"
+      },
+      {
+        "metric": "cold check_rules",
+        "path": "cold.check_rules.elapsed_ms",
+        "previous_ms": 2.2,
+        "current_ms": 5.2,
+        "delta_ms": 3,
+        "delta_percent": 136.4,
+        "classification": "info"
+      },
+      {
+        "metric": "cold agent_brief onboarding",
+        "path": "cold.agent_brief_onboarding.elapsed_ms",
+        "previous_ms": 522.5,
+        "current_ms": 519.5,
+        "delta_ms": -3,
+        "delta_percent": -0.6,
+        "classification": "info"
+      },
+      {
+        "metric": "warm cached total",
+        "path": "warm_cached_total_ms",
+        "previous_ms": 1097.8,
+        "current_ms": 1003.5,
+        "delta_ms": -94.3,
+        "delta_percent": -8.6,
+        "classification": "info"
+      },
+      {
+        "metric": "warm findings",
+        "path": "warm_cached.findings.elapsed_ms",
+        "previous_ms": 547.3,
+        "current_ms": 499.1,
+        "delta_ms": -48.2,
+        "delta_percent": -8.8,
+        "classification": "info"
+      },
+      {
+        "metric": "warm check_rules",
+        "path": "warm_cached.check_rules.elapsed_ms",
+        "previous_ms": 1.4,
+        "current_ms": 1.5,
+        "delta_ms": 0.1,
+        "delta_percent": 7.1,
+        "classification": "info"
+      },
+      {
+        "metric": "warm agent_brief onboarding",
+        "path": "warm_cached.agent_brief_onboarding.elapsed_ms",
+        "previous_ms": 548,
+        "current_ms": 501.3,
+        "delta_ms": -46.7,
+        "delta_percent": -8.5,
+        "classification": "info"
+      },
+      {
+        "metric": "warm persisted total",
+        "path": "warm_persisted_total_ms",
+        "previous_ms": 7430.2,
+        "current_ms": 7354.7,
+        "delta_ms": -75.5,
+        "delta_percent": -1,
+        "classification": "info"
+      },
+      {
+        "metric": "warm persisted concepts",
+        "path": "warm_persisted.concepts.elapsed_ms",
+        "previous_ms": 267.1,
+        "current_ms": 236,
+        "delta_ms": -31.1,
+        "delta_percent": -11.6,
+        "classification": "info"
+      },
+      {
+        "metric": "warm persisted findings",
+        "path": "warm_persisted.findings.elapsed_ms",
+        "previous_ms": 5384.9,
+        "current_ms": 5534.3,
+        "delta_ms": 149.4,
+        "delta_percent": 2.8,
+        "classification": "info"
+      },
+      {
+        "metric": "warm persisted agent_brief onboarding",
+        "path": "warm_persisted.agent_brief_onboarding.elapsed_ms",
+        "previous_ms": 546,
+        "current_ms": 565.3,
+        "delta_ms": 19.3,
+        "delta_percent": 3.5,
+        "classification": "info"
+      },
+      {
+        "metric": "warm patch-safety total",
+        "path": "warm_patch_safety_total_ms",
+        "previous_ms": 449.1,
+        "current_ms": 422.4,
+        "delta_ms": -26.7,
+        "delta_percent": -5.9,
+        "classification": "info"
+      },
+      {
+        "metric": "warm session_start",
+        "path": "warm_patch_safety.session_start.elapsed_ms",
+        "previous_ms": 165.7,
+        "current_ms": 159.4,
+        "delta_ms": -6.3,
+        "delta_percent": -3.8,
+        "classification": "info"
+      },
+      {
+        "metric": "warm check",
+        "path": "warm_patch_safety.check.elapsed_ms",
+        "previous_ms": 40.5,
+        "current_ms": 39.8,
+        "delta_ms": -0.7,
+        "delta_percent": -1.7,
+        "classification": "info"
+      },
+      {
+        "metric": "warm gate",
+        "path": "warm_patch_safety.gate.elapsed_ms",
+        "previous_ms": 165.5,
+        "current_ms": 150,
+        "delta_ms": -15.5,
+        "delta_percent": -9.4,
+        "classification": "info"
+      },
+      {
+        "metric": "warm session_end",
+        "path": "warm_patch_safety.session_end.elapsed_ms",
+        "previous_ms": 76.7,
+        "current_ms": 72.5,
+        "delta_ms": -4.2,
+        "delta_percent": -5.5,
+        "classification": "info"
+      }
+    ],
+    "summary": {
+      "total": 20,
+      "fail_count": 0,
+      "warn_count": 0,
+      "info_count": 20
+    },
+    "regressions": [],
+    "warnings": []
+  }
+}

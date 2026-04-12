@@ -8,14 +8,14 @@
   "live_batch_manifest": "../batches/sentrux-codex-session-batch.json",
   "replay_batch_manifest": "../batches/sentrux-diff-replay-batch.json",
   "artifacts": {
-    "seeded_defect_report": null,
-    "remediation_report": null,
-    "benchmark_artifact": null,
+    "seeded_defect_report": "../../examples/sentrux-defect-injection.json",
+    "remediation_report": "../../examples/sentrux-remediation.json",
+    "benchmark_artifact": "../../examples/sentrux-benchmark.json",
     "review_packet_output": ".sentrux/evals/sentrux/check-review-packet.md",
-    "review_verdicts_input": "../review-verdicts.template.json",
+    "review_verdicts_input": "../../examples/sentrux-review-verdicts.json",
     "review_verdicts_output": ".sentrux/evals/sentrux/review-verdicts.json",
     "scorecard_output": ".sentrux/evals/sentrux/signal-scorecard.json",
     "backlog_output": ".sentrux/evals/sentrux/signal-backlog.json"
   },
-  "batch_notes": "Checked-in calibration manifest for the Sentrux dogfood repo. Seeded defect and benchmark artifacts are intentionally nullable until the local eval corpus is refreshed."
+  "batch_notes": "Checked-in calibration manifest for the Sentrux dogfood repo. Repo-specific seeded defects, remediation outcomes, review verdicts, and benchmark artifacts are now all checked in for replay and live calibration."
 }

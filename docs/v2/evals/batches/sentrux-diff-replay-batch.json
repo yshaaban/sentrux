@@ -23,6 +23,18 @@
       "tags": ["calibration", "replay", "code", "clone"]
     },
     {
+      "replay_id": "clone-drift-git-aware",
+      "commit": "b9015f6bbf02950e2dc5f9291a0e6b3358fb4309",
+      "expected_signal_kinds": ["clone_propagation_drift"],
+      "tags": ["calibration", "replay", "code", "clone", "followthrough"]
+    },
+    {
+      "replay_id": "clone-divergence-priority",
+      "commit": "8b62b7acd27bdd3cc36e13673ee395239d4a862e",
+      "expected_signal_kinds": ["clone_propagation_drift"],
+      "tags": ["calibration", "replay", "code", "clone", "ranking"]
+    },
+    {
       "replay_id": "raw-read-guidance",
       "commit": "35dcf2a207c2b15f31b03a5406ad02126f1fd1b5",
       "expected_signal_kinds": ["forbidden_raw_read"],
@@ -38,6 +50,12 @@
       "commit": "1bbfd4b9d0c94cb3b66919c0b3ec7cdbbacd2ba5",
       "expected_signal_kinds": ["zero_config_boundary_violation"],
       "tags": ["calibration", "replay", "code", "check", "boundary"]
+    },
+    {
+      "replay_id": "contract-surface-obligations",
+      "commit": "1549b8149e27c461b7db33c9283c5995b6f005b7",
+      "expected_signal_kinds": ["incomplete_propagation"],
+      "tags": ["calibration", "replay", "code", "obligation", "contract"]
     }
   ]
 }
