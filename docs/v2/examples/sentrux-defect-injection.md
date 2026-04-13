@@ -2,12 +2,12 @@
 
 - repo: `sentrux`
 - root: `<sentrux-root>`
-- generated at: `2026-04-12T10:28:18.549Z`
-- total defects: 5
-- detected: 5
+- generated at: `2026-04-13T18:20:19.432Z`
+- total defects: 6
+- detected: 6
 - partial: 0
 - failed: 0
-- check supported: 5
+- check supported: 6
 - check_rules detected: 0
 
 ## Results
@@ -63,8 +63,22 @@
 - gate matched: false
 - findings matched: false
 - session_end matched: true
-- check evidence: `$.actions[0]:session_introduced_clone, $.actions[1]:session_introduced_clone, $.issues[0]:session_introduced_clone, $.issues[1]:session_introduced_clone`
-- session_end evidence: `$.actions[0]:session_introduced_clone, $.actions[1]:session_introduced_clone, $.finding_details[0]:session_introduced_clone, $.finding_details[1]:session_introduced_clone, $.introduced_clone_findings[0]:session_introduced_clone, $.introduced_clone_findings[1]:session_introduced_clone, $.introduced_findings[0]:session_introduced_clone, $.introduced_findings[1]:session_introduced_clone`
+- check evidence: `$.actions[0]:session_introduced_clone, $.issues[0]:session_introduced_clone`
+- session_end evidence: `$.actions[0]:session_introduced_clone, $.finding_details[0]:session_introduced_clone, $.introduced_clone_findings[0]:session_introduced_clone, $.introduced_findings[0]:session_introduced_clone`
+
+### self_clone_propagation_drift
+
+- title: Edit one side of a committed duplicate helper pair without syncing its sibling
+- status: `pass`
+- check supported: true
+- check matched: true
+- check_rules matched: false
+- gate matched: true
+- findings matched: false
+- session_end matched: true
+- check evidence: `$.actions[0]:clone_propagation_drift, $.actions[1]:clone_propagation_drift, $.issues[0]:clone_propagation_drift, $.issues[1]:clone_propagation_drift, decision=warn`
+- gate evidence: `$.introduced_findings[0]:clone_propagation_drift, $.introduced_findings[1]:clone_propagation_drift`
+- session_end evidence: `$.actions[0]:clone_propagation_drift, $.actions[1]:clone_propagation_drift, $.finding_details[0]:clone_propagation_drift, $.finding_details[1]:clone_propagation_drift, $.introduced_clone_findings[0]:clone_propagation_drift, $.introduced_clone_findings[1]:clone_propagation_drift, $.introduced_findings[0]:clone_propagation_drift, $.introduced_findings[1]:clone_propagation_drift`
 
 ### self_zero_config_boundary_violation
 

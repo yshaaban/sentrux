@@ -1,13 +1,13 @@
 {
   "repo_label": "sentrux",
   "repo_root": "<sentrux-root>",
-  "generated_at": "2026-04-12T10:28:18.549Z",
+  "generated_at": "2026-04-13T18:20:19.432Z",
   "summary": {
-    "total": 5,
-    "detected": 5,
+    "total": 6,
+    "detected": 6,
     "partial": 0,
     "failed": 0,
-    "check_supported": 5,
+    "check_supported": 6,
     "check_rules_detected": 0
   },
   "defects": [
@@ -52,6 +52,16 @@
       "check_supported": true
     },
     {
+      "id": "self_clone_propagation_drift",
+      "title": "Edit one side of a committed duplicate helper pair without syncing its sibling",
+      "target_path": "src/source.ts",
+      "signal_kind": "clone_propagation_drift",
+      "signal_family": "clone",
+      "promotion_status": "watchpoint",
+      "blocking_intent": "watchpoint",
+      "check_supported": true
+    },
+    {
       "id": "self_zero_config_boundary_violation",
       "title": "Deep import a task-status helper without a module-contract rule",
       "target_path": "src/app/task-dashboard.ts",
@@ -67,24 +77,24 @@
       "defect_id": "self_large_file",
       "title": "Append 120 lines to the benchmark harness",
       "injected_paths": [
-        "/tmp/sentrux-defect-injection-sentrux-self_large_file-SMIFx1/defect-injection-sentrux-self_large_file/scripts/lib/benchmark-harness.mjs"
+        "/tmp/sentrux-defect-injection-sentrux-self_large_file-0cRfp4/defect-injection-sentrux-self_large_file/scripts/lib/benchmark-harness.mjs"
       ],
       "baseline_scan": {
         "files": 585,
         "import_edges": 127,
-        "quality_signal": 6582,
+        "quality_signal": 6581,
         "overall_confidence_0_10000": 9606,
         "resolved": 127,
         "unresolved_internal": 4
       },
       "baseline_session_start": {
-        "session_finding_count": 97,
+        "session_finding_count": 98,
         "suppressed_finding_count": 0
       },
       "post_scan": {
         "files": 585,
         "import_edges": 127,
-        "quality_signal": 6582,
+        "quality_signal": 6581,
         "overall_confidence_0_10000": 9574,
         "resolved": 127,
         "unresolved_internal": 4
@@ -163,12 +173,12 @@
         ]
       },
       "findings_summary": {
-        "clone_group_count": 16,
-        "clone_family_count": 2,
+        "clone_group_count": 17,
+        "clone_family_count": 3,
         "finding_count": 12,
         "semantic_finding_count": 0,
         "debt_signal_count": 5,
-        "watchpoint_count": 2
+        "watchpoint_count": 3
       },
       "session_end": {
         "supported": true,
@@ -276,29 +286,29 @@
       "defect_id": "self_forbidden_raw_read",
       "title": "Read task presentation status through a forbidden raw access path",
       "injected_paths": [
-        "/tmp/sentrux-defect-injection-sentrux-self_forbidden_raw_read-2BLmzM/defect-injection-sentrux-self_forbidden_raw_read/.sentrux/rules.toml",
-        "/tmp/sentrux-defect-injection-sentrux-self_forbidden_raw_read-2BLmzM/defect-injection-sentrux-self_forbidden_raw_read/package.json",
-        "/tmp/sentrux-defect-injection-sentrux-self_forbidden_raw_read-2BLmzM/defect-injection-sentrux-self_forbidden_raw_read/tsconfig.json",
-        "/tmp/sentrux-defect-injection-sentrux-self_forbidden_raw_read-2BLmzM/defect-injection-sentrux-self_forbidden_raw_read/src/store/core.ts",
-        "/tmp/sentrux-defect-injection-sentrux-self_forbidden_raw_read-2BLmzM/defect-injection-sentrux-self_forbidden_raw_read/src/app/task-presentation-status.ts",
-        "/tmp/sentrux-defect-injection-sentrux-self_forbidden_raw_read-2BLmzM/defect-injection-sentrux-self_forbidden_raw_read/src/components/SidebarTaskRow.tsx"
+        "/tmp/sentrux-defect-injection-sentrux-self_forbidden_raw_read-4vm8fw/defect-injection-sentrux-self_forbidden_raw_read/.sentrux/rules.toml",
+        "/tmp/sentrux-defect-injection-sentrux-self_forbidden_raw_read-4vm8fw/defect-injection-sentrux-self_forbidden_raw_read/package.json",
+        "/tmp/sentrux-defect-injection-sentrux-self_forbidden_raw_read-4vm8fw/defect-injection-sentrux-self_forbidden_raw_read/tsconfig.json",
+        "/tmp/sentrux-defect-injection-sentrux-self_forbidden_raw_read-4vm8fw/defect-injection-sentrux-self_forbidden_raw_read/src/store/core.ts",
+        "/tmp/sentrux-defect-injection-sentrux-self_forbidden_raw_read-4vm8fw/defect-injection-sentrux-self_forbidden_raw_read/src/app/task-presentation-status.ts",
+        "/tmp/sentrux-defect-injection-sentrux-self_forbidden_raw_read-4vm8fw/defect-injection-sentrux-self_forbidden_raw_read/src/components/SidebarTaskRow.tsx"
       ],
       "baseline_scan": {
         "files": 585,
         "import_edges": 127,
-        "quality_signal": 6582,
+        "quality_signal": 6581,
         "overall_confidence_0_10000": 9606,
         "resolved": 127,
         "unresolved_internal": 4
       },
       "baseline_session_start": {
-        "session_finding_count": 97,
+        "session_finding_count": 98,
         "suppressed_finding_count": 0
       },
       "post_scan": {
         "files": 590,
         "import_edges": 129,
-        "quality_signal": 6579,
+        "quality_signal": 6578,
         "overall_confidence_0_10000": 9578,
         "resolved": 129,
         "unresolved_internal": 4
@@ -349,12 +359,12 @@
         ]
       },
       "findings_summary": {
-        "clone_group_count": 16,
-        "clone_family_count": 2,
+        "clone_group_count": 17,
+        "clone_family_count": 3,
         "finding_count": 12,
         "semantic_finding_count": 2,
         "debt_signal_count": 5,
-        "watchpoint_count": 3
+        "watchpoint_count": 4
       },
       "session_end": {
         "supported": false,
@@ -420,25 +430,25 @@
       "defect_id": "self_incomplete_propagation",
       "title": "Change one defect-injection surface without updating its sibling contract sites",
       "injected_paths": [
-        "/tmp/sentrux-defect-injection-sentrux-self_incomplete_propagation-Vt4KMj/defect-injection-sentrux-self_incomplete_propagation/.sentrux/rules.toml",
-        "/tmp/sentrux-defect-injection-sentrux-self_incomplete_propagation-Vt4KMj/defect-injection-sentrux-self_incomplete_propagation/scripts/defect-injection/catalog.mjs"
+        "/tmp/sentrux-defect-injection-sentrux-self_incomplete_propagation-D8cbbu/defect-injection-sentrux-self_incomplete_propagation/.sentrux/rules.toml",
+        "/tmp/sentrux-defect-injection-sentrux-self_incomplete_propagation-D8cbbu/defect-injection-sentrux-self_incomplete_propagation/scripts/defect-injection/catalog.mjs"
       ],
       "baseline_scan": {
         "files": 585,
         "import_edges": 127,
-        "quality_signal": 6582,
+        "quality_signal": 6581,
         "overall_confidence_0_10000": 9606,
         "resolved": 127,
         "unresolved_internal": 4
       },
       "baseline_session_start": {
-        "session_finding_count": 97,
+        "session_finding_count": 98,
         "suppressed_finding_count": 0
       },
       "post_scan": {
         "files": 585,
         "import_edges": 127,
-        "quality_signal": 6582,
+        "quality_signal": 6581,
         "overall_confidence_0_10000": 9574,
         "resolved": 127,
         "unresolved_internal": 4
@@ -491,12 +501,12 @@
         ]
       },
       "findings_summary": {
-        "clone_group_count": 16,
-        "clone_family_count": 2,
+        "clone_group_count": 17,
+        "clone_family_count": 3,
         "finding_count": 12,
         "semantic_finding_count": 1,
         "debt_signal_count": 5,
-        "watchpoint_count": 3
+        "watchpoint_count": 4
       },
       "session_end": {
         "supported": false,
@@ -564,35 +574,35 @@
       "defect_id": "self_session_introduced_clone",
       "title": "Introduce a fresh duplicate helper after the session baseline",
       "injected_paths": [
-        "/tmp/sentrux-defect-injection-sentrux-self_session_introduced_clone-AoR4o9/defect-injection-sentrux-self_session_introduced_clone/package.json",
-        "/tmp/sentrux-defect-injection-sentrux-self_session_introduced_clone-AoR4o9/defect-injection-sentrux-self_session_introduced_clone/tsconfig.json",
-        "/tmp/sentrux-defect-injection-sentrux-self_session_introduced_clone-AoR4o9/defect-injection-sentrux-self_session_introduced_clone/src/source.ts",
-        "/tmp/sentrux-defect-injection-sentrux-self_session_introduced_clone-AoR4o9/defect-injection-sentrux-self_session_introduced_clone/src/copy.ts",
-        "/tmp/sentrux-defect-injection-sentrux-self_session_introduced_clone-AoR4o9/defect-injection-sentrux-self_session_introduced_clone/src/notes.ts"
+        "/tmp/sentrux-defect-injection-sentrux-self_session_introduced_clone-OyuuDU/defect-injection-sentrux-self_session_introduced_clone/package.json",
+        "/tmp/sentrux-defect-injection-sentrux-self_session_introduced_clone-OyuuDU/defect-injection-sentrux-self_session_introduced_clone/tsconfig.json",
+        "/tmp/sentrux-defect-injection-sentrux-self_session_introduced_clone-OyuuDU/defect-injection-sentrux-self_session_introduced_clone/src/source.ts",
+        "/tmp/sentrux-defect-injection-sentrux-self_session_introduced_clone-OyuuDU/defect-injection-sentrux-self_session_introduced_clone/src/copy.ts",
+        "/tmp/sentrux-defect-injection-sentrux-self_session_introduced_clone-OyuuDU/defect-injection-sentrux-self_session_introduced_clone/src/notes.ts"
       ],
       "baseline_scan": {
         "files": 585,
         "import_edges": 127,
-        "quality_signal": 6582,
+        "quality_signal": 6581,
         "overall_confidence_0_10000": 9606,
         "resolved": 127,
         "unresolved_internal": 4
       },
       "baseline_session_start": {
-        "session_finding_count": 97,
+        "session_finding_count": 98,
         "suppressed_finding_count": 0
       },
       "post_scan": {
         "files": 590,
         "import_edges": 127,
-        "quality_signal": 6575,
+        "quality_signal": 6577,
         "overall_confidence_0_10000": 9578,
         "resolved": 127,
         "unresolved_internal": 4
       },
       "check_summary": {
         "gate": "warn",
-        "issue_count": 5,
+        "issue_count": 4,
         "changed_file_count": 5,
         "partial_results": false,
         "changed_scope_available": true
@@ -602,9 +612,7 @@
         "matched": true,
         "evidence": [
           "$.actions[0]:session_introduced_clone",
-          "$.actions[1]:session_introduced_clone",
-          "$.issues[0]:session_introduced_clone",
-          "$.issues[1]:session_introduced_clone"
+          "$.issues[0]:session_introduced_clone"
         ]
       },
       "check_rules": {
@@ -622,7 +630,7 @@
       "gate_summary": {
         "decision": "pass",
         "changed_file_count": 5,
-        "introduced_finding_count": 2,
+        "introduced_finding_count": 1,
         "missing_obligation_count": 0,
         "obligation_completeness_0_10000": 10000
       },
@@ -645,13 +653,9 @@
         "matched": true,
         "evidence": [
           "$.actions[0]:session_introduced_clone",
-          "$.actions[1]:session_introduced_clone",
           "$.finding_details[0]:session_introduced_clone",
-          "$.finding_details[1]:session_introduced_clone",
           "$.introduced_clone_findings[0]:session_introduced_clone",
-          "$.introduced_clone_findings[1]:session_introduced_clone",
-          "$.introduced_findings[0]:session_introduced_clone",
-          "$.introduced_findings[1]:session_introduced_clone"
+          "$.introduced_findings[0]:session_introduced_clone"
         ],
         "matched_kinds": [
           "session_introduced_clone"
@@ -660,7 +664,7 @@
       "session_end_summary": {
         "pass": true,
         "changed_file_count": 5,
-        "introduced_finding_count": 2,
+        "introduced_finding_count": 1,
         "missing_obligation_count": 0,
         "gate_decision": "warn"
       },
@@ -673,9 +677,7 @@
           "matched": true,
           "evidence": [
             "$.actions[0]:session_introduced_clone",
-            "$.actions[1]:session_introduced_clone",
-            "$.issues[0]:session_introduced_clone",
-            "$.issues[1]:session_introduced_clone"
+            "$.issues[0]:session_introduced_clone"
           ]
         },
         "check_rules": {
@@ -701,13 +703,9 @@
           "matched": true,
           "evidence": [
             "$.actions[0]:session_introduced_clone",
-            "$.actions[1]:session_introduced_clone",
             "$.finding_details[0]:session_introduced_clone",
-            "$.finding_details[1]:session_introduced_clone",
             "$.introduced_clone_findings[0]:session_introduced_clone",
-            "$.introduced_clone_findings[1]:session_introduced_clone",
-            "$.introduced_findings[0]:session_introduced_clone",
-            "$.introduced_findings[1]:session_introduced_clone"
+            "$.introduced_findings[0]:session_introduced_clone"
           ],
           "matched_kinds": [
             "session_introduced_clone"
@@ -720,31 +718,198 @@
       "status": "pass"
     },
     {
+      "defect_id": "self_clone_propagation_drift",
+      "title": "Edit one side of a committed duplicate helper pair without syncing its sibling",
+      "injected_paths": [
+        "/tmp/sentrux-defect-injection-sentrux-self_clone_propagation_drift-q0ir4Q/defect-injection-sentrux-self_clone_propagation_drift/src/source.ts"
+      ],
+      "baseline_scan": {
+        "files": 590,
+        "import_edges": 127,
+        "quality_signal": 6574,
+        "overall_confidence_0_10000": 9609,
+        "resolved": 127,
+        "unresolved_internal": 4
+      },
+      "baseline_session_start": {
+        "session_finding_count": 100,
+        "suppressed_finding_count": 0
+      },
+      "post_scan": {
+        "files": 590,
+        "import_edges": 127,
+        "quality_signal": 6582,
+        "overall_confidence_0_10000": 9578,
+        "resolved": 127,
+        "unresolved_internal": 4
+      },
+      "check_summary": {
+        "gate": "warn",
+        "issue_count": 2,
+        "changed_file_count": 1,
+        "partial_results": false,
+        "changed_scope_available": true
+      },
+      "check": {
+        "supported": true,
+        "matched": true,
+        "evidence": [
+          "$.actions[0]:clone_propagation_drift",
+          "$.actions[1]:clone_propagation_drift",
+          "$.issues[0]:clone_propagation_drift",
+          "$.issues[1]:clone_propagation_drift",
+          "decision=warn"
+        ]
+      },
+      "check_rules": {
+        "supported": false,
+        "matched": false,
+        "evidence": [],
+        "matched_kinds": []
+      },
+      "gate": {
+        "supported": true,
+        "matched": true,
+        "evidence": [
+          "$.introduced_findings[0]:clone_propagation_drift",
+          "$.introduced_findings[1]:clone_propagation_drift"
+        ],
+        "matched_kinds": [
+          "clone_propagation_drift"
+        ]
+      },
+      "gate_summary": {
+        "decision": "pass",
+        "changed_file_count": 1,
+        "introduced_finding_count": 2,
+        "missing_obligation_count": 0,
+        "obligation_completeness_0_10000": 10000
+      },
+      "findings": {
+        "supported": false,
+        "matched": false,
+        "evidence": [],
+        "matched_kinds": []
+      },
+      "findings_summary": {
+        "clone_group_count": 17,
+        "clone_family_count": 3,
+        "finding_count": 12,
+        "semantic_finding_count": 0,
+        "debt_signal_count": 5,
+        "watchpoint_count": 3
+      },
+      "session_end": {
+        "supported": true,
+        "matched": true,
+        "evidence": [
+          "$.actions[0]:clone_propagation_drift",
+          "$.actions[1]:clone_propagation_drift",
+          "$.finding_details[0]:clone_propagation_drift",
+          "$.finding_details[1]:clone_propagation_drift",
+          "$.introduced_clone_findings[0]:clone_propagation_drift",
+          "$.introduced_clone_findings[1]:clone_propagation_drift",
+          "$.introduced_findings[0]:clone_propagation_drift",
+          "$.introduced_findings[1]:clone_propagation_drift"
+        ],
+        "matched_kinds": [
+          "clone_propagation_drift"
+        ]
+      },
+      "session_end_summary": {
+        "pass": true,
+        "changed_file_count": 1,
+        "introduced_finding_count": 2,
+        "missing_obligation_count": 0,
+        "gate_decision": "warn"
+      },
+      "assertions": {
+        "defect_id": "self_clone_propagation_drift",
+        "title": "Edit one side of a committed duplicate helper pair without syncing its sibling",
+        "supported_primary": true,
+        "check": {
+          "supported": true,
+          "matched": true,
+          "evidence": [
+            "$.actions[0]:clone_propagation_drift",
+            "$.actions[1]:clone_propagation_drift",
+            "$.issues[0]:clone_propagation_drift",
+            "$.issues[1]:clone_propagation_drift",
+            "decision=warn"
+          ]
+        },
+        "check_rules": {
+          "supported": false,
+          "matched": false,
+          "evidence": [],
+          "matched_kinds": []
+        },
+        "gate": {
+          "supported": true,
+          "matched": true,
+          "evidence": [
+            "$.introduced_findings[0]:clone_propagation_drift",
+            "$.introduced_findings[1]:clone_propagation_drift"
+          ],
+          "matched_kinds": [
+            "clone_propagation_drift"
+          ]
+        },
+        "findings": {
+          "supported": false,
+          "matched": false,
+          "evidence": [],
+          "matched_kinds": []
+        },
+        "session_end": {
+          "supported": true,
+          "matched": true,
+          "evidence": [
+            "$.actions[0]:clone_propagation_drift",
+            "$.actions[1]:clone_propagation_drift",
+            "$.finding_details[0]:clone_propagation_drift",
+            "$.finding_details[1]:clone_propagation_drift",
+            "$.introduced_clone_findings[0]:clone_propagation_drift",
+            "$.introduced_clone_findings[1]:clone_propagation_drift",
+            "$.introduced_findings[0]:clone_propagation_drift",
+            "$.introduced_findings[1]:clone_propagation_drift"
+          ],
+          "matched_kinds": [
+            "clone_propagation_drift"
+          ]
+        },
+        "detected": true,
+        "status": "pass"
+      },
+      "detected": true,
+      "status": "pass"
+    },
+    {
       "defect_id": "self_zero_config_boundary_violation",
       "title": "Deep import a task-status helper without a module-contract rule",
       "injected_paths": [
-        "/tmp/sentrux-defect-injection-sentrux-self_zero_config_boundary_violation-WqtFM7/defect-injection-sentrux-self_zero_config_boundary_violation/package.json",
-        "/tmp/sentrux-defect-injection-sentrux-self_zero_config_boundary_violation-WqtFM7/defect-injection-sentrux-self_zero_config_boundary_violation/tsconfig.json",
-        "/tmp/sentrux-defect-injection-sentrux-self_zero_config_boundary_violation-WqtFM7/defect-injection-sentrux-self_zero_config_boundary_violation/src/modules/task-status/index.ts",
-        "/tmp/sentrux-defect-injection-sentrux-self_zero_config_boundary_violation-WqtFM7/defect-injection-sentrux-self_zero_config_boundary_violation/src/modules/task-status/internal.ts",
-        "/tmp/sentrux-defect-injection-sentrux-self_zero_config_boundary_violation-WqtFM7/defect-injection-sentrux-self_zero_config_boundary_violation/src/app/task-dashboard.ts"
+        "/tmp/sentrux-defect-injection-sentrux-self_zero_config_boundary_violation-nHwFTh/defect-injection-sentrux-self_zero_config_boundary_violation/package.json",
+        "/tmp/sentrux-defect-injection-sentrux-self_zero_config_boundary_violation-nHwFTh/defect-injection-sentrux-self_zero_config_boundary_violation/tsconfig.json",
+        "/tmp/sentrux-defect-injection-sentrux-self_zero_config_boundary_violation-nHwFTh/defect-injection-sentrux-self_zero_config_boundary_violation/src/modules/task-status/index.ts",
+        "/tmp/sentrux-defect-injection-sentrux-self_zero_config_boundary_violation-nHwFTh/defect-injection-sentrux-self_zero_config_boundary_violation/src/modules/task-status/internal.ts",
+        "/tmp/sentrux-defect-injection-sentrux-self_zero_config_boundary_violation-nHwFTh/defect-injection-sentrux-self_zero_config_boundary_violation/src/app/task-dashboard.ts"
       ],
       "baseline_scan": {
         "files": 585,
         "import_edges": 127,
-        "quality_signal": 6582,
+        "quality_signal": 6581,
         "overall_confidence_0_10000": 9606,
         "resolved": 127,
         "unresolved_internal": 4
       },
       "baseline_session_start": {
-        "session_finding_count": 97,
+        "session_finding_count": 98,
         "suppressed_finding_count": 0
       },
       "post_scan": {
         "files": 590,
         "import_edges": 129,
-        "quality_signal": 6595,
+        "quality_signal": 6593,
         "overall_confidence_0_10000": 9578,
         "resolved": 129,
         "unresolved_internal": 4
@@ -793,12 +958,12 @@
         "matched_kinds": []
       },
       "findings_summary": {
-        "clone_group_count": 16,
-        "clone_family_count": 2,
+        "clone_group_count": 17,
+        "clone_family_count": 3,
         "finding_count": 12,
         "semantic_finding_count": 0,
         "debt_signal_count": 5,
-        "watchpoint_count": 2
+        "watchpoint_count": 3
       },
       "session_end": {
         "supported": true,

@@ -125,6 +125,21 @@
       "expected_v2_behavior": "Keep this visible as direct clone followthrough evidence while still framing it as a watchpoint until live sessions clear the same pattern reliably."
     },
     {
+      "scope": "src/source.ts",
+      "kind": "clone_propagation_drift",
+      "report_bucket": "Seeded Clone Followthrough",
+      "category": "useful_watchpoint",
+      "expected_trust_tier": "watchpoint",
+      "expected_presentation_class": "duplication_pressure",
+      "expected_leverage_class": "local_refactor_target",
+      "expected_summary_presence": "section_present",
+      "preferred_over": [
+        "sentrux-core/src/metrics/v2/clones.rs"
+      ],
+      "engineer_note": "The seeded committed-clone drift case shows a direct followthrough miss between src/source.ts and src/copy.ts, and the live repair cleared it without regressions. That is stronger clone evidence than clone-adjacent large-file pressure.",
+      "expected_v2_behavior": "Keep this visible as direct clone followthrough evidence when one side of a committed clone pair changes without syncing its sibling, and rank it above generic clone-adjacent structural watchpoints."
+    },
+    {
       "scope": "src/app/task-dashboard.ts",
       "kind": "zero_config_boundary_violation",
       "report_bucket": "Seeded Zero-Config Watchpoints",
