@@ -77,7 +77,11 @@ async function gitRead(repoRootPath, args) {
 
 async function resolveReplayItems(manifest, maxCount) {
   if (Array.isArray(manifest.replays) && manifest.replays.length > 0) {
-    return maxCount ? manifest.replays.slice(0, maxCount) : manifest.replays;
+    if (maxCount) {
+      return manifest.replays.slice(0, maxCount);
+    }
+
+    return manifest.replays;
   }
 
   const sourceRoot = path.resolve(manifest.repo_root);
@@ -102,12 +106,13 @@ async function resolveReplayItems(manifest, maxCount) {
     }));
 }
 
+function resolveReplayLabel(replay) {
+  return replay.replay_id ?? replay.commit?.slice(0, 12) ?? replay.defect_id ?? 'replay';
+}
+
 function buildReplayOptions(replay, manifest, manifestDir, sourceRoot, outputDir) {
-  const replayLabel =
-    replay.replay_id ??
-    replay.commit?.slice(0, 12) ??
-    replay.defect_id ??
-    'replay';
+  const replayLabel = resolveReplayLabel(replay);
+
   return {
     sourceRoot,
     repoLabel: manifest.repo_label,

@@ -210,11 +210,16 @@ async function buildReplayInputs(sourceRoot, baseCommit, commit) {
   };
 }
 
+function resolveReplayCatalog(fixtureRepo) {
+  if (fixtureRepo === 'parallel-code') {
+    return createParallelCodeCatalog();
+  }
+
+  return createDogfoodCatalog();
+}
+
 function resolveReplayDefect(fixtureRepo, defectId) {
-  const catalog =
-    fixtureRepo === 'parallel-code'
-      ? createParallelCodeCatalog()
-      : createDogfoodCatalog();
+  const catalog = resolveReplayCatalog(fixtureRepo);
   const defects = selectDefects(catalog, [defectId]);
   if (defects.length !== 1) {
     throw new Error(`Unknown replay defect id: ${defectId}`);
@@ -223,16 +228,27 @@ function resolveReplayDefect(fixtureRepo, defectId) {
   return defects[0];
 }
 
+function resolveReplayTargetPath(workRoot, targetPath) {
+  if (path.isAbsolute(targetPath)) {
+    return targetPath;
+  }
+
+  return path.join(workRoot, targetPath);
+}
+
 function relativeReplayPaths(workRoot, targetPaths) {
   const relativePaths = targetPaths
-    .map((targetPath) =>
-      path.relative(
-        workRoot,
-        path.isAbsolute(targetPath) ? targetPath : path.join(workRoot, targetPath),
-      ),
-    )
+    .map((targetPath) => path.relative(workRoot, resolveReplayTargetPath(workRoot, targetPath)))
     .filter(Boolean);
   return [...new Set(relativePaths)].sort();
+}
+
+function resolveReplaySourceRoot(args) {
+  if (args.defectId && args.fixtureRepo === 'parallel-code') {
+    return path.resolve(parallelCodeRoot);
+  }
+
+  return path.resolve(args.sourceRoot);
 }
 
 async function recordSnapshot(session, workRoot, label) {
@@ -274,11 +290,7 @@ export async function runDiffReplay(options) {
     expectedSignalKinds: [...(options.expectedSignalKinds ?? [])],
   };
   const replayTarget = args.commit ?? args.defectId;
-  const sourceRoot = path.resolve(
-    args.defectId && args.fixtureRepo === 'parallel-code'
-      ? parallelCodeRoot
-      : args.sourceRoot,
-  );
+  const sourceRoot = resolveReplaySourceRoot(args);
   const repoLabel = args.repoLabel ?? path.basename(sourceRoot);
   const outputDir = path.resolve(
     args.outputDir ?? defaultOutputDir(sourceRoot, replayTarget),

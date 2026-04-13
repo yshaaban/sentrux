@@ -84,6 +84,18 @@ async function runWithConcurrency(items, concurrency, worker) {
   return results;
 }
 
+function resolveTaskTimeoutMs(task, manifest) {
+  return task.timeout_ms ?? manifest.timeout_ms ?? Number(process.env.EVAL_TIMEOUT_MS ?? '1800000');
+}
+
+function resolveTaskIdleTimeoutMs(task, manifest) {
+  return (
+    task.idle_timeout_ms ??
+    manifest.idle_timeout_ms ??
+    Number(process.env.EVAL_IDLE_TIMEOUT_MS ?? '600000')
+  );
+}
+
 export function buildTaskSessionOptions(task, manifest, manifestDir, sourceRoot, outputDir) {
   return {
     sourceRoot,
@@ -100,14 +112,8 @@ export function buildTaskSessionOptions(task, manifest, manifestDir, sourceRoot,
     rulesSource: manifest.rules_source ? path.resolve(manifestDir, manifest.rules_source) : null,
     analysisMode: manifest.analysis_mode ?? 'working_tree',
     model: manifest.model ?? null,
-    timeoutMs:
-      task.timeout_ms ??
-      manifest.timeout_ms ??
-      Number(process.env.EVAL_TIMEOUT_MS ?? '1800000'),
-    idleTimeoutMs:
-      task.idle_timeout_ms ??
-      manifest.idle_timeout_ms ??
-      Number(process.env.EVAL_IDLE_TIMEOUT_MS ?? '600000'),
+    timeoutMs: resolveTaskTimeoutMs(task, manifest),
+    idleTimeoutMs: resolveTaskIdleTimeoutMs(task, manifest),
     pollMs: manifest.poll_ms ?? Number(process.env.EVAL_POLL_MS ?? '4000'),
     outputDir: path.join(outputDir, task.task_id ?? `task-${Date.now()}`),
     codexBin: manifest.codex_bin ?? process.env.CODEX_BIN ?? 'codex',

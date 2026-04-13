@@ -449,14 +449,20 @@ export async function buildScorecardArgs({
     scorecardMarkdownPath,
   ];
 
-  await pushExistingPathArg(scorecardArgs, '--codex-batch', codexBatchPath);
-  await pushExistingPathArg(scorecardArgs, '--replay-batch', replayBatchPath);
-  await pushExistingPathArg(scorecardArgs, '--defect-report', defectReportPath);
+  const optionalArtifactArgs = [
+    ['--codex-batch', codexBatchPath],
+    ['--replay-batch', replayBatchPath],
+    ['--defect-report', defectReportPath],
+    ['--remediation-report', remediationReportPath],
+    ['--benchmark', benchmarkPath],
+  ];
+
+  for (const [flag, targetPath] of optionalArtifactArgs) {
+    await pushExistingPathArg(scorecardArgs, flag, targetPath);
+  }
   if (selectedReviewVerdictsPath) {
     scorecardArgs.push('--review-verdicts', selectedReviewVerdictsPath);
   }
-  await pushExistingPathArg(scorecardArgs, '--remediation-report', remediationReportPath);
-  await pushExistingPathArg(scorecardArgs, '--benchmark', benchmarkPath);
 
   return scorecardArgs;
 }

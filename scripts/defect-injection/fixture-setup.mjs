@@ -1,18 +1,19 @@
 import { runCommand } from '../lib/benchmark-harness.mjs';
 
-export function normalizeDefectPaths(result, key) {
-  if (Array.isArray(result)) {
-    return result.filter(Boolean);
-  }
-  if (!result || typeof result !== 'object') {
-    return result ? [result] : [];
-  }
-
-  const value = result[key];
+function normalizePathList(value) {
   if (Array.isArray(value)) {
     return value.filter(Boolean);
   }
+
   return value ? [value] : [];
+}
+
+export function normalizeDefectPaths(result, key) {
+  if (!result || typeof result !== 'object') {
+    return normalizePathList(result);
+  }
+
+  return normalizePathList(result[key]);
 }
 
 export async function gitConfigValue(root, key) {
@@ -46,12 +47,11 @@ export async function commitPreparedFixture(workRoot, repoRoot, message) {
 
 export async function prepareDefectFixture(defect, workRoot, repoRoot) {
   if (typeof defect.setup !== 'function') {
-    return [];
+    return;
   }
 
-  const preparedPaths = normalizeDefectPaths(await defect.setup(workRoot), 'prepared_paths');
+  await defect.setup(workRoot);
   if (typeof defect.setup_commit_message === 'string' && defect.setup_commit_message) {
     await commitPreparedFixture(workRoot, repoRoot, defect.setup_commit_message);
   }
-  return preparedPaths;
 }
