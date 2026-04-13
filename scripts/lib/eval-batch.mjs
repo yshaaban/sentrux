@@ -57,13 +57,16 @@ export function normalizeExpectedSignalKinds(value) {
 }
 
 export function summarizeBundleOutcome(bundle) {
-  const initialActions = bundle?.initial_check?.actions ?? [];
+  const initialActions =
+    bundle?.outcome?.initial_action_kinds ??
+    bundle?.initial_check?.actions?.map((action) => action.kind).filter(Boolean) ??
+    [];
 
   return {
     final_gate: bundle?.outcome?.final_gate ?? null,
     final_session_clean: bundle?.outcome?.final_session_clean ?? false,
     initial_top_action_kind: bundle?.outcome?.initial_top_action_kind ?? null,
-    initial_action_kinds: initialActions.map((action) => action.kind).filter(Boolean),
+    initial_action_kinds: initialActions,
     top_action_cleared: bundle?.outcome?.top_action_cleared ?? false,
     checks_to_clear_top_action: bundle?.outcome?.checks_to_clear_top_action ?? null,
     followup_regression_introduced:

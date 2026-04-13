@@ -200,6 +200,7 @@ function summarizeOutcome(sessionTelemetry) {
 
   return {
     session_count: sessionTelemetry.summary.session_count,
+    initial_action_kinds: lastSession?.initial_action_kinds ?? [],
     initial_top_action_kind: lastSession?.initial_top_action_kind ?? null,
     top_action_cleared: lastSession?.top_action_cleared ?? false,
     checks_to_clear_top_action: lastSession?.checks_to_clear_top_action ?? null,
@@ -301,6 +302,7 @@ export async function runDiffReplay(options) {
         commit_subject: replayInputs.commit_subject,
         changed_files: replayInputs.changed_files,
       },
+      initial_check: initialSnapshot.check,
       snapshots: [initialSnapshot, replaySnapshot],
       final_check: replaySnapshot.check,
       final_gate: finalGate.payload,

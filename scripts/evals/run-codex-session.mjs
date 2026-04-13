@@ -285,6 +285,7 @@ function summarizeOutcome(sessionTelemetry) {
 
   return {
     session_count: sessionTelemetry.summary.session_count,
+    initial_action_kinds: lastSession?.initial_action_kinds ?? [],
     initial_top_action_kind: lastSession?.initial_top_action_kind ?? null,
     top_action_cleared: lastSession?.top_action_cleared ?? false,
     checks_to_clear_top_action: lastSession?.checks_to_clear_top_action ?? null,

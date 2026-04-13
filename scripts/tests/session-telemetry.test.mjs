@@ -53,6 +53,10 @@ test('buildSessionTelemetrySummary tracks top-action follow-up resolution', func
 
   assert.equal(summary.summary.session_count, 1);
   assert.equal(summary.sessions[0].initial_gate, 'fail');
+  assert.deepEqual(summary.sessions[0].initial_action_kinds, [
+    'forbidden_raw_read',
+    'missing_test_coverage',
+  ]);
   assert.equal(summary.sessions[0].top_action_cleared, true);
   assert.equal(summary.sessions[0].checks_to_clear_top_action, 1);
   assert.equal(summary.sessions[0].followup_regression_introduced, false);
@@ -125,6 +129,7 @@ test('buildSessionTelemetrySummary tracks the first surfaced action when a sessi
   ]);
 
   assert.equal(summary.sessions[0].initial_gate, 'pass');
+  assert.deepEqual(summary.sessions[0].initial_action_kinds, ['closed_domain_exhaustiveness']);
   assert.equal(summary.sessions[0].initial_top_action_kind, 'closed_domain_exhaustiveness');
   assert.equal(summary.sessions[0].top_action_cleared, true);
   assert.equal(summary.sessions[0].checks_to_clear_top_action, 1);

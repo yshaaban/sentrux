@@ -36,7 +36,11 @@ function summarizeWeakSignals(cohort, scorecard, candidateMap) {
         session_clean_rate: signal.session_clean_rate ?? null,
         session_trial_count: signal.session_trial_count ?? 0,
         session_trial_miss_rate: signal.session_trial_miss_rate ?? null,
+        expected_missing_count: candidate?.expected_missing_count ?? 0,
+        expected_present_not_top_count: candidate?.expected_present_not_top_count ?? 0,
         crowded_out_expected_count: candidate?.crowded_out_expected_count ?? 0,
+        unexpected_top_action_count: candidate?.unexpected_top_action_count ?? 0,
+        telemetry_incomplete_count: candidate?.telemetry_incomplete_count ?? 0,
         average_checks_to_clear: signal.average_checks_to_clear ?? null,
       };
     });
@@ -49,7 +53,11 @@ function createCandidateEntry(signalKind) {
     replay_miss_count: 0,
     live_miss_count: 0,
     regression_followup_count: 0,
+    expected_missing_count: 0,
+    expected_present_not_top_count: 0,
     crowded_out_expected_count: 0,
+    unexpected_top_action_count: 0,
+    telemetry_incomplete_count: 0,
     not_in_active_cohort: 0,
     priority_score: 0,
   };
@@ -65,7 +73,7 @@ function ensureCandidateEntry(candidateMap, signalKind) {
 
 function recordCandidate(candidateMap, signalKind, bucket, activeSignalKinds) {
   if (!signalKind) {
-    return;
+    return null;
   }
 
   const entry = ensureCandidateEntry(candidateMap, signalKind);
@@ -74,6 +82,7 @@ function recordCandidate(candidateMap, signalKind, bucket, activeSignalKinds) {
   if (!activeSignalKinds.has(signalKind)) {
     entry.not_in_active_cohort += 1;
   }
+  return entry;
 }
 
 function buildMissEntries(results, lane, activeSignalKinds, candidateMap) {
@@ -84,27 +93,55 @@ function buildMissEntries(results, lane, activeSignalKinds, candidateMap) {
     const expectedKinds = asArray(result.expected_signal_kinds);
     const initialTopActionKind = outcome.initial_top_action_kind ?? null;
     const initialActionKinds = new Set(asArray(outcome.initial_action_kinds));
-    const missingExpectedKinds = expectedKinds.filter((kind) => !initialActionKinds.has(kind));
-    const missedExpectedSignal = expectedKinds.length > 0 && missingExpectedKinds.length > 0;
+    const telemetryIncomplete = Boolean(initialTopActionKind) && initialActionKinds.size === 0;
+    const presentExpectedKinds = telemetryIncomplete
+      ? []
+      : expectedKinds.filter((kind) => initialActionKinds.has(kind));
+    const missingExpectedKinds = telemetryIncomplete
+      ? []
+      : expectedKinds.filter((kind) => !initialActionKinds.has(kind));
+    const expectedKindsPresentButNotTop =
+      initialTopActionKind && !expectedKinds.includes(initialTopActionKind)
+        ? presentExpectedKinds
+        : [];
     const needsAttention =
       !outcome.final_session_clean ||
       outcome.followup_regression_introduced ||
-      (missedExpectedSignal && outcome.final_session_clean === false);
+      ((missingExpectedKinds.length > 0 || expectedKindsPresentButNotTop.length > 0) &&
+        outcome.final_session_clean === false);
 
     if (!needsAttention) {
       continue;
     }
 
-    for (const signalKind of missingExpectedKinds) {
-      recordCandidate(candidateMap, signalKind, lane, activeSignalKinds);
+    if (telemetryIncomplete) {
+      ensureCandidateEntry(candidateMap, initialTopActionKind).telemetry_incomplete_count += 1;
+    } else {
+      for (const signalKind of missingExpectedKinds) {
+        const candidate = recordCandidate(candidateMap, signalKind, lane, activeSignalKinds);
+        candidate.expected_missing_count += 1;
+      }
+
+      for (const signalKind of expectedKindsPresentButNotTop) {
+        const candidate = recordCandidate(candidateMap, signalKind, lane, activeSignalKinds);
+        candidate.expected_present_not_top_count += 1;
+      }
     }
 
     if (
+      !telemetryIncomplete &&
+      initialTopActionKind &&
+      !expectedKinds.includes(initialTopActionKind) &&
+      expectedKindsPresentButNotTop.length > 0
+    ) {
+      ensureCandidateEntry(candidateMap, initialTopActionKind).crowded_out_expected_count += 1;
+    } else if (
+      !telemetryIncomplete &&
       missingExpectedKinds.length > 0 &&
       initialTopActionKind &&
       !expectedKinds.includes(initialTopActionKind)
     ) {
-      ensureCandidateEntry(candidateMap, initialTopActionKind).crowded_out_expected_count += 1;
+      ensureCandidateEntry(candidateMap, initialTopActionKind).unexpected_top_action_count += 1;
     }
 
     if (outcome.followup_regression_introduced && initialTopActionKind) {
@@ -117,6 +154,9 @@ function buildMissEntries(results, lane, activeSignalKinds, candidateMap) {
       label: result.task_label ?? result.commit ?? null,
       expected_signal_kinds: expectedKinds,
       initial_action_kinds: [...initialActionKinds],
+      telemetry_incomplete: telemetryIncomplete,
+      missing_expected_kinds: missingExpectedKinds,
+      expected_present_not_top_kinds: expectedKindsPresentButNotTop,
       initial_top_action_kind: initialTopActionKind,
       top_action_cleared: outcome.top_action_cleared ?? false,
       final_gate: outcome.final_gate ?? null,
@@ -146,8 +186,20 @@ function summarizeNextCandidates(candidateMap) {
       if (right.priority_score !== left.priority_score) {
         return right.priority_score - left.priority_score;
       }
+      if (right.expected_present_not_top_count !== left.expected_present_not_top_count) {
+        return right.expected_present_not_top_count - left.expected_present_not_top_count;
+      }
+      if (right.expected_missing_count !== left.expected_missing_count) {
+        return right.expected_missing_count - left.expected_missing_count;
+      }
+      if (right.telemetry_incomplete_count !== left.telemetry_incomplete_count) {
+        return right.telemetry_incomplete_count - left.telemetry_incomplete_count;
+      }
       if (right.crowded_out_expected_count !== left.crowded_out_expected_count) {
         return right.crowded_out_expected_count - left.crowded_out_expected_count;
+      }
+      if (right.unexpected_top_action_count !== left.unexpected_top_action_count) {
+        return right.unexpected_top_action_count - left.unexpected_top_action_count;
       }
       if (right.not_in_active_cohort !== left.not_in_active_cohort) {
         return right.not_in_active_cohort - left.not_in_active_cohort;
@@ -229,7 +281,7 @@ function appendCandidateSection(lines, title, candidates) {
   } else {
     for (const candidate of candidates.slice(0, 10)) {
       lines.push(
-        `- \`${candidate.signal_kind}\`: score=${candidate.priority_score ?? 0}, misses=${candidate.miss_count}, live=${candidate.live_miss_count}, replay=${candidate.replay_miss_count}, regression_followups=${candidate.regression_followup_count}, crowded_out=${candidate.crowded_out_expected_count ?? 0}`,
+        `- \`${candidate.signal_kind}\`: score=${candidate.priority_score ?? 0}, misses=${candidate.miss_count}, live=${candidate.live_miss_count}, replay=${candidate.replay_miss_count}, expected_missing=${candidate.expected_missing_count ?? 0}, present_not_top=${candidate.expected_present_not_top_count ?? 0}, regression_followups=${candidate.regression_followup_count}, crowded_out=${candidate.crowded_out_expected_count ?? 0}, unexpected_top=${candidate.unexpected_top_action_count ?? 0}, telemetry_incomplete=${candidate.telemetry_incomplete_count ?? 0}`,
       );
     }
   }
@@ -307,7 +359,7 @@ export function formatSignalBacklogMarkdown(backlog) {
   } else {
     for (const signal of backlog.weak_signals) {
       lines.push(
-        `- \`${signal.signal_kind}\`: ${signal.recommendation} (session clean=${signal.session_clean_rate ?? 'n/a'}, trial miss=${signal.session_trial_miss_rate ?? 'n/a'}, crowded out=${signal.crowded_out_expected_count ?? 0}, remediation=${signal.remediation_success_rate ?? 'n/a'})`,
+        `- \`${signal.signal_kind}\`: ${signal.recommendation} (session clean=${signal.session_clean_rate ?? 'n/a'}, trial miss=${signal.session_trial_miss_rate ?? 'n/a'}, expected missing=${signal.expected_missing_count ?? 0}, present not top=${signal.expected_present_not_top_count ?? 0}, crowded others=${signal.crowded_out_expected_count ?? 0}, unexpected top=${signal.unexpected_top_action_count ?? 0}, telemetry incomplete=${signal.telemetry_incomplete_count ?? 0}, remediation=${signal.remediation_success_rate ?? 'n/a'})`,
       );
     }
   }

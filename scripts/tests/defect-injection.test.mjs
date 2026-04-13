@@ -29,6 +29,10 @@ test('catalogs expose the expected defect ids', function () {
   const selfForbiddenRawRead = findDefect(dogfoodCatalog, 'self_forbidden_raw_read');
   const selfIncompletePropagation = findDefect(dogfoodCatalog, 'self_incomplete_propagation');
   const selfSessionClone = findDefect(dogfoodCatalog, 'self_session_introduced_clone');
+  const selfClonePropagationDrift = findDefect(
+    dogfoodCatalog,
+    'self_clone_propagation_drift',
+  );
   const zeroConfigBoundaryViolation = findDefect(
     dogfoodCatalog,
     'self_zero_config_boundary_violation',
@@ -56,6 +60,7 @@ test('catalogs expose the expected defect ids', function () {
       'self_forbidden_raw_read',
       'self_incomplete_propagation',
       'self_session_introduced_clone',
+      'self_clone_propagation_drift',
       'self_zero_config_boundary_violation',
     ],
   );
@@ -70,6 +75,7 @@ test('catalogs expose the expected defect ids', function () {
   assert.equal(selfForbiddenRawRead.check_support.supported, true);
   assert.equal(selfIncompletePropagation.check_support.supported, true);
   assert.equal(selfSessionClone.check_support.supported, true);
+  assert.equal(selfClonePropagationDrift.check_support.supported, true);
   assert.equal(zeroConfigBoundaryViolation.check_support.supported, true);
   assert.equal(zeroConfigBoundaryViolation.check_support.gate, 'pass');
   assert.equal(zeroConfigBoundaryViolation.expected_gate_decision, 'pass');

@@ -76,12 +76,22 @@ test('buildSignalBacklog highlights weak cohort signals and next candidates', fu
   assert.equal(backlog.active_signal_misses[0].signal_kind, 'incomplete_propagation');
   assert.equal(backlog.active_signal_misses[0].miss_count, 2);
   assert.equal(backlog.active_signal_misses[0].priority_score, 5);
+  assert.equal(backlog.active_signal_misses[0].expected_missing_count, 2);
+  assert.equal(backlog.active_signal_misses[0].expected_present_not_top_count, 0);
   assert.equal(backlog.active_signal_misses[1].signal_kind, 'forbidden_raw_read');
   assert.equal(backlog.active_signal_misses[1].miss_count, 1);
   assert.equal(backlog.active_signal_misses[1].priority_score, 2);
+  assert.equal(backlog.active_signal_misses[1].expected_missing_count, 1);
+  assert.equal(backlog.active_signal_misses[1].expected_present_not_top_count, 0);
   assert.equal(backlog.live_misses.length, 1);
   assert.equal(backlog.replay_misses.length, 1);
   assert.equal(backlog.replay_misses[0].initial_top_action_kind, 'large_file');
+  assert.equal(backlog.replay_misses[0].telemetry_incomplete, false);
+  assert.deepEqual(backlog.replay_misses[0].missing_expected_kinds, [
+    'incomplete_propagation',
+    'forbidden_raw_read',
+  ]);
+  assert.deepEqual(backlog.replay_misses[0].expected_present_not_top_kinds, []);
 });
 
 test('buildSignalBacklog prioritizes evidenced next candidates ahead of placeholders', function () {
@@ -185,6 +195,75 @@ test('buildSignalBacklog ignores clean sessions that simply lacked an expected s
   assert.equal(backlog.active_signal_misses.length, 0);
 });
 
+test('buildSignalBacklog distinguishes ranked-below-top signals from missing signals', function () {
+  const backlog = buildSignalBacklog({
+    cohort: {
+      cohort_id: 'agent-loop-core',
+      signals: [{ signal_kind: 'forbidden_raw_read' }],
+    },
+    scorecard: { signals: [] },
+    replayBatch: {
+      results: [
+        {
+          replay_id: 'commit-3',
+          commit: 'ghi789',
+          expected_signal_kinds: ['forbidden_raw_read'],
+          outcome: {
+            initial_top_action_kind: 'large_file',
+            initial_action_kinds: ['large_file', 'forbidden_raw_read'],
+            final_gate: 'warn',
+            final_session_clean: false,
+            followup_regression_introduced: false,
+          },
+        },
+      ],
+    },
+  });
+
+  assert.equal(backlog.active_signal_misses.length, 1);
+  assert.equal(backlog.active_signal_misses[0].signal_kind, 'forbidden_raw_read');
+  assert.equal(backlog.active_signal_misses[0].miss_count, 1);
+  assert.equal(backlog.active_signal_misses[0].expected_missing_count, 0);
+  assert.equal(backlog.active_signal_misses[0].expected_present_not_top_count, 1);
+  assert.equal(backlog.replay_misses[0].telemetry_incomplete, false);
+  assert.deepEqual(backlog.replay_misses[0].missing_expected_kinds, []);
+  assert.deepEqual(backlog.replay_misses[0].expected_present_not_top_kinds, [
+    'forbidden_raw_read',
+  ]);
+});
+
+test('buildSignalBacklog marks telemetry-incomplete rows instead of counting false misses', function () {
+  const backlog = buildSignalBacklog({
+    cohort: {
+      cohort_id: 'agent-loop-core',
+      signals: [{ signal_kind: 'forbidden_raw_read' }],
+    },
+    scorecard: { signals: [] },
+    replayBatch: {
+      results: [
+        {
+          replay_id: 'commit-4',
+          commit: 'jkl012',
+          expected_signal_kinds: ['forbidden_raw_read'],
+          outcome: {
+            initial_top_action_kind: 'large_file',
+            initial_action_kinds: [],
+            final_gate: 'warn',
+            final_session_clean: false,
+            followup_regression_introduced: false,
+          },
+        },
+      ],
+    },
+  });
+
+  assert.equal(backlog.active_signal_misses.length, 0);
+  assert.equal(backlog.replay_misses.length, 1);
+  assert.equal(backlog.replay_misses[0].telemetry_incomplete, true);
+  assert.deepEqual(backlog.replay_misses[0].missing_expected_kinds, []);
+  assert.deepEqual(backlog.replay_misses[0].expected_present_not_top_kinds, []);
+});
+
 test('formatSignalBacklogMarkdown renders the backlog summary', function () {
   const markdown = formatSignalBacklogMarkdown({
     cohort_id: 'agent-loop-core',
@@ -201,6 +280,11 @@ test('formatSignalBacklogMarkdown renders the backlog summary', function () {
         recommendation: 'improve_fix_guidance',
         session_clean_rate: 0.4,
         session_trial_miss_rate: 0.5,
+        expected_missing_count: 1,
+        expected_present_not_top_count: 0,
+        crowded_out_expected_count: 0,
+        unexpected_top_action_count: 0,
+        telemetry_incomplete_count: 0,
         remediation_success_rate: 0.5,
       },
     ],
@@ -211,7 +295,12 @@ test('formatSignalBacklogMarkdown renders the backlog summary', function () {
         miss_count: 2,
         live_miss_count: 1,
         replay_miss_count: 1,
+        expected_missing_count: 2,
+        expected_present_not_top_count: 0,
         regression_followup_count: 0,
+        crowded_out_expected_count: 0,
+        unexpected_top_action_count: 0,
+        telemetry_incomplete_count: 0,
       },
     ],
   });

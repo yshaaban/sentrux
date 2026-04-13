@@ -68,6 +68,12 @@ function firstSurfacedTopAction(checkRuns) {
   return null;
 }
 
+function initialActionKindsForSession(checkRuns, firstTopAction) {
+  const actionSourceIndex = firstTopAction?.index ?? 0;
+  const actionSourceRun = checkRuns[actionSourceIndex] ?? null;
+  return actionKindsForRun(actionSourceRun);
+}
+
 function finalGateForSession(checkRuns, sessionEndEvent) {
   if (sessionEndEvent?.decision) {
     return sessionEndEvent.decision;
@@ -145,6 +151,7 @@ function summarizeSession(sessionRunId, events, signalMap) {
   const checkRuns = events.filter((event) => event.event_type === 'check_run');
   const initialCheck = checkRuns[0] ?? null;
   const firstTopAction = firstSurfacedTopAction(checkRuns);
+  const initialActionKinds = initialActionKindsForSession(checkRuns, firstTopAction);
   const initialTopActionKind = firstTopAction?.kind ?? null;
   const checksToClearTopAction = checksUntilActionClears(firstTopAction, checkRuns);
   const topActionCleared = checksToClearTopAction !== null;
@@ -197,6 +204,7 @@ function summarizeSession(sessionRunId, events, signalMap) {
     session_started: sessionStarted,
     session_ended: sessionEnded,
     initial_gate: initialCheck?.gate ?? null,
+    initial_action_kinds: initialActionKinds,
     initial_top_action_kind: initialTopActionKind,
     top_action_cleared: topActionCleared,
     checks_to_clear_top_action: checksToClearTopAction,

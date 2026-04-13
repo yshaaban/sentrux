@@ -264,6 +264,28 @@ function buildSelfSessionCloneSource() {
   ].join('\n');
 }
 
+function buildSelfClonePropagationDriftSource() {
+  return [
+    'export function buildStatusBadge(status: string, isStale: boolean): string {',
+    "  const label = status === 'done' ? 'done' : 'todo';",
+    "  const staleSuffix = isStale ? ' stale' : '';",
+    '  return `${label.toUpperCase()}${staleSuffix}`;',
+    '}',
+    '',
+  ].join('\n');
+}
+
+function buildSelfClonePropagationBaselineSource() {
+  return [
+    'export function buildStatusBadge(status: string, isStale: boolean): string {',
+    "  const label = status === 'done' ? 'done' : 'todo';",
+    "  const staleSuffix = isStale ? ' stale' : '';",
+    '  return `${label}${staleSuffix}`;',
+    '}',
+    '',
+  ].join('\n');
+}
+
 function buildSelfSessionCloneDistractor() {
   return [
     'export function buildTaskLabel(status: string): string {',
@@ -305,6 +327,8 @@ function createDefect({
   title,
   repoLabel,
   targetPath,
+  setup = null,
+  setupCommitMessage = null,
   inject,
   signalKind,
   signalFamily,
@@ -335,6 +359,17 @@ function createDefect({
     expected_gate_kinds: gateKinds,
     expected_finding_kinds: findingKinds,
     expected_session_end_kinds: sessionEndKinds,
+    setup_commit_message: setupCommitMessage,
+    ...(setup
+      ? {
+          async setup(workRoot) {
+            const preparedPaths = await setup(workRoot);
+            return {
+              prepared_paths: Array.isArray(preparedPaths) ? preparedPaths : [preparedPaths],
+            };
+          },
+        }
+      : {}),
     async inject(workRoot) {
       const injectedPaths = await inject(workRoot);
       return {
@@ -724,6 +759,51 @@ function buildDogfoodCatalog() {
           },
           {
             path: 'src/source.ts',
+            text: buildSelfClonePropagationBaselineSource(),
+          },
+          {
+            path: 'src/copy.ts',
+            text: buildSelfClonePropagationBaselineSource(),
+          },
+          {
+            path: 'src/notes.ts',
+            text: buildSelfSessionCloneDistractor(),
+          },
+        ]);
+      },
+    }),
+    createDefect({
+      id: 'self_clone_propagation_drift',
+      title: 'Edit one side of a committed duplicate helper pair without syncing its sibling',
+      repoLabel: 'sentrux',
+      targetPath: 'src/source.ts',
+      signalKind: 'clone_propagation_drift',
+      signalFamily: 'clone',
+      promotionStatus: 'watchpoint',
+      blockingIntent: 'watchpoint',
+      checkSupport: {
+        supported: true,
+        gate: 'warn',
+        kinds: ['clone_propagation_drift'],
+      },
+      gateKinds: ['clone_propagation_drift'],
+      sessionEndKinds: ['clone_propagation_drift'],
+      expectedGateDecision: null,
+      setupCommitMessage: 'Seed clone propagation baseline fixture',
+      async setup(workRoot) {
+        return writeFiles(workRoot, [
+          {
+            path: 'package.json',
+            text: `${buildSelfTypeScriptFixturePackageJson('sentrux-self-clone-propagation-drift')}
+`,
+          },
+          {
+            path: 'tsconfig.json',
+            text: `${buildSelfTypeScriptFixtureTsconfig()}
+`,
+          },
+          {
+            path: 'src/source.ts',
             text: buildSelfSessionCloneSource(),
           },
           {
@@ -735,6 +815,9 @@ function buildDogfoodCatalog() {
             text: buildSelfSessionCloneDistractor(),
           },
         ]);
+      },
+      async inject(workRoot) {
+        return writeTextFile(workRoot, 'src/source.ts', buildSelfClonePropagationDriftSource());
       },
     }),
     createDefect({
