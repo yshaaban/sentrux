@@ -2,7 +2,7 @@
 
 - repo: `sentrux`
 - root: `<sentrux-root>`
-- generated at: `2026-04-13T18:20:19.432Z`
+- generated at: `2026-04-13T21:30:46.419Z`
 - total defects: 6
 - detected: 6
 - partial: 0
@@ -24,7 +24,7 @@
 - session_end matched: true
 - check evidence: `$.actions[0]:large_file, $.issues[0]:large_file, decision=warn`
 - gate evidence: `$.introduced_findings[0]:large_file`
-- findings evidence: `$.debt_signals[0]:large_file, $.debt_signals[1]:large_file, $.debt_signals[2]:large_file, $.debt_signals[3]:large_file, $.debt_signals[4]:large_file, $.finding_details[0]:large_file, $.finding_details[1]:large_file, $.finding_details[2]:large_file, $.finding_details[5]:large_file, $.finding_details[6]:large_file, $.finding_details[7]:large_file, $.finding_details[8]:large_file, $.finding_details[9]:large_file, $.finding_details[10]:large_file, $.finding_details[11]:large_file, $.findings[0]:large_file, $.findings[1]:large_file, $.findings[2]:large_file, $.findings[5]:large_file, $.findings[6]:large_file, $.findings[7]:large_file, $.findings[8]:large_file, $.findings[9]:large_file, $.findings[10]:large_file, $.findings[11]:large_file`
+- findings evidence: `$.debt_signals[0]:large_file, $.debt_signals[1]:large_file, $.debt_signals[2]:large_file, $.debt_signals[3]:large_file, $.debt_signals[4]:large_file, $.finding_details[0]:large_file, $.finding_details[1]:large_file, $.finding_details[2]:large_file, $.finding_details[7]:large_file, $.finding_details[8]:large_file, $.finding_details[9]:large_file, $.finding_details[10]:large_file, $.finding_details[11]:large_file, $.findings[0]:large_file, $.findings[1]:large_file, $.findings[2]:large_file, $.findings[7]:large_file, $.findings[8]:large_file, $.findings[9]:large_file, $.findings[10]:large_file, $.findings[11]:large_file`
 - session_end evidence: `$.actions[0]:large_file, $.debt_signals[0]:large_file, $.finding_details[0]:large_file, $.introduced_findings[0]:large_file`
 
 ### self_forbidden_raw_read
@@ -38,7 +38,7 @@
 - findings matched: true
 - session_end matched: false
 - check evidence: `$.actions[1]:forbidden_raw_read, $.issues[1]:forbidden_raw_read`
-- findings evidence: `$.finding_details[5]:forbidden_raw_read, $.findings[5]:forbidden_raw_read`
+- findings evidence: `$.finding_details[7]:forbidden_raw_read, $.findings[7]:forbidden_raw_read`
 
 ### self_incomplete_propagation
 
@@ -51,7 +51,7 @@
 - findings matched: true
 - session_end matched: false
 - check evidence: `$.actions[0]:incomplete_propagation, $.actions[1]:incomplete_propagation, $.issues[0]:incomplete_propagation, $.issues[1]:incomplete_propagation`
-- findings evidence: `$.finding_details[5]:contract_surface_completeness, $.findings[5]:contract_surface_completeness`
+- findings evidence: `$.finding_details[7]:contract_surface_completeness, $.findings[7]:contract_surface_completeness`
 
 ### self_session_introduced_clone
 

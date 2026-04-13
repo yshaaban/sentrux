@@ -47,6 +47,13 @@ function buildAgentLoopCoreSignals() {
       rationale:
         'Explicit contract-surface propagation misses are sharp enough to calibrate as a conservative watchpoint before broader propagation heuristics.',
     },
+    {
+      signal_kind: 'zero_config_boundary_violation',
+      signal_family: 'rules',
+      promotion_status: 'watchpoint',
+      rationale:
+        'Direct zero-config boundary violations now have deterministic fixture-backed replay coverage plus seeded detection and remediation evidence, so they should stay visible in the fast loop as a maintained watchpoint.',
+    },
   ];
 }
 
@@ -65,7 +72,6 @@ export function buildDefaultSignalCohorts() {
           'multi_writer_concept',
           'forbidden_writer',
           'writer_outside_allowlist',
-          'zero_config_boundary_violation',
         ],
       },
     ],

@@ -7,6 +7,16 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createDisposableRepoClone } from '../lib/disposable-repo.mjs';
 import { createMcpSession, runCommand, runTool } from '../lib/benchmark-harness.mjs';
 import { prepareTypeScriptBenchmarkHome } from '../lib/benchmark-plugin-home.mjs';
+import { resolveWorkspaceRepoRoot } from '../lib/path-roots.mjs';
+import {
+  createDogfoodCatalog,
+  createParallelCodeCatalog,
+  selectDefects,
+} from '../defect-injection/catalog.mjs';
+import {
+  normalizeDefectPaths,
+  prepareDefectFixture,
+} from '../defect-injection/fixture-setup.mjs';
 import {
   formatSessionTelemetrySummaryMarkdown,
   loadSessionTelemetrySummary,
@@ -16,6 +26,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, '../..');
 const sentruxBin = process.env.SENTRUX_BIN ?? path.join(repoRoot, 'target/debug/sentrux');
+const parallelCodeRoot = resolveWorkspaceRepoRoot(
+  process.env.PARALLEL_CODE_ROOT,
+  'parallel-code',
+  repoRoot,
+);
 
 function parseArgs(argv) {
   const result = {
@@ -24,6 +39,8 @@ function parseArgs(argv) {
     replayId: null,
     commit: null,
     baseCommit: null,
+    defectId: null,
+    fixtureRepo: 'self',
     tags: [],
     expectedSignalKinds: [],
     expectedFixSurface: null,
@@ -59,6 +76,16 @@ function parseArgs(argv) {
       result.baseCommit = argv[index];
       continue;
     }
+    if (value === '--defect-id') {
+      index += 1;
+      result.defectId = argv[index];
+      continue;
+    }
+    if (value === '--fixture-repo') {
+      index += 1;
+      result.fixtureRepo = argv[index];
+      continue;
+    }
     if (value === '--tag') {
       index += 1;
       result.tags.push(argv[index]);
@@ -91,8 +118,8 @@ function parseArgs(argv) {
     throw new Error(`Unknown argument: ${value}`);
   }
 
-  if (!result.commit) {
-    throw new Error('Missing required --commit');
+  if (!result.commit && !result.defectId) {
+    throw new Error('Missing required --commit or --defect-id');
   }
 
   return result;
@@ -115,9 +142,14 @@ function defaultRulesSource(sourceRoot) {
   return existsSync(candidate) ? candidate : null;
 }
 
-function defaultOutputDir(sourceRoot, commit) {
+function defaultOutputDir(sourceRoot, replayTarget) {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  return path.join(sourceRoot, '.sentrux', 'evals', `${timestamp}-replay-${slugify(commit)}`);
+  return path.join(
+    sourceRoot,
+    '.sentrux',
+    'evals',
+    `${timestamp}-replay-${slugify(replayTarget)}`,
+  );
 }
 
 function createSession(homeOverride) {
@@ -178,6 +210,31 @@ async function buildReplayInputs(sourceRoot, baseCommit, commit) {
   };
 }
 
+function resolveReplayDefect(fixtureRepo, defectId) {
+  const catalog =
+    fixtureRepo === 'parallel-code'
+      ? createParallelCodeCatalog()
+      : createDogfoodCatalog();
+  const defects = selectDefects(catalog, [defectId]);
+  if (defects.length !== 1) {
+    throw new Error(`Unknown replay defect id: ${defectId}`);
+  }
+
+  return defects[0];
+}
+
+function relativeReplayPaths(workRoot, targetPaths) {
+  const relativePaths = targetPaths
+    .map((targetPath) =>
+      path.relative(
+        workRoot,
+        path.isAbsolute(targetPath) ? targetPath : path.join(workRoot, targetPath),
+      ),
+    )
+    .filter(Boolean);
+  return [...new Set(relativePaths)].sort();
+}
+
 async function recordSnapshot(session, workRoot, label) {
   const scanResult = await runTool(session, 'scan', { path: workRoot });
   const checkResult = await runTool(session, 'check', {});
@@ -216,11 +273,16 @@ export async function runDiffReplay(options) {
     tags: [...(options.tags ?? [])],
     expectedSignalKinds: [...(options.expectedSignalKinds ?? [])],
   };
-  const sourceRoot = path.resolve(args.sourceRoot);
+  const replayTarget = args.commit ?? args.defectId;
+  const sourceRoot = path.resolve(
+    args.defectId && args.fixtureRepo === 'parallel-code'
+      ? parallelCodeRoot
+      : args.sourceRoot,
+  );
   const repoLabel = args.repoLabel ?? path.basename(sourceRoot);
-  const baseCommit = await resolveBaseCommit(sourceRoot, args.commit, args.baseCommit);
-  const replayInputs = await buildReplayInputs(sourceRoot, baseCommit, args.commit);
-  const outputDir = path.resolve(args.outputDir ?? defaultOutputDir(sourceRoot, args.commit));
+  const outputDir = path.resolve(
+    args.outputDir ?? defaultOutputDir(sourceRoot, replayTarget),
+  );
   const bundlePath = path.join(outputDir, 'diff-replay.json');
   const telemetryJsonPath = path.join(outputDir, 'session-telemetry-summary.json');
   const telemetryMarkdownPath = path.join(outputDir, 'session-telemetry-summary.md');
@@ -229,7 +291,7 @@ export async function runDiffReplay(options) {
     args.rulesSource === null ? defaultRulesSource(sourceRoot) : path.resolve(args.rulesSource);
   const clone = await createDisposableRepoClone({
     sourceRoot,
-    label: `diff-replay-${slugify(repoLabel)}-${slugify(args.commit)}`,
+    label: `diff-replay-${slugify(repoLabel)}-${slugify(replayTarget)}`,
     rulesSource,
     analysisMode: 'head_clone',
   });
@@ -239,29 +301,66 @@ export async function runDiffReplay(options) {
   await mkdir(outputDir, { recursive: true });
 
   try {
-    const checkoutResult = await runCommand(
-      'git',
-      ['checkout', '--quiet', baseCommit],
-      { cwd: clone.workRoot },
-    );
-    if (checkoutResult.exit_code !== 0) {
-      throw new Error(checkoutResult.stderr.trim() || `git checkout ${baseCommit} failed`);
+    let replayMetadata = null;
+    let initialSnapshot = null;
+    let replaySnapshot = null;
+    let changedFileCount = 0;
+
+    if (args.defectId) {
+      const defect = resolveReplayDefect(args.fixtureRepo, args.defectId);
+      await prepareDefectFixture(defect, clone.workRoot, repoRoot);
+      await runTool(session, 'scan', { path: clone.workRoot });
+      await runTool(session, 'session_start', {});
+      initialSnapshot = await recordSnapshot(session, clone.workRoot, 'initial');
+      const injectedPaths = normalizeDefectPaths(
+        await defect.inject(clone.workRoot),
+        'injected_paths',
+      );
+      replaySnapshot = await recordSnapshot(session, clone.workRoot, 'replay');
+      replayMetadata = {
+        replay_type: 'defect_fixture',
+        defect_id: defect.id,
+        defect_title: defect.title,
+        fixture_repo: args.fixtureRepo ?? 'self',
+        changed_files: relativeReplayPaths(clone.workRoot, injectedPaths),
+      };
+      changedFileCount = replayMetadata.changed_files.length;
+    } else {
+      const baseCommit = await resolveBaseCommit(sourceRoot, args.commit, args.baseCommit);
+      const replayInputs = await buildReplayInputs(sourceRoot, baseCommit, args.commit);
+      const checkoutResult = await runCommand(
+        'git',
+        ['checkout', '--quiet', baseCommit],
+        { cwd: clone.workRoot },
+      );
+      if (checkoutResult.exit_code !== 0) {
+        throw new Error(checkoutResult.stderr.trim() || `git checkout ${baseCommit} failed`);
+      }
+
+      await runTool(session, 'scan', { path: clone.workRoot });
+      await runTool(session, 'session_start', {});
+      initialSnapshot = await recordSnapshot(session, clone.workRoot, 'initial');
+
+      const applyResult = await runCommand(
+        'git',
+        ['apply', '--whitespace=nowarn', '-'],
+        { cwd: clone.workRoot, input: replayInputs.patch },
+      );
+      if (applyResult.exit_code !== 0) {
+        throw new Error(applyResult.stderr.trim() || `git apply for ${args.commit} failed`);
+      }
+
+      replaySnapshot = await recordSnapshot(session, clone.workRoot, 'replay');
+      replayMetadata = {
+        replay_type: 'commit',
+        commit: args.commit,
+        base_commit: baseCommit,
+        commit_subject: replayInputs.commit_subject,
+        changed_files: replayInputs.changed_files,
+      };
+      changedFileCount = replayInputs.changed_files.length;
     }
 
-    await runTool(session, 'scan', { path: clone.workRoot });
-    await runTool(session, 'session_start', {});
-    const initialSnapshot = await recordSnapshot(session, clone.workRoot, 'initial');
-
-    const applyResult = await runCommand(
-      'git',
-      ['apply', '--whitespace=nowarn', '-'],
-      { cwd: clone.workRoot, input: replayInputs.patch },
-    );
-    if (applyResult.exit_code !== 0) {
-      throw new Error(applyResult.stderr.trim() || `git apply for ${args.commit} failed`);
-    }
-
-    const replaySnapshot = await recordSnapshot(session, clone.workRoot, 'replay');
     const finalGate = await runTool(session, 'gate', {});
     const sessionEnd = await runTool(session, 'session_end', {});
     const telemetryLogPath = path.join(clone.workRoot, '.sentrux', 'agent-session-events.jsonl');
@@ -290,18 +389,13 @@ export async function runDiffReplay(options) {
       schema_version: 1,
       generated_at: nowIso(),
       repo_label: repoLabel,
-      replay_id: args.replayId ?? slugify(args.commit),
+      replay_id: args.replayId ?? slugify(replayTarget),
       source_root: sourceRoot,
       analyzed_root: clone.workRoot,
       tags: args.tags,
       expected_signal_kinds: args.expectedSignalKinds,
       expected_fix_surface: args.expectedFixSurface ?? null,
-      replay: {
-        commit: args.commit,
-        base_commit: baseCommit,
-        commit_subject: replayInputs.commit_subject,
-        changed_files: replayInputs.changed_files,
-      },
+      replay: replayMetadata,
       initial_check: initialSnapshot.check,
       snapshots: [initialSnapshot, replaySnapshot],
       final_check: replaySnapshot.check,
@@ -320,7 +414,7 @@ export async function runDiffReplay(options) {
     );
 
     console.log(
-      `Replayed ${args.commit} on ${repoLabel}; final gate=${bundle.outcome.final_gate ?? 'unknown'} with ${replayInputs.changed_files.length} changed file(s).`,
+      `Replayed ${replayTarget} on ${repoLabel}; final gate=${bundle.outcome.final_gate ?? 'unknown'} with ${changedFileCount} changed file(s).`,
     );
     console.log(`Artifacts written to ${outputDir}`);
     return bundle;

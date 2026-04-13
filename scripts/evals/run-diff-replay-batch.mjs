@@ -103,27 +103,36 @@ async function resolveReplayItems(manifest, maxCount) {
 }
 
 function buildReplayOptions(replay, manifest, manifestDir, sourceRoot, outputDir) {
+  const replayLabel =
+    replay.replay_id ??
+    replay.commit?.slice(0, 12) ??
+    replay.defect_id ??
+    'replay';
   return {
     sourceRoot,
     repoLabel: manifest.repo_label,
-    replayId: replay.replay_id,
+    replayId: replay.replay_id ?? replayLabel,
     commit: replay.commit,
     baseCommit: replay.base_commit ?? null,
+    defectId: replay.defect_id ?? null,
+    fixtureRepo: replay.fixture_repo ?? 'self',
     tags: parseTagList(replay.tags),
     expectedSignalKinds: normalizeExpectedSignalKinds(
       replay.expected_signal_kinds ?? manifest.expected_signal_kinds,
     ),
     expectedFixSurface: replay.expected_fix_surface ?? null,
     rulesSource: manifest.rules_source ? path.resolve(manifestDir, manifest.rules_source) : null,
-    outputDir: path.join(outputDir, replay.replay_id ?? replay.commit.slice(0, 12)),
+    outputDir: path.join(outputDir, replayLabel),
   };
 }
 
 function buildReplayResult(bundle, replay) {
   return {
     replay_id: replay.replayId,
-    commit: bundle.replay.commit,
-    base_commit: bundle.replay.base_commit,
+    replay_type: bundle.replay.replay_type ?? 'commit',
+    commit: bundle.replay.commit ?? null,
+    base_commit: bundle.replay.base_commit ?? null,
+    defect_id: bundle.replay.defect_id ?? null,
     tags: replay.tags,
     expected_signal_kinds: replay.expectedSignalKinds,
     expected_fix_surface: replay.expectedFixSurface,
@@ -180,7 +189,7 @@ async function main() {
   await writeJson(path.join(outputDir, 'session-telemetry-summary.json'), mergedSummary);
 
   console.log(
-    `Replayed ${replayResults.length} commit(s) for cohort ${cohort.cohort_id}. Artifacts written to ${outputDir}`,
+    `Replayed ${replayResults.length} replay(s) for cohort ${cohort.cohort_id}. Artifacts written to ${outputDir}`,
   );
 }
 

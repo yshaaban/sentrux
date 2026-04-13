@@ -2,7 +2,7 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { createMcpSession, runCommand, runTool } from '../lib/benchmark-harness.mjs';
+import { createMcpSession, runTool } from '../lib/benchmark-harness.mjs';
 import { assertPathExists, createDisposableRepoClone } from '../lib/disposable-repo.mjs';
 import { resolveWorkspaceRepoRoot } from '../lib/path-roots.mjs';
 import { prepareTypeScriptBenchmarkHome } from '../lib/benchmark-plugin-home.mjs';
@@ -15,6 +15,7 @@ import {
   summarizeSessionSave,
 } from '../lib/benchmark-summaries.mjs';
 import { createDogfoodCatalog, createParallelCodeCatalog, selectDefects } from './catalog.mjs';
+import { normalizeDefectPaths, prepareDefectFixture } from './fixture-setup.mjs';
 import { assertDefectAssertion } from './assertion-engine.mjs';
 import {
   buildInjectionReport,
@@ -130,50 +131,16 @@ function createSession(homeOverride) {
   });
 }
 
-async function gitConfigValue(root, key) {
-  const result = await runCommand('git', ['config', '--get', key], { cwd: root });
-  if (result.exit_code !== 0) {
-    return null;
-  }
-
-  const value = result.stdout.trim();
-  return value || null;
-}
-
-async function commitPreparedFixture(workRoot, message) {
-  const userName = (await gitConfigValue(repoRoot, 'user.name')) ?? 'Sentrux Eval';
-  const userEmail =
-    (await gitConfigValue(repoRoot, 'user.email')) ?? 'sentrux-eval@example.com';
-  const commands = [
-    ['config', 'user.name', userName],
-    ['config', 'user.email', userEmail],
-    ['add', '.'],
-    ['commit', '--quiet', '-m', message],
-  ];
-
-  for (const args of commands) {
-    const result = await runCommand('git', args, { cwd: workRoot });
-    if (result.exit_code !== 0) {
-      throw new Error(result.stderr.trim() || `git ${args.join(' ')} failed`);
-    }
-  }
-}
-
 async function runDefect(workRoot, homeOverride, defect) {
   const baselineSession = createSession(homeOverride);
   const postSession = createSession(homeOverride);
 
   try {
-    if (typeof defect.setup === 'function') {
-      await defect.setup(workRoot);
-      if (typeof defect.setup_commit_message === 'string' && defect.setup_commit_message) {
-        await commitPreparedFixture(workRoot, defect.setup_commit_message);
-      }
-    }
+    await prepareDefectFixture(defect, workRoot, repoRoot);
 
     const baselineScan = await runTool(baselineSession, 'scan', { path: workRoot });
     const baselineSessionStart = await runTool(baselineSession, 'session_start', {});
-    const injection = await defect.inject(workRoot);
+    const injection = normalizeDefectPaths(await defect.inject(workRoot), 'injected_paths');
     const postScan = await runTool(postSession, 'scan', { path: workRoot });
     const check = await runTool(postSession, 'check', {});
     const checkRules = await runTool(postSession, 'check_rules', {});
@@ -193,7 +160,7 @@ async function runDefect(workRoot, homeOverride, defect) {
     return {
       defect_id: defect.id,
       title: defect.title,
-      injected_paths: injection.injected_paths,
+      injected_paths: injection,
       baseline_scan: summarizeScan(baselineScan.payload),
       baseline_session_start: summarizeSessionSave(baselineSessionStart.payload),
       post_scan: summarizeScan(postScan.payload),

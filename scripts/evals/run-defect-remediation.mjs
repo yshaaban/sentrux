@@ -4,12 +4,13 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createDisposableRepoClone } from '../lib/disposable-repo.mjs';
-import { createMcpSession, runCommand, runTool } from '../lib/benchmark-harness.mjs';
+import { createMcpSession, runTool } from '../lib/benchmark-harness.mjs';
 import { resolveWorkspaceRepoRoot } from '../lib/path-roots.mjs';
 import { prepareTypeScriptBenchmarkHome } from '../lib/benchmark-plugin-home.mjs';
 import { runClaudeCode } from './providers/claude-code.mjs';
 import { runCodexExec } from './providers/codex-cli.mjs';
 import { createDogfoodCatalog, createParallelCodeCatalog, selectDefects } from '../defect-injection/catalog.mjs';
+import { prepareDefectFixture } from '../defect-injection/fixture-setup.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -136,35 +137,6 @@ function createSession(homeOverride) {
   });
 }
 
-async function gitConfigValue(root, key) {
-  const result = await runCommand('git', ['config', '--get', key], { cwd: root });
-  if (result.exit_code !== 0) {
-    return null;
-  }
-
-  const value = result.stdout.trim();
-  return value || null;
-}
-
-async function commitPreparedFixture(workRoot, message) {
-  const userName = (await gitConfigValue(repoRoot, 'user.name')) ?? 'Sentrux Eval';
-  const userEmail =
-    (await gitConfigValue(repoRoot, 'user.email')) ?? 'sentrux-eval@example.com';
-  const commands = [
-    ['config', 'user.name', userName],
-    ['config', 'user.email', userEmail],
-    ['add', '.'],
-    ['commit', '--quiet', '-m', message],
-  ];
-
-  for (const args of commands) {
-    const result = await runCommand('git', args, { cwd: workRoot });
-    if (result.exit_code !== 0) {
-      throw new Error(result.stderr.trim() || `git ${args.join(' ')} failed`);
-    }
-  }
-}
-
 function summarizeResultKinds(payload) {
   return (payload.issues ?? payload.findings ?? payload.introduced_findings ?? [])
     .map((entry) => entry.kind)
@@ -236,12 +208,7 @@ async function runRemediation(defect, repoConfig, options) {
   const repairSession = createSession(pluginHome);
 
   try {
-    if (typeof defect.setup === 'function') {
-      await defect.setup(clone.workRoot);
-      if (typeof defect.setup_commit_message === 'string' && defect.setup_commit_message) {
-        await commitPreparedFixture(clone.workRoot, defect.setup_commit_message);
-      }
-    }
+    await prepareDefectFixture(defect, clone.workRoot, repoRoot);
 
     await runTool(baselineSession, 'scan', { path: clone.workRoot });
     await runTool(baselineSession, 'session_start', {});

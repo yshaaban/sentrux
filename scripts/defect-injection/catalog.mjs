@@ -738,6 +738,7 @@ function buildDogfoodCatalog() {
       targetPath: 'src/copy.ts',
       signalKind: 'session_introduced_clone',
       signalFamily: 'clone',
+      promotionStatus: 'watchpoint',
       blockingIntent: 'watchpoint',
       checkSupport: {
         supported: true,

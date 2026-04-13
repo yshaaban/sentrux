@@ -28,11 +28,19 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["commit"],
+        "anyOf": [
+          { "required": ["commit"] },
+          { "required": ["defect_id"] }
+        ],
         "properties": {
           "replay_id": { "type": "string" },
           "commit": { "type": "string", "minLength": 1 },
           "base_commit": { "type": "string" },
+          "defect_id": { "type": "string", "minLength": 1 },
+          "fixture_repo": {
+            "type": "string",
+            "enum": ["self", "parallel-code"]
+          },
           "tags": {
             "oneOf": [
               { "type": "string" },
