@@ -425,6 +425,42 @@ export function buildReviewArgs(
   return args;
 }
 
+export async function buildScorecardArgs({
+  manifest,
+  repoRootPath,
+  mergedTelemetryJsonPath,
+  scorecardJsonPath,
+  scorecardMarkdownPath,
+  codexBatchPath = null,
+  replayBatchPath = null,
+  defectReportPath = null,
+  selectedReviewVerdictsPath = null,
+  remediationReportPath = null,
+  benchmarkPath = null,
+}) {
+  const scorecardArgs = [
+    '--repo-label',
+    manifest.repo_label ?? manifest.repo_id ?? path.basename(repoRootPath),
+    '--session-telemetry',
+    mergedTelemetryJsonPath,
+    '--output-json',
+    scorecardJsonPath,
+    '--output-md',
+    scorecardMarkdownPath,
+  ];
+
+  await pushExistingPathArg(scorecardArgs, '--codex-batch', codexBatchPath);
+  await pushExistingPathArg(scorecardArgs, '--replay-batch', replayBatchPath);
+  await pushExistingPathArg(scorecardArgs, '--defect-report', defectReportPath);
+  if (selectedReviewVerdictsPath) {
+    scorecardArgs.push('--review-verdicts', selectedReviewVerdictsPath);
+  }
+  await pushExistingPathArg(scorecardArgs, '--remediation-report', remediationReportPath);
+  await pushExistingPathArg(scorecardArgs, '--benchmark', benchmarkPath);
+
+  return scorecardArgs;
+}
+
 async function readExistingJson(targetPath) {
   if (!(await pathExists(targetPath))) {
     return null;
@@ -736,6 +772,8 @@ async function main() {
     let codexBatchResult = null;
     let replayBatchResult = null;
     let selectedReviewVerdictsPath = null;
+    const codexBatchResultPath = path.join(codexBatchOutputDir, 'codex-session-batch.json');
+    const replayBatchResultPath = path.join(replayBatchOutputDir, 'diff-replay-batch.json');
 
     if (!args.skipLive && codexBatchManifestPath) {
       const liveArgs = buildBatchRunArgs(
@@ -750,9 +788,7 @@ async function main() {
           liveArgs,
         ),
       );
-      codexBatchResult = await readJson(
-        path.join(codexBatchOutputDir, 'codex-session-batch.json'),
-      );
+      codexBatchResult = await readJson(codexBatchResultPath);
     }
 
     if (!args.skipReplay && replayBatchManifestPath) {
@@ -768,9 +804,7 @@ async function main() {
           replayArgs,
         ),
       );
-      replayBatchResult = await readJson(
-        path.join(replayBatchOutputDir, 'diff-replay-batch.json'),
-      );
+      replayBatchResult = await readJson(replayBatchResultPath);
     }
 
     const telemetrySummaries = [
@@ -793,12 +827,8 @@ async function main() {
         manifest,
         reviewPacketJsonPath,
         reviewPacketMarkdownPath,
-        codexBatchResult
-          ? path.join(codexBatchOutputDir, 'codex-session-batch.json')
-          : null,
-        replayBatchResult
-          ? path.join(replayBatchOutputDir, 'diff-replay-batch.json')
-          : null,
+        codexBatchResult ? codexBatchResultPath : null,
+        replayBatchResult ? replayBatchResultPath : null,
       );
 
       runs.push(
@@ -828,25 +858,19 @@ async function main() {
         reviewVerdictsPath,
       );
 
-      const scorecardArgs = [
-        '--repo-label',
-        manifest.repo_label ?? manifest.repo_id ?? path.basename(repoRootPath),
-        '--session-telemetry',
+      const scorecardArgs = await buildScorecardArgs({
+        manifest,
+        repoRootPath,
         mergedTelemetryJsonPath,
-        '--output-json',
         scorecardJsonPath,
-        '--output-md',
         scorecardMarkdownPath,
-      ];
-
-      await pushExistingPathArg(scorecardArgs, '--codex-batch', codexBatchResultPath);
-      await pushExistingPathArg(scorecardArgs, '--replay-batch', replayBatchResultPath);
-      await pushExistingPathArg(scorecardArgs, '--defect-report', defectReportPath);
-      if (selectedReviewVerdictsPath) {
-        scorecardArgs.push('--review-verdicts', selectedReviewVerdictsPath);
-      }
-      await pushExistingPathArg(scorecardArgs, '--remediation-report', remediationReportPath);
-      await pushExistingPathArg(scorecardArgs, '--benchmark', benchmarkPath);
+        codexBatchPath: codexBatchResult ? codexBatchResultPath : null,
+        replayBatchPath: replayBatchResult ? replayBatchResultPath : null,
+        defectReportPath,
+        selectedReviewVerdictsPath,
+        remediationReportPath,
+        benchmarkPath,
+      });
 
       runs.push(
         await runNodeScript(

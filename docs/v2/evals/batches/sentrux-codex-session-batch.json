@@ -5,8 +5,8 @@
   "repo_root": "<sentrux-root>",
   "repo_label": "sentrux",
   "analysis_mode": "working_tree",
-  "timeout_ms": 420000,
-  "idle_timeout_ms": 90000,
+  "timeout_ms": 300000,
+  "idle_timeout_ms": 60000,
   "poll_ms": 4000,
   "codex_bin": "codex",
   "tasks": [
@@ -14,17 +14,31 @@
       "task_id": "sentrux-batch-loop-tidy",
       "task_label": "Keep the calibration batch loop tidy",
       "prompt_file": "../prompts/sentrux/batch-loop-tidy.md",
+      "timeout_ms": 180000,
+      "idle_timeout_ms": 45000,
       "tags": ["calibration", "batch"],
       "expected_signal_kinds": [],
       "expected_fix_surface": "repo calibration manifests"
     },
     {
       "task_id": "sentrux-clone-cleanup",
-      "task_label": "Fold a fresh duplicate back into its owner",
+      "task_label": "Keep a handler clone family tidy without roaming",
       "prompt_file": "../prompts/sentrux/clone-cleanup.md",
-      "tags": ["calibration", "clone"],
-      "expected_signal_kinds": ["session_introduced_clone"],
+      "timeout_ms": 180000,
+      "idle_timeout_ms": 45000,
+      "tags": ["calibration", "clone", "smoke"],
+      "expected_signal_kinds": [],
       "expected_fix_surface": "duplicate helper cleanup"
+    },
+    {
+      "task_id": "sentrux-benchmark-harness-tidy",
+      "task_label": "Keep benchmark harness edits surgical",
+      "prompt_file": "../prompts/sentrux/benchmark-harness-tidy.md",
+      "timeout_ms": 240000,
+      "idle_timeout_ms": 60000,
+      "tags": ["calibration", "structural", "smoke"],
+      "expected_signal_kinds": ["clone_propagation_drift"],
+      "expected_fix_surface": "benchmark harness helper followthrough"
     }
   ]
 }

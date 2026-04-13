@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { summarizeTaskRuns } from '../evals/run-codex-session-batch.mjs';
+import {
+  buildTaskSessionOptions,
+  summarizeTaskRuns,
+} from '../evals/run-codex-session-batch.mjs';
 
 function buildTelemetrySummary(sessionRunId, signalKind) {
   return {
@@ -83,4 +86,30 @@ test('summarizeTaskRuns keeps failure telemetry in the merged batch summary', fu
     '/tmp/success-task/agent-session-events.jsonl',
     '/tmp/failure-task/agent-session-events.jsonl',
   ]);
+});
+
+test('buildTaskSessionOptions lets tasks override manifest time budgets', function () {
+  const options = buildTaskSessionOptions(
+    {
+      task_id: 'smoke-task',
+      task_label: 'Smoke Task',
+      prompt: 'noop',
+      timeout_ms: 120000,
+      idle_timeout_ms: 45000,
+    },
+    {
+      repo_label: 'sentrux',
+      timeout_ms: 300000,
+      idle_timeout_ms: 60000,
+      poll_ms: 4000,
+      codex_bin: 'codex',
+    },
+    '/tmp/manifests',
+    '/tmp/repo',
+    '/tmp/output',
+  );
+
+  assert.equal(options.timeoutMs, 120000);
+  assert.equal(options.idleTimeoutMs, 45000);
+  assert.equal(options.outputDir, '/tmp/output/smoke-task');
 });

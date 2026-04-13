@@ -17,5 +17,5 @@
     "scorecard_output": ".sentrux/evals/sentrux/signal-scorecard.json",
     "backlog_output": ".sentrux/evals/sentrux/signal-backlog.json"
   },
-  "batch_notes": "Checked-in calibration manifest for the Sentrux dogfood repo. Repo-specific seeded defects, remediation outcomes, review verdicts, and benchmark artifacts are now all checked in for replay and live calibration."
+  "batch_notes": "Checked-in calibration manifest for the Sentrux dogfood repo. Keep the default live batch smoke-sized: narrow manifest maintenance, one bounded clone-family cleanup, and one deterministic benchmark-harness watchpoint."
 }

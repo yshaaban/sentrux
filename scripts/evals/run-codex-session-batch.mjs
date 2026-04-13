@@ -84,7 +84,7 @@ async function runWithConcurrency(items, concurrency, worker) {
   return results;
 }
 
-function buildTaskSessionOptions(task, manifest, manifestDir, sourceRoot, outputDir) {
+export function buildTaskSessionOptions(task, manifest, manifestDir, sourceRoot, outputDir) {
   return {
     sourceRoot,
     repoLabel: manifest.repo_label,
@@ -100,9 +100,14 @@ function buildTaskSessionOptions(task, manifest, manifestDir, sourceRoot, output
     rulesSource: manifest.rules_source ? path.resolve(manifestDir, manifest.rules_source) : null,
     analysisMode: manifest.analysis_mode ?? 'working_tree',
     model: manifest.model ?? null,
-    timeoutMs: manifest.timeout_ms ?? Number(process.env.EVAL_TIMEOUT_MS ?? '1800000'),
+    timeoutMs:
+      task.timeout_ms ??
+      manifest.timeout_ms ??
+      Number(process.env.EVAL_TIMEOUT_MS ?? '1800000'),
     idleTimeoutMs:
-      manifest.idle_timeout_ms ?? Number(process.env.EVAL_IDLE_TIMEOUT_MS ?? '600000'),
+      task.idle_timeout_ms ??
+      manifest.idle_timeout_ms ??
+      Number(process.env.EVAL_IDLE_TIMEOUT_MS ?? '600000'),
     pollMs: manifest.poll_ms ?? Number(process.env.EVAL_POLL_MS ?? '4000'),
     outputDir: path.join(outputDir, task.task_id ?? `task-${Date.now()}`),
     codexBin: manifest.codex_bin ?? process.env.CODEX_BIN ?? 'codex',

@@ -14,6 +14,7 @@
     "analysis_mode": { "enum": ["working_tree", "head_clone"] },
     "model": { "type": ["string", "null"] },
     "timeout_ms": { "type": "integer", "minimum": 1 },
+    "idle_timeout_ms": { "type": "integer", "minimum": 1 },
     "poll_ms": { "type": "integer", "minimum": 1 },
     "codex_bin": { "type": "string" },
     "expected_signal_kinds": {
@@ -41,7 +42,9 @@
             "type": "array",
             "items": { "type": "string" }
           },
-          "expected_fix_surface": { "type": "string" }
+          "expected_fix_surface": { "type": "string" },
+          "timeout_ms": { "type": "integer", "minimum": 1 },
+          "idle_timeout_ms": { "type": "integer", "minimum": 1 }
         },
         "oneOf": [
           { "required": ["prompt"] },
