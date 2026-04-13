@@ -231,6 +231,28 @@ fn fix_hint_for_value(finding: &Value, kind: &str) -> Option<String> {
         }
     }
 
+    if kind == "large_file" {
+        let split_axis = first_string_array_value(finding, "candidate_split_axes");
+        let related_surface = first_string_array_value(finding, "related_surfaces");
+        if let (Some(split_axis), Some(related_surface)) =
+            (split_axis.as_ref(), related_surface.as_ref())
+        {
+            return Some(format!(
+                "Split the file along the {split_axis} and move the behavior that couples to {related_surface} behind a smaller owner before adding more code here."
+            ));
+        }
+        if let Some(split_axis) = split_axis {
+            return Some(format!(
+                "Split the file along the {split_axis} and keep the public surface thin."
+            ));
+        }
+        if let Some(related_surface) = related_surface {
+            return Some(format!(
+                "Extract the behavior that couples to {related_surface} behind a smaller owner and keep the public surface thin."
+            ));
+        }
+    }
+
     fix_hint_for_kind(kind)
 }
 
@@ -246,6 +268,14 @@ fn evidence_value_for_prefix(finding: &Value, prefix: &str) -> Option<String> {
                     .map(str::to_string)
             })
         })
+}
+
+fn first_string_array_value(finding: &Value, key: &str) -> Option<String> {
+    finding
+        .get(key)
+        .and_then(Value::as_array)
+        .and_then(|values| values.iter().find_map(Value::as_str))
+        .map(str::to_string)
 }
 
 pub(crate) fn issue_blocks_gate(issue: &AgentIssue) -> bool {
@@ -588,10 +618,21 @@ fn issue_confidence_weight(issue: &AgentIssue) -> u8 {
     }
 }
 
+fn issue_kind_weight(issue: &AgentIssue) -> u8 {
+    match issue.kind.as_str() {
+        "dependency_sprawl" => 3,
+        "unstable_hotspot" => 2,
+        "cycle_cluster" => 1,
+        "large_file" => 0,
+        _ => 0,
+    }
+}
+
 pub(crate) fn compare_agent_issues(left: &AgentIssue, right: &AgentIssue) -> std::cmp::Ordering {
     right_gate_weight(right)
         .cmp(&right_gate_weight(left))
         .then_with(|| issue_source_weight(right).cmp(&issue_source_weight(left)))
+        .then_with(|| issue_kind_weight(right).cmp(&issue_kind_weight(left)))
         .then_with(|| right.severity.priority().cmp(&left.severity.priority()))
         .then_with(|| issue_confidence_weight(right).cmp(&issue_confidence_weight(left)))
         .then_with(|| left.file.cmp(&right.file))
@@ -727,5 +768,23 @@ mod tests {
             hint.contains("explicit exhaustive switch or mapping")
                 && hint.contains("fallback/default branch")
         }));
+    }
+
+    #[test]
+    fn large_file_guidance_uses_split_axis_and_related_surface_when_available() {
+        let issue = to_agent_issue(&json!({
+            "kind": "large_file",
+            "summary": "File 'scripts/evals/run-repo-calibration-loop.mjs' is 1068 lines, above the javascript threshold of 500",
+            "files": ["scripts/evals/run-repo-calibration-loop.mjs"],
+            "candidate_split_axes": ["shared helper boundary"],
+            "related_surfaces": ["scripts/lib/eval-batch.mjs"]
+        }));
+
+        assert_eq!(
+            issue.fix_hint.as_deref(),
+            Some(
+                "Split the file along the shared helper boundary and move the behavior that couples to scripts/lib/eval-batch.mjs behind a smaller owner before adding more code here."
+            )
+        );
     }
 }

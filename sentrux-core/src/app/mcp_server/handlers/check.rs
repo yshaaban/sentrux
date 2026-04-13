@@ -153,6 +153,8 @@ fn build_fast_check_issues(
             .map(semantic_finding_value),
     );
     findings.extend(build_changed_structural_finding_values(
+        root,
+        snapshot,
         health,
         changed_files,
     ));
@@ -330,6 +332,10 @@ fn semantic_finding_value(finding: &SemanticFinding) -> Value {
     serde_json::to_value(finding).unwrap_or_else(|_| json!({}))
 }
 
+fn structural_report_value(report: crate::metrics::v2::StructuralDebtReport) -> Value {
+    serde_json::to_value(report).unwrap_or_else(|_| json!({}))
+}
+
 fn derived_obligation_kind(obligation: &crate::metrics::v2::ObligationReport) -> &str {
     if obligation.kind == "contract_surface_completeness" {
         "incomplete_propagation"
@@ -372,71 +378,22 @@ fn obligation_issue_value(obligation: &crate::metrics::v2::ObligationReport) -> 
 }
 
 fn build_changed_structural_finding_values(
+    root: &Path,
+    snapshot: &Snapshot,
     health: &metrics::HealthReport,
     changed_files: &BTreeSet<String>,
 ) -> Vec<Value> {
-    let mut findings = Vec::new();
-    for file in &health.long_files {
-        if !changed_files.contains(&file.path) {
-            continue;
-        }
-        findings.push(json!({
-            "kind": "large_file",
-            "severity": FindingSeverity::Medium,
-            "concept_id": file.path,
-            "summary": format!("{} grew to {} lines and should likely be split.", file.path, file.value),
-            "files": [file.path.clone()],
-            "evidence": [format!("line_count: {}", file.value)],
-            "origin": "zero_config",
-            "confidence": "medium",
-        }));
-    }
-    for file in &health.god_files {
-        if !changed_files.contains(&file.path) {
-            continue;
-        }
-        findings.push(json!({
-            "kind": "dependency_sprawl",
-            "severity": FindingSeverity::Medium,
-            "concept_id": file.path,
-            "summary": format!("{} fans out across {} edges and is trending toward sprawl.", file.path, file.value),
-            "files": [file.path.clone()],
-            "evidence": [format!("fan_out: {}", file.value)],
-            "origin": "zero_config",
-            "confidence": "medium",
-        }));
-    }
-    for file in &health.hotspot_files {
-        if !changed_files.contains(&file.path) {
-            continue;
-        }
-        findings.push(json!({
-            "kind": "unstable_hotspot",
-            "severity": FindingSeverity::Medium,
-            "concept_id": file.path,
-            "summary": format!("{} has high inbound pressure and should be stabilized before more changes.", file.path),
-            "files": [file.path.clone()],
-            "evidence": [format!("fan_in: {}", file.value)],
-            "origin": "zero_config",
-            "confidence": "medium",
-        }));
-    }
-    for cycle in &health.circular_dep_files {
-        if !cycle.iter().any(|path| changed_files.contains(path)) {
-            continue;
-        }
-        findings.push(json!({
-            "kind": "cycle_cluster",
-            "severity": FindingSeverity::Medium,
-            "concept_id": cycle.first().cloned().unwrap_or_default(),
-            "summary": format!("Changed files participate in a dependency cycle spanning {} files.", cycle.len()),
-            "files": cycle,
-            "evidence": cycle.iter().map(|path| format!("cycle member: {path}")).collect::<Vec<_>>(),
-            "origin": "zero_config",
-            "confidence": "medium",
-        }));
-    }
-    findings
+    crate::metrics::v2::build_structural_debt_reports_with_root(root, snapshot, health)
+        .into_iter()
+        .filter(|report| {
+            report.files.iter().any(|path| changed_files.contains(path))
+                && matches!(
+                    report.kind.as_str(),
+                    "large_file" | "dependency_sprawl" | "unstable_hotspot" | "cycle_cluster"
+                )
+        })
+        .map(structural_report_value)
+        .collect()
 }
 
 fn session_introduced_clone_finding_values(

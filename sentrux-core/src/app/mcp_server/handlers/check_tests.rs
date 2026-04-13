@@ -239,6 +239,41 @@ fn actions_prioritize_explicit_rule_breaks_over_structural_watchpoints() {
 }
 
 #[test]
+fn structural_actions_prioritize_sprawl_over_large_file() {
+    let mut issues = vec![
+        AgentIssue {
+            scope: "src/app.ts".to_string(),
+            file: "src/app.ts".to_string(),
+            line: None,
+            kind: "large_file".to_string(),
+            message: "src/app.ts grew to 900 lines.".to_string(),
+            severity: FindingSeverity::Medium,
+            fix_hint: None,
+            evidence: Vec::new(),
+            source: IssueSource::Structural,
+            origin: IssueOrigin::ZeroConfig,
+            confidence: IssueConfidence::Medium,
+        },
+        AgentIssue {
+            scope: "src/app.ts".to_string(),
+            file: "src/app.ts".to_string(),
+            line: None,
+            kind: "dependency_sprawl".to_string(),
+            message: "src/app.ts fans out across too many dependencies.".to_string(),
+            severity: FindingSeverity::Medium,
+            fix_hint: None,
+            evidence: Vec::new(),
+            source: IssueSource::Structural,
+            origin: IssueOrigin::ZeroConfig,
+            confidence: IssueConfidence::Medium,
+        },
+    ];
+    issues.sort_by(compare_agent_issues);
+
+    assert_eq!(issues[0].kind, "dependency_sprawl");
+}
+
+#[test]
 fn forbidden_raw_read_actions_name_the_preferred_accessor_when_available() {
     let primary_accessor = "src/app/task-presentation-status.ts::getTaskDotStatus";
     let secondary_accessor = "src/app/task-presentation-status.ts::getTaskDotStatusLabel";
