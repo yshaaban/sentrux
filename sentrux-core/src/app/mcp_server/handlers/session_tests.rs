@@ -1,7 +1,8 @@
 use super::test_support::{
     append_file, cli_gate_fixture_root, commit_all, concept_fixture_root, concept_fixture_semantic,
-    init_git_repo, temp_root, write_file, write_session_clone_duplicate,
-    write_session_clone_fixture_files, write_session_clone_followthrough_fixture_files,
+    experimental_gate_fixture_root, init_git_repo, temp_root, write_file,
+    write_session_clone_duplicate, write_session_clone_fixture_files,
+    write_session_clone_followthrough_fixture_files,
     write_session_clone_followthrough_source_drift,
 };
 use super::{
@@ -89,6 +90,42 @@ fn session_end_surfaces_debt_signals_for_changed_concept() {
     assert!(response["changed_files"].is_array());
     assert!(response["debt_signals"].is_array());
     assert!(response["actions"].is_array());
+}
+
+#[test]
+fn session_end_routes_dead_private_clusters_to_experimental_debt_signals() {
+    let root = experimental_gate_fixture_root();
+    init_git_repo(&root);
+    commit_all(&root, "initial");
+    cli_save_v2_session(&root).expect("save v2 session");
+    write_file(
+        &root,
+        "src/stale.ts",
+        "function deadAlpha(): number { return 1; }\nfunction deadBeta(): number { return 2; }\nexport const liveValue = 3;\n",
+    );
+
+    let mut state = fresh_mcp_state();
+    handle_scan(
+        &json!({"path": root.to_string_lossy().to_string()}),
+        &Tier::Free,
+        &mut state,
+    )
+    .expect("scan fixture");
+
+    let response = handle_session_end(&json!({}), &Tier::Free, &mut state).expect("session end");
+    let experimental_findings = response["experimental_findings"]
+        .as_array()
+        .expect("experimental findings");
+    let experimental_debt_signals = response["experimental_debt_signals"]
+        .as_array()
+        .expect("experimental debt signals");
+
+    assert!(experimental_findings
+        .iter()
+        .all(|finding| finding["kind"] != "dead_private_code_cluster"));
+    assert!(experimental_debt_signals
+        .iter()
+        .any(|finding| finding["kind"] == "dead_private_code_cluster"));
 }
 
 #[test]

@@ -546,6 +546,18 @@ pub(super) fn build_dead_private_code_cluster_reports(
     dead_by_file
         .into_iter()
         .filter_map(|(path, functions)| {
+            let mut unique_functions = BTreeMap::new();
+            for function in functions {
+                unique_functions
+                    .entry(function.func.clone())
+                    .and_modify(|existing: &mut crate::metrics::FuncMetric| {
+                        if function.value > existing.value {
+                            *existing = function.clone();
+                        }
+                    })
+                    .or_insert(function);
+            }
+            let functions = unique_functions.into_values().collect::<Vec<_>>();
             let dead_symbol_count = functions.len();
             let dead_line_count = functions
                 .iter()

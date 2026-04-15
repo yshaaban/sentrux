@@ -263,6 +263,59 @@ fn reports_dead_island_for_disconnected_internal_cycle() {
 }
 
 #[test]
+fn dead_private_cluster_reports_dedupe_same_symbol_entries() {
+    let snapshot = Snapshot {
+        root: Arc::new(FileNode {
+            path: ".".to_string(),
+            name: ".".to_string(),
+            is_dir: true,
+            lines: 0,
+            logic: 0,
+            comments: 0,
+            blanks: 0,
+            funcs: 0,
+            mtime: 0.0,
+            gs: String::new(),
+            lang: String::new(),
+            sa: None,
+            children: Some(vec![test_file("src/view.tsx", 120, 3, 8)]),
+        }),
+        total_files: 1,
+        total_lines: 120,
+        total_dirs: 1,
+        import_graph: Vec::new(),
+        call_graph: Vec::new(),
+        inherit_graph: Vec::new(),
+        entry_points: Vec::new(),
+        exec_depth: HashMap::new(),
+    };
+    let health = HealthReport {
+        dead_functions: vec![
+            FuncMetric {
+                file: "src/view.tsx".into(),
+                func: "formatLastAccessed".into(),
+                value: 10,
+            },
+            FuncMetric {
+                file: "src/view.tsx".into(),
+                func: "formatLastAccessed".into(),
+                value: 3,
+            },
+        ],
+        ..empty_health_report()
+    };
+
+    let reports = build_structural_debt_reports(&snapshot, &health);
+
+    assert!(
+        reports
+            .iter()
+            .all(|report| report.kind != "dead_private_code_cluster"),
+        "duplicate symbol entries should not fabricate a dead-private cluster"
+    );
+}
+
+#[test]
 fn reports_dead_island_for_disconnected_non_cycle_component_when_entry_points_exist() {
     let snapshot = Snapshot {
         root: Arc::new(FileNode {

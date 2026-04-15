@@ -45,6 +45,32 @@ pub(crate) fn partition_experimental_findings(
     (visible, experimental)
 }
 
+fn is_redundant_review_surface_experimental_kind(kind: &str) -> bool {
+    matches!(kind, "dead_private_code_cluster")
+}
+
+pub(crate) fn partition_review_surface_experimental_findings(
+    findings: &[Value],
+    limit: usize,
+) -> (Vec<Value>, Vec<Value>) {
+    let mut visible = Vec::new();
+    let mut experimental = Vec::new();
+
+    for finding in findings {
+        if is_experimental_finding(finding) {
+            if experimental.len() < limit
+                && !is_redundant_review_surface_experimental_kind(finding_kind(finding))
+            {
+                experimental.push(finding.clone());
+            }
+            continue;
+        }
+        visible.push(finding.clone());
+    }
+
+    (visible, experimental)
+}
+
 pub(crate) fn build_finding_details(findings: &[Value], limit: usize) -> Vec<FindingDetail> {
     findings.iter().take(limit).map(finding_detail).collect()
 }

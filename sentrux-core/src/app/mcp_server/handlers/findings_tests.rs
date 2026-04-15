@@ -1,5 +1,6 @@
 use super::test_support::{
-    concept_fixture_root, concept_fixture_semantic, structural_debt_fixture_root,
+    concept_fixture_root, concept_fixture_semantic, dead_private_fixture_root,
+    structural_debt_fixture_root,
 };
 use super::{
     apply_suppressions, build_exact_clone_findings, distinct_file_count, fresh_mcp_state,
@@ -137,6 +138,33 @@ fn findings_surface_structural_debt_signals() {
         .get("kind")
         .and_then(|value| value.as_str())
         .is_some()));
+}
+
+#[test]
+fn findings_route_dead_private_clusters_to_experimental_debt_signals() {
+    let root = dead_private_fixture_root();
+    let mut state = fresh_mcp_state();
+    handle_scan(
+        &json!({"path": root.to_string_lossy().to_string()}),
+        &Tier::Free,
+        &mut state,
+    )
+    .expect("scan dead-private fixture");
+
+    let response = handle_findings(&json!({}), &Tier::Free, &mut state).expect("findings");
+    let experimental_findings = response["experimental_findings"]
+        .as_array()
+        .expect("experimental findings");
+    let experimental_debt_signals = response["experimental_debt_signals"]
+        .as_array()
+        .expect("experimental debt signals");
+
+    assert!(experimental_findings
+        .iter()
+        .all(|finding| finding["kind"] != "dead_private_code_cluster"));
+    assert!(experimental_debt_signals
+        .iter()
+        .any(|finding| finding["kind"] == "dead_private_code_cluster"));
 }
 
 #[test]

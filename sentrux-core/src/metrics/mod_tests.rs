@@ -1,10 +1,69 @@
 #[cfg(test)]
 mod tests {
     use crate::analysis::parser::parse_bytes;
+    use crate::core::snapshot::Snapshot;
     use crate::core::types::{FileNode, FuncInfo, StructuralAnalysis};
     use crate::metrics::*;
 
     use crate::metrics::test_helpers::{edge, file, snap_with_edges};
+    use std::sync::Arc;
+
+    fn parsed_file(path: &str, lang: &str, code: &str) -> FileNode {
+        let sa = parse_bytes(code.as_bytes(), lang).expect("parse failed");
+        let lines = code.lines().count() as u32;
+        let name = path.rsplit('/').next().unwrap_or(path).to_string();
+        let funcs = sa
+            .functions
+            .as_ref()
+            .map(|functions| functions.len())
+            .unwrap_or(0) as u32;
+
+        FileNode {
+            path: path.to_string(),
+            name,
+            is_dir: false,
+            lines,
+            logic: lines,
+            comments: 0,
+            blanks: 0,
+            funcs,
+            mtime: 0.0,
+            gs: String::new(),
+            lang: lang.to_string(),
+            sa: Some(sa),
+            children: None,
+        }
+    }
+
+    fn snapshot_with_parsed_files(files: Vec<FileNode>) -> Snapshot {
+        let total_files = files.len() as u32;
+        let total_lines = files.iter().map(|file| file.lines).sum::<u32>();
+        Snapshot {
+            root: Arc::new(FileNode {
+                path: ".".to_string(),
+                name: ".".to_string(),
+                is_dir: true,
+                lines: 0,
+                logic: 0,
+                comments: 0,
+                blanks: 0,
+                funcs: 0,
+                mtime: 0.0,
+                gs: String::new(),
+                lang: String::new(),
+                sa: None,
+                children: Some(files.clone()),
+            }),
+            total_files,
+            total_lines,
+            total_dirs: 1,
+            import_graph: Vec::new(),
+            call_graph: Vec::new(),
+            inherit_graph: Vec::new(),
+            entry_points: Vec::new(),
+            exec_depth: std::collections::HashMap::new(),
+        }
+    }
 
     // ── Boundary test: empty graph → grade A, no issues ──
     #[test]
@@ -375,6 +434,83 @@ mod tests {
     }
 
     #[test]
+    fn dead_functions_ignore_nested_jsx_helper_references() {
+        let sa = parse_bytes(
+            br#"
+export function VmLimitReachedContent(): any {
+    const project = { lastAccessedAt: new Date() };
+
+    function formatLastAccessed(date: Date | null): string {
+        if (!date) return 'Never';
+        return 'ok';
+    }
+
+    return <p>Last accessed: {formatLastAccessed(project.lastAccessedAt)}</p>;
+}
+"#,
+            "typescript",
+        )
+        .expect("tsx parse failed");
+        let file = FileNode {
+            path: "src/vm-limit-reached.tsx".to_string(),
+            name: "vm-limit-reached.tsx".to_string(),
+            is_dir: false,
+            lines: 10,
+            logic: 8,
+            comments: 0,
+            blanks: 2,
+            funcs: 2,
+            mtime: 0.0,
+            gs: String::new(),
+            lang: "typescript".to_string(),
+            sa: Some(sa),
+            children: None,
+        };
+        let snap = snap_with_edges(Vec::new(), vec![file]);
+        let report = compute_health(&snap);
+
+        assert!(report.dead_functions.is_empty());
+    }
+
+    #[test]
+    fn dead_functions_ignore_typescript_overload_signatures() {
+        let sa = parse_bytes(
+            br#"
+export function formatLastAccessed(date: Date | null): string;
+export function formatLastAccessed(date: Date | null): string {
+    if (!date) return 'Never';
+    return 'ok';
+}
+
+export function VmLimitReachedContent(): any {
+    return <p>{formatLastAccessed(new Date())}</p>;
+}
+"#,
+            "typescript",
+        )
+        .expect("tsx parse failed");
+        let file = FileNode {
+            path: "src/vm-limit-overload.tsx".to_string(),
+            name: "vm-limit-overload.tsx".to_string(),
+            is_dir: false,
+            lines: 9,
+            logic: 7,
+            comments: 0,
+            blanks: 2,
+            funcs: 2,
+            mtime: 0.0,
+            gs: String::new(),
+            lang: "typescript".to_string(),
+            sa: Some(sa),
+            children: None,
+        };
+        let snap = snap_with_edges(Vec::new(), vec![file]);
+        let report = compute_health(&snap);
+
+        assert!(report.dead_functions.is_empty());
+    }
+
+    #[test]
     fn dead_functions_do_not_ignore_same_file_type_only_mentions() {
         let file = FileNode {
             path: "src/view.ts".to_string(),
@@ -420,6 +556,48 @@ mod tests {
     }
 
     #[test]
+    fn dead_functions_ignore_object_literal_callbacks() {
+        let snapshot = snapshot_with_parsed_files(vec![parsed_file(
+            "src/table.tsx",
+            "typescript",
+            r#"
+const columns = [{
+    cell: () => null,
+}];
+"#,
+        )]);
+        let report = compute_health(&snapshot);
+
+        assert!(
+            report.dead_functions.is_empty(),
+            "object-literal callback keys should not be reported as dead private code"
+        );
+    }
+
+    #[test]
+    fn dead_functions_ignore_framework_lifecycle_methods() {
+        let snapshot = snapshot_with_parsed_files(vec![parsed_file(
+            "src/ErrorBoundary.tsx",
+            "typescript",
+            r#"
+class ErrorBoundary {
+    getDerivedStateFromError() {
+        return null;
+    }
+
+    componentDidCatch() {}
+}
+"#,
+        )]);
+        let report = compute_health(&snapshot);
+
+        assert!(
+            report.dead_functions.is_empty(),
+            "framework lifecycle methods should not be reported as dead private code"
+        );
+    }
+
+    #[test]
     fn dead_functions_ignore_exported_typescript_functions() {
         let sa = parse_bytes(
             br#"
@@ -438,6 +616,48 @@ export async function markCommentsSent(): Promise<void> {}
             logic: 4,
             comments: 0,
             blanks: 2,
+            funcs: 2,
+            mtime: 0.0,
+            gs: String::new(),
+            lang: "typescript".to_string(),
+            sa: Some(sa),
+            children: None,
+        };
+        let snap = snap_with_edges(Vec::new(), vec![file]);
+        let report = compute_health(&snap);
+
+        assert!(report.dead_functions.is_empty());
+    }
+
+    #[test]
+    fn dead_functions_ignore_exported_tsx_wrapper_functions() {
+        let sa = parse_bytes(
+            br#"
+import { Button } from '@humain-foundation/ui';
+
+type ToastProps = {
+    title: string;
+};
+
+export function ToastSuccess(props: ToastProps) {
+    return <Button>{props.title}</Button>;
+}
+
+export function ToastError(props: ToastProps) {
+    return <Button>{props.title}</Button>;
+}
+"#,
+            "typescript",
+        )
+        .expect("tsx parse failed");
+        let file = FileNode {
+            path: "src/toast-notification.tsx".to_string(),
+            name: "toast-notification.tsx".to_string(),
+            is_dir: false,
+            lines: 13,
+            logic: 8,
+            comments: 0,
+            blanks: 5,
             funcs: 2,
             mtime: 0.0,
             gs: String::new(),

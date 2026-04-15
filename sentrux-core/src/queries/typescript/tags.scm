@@ -1,9 +1,9 @@
 ; Official tree-sitter-typescript tags.scm (v0.23.2) + inlined JS base patterns
 
 ; ---- TS-specific captures ----
-
-(function_signature
-  name: (identifier) @name) @definition.function
+; `function_signature` nodes represent declarations/overloads, not executable
+; implementations. Treating them as real function definitions inflates dead
+; private metrics when an overload and its implementation share a name.
 
 (method_signature
   name: (property_identifier) @name) @definition.method

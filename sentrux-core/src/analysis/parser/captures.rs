@@ -297,56 +297,91 @@ fn compute_complexity(
     }
 }
 
-/// Detect whether a function is public via keyword prefix or method-parent-kind ancestry.
-fn detect_visibility(
+fn starts_with_public_keyword(prefix: &str, keywords: &[String]) -> bool {
+    fn matches_public_keyword_start(candidate: &str, keywords: &[String]) -> bool {
+        keywords
+            .iter()
+            .any(|keyword| candidate.starts_with(keyword.as_str()))
+    }
+
+    let trimmed = prefix.trim_start();
+    if matches_public_keyword_start(trimmed, keywords) {
+        return true;
+    }
+
+    prefix
+        .rsplit('\n')
+        .next()
+        .map(str::trim_start)
+        .is_some_and(|line| matches_public_keyword_start(line, keywords))
+}
+
+fn is_method_like_node_kind(kind: &str) -> bool {
+    matches!(
+        kind,
+        "pair" | "pair_pattern" | "property_assignment" | "public_field_definition"
+    )
+}
+
+fn detect_function_flags(
     node: tree_sitter::Node,
     body: &str,
     content: &[u8],
     profile: &crate::analysis::plugin::profile::LanguageProfile,
-) -> bool {
+) -> (bool, bool) {
     let keywords = &profile.semantics.public_keywords;
-    let mut is_public = if keywords.is_empty() {
-        false
-    } else {
-        let text = body.trim_start();
-        keywords
-            .iter()
-            .any(|kw: &String| text.starts_with(kw.as_str()))
-    };
-    if !is_public && !keywords.is_empty() {
-        let mut ancestor = node.parent();
-        while let Some(parent) = ancestor {
-            let prefix = content
-                .get(parent.start_byte()..node.start_byte())
+    let method_parent_kinds = &profile.semantics.method_parent_kinds;
+    let mut is_public = !keywords.is_empty() && starts_with_public_keyword(body, keywords);
+    let mut is_method = is_method_like_node_kind(node.kind());
+    let node_start = node.start_byte();
+    let mut ancestor = node.parent();
+
+    while let Some(parent) = ancestor {
+        let parent_kind = parent.kind();
+
+        if !is_public
+            && !keywords.is_empty()
+            && content
+                .get(parent.start_byte()..node_start)
                 .and_then(|bytes| std::str::from_utf8(bytes).ok())
-                .map(str::trim_start)
-                .unwrap_or("");
-            if keywords
-                .iter()
-                .any(|kw: &String| prefix.starts_with(kw.as_str()))
-            {
-                is_public = true;
-                break;
-            }
-            ancestor = parent.parent();
+                .is_some_and(|prefix| starts_with_public_keyword(prefix, keywords))
+        {
+            is_public = true;
         }
-    }
-    if !is_public && !profile.semantics.method_parent_kinds.is_empty() {
-        let mut ancestor = node.parent();
-        while let Some(parent) = ancestor {
-            if profile
-                .semantics
-                .method_parent_kinds
-                .iter()
-                .any(|k| k == parent.kind())
-            {
-                is_public = true;
-                break;
-            }
-            ancestor = parent.parent();
+
+        if !method_parent_kinds.is_empty()
+            && method_parent_kinds.iter().any(|kind| kind == parent_kind)
+        {
+            is_public = true;
+            is_method = true;
         }
+
+        if is_public && is_method {
+            break;
+        }
+
+        ancestor = parent.parent();
     }
-    is_public
+
+    (is_public, is_method)
+}
+
+fn is_typescript_signature_only(node: tree_sitter::Node, body: &str, lang: &str) -> bool {
+    if lang != "typescript" {
+        return false;
+    }
+
+    if node.kind() == "function_signature" {
+        return true;
+    }
+
+    let trimmed = body.trim();
+    if !trimmed.ends_with(';') {
+        return false;
+    }
+
+    let declaration_line = trimmed.lines().next().unwrap_or(trimmed).trim_start();
+    declaration_line.starts_with("function ") || declaration_line.starts_with("export function ")
 }
 
 /// Detect whether a function has test decorators (body text or preceding sibling).
@@ -388,32 +423,39 @@ pub(super) fn process_func_def(
 ) {
     let node = match_node.unwrap_or(fallback_node);
     let sl = node.start_position().row as u32 + 1;
-    if func_set.insert((name.clone(), sl)) {
-        let el = node.end_position().row as u32 + 1;
-        let ln = el - sl + 1;
-        let body = node.utf8_text(pctx.content).unwrap_or("");
-        let profile = crate::analysis::lang_registry::profile(pctx.lang);
-        let (cc, cog) = compute_complexity(node, pctx.content, profile);
-        let pc = count_parameters(node, pctx.content, pctx.lang);
-        let bh = hash_body(body, pctx.lang);
-        let is_public = detect_visibility(node, body, pctx.content, profile);
-        let is_test = detect_is_test(node, body, pctx.content, profile);
-        functions.push(FuncInfo {
-            n: name,
-            sl,
-            el,
-            ln,
-            cc: Some(cc),
-            cog: Some(cog),
-            pc: Some(pc),
-            bh: if bh != 0 { Some(bh) } else { None },
-            d: None,
-            co: None,
-            same_file_ref_count: None,
-            is_public: is_public || is_test,
-            is_method: false,
-        });
+    if func_set.contains(&(name.clone(), sl)) {
+        return;
     }
+
+    let body = node.utf8_text(pctx.content).unwrap_or("");
+    if is_typescript_signature_only(node, body, pctx.lang) {
+        return;
+    }
+
+    func_set.insert((name.clone(), sl));
+    let el = node.end_position().row as u32 + 1;
+    let ln = el - sl + 1;
+    let profile = crate::analysis::lang_registry::profile(pctx.lang);
+    let (cc, cog) = compute_complexity(node, pctx.content, profile);
+    let pc = count_parameters(node, pctx.content, pctx.lang);
+    let bh = hash_body(body, pctx.lang);
+    let (is_public, is_method) = detect_function_flags(node, body, pctx.content, profile);
+    let is_test = detect_is_test(node, body, pctx.content, profile);
+    functions.push(FuncInfo {
+        n: name,
+        sl,
+        el,
+        ln,
+        cc: Some(cc),
+        cog: Some(cog),
+        pc: Some(pc),
+        bh: if bh != 0 { Some(bh) } else { None },
+        d: None,
+        co: None,
+        same_file_ref_count: None,
+        is_public: is_public || is_test,
+        is_method,
+    });
 }
 
 pub(super) fn process_class_def(

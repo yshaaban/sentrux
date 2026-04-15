@@ -377,8 +377,8 @@ pub(crate) fn handle_session_end(
         &changed_files,
         10,
     );
-    let (visible_introduced_findings, experimental_findings) =
-        partition_experimental_findings(&introduced_findings, 10);
+    let (visible_introduced_findings, introduced_experimental_findings) =
+        partition_review_surface_experimental_findings(&introduced_findings, 10);
     let mut blocking_findings = visible_introduced_findings
         .iter()
         .filter(|finding| severity_of_value(finding) == FindingSeverity::High)
@@ -435,16 +435,19 @@ pub(crate) fn handle_session_end(
         .filter(|finding| is_agent_clone_signal_kind(finding_kind(finding)))
         .cloned()
         .collect::<Vec<_>>();
-    let (opportunity_findings, experimental_findings) = if session_v2.is_some() {
-        (visible_introduced_findings.clone(), experimental_findings)
+    let (opportunity_findings, opportunity_experimental_findings) = if session_v2.is_some() {
+        (
+            visible_introduced_findings.clone(),
+            introduced_experimental_findings,
+        )
     } else {
-        partition_experimental_findings(&analysis.changed_visible_findings, 10)
+        partition_review_surface_experimental_findings(&analysis.changed_visible_findings, 10)
     };
     let opportunity_findings = opportunity_findings
         .into_iter()
         .map(|finding| decorate_finding_with_classification(&finding))
         .collect::<Vec<_>>();
-    let experimental_findings = experimental_findings
+    let experimental_findings = opportunity_experimental_findings
         .into_iter()
         .map(|finding| decorate_finding_with_classification(&finding))
         .collect::<Vec<_>>();

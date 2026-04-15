@@ -440,6 +440,8 @@ const DEFAULT_IMPLICIT_ENTRY_POINTS: &[&str] = &[
     "update",
     "draw",
     "render",
+    "getDerivedStateFromError",
+    "componentDidCatch",
     "serialize",
     "deserialize",
 ];
@@ -527,7 +529,7 @@ fn is_called(func_name: &str, all_calls: &HashSet<String>) -> bool {
 }
 
 fn has_same_file_references(function: &crate::core::types::FuncInfo) -> bool {
-    function.same_file_ref_count.unwrap_or(0) > 0
+    function.same_file_ref_count.is_some_and(|count| count > 0)
 }
 
 /// Collect functions not referenced by any call site (dead code candidates).
@@ -553,6 +555,9 @@ fn collect_dead_functions(files: &[&FileNode]) -> Vec<FuncMetric> {
             if is_excluded_function(&f.n, &implicit, &file.lang) {
                 continue;
             }
+            // Same-file refs come from the parser's conservative AST/text
+            // fallback, which counts callback wiring, JSX usage, and other
+            // non-call references that should suppress dead-private findings.
             if !is_called(&f.n, &all_calls) && !has_same_file_references(f) {
                 result.push(FuncMetric {
                     file: file.path.clone(),

@@ -11,7 +11,8 @@ mod classification_readers;
 use classification_details::{annotate_finding_detail, FindingDetail, FindingDetailMetrics};
 pub(crate) use classification_details::{
     build_finding_details, decorate_finding_with_classification, is_experimental_finding,
-    merge_findings, partition_experimental_findings, severity_of_value,
+    merge_findings, partition_experimental_findings,
+    partition_review_surface_experimental_findings, severity_of_value,
 };
 use classification_readers::finding_string_values;
 pub(crate) use classification_readers::{

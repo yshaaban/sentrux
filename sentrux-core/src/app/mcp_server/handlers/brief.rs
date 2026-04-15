@@ -127,8 +127,10 @@ fn handle_onboarding_agent_brief(
     );
     let (suppression_application, suppression_error) =
         apply_root_suppressions(state, &root, merged_findings);
-    let (visible_findings, experimental_findings) =
-        partition_experimental_findings(&suppression_application.visible_findings, limit);
+    let (visible_findings, experimental_findings) = partition_review_surface_experimental_findings(
+        &suppression_application.visible_findings,
+        limit,
+    );
     let visible_findings = visible_findings
         .into_iter()
         .map(|finding| decorate_finding_with_classification(&finding))
@@ -308,7 +310,7 @@ fn build_patch_mode_agent_brief(
         limit.max(10),
     );
     let (visible_introduced_findings, experimental_introduced_findings) =
-        partition_experimental_findings(&introduced_findings, limit.max(10));
+        partition_review_surface_experimental_findings(&introduced_findings, limit.max(10));
 
     let blocking_findings = visible_introduced_findings
         .iter()

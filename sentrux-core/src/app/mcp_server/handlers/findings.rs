@@ -96,8 +96,10 @@ pub(crate) fn handle_findings(
     );
     let (suppression_application, suppression_error) =
         apply_root_suppressions(state, &root, merged_findings);
-    let (visible_findings, experimental_findings) =
-        partition_experimental_findings(&suppression_application.visible_findings, limit);
+    let (visible_findings, experimental_findings) = partition_review_surface_experimental_findings(
+        &suppression_application.visible_findings,
+        limit,
+    );
     let visible_findings = visible_findings
         .into_iter()
         .map(|finding| decorate_finding_with_classification(&finding))

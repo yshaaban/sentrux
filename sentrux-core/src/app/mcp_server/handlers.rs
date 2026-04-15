@@ -78,7 +78,8 @@ pub(crate) use self::classification::{
     backfill_leverage_fields, build_finding_details, classify_presentation_class,
     combined_other_finding_values, decorate_finding_with_classification, finding_concept_id,
     finding_files, finding_kind, finding_payload_map, finding_values, is_experimental_finding,
-    merge_findings, partition_experimental_findings, serialized_values, severity_of_value,
+    merge_findings, partition_experimental_findings,
+    partition_review_surface_experimental_findings, serialized_values, severity_of_value,
 };
 pub(crate) use self::clone_support::{
     build_clone_followthrough_findings, build_session_introduced_clone_findings,

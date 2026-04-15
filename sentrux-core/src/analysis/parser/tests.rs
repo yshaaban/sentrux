@@ -166,6 +166,75 @@ export function Screen(): any {
     }
 
     #[test]
+    fn typescript_parser_tracks_nested_jsx_helper_references_without_duplicates() {
+        let code = br#"
+export function VmLimitReachedContent(): any {
+    const project = { lastAccessedAt: new Date() };
+
+    function formatLastAccessed(date: Date | null): string {
+        if (!date) return 'Never';
+        return 'ok';
+    }
+
+    return <p>Last accessed: {formatLastAccessed(project.lastAccessedAt)}</p>;
+}
+"#;
+        let sa = parse_bytes(code, "typescript").expect("tsx parse failed");
+        let functions = sa.functions.as_ref().expect("no functions");
+        let matching_helpers = functions
+            .iter()
+            .filter(|function| function.n == "formatLastAccessed")
+            .collect::<Vec<_>>();
+
+        assert_eq!(matching_helpers.len(), 1);
+        assert_eq!(matching_helpers[0].same_file_ref_count, Some(1));
+    }
+
+    #[test]
+    fn typescript_parser_ignores_typescript_overload_signatures() {
+        let code = br#"
+export function formatLastAccessed(date: Date | null): string;
+export function formatLastAccessed(date: Date | null): string {
+    if (!date) return 'Never';
+    return 'ok';
+}
+
+export function VmLimitReachedContent(): any {
+    return <p>{formatLastAccessed(new Date())}</p>;
+}
+"#;
+        let sa = parse_bytes(code, "typescript").expect("tsx parse failed");
+        let functions = sa.functions.as_ref().expect("no functions");
+        let matching_helpers = functions
+            .iter()
+            .filter(|function| function.n == "formatLastAccessed")
+            .collect::<Vec<_>>();
+
+        assert_eq!(matching_helpers.len(), 1);
+        assert_eq!(matching_helpers[0].same_file_ref_count, Some(1));
+    }
+
+    #[test]
+    fn typescript_parser_marks_object_literal_callbacks_as_method_like() {
+        let code = br#"
+const columns = [{
+    cell: () => null,
+}];
+"#;
+        let sa = parse_bytes(code, "typescript").expect("ts parse failed");
+        let functions = sa.functions.as_ref().expect("no functions");
+        let cell = functions
+            .iter()
+            .find(|function| function.n == "cell")
+            .expect("missing cell callback");
+
+        assert!(
+            cell.is_method,
+            "object-literal callback should be method-like"
+        );
+    }
+
+    #[test]
     fn typescript_parser_marks_exported_functions_public() {
         let code = br#"
 export function updateReviewComment(): void {}
@@ -176,6 +245,34 @@ export async function markCommentsSent(): Promise<void> {}
         let functions = sa.functions.as_ref().expect("no functions");
 
         assert!(functions.iter().all(|function| function.is_public));
+    }
+
+    #[test]
+    fn typescript_parser_marks_exported_tsx_wrapper_functions_public() {
+        let code = br#"
+import { Button } from '@humain-foundation/ui';
+
+type ToastProps = {
+    title: string;
+};
+
+export function ToastSuccess(props: ToastProps) {
+    return <Button>{props.title}</Button>;
+}
+
+export function ToastError(props: ToastProps) {
+    return <Button>{props.title}</Button>;
+}
+"#;
+        let sa = parse_bytes(code, "typescript").expect("tsx parse failed");
+        let functions = sa.functions.as_ref().expect("no functions");
+        let exported_functions = functions
+            .iter()
+            .filter(|function| function.n == "ToastSuccess" || function.n == "ToastError")
+            .collect::<Vec<_>>();
+
+        assert_eq!(exported_functions.len(), 2);
+        assert!(exported_functions.iter().all(|function| function.is_public));
     }
 
     #[test]
