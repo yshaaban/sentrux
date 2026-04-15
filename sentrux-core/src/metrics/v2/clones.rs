@@ -12,6 +12,7 @@ use std::hash::{Hash, Hasher};
 const MIN_CLONE_LINES: u32 = 3;
 const RECENT_AGE_DAYS: u32 = 30;
 const MIN_FAMILY_FILE_OVERLAP: usize = 2;
+const SECONDS_PER_DAY: i64 = 86_400;
 
 #[derive(Debug, Clone, serde::Serialize, Default)]
 pub struct CloneDriftInstance {
@@ -20,6 +21,8 @@ pub struct CloneDriftInstance {
     pub lines: u32,
     pub commit_count: Option<u32>,
     pub age_days: Option<u32>,
+    #[serde(skip_serializing)]
+    pub last_modified_epoch: Option<i64>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, Default)]
@@ -190,6 +193,9 @@ fn clone_drift_finding(
                 .and_then(|report| report.churn.get(file))
                 .map(|churn| churn.commit_count),
             age_days: evolution.and_then(|report| report.code_age.get(file).copied()),
+            last_modified_epoch: evolution
+                .and_then(|report| report.last_modified_epoch.get(file))
+                .copied(),
         })
         .collect::<Vec<_>>();
     instances.sort_by(|left, right| {
@@ -483,23 +489,9 @@ fn clone_family_file_summaries(
             summaries
                 .entry(instance.file.clone())
                 .and_modify(|summary: &mut CloneFileSummary| {
-                    summary.commit_count = Some(
-                        summary
-                            .commit_count
-                            .unwrap_or(0)
-                            .max(instance.commit_count.unwrap_or(0)),
-                    );
-                    summary.age_days = match (summary.age_days, instance.age_days) {
-                        (Some(current), Some(next)) => Some(current.min(next)),
-                        (Some(current), None) => Some(current),
-                        (None, Some(next)) => Some(next),
-                        (None, None) => None,
-                    };
+                    merge_clone_file_summary(summary, instance)
                 })
-                .or_insert(CloneFileSummary {
-                    commit_count: instance.commit_count,
-                    age_days: instance.age_days,
-                });
+                .or_insert_with(|| clone_file_summary(instance));
         }
     }
     summaries
@@ -718,23 +710,8 @@ fn clone_family_metrics(
     metrics.inactive_file_count = metrics.file_count.saturating_sub(metrics.active_file_count);
     metrics.asymmetric_recent_change =
         metrics.active_file_count > 0 && metrics.inactive_file_count > 0;
-
-    let commit_counts = file_summaries
-        .values()
-        .filter_map(|summary| summary.commit_count)
-        .collect::<Vec<_>>();
-    if let (Some(min), Some(max)) = (commit_counts.iter().min(), commit_counts.iter().max()) {
-        metrics.commit_count_gap = Some(max.saturating_sub(*min));
-    }
-
-    let age_days = file_summaries
-        .values()
-        .filter_map(|summary| summary.age_days)
-        .collect::<Vec<_>>();
-    if let (Some(min), Some(max)) = (age_days.iter().min(), age_days.iter().max()) {
-        metrics.age_days_gap = Some(max.saturating_sub(*min));
-    }
-
+    metrics.commit_count_gap = clone_file_commit_gap(file_summaries.values());
+    metrics.age_days_gap = clone_file_age_gap_days(file_summaries.values());
     metrics.divergence_score = clone_family_divergence_score(&metrics);
     metrics
 }
@@ -868,6 +845,7 @@ fn clone_group_files(group: &DuplicateGroup) -> Vec<String> {
 struct CloneFileSummary {
     commit_count: Option<u32>,
     age_days: Option<u32>,
+    last_modified_epoch: Option<i64>,
 }
 
 fn file_summary_has_recent_activity(summary: &CloneFileSummary) -> bool {
@@ -880,25 +858,75 @@ fn clone_file_summaries(instances: &[CloneDriftInstance]) -> BTreeMap<&str, Clon
         summaries
             .entry(instance.file.as_str())
             .and_modify(|summary: &mut CloneFileSummary| {
-                summary.commit_count = Some(
-                    summary
-                        .commit_count
-                        .unwrap_or(0)
-                        .max(instance.commit_count.unwrap_or(0)),
-                );
-                summary.age_days = match (summary.age_days, instance.age_days) {
-                    (Some(current), Some(next)) => Some(current.min(next)),
-                    (Some(current), None) => Some(current),
-                    (None, Some(next)) => Some(next),
-                    (None, None) => None,
-                };
+                merge_clone_file_summary(summary, instance)
             })
-            .or_insert(CloneFileSummary {
-                commit_count: instance.commit_count,
-                age_days: instance.age_days,
-            });
+            .or_insert_with(|| clone_file_summary(instance));
     }
     summaries
+}
+
+fn clone_file_summary(instance: &CloneDriftInstance) -> CloneFileSummary {
+    CloneFileSummary {
+        commit_count: instance.commit_count,
+        age_days: instance.age_days,
+        last_modified_epoch: instance.last_modified_epoch,
+    }
+}
+
+fn merge_clone_file_summary(summary: &mut CloneFileSummary, instance: &CloneDriftInstance) {
+    summary.commit_count = max_present(summary.commit_count, instance.commit_count);
+    summary.age_days = min_present(summary.age_days, instance.age_days);
+    summary.last_modified_epoch =
+        max_present(summary.last_modified_epoch, instance.last_modified_epoch);
+}
+
+fn clone_file_commit_gap<'a>(summaries: impl Iterator<Item = &'a CloneFileSummary>) -> Option<u32> {
+    let mut min_commit_count = None;
+    let mut max_commit_count = None;
+
+    for summary in summaries {
+        min_commit_count = min_present(min_commit_count, summary.commit_count);
+        max_commit_count = max_present(max_commit_count, summary.commit_count);
+    }
+
+    max_commit_count
+        .zip(min_commit_count)
+        .map(|(max, min)| max.saturating_sub(min))
+}
+
+fn clone_file_age_gap_days<'a>(
+    summaries: impl Iterator<Item = &'a CloneFileSummary>,
+) -> Option<u32> {
+    let mut youngest_age_days = None;
+    let mut oldest_age_days = None;
+    let mut oldest_epoch = None;
+    let mut newest_epoch = None;
+
+    for summary in summaries {
+        youngest_age_days = min_present(youngest_age_days, summary.age_days);
+        oldest_age_days = max_present(oldest_age_days, summary.age_days);
+        oldest_epoch = min_present(oldest_epoch, summary.last_modified_epoch);
+        newest_epoch = max_present(newest_epoch, summary.last_modified_epoch);
+    }
+
+    if let (Some(oldest_epoch), Some(newest_epoch)) = (oldest_epoch, newest_epoch) {
+        let gap_days = newest_epoch.saturating_sub(oldest_epoch) / SECONDS_PER_DAY;
+        return Some(gap_days as u32);
+    }
+
+    oldest_age_days
+        .zip(youngest_age_days)
+        .map(|(oldest_age_days, youngest_age_days)| {
+            oldest_age_days.saturating_sub(youngest_age_days)
+        })
+}
+
+fn max_present<T: Ord>(current: Option<T>, next: Option<T>) -> Option<T> {
+    [current, next].into_iter().flatten().max()
+}
+
+fn min_present<T: Ord>(current: Option<T>, next: Option<T>) -> Option<T> {
+    [current, next].into_iter().flatten().min()
 }
 
 #[derive(Debug, Clone, Default)]
@@ -976,6 +1004,10 @@ mod tests {
             coupling_pairs: Vec::<CouplingPair>::new(),
             hotspots: Vec::<TemporalHotspot>::new(),
             code_age: HashMap::from([("src/a.ts".to_string(), 3), ("src/b.ts".to_string(), 90)]),
+            last_modified_epoch: HashMap::from([
+                ("src/a.ts".to_string(), 1_000_000),
+                ("src/b.ts".to_string(), 1_000_000 - (87 * 86_400)),
+            ]),
             authors: HashMap::<String, AuthorInfo>::new(),
             single_author_ratio: 0.0,
             bus_factor_score: 1.0,
@@ -1244,6 +1276,67 @@ mod tests {
             .remediation_hints
             .iter()
             .any(|hint| hint.kind == "review_family_boundaries"));
+    }
+
+    #[test]
+    fn clone_family_age_gap_uses_stable_epoch_difference() {
+        let groups = vec![
+            DuplicateGroup {
+                hash: 30,
+                instances: vec![
+                    ("src/a.ts".to_string(), "dup_a".to_string(), 12),
+                    ("src/b.ts".to_string(), "dup_b".to_string(), 12),
+                ],
+            },
+            DuplicateGroup {
+                hash: 31,
+                instances: vec![
+                    ("src/a.ts".to_string(), "dup_c".to_string(), 10),
+                    ("src/b.ts".to_string(), "dup_d".to_string(), 10),
+                ],
+            },
+        ];
+
+        let evolution = EvolutionReport {
+            churn: HashMap::from([
+                (
+                    "src/a.ts".to_string(),
+                    FileChurn {
+                        commit_count: 1,
+                        lines_added: 1,
+                        lines_removed: 0,
+                        total_churn: 1,
+                    },
+                ),
+                (
+                    "src/b.ts".to_string(),
+                    FileChurn {
+                        commit_count: 1,
+                        lines_added: 1,
+                        lines_removed: 0,
+                        total_churn: 1,
+                    },
+                ),
+            ]),
+            coupling_pairs: Vec::<CouplingPair>::new(),
+            hotspots: Vec::<TemporalHotspot>::new(),
+            code_age: HashMap::from([("src/a.ts".to_string(), 1), ("src/b.ts".to_string(), 0)]),
+            last_modified_epoch: HashMap::from([
+                ("src/a.ts".to_string(), 1_000_000),
+                ("src/b.ts".to_string(), 1_000_000 + (12 * 60 * 60)),
+            ]),
+            authors: HashMap::<String, AuthorInfo>::new(),
+            single_author_ratio: 0.0,
+            bus_factor_score: 1.0,
+            churn_score: 1.0,
+            evolution_score: 1.0,
+            lookback_days: 90,
+            commits_analyzed: 2,
+        };
+
+        let report = build_clone_drift_report(&groups, Some(&evolution));
+        assert_eq!(report.families.len(), 1);
+        assert_eq!(report.families[0].age_days_gap, Some(0));
     }
 
     #[test]

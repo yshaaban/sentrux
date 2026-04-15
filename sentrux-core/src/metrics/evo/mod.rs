@@ -27,6 +27,9 @@ const DEFAULT_LOOKBACK_DAYS: u32 = 90;
 /// Minimum co-change count to report a coupling pair.
 const MIN_COUPLING_COUNT: u32 = 3;
 
+/// Stable conversion for git epoch timestamps to day counts.
+const SECONDS_PER_DAY: i64 = 86_400;
+
 // Thresholds removed — continuous [0,1] scores replace letter grades.
 
 // ── Trait: EvolutionProvider ──
@@ -117,6 +120,9 @@ pub struct EvolutionReport {
 
     /// Per-file code age (days since last commit touching that file).
     pub code_age: HashMap<String, u32>,
+
+    /// Per-file last modified epoch from git history.
+    pub last_modified_epoch: HashMap<String, i64>,
 
     /// Per-file author count (bus factor).
     pub authors: HashMap<String, AuthorInfo>,
@@ -224,7 +230,8 @@ pub fn compute_evolution(
 
     // Step 4: Compute code age
     let now_epoch = epoch_now();
-    let code_age = compute_code_age(&records, known_files, now_epoch);
+    let last_modified_epoch = compute_last_modified_epochs(&records, known_files);
+    let code_age = compute_code_age_from_last_modified(&last_modified_epoch, now_epoch);
 
     // Step 5: Compute bus factor (author distribution)
     let (authors, single_author_ratio) = compute_authors(&records, known_files);
@@ -242,6 +249,7 @@ pub fn compute_evolution(
         coupling_pairs,
         hotspots,
         code_age,
+        last_modified_epoch,
         authors,
         single_author_ratio,
         bus_factor_score,
@@ -371,11 +379,10 @@ fn aggregate_co_changes(
 
 // ── Code age ──
 
-pub(crate) fn compute_code_age(
+pub(crate) fn compute_last_modified_epochs(
     records: &[CommitRecord],
     known_files: &HashSet<String>,
-    now_epoch: i64,
-) -> HashMap<String, u32> {
+) -> HashMap<String, i64> {
     let mut last_modified: HashMap<String, i64> = HashMap::new();
 
     for record in records {
@@ -383,20 +390,38 @@ pub(crate) fn compute_code_age(
             if !known_files.contains(&file.path) {
                 continue;
             }
-            let entry = last_modified.entry(file.path.clone()).or_insert(0);
-            if record.epoch > *entry {
-                *entry = record.epoch;
-            }
+
+            last_modified
+                .entry(file.path.clone())
+                .and_modify(|epoch| *epoch = (*epoch).max(record.epoch))
+                .or_insert(record.epoch);
         }
     }
 
     last_modified
-        .into_iter()
+}
+
+pub(crate) fn compute_code_age_from_last_modified(
+    last_modified: &HashMap<String, i64>,
+    now_epoch: i64,
+) -> HashMap<String, u32> {
+    last_modified
+        .iter()
         .map(|(path, epoch)| {
-            let age_days = ((now_epoch - epoch) / 86400).max(0) as u32;
-            (path, age_days)
+            let age_days = ((now_epoch - *epoch) / SECONDS_PER_DAY).max(0) as u32;
+            (path.clone(), age_days)
         })
         .collect()
+}
+
+#[cfg(test)]
+pub(crate) fn compute_code_age(
+    records: &[CommitRecord],
+    known_files: &HashSet<String>,
+    now_epoch: i64,
+) -> HashMap<String, u32> {
+    let last_modified = compute_last_modified_epochs(records, known_files);
+    compute_code_age_from_last_modified(&last_modified, now_epoch)
 }
 
 // ── Bus factor (author distribution) ──
@@ -538,6 +563,7 @@ fn empty_report(days: u32) -> EvolutionReport {
         coupling_pairs: Vec::new(),
         hotspots: Vec::new(),
         code_age: HashMap::new(),
+        last_modified_epoch: HashMap::new(),
         authors: HashMap::new(),
         single_author_ratio: 0.0,
         bus_factor_score: 1.0,
