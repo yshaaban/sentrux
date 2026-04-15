@@ -163,6 +163,7 @@ export async function runValidationSuite({
           OUTPUT_PATH: tempBenchmarkPath,
           COMPARE_TO: expectedBenchmarkPath,
           FAIL_ON_REGRESSION: '1',
+          FAIL_ON_NONCOMPARABLE: '1',
           SENTRUX_SKIP_GRAMMAR_DOWNLOAD: skipGrammarDownload,
         },
       });

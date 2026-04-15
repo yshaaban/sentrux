@@ -155,3 +155,160 @@ test('runValidationSuite rejects benchmark format mismatches', async function ()
     await rm(fixture.root, { recursive: true, force: true });
   }
 });
+
+test('runValidationSuite propagates benchmark runner failures', async function () {
+  const fixture = await createValidationFixture({});
+
+  await writeFile(
+    fixture.benchmarkScript,
+    [
+      'import { writeFile } from "node:fs/promises";',
+      '',
+      'await writeFile(',
+      '  process.env.OUTPUT_PATH,',
+      '  `${JSON.stringify({ benchmark_format_version: 3, benchmark: { cold_process_total_ms: 40 } }, null, 2)}\\n`,',
+      ');',
+      'process.exitCode = 3;',
+      '',
+    ].join('\n'),
+  );
+
+  try {
+    await assert.rejects(
+      runValidationSuite({
+        repoLabel: 'sample-project',
+        repoEnvVar: 'SAMPLE_PROJECT_ROOT',
+        repoRoot: fixture.repoRoot,
+        sentruxBin: '/tmp/sentrux',
+        refreshScript: fixture.refreshScript,
+        benchmarkScript: fixture.benchmarkScript,
+        expectedGoldenDir: fixture.expectedGoldenDir,
+        expectedBenchmarkPath: fixture.expectedBenchmarkPath,
+        benchmarkTempFilename: 'benchmark.json',
+        tempRootPrefix: 'sentrux-v2-validation-suite-',
+        keepTemp: false,
+        runGoldens: false,
+        runBenchmark: true,
+        skipGrammarDownload: '1',
+        repoWorkspaceRoot: fixture.root,
+        nodeBin: process.execPath,
+      }),
+      /exited with code 3/,
+    );
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('runValidationSuite passes benchmark gating env to the runner', async function () {
+  const fixture = await createValidationFixture({});
+
+  await writeFile(
+    fixture.benchmarkScript,
+    [
+      'import { writeFile } from "node:fs/promises";',
+      '',
+      'if (process.env.FAIL_ON_REGRESSION !== "1") {',
+      '  throw new Error(`Expected FAIL_ON_REGRESSION=1, got ${process.env.FAIL_ON_REGRESSION ?? "missing"}`);',
+      '}',
+      'if (process.env.FAIL_ON_NONCOMPARABLE !== "1") {',
+      '  throw new Error(`Expected FAIL_ON_NONCOMPARABLE=1, got ${process.env.FAIL_ON_NONCOMPARABLE ?? "missing"}`);',
+      '}',
+      '',
+      'await writeFile(',
+      '  process.env.OUTPUT_PATH,',
+      '  `${JSON.stringify({ benchmark_format_version: 3, benchmark: { cold_process_total_ms: 40 } }, null, 2)}\\n`,',
+      ');',
+      '',
+    ].join('\n'),
+  );
+
+  try {
+    await runValidationSuite({
+      repoLabel: 'sample-project',
+      repoEnvVar: 'SAMPLE_PROJECT_ROOT',
+      repoRoot: fixture.repoRoot,
+      sentruxBin: '/tmp/sentrux',
+      refreshScript: fixture.refreshScript,
+      benchmarkScript: fixture.benchmarkScript,
+      expectedGoldenDir: fixture.expectedGoldenDir,
+      expectedBenchmarkPath: fixture.expectedBenchmarkPath,
+      benchmarkTempFilename: 'benchmark.json',
+      tempRootPrefix: 'sentrux-v2-validation-suite-',
+      keepTemp: false,
+      runGoldens: false,
+      runBenchmark: true,
+      skipGrammarDownload: '1',
+      repoWorkspaceRoot: fixture.root,
+      nodeBin: process.execPath,
+    });
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('runValidationSuite accepts repeated benchmark artifacts with additive fields', async function () {
+  const fixture = await createValidationFixture({});
+  const repeatedBenchmark = {
+    benchmark_format_version: 3,
+    benchmark_repeat_count: 3,
+    benchmark_aggregate_basis: 'median',
+    benchmark_representative_sample_index: 1,
+    benchmark_representative_sample_id: 'sample_2',
+    benchmark_metric_statistics: {
+      cold_process_total_ms: {
+        sample_count: 3,
+        values_ms: [39, 40, 41],
+        min_ms: 39,
+        max_ms: 41,
+        median_ms: 40,
+        mean_ms: 40,
+        stddev_ms: 0.8,
+        spread_ms: 2,
+      },
+    },
+    benchmark_samples: [
+      { sample_id: 'sample_1', generated_at: '2026-04-15T00:00:00.000Z', benchmark: { cold_process_total_ms: 39 } },
+      { sample_id: 'sample_2', generated_at: '2026-04-15T00:01:00.000Z', benchmark: { cold_process_total_ms: 40 } },
+      { sample_id: 'sample_3', generated_at: '2026-04-15T00:02:00.000Z', benchmark: { cold_process_total_ms: 41 } },
+    ],
+    benchmark: {
+      cold_process_total_ms: 40,
+    },
+  };
+
+  await writeFile(fixture.expectedBenchmarkPath, `${JSON.stringify(repeatedBenchmark, null, 2)}\n`);
+  await writeFile(
+    fixture.benchmarkScript,
+    [
+      'import { writeFile } from "node:fs/promises";',
+      '',
+      `const repeatedBenchmark = ${JSON.stringify(repeatedBenchmark)};`,
+      'await writeFile(process.env.OUTPUT_PATH, `${JSON.stringify(repeatedBenchmark, null, 2)}\\n`);',
+      '',
+    ].join('\n'),
+  );
+
+  try {
+    await runValidationSuite({
+      repoLabel: 'sample-project',
+      repoEnvVar: 'SAMPLE_PROJECT_ROOT',
+      repoRoot: fixture.repoRoot,
+      sentruxBin: '/tmp/sentrux',
+      refreshScript: fixture.refreshScript,
+      benchmarkScript: fixture.benchmarkScript,
+      expectedGoldenDir: fixture.expectedGoldenDir,
+      expectedBenchmarkPath: fixture.expectedBenchmarkPath,
+      benchmarkTempFilename: 'benchmark.json',
+      tempRootPrefix: 'sentrux-v2-validation-suite-',
+      keepTemp: false,
+      runGoldens: false,
+      runBenchmark: true,
+      skipGrammarDownload: '1',
+      repoWorkspaceRoot: fixture.root,
+      nodeBin: process.execPath,
+    });
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});

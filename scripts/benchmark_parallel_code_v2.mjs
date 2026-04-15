@@ -4,12 +4,15 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
+  buildAggregatedBenchmark,
   buildBenchmarkComparison,
   buildBenchmarkPolicy,
   createMcpSession,
   loadPreviousBenchmark,
   nowMs,
   printBenchmarkComparison,
+  readPositiveInteger,
+  runRepeatedBenchmarkSamples,
   roundMs,
   runBenchmarkTool,
 } from './lib/benchmark-harness.mjs';
@@ -48,8 +51,30 @@ const requestTimeoutMs = Number(process.env.REQUEST_TIMEOUT_MS ?? '120000');
 const analysisMode = process.env.ANALYSIS_MODE ?? 'working_tree';
 const benchmarkPolicy = buildBenchmarkPolicy();
 const failOnRegression = process.env.FAIL_ON_REGRESSION === '1';
+const failOnNonComparable = process.env.FAIL_ON_NONCOMPARABLE === '1';
+const benchmarkRepeatCount = readPositiveInteger(process.env.BENCHMARK_REPEATS ?? '3', 3);
 const benchmarkFormatVersion = 3;
 const skipGrammarDownload = process.env.SENTRUX_SKIP_GRAMMAR_DOWNLOAD ?? '1';
+const trackedMetrics = [
+  ['cold_process_total_ms', 'cold process total'],
+  ['cold.scan.elapsed_ms', 'cold scan'],
+  ['cold.concepts.elapsed_ms', 'cold concepts'],
+  ['cold.agent_brief_onboarding.elapsed_ms', 'cold agent_brief onboarding'],
+  ['warm_cached_total_ms', 'warm cached total'],
+  ['warm_cached.findings.elapsed_ms', 'warm findings'],
+  ['warm_cached.agent_brief_onboarding.elapsed_ms', 'warm agent_brief onboarding'],
+  ['warm_persisted_total_ms', 'warm persisted total'],
+  ['warm_persisted.concepts.elapsed_ms', 'warm persisted concepts'],
+  ['warm_persisted.findings.elapsed_ms', 'warm persisted findings'],
+  ['warm_persisted.agent_brief_onboarding.elapsed_ms', 'warm persisted agent_brief onboarding'],
+  ['warm_patch_safety_total_ms', 'warm patch-safety total'],
+  ['warm_patch_safety.session_start.elapsed_ms', 'warm session_start'],
+  ['warm_patch_safety.agent_brief_patch.elapsed_ms', 'warm agent_brief patch'],
+  ['warm_patch_safety.gate.elapsed_ms', 'warm gate'],
+  ['warm_patch_safety.check.elapsed_ms', 'warm check'],
+  ['warm_patch_safety.agent_brief_pre_merge.elapsed_ms', 'warm agent_brief pre_merge'],
+  ['warm_patch_safety.session_end.elapsed_ms', 'warm session_end'],
+];
 
 function createSession(homeOverride) {
   return createMcpSession({
@@ -65,7 +90,7 @@ async function runBenchmarkSession(parallelCodeWorkRoot, homeOverride) {
   const session = createSession(homeOverride);
   let persistedSession = null;
   const cold = {};
-  const warm = {};
+  const warmCached = {};
   const warmPersisted = {};
   const warmPatchSafety = {};
   const coldStartedAt = nowMs();
@@ -130,49 +155,49 @@ async function runBenchmarkSession(parallelCodeWorkRoot, homeOverride) {
     const coldProcessTotalMs = roundMs(nowMs() - coldStartedAt);
 
     const warmStartedAt = nowMs();
-    warm.concepts = await runBenchmarkTool(
+    warmCached.concepts = await runBenchmarkTool(
       session,
       'concepts',
       'concepts',
       {},
       summarizeConcepts,
     );
-    warm.findings = await runBenchmarkTool(
+    warmCached.findings = await runBenchmarkTool(
       session,
       'findings_top12',
       'findings',
       { limit: 12 },
       summarizeFindings,
     );
-    warm.explain_task_git_status = await runBenchmarkTool(
+    warmCached.explain_task_git_status = await runBenchmarkTool(
       session,
       'explain_task_git_status',
       'explain_concept',
       { id: 'task_git_status' },
       summarizeExplainConcept,
     );
-    warm.explain_task_presentation_status = await runBenchmarkTool(
+    warmCached.explain_task_presentation_status = await runBenchmarkTool(
       session,
       'explain_task_presentation_status',
       'explain_concept',
       { id: 'task_presentation_status' },
       summarizeExplainConcept,
     );
-    warm.parity_server_state_bootstrap = await runBenchmarkTool(
+    warmCached.parity_server_state_bootstrap = await runBenchmarkTool(
       session,
       'parity_server_state_bootstrap',
       'parity',
       { contract: 'server_state_bootstrap' },
       summarizeParity,
     );
-    warm.state = await runBenchmarkTool(
+    warmCached.state = await runBenchmarkTool(
       session,
       'state',
       'state',
       {},
       summarizeState,
     );
-    warm.agent_brief_onboarding = await runBenchmarkTool(
+    warmCached.agent_brief_onboarding = await runBenchmarkTool(
       session,
       'agent_brief_onboarding',
       'agent_brief',
@@ -264,7 +289,7 @@ async function runBenchmarkSession(parallelCodeWorkRoot, homeOverride) {
       cold_process_total_ms: coldProcessTotalMs,
       cold,
       warm_cached_total_ms: warmCachedTotalMs,
-      warm_cached: warm,
+      warm_cached: warmCached,
       warm_persisted_total_ms: warmPersistedTotalMs,
       warm_persisted: warmPersisted,
       warm_patch_safety_total_ms: warmPatchSafetyTotalMs,
@@ -280,18 +305,14 @@ async function runBenchmarkSession(parallelCodeWorkRoot, homeOverride) {
   }
 }
 
-async function main() {
-  assertPathExists(sentruxBin, 'sentrux binary');
-  assertPathExists(rulesSource, 'parallel-code rules source');
-  assertPathExists(parallelCodeRoot, 'parallel-code repo');
-
-  const previousResult = await loadPreviousBenchmark(compareToPath);
+async function runBenchmarkSample(sampleIndex) {
   const clone = await createDisposableRepoClone({
     sourceRoot: parallelCodeRoot,
     label: 'parallel-code-benchmark',
     rulesSource,
     analysisMode,
   });
+
   let benchmark;
   let freshnessMetadata;
   try {
@@ -307,39 +328,50 @@ async function main() {
   } finally {
     await clone.cleanup();
   }
+
+  return {
+    sample_id: `sample_${sampleIndex + 1}`,
+    generated_at: new Date().toISOString(),
+    benchmark,
+    freshnessMetadata,
+  };
+}
+
+async function main() {
+  assertPathExists(sentruxBin, 'sentrux binary');
+  assertPathExists(rulesSource, 'parallel-code rules source');
+  assertPathExists(parallelCodeRoot, 'parallel-code repo');
+
+  const previousResult = await loadPreviousBenchmark(compareToPath);
+  const { samples, freshnessMetadata } = await runRepeatedBenchmarkSamples({
+    repeatCount: benchmarkRepeatCount,
+    runSample: runBenchmarkSample,
+  });
+  const aggregate = buildAggregatedBenchmark({ samples, trackedMetrics });
+  if (!aggregate) {
+    throw new Error('Failed to build aggregated benchmark samples');
+  }
+
   const result = {
     benchmark_format_version: benchmarkFormatVersion,
     generated_at: new Date().toISOString(),
     parallel_code_root: parallelCodeRoot,
+    benchmark_repeat_count: aggregate.sample_count,
+    benchmark_aggregate_basis: 'median',
+    benchmark_representative_sample_index: aggregate.representative_sample_index,
+    benchmark_representative_sample_id: aggregate.representative_sample_id,
+    benchmark_metric_statistics: aggregate.metric_statistics,
+    benchmark_samples: samples,
     ...freshnessMetadata,
     sentrux_binary: sentruxBin,
-    benchmark,
+    benchmark: aggregate.aggregate_benchmark,
   };
   const comparison = buildBenchmarkComparison({
     currentResult: result,
     previousResult,
     compareToPath,
     benchmarkPolicy,
-    trackedMetrics: [
-      ['cold_process_total_ms', 'cold process total'],
-      ['cold.scan.elapsed_ms', 'cold scan'],
-      ['cold.concepts.elapsed_ms', 'cold concepts'],
-      ['cold.agent_brief_onboarding.elapsed_ms', 'cold agent_brief onboarding'],
-      ['warm_cached_total_ms', 'warm cached total'],
-      ['warm_cached.findings.elapsed_ms', 'warm findings'],
-      ['warm_cached.agent_brief_onboarding.elapsed_ms', 'warm agent_brief onboarding'],
-      ['warm_persisted_total_ms', 'warm persisted total'],
-      ['warm_persisted.concepts.elapsed_ms', 'warm persisted concepts'],
-      ['warm_persisted.findings.elapsed_ms', 'warm persisted findings'],
-      ['warm_persisted.agent_brief_onboarding.elapsed_ms', 'warm persisted agent_brief onboarding'],
-      ['warm_patch_safety_total_ms', 'warm patch-safety total'],
-      ['warm_patch_safety.session_start.elapsed_ms', 'warm session_start'],
-      ['warm_patch_safety.agent_brief_patch.elapsed_ms', 'warm agent_brief patch'],
-      ['warm_patch_safety.gate.elapsed_ms', 'warm gate'],
-      ['warm_patch_safety.check.elapsed_ms', 'warm check'],
-      ['warm_patch_safety.agent_brief_pre_merge.elapsed_ms', 'warm agent_brief pre_merge'],
-      ['warm_patch_safety.session_end.elapsed_ms', 'warm session_end'],
-    ],
+    trackedMetrics,
   });
   if (comparison) {
     result.comparison = comparison;
@@ -347,10 +379,15 @@ async function main() {
 
   await mkdir(path.dirname(outputPath), { recursive: true });
   await writeFile(outputPath, `${JSON.stringify(result, null, 2)}\n`, 'utf8');
-  console.log(`Wrote benchmark results to ${outputPath}`);
+  console.log(
+    `Wrote benchmark results to ${outputPath} using ${aggregate.sample_count} sample(s) with median aggregation.`,
+  );
 
   printBenchmarkComparison(comparison);
   if (comparison?.regressions.length && failOnRegression) {
+    process.exitCode = 1;
+  }
+  if (comparison && !comparison.comparable && failOnNonComparable) {
     process.exitCode = 1;
   }
 }

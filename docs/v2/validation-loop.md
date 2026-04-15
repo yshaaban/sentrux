@@ -8,7 +8,7 @@ The proof-and-improvement workflow is tracked separately in [Parallel-Code Proof
 
 ## What The Loop Covers
 
-The loop validates three separate things:
+The loop validates the full v2 proof loop across these areas:
 
 1. scoped real-repo goldens
 2. benchmark regression behavior
@@ -68,6 +68,7 @@ This command:
 - compares them against the checked-in goldens
 - runs the benchmark harness against the checked-in benchmark artifact
 - fails if the benchmark comparison reports a regression
+- fails if the benchmark run is not comparable to the checked-in artifact
 
 The proof board explains how the outputs from this command should be turned into real refactor targets and before/after proof records.
 
@@ -108,6 +109,9 @@ Use this when you only want performance data.
 node scripts/benchmark_parallel_code_v2.mjs
 ```
 
+The benchmark runners now support repeated samples through `BENCHMARK_REPEATS` and classify
+regressions against the median aggregate written into the top-level `benchmark` object.
+
 ### Golden Only
 
 Use this when you want to inspect output stability without rerunning the benchmark.
@@ -143,6 +147,8 @@ The `metadata.json` check ignores the timestamp field and verifies the stable pa
 
 The benchmark harness records and compares:
 
+- repeated benchmark samples when `BENCHMARK_REPEATS` is greater than `1`
+- median-aggregated benchmark timings in the top-level `benchmark` object
 - cold scan latency
 - first semantic materialization latency
 - warm cached semantic latency
@@ -150,6 +156,7 @@ The benchmark harness records and compares:
 - warm patch-safety latency
 - warm `check` latency
 - regression thresholds across benchmark runs
+- comparability against the checked-in artifact using repo identity, rules identity, and binary identity
 
 The checked-in benchmark artifact is versioned so incompatible benchmark shapes do not get compared accidentally.
 
@@ -164,8 +171,14 @@ If goldens fail:
 If the benchmark fails:
 
 1. confirm whether the change is a real regression or a noisy run
-2. rerun with the same artifact before changing the baseline
+2. rerun with the same artifact and the same clean tree before changing the baseline
 3. only update the baseline after the change is understood
+
+If the benchmark is non-comparable:
+
+1. stop treating the result as a regression signal
+2. rebuild from a clean committed tree with the intended code and binary
+3. refresh the checked-in benchmark artifact from that clean run before resuming validation
 
 ## Proof-And-Improvement Loop
 
@@ -296,6 +309,8 @@ node scripts/evals/run-signal-calibration.mjs \
 ```
 
 The repo-local MCP event stream lives at `.sentrux/agent-session-events.jsonl`. The calibration loop treats those events as the real-session evidence layer on top of seeded defects and provider remediation runs.
+
+If the repo already has a recent repo-calibration-loop run, `run-signal-calibration.mjs` now reuses its live/replay batch artifacts by default when explicit `--codex-batch` and `--replay-batch` paths are omitted. That prevents refreshed self-eval scorecards and backlogs from dropping existing session-trial evidence.
 
 For the checked-in live Codex session manifests under `docs/v2/evals/batches/`, prefer `analysis_mode=working_tree` so the real-work lane reflects local in-progress edits. Reserve `head_clone` for stable committed-HEAD refreshes, replay, and seeded control runs.
 
