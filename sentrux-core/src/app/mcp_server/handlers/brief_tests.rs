@@ -52,6 +52,36 @@ fn patch_brief_marks_evolution_unavailable_on_fast_path() {
 }
 
 #[test]
+fn patch_brief_skips_patch_safety_analysis_when_known_scope_is_clean() {
+    let root = concept_fixture_root();
+    init_git_repo(&root);
+    commit_all(&root, "initial");
+
+    let mut state = fresh_mcp_state();
+    handle_scan(
+        &json!({"path": root.to_string_lossy().to_string()}),
+        &Tier::Free,
+        &mut state,
+    )
+    .expect("scan fixture");
+
+    let response = handle_agent_brief(
+        &json!({"mode": "patch", "limit": 3}),
+        &Tier::Free,
+        &mut state,
+    )
+    .expect("patch brief");
+
+    assert_eq!(response["decision"], json!("continue"));
+    assert_eq!(response["introduced_finding_count"], json!(0));
+    assert!(response["actions"]
+        .as_array()
+        .is_some_and(|items| items.is_empty()));
+    assert_eq!(response["touched_concept_gate"]["decision"], json!("pass"));
+    assert!(state.cached_patch_safety.is_none());
+}
+
+#[test]
 fn patch_brief_surfaces_session_introduced_clone_actions() {
     let root = temp_root("brief-session-introduced-clone");
     write_session_clone_fixture_files(&root);

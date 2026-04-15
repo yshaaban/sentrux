@@ -11,6 +11,7 @@ use super::{
 };
 use crate::license::Tier;
 use serde_json::json;
+
 #[test]
 fn patch_check_context_reuses_cached_scan_when_nothing_changed() {
     let root = cli_gate_fixture_root();
@@ -26,6 +27,33 @@ fn patch_check_context_reuses_cached_scan_when_nothing_changed() {
 
     assert!(context.reused_cached_scan);
     assert!(context.changed_files.is_empty());
+}
+
+#[test]
+fn gate_skips_patch_safety_analysis_when_known_scope_is_clean() {
+    let root = cli_gate_fixture_root();
+    cli_save_v2_session(&root).expect("save v2 session");
+
+    let mut state = fresh_mcp_state();
+    handle_scan(
+        &json!({"path": root.to_string_lossy().to_string()}),
+        &Tier::Free,
+        &mut state,
+    )
+    .expect("scan fixture");
+
+    let response = super::session::handle_gate(&json!({"strict": true}), &Tier::Free, &mut state)
+        .expect("gate");
+
+    assert_eq!(response["decision"], json!("pass"));
+    assert_eq!(
+        response["summary"],
+        json!("No working-tree changes detected")
+    );
+    assert!(response["introduced_findings"]
+        .as_array()
+        .is_some_and(|items| items.is_empty()));
+    assert!(state.cached_patch_safety.is_none());
 }
 
 #[test]
@@ -51,6 +79,31 @@ fn session_end_works_with_v2_session_when_legacy_baseline_is_missing() {
     assert!(response["diagnostics"]["errors"].is_object());
     assert!(response["actions"].is_array());
     assert!(response.get("baseline_error").is_none());
+}
+
+#[test]
+fn session_end_skips_patch_safety_analysis_when_known_scope_is_clean() {
+    let root = cli_gate_fixture_root();
+    cli_save_v2_session(&root).expect("save v2 session");
+
+    let mut state = fresh_mcp_state();
+    handle_scan(
+        &json!({"path": root.to_string_lossy().to_string()}),
+        &Tier::Free,
+        &mut state,
+    )
+    .expect("scan fixture");
+
+    let response = handle_session_end(&json!({}), &Tier::Free, &mut state).expect("session end");
+
+    assert_eq!(response["pass"], json!(true));
+    assert!(response["introduced_findings"]
+        .as_array()
+        .is_some_and(|items| items.is_empty()));
+    assert!(response["actions"]
+        .as_array()
+        .is_some_and(|items| items.is_empty()));
+    assert!(state.cached_patch_safety.is_none());
 }
 
 #[test]

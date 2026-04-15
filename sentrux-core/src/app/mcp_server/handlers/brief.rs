@@ -260,15 +260,132 @@ fn build_patch_mode_agent_brief(
         .ok_or("No scan root. Call 'scan' first.")?;
     let (session_v2, session_v2_status) = current_session_v2_baseline_with_status(state, &root)?;
     let context = prepare_patch_check_context(state, &root, session_v2.as_ref())?;
+    let known_empty_patch_scope =
+        context.changed_scope_available && context.changed_files.is_empty();
     let patch_cache_identity = current_patch_safety_cache_identity(state, &context);
+    let reused_cached_scan = context.reused_cached_scan;
+    let scan_identity = context.scan_identity.clone();
     let bundle = context.bundle;
     let changed_files = context.changed_files;
     let persisted_baseline = load_persisted_baseline(&root).ok().flatten();
+    let (rules_config, rules_error) = load_v2_rules_config(state, &root);
 
-    if !context.reused_cached_scan {
+    if !reused_cached_scan {
         state.cached_semantic = None;
         state.cached_evolution = None;
     }
+    if known_empty_patch_scope {
+        let debt_outputs = build_debt_report_outputs(
+            state,
+            &root,
+            &bundle.snapshot,
+            &bundle.health,
+            &[],
+            &[],
+            &[],
+            &changed_files,
+            limit.max(5),
+            false,
+        );
+        let freshness = json!({
+            "baseline_loaded": session_v2_status.loaded,
+            "session_baseline_compatible": session_v2_status.compatible,
+            "git_head": current_git_head(&root),
+            "working_tree_path_count": 0,
+        });
+        let mut brief = build_agent_brief(AgentBriefInput {
+            mode,
+            repo_shape: project_shape_json_cached(state, &root, &bundle.snapshot, &rules_config),
+            findings: Vec::new(),
+            experimental_findings: Vec::new(),
+            missing_obligations: Vec::new(),
+            watchpoints: debt_outputs.serialized_watchpoints(),
+            resolved_findings: Vec::new(),
+            changed_files: Vec::new(),
+            changed_concepts: Vec::new(),
+            decision: Some("pass".to_string()),
+            summary: None,
+            confidence: json!(build_v2_confidence_report(
+                &bundle.metadata,
+                &rules_config,
+                session_v2_status
+            )),
+            scan_trust: scan_trust_json(&bundle.metadata),
+            freshness,
+            strict: Some(strict),
+            limit,
+        })?;
+        let debt_context_error = debt_outputs.context_error();
+
+        if let Some(object) = brief.as_object_mut() {
+            object.insert(
+                "semantic_cache".to_string(),
+                semantic_cache_status_json(state),
+            );
+            object.insert("changed_files".to_string(), json!(Vec::<String>::new()));
+            object.insert("changed_concepts".to_string(), json!(Vec::<String>::new()));
+            object.insert("introduced_finding_count".to_string(), json!(0));
+            object.insert(
+                "introduced_findings".to_string(),
+                json!(Vec::<Value>::new()),
+            );
+            object.insert("introduced_clone_finding_count".to_string(), json!(0));
+            object.insert(
+                "introduced_clone_findings".to_string(),
+                json!(Vec::<Value>::new()),
+            );
+            object.insert("blocking_finding_count".to_string(), json!(0));
+            object.insert("blocking_findings".to_string(), json!(Vec::<Value>::new()));
+            object.insert(
+                "touched_concept_gate".to_string(),
+                json!({
+                    "decision": "pass",
+                    "strict": strict,
+                }),
+            );
+            object.insert("suppression_hits".to_string(), json!(Vec::<Value>::new()));
+            object.insert("suppressed_finding_count".to_string(), json!(0));
+            object.insert(
+                "expired_suppressions".to_string(),
+                json!(Vec::<Value>::new()),
+            );
+            object.insert("expired_suppression_match_count".to_string(), json!(0));
+        }
+
+        if let Some(object) = brief.as_object_mut() {
+            insert_rules_semantic_context_diagnostics(
+                object,
+                rules_error,
+                None,
+                debt_context_error,
+            );
+            extend_diagnostics_availability(
+                object,
+                vec![("evolution", state.cached_evolution.is_some())],
+            );
+        }
+
+        if !reused_cached_scan {
+            let preserved_semantic = state.cached_semantic.take();
+            let preserved_evolution = state.cached_evolution.take();
+            let preserved_patch_safety = state.cached_patch_safety.take();
+            update_scan_cache(
+                state,
+                root,
+                bundle,
+                persisted_baseline.or(state.baseline.clone()),
+                scan_identity,
+            );
+            state.cached_semantic = preserved_semantic;
+            state.cached_evolution = preserved_evolution;
+            state.cached_patch_safety = preserved_patch_safety;
+        } else if persisted_baseline.is_some() {
+            state.baseline = persisted_baseline;
+        }
+
+        return Ok(brief);
+    }
+
     let analysis = build_patch_safety_analysis(
         state,
         &root,
@@ -279,7 +396,6 @@ fn build_patch_mode_agent_brief(
         false,
     );
     let current_finding_payloads = finding_payload_map(&analysis.visible_findings);
-    let (rules_config, rules_error) = load_v2_rules_config(state, &root);
     let changed_concepts = analysis
         .changed_touched_concepts
         .iter()
@@ -473,7 +589,7 @@ fn build_patch_mode_agent_brief(
         );
     }
 
-    if !context.reused_cached_scan {
+    if !reused_cached_scan {
         let preserved_semantic = state.cached_semantic.take();
         let preserved_evolution = state.cached_evolution.take();
         let preserved_patch_safety = state.cached_patch_safety.take();
@@ -482,7 +598,7 @@ fn build_patch_mode_agent_brief(
             root,
             bundle,
             persisted_baseline.or(state.baseline.clone()),
-            context.scan_identity,
+            scan_identity,
         );
         state.cached_semantic = preserved_semantic;
         state.cached_evolution = preserved_evolution;

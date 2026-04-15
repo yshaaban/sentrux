@@ -77,6 +77,10 @@ fn cached_patch_safety_analysis(
     None
 }
 
+fn has_known_empty_patch_scope(context: &PatchCheckContext) -> bool {
+    context.changed_scope_available && context.changed_files.is_empty()
+}
+
 fn cache_patch_safety_analysis(state: &mut McpState, analysis: &PatchSafetyAnalysisCache) {
     if analysis.scan_identity.is_some() {
         state.cached_patch_safety = Some(analysis.clone());
@@ -328,16 +332,176 @@ pub(crate) fn handle_session_end(
     };
 
     let context = prepare_patch_check_context(state, &root, session_v2.as_ref())?;
+    let known_empty_patch_scope = has_known_empty_patch_scope(&context);
     let patch_cache_identity = current_patch_safety_cache_identity(state, &context);
+    let reused_cached_scan = context.reused_cached_scan;
+    let scan_identity = context.scan_identity.clone();
     let bundle = context.bundle;
     let legacy_diff = baseline
         .as_ref()
         .map(|baseline| baseline.diff(&bundle.health));
     let changed_files = context.changed_files;
-    if !context.reused_cached_scan {
+    if !reused_cached_scan {
         state.cached_semantic = None;
         state.cached_evolution = None;
     }
+    let (rules_config, rules_error) = load_v2_rules_config(state, &root);
+    if baseline.is_none() && baseline_error.is_none() {
+        baseline_error =
+            Some("Legacy baseline unavailable; structural delta fields were omitted".to_string());
+    }
+
+    if known_empty_patch_scope {
+        let debt_outputs = build_debt_report_outputs(
+            state,
+            &root,
+            &bundle.snapshot,
+            &bundle.health,
+            &[],
+            &[],
+            &[],
+            &changed_files,
+            5,
+            true,
+        );
+        let signal_before = legacy_diff
+            .as_ref()
+            .map(|diff| (diff.signal_before * 10000.0).round() as i32);
+        let signal_after = legacy_diff
+            .as_ref()
+            .map(|diff| (diff.signal_after * 10000.0).round() as i32);
+        let signal_delta = legacy_diff
+            .as_ref()
+            .map(|diff| ((diff.signal_after - diff.signal_before) * 10000.0).round() as i32);
+        let coupling_change = legacy_diff
+            .as_ref()
+            .map(|diff| vec![diff.coupling_before, diff.coupling_after]);
+        let cycles_change = legacy_diff
+            .as_ref()
+            .map(|diff| vec![diff.cycles_before, diff.cycles_after]);
+        let legacy_violations = legacy_diff
+            .as_ref()
+            .map(|diff| diff.violations.clone())
+            .unwrap_or_default();
+        let gate_decision = if legacy_diff.as_ref().is_some_and(|diff| diff.degraded) {
+            "warn"
+        } else {
+            "pass"
+        };
+        let summary = if legacy_diff.as_ref().is_some_and(|diff| diff.degraded) {
+            "Quality degraded"
+        } else if legacy_diff.is_none() {
+            "Patch safety check complete; legacy structural delta unavailable"
+        } else {
+            "Quality stable or improved"
+        };
+        let action_payloads: Vec<AgentAction> = Vec::new();
+        let mut result = serde_json::Map::new();
+        result.insert("pass".to_string(), json!(gate_decision != "fail"));
+        result.insert("signal_before".to_string(), json!(signal_before));
+        result.insert("signal_after".to_string(), json!(signal_after));
+        result.insert("signal_delta".to_string(), json!(signal_delta));
+        result.insert("coupling_change".to_string(), json!(coupling_change));
+        result.insert("cycles_change".to_string(), json!(cycles_change));
+        result.insert("violations".to_string(), json!(legacy_violations));
+        result.insert("summary".to_string(), json!(summary));
+        result.insert("changed_files".to_string(), json!(Vec::<String>::new()));
+        result.insert("changed_concepts".to_string(), json!(Vec::<String>::new()));
+        result.insert(
+            "introduced_findings".to_string(),
+            json!(Vec::<Value>::new()),
+        );
+        result.insert("introduced_clone_finding_count".to_string(), json!(0));
+        result.insert(
+            "introduced_clone_findings".to_string(),
+            json!(Vec::<Value>::new()),
+        );
+        result.insert("resolved_findings".to_string(), json!(Vec::<Value>::new()));
+        result.insert("action_count".to_string(), json!(action_payloads.len()));
+        result.insert("actions".to_string(), json!(action_payloads));
+        result.insert("finding_detail_count".to_string(), json!(0));
+        result.insert("finding_details".to_string(), json!(Vec::<Value>::new()));
+        result.insert("experimental_finding_count".to_string(), json!(0));
+        result.insert(
+            "experimental_findings".to_string(),
+            json!(Vec::<Value>::new()),
+        );
+        result.insert(
+            "missing_obligations".to_string(),
+            json!(Vec::<Value>::new()),
+        );
+        result.insert(
+            "obligation_completeness_0_10000".to_string(),
+            json!(crate::metrics::v2::obligation_score_0_10000(&[])),
+        );
+        result.insert(
+            "touched_concept_gate".to_string(),
+            json!({
+                "decision": gate_decision,
+                "blocking_findings": Vec::<Value>::new(),
+            }),
+        );
+        result.insert("suppression_hits".to_string(), json!(Vec::<Value>::new()));
+        result.insert("suppressed_finding_count".to_string(), json!(0));
+        result.insert(
+            "expired_suppressions".to_string(),
+            json!(Vec::<Value>::new()),
+        );
+        result.insert("expired_suppression_match_count".to_string(), json!(0));
+        result.insert("scan_trust".to_string(), scan_trust_json(&bundle.metadata));
+        result.insert(
+            "confidence".to_string(),
+            json!(build_v2_confidence_report(
+                &bundle.metadata,
+                &rules_config,
+                session_v2_status
+            )),
+        );
+        result.insert(
+            "baseline_delta".to_string(),
+            legacy_baseline_delta_json(legacy_diff.as_ref()),
+        );
+        let debt_context_error = insert_debt_report_fields(&mut result, debt_outputs);
+        insert_error_diagnostics(
+            &mut result,
+            vec![
+                DiagnosticEntry::new("rules", rules_error.clone()),
+                DiagnosticEntry::new("semantic", None),
+                DiagnosticEntry::new("context", debt_context_error),
+                DiagnosticEntry::new("baseline", baseline_error.clone()),
+            ],
+            Vec::new(),
+        );
+        crate::app::mcp_server::session_telemetry::record_session_ended(
+            state,
+            &root,
+            crate::app::mcp_server::session_telemetry::SessionEndTelemetry {
+                changed_files: &changed_files,
+                decision: gate_decision,
+                action_payloads: &[],
+                introduced_finding_kinds: Vec::new(),
+                missing_obligation_count: 0,
+                introduced_clone_finding_count: 0,
+                reused_cached_scan,
+            },
+        );
+        let result = Value::Object(result);
+
+        if !reused_cached_scan {
+            let preserved_semantic = state.cached_semantic.take();
+            let preserved_evolution = state.cached_evolution.take();
+            let preserved_patch_safety = state.cached_patch_safety.take();
+            update_scan_cache(state, root, bundle, baseline, scan_identity);
+            state.cached_semantic = preserved_semantic;
+            state.cached_evolution = preserved_evolution;
+            state.cached_patch_safety = preserved_patch_safety;
+        } else {
+            state.baseline = baseline;
+        }
+
+        return Ok(result);
+    }
+
     let analysis = build_patch_safety_analysis(
         state,
         &root,
@@ -348,7 +512,6 @@ pub(crate) fn handle_session_end(
         true,
     );
     let current_finding_payloads = finding_payload_map(&analysis.visible_findings);
-    let (rules_config, _) = load_v2_rules_config(state, &root);
     let changed_concepts = analysis
         .changed_touched_concepts
         .iter()
@@ -422,10 +585,6 @@ pub(crate) fn handle_session_end(
         "pass"
     };
     let semantic_error = patch_safety_semantic_error(&analysis);
-    if baseline.is_none() && baseline_error.is_none() {
-        baseline_error =
-            Some("Legacy baseline unavailable; structural delta fields were omitted".to_string());
-    }
     let introduced_findings = visible_introduced_findings
         .iter()
         .map(decorate_finding_with_classification)
@@ -610,16 +769,16 @@ pub(crate) fn handle_session_end(
                 .collect(),
             missing_obligation_count: missing_obligations.len(),
             introduced_clone_finding_count: introduced_clone_findings.len(),
-            reused_cached_scan: context.reused_cached_scan,
+            reused_cached_scan,
         },
     );
     let result = Value::Object(result);
 
-    if !context.reused_cached_scan {
+    if !reused_cached_scan {
         let preserved_semantic = state.cached_semantic.take();
         let preserved_evolution = state.cached_evolution.take();
         let preserved_patch_safety = state.cached_patch_safety.take();
-        update_scan_cache(state, root, bundle, baseline, context.scan_identity);
+        update_scan_cache(state, root, bundle, baseline, scan_identity);
         state.cached_semantic = preserved_semantic;
         state.cached_evolution = preserved_evolution;
         state.cached_patch_safety = preserved_patch_safety;
@@ -672,14 +831,76 @@ fn compute_touched_concept_gate(
 ) -> Result<Value, String> {
     let (session_v2, session_v2_status) = current_session_v2_baseline_with_status(state, root)?;
     let context = prepare_patch_check_context(state, root, session_v2.as_ref())?;
+    let known_empty_patch_scope = has_known_empty_patch_scope(&context);
     let patch_cache_identity = current_patch_safety_cache_identity(state, &context);
+    let reused_cached_scan = context.reused_cached_scan;
+    let scan_identity = context.scan_identity.clone();
     let bundle = context.bundle;
     let changed_files = context.changed_files;
+    let (rules_config, rules_error) = load_v2_rules_config(state, root);
+    let persisted_baseline = load_persisted_baseline(root).ok().flatten();
+    let legacy_baseline_delta = persisted_baseline
+        .as_ref()
+        .or(state.baseline.as_ref())
+        .map(|baseline| baseline.diff(&bundle.health));
 
-    if !context.reused_cached_scan {
+    if !reused_cached_scan {
         state.cached_semantic = None;
         state.cached_evolution = None;
     }
+
+    if known_empty_patch_scope {
+        let mut response = json!({
+            "decision": "pass",
+            "strict": strict,
+            "summary": "No working-tree changes detected",
+            "changed_files": Vec::<String>::new(),
+            "introduced_findings": Vec::<Value>::new(),
+            "experimental_finding_count": 0,
+            "experimental_findings": Vec::<Value>::new(),
+            "blocking_findings": Vec::<Value>::new(),
+            "missing_obligations": Vec::<Value>::new(),
+            "obligation_completeness_0_10000": crate::metrics::v2::obligation_score_0_10000(&[]),
+            "suppression_hits": Vec::<Value>::new(),
+            "suppressed_finding_count": 0,
+            "expired_suppressions": Vec::<Value>::new(),
+            "expired_suppression_match_count": 0,
+            "scan_trust": scan_trust_json(&bundle.metadata),
+            "confidence": build_v2_confidence_report(&bundle.metadata, &rules_config, session_v2_status),
+            "baseline_delta": legacy_baseline_delta_json(legacy_baseline_delta.as_ref()),
+        });
+        if let Some(object) = response.as_object_mut() {
+            insert_error_diagnostics(
+                object,
+                vec![
+                    DiagnosticEntry::new("rules", rules_error),
+                    DiagnosticEntry::new("semantic", None),
+                ],
+                Vec::new(),
+            );
+        }
+
+        if !reused_cached_scan {
+            let preserved_semantic = state.cached_semantic.take();
+            let preserved_evolution = state.cached_evolution.take();
+            let preserved_patch_safety = state.cached_patch_safety.take();
+            update_scan_cache(
+                state,
+                root.to_path_buf(),
+                bundle,
+                persisted_baseline.or(state.baseline.clone()),
+                scan_identity,
+            );
+            state.cached_semantic = preserved_semantic;
+            state.cached_evolution = preserved_evolution;
+            state.cached_patch_safety = preserved_patch_safety;
+        } else if persisted_baseline.is_some() {
+            state.baseline = persisted_baseline;
+        }
+
+        return Ok(response);
+    }
+
     let analysis = build_patch_safety_analysis(
         state,
         root,
@@ -690,7 +911,6 @@ fn compute_touched_concept_gate(
         true,
     );
     let current_finding_payloads = finding_payload_map(&analysis.visible_findings);
-    let (rules_config, _) = load_v2_rules_config(state, root);
     let missing_obligations = analysis
         .changed_obligations
         .iter()
@@ -749,11 +969,6 @@ fn compute_touched_concept_gate(
     } else {
         "No blocking touched-concept regressions detected"
     };
-    let persisted_baseline = load_persisted_baseline(root).ok().flatten();
-    let legacy_baseline_delta = persisted_baseline
-        .as_ref()
-        .or(state.baseline.as_ref())
-        .map(|baseline| baseline.diff(&bundle.health));
     let mut response = json!({
         "decision": decision,
         "strict": strict,
@@ -784,7 +999,7 @@ fn compute_touched_concept_gate(
         );
     }
 
-    if !context.reused_cached_scan {
+    if !reused_cached_scan {
         let preserved_semantic = state.cached_semantic.take();
         let preserved_evolution = state.cached_evolution.take();
         let preserved_patch_safety = state.cached_patch_safety.take();
@@ -793,7 +1008,7 @@ fn compute_touched_concept_gate(
             root.to_path_buf(),
             bundle,
             persisted_baseline.or(state.baseline.clone()),
-            context.scan_identity,
+            scan_identity,
         );
         state.cached_semantic = preserved_semantic;
         state.cached_evolution = preserved_evolution;
