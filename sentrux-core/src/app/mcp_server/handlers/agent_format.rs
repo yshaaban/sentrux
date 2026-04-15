@@ -232,23 +232,35 @@ fn fix_hint_for_value(finding: &Value, kind: &str) -> Option<String> {
     }
 
     if kind == "large_file" {
-        let split_axis = first_string_array_value(finding, "candidate_split_axes");
-        let related_surface = first_string_array_value(finding, "related_surfaces");
-        if let (Some(split_axis), Some(related_surface)) =
-            (split_axis.as_ref(), related_surface.as_ref())
-        {
+        let split_axes = string_array_values(finding, "candidate_split_axes", 2);
+        let related_surfaces = string_array_values(finding, "related_surfaces", 2)
+            .into_iter()
+            .filter(|surface| !looks_like_test_surface(surface))
+            .collect::<Vec<_>>();
+        if split_axes.len() == 1 && related_surfaces.len() == 1 {
+            let split_axis = &split_axes[0];
+            let related_surface = &related_surfaces[0];
             return Some(format!(
                 "Split the file along the {split_axis} and move the behavior that couples to {related_surface} behind a smaller owner before adding more code here."
             ));
         }
-        if let Some(split_axis) = split_axis {
+        if !split_axes.is_empty() && !related_surfaces.is_empty() {
             return Some(format!(
-                "Split the file along the {split_axis} and keep the public surface thin."
+                "Split the file along {} and move the behavior that couples to {} behind smaller owners before adding more code here.",
+                describe_split_axes(&split_axes),
+                describe_list(&related_surfaces),
             ));
         }
-        if let Some(related_surface) = related_surface {
+        if !split_axes.is_empty() {
             return Some(format!(
-                "Extract the behavior that couples to {related_surface} behind a smaller owner and keep the public surface thin."
+                "Split the file along {} and keep the public surface thin.",
+                describe_split_axes(&split_axes),
+            ));
+        }
+        if !related_surfaces.is_empty() {
+            return Some(format!(
+                "Extract the behavior that couples to {} behind smaller owners and keep the public surface thin.",
+                describe_list(&related_surfaces),
             ));
         }
     }
@@ -270,12 +282,49 @@ fn evidence_value_for_prefix(finding: &Value, prefix: &str) -> Option<String> {
         })
 }
 
-fn first_string_array_value(finding: &Value, key: &str) -> Option<String> {
+fn string_array_values(finding: &Value, key: &str, limit: usize) -> Vec<String> {
     finding
         .get(key)
         .and_then(Value::as_array)
-        .and_then(|values| values.iter().find_map(Value::as_str))
-        .map(str::to_string)
+        .map(|values| {
+            values
+                .iter()
+                .filter_map(Value::as_str)
+                .take(limit.max(1))
+                .map(str::to_string)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default()
+}
+
+fn describe_split_axes(split_axes: &[String]) -> String {
+    describe_list(
+        &split_axes
+            .iter()
+            .map(|split_axis| format!("the {split_axis}"))
+            .collect::<Vec<_>>(),
+    )
+}
+
+fn describe_list(values: &[String]) -> String {
+    match values {
+        [] => String::new(),
+        [value] => value.clone(),
+        [first, second] => format!("{first} and {second}"),
+        _ => {
+            let last = values.last().expect("non-empty list");
+            let leading = &values[..values.len() - 1];
+            format!("{}, and {}", leading.join(", "), last)
+        }
+    }
+}
+
+fn looks_like_test_surface(path: &str) -> bool {
+    path.contains(".test.")
+        || path.contains(".spec.")
+        || path.contains(".architecture.test.")
+        || path.contains("/__tests__/")
+        || path.ends_with("_test.rs")
 }
 
 pub(crate) fn issue_blocks_gate(issue: &AgentIssue) -> bool {
@@ -784,6 +833,50 @@ mod tests {
             issue.fix_hint.as_deref(),
             Some(
                 "Split the file along the shared helper boundary and move the behavior that couples to scripts/lib/eval-batch.mjs behind a smaller owner before adding more code here."
+            )
+        );
+    }
+
+    #[test]
+    fn large_file_guidance_uses_multiple_axes_and_surfaces_when_present() {
+        let issue = to_agent_issue(&json!({
+            "kind": "large_file",
+            "summary": "File 'src/App.tsx' is 620 lines, above the typescript threshold of 500",
+            "files": ["src/App.tsx"],
+            "candidate_split_axes": [
+                "components dependency boundary",
+                "providers dependency boundary"
+            ],
+            "related_surfaces": [
+                "src/components/app-shell/Chrome.tsx",
+                "src/providers/runtime.ts"
+            ]
+        }));
+
+        assert_eq!(
+            issue.fix_hint.as_deref(),
+            Some(
+                "Split the file along the components dependency boundary and the providers dependency boundary and move the behavior that couples to src/components/app-shell/Chrome.tsx and src/providers/runtime.ts behind smaller owners before adding more code here."
+            )
+        );
+    }
+
+    #[test]
+    fn large_file_guidance_ignores_test_only_related_surfaces() {
+        let issue = to_agent_issue(&json!({
+            "kind": "large_file",
+            "summary": "Guarded facade file 'src/components/terminal-session.ts' is 720 lines, above the typescript threshold of 500",
+            "files": ["src/components/terminal-session.ts"],
+            "candidate_split_axes": ["facade owner boundary"],
+            "related_surfaces": [
+                "src/components/terminal-session.architecture.test.ts"
+            ]
+        }));
+
+        assert_eq!(
+            issue.fix_hint.as_deref(),
+            Some(
+                "Split the file along the facade owner boundary and keep the public surface thin."
             )
         );
     }

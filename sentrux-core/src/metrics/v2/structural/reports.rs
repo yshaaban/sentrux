@@ -59,26 +59,89 @@ fn large_file_impact(path: &str, role_tags: &[String]) -> String {
     "Responsibility concentration increases review friction and makes later splits harder to isolate.".to_string()
 }
 
-fn large_file_inspection_focus(path: &str, role_tags: &[String]) -> Vec<String> {
-    if has_role_tag(role_tags, "facade_with_extracted_owners") {
-        return vec![
+fn large_file_inspection_focus(
+    path: &str,
+    role_tags: &[String],
+    candidate_split_axes: &[String],
+    related_surfaces: &[String],
+) -> Vec<String> {
+    let mut focus = if has_role_tag(role_tags, "facade_with_extracted_owners") {
+        vec![
             "inspect whether remaining coordination belongs in extracted owner modules instead of the public facade".to_string(),
             "inspect whether guardrail-backed owner seams are staying thin or accumulating new logic".to_string(),
-        ];
-    }
-    if path.starts_with("src/")
+        ]
+    } else if path.starts_with("src/")
         && (has_role_tag(role_tags, "composition_root") || has_role_tag(role_tags, "entry_surface"))
     {
-        return vec![
+        vec![
             "inspect whether shell composition and runtime wiring are staying separate".to_string(),
             "inspect whether the entry surface is acting as a coordinator rather than an implementation sink".to_string(),
-        ];
+        ]
+    } else {
+        vec![
+            "inspect whether orchestration, adapters, and data shaping are accumulating in one file"
+                .to_string(),
+            "inspect whether the file can be split along responsibility boundaries instead of line-count slices".to_string(),
+        ]
+    };
+
+    if let (Some(split_axis), Some(related_surface)) =
+        (candidate_split_axes.first(), related_surfaces.first())
+    {
+        focus.insert(
+            0,
+            format!(
+                "inspect whether the {split_axis} can become the owner for behavior that currently couples to {related_surface}"
+            ),
+        );
+    } else if let Some(split_axis) = candidate_split_axes.first() {
+        focus.insert(
+            0,
+            format!("inspect which behavior belongs behind the {split_axis}"),
+        );
+    } else if let Some(related_surface) = related_surfaces.first() {
+        focus.insert(
+            0,
+            format!(
+                "inspect whether behavior coupled to {related_surface} belongs in a smaller owner module"
+            ),
+        );
     }
-    vec![
-        "inspect whether orchestration, adapters, and data shaping are accumulating in one file"
-            .to_string(),
-        "inspect whether the file can be split along responsibility boundaries instead of line-count slices".to_string(),
-    ]
+
+    dedupe_strings_preserve_order(focus)
+}
+
+fn large_file_related_surfaces(graph: &StructuralGraph, path: &str) -> Vec<String> {
+    dedupe_strings_preserve_order(sample_paths(graph.outgoing.get(path), 5))
+}
+
+fn large_file_actionable_evidence(
+    candidate_split_axes: &[String],
+    related_surfaces: &[String],
+) -> Vec<String> {
+    let mut evidence = Vec::new();
+
+    if !candidate_split_axes.is_empty() {
+        evidence.push(format!(
+            "suggested split axes: {}",
+            join_or_none(candidate_split_axes)
+        ));
+    }
+    if !related_surfaces.is_empty() {
+        evidence.push(format!(
+            "related surfaces to peel out first: {}",
+            join_or_none(related_surfaces)
+        ));
+    }
+    if let (Some(split_axis), Some(related_surface)) =
+        (candidate_split_axes.first(), related_surfaces.first())
+    {
+        evidence.push(format!(
+            "recommended first cut: move the behavior that couples to {related_surface} behind the {split_axis}"
+        ));
+    }
+
+    evidence
 }
 
 fn dependency_sprawl_summary(
@@ -270,6 +333,26 @@ pub(super) fn build_large_file_reports(
                 .large_file_lines;
             let score_0_10000 =
                 large_file_score(file_metric.value, threshold, facts.max_complexity);
+            let candidate_split_axes = large_file_split_axes(facts, graph, &file_metric.path);
+            let related_surfaces = large_file_related_surfaces(graph, &file_metric.path);
+            let mut evidence = vec![
+                format!("line count: {}", file_metric.value),
+                format!("large-file threshold: {}", threshold),
+                format!("function count: {}", facts.function_count),
+                format!("peak function complexity: {}", facts.max_complexity),
+                format!(
+                    "outbound dependencies: {}",
+                    graph
+                        .outgoing
+                        .get(&file_metric.path)
+                        .map(|paths| paths.len())
+                        .unwrap_or(0)
+                ),
+            ];
+            evidence.extend(large_file_actionable_evidence(
+                &candidate_split_axes,
+                &related_surfaces,
+            ));
 
             Some(annotate_structural_leverage(StructuralDebtReport {
                 kind: "large_file".to_string(),
@@ -297,29 +380,15 @@ pub(super) fn build_large_file_reports(
                 files: vec![file_metric.path.clone()],
                 role_tags: role_tags.clone(),
                 leverage_reasons: Vec::new(),
-                evidence: dedupe_strings_preserve_order(with_guardrail_evidence(
-                    facts,
-                    vec![
-                        format!("line count: {}", file_metric.value),
-                        format!("large-file threshold: {}", threshold),
-                        format!("function count: {}", facts.function_count),
-                        format!("peak function complexity: {}", facts.max_complexity),
-                        format!(
-                            "outbound dependencies: {}",
-                            graph
-                                .outgoing
-                                .get(&file_metric.path)
-                                .map(|paths| paths.len())
-                                .unwrap_or(0)
-                        ),
-                    ],
-                )),
-                inspection_focus: large_file_inspection_focus(&file_metric.path, &role_tags),
-                candidate_split_axes: large_file_split_axes(facts, graph, &file_metric.path),
-                related_surfaces: related_structural_surfaces(
-                    facts,
-                    sample_paths(graph.outgoing.get(&file_metric.path), 5),
+                evidence: dedupe_strings_preserve_order(with_guardrail_evidence(facts, evidence)),
+                inspection_focus: large_file_inspection_focus(
+                    &file_metric.path,
+                    &role_tags,
+                    &candidate_split_axes,
+                    &related_surfaces,
                 ),
+                candidate_split_axes,
+                related_surfaces,
                 cut_candidates: Vec::new(),
                 metrics: StructuralDebtMetrics {
                     file_count: Some(1),
@@ -850,7 +919,11 @@ fn hotspot_split_axes(
 }
 
 fn large_file_split_axes(facts: &FileFacts, graph: &StructuralGraph, path: &str) -> Vec<String> {
-    let mut axes = dependency_category_axes(graph.outgoing.get(path), 3);
+    let mut axes = if graph.outgoing.get(path).is_some() {
+        dependency_category_axes(graph.outgoing.get(path), 3)
+    } else {
+        Vec::new()
+    };
     if has_role(facts, "facade_with_extracted_owners") {
         axes.push("facade owner boundary".to_string());
     }
@@ -863,7 +936,11 @@ fn large_file_split_axes(facts: &FileFacts, graph: &StructuralGraph, path: &str)
     if facts.function_count >= 20 {
         axes.push("private helper surface split".to_string());
     }
-    dedupe_strings_preserve_order(axes)
+    let mut axes = dedupe_strings_preserve_order(axes);
+    if axes.is_empty() {
+        axes.push("orchestration boundary".to_string());
+    }
+    axes
 }
 
 fn dominant_categories(paths: &BTreeSet<String>, limit: usize) -> Vec<String> {
