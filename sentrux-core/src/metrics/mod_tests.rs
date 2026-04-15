@@ -671,6 +671,54 @@ export function ToastError(props: ToastProps) {
         assert!(report.dead_functions.is_empty());
     }
 
+    #[test]
+    fn dead_functions_ignore_same_file_registry_helpers() {
+        let snapshot = snapshot_with_parsed_files(vec![parsed_file(
+            "src/stream-control-schema.ts",
+            "typescript",
+            r#"
+const TASK_STARTED = () => ({ kind: 'started' });
+const TASK_USAGE = () => ({ kind: 'usage' });
+const TASK_PROGRESS = () => ({ kind: 'progress' });
+
+const streamControlSchema = {
+    TASK_STARTED,
+    TASK_USAGE,
+    TASK_PROGRESS,
+};
+
+export function buildStreamControlSchema() {
+    return streamControlSchema;
+}
+"#,
+        )]);
+        let report = compute_health(&snapshot);
+
+        assert!(
+            report.dead_functions.is_empty(),
+            "same-file registry wiring should suppress dead private code on schema helpers"
+        );
+    }
+
+    #[test]
+    fn dead_functions_still_report_unreferenced_uppercase_helpers() {
+        let snapshot = snapshot_with_parsed_files(vec![parsed_file(
+            "src/stream-control-schema.ts",
+            "typescript",
+            r#"
+const TASK_STARTED = () => ({ kind: 'started' });
+
+export function buildStreamControlSchema() {
+    return [];
+}
+"#,
+        )]);
+        let report = compute_health(&snapshot);
+
+        assert_eq!(report.dead_functions.len(), 1);
+        assert_eq!(report.dead_functions[0].func, "TASK_STARTED");
+    }
+
     // ── Shannon entropy: single cross-module pair = 0 entropy ──
     #[test]
     fn single_pair_zero_entropy() {

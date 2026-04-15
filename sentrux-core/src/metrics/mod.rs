@@ -528,8 +528,30 @@ fn is_called(func_name: &str, all_calls: &HashSet<String>) -> bool {
     all_calls.contains(func_name) || all_calls.contains(base_name)
 }
 
-fn has_same_file_references(function: &crate::core::types::FuncInfo) -> bool {
+fn has_non_call_references(function: &crate::core::types::FuncInfo) -> bool {
     function.same_file_ref_count.is_some_and(|count| count > 0)
+}
+
+fn should_report_dead_function(
+    file: &FileNode,
+    function: &crate::core::types::FuncInfo,
+    all_calls: &HashSet<String>,
+    implicit: &HashSet<String>,
+) -> bool {
+    // Public/exported functions are API surface, and methods are often invoked
+    // through framework or object dispatch that the static call graph cannot
+    // reliably resolve.
+    if function.is_public || function.is_method {
+        return false;
+    }
+    if is_excluded_function(&function.n, implicit, &file.lang) {
+        return false;
+    }
+
+    // Same-file refs come from the parser's conservative AST/text fallback,
+    // which captures callback wiring, JSX usage, shorthand registry maps, and
+    // other non-call references that should suppress dead-private findings.
+    !is_called(&function.n, all_calls) && !has_non_call_references(function)
 }
 
 /// Collect functions not referenced by any call site (dead code candidates).
@@ -547,18 +569,7 @@ fn collect_dead_functions(files: &[&FileNode]) -> Vec<FuncMetric> {
             None => continue,
         };
         for f in funcs {
-            // Public/exported functions are NOT dead code — they're API surface.
-            // Methods (self/this) are called via object dispatch — can't trace statically.
-            if f.is_public || f.is_method {
-                continue;
-            }
-            if is_excluded_function(&f.n, &implicit, &file.lang) {
-                continue;
-            }
-            // Same-file refs come from the parser's conservative AST/text
-            // fallback, which counts callback wiring, JSX usage, and other
-            // non-call references that should suppress dead-private findings.
-            if !is_called(&f.n, &all_calls) && !has_same_file_references(f) {
+            if should_report_dead_function(file, f, &all_calls, &implicit) {
                 result.push(FuncMetric {
                     file: file.path.clone(),
                     func: f.n.clone(),
