@@ -24,11 +24,13 @@ It measures:
    - `session_start`
    - `gate`
    - `session_end`
-7. optional comparison against the previous benchmark artifact using version and comparability guards
+7. optional comparison against the previous benchmark artifact using version, comparability guards,
+   and the curated regression-metric set from the benchmark script
 
-The checked-in artifact captures `5` repeated samples and writes the median aggregate into
-the top-level `benchmark` object along with per-metric sample statistics and representative-sample
-metadata.
+The checked-in artifact captures `5` repeated samples and writes the median for every benchmark
+timing field into the top-level `benchmark` object. `benchmark_metric_statistics` stores the
+sample-derived statistics for every timed field, while the representative-sample metadata preserves
+the non-timing payload from the closest real sample.
 
 That is the relevant distinction for agent workflows:
 
@@ -89,6 +91,10 @@ Current checked-in median aggregate (`5` samples, clean `working_tree` baseline)
 6. the benchmark harness now needs stable inputs as well as stable timings
    - the artifact is format-versioned and identity-aware so regression comparison does not compare incompatible benchmark shapes
    - future regression runs should prefer the same repo state and analysis mode when the goal is a true apples-to-apples latency comparison
+
+7. the artifact now separates aggregate semantics from regression policy
+   - every `elapsed_ms` and `*_total_ms` field in the top-level `benchmark` payload is a median value
+   - regression gating still uses the explicit comparison metric list rather than every timed leaf
 
 ## Validation Flow
 

@@ -130,6 +130,28 @@ function sortNumericValues(values) {
   });
 }
 
+function collectBenchmarkTimingMetricPaths(benchmark, currentPath = '', metricPaths = new Set()) {
+  if (!benchmark || typeof benchmark !== 'object' || Array.isArray(benchmark)) {
+    return metricPaths;
+  }
+
+  for (const [key, value] of Object.entries(benchmark)) {
+    const metricPath = currentPath ? `${currentPath}.${key}` : key;
+    if (typeof value === 'number' && (key === 'elapsed_ms' || key.endsWith('_total_ms'))) {
+      metricPaths.add(metricPath);
+      continue;
+    }
+
+    collectBenchmarkTimingMetricPaths(value, metricPath, metricPaths);
+  }
+
+  return metricPaths;
+}
+
+export function listBenchmarkTimingMetricPaths(benchmark) {
+  return [...collectBenchmarkTimingMetricPaths(benchmark)].sort();
+}
+
 function computeMedianValue(sortedValues) {
   const middleIndex = Math.floor(sortedValues.length / 2);
   if (sortedValues.length % 2 === 1) {
@@ -177,6 +199,24 @@ export function buildMetricStatistics(values) {
     stddev_ms: computeStandardDeviation(values, meanValue),
     spread_ms: roundMs(maxMs - minMs),
   };
+}
+
+function listAggregateMetricPaths(samples, trackedMetrics) {
+  const metricPaths = new Set(
+    Array.isArray(trackedMetrics)
+      ? trackedMetrics.map(function readTrackedMetric([metricPath]) {
+          return metricPath;
+        })
+      : [],
+  );
+
+  for (const sample of samples) {
+    for (const metricPath of listBenchmarkTimingMetricPaths(sample.benchmark)) {
+      metricPaths.add(metricPath);
+    }
+  }
+
+  return [...metricPaths].sort();
 }
 
 function buildBenchmarkDistance({ benchmark, aggregateBenchmark, trackedMetrics }) {
@@ -233,8 +273,9 @@ export function buildAggregatedBenchmark({ samples, trackedMetrics }) {
     return null;
   }
 
+  const metricPaths = listAggregateMetricPaths(samples, trackedMetrics);
   const statistics = {};
-  for (const [metricPath] of trackedMetrics) {
+  for (const metricPath of metricPaths) {
     const values = samples
       .map(function readMetric(sample) {
         return getBenchmarkMetric(sample.benchmark, metricPath);
@@ -260,7 +301,9 @@ export function buildAggregatedBenchmark({ samples, trackedMetrics }) {
   const representativeSampleIndex = pickRepresentativeBenchmarkSample({
     samples,
     aggregateBenchmark: medianBenchmark,
-    trackedMetrics,
+    trackedMetrics: metricPaths.map(function createTrackedMetric(metricPath) {
+      return [metricPath];
+    }),
   });
 
   const representativeBenchmarkSource =

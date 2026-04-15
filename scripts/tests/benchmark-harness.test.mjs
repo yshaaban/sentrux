@@ -94,6 +94,12 @@ test('buildAggregatedBenchmark uses median timings and records sample statistics
         sample_id: 'sample_1',
         benchmark: {
           cold_process_total_ms: 100,
+          cold: {
+            findings: {
+              elapsed_ms: 55,
+              summary: 'first summary',
+            },
+          },
           sample_label: 'first',
           stdout_log: ['first'],
           stderr_log: [],
@@ -103,6 +109,12 @@ test('buildAggregatedBenchmark uses median timings and records sample statistics
         sample_id: 'sample_2',
         benchmark: {
           cold_process_total_ms: 110,
+          cold: {
+            findings: {
+              elapsed_ms: 60,
+              summary: 'second summary',
+            },
+          },
           sample_label: 'second',
           stdout_log: ['second'],
           stderr_log: [],
@@ -112,6 +124,12 @@ test('buildAggregatedBenchmark uses median timings and records sample statistics
         sample_id: 'sample_3',
         benchmark: {
           cold_process_total_ms: 120,
+          cold: {
+            findings: {
+              elapsed_ms: 50,
+              summary: 'third summary',
+            },
+          },
           sample_label: 'third',
           stdout_log: ['third'],
           stderr_log: [],
@@ -122,6 +140,8 @@ test('buildAggregatedBenchmark uses median timings and records sample statistics
 
   assert(aggregate);
   assert.equal(aggregate.aggregate_benchmark.cold_process_total_ms, 110);
+  assert.equal(aggregate.aggregate_benchmark.cold.findings.elapsed_ms, 55);
+  assert.equal(aggregate.aggregate_benchmark.cold.findings.summary, 'second summary');
   assert.equal(aggregate.aggregate_benchmark.sample_label, 'second');
   assert.equal(aggregate.aggregate_benchmark.stdout_log, undefined);
   assert.equal(aggregate.sample_count, 3);
@@ -136,6 +156,16 @@ test('buildAggregatedBenchmark uses median timings and records sample statistics
     mean_ms: 110,
     stddev_ms: 8.2,
     spread_ms: 20,
+  });
+  assert.deepEqual(aggregate.metric_statistics['cold.findings.elapsed_ms'], {
+    sample_count: 3,
+    values_ms: [55, 60, 50],
+    min_ms: 50,
+    max_ms: 60,
+    median_ms: 55,
+    mean_ms: 55,
+    stddev_ms: 4.1,
+    spread_ms: 10,
   });
 });
 

@@ -55,7 +55,7 @@ const failOnNonComparable = process.env.FAIL_ON_NONCOMPARABLE === '1';
 const benchmarkRepeatCount = readPositiveInteger(process.env.BENCHMARK_REPEATS ?? '3', 3);
 const benchmarkFormatVersion = 3;
 const skipGrammarDownload = process.env.SENTRUX_SKIP_GRAMMAR_DOWNLOAD ?? '1';
-const trackedMetrics = [
+const comparisonMetrics = [
   ['cold_process_total_ms', 'cold process total'],
   ['cold.scan.elapsed_ms', 'cold scan'],
   ['cold.concepts.elapsed_ms', 'cold concepts'],
@@ -347,7 +347,7 @@ async function main() {
     repeatCount: benchmarkRepeatCount,
     runSample: runBenchmarkSample,
   });
-  const aggregate = buildAggregatedBenchmark({ samples, trackedMetrics });
+  const aggregate = buildAggregatedBenchmark({ samples });
   if (!aggregate) {
     throw new Error('Failed to build aggregated benchmark samples');
   }
@@ -371,7 +371,7 @@ async function main() {
     previousResult,
     compareToPath,
     benchmarkPolicy,
-    trackedMetrics,
+    trackedMetrics: comparisonMetrics,
   });
   if (comparison) {
     result.comparison = comparison;
