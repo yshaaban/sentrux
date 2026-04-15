@@ -1,14 +1,14 @@
 {
-  "generated_at": "2026-04-15T18:12:19Z",
+  "generated_at": "2026-04-15T22:40:58Z",
   "parallel_code_root": "<parallel-code-root>",
-  "analysis_mode": "working_tree",
+  "analysis_mode": "head_clone",
   "source_tree_identity": {
     "commit": "e9a7ca8fb114c0e1e4ecf06cfab149a9bdbc325d",
     "dirty_paths": [],
     "dirty_paths_count": 0,
     "dirty_paths_fingerprint": "53c1562521679823f3ee3c10c2585dec4c3ecd862d145f868947047fd32725ac",
     "tree_fingerprint": "76379fc99f3b437749f1eb219d01a1744f8869f68b814a0c7d8ad4e05eb97a6b",
-    "analysis_mode": "working_tree"
+    "analysis_mode": "head_clone"
   },
   "analyzed_tree_identity": {
     "commit": "e9a7ca8fb114c0e1e4ecf06cfab149a9bdbc325d",
@@ -16,7 +16,7 @@
     "dirty_paths_count": 0,
     "dirty_paths_fingerprint": "53c1562521679823f3ee3c10c2585dec4c3ecd862d145f868947047fd32725ac",
     "tree_fingerprint": "76379fc99f3b437749f1eb219d01a1744f8869f68b814a0c7d8ad4e05eb97a6b",
-    "analysis_mode": "working_tree"
+    "analysis_mode": "head_clone"
   },
   "regression_mutation": {
     "path": "src/components/SidebarTaskRow.tsx",
@@ -32,6 +32,6 @@
   "binary_identity": {
     "path": "<sentrux-root>/target/debug/sentrux",
     "exists": true,
-    "sha256": "55adca245cd7f53b96165f78037349af37820ca90b642f490dfeca099087143e"
+    "sha256": "4faec1f2b2064d80cb4ed1cdb831c5553cea50f07bca37d2c9910717b9893e5e"
   }
 }

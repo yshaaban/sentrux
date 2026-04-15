@@ -194,6 +194,15 @@ export function collectRepoIdentity(repoRoot) {
   };
 }
 
+export function resolveHeadCommitEpoch(repoRoot) {
+  const stdout = runGit(repoRoot, ['log', '-1', '--format=%ct']).trim();
+  const epoch = Number.parseInt(stdout, 10);
+  if (!Number.isInteger(epoch) || epoch < 0) {
+    throw new Error(`Could not resolve HEAD commit epoch for ${repoRoot}`);
+  }
+  return epoch;
+}
+
 export async function overlayWorkingTreeChanges({ sourceRoot, targetRoot }) {
   const dirtyPaths = [...new Set(dirtyPathsForRepo(sourceRoot))].sort();
 

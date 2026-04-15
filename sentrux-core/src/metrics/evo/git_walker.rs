@@ -5,10 +5,12 @@
 //! with early cutoff by date.
 
 use git2::{Repository, Sort};
+use std::env;
 use std::path::Path;
 
 /// Maximum files per commit to consider (skip mega-merges that add noise).
 const MAX_FILES_PER_COMMIT: usize = 50;
+const SECONDS_PER_DAY: i64 = 86_400;
 
 // ── Public types ──
 
@@ -37,7 +39,7 @@ pub(crate) fn walk_git_log(root: &Path, lookback_days: u32) -> Result<Vec<Commit
         .workdir()
         .ok_or("Bare repository — no working directory")?;
 
-    let cutoff = epoch_now() - (lookback_days as i64 * 86400);
+    let cutoff = epoch_now() - (lookback_days as i64 * SECONDS_PER_DAY);
 
     let mut revwalk = repo.revwalk().map_err(|e| format!("Revwalk failed: {e}"))?;
     revwalk
@@ -118,10 +120,24 @@ fn collect_commits(
 // ── Internal helpers ──
 
 pub(crate) fn epoch_now() -> i64 {
+    if let Some(fixed_epoch) = fixed_epoch_now() {
+        return fixed_epoch;
+    }
+
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
         .unwrap_or(0)
+}
+
+fn fixed_epoch_now() -> Option<i64> {
+    parse_fixed_epoch_now(env::var("SENTRUX_FIXED_NOW_EPOCH").ok().as_deref())
+}
+
+fn parse_fixed_epoch_now(value: Option<&str>) -> Option<i64> {
+    value
+        .and_then(|entry| entry.parse::<i64>().ok())
+        .filter(|entry| *entry >= 0)
 }
 
 /// Determine the scan root relative to the workdir, for path filtering.
@@ -135,6 +151,26 @@ fn scan_root_prefix(root: &Path, workdir: &Path) -> String {
         .unwrap_or(Path::new(""))
         .to_string_lossy()
         .to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_fixed_epoch_now;
+
+    #[test]
+    fn fixed_epoch_now_parses_positive_epoch_values() {
+        assert_eq!(
+            Some(1_716_144_000),
+            parse_fixed_epoch_now(Some("1716144000"))
+        );
+    }
+
+    #[test]
+    fn fixed_epoch_now_rejects_invalid_values() {
+        assert_eq!(None, parse_fixed_epoch_now(Some("-1")));
+        assert_eq!(None, parse_fixed_epoch_now(Some("not-a-number")));
+        assert_eq!(None, parse_fixed_epoch_now(None));
+    }
 }
 
 /// Parse a single commit into a CommitRecord, returning None for merge commits,

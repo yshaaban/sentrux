@@ -363,8 +363,8 @@
       "clone_family_count": 1,
       "evidence": [
         "5 exact clone groups repeat across 2 files",
-        "highest-risk representative exact clone scores 64",
-        "2 family file(s) changed within the last 30 day(s)"
+        "highest-risk representative exact clone score recorded",
+        "family files changed recently"
       ],
       "files": [
         "electron/remote/ws-server.ts",

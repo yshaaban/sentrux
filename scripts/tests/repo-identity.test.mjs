@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { collectFileIdentity, collectRepoIdentity } from '../lib/repo-identity.mjs';
+import { collectFileIdentity, collectRepoIdentity, resolveHeadCommitEpoch } from '../lib/repo-identity.mjs';
 
 function runGit(repoRoot, args) {
   execFileSync('git', ['-C', repoRoot, ...args], {
@@ -93,5 +93,30 @@ test('collectRepoIdentity hashes symlink targets instead of linked directory con
     assert.equal(afterEdit.tree_fingerprint, beforeEdit.tree_fingerprint);
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('resolveHeadCommitEpoch returns the current HEAD commit timestamp', async function () {
+  const repoRoot = await mkdtemp(path.join(os.tmpdir(), 'sentrux-repo-epoch-test-'));
+
+  try {
+    runGit(repoRoot, ['init', '-q']);
+    runGit(repoRoot, ['config', 'user.email', 'test@example.com']);
+    runGit(repoRoot, ['config', 'user.name', 'Sentrux Test']);
+
+    await writeFile(path.join(repoRoot, 'tracked.txt'), 'tracked\n');
+    runGit(repoRoot, ['add', 'tracked.txt']);
+    runGit(repoRoot, ['commit', '-q', '-m', 'init']);
+
+    const expectedEpoch = Number.parseInt(
+      execFileSync('git', ['-C', repoRoot, 'log', '-1', '--format=%ct'], {
+        encoding: 'utf8',
+      }).trim(),
+      10,
+    );
+
+    assert.equal(resolveHeadCommitEpoch(repoRoot), expectedEpoch);
+  } finally {
+    await rm(repoRoot, { recursive: true, force: true });
   }
 });

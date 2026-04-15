@@ -580,4 +580,6 @@ mod concepts_tests;
 #[cfg(test)]
 mod findings_tests;
 #[cfg(test)]
+mod root_tests;
+#[cfg(test)]
 mod session_tests;

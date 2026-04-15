@@ -9,7 +9,7 @@ PARALLEL_CODE_ROOT="${PARALLEL_CODE_ROOT:-$DEFAULT_PARALLEL_CODE_ROOT}"
 RULES_SOURCE="$REPO_ROOT/docs/v2/examples/parallel-code.rules.toml"
 OUTPUT_DIR="${OUTPUT_DIR:-$REPO_ROOT/docs/v2/examples/parallel-code-golden}"
 SENTRUX_BIN="${SENTRUX_BIN:-$REPO_ROOT/target/debug/sentrux}"
-ANALYSIS_MODE="${ANALYSIS_MODE:-working_tree}"
+ANALYSIS_MODE="${ANALYSIS_MODE:-head_clone}"
 SENTRUX_SKIP_GRAMMAR_DOWNLOAD="${SENTRUX_SKIP_GRAMMAR_DOWNLOAD:-1}"
 
 export SENTRUX_SKIP_GRAMMAR_DOWNLOAD
@@ -44,6 +44,7 @@ WORK_ROOT="$tmpdir/parallel-code"
 WORK_SENTRUX_DIR="$WORK_ROOT/.sentrux"
 WORK_RULES_PATH="$WORK_SENTRUX_DIR/rules.toml"
 PLUGIN_HOME="$(prepare_typescript_benchmark_home "$tmpdir")"
+FIXED_NOW_EPOCH=""
 
 cleanup() {
   rm -rf "$tmpdir"
@@ -77,6 +78,7 @@ fi
 
 mkdir -p "$WORK_SENTRUX_DIR"
 cp "$RULES_SOURCE" "$WORK_RULES_PATH"
+FIXED_NOW_EPOCH="$(git -C "$WORK_ROOT" log -1 --format=%ct)"
 
 cat > "$tmpdir/requests.jsonl" <<EOF
 {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"scan","arguments":{"path":"$WORK_ROOT"}}}
@@ -96,7 +98,7 @@ cat > "$tmpdir/requests.jsonl" <<EOF
 {"jsonrpc":"2.0","id":15,"method":"tools/call","params":{"name":"session_end","arguments":{}}}
 EOF
 
-HOME="$PLUGIN_HOME" "$SENTRUX_BIN" --mcp < "$tmpdir/requests.jsonl" | grep '^[{]' > "$tmpdir/responses.jsonl"
+HOME="$PLUGIN_HOME" SENTRUX_FIXED_NOW_EPOCH="$FIXED_NOW_EPOCH" "$SENTRUX_BIN" mcp < "$tmpdir/requests.jsonl" | grep '^[{]' > "$tmpdir/responses.jsonl"
 
 node - "$tmpdir/responses.jsonl" "$OUTPUT_DIR" "$WORK_ROOT" "$PARALLEL_CODE_ROOT" <<'EOF'
 const fs = require('node:fs');
@@ -154,11 +156,19 @@ function stabilizeValue(value) {
     return value
       .map(stabilizeValue)
       .map((entry) => {
-        if (
-          typeof entry === 'string' &&
-          /^youngest clone file was touched \d+ day\(s\) ago$/.test(entry)
-        ) {
-          return 'youngest clone file was touched recently';
+        if (typeof entry === 'string') {
+          if (/^youngest clone file was touched \d+ day\(s\) ago$/.test(entry)) {
+            return 'youngest clone file was touched recently';
+          }
+          if (/^\d+ clone file\(s\) changed within the last \d+ day\(s\)$/.test(entry)) {
+            return 'clone files changed recently';
+          }
+          if (/^\d+ family file\(s\) changed within the last \d+ day\(s\)$/.test(entry)) {
+            return 'family files changed recently';
+          }
+          if (/^highest-risk representative exact clone scores \d+$/.test(entry)) {
+            return 'highest-risk representative exact clone score recorded';
+          }
         }
         return entry;
       });
@@ -170,7 +180,10 @@ function stabilizeValue(value) {
           ([key]) =>
             key !== 'age_days' &&
             key !== 'youngest_age_days' &&
-            key !== 'quality_signal',
+            key !== 'quality_signal' &&
+            key !== 'risk_score' &&
+            key !== 'family_score' &&
+            key !== 'recently_touched_file_count',
         )
         .map(([key, entry]) => [key, stabilizeValue(entry)]),
     );
@@ -216,8 +229,10 @@ async function main() {
   } = await import(
     path.resolve(repoRoot, 'scripts/lib/repo-identity.mjs')
   );
+  const freshnessRepoRoot =
+    analysisMode === 'head_clone' ? analyzedRoot : parallelCodeRoot;
   const freshness = buildRepoFreshnessMetadata({
-    repoRoot: parallelCodeRoot,
+    repoRoot: freshnessRepoRoot,
     analyzedRoot,
     analysisMode,
     rulesSource,
@@ -302,7 +317,7 @@ cat > "$tmpdir/regression-requests.jsonl" <<EOF
 {"jsonrpc":"2.0","id":22,"method":"tools/call","params":{"name":"session_end","arguments":{}}}
 EOF
 
-HOME="$PLUGIN_HOME" "$SENTRUX_BIN" --mcp < "$tmpdir/regression-requests.jsonl" | grep '^[{]' > "$tmpdir/regression-responses.jsonl"
+HOME="$PLUGIN_HOME" "$SENTRUX_BIN" mcp < "$tmpdir/regression-requests.jsonl" | grep '^[{]' > "$tmpdir/regression-responses.jsonl"
 
 node - "$tmpdir/regression-responses.jsonl" "$OUTPUT_DIR" "$WORK_ROOT" "$PARALLEL_CODE_ROOT" <<'EOF'
 const fs = require('node:fs');
@@ -347,11 +362,19 @@ function stabilizeValue(value) {
     return value
       .map(stabilizeValue)
       .map((entry) => {
-        if (
-          typeof entry === 'string' &&
-          /^youngest clone file was touched \d+ day\(s\) ago$/.test(entry)
-        ) {
-          return 'youngest clone file was touched recently';
+        if (typeof entry === 'string') {
+          if (/^youngest clone file was touched \d+ day\(s\) ago$/.test(entry)) {
+            return 'youngest clone file was touched recently';
+          }
+          if (/^\d+ clone file\(s\) changed within the last \d+ day\(s\)$/.test(entry)) {
+            return 'clone files changed recently';
+          }
+          if (/^\d+ family file\(s\) changed within the last \d+ day\(s\)$/.test(entry)) {
+            return 'family files changed recently';
+          }
+          if (/^highest-risk representative exact clone scores \d+$/.test(entry)) {
+            return 'highest-risk representative exact clone score recorded';
+          }
         }
         return entry;
       });
@@ -359,7 +382,14 @@ function stabilizeValue(value) {
   if (value && typeof value === 'object') {
     return Object.fromEntries(
       Object.entries(value)
-        .filter(([key]) => key !== 'age_days' && key !== 'youngest_age_days')
+        .filter(
+          ([key]) =>
+            key !== 'age_days' &&
+            key !== 'youngest_age_days' &&
+            key !== 'risk_score' &&
+            key !== 'family_score' &&
+            key !== 'recently_touched_file_count',
+        )
         .map(([key, entry]) => [key, stabilizeValue(entry)]),
     );
   }

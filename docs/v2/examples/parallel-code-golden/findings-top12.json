@@ -14,7 +14,6 @@
       "distinct_file_set_count": 1,
       "divergence_score": 18,
       "family_id": "clone-family-0x9ebb8dad5cafb9c0",
-      "family_score": 94,
       "file_count": 2,
       "files": [
         "electron/remote/ws-server.ts",
@@ -25,13 +24,12 @@
       "mixed_file_sets": false,
       "reasons": [
         "5 exact clone groups repeat across 2 files",
-        "highest-risk representative exact clone scores 64",
-        "2 family file(s) changed within the last 30 day(s)",
+        "highest-risk representative exact clone score recorded",
+        "family files changed recently",
         "family churn spans a gap of 4 recent commit(s)",
         "family file age spans a gap of 17 day(s)",
         "family-level divergence contributes 18 risk point(s)"
       ],
-      "recently_touched_file_count": 2,
       "remediation_hints": [
         {
           "clone_ids": [
@@ -115,7 +113,6 @@
       "distinct_file_set_count": 1,
       "divergence_score": 4,
       "family_id": "clone-family-0x7e50d49dc16ef925",
-      "family_score": 90,
       "file_count": 2,
       "files": [
         "src/components/AgentGlyph.tsx",
@@ -126,13 +123,12 @@
       "mixed_file_sets": false,
       "reasons": [
         "4 exact clone groups repeat across 2 files",
-        "highest-risk representative exact clone scores 74",
-        "2 family file(s) changed within the last 30 day(s)",
+        "highest-risk representative exact clone score recorded",
+        "family files changed recently",
         "family churn spans a gap of 1 recent commit(s)",
         "family file age spans a gap of 5 day(s)",
         "family-level divergence contributes 4 risk point(s)"
       ],
-      "recently_touched_file_count": 2,
       "remediation_hints": [
         {
           "clone_ids": [
@@ -212,7 +208,6 @@
       "distinct_file_set_count": 1,
       "divergence_score": 4,
       "family_id": "clone-family-0xf79a6dc4b4ec5c10",
-      "family_score": 84,
       "file_count": 2,
       "files": [
         "scripts/profile-terminal-input-latency.mjs",
@@ -223,13 +218,12 @@
       "mixed_file_sets": false,
       "reasons": [
         "4 exact clone groups repeat across 2 files",
-        "highest-risk representative exact clone scores 68",
-        "2 family file(s) changed within the last 30 day(s)",
+        "highest-risk representative exact clone score recorded",
+        "family files changed recently",
         "family churn spans a gap of 1 recent commit(s)",
         "family file age spans a gap of 1 day(s)",
         "family-level divergence contributes 4 risk point(s)"
       ],
-      "recently_touched_file_count": 2,
       "remediation_hints": [
         {
           "clone_ids": [
@@ -307,7 +301,6 @@
       "distinct_file_set_count": 2,
       "divergence_score": 36,
       "family_id": "clone-family-0xc27d5d77f43fed8e",
-      "family_score": 148,
       "file_count": 4,
       "files": [
         "electron/remote/server.ts",
@@ -320,14 +313,13 @@
       "mixed_file_sets": true,
       "reasons": [
         "2 exact clone groups repeat across 4 files",
-        "highest-risk representative exact clone scores 108",
-        "4 family file(s) changed within the last 30 day(s)",
+        "highest-risk representative exact clone score recorded",
+        "family files changed recently",
         "family clone coverage spans 2 overlapping file set(s)",
         "family churn spans a gap of 17 recent commit(s)",
         "family file age spans a gap of 30 day(s)",
         "family-level divergence contributes 36 risk point(s)"
       ],
-      "recently_touched_file_count": 4,
       "remediation_hints": [
         {
           "clone_ids": [
@@ -412,7 +404,6 @@
       "distinct_file_set_count": 2,
       "divergence_score": 32,
       "family_id": "clone-family-0x9b9e1c6d8468ee63",
-      "family_score": 144,
       "file_count": 6,
       "files": [
         "electron/ipc/persisted-task-lookup-state.ts",
@@ -427,14 +418,13 @@
       "mixed_file_sets": true,
       "reasons": [
         "9 exact clone groups repeat across 6 files",
-        "highest-risk representative exact clone scores 100",
-        "6 family file(s) changed within the last 30 day(s)",
+        "highest-risk representative exact clone score recorded",
+        "family files changed recently",
         "family clone coverage spans 2 overlapping file set(s)",
         "family churn spans a gap of 15 recent commit(s)",
         "family file age spans a gap of 16 day(s)",
         "family-level divergence contributes 32 risk point(s)"
       ],
-      "recently_touched_file_count": 6,
       "remediation_hints": [
         {
           "clone_ids": [
@@ -549,7 +539,6 @@
       "distinct_file_set_count": 2,
       "divergence_score": 14,
       "family_id": "clone-family-0xd5b197402b43787f",
-      "family_score": 50,
       "file_count": 3,
       "files": [
         "scripts/profile-terminal-ui-fluidity.mjs",
@@ -561,14 +550,13 @@
       "mixed_file_sets": true,
       "reasons": [
         "3 exact clone groups repeat across 3 files",
-        "highest-risk representative exact clone scores 28",
-        "3 family file(s) changed within the last 30 day(s)",
+        "highest-risk representative exact clone score recorded",
+        "family files changed recently",
         "family clone coverage spans 2 overlapping file set(s)",
         "family churn spans a gap of 1 recent commit(s)",
         "family file age spans a gap of 0 day(s)",
         "family-level divergence contributes 14 risk point(s)"
       ],
-      "recently_touched_file_count": 3,
       "remediation_hints": [
         {
           "clone_ids": [
@@ -2242,11 +2230,9 @@
         "identical logic spans 2 files",
         "largest clone instance is 11 lines",
         "at least one clone file changed in 9 recent commit(s)",
-        "2 clone file(s) changed within the last 30 day(s)",
+        "clone files changed recently",
         "youngest clone file was touched recently"
       ],
-      "recently_touched_file_count": 2,
-      "risk_score": 64,
       "severity": "high",
       "summary": "2 functions share an identical normalized body across recently changed files",
       "total_lines": 22
@@ -2286,11 +2272,9 @@
         "identical logic spans 2 files",
         "largest clone instance is 30 lines",
         "at least one clone file changed in 2 recent commit(s)",
-        "2 clone file(s) changed within the last 30 day(s)",
+        "clone files changed recently",
         "youngest clone file was touched recently"
       ],
-      "recently_touched_file_count": 2,
-      "risk_score": 74,
       "severity": "high",
       "summary": "2 functions share an identical normalized body across recently changed files",
       "total_lines": 60
@@ -2330,11 +2314,9 @@
         "identical logic spans 2 files",
         "largest clone instance is 25 lines",
         "at least one clone file changed in 3 recent commit(s)",
-        "2 clone file(s) changed within the last 30 day(s)",
+        "clone files changed recently",
         "youngest clone file was touched recently"
       ],
-      "recently_touched_file_count": 2,
-      "risk_score": 68,
       "severity": "high",
       "summary": "2 functions share an identical normalized body across recently changed files",
       "total_lines": 48
@@ -2374,11 +2356,9 @@
         "identical logic spans 2 files",
         "largest clone instance is 25 lines",
         "at least one clone file changed in 2 recent commit(s)",
-        "2 clone file(s) changed within the last 30 day(s)",
+        "clone files changed recently",
         "youngest clone file was touched recently"
       ],
-      "recently_touched_file_count": 2,
-      "risk_score": 64,
       "severity": "high",
       "summary": "2 functions share an identical normalized body across recently changed files",
       "total_lines": 50
@@ -2418,11 +2398,9 @@
         "identical logic spans 2 files",
         "largest clone instance is 11 lines",
         "at least one clone file changed in 9 recent commit(s)",
-        "2 clone file(s) changed within the last 30 day(s)",
+        "clone files changed recently",
         "youngest clone file was touched recently"
       ],
-      "recently_touched_file_count": 2,
-      "risk_score": 64,
       "severity": "high",
       "summary": "2 functions share an identical normalized body across recently changed files",
       "total_lines": 22
@@ -2462,11 +2440,9 @@
         "identical logic spans 2 files",
         "largest clone instance is 10 lines",
         "at least one clone file changed in 9 recent commit(s)",
-        "2 clone file(s) changed within the last 30 day(s)",
+        "clone files changed recently",
         "youngest clone file was touched recently"
       ],
-      "recently_touched_file_count": 2,
-      "risk_score": 62,
       "severity": "high",
       "summary": "2 functions share an identical normalized body across recently changed files",
       "total_lines": 20
@@ -2506,11 +2482,9 @@
         "identical logic spans 2 files",
         "largest clone instance is 19 lines",
         "at least one clone file changed in 3 recent commit(s)",
-        "2 clone file(s) changed within the last 30 day(s)",
+        "clone files changed recently",
         "youngest clone file was touched recently"
       ],
-      "recently_touched_file_count": 2,
-      "risk_score": 56,
       "severity": "high",
       "summary": "2 functions share an identical normalized body across recently changed files",
       "total_lines": 38
@@ -3009,8 +2983,8 @@
       "clone_family_count": 1,
       "evidence": [
         "5 exact clone groups repeat across 2 files",
-        "highest-risk representative exact clone scores 64",
-        "2 family file(s) changed within the last 30 day(s)"
+        "highest-risk representative exact clone score recorded",
+        "family files changed recently"
       ],
       "files": [
         "electron/remote/ws-server.ts",
@@ -3055,8 +3029,8 @@
       "clone_family_count": 1,
       "evidence": [
         "4 exact clone groups repeat across 2 files",
-        "highest-risk representative exact clone scores 74",
-        "2 family file(s) changed within the last 30 day(s)"
+        "highest-risk representative exact clone score recorded",
+        "family files changed recently"
       ],
       "files": [
         "src/components/AgentGlyph.tsx",
@@ -3101,8 +3075,8 @@
       "clone_family_count": 1,
       "evidence": [
         "4 exact clone groups repeat across 2 files",
-        "highest-risk representative exact clone scores 68",
-        "2 family file(s) changed within the last 30 day(s)"
+        "highest-risk representative exact clone score recorded",
+        "family files changed recently"
       ],
       "files": [
         "scripts/profile-terminal-input-latency.mjs",

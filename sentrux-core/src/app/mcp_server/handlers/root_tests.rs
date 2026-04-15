@@ -1,6 +1,6 @@
-use super::checkpoint::load_persisted_session_v2;
-use super::{overall_confidence_0_10000, project_fingerprint, save_session_v2_baseline};
+use super::checkpoint::{load_persisted_session_v2, load_session_v2_baseline_status};
 use super::test_support::{commit_all, init_git_repo, temp_root, write_file};
+use super::{overall_confidence_0_10000, project_fingerprint, save_session_v2_baseline};
 use crate::analysis::scanner::common::{ScanMetadata, ScanMode};
 use crate::app::mcp_server::{
     SessionV2Baseline, SessionV2ConfidenceSnapshot, SESSION_V2_SCHEMA_VERSION,
@@ -55,6 +55,95 @@ fn session_v2_baseline_roundtrips_on_disk() {
     assert_eq!(loaded.finding_payloads, baseline.finding_payloads);
     assert_eq!(loaded.git_head, baseline.git_head);
     assert_eq!(loaded.working_tree_paths, baseline.working_tree_paths);
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn session_v2_baseline_accepts_supported_older_schema_versions() {
+    let root = temp_root("session-v2-supported-older-schema");
+    let payload = json!({
+        "schema_version": 1,
+        "file_hashes": {
+            "src/a.ts": 11
+        },
+        "finding_payloads": {},
+        "git_head": null
+    });
+    write_file(
+        &root,
+        ".sentrux/session-v2.json",
+        &format!(
+            "{}\n",
+            serde_json::to_string_pretty(&payload).expect("serialize payload")
+        ),
+    );
+
+    let (baseline, status) = load_session_v2_baseline_status(&root);
+    let baseline = baseline.expect("baseline should load");
+
+    assert!(status.loaded);
+    assert!(status.compatible);
+    assert_eq!(status.schema_version, Some(1));
+    assert!(status.error.is_none());
+    assert_eq!(baseline.schema_version, 1);
+    assert!(baseline.project_fingerprint.is_none());
+    assert_eq!(baseline.file_hashes.get("src/a.ts"), Some(&11));
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn session_v2_baseline_rejects_unsupported_schema_versions() {
+    let root = temp_root("session-v2-unsupported-schema");
+    let unsupported_version = SESSION_V2_SCHEMA_VERSION + 1;
+    let payload = json!({
+        "schema_version": unsupported_version,
+        "file_hashes": {
+            "src/a.ts": 11
+        },
+        "finding_payloads": {},
+        "git_head": null
+    });
+    write_file(
+        &root,
+        ".sentrux/session-v2.json",
+        &format!(
+            "{}\n",
+            serde_json::to_string_pretty(&payload).expect("serialize payload")
+        ),
+    );
+
+    let (baseline, status) = load_session_v2_baseline_status(&root);
+
+    assert!(baseline.is_none());
+    assert!(status.loaded);
+    assert!(!status.compatible);
+    assert_eq!(status.schema_version, Some(unsupported_version));
+    assert!(status.error.is_some());
+    assert!(status
+        .error
+        .as_deref()
+        .is_some_and(|error| error.contains("Unsupported v2 session baseline schema version")));
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn session_v2_baseline_reports_parse_failures_cleanly() {
+    let root = temp_root("session-v2-parse-failure");
+    write_file(&root, ".sentrux/session-v2.json", "{ invalid json");
+
+    let (baseline, status) = load_session_v2_baseline_status(&root);
+
+    assert!(baseline.is_none());
+    assert!(status.loaded);
+    assert!(!status.compatible);
+    assert_eq!(status.schema_version, None);
+    assert!(status
+        .error
+        .as_deref()
+        .is_some_and(|error| error.contains("Failed to parse")));
 
     let _ = std::fs::remove_dir_all(root);
 }

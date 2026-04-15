@@ -573,11 +573,13 @@ export function createMcpSession({
   homeOverride,
   skipGrammarDownload,
   requestTimeoutMs,
+  extraEnv = {},
 }) {
-  const child = spawn(binPath, ['--mcp'], {
+  const child = spawn(binPath, ['mcp'], {
     cwd: repoRoot,
     env: {
       ...process.env,
+      ...extraEnv,
       HOME: homeOverride,
       SENTRUX_SKIP_GRAMMAR_DOWNLOAD: skipGrammarDownload,
     },

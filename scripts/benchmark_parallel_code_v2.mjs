@@ -31,7 +31,7 @@ import {
 } from './lib/benchmark-summaries.mjs';
 import { prepareTypeScriptBenchmarkHome } from './lib/benchmark-plugin-home.mjs';
 import { assertPathExists, createDisposableRepoClone } from './lib/disposable-repo.mjs';
-import { buildRepoFreshnessMetadata } from './lib/repo-identity.mjs';
+import { buildRepoFreshnessMetadata, resolveHeadCommitEpoch } from './lib/repo-identity.mjs';
 import { resolveWorkspaceRepoRoot } from './lib/path-roots.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -48,7 +48,7 @@ const outputPath =
   process.env.OUTPUT_PATH ?? path.join(repoRoot, 'docs/v2/examples/parallel-code-benchmark.json');
 const compareToPath = process.env.COMPARE_TO ?? outputPath;
 const requestTimeoutMs = Number(process.env.REQUEST_TIMEOUT_MS ?? '120000');
-const analysisMode = process.env.ANALYSIS_MODE ?? 'working_tree';
+const analysisMode = process.env.ANALYSIS_MODE ?? 'head_clone';
 const benchmarkPolicy = buildBenchmarkPolicy();
 const failOnRegression = process.env.FAIL_ON_REGRESSION === '1';
 const failOnNonComparable = process.env.FAIL_ON_NONCOMPARABLE === '1';
@@ -105,18 +105,37 @@ function sanitizePublicArtifactValue(value) {
   return value;
 }
 
-function createSession(homeOverride) {
+function buildSessionEnv(fixedNowEpoch) {
+  if (fixedNowEpoch == null) {
+    return {};
+  }
+
+  return {
+    SENTRUX_FIXED_NOW_EPOCH: String(fixedNowEpoch),
+  };
+}
+
+function resolveFreshnessRepoRoot(frozenSourceRoot) {
+  if (analysisMode === 'head_clone') {
+    return frozenSourceRoot;
+  }
+
+  return parallelCodeRoot;
+}
+
+function createSession(homeOverride, fixedNowEpoch) {
   return createMcpSession({
     binPath: sentruxBin,
     repoRoot,
     homeOverride,
     skipGrammarDownload,
     requestTimeoutMs,
+    extraEnv: buildSessionEnv(fixedNowEpoch),
   });
 }
 
-async function runBenchmarkSession(parallelCodeWorkRoot, homeOverride) {
-  const session = createSession(homeOverride);
+async function runBenchmarkSession(parallelCodeWorkRoot, homeOverride, fixedNowEpoch) {
+  const session = createSession(homeOverride, fixedNowEpoch);
   let persistedSession = null;
   const cold = {};
   const warmCached = {};
@@ -281,7 +300,7 @@ async function runBenchmarkSession(parallelCodeWorkRoot, homeOverride) {
     const warmPatchSafetyTotalMs = roundMs(nowMs() - patchSafetyStartedAt);
 
     const warmPersistedStartedAt = nowMs();
-    persistedSession = createSession(homeOverride);
+    persistedSession = createSession(homeOverride, fixedNowEpoch);
     warmPersisted.scan = await runBenchmarkTool(
       persistedSession,
       'persisted_scan',
@@ -334,26 +353,19 @@ async function runBenchmarkSession(parallelCodeWorkRoot, homeOverride) {
   }
 }
 
-async function runBenchmarkSample(sampleIndex) {
+async function runBenchmarkSample(sampleIndex, frozenSourceRoot, freshnessMetadata) {
   const clone = await createDisposableRepoClone({
-    sourceRoot: parallelCodeRoot,
-    label: 'parallel-code-benchmark',
+    sourceRoot: frozenSourceRoot,
+    label: 'parallel-code-benchmark-sample',
     rulesSource,
-    analysisMode,
+    analysisMode: 'working_tree',
   });
 
   let benchmark;
-  let freshnessMetadata;
   try {
-    freshnessMetadata = buildRepoFreshnessMetadata({
-      repoRoot: parallelCodeRoot,
-      analyzedRoot: clone.workRoot,
-      analysisMode,
-      rulesSource,
-      binaryPath: sentruxBin,
-    });
+    const fixedNowEpoch = resolveHeadCommitEpoch(clone.workRoot);
     const pluginHome = await prepareTypeScriptBenchmarkHome({ tempRoot: clone.tempRoot });
-    benchmark = await runBenchmarkSession(clone.workRoot, pluginHome);
+    benchmark = await runBenchmarkSession(clone.workRoot, pluginHome, fixedNowEpoch);
   } finally {
     await clone.cleanup();
   }
@@ -372,10 +384,32 @@ async function main() {
   assertPathExists(parallelCodeRoot, 'parallel-code repo');
 
   const previousResult = await loadPreviousBenchmark(compareToPath);
-  const { samples, freshnessMetadata } = await runRepeatedBenchmarkSamples({
-    repeatCount: benchmarkRepeatCount,
-    runSample: runBenchmarkSample,
+  const frozenSource = await createDisposableRepoClone({
+    sourceRoot: parallelCodeRoot,
+    label: 'parallel-code-benchmark-source',
+    rulesSource,
+    analysisMode,
   });
+  let samples;
+  let freshnessMetadata;
+  try {
+    freshnessMetadata = buildRepoFreshnessMetadata({
+      repoRoot: resolveFreshnessRepoRoot(frozenSource.workRoot),
+      analyzedRoot: frozenSource.workRoot,
+      analysisMode,
+      rulesSource,
+      binaryPath: sentruxBin,
+    });
+    freshnessMetadata.parallel_code_root = parallelCodeRoot;
+    ({ samples } = await runRepeatedBenchmarkSamples({
+      repeatCount: benchmarkRepeatCount,
+      runSample: function runFrozenSample(sampleIndex) {
+        return runBenchmarkSample(sampleIndex, frozenSource.workRoot, freshnessMetadata);
+      },
+    }));
+  } finally {
+    await frozenSource.cleanup();
+  }
   const aggregate = buildAggregatedBenchmark({ samples });
   if (!aggregate) {
     throw new Error('Failed to build aggregated benchmark samples');

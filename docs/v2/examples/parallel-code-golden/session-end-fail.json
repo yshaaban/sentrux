@@ -783,6 +783,1331 @@
   "pass": false,
   "resolved_findings": [
     {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0x13d293b561eca423",
+      "files": [
+        "src/app/task-command-lease-runtime-state.ts",
+        "src/remote/remote-task-command-state.ts"
+      ],
+      "instance_count": 2,
+      "instances": [
+        {
+          "commit_count": 3,
+          "file": "src/app/task-command-lease-runtime-state.ts",
+          "func": "hasLocalTaskCommandLeases",
+          "lines": 3
+        },
+        {
+          "commit_count": 1,
+          "file": "src/remote/remote-task-command-state.ts",
+          "func": "hasLocalTaskCommandLeases",
+          "lines": 3
+        }
+      ],
+      "kind": "exact_clone_group",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "duplicate_maintenance_pressure"
+      ],
+      "max_commit_count": 3,
+      "max_lines": 3,
+      "presentation_class": "watchpoint",
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 3 lines",
+        "at least one clone file changed in 3 recent commit(s)",
+        "clone files changed recently",
+        "youngest clone file was touched recently"
+      ],
+      "severity": "low",
+      "summary": "2 functions share an identical normalized body across recently changed files",
+      "total_lines": 6
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0x14b64e2682b7c0c6",
+      "files": [
+        "scripts/profile-terminal-ui-fluidity.mjs",
+        "scripts/terminal-steady-state-benchmark.mjs",
+        "scripts/terminal-ui-fluidity-matrix.mjs"
+      ],
+      "instance_count": 3,
+      "instances": [
+        {
+          "commit_count": 2,
+          "file": "scripts/profile-terminal-ui-fluidity.mjs",
+          "func": "createTimestampForPath",
+          "lines": 3
+        },
+        {
+          "commit_count": 1,
+          "file": "scripts/terminal-steady-state-benchmark.mjs",
+          "func": "createTimestampForPath",
+          "lines": 3
+        },
+        {
+          "commit_count": 2,
+          "file": "scripts/terminal-ui-fluidity-matrix.mjs",
+          "func": "createTimestampForPath",
+          "lines": 3
+        }
+      ],
+      "kind": "exact_clone_group",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "duplicate_maintenance_pressure"
+      ],
+      "max_commit_count": 2,
+      "max_lines": 3,
+      "presentation_class": "watchpoint",
+      "production_instance_count": 3,
+      "reasons": [
+        "identical logic spans 3 files",
+        "largest clone instance is 3 lines",
+        "at least one clone file changed in 2 recent commit(s)",
+        "clone files changed recently",
+        "youngest clone file was touched recently"
+      ],
+      "severity": "low",
+      "summary": "3 functions share an identical normalized body across recently changed files",
+      "total_lines": 9
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0x169d2fa6f72553c9",
+      "files": [
+        "src/lib/browser-channel-client.ts",
+        "src/lib/browser-control-client.ts"
+      ],
+      "instance_count": 2,
+      "instances": [
+        {
+          "commit_count": 1,
+          "file": "src/lib/browser-channel-client.ts",
+          "func": "ignoreErrorAsync",
+          "lines": 3
+        },
+        {
+          "commit_count": 9,
+          "file": "src/lib/browser-control-client.ts",
+          "func": "ignoreErrorAsync",
+          "lines": 3
+        }
+      ],
+      "kind": "exact_clone_group",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "duplicate_maintenance_pressure"
+      ],
+      "max_commit_count": 9,
+      "max_lines": 3,
+      "presentation_class": "watchpoint",
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 3 lines",
+        "at least one clone file changed in 9 recent commit(s)",
+        "clone files changed recently",
+        "youngest clone file was touched recently"
+      ],
+      "severity": "low",
+      "summary": "2 functions share an identical normalized body across recently changed files",
+      "total_lines": 6
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0x192ade17c1abf5fd",
+      "files": [
+        "electron/remote/server.ts",
+        "electron/remote/ws-transport.test.ts",
+        "server/browser-control-plane.ts",
+        "tests/harness/websocket-contract-harness.ts"
+      ],
+      "instance_count": 4,
+      "instances": [
+        {
+          "commit_count": 21,
+          "file": "electron/remote/server.ts",
+          "func": "closeClient",
+          "lines": 3
+        },
+        {
+          "commit_count": 4,
+          "file": "electron/remote/ws-transport.test.ts",
+          "func": "closeClient",
+          "lines": 3
+        },
+        {
+          "commit_count": 15,
+          "file": "server/browser-control-plane.ts",
+          "func": "closeClient",
+          "lines": 3
+        },
+        {
+          "commit_count": 4,
+          "file": "tests/harness/websocket-contract-harness.ts",
+          "func": "closeClient",
+          "lines": 3
+        }
+      ],
+      "kind": "exact_clone_group",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "duplicate_maintenance_pressure"
+      ],
+      "max_commit_count": 21,
+      "max_lines": 3,
+      "presentation_class": "watchpoint",
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 4 files",
+        "largest clone instance is 3 lines",
+        "at least one clone file changed in 21 recent commit(s)",
+        "clone files changed recently",
+        "youngest clone file was touched recently"
+      ],
+      "severity": "low",
+      "summary": "4 functions share an identical normalized body across recently changed files",
+      "total_lines": 12
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0x1cb44275b908d532",
+      "files": [
+        "electron/remote/ws-server.ts",
+        "server/browser-websocket.ts"
+      ],
+      "instance_count": 2,
+      "instances": [
+        {
+          "commit_count": 5,
+          "file": "electron/remote/ws-server.ts",
+          "func": "resume",
+          "lines": 11
+        },
+        {
+          "commit_count": 9,
+          "file": "server/browser-websocket.ts",
+          "func": "resume",
+          "lines": 11
+        }
+      ],
+      "kind": "exact_clone_group",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "duplicate_maintenance_pressure"
+      ],
+      "max_commit_count": 9,
+      "max_lines": 11,
+      "presentation_class": "watchpoint",
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 11 lines",
+        "at least one clone file changed in 9 recent commit(s)",
+        "clone files changed recently",
+        "youngest clone file was touched recently"
+      ],
+      "severity": "high",
+      "summary": "2 functions share an identical normalized body across recently changed files",
+      "total_lines": 22
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0x1d0ffc9c1f5ac781",
+      "files": [
+        "src/components/AgentGlyph.tsx",
+        "src/remote/RemoteAgentGlyph.tsx"
+      ],
+      "instance_count": 2,
+      "instances": [
+        {
+          "commit_count": 1,
+          "file": "src/components/AgentGlyph.tsx",
+          "func": "HydraGlyph",
+          "lines": 16
+        },
+        {
+          "commit_count": 2,
+          "file": "src/remote/RemoteAgentGlyph.tsx",
+          "func": "HydraGlyph",
+          "lines": 16
+        }
+      ],
+      "kind": "exact_clone_group",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "duplicate_maintenance_pressure"
+      ],
+      "max_commit_count": 2,
+      "max_lines": 16,
+      "presentation_class": "watchpoint",
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 16 lines",
+        "at least one clone file changed in 2 recent commit(s)",
+        "clone files changed recently",
+        "youngest clone file was touched recently"
+      ],
+      "severity": "medium",
+      "summary": "2 functions share an identical normalized body across recently changed files",
+      "total_lines": 32
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0x21298edf36100084",
+      "files": [
+        "electron/remote/ws-server.ts",
+        "server/browser-websocket.ts"
+      ],
+      "instance_count": 2,
+      "instances": [
+        {
+          "commit_count": 5,
+          "file": "electron/remote/ws-server.ts",
+          "func": "kill",
+          "lines": 5
+        },
+        {
+          "commit_count": 9,
+          "file": "server/browser-websocket.ts",
+          "func": "kill",
+          "lines": 5
+        }
+      ],
+      "kind": "exact_clone_group",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "duplicate_maintenance_pressure"
+      ],
+      "max_commit_count": 9,
+      "max_lines": 5,
+      "presentation_class": "watchpoint",
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 5 lines",
+        "at least one clone file changed in 9 recent commit(s)",
+        "clone files changed recently",
+        "youngest clone file was touched recently"
+      ],
+      "severity": "low",
+      "summary": "2 functions share an identical normalized body across recently changed files",
+      "total_lines": 10
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0x220ca1c043f3d29c",
+      "files": [
+        "src/components/AgentGlyph.tsx",
+        "src/remote/RemoteAgentGlyph.tsx"
+      ],
+      "instance_count": 2,
+      "instances": [
+        {
+          "commit_count": 1,
+          "file": "src/components/AgentGlyph.tsx",
+          "func": "ClaudeGlyph",
+          "lines": 25
+        },
+        {
+          "commit_count": 2,
+          "file": "src/remote/RemoteAgentGlyph.tsx",
+          "func": "ClaudeGlyph",
+          "lines": 25
+        }
+      ],
+      "kind": "exact_clone_group",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "duplicate_maintenance_pressure"
+      ],
+      "max_commit_count": 2,
+      "max_lines": 25,
+      "presentation_class": "watchpoint",
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 25 lines",
+        "at least one clone file changed in 2 recent commit(s)",
+        "clone files changed recently",
+        "youngest clone file was touched recently"
+      ],
+      "severity": "high",
+      "summary": "2 functions share an identical normalized body across recently changed files",
+      "total_lines": 50
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0x25d2cc9141c25a11",
+      "files": [
+        "scripts/profile-terminal-input-latency.mjs",
+        "scripts/profile-terminal-ui-fluidity.mjs"
+      ],
+      "instance_count": 2,
+      "instances": [
+        {
+          "commit_count": 3,
+          "file": "scripts/profile-terminal-input-latency.mjs",
+          "func": "formatMs",
+          "lines": 7
+        },
+        {
+          "commit_count": 2,
+          "file": "scripts/profile-terminal-ui-fluidity.mjs",
+          "func": "formatMs",
+          "lines": 7
+        }
+      ],
+      "kind": "exact_clone_group",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "duplicate_maintenance_pressure"
+      ],
+      "max_commit_count": 3,
+      "max_lines": 7,
+      "presentation_class": "watchpoint",
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 7 lines",
+        "at least one clone file changed in 3 recent commit(s)",
+        "clone files changed recently",
+        "youngest clone file was touched recently"
+      ],
+      "severity": "low",
+      "summary": "2 functions share an identical normalized body across recently changed files",
+      "total_lines": 14
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0x31a396cfce0df305",
+      "files": [
+        "src/components/AgentGlyph.tsx",
+        "src/remote/RemoteAgentGlyph.tsx"
+      ],
+      "instance_count": 2,
+      "instances": [
+        {
+          "commit_count": 1,
+          "file": "src/components/AgentGlyph.tsx",
+          "func": "GenericGlyph",
+          "lines": 10
+        },
+        {
+          "commit_count": 2,
+          "file": "src/remote/RemoteAgentGlyph.tsx",
+          "func": "GenericGlyph",
+          "lines": 10
+        }
+      ],
+      "kind": "exact_clone_group",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "duplicate_maintenance_pressure"
+      ],
+      "max_commit_count": 2,
+      "max_lines": 10,
+      "presentation_class": "watchpoint",
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 10 lines",
+        "at least one clone file changed in 2 recent commit(s)",
+        "clone files changed recently",
+        "youngest clone file was touched recently"
+      ],
+      "severity": "medium",
+      "summary": "2 functions share an identical normalized body across recently changed files",
+      "total_lines": 20
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0x32fbf78564b63a93",
+      "files": [
+        "scripts/terminal-steady-state-benchmark.mjs",
+        "scripts/terminal-ui-fluidity-matrix.mjs"
+      ],
+      "instance_count": 2,
+      "instances": [
+        {
+          "commit_count": 1,
+          "file": "scripts/terminal-steady-state-benchmark.mjs",
+          "func": "maybeBuildBrowserArtifacts",
+          "lines": 7
+        },
+        {
+          "commit_count": 2,
+          "file": "scripts/terminal-ui-fluidity-matrix.mjs",
+          "func": "maybeBuildBrowserArtifacts",
+          "lines": 7
+        }
+      ],
+      "kind": "exact_clone_group",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "duplicate_maintenance_pressure"
+      ],
+      "max_commit_count": 2,
+      "max_lines": 7,
+      "presentation_class": "watchpoint",
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 7 lines",
+        "at least one clone file changed in 2 recent commit(s)",
+        "clone files changed recently",
+        "youngest clone file was touched recently"
+      ],
+      "severity": "low",
+      "summary": "2 functions share an identical normalized body across recently changed files",
+      "total_lines": 14
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0x3e9413aa70f05924",
+      "files": [
+        "scripts/terminal-steady-state-benchmark.mjs",
+        "scripts/terminal-ui-fluidity-matrix.mjs"
+      ],
+      "instance_count": 2,
+      "instances": [
+        {
+          "commit_count": 1,
+          "file": "scripts/terminal-steady-state-benchmark.mjs",
+          "func": "defaultOutputDirectory",
+          "lines": 3
+        },
+        {
+          "commit_count": 2,
+          "file": "scripts/terminal-ui-fluidity-matrix.mjs",
+          "func": "defaultOutputDirectory",
+          "lines": 3
+        }
+      ],
+      "kind": "exact_clone_group",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "duplicate_maintenance_pressure"
+      ],
+      "max_commit_count": 2,
+      "max_lines": 3,
+      "presentation_class": "watchpoint",
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 3 lines",
+        "at least one clone file changed in 2 recent commit(s)",
+        "clone files changed recently",
+        "youngest clone file was touched recently"
+      ],
+      "severity": "low",
+      "summary": "2 functions share an identical normalized body across recently changed files",
+      "total_lines": 6
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0x46b14f13f2993a14",
+      "files": [
+        "scripts/profile-terminal-input-latency.mjs",
+        "scripts/profile-terminal-ui-fluidity.mjs"
+      ],
+      "instance_count": 2,
+      "instances": [
+        {
+          "commit_count": 3,
+          "file": "scripts/profile-terminal-input-latency.mjs",
+          "func": "stopServerProcess",
+          "lines": 19
+        },
+        {
+          "commit_count": 2,
+          "file": "scripts/profile-terminal-ui-fluidity.mjs",
+          "func": "stopServerProcess",
+          "lines": 19
+        }
+      ],
+      "kind": "exact_clone_group",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "duplicate_maintenance_pressure"
+      ],
+      "max_commit_count": 3,
+      "max_lines": 19,
+      "presentation_class": "watchpoint",
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 19 lines",
+        "at least one clone file changed in 3 recent commit(s)",
+        "clone files changed recently",
+        "youngest clone file was touched recently"
+      ],
+      "severity": "high",
+      "summary": "2 functions share an identical normalized body across recently changed files",
+      "total_lines": 38
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0x491ae0fdd477dfe3",
+      "files": [
+        "electron/remote/ws-server.ts",
+        "server/browser-websocket.ts"
+      ],
+      "instance_count": 2,
+      "instances": [
+        {
+          "commit_count": 5,
+          "file": "electron/remote/ws-server.ts",
+          "func": "shouldRequireAgentControl",
+          "lines": 3
+        },
+        {
+          "commit_count": 9,
+          "file": "server/browser-websocket.ts",
+          "func": "shouldRequireAgentControl",
+          "lines": 3
+        }
+      ],
+      "kind": "exact_clone_group",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "duplicate_maintenance_pressure"
+      ],
+      "max_commit_count": 9,
+      "max_lines": 3,
+      "presentation_class": "watchpoint",
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 3 lines",
+        "at least one clone file changed in 9 recent commit(s)",
+        "clone files changed recently",
+        "youngest clone file was touched recently"
+      ],
+      "severity": "low",
+      "summary": "2 functions share an identical normalized body across recently changed files",
+      "total_lines": 6
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0x4a4d30345c60dfba",
+      "files": [
+        "src/components/ConnectPhoneModal.tsx",
+        "src/components/Dialog.tsx"
+      ],
+      "instance_count": 2,
+      "instances": [
+        {
+          "commit_count": 14,
+          "file": "src/components/ConnectPhoneModal.tsx",
+          "func": "handler",
+          "lines": 3
+        },
+        {
+          "commit_count": 3,
+          "file": "src/components/Dialog.tsx",
+          "func": "handler",
+          "lines": 3
+        }
+      ],
+      "kind": "exact_clone_group",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "duplicate_maintenance_pressure"
+      ],
+      "max_commit_count": 14,
+      "max_lines": 3,
+      "presentation_class": "watchpoint",
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 3 lines",
+        "at least one clone file changed in 14 recent commit(s)",
+        "clone files changed recently",
+        "youngest clone file was touched recently"
+      ],
+      "severity": "low",
+      "summary": "2 functions share an identical normalized body across recently changed files",
+      "total_lines": 6
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0x4dbde01561efa924",
+      "files": [
+        "electron/remote/server.ts",
+        "electron/remote/ws-transport.test.ts",
+        "tests/harness/websocket-contract-harness.ts"
+      ],
+      "instance_count": 3,
+      "instances": [
+        {
+          "commit_count": 21,
+          "file": "electron/remote/server.ts",
+          "func": "terminateClient",
+          "lines": 3
+        },
+        {
+          "commit_count": 4,
+          "file": "electron/remote/ws-transport.test.ts",
+          "func": "terminateClient",
+          "lines": 3
+        },
+        {
+          "commit_count": 4,
+          "file": "tests/harness/websocket-contract-harness.ts",
+          "func": "terminateClient",
+          "lines": 3
+        }
+      ],
+      "kind": "exact_clone_group",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "duplicate_maintenance_pressure"
+      ],
+      "max_commit_count": 21,
+      "max_lines": 3,
+      "presentation_class": "watchpoint",
+      "production_instance_count": 1,
+      "reasons": [
+        "identical logic spans 3 files",
+        "largest clone instance is 3 lines",
+        "at least one clone file changed in 21 recent commit(s)",
+        "clone files changed recently",
+        "youngest clone file was touched recently"
+      ],
+      "severity": "low",
+      "summary": "3 functions share an identical normalized body across recently changed files",
+      "total_lines": 9
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0x6067ca066346a3c2",
+      "files": [
+        "scripts/profile-terminal-input-latency.mjs",
+        "scripts/profile-terminal-ui-fluidity.mjs"
+      ],
+      "instance_count": 2,
+      "instances": [
+        {
+          "commit_count": 3,
+          "file": "scripts/profile-terminal-input-latency.mjs",
+          "func": "reservePort",
+          "lines": 25
+        },
+        {
+          "commit_count": 2,
+          "file": "scripts/profile-terminal-ui-fluidity.mjs",
+          "func": "reservePort",
+          "lines": 23
+        }
+      ],
+      "kind": "exact_clone_group",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "duplicate_maintenance_pressure"
+      ],
+      "max_commit_count": 3,
+      "max_lines": 25,
+      "presentation_class": "watchpoint",
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 25 lines",
+        "at least one clone file changed in 3 recent commit(s)",
+        "clone files changed recently",
+        "youngest clone file was touched recently"
+      ],
+      "severity": "high",
+      "summary": "2 functions share an identical normalized body across recently changed files",
+      "total_lines": 48
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0x620ab61456bab8b6",
+      "files": [
+        "scripts/run-playwright-with-browser-artifacts.mjs",
+        "scripts/run-terminal-ui-fluidity-gate.mjs",
+        "server/build-server.mjs"
+      ],
+      "instance_count": 3,
+      "instances": [
+        {
+          "commit_count": 2,
+          "file": "scripts/run-playwright-with-browser-artifacts.mjs",
+          "func": "getCommandBin",
+          "lines": 3
+        },
+        {
+          "commit_count": 1,
+          "file": "scripts/run-terminal-ui-fluidity-gate.mjs",
+          "func": "getCommandBin",
+          "lines": 3
+        },
+        {
+          "commit_count": 1,
+          "file": "server/build-server.mjs",
+          "func": "getCommandBin",
+          "lines": 3
+        }
+      ],
+      "kind": "exact_clone_group",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "duplicate_maintenance_pressure"
+      ],
+      "max_commit_count": 2,
+      "max_lines": 3,
+      "presentation_class": "watchpoint",
+      "production_instance_count": 3,
+      "reasons": [
+        "identical logic spans 3 files",
+        "largest clone instance is 3 lines",
+        "at least one clone file changed in 2 recent commit(s)",
+        "clone files changed recently",
+        "youngest clone file was touched recently"
+      ],
+      "severity": "low",
+      "summary": "3 functions share an identical normalized body across recently changed files",
+      "total_lines": 9
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0x641ae142d9f320a5",
+      "files": [
+        "src/components/terminal-view/terminal-output-pipeline.ts",
+        "src/components/terminal-view/terminal-session.ts"
+      ],
+      "instance_count": 2,
+      "instances": [
+        {
+          "commit_count": 6,
+          "file": "src/components/terminal-view/terminal-output-pipeline.ts",
+          "func": "getOutputPriority",
+          "lines": 3
+        },
+        {
+          "commit_count": 28,
+          "file": "src/components/terminal-view/terminal-session.ts",
+          "func": "getOutputPriority",
+          "lines": 3
+        }
+      ],
+      "kind": "exact_clone_group",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "duplicate_maintenance_pressure"
+      ],
+      "max_commit_count": 28,
+      "max_lines": 3,
+      "presentation_class": "watchpoint",
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 3 lines",
+        "at least one clone file changed in 28 recent commit(s)",
+        "clone files changed recently",
+        "youngest clone file was touched recently"
+      ],
+      "severity": "low",
+      "summary": "2 functions share an identical normalized body across recently changed files",
+      "total_lines": 6
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0x65bcc6fd3379ff7",
+      "files": [
+        "electron/ipc/hydra-adapter.ts",
+        "src/app/task-command-dispatch.ts"
+      ],
+      "instance_count": 2,
+      "instances": [
+        {
+          "commit_count": 4,
+          "file": "electron/ipc/hydra-adapter.ts",
+          "func": "sleep",
+          "lines": 3
+        },
+        {
+          "commit_count": 2,
+          "file": "src/app/task-command-dispatch.ts",
+          "func": "sleep",
+          "lines": 3
+        }
+      ],
+      "kind": "exact_clone_group",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "duplicate_maintenance_pressure"
+      ],
+      "max_commit_count": 4,
+      "max_lines": 3,
+      "presentation_class": "watchpoint",
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 3 lines",
+        "at least one clone file changed in 4 recent commit(s)",
+        "clone files changed recently",
+        "youngest clone file was touched recently"
+      ],
+      "severity": "low",
+      "summary": "2 functions share an identical normalized body across recently changed files",
+      "total_lines": 6
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0x6de9a148bb69f645",
+      "files": [
+        "electron/remote/ws-server.ts",
+        "server/browser-websocket.ts"
+      ],
+      "instance_count": 2,
+      "instances": [
+        {
+          "commit_count": 5,
+          "file": "electron/remote/ws-server.ts",
+          "func": "pause",
+          "lines": 11
+        },
+        {
+          "commit_count": 9,
+          "file": "server/browser-websocket.ts",
+          "func": "pause",
+          "lines": 11
+        }
+      ],
+      "kind": "exact_clone_group",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "duplicate_maintenance_pressure"
+      ],
+      "max_commit_count": 9,
+      "max_lines": 11,
+      "presentation_class": "watchpoint",
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 11 lines",
+        "at least one clone file changed in 9 recent commit(s)",
+        "clone files changed recently",
+        "youngest clone file was touched recently"
+      ],
+      "severity": "high",
+      "summary": "2 functions share an identical normalized body across recently changed files",
+      "total_lines": 22
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0x736e2aabc38ba277",
+      "files": [
+        "electron/ipc/persisted-task-lookup-state.ts",
+        "electron/ipc/task-container-handlers.ts",
+        "electron/ipc/task-containers.ts",
+        "src/lib/terminal-performance-experiments.ts",
+        "src/remote/remote-collaboration.ts",
+        "src/remote/ws.ts"
+      ],
+      "instance_count": 6,
+      "instances": [
+        {
+          "commit_count": 2,
+          "file": "electron/ipc/persisted-task-lookup-state.ts",
+          "func": "isRecord",
+          "lines": 3
+        },
+        {
+          "commit_count": 1,
+          "file": "electron/ipc/task-container-handlers.ts",
+          "func": "isRecord",
+          "lines": 3
+        },
+        {
+          "commit_count": 2,
+          "file": "electron/ipc/task-containers.ts",
+          "func": "isRecord",
+          "lines": 3
+        },
+        {
+          "commit_count": 3,
+          "file": "src/lib/terminal-performance-experiments.ts",
+          "func": "isRecord",
+          "lines": 3
+        },
+        {
+          "commit_count": 7,
+          "file": "src/remote/remote-collaboration.ts",
+          "func": "isRecord",
+          "lines": 3
+        },
+        {
+          "commit_count": 16,
+          "file": "src/remote/ws.ts",
+          "func": "isRecord",
+          "lines": 3
+        }
+      ],
+      "kind": "exact_clone_group",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "duplicate_maintenance_pressure"
+      ],
+      "max_commit_count": 16,
+      "max_lines": 3,
+      "presentation_class": "watchpoint",
+      "production_instance_count": 6,
+      "reasons": [
+        "identical logic spans 6 files",
+        "largest clone instance is 3 lines",
+        "at least one clone file changed in 16 recent commit(s)",
+        "clone files changed recently",
+        "youngest clone file was touched recently"
+      ],
+      "severity": "low",
+      "summary": "6 functions share an identical normalized body across recently changed files",
+      "total_lines": 18
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0x760b6573d6917eab",
+      "files": [
+        "electron/ipc/task-convergence-state.ts",
+        "src/app/task-convergence.ts"
+      ],
+      "instance_count": 2,
+      "instances": [
+        {
+          "commit_count": 6,
+          "file": "electron/ipc/task-convergence-state.ts",
+          "func": "formatCount",
+          "lines": 3
+        },
+        {
+          "commit_count": 7,
+          "file": "src/app/task-convergence.ts",
+          "func": "formatCount",
+          "lines": 3
+        }
+      ],
+      "kind": "exact_clone_group",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "duplicate_maintenance_pressure"
+      ],
+      "max_commit_count": 7,
+      "max_lines": 3,
+      "presentation_class": "watchpoint",
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 3 lines",
+        "at least one clone file changed in 7 recent commit(s)",
+        "clone files changed recently",
+        "youngest clone file was touched recently"
+      ],
+      "severity": "low",
+      "summary": "2 functions share an identical normalized body across recently changed files",
+      "total_lines": 6
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0x8b5d41a6b368a250",
+      "files": [
+        "scripts/profile-terminal-input-latency.mjs",
+        "scripts/profile-terminal-ui-fluidity.mjs"
+      ],
+      "instance_count": 2,
+      "instances": [
+        {
+          "commit_count": 3,
+          "file": "scripts/profile-terminal-input-latency.mjs",
+          "func": "cleanup",
+          "lines": 6
+        },
+        {
+          "commit_count": 2,
+          "file": "scripts/profile-terminal-ui-fluidity.mjs",
+          "func": "cleanup",
+          "lines": 6
+        }
+      ],
+      "kind": "exact_clone_group",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "duplicate_maintenance_pressure"
+      ],
+      "max_commit_count": 3,
+      "max_lines": 6,
+      "presentation_class": "watchpoint",
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 6 lines",
+        "at least one clone file changed in 3 recent commit(s)",
+        "clone files changed recently",
+        "youngest clone file was touched recently"
+      ],
+      "severity": "low",
+      "summary": "2 functions share an identical normalized body across recently changed files",
+      "total_lines": 12
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0xb92964eda937ae02",
+      "files": [
+        "electron/remote/ws-server.ts",
+        "server/browser-websocket.ts"
+      ],
+      "instance_count": 2,
+      "instances": [
+        {
+          "commit_count": 5,
+          "file": "electron/remote/ws-server.ts",
+          "func": "enableSocketNoDelay",
+          "lines": 10
+        },
+        {
+          "commit_count": 9,
+          "file": "server/browser-websocket.ts",
+          "func": "enableSocketNoDelay",
+          "lines": 10
+        }
+      ],
+      "kind": "exact_clone_group",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "duplicate_maintenance_pressure"
+      ],
+      "max_commit_count": 9,
+      "max_lines": 10,
+      "presentation_class": "watchpoint",
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 10 lines",
+        "at least one clone file changed in 9 recent commit(s)",
+        "clone files changed recently",
+        "youngest clone file was touched recently"
+      ],
+      "severity": "high",
+      "summary": "2 functions share an identical normalized body across recently changed files",
+      "total_lines": 20
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0xcc5e0fc01e593285",
+      "files": [
+        "src/components/ReviewCommentCard.tsx",
+        "src/components/ReviewSidebar.tsx"
+      ],
+      "instance_count": 2,
+      "instances": [
+        {
+          "commit_count": 3,
+          "file": "src/components/ReviewCommentCard.tsx",
+          "func": "getTrimmedDraftComment",
+          "lines": 3
+        },
+        {
+          "commit_count": 7,
+          "file": "src/components/ReviewSidebar.tsx",
+          "func": "getTrimmedDraftComment",
+          "lines": 3
+        }
+      ],
+      "kind": "exact_clone_group",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "duplicate_maintenance_pressure"
+      ],
+      "max_commit_count": 7,
+      "max_lines": 3,
+      "presentation_class": "watchpoint",
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 3 lines",
+        "at least one clone file changed in 7 recent commit(s)",
+        "clone files changed recently",
+        "youngest clone file was touched recently"
+      ],
+      "severity": "low",
+      "summary": "2 functions share an identical normalized body across recently changed files",
+      "total_lines": 6
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0xef55315eaa17c3ab",
+      "files": [
+        "electron/ipc/runtime-diagnostics.ts",
+        "electron/remote/ws-server.ts"
+      ],
+      "instance_count": 2,
+      "instances": [
+        {
+          "commit_count": 6,
+          "file": "electron/ipc/runtime-diagnostics.ts",
+          "func": "getTraceNowMs",
+          "lines": 3
+        },
+        {
+          "commit_count": 5,
+          "file": "electron/remote/ws-server.ts",
+          "func": "getTraceNowMs",
+          "lines": 3
+        }
+      ],
+      "kind": "exact_clone_group",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "duplicate_maintenance_pressure"
+      ],
+      "max_commit_count": 6,
+      "max_lines": 3,
+      "presentation_class": "watchpoint",
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 3 lines",
+        "at least one clone file changed in 6 recent commit(s)",
+        "clone files changed recently",
+        "youngest clone file was touched recently"
+      ],
+      "severity": "low",
+      "summary": "2 functions share an identical normalized body across recently changed files",
+      "total_lines": 6
+    },
+    {
+      "asymmetric_recent_change": false,
+      "clone_id": "clone-0xfc51cb7428314a19",
+      "files": [
+        "src/components/AgentGlyph.tsx",
+        "src/remote/RemoteAgentGlyph.tsx"
+      ],
+      "instance_count": 2,
+      "instances": [
+        {
+          "commit_count": 1,
+          "file": "src/components/AgentGlyph.tsx",
+          "func": "CodexGlyph",
+          "lines": 30
+        },
+        {
+          "commit_count": 2,
+          "file": "src/remote/RemoteAgentGlyph.tsx",
+          "func": "CodexGlyph",
+          "lines": 30
+        }
+      ],
+      "kind": "exact_clone_group",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "duplicate_maintenance_pressure"
+      ],
+      "max_commit_count": 2,
+      "max_lines": 30,
+      "presentation_class": "watchpoint",
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 30 lines",
+        "at least one clone file changed in 2 recent commit(s)",
+        "clone files changed recently",
+        "youngest clone file was touched recently"
+      ],
+      "severity": "high",
+      "summary": "2 functions share an identical normalized body across recently changed files",
+      "total_lines": 60
+    },
+    {
+      "asymmetric_recent_change": true,
+      "clone_id": "clone-0x2f180197cba296a9",
+      "files": [
+        "src/app/ui-fluidity-diagnostics.ts",
+        "src/lib/terminal-output-diagnostics.ts"
+      ],
+      "instance_count": 2,
+      "instances": [
+        {
+          "commit_count": null,
+          "file": "src/app/ui-fluidity-diagnostics.ts",
+          "func": "pushSample",
+          "lines": 6
+        },
+        {
+          "commit_count": 3,
+          "file": "src/lib/terminal-output-diagnostics.ts",
+          "func": "pushSample",
+          "lines": 6
+        }
+      ],
+      "kind": "exact_clone_group",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "duplicate_maintenance_pressure"
+      ],
+      "max_commit_count": 3,
+      "max_lines": 6,
+      "presentation_class": "watchpoint",
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 6 lines",
+        "at least one clone file changed in 3 recent commit(s)",
+        "clone files changed recently",
+        "youngest clone file was touched recently",
+        "recent activity is uneven across clone instances"
+      ],
+      "severity": "medium",
+      "summary": "2 functions share an identical normalized body and recent edits are asymmetric across clone files",
+      "total_lines": 12
+    },
+    {
+      "asymmetric_recent_change": true,
+      "clone_id": "clone-0x785a88efcaee533",
+      "files": [
+        "src/components/terminal-view/terminal-output-pipeline.benchmark.ts",
+        "src/store/agent-output-activity.benchmark.ts"
+      ],
+      "instance_count": 2,
+      "instances": [
+        {
+          "commit_count": null,
+          "file": "src/components/terminal-view/terminal-output-pipeline.benchmark.ts",
+          "func": "buildChunks",
+          "lines": 7
+        },
+        {
+          "commit_count": 1,
+          "file": "src/store/agent-output-activity.benchmark.ts",
+          "func": "buildChunks",
+          "lines": 7
+        }
+      ],
+      "kind": "exact_clone_group",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "duplicate_maintenance_pressure"
+      ],
+      "max_commit_count": 1,
+      "max_lines": 7,
+      "presentation_class": "watchpoint",
+      "production_instance_count": 2,
+      "reasons": [
+        "identical logic spans 2 files",
+        "largest clone instance is 7 lines",
+        "at least one clone file changed in 1 recent commit(s)",
+        "clone files changed recently",
+        "youngest clone file was touched recently",
+        "recent activity is uneven across clone instances"
+      ],
+      "severity": "medium",
+      "summary": "2 functions share an identical normalized body and recent edits are asymmetric across clone files",
+      "total_lines": 14
+    },
+    {
       "candidate_split_axes": [
         "app dependency boundary",
         "components dependency boundary",

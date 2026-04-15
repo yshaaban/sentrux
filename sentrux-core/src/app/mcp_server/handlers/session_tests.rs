@@ -9,6 +9,7 @@ use super::{
     cli_evaluate_v2_gate, cli_save_v2_session, fresh_mcp_state, handle_scan, handle_session_end,
     prepare_patch_check_context,
 };
+use crate::app::mcp_server::SESSION_V2_SCHEMA_VERSION;
 use crate::license::Tier;
 use serde_json::json;
 
@@ -117,6 +118,56 @@ fn cli_v2_gate_ignores_invalid_legacy_baseline_when_v2_session_exists() {
     assert!(response.get("decision").is_some());
     assert!(response["diagnostics"]["errors"].is_object());
     assert!(response.get("baseline_error").is_none());
+}
+
+#[test]
+fn session_end_keeps_legacy_delta_when_v2_session_schema_is_unsupported() {
+    let root = cli_gate_fixture_root();
+    cli_save_v2_session(&root).expect("save v2 session");
+    let unsupported_version = SESSION_V2_SCHEMA_VERSION + 1;
+    write_file(
+        &root,
+        ".sentrux/session-v2.json",
+        &format!(
+            "{}\n",
+            serde_json::to_string_pretty(&json!({
+                "schema_version": unsupported_version,
+                "file_hashes": {
+                    "src/app.ts": 11
+                },
+                "finding_payloads": {},
+                "git_head": null
+            }))
+            .expect("serialize incompatible v2 baseline")
+        ),
+    );
+
+    let mut state = fresh_mcp_state();
+    handle_scan(
+        &json!({"path": root.to_string_lossy().to_string()}),
+        &Tier::Free,
+        &mut state,
+    )
+    .expect("scan fixture");
+
+    let response = handle_session_end(&json!({}), &Tier::Free, &mut state).expect("session end");
+
+    assert_eq!(
+        response["confidence"]["session_baseline"]["loaded"],
+        json!(true)
+    );
+    assert_eq!(
+        response["confidence"]["session_baseline"]["compatible"],
+        json!(false)
+    );
+    assert_eq!(
+        response["confidence"]["session_baseline"]["schema_version"],
+        json!(unsupported_version)
+    );
+    assert!(response["confidence"]["session_baseline"]["error"]
+        .as_str()
+        .is_some_and(|error| error.contains("Unsupported v2 session baseline schema version")));
+    assert_eq!(response["baseline_delta"]["available"], json!(true));
 }
 
 #[test]
