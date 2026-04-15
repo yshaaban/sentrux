@@ -4,6 +4,12 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
+import {
+  buildMetricStatistics,
+  getBenchmarkMetric,
+  listBenchmarkTimingMetricPaths,
+  roundMs,
+} from './benchmark-harness.mjs';
 
 export function runChecked(command, args, { cwd, env = {} }) {
   const result = spawnSync(command, args, {
@@ -132,6 +138,92 @@ function assertBenchmarkFieldEqual(label, field, expected, actual) {
   }
 }
 
+function assertBenchmarkSamples(label, actual) {
+  if (!Array.isArray(actual.benchmark_samples)) {
+    throw new Error(`${label} benchmark artifact is missing benchmark samples`);
+  }
+
+  for (const [sampleIndex, sample] of actual.benchmark_samples.entries()) {
+    if (!sample || typeof sample !== 'object' || Array.isArray(sample)) {
+      throw new Error(`${label} benchmark sample ${sampleIndex + 1} is malformed`);
+    }
+    if (typeof sample.sample_id !== 'string' || sample.sample_id.length === 0) {
+      throw new Error(`${label} benchmark sample ${sampleIndex + 1} is missing a sample id`);
+    }
+    if (typeof sample.generated_at !== 'string' || sample.generated_at.length === 0) {
+      throw new Error(`${label} benchmark sample ${sampleIndex + 1} is missing generated_at`);
+    }
+    if (!sample.benchmark || typeof sample.benchmark !== 'object' || Array.isArray(sample.benchmark)) {
+      throw new Error(`${label} benchmark sample ${sampleIndex + 1} is missing the benchmark payload`);
+    }
+  }
+}
+
+function assertBenchmarkMedianAggregation(label, actual) {
+  assertBenchmarkSamples(label, actual);
+
+  const repeatCount = actual.benchmark_repeat_count;
+  if (Number.isInteger(repeatCount) && actual.benchmark_samples.length !== repeatCount) {
+    throw new Error(
+      `${label} benchmark sample count mismatch: expected ${repeatCount} sample(s), got ${actual.benchmark_samples.length}`,
+    );
+  }
+
+  const representativeSample = actual.benchmark_samples[actual.benchmark_representative_sample_index];
+  if (!representativeSample) {
+    throw new Error(`${label} benchmark artifact has an out-of-range representative sample index`);
+  }
+  if (representativeSample.sample_id !== actual.benchmark_representative_sample_id) {
+    throw new Error(
+      `${label} benchmark representative sample mismatch: expected ${representativeSample.sample_id}, got ${actual.benchmark_representative_sample_id}`,
+    );
+  }
+
+  const timingMetricPaths = listBenchmarkTimingMetricPaths(actual.benchmark);
+  const timingMetricPathSet = new Set(timingMetricPaths);
+  for (const metricPath of timingMetricPaths) {
+    const metricStatistics = actual.benchmark_metric_statistics?.[metricPath];
+    if (!metricStatistics || typeof metricStatistics !== 'object' || Array.isArray(metricStatistics)) {
+      throw new Error(`${label} benchmark artifact is missing benchmark metric statistics for ${metricPath}`);
+    }
+
+    const sampleValues = actual.benchmark_samples.map(function readSampleMetric(sample) {
+      return getBenchmarkMetric(sample.benchmark, metricPath);
+    });
+    if (!sampleValues.every(Number.isFinite)) {
+      throw new Error(`${label} benchmark samples are missing ${metricPath}`);
+    }
+
+    const expectedMetricStatistics = buildMetricStatistics(sampleValues);
+    if (!expectedMetricStatistics || !isDeepStrictEqual(metricStatistics, expectedMetricStatistics)) {
+      throw new Error(`${label} benchmark statistics mismatch for ${metricPath}`);
+    }
+
+    const benchmarkValue = getBenchmarkMetric(actual.benchmark, metricPath);
+    if (!Number.isFinite(benchmarkValue)) {
+      throw new Error(`${label} benchmark payload is missing ${metricPath}`);
+    }
+    if (roundMs(benchmarkValue) !== expectedMetricStatistics.median_ms) {
+      throw new Error(`${label} benchmark median mismatch for ${metricPath}`);
+    }
+
+    if (
+      Number.isInteger(repeatCount) &&
+      expectedMetricStatistics.sample_count !== repeatCount
+    ) {
+      throw new Error(
+        `${label} benchmark statistics sample count mismatch for ${metricPath}: expected ${repeatCount}, got ${expectedMetricStatistics.sample_count}`,
+      );
+    }
+  }
+
+  for (const metricPath of Object.keys(actual.benchmark_metric_statistics ?? {})) {
+    if (!timingMetricPathSet.has(metricPath)) {
+      throw new Error(`${label} benchmark metric statistics include an unknown metric path: ${metricPath}`);
+    }
+  }
+}
+
 function assertBenchmarkShape(label, expected, actual) {
   if (!actual.benchmark || typeof actual.benchmark !== 'object' || Array.isArray(actual.benchmark)) {
     throw new Error(`${label} benchmark artifact is missing the benchmark payload`);
@@ -148,6 +240,7 @@ function assertBenchmarkShape(label, expected, actual) {
     ) {
       throw new Error(`${label} benchmark artifact is missing benchmark metric statistics`);
     }
+    assertBenchmarkMedianAggregation(label, actual);
   }
 
   if (expected.benchmark_representative_sample_index != null) {
@@ -166,17 +259,7 @@ function assertBenchmarkShape(label, expected, actual) {
   }
 
   if (expected.benchmark_samples != null) {
-    if (!Array.isArray(actual.benchmark_samples)) {
-      throw new Error(`${label} benchmark artifact is missing benchmark samples`);
-    }
-    if (
-      Number.isInteger(actual.benchmark_repeat_count) &&
-      actual.benchmark_samples.length !== actual.benchmark_repeat_count
-    ) {
-      throw new Error(
-        `${label} benchmark sample count mismatch: expected ${actual.benchmark_repeat_count} sample(s), got ${actual.benchmark_samples.length}`,
-      );
-    }
+    assertBenchmarkSamples(label, actual);
   }
 }
 

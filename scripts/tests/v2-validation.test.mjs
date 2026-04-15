@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
+import { buildMetricStatistics } from '../lib/benchmark-harness.mjs';
 import { resolveWorkspaceRepoRoot } from '../lib/path-roots.mjs';
 import { runValidationSuite } from '../lib/v2-validation.mjs';
 
@@ -90,6 +91,57 @@ function runFixtureValidation(fixture, overrides = {}) {
     nodeBin: process.execPath,
     ...overrides,
   });
+}
+
+function buildRepeatedBenchmarkArtifact({
+  coldProcessValues = [39, 40, 41],
+  coldFindingsValues = null,
+  representativeSampleIndex = Math.floor(coldProcessValues.length / 2),
+} = {}) {
+  const benchmarkSamples = coldProcessValues.map(function buildSample(coldProcessTotalMs, index) {
+    const benchmark = {
+      cold_process_total_ms: coldProcessTotalMs,
+    };
+
+    if (Array.isArray(coldFindingsValues)) {
+      benchmark.cold = {
+        findings: {
+          elapsed_ms: coldFindingsValues[index],
+          summary: `summary-${index + 1}`,
+        },
+      };
+    }
+
+    return {
+      sample_id: `sample_${index + 1}`,
+      generated_at: `2026-04-15T00:0${index}:00.000Z`,
+      benchmark,
+    };
+  });
+
+  const representativeSample = benchmarkSamples[representativeSampleIndex];
+  const benchmark = structuredClone(representativeSample.benchmark);
+  const metricStatistics = {
+    cold_process_total_ms: buildMetricStatistics(coldProcessValues),
+  };
+
+  benchmark.cold_process_total_ms = metricStatistics.cold_process_total_ms.median_ms;
+
+  if (Array.isArray(coldFindingsValues)) {
+    metricStatistics['cold.findings.elapsed_ms'] = buildMetricStatistics(coldFindingsValues);
+    benchmark.cold.findings.elapsed_ms = metricStatistics['cold.findings.elapsed_ms'].median_ms;
+  }
+
+  return {
+    benchmark_format_version: 3,
+    benchmark_repeat_count: benchmarkSamples.length,
+    benchmark_aggregate_basis: 'median',
+    benchmark_representative_sample_index: representativeSampleIndex,
+    benchmark_representative_sample_id: representativeSample.sample_id,
+    benchmark_metric_statistics: metricStatistics,
+    benchmark_samples: benchmarkSamples,
+    benchmark,
+  };
 }
 
 test('resolveWorkspaceRepoRoot prefers explicit env values and otherwise falls back to sibling repo roots', function () {
@@ -217,33 +269,7 @@ test('runValidationSuite passes benchmark gating env to the runner', async funct
 
 test('runValidationSuite accepts repeated benchmark artifacts with additive fields', async function () {
   const fixture = await createValidationFixture();
-  const repeatedBenchmark = {
-    benchmark_format_version: 3,
-    benchmark_repeat_count: 3,
-    benchmark_aggregate_basis: 'median',
-    benchmark_representative_sample_index: 1,
-    benchmark_representative_sample_id: 'sample_2',
-    benchmark_metric_statistics: {
-      cold_process_total_ms: {
-        sample_count: 3,
-        values_ms: [39, 40, 41],
-        min_ms: 39,
-        max_ms: 41,
-        median_ms: 40,
-        mean_ms: 40,
-        stddev_ms: 0.8,
-        spread_ms: 2,
-      },
-    },
-    benchmark_samples: [
-      { sample_id: 'sample_1', generated_at: '2026-04-15T00:00:00.000Z', benchmark: { cold_process_total_ms: 39 } },
-      { sample_id: 'sample_2', generated_at: '2026-04-15T00:01:00.000Z', benchmark: { cold_process_total_ms: 40 } },
-      { sample_id: 'sample_3', generated_at: '2026-04-15T00:02:00.000Z', benchmark: { cold_process_total_ms: 41 } },
-    ],
-    benchmark: {
-      cold_process_total_ms: 40,
-    },
-  };
+  const repeatedBenchmark = buildRepeatedBenchmarkArtifact();
 
   await writeFile(fixture.expectedBenchmarkPath, `${JSON.stringify(repeatedBenchmark, null, 2)}\n`);
   await writeFile(
@@ -283,29 +309,10 @@ test('runValidationSuite accepts repeated benchmark artifacts with additive fiel
 
 test('runValidationSuite rejects mismatched repeated benchmark metadata', async function () {
   const fixture = await createValidationFixture();
-  const expectedBenchmark = {
-    benchmark_format_version: 3,
-    benchmark_repeat_count: 5,
-    benchmark_aggregate_basis: 'median',
-    benchmark_representative_sample_index: 2,
-    benchmark_representative_sample_id: 'sample_3',
-    benchmark_metric_statistics: {
-      cold_process_total_ms: {
-        sample_count: 5,
-        values_ms: [39, 40, 41, 42, 43],
-      },
-    },
-    benchmark_samples: [
-      { sample_id: 'sample_1', generated_at: '2026-04-15T00:00:00.000Z', benchmark: { cold_process_total_ms: 39 } },
-      { sample_id: 'sample_2', generated_at: '2026-04-15T00:01:00.000Z', benchmark: { cold_process_total_ms: 40 } },
-      { sample_id: 'sample_3', generated_at: '2026-04-15T00:02:00.000Z', benchmark: { cold_process_total_ms: 41 } },
-      { sample_id: 'sample_4', generated_at: '2026-04-15T00:03:00.000Z', benchmark: { cold_process_total_ms: 42 } },
-      { sample_id: 'sample_5', generated_at: '2026-04-15T00:04:00.000Z', benchmark: { cold_process_total_ms: 43 } },
-    ],
-    benchmark: {
-      cold_process_total_ms: 41,
-    },
-  };
+  const expectedBenchmark = buildRepeatedBenchmarkArtifact({
+    coldProcessValues: [39, 40, 41, 42, 43],
+    representativeSampleIndex: 2,
+  });
   const actualBenchmark = {
     ...expectedBenchmark,
     benchmark_repeat_count: 3,
@@ -331,6 +338,105 @@ test('runValidationSuite rejects mismatched repeated benchmark metadata', async 
         runBenchmark: true,
       }),
       /benchmark repeat count mismatch/,
+    );
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('runValidationSuite rejects repeated benchmark artifacts missing timing statistics', async function () {
+  const fixture = await createValidationFixture();
+  const expectedBenchmark = buildRepeatedBenchmarkArtifact({
+    coldFindingsValues: [120, 100, 140],
+  });
+  const actualBenchmark = structuredClone(expectedBenchmark);
+  delete actualBenchmark.benchmark_metric_statistics['cold.findings.elapsed_ms'];
+
+  await writeFile(fixture.expectedBenchmarkPath, `${JSON.stringify(expectedBenchmark, null, 2)}\n`);
+  await writeFile(
+    fixture.benchmarkScript,
+    [
+      'import { writeFile } from "node:fs/promises";',
+      '',
+      `const actualBenchmark = ${JSON.stringify(actualBenchmark)};`,
+      'await writeFile(process.env.OUTPUT_PATH, `${JSON.stringify(actualBenchmark, null, 2)}\\n`);',
+      '',
+    ].join('\n'),
+  );
+
+  try {
+    await assert.rejects(
+      runFixtureValidation(fixture, {
+        runGoldens: false,
+        runBenchmark: true,
+      }),
+      /missing benchmark metric statistics for cold\.findings\.elapsed_ms/,
+    );
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('runValidationSuite rejects repeated benchmark artifacts with sample/statistics mismatches', async function () {
+  const fixture = await createValidationFixture();
+  const expectedBenchmark = buildRepeatedBenchmarkArtifact({
+    coldFindingsValues: [120, 100, 140],
+  });
+  const actualBenchmark = structuredClone(expectedBenchmark);
+  actualBenchmark.benchmark_metric_statistics['cold.findings.elapsed_ms'].values_ms = [120, 101, 140];
+
+  await writeFile(fixture.expectedBenchmarkPath, `${JSON.stringify(expectedBenchmark, null, 2)}\n`);
+  await writeFile(
+    fixture.benchmarkScript,
+    [
+      'import { writeFile } from "node:fs/promises";',
+      '',
+      `const actualBenchmark = ${JSON.stringify(actualBenchmark)};`,
+      'await writeFile(process.env.OUTPUT_PATH, `${JSON.stringify(actualBenchmark, null, 2)}\\n`);',
+      '',
+    ].join('\n'),
+  );
+
+  try {
+    await assert.rejects(
+      runFixtureValidation(fixture, {
+        runGoldens: false,
+        runBenchmark: true,
+      }),
+      /benchmark statistics mismatch for cold\.findings\.elapsed_ms/,
+    );
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('runValidationSuite rejects repeated benchmark artifacts with benchmark median mismatches', async function () {
+  const fixture = await createValidationFixture();
+  const expectedBenchmark = buildRepeatedBenchmarkArtifact({
+    coldFindingsValues: [120, 100, 140],
+  });
+  const actualBenchmark = structuredClone(expectedBenchmark);
+  actualBenchmark.benchmark.cold.findings.elapsed_ms = 101;
+
+  await writeFile(fixture.expectedBenchmarkPath, `${JSON.stringify(expectedBenchmark, null, 2)}\n`);
+  await writeFile(
+    fixture.benchmarkScript,
+    [
+      'import { writeFile } from "node:fs/promises";',
+      '',
+      `const actualBenchmark = ${JSON.stringify(actualBenchmark)};`,
+      'await writeFile(process.env.OUTPUT_PATH, `${JSON.stringify(actualBenchmark, null, 2)}\\n`);',
+      '',
+    ].join('\n'),
+  );
+
+  try {
+    await assert.rejects(
+      runFixtureValidation(fixture, {
+        runGoldens: false,
+        runBenchmark: true,
+      }),
+      /benchmark median mismatch for cold\.findings\.elapsed_ms/,
     );
   } finally {
     await rm(fixture.root, { recursive: true, force: true });
