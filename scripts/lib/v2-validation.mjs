@@ -129,6 +129,7 @@ export async function runValidationSuite({
   keepTemp,
   runGoldens,
   runBenchmark,
+  benchmarkRepeats = null,
   skipGrammarDownload,
   repoWorkspaceRoot,
   nodeBin = process.execPath,
@@ -164,6 +165,7 @@ export async function runValidationSuite({
           COMPARE_TO: expectedBenchmarkPath,
           FAIL_ON_REGRESSION: '1',
           FAIL_ON_NONCOMPARABLE: '1',
+          ...(benchmarkRepeats ? { BENCHMARK_REPEATS: benchmarkRepeats } : {}),
           SENTRUX_SKIP_GRAMMAR_DOWNLOAD: skipGrammarDownload,
         },
       });

@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { cp, mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -64,6 +64,50 @@ function hashFileContents(targetPath) {
   return createHash('sha256').update(readFileSync(targetPath)).digest('hex');
 }
 
+function updateDirectoryHash(hash, rootPath, currentPath) {
+  const entries = readdirSync(currentPath, { withFileTypes: true }).sort(function compareEntries(left, right) {
+    return left.name.localeCompare(right.name);
+  });
+
+  for (const entry of entries) {
+    if (entry.name === '.git') {
+      continue;
+    }
+
+    const entryPath = path.join(currentPath, entry.name);
+    const relPath = path.relative(rootPath, entryPath).split(path.sep).join('/');
+    const entryStat = statSync(entryPath);
+
+    hash.update(relPath);
+    hash.update('\0');
+    if (entryStat.isDirectory()) {
+      hash.update('directory');
+      hash.update('\0');
+      updateDirectoryHash(hash, rootPath, entryPath);
+      continue;
+    }
+
+    hash.update(hashFileContents(entryPath));
+    hash.update('\0');
+  }
+}
+
+function hashDirectoryContents(targetPath) {
+  const hash = createHash('sha256');
+  hash.update('directory-contents-fingerprint-v1\0');
+  updateDirectoryHash(hash, targetPath, targetPath);
+  return hash.digest('hex');
+}
+
+function hashPathIdentity(targetPath) {
+  const stat = statSync(targetPath);
+  if (stat.isDirectory()) {
+    return hashDirectoryContents(targetPath);
+  }
+
+  return hashFileContents(targetPath);
+}
+
 function fingerprintPathList(repoRoot, relPaths) {
   const hash = createHash('sha256');
   hash.update('repo-tree-fingerprint-v1\0');
@@ -75,7 +119,7 @@ function fingerprintPathList(repoRoot, relPaths) {
     hash.update('\0');
 
     if (existsSync(absPath)) {
-      hash.update(hashFileContents(absPath));
+      hash.update(hashPathIdentity(absPath));
     } else {
       hash.update('deleted');
     }
@@ -99,6 +143,14 @@ function dirtyPathsForRepo(repoRoot) {
 export function collectFileIdentity(targetPath) {
   if (!targetPath) {
     return null;
+  }
+
+  if (existsSync(targetPath) && statSync(targetPath).isDirectory()) {
+    return {
+      path: targetPath,
+      exists: true,
+      sha256: null,
+    };
   }
 
   return {
