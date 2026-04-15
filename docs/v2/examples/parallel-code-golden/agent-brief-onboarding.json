@@ -1,7 +1,68 @@
 {
+  "action_count": 3,
+  "actions": [
+    {
+      "blocking": true,
+      "confidence": "high",
+      "evidence": [
+        "src/runtime/browser-state-sync-controller.ts:255 [disposed]",
+        "src/runtime/browser-state-sync-controller.ts:265 [scheduled]",
+        "src/runtime/browser-state-sync-controller.ts:270 [idle]",
+        "src/runtime/browser-state-sync-controller.ts:45 [idle]",
+        "src/runtime/browser-state-sync-controller.ts:46 [scheduled]",
+        "src/runtime/browser-state-sync-controller.ts:47 [disposed]",
+        "src/runtime/browser-state-sync-controller.ts:86 [disposed]",
+        "src/runtime/browser-state-sync-controller.ts:101 [idle]",
+        "missing transition source 'disposed'",
+        "missing transition source 'idle'",
+        "missing transition source 'scheduled'"
+      ],
+      "file": "src/runtime/browser-state-sync-controller.ts",
+      "fix_hint": null,
+      "kind": "state_model_transition_coverage_gap",
+      "line": null,
+      "message": "State model 'browser_state_sync' has 8 transition branch(es) without an explicit next-state mapping and 3 uncovered source variant(s)",
+      "origin": "explicit",
+      "priority": 1,
+      "scope": "browser_state_sync",
+      "source": "rules"
+    },
+    {
+      "blocking": true,
+      "confidence": "high",
+      "evidence": [
+        "src/app/server-state-bootstrap.ts"
+      ],
+      "file": "src/app/server-state-bootstrap.ts",
+      "fix_hint": null,
+      "kind": "state_model_missing_transition_sites",
+      "line": null,
+      "message": "State model 'server_state_bootstrap_gate' has no explicit transition sites under its configured roots",
+      "origin": "explicit",
+      "priority": 2,
+      "scope": "server_state_bootstrap_gate",
+      "source": "rules"
+    },
+    {
+      "blocking": true,
+      "confidence": "high",
+      "evidence": [
+        "BrowserStateSyncStatus"
+      ],
+      "file": "src/runtime/browser-state-sync-controller.ts",
+      "fix_hint": null,
+      "kind": "state_model_high_context_burden",
+      "line": null,
+      "message": "State model 'browser_state_sync' has high static context burden (12)",
+      "origin": "explicit",
+      "priority": 3,
+      "scope": "browser_state_sync",
+      "source": "rules"
+    }
+  ],
   "confidence": {
     "rule_coverage_0_10000": 10000,
-    "scan_confidence_0_10000": 8302,
+    "scan_confidence_0_10000": 8552,
     "semantic_rules_loaded": true,
     "session_baseline": {
       "compatible": false,
@@ -11,32 +72,25 @@
     }
   },
   "decision": "fix_now",
-  "do_not_chase": [
-    {
-      "kind": "dead_private_code_cluster",
-      "reason": "experimental_detector",
-      "scope": "src/components/TaskPanel.tsx",
-      "summary": "File 'src/components/TaskPanel.tsx' contains 5 uncalled private functions totaling 9 lines"
+  "diagnostics": {
+    "availability": {
+      "evolution": true
     },
-    {
-      "kind": "dead_private_code_cluster",
-      "reason": "experimental_detector",
-      "scope": "src/components/PreviewPanel.tsx",
-      "summary": "File 'src/components/PreviewPanel.tsx' contains 4 uncalled private functions totaling 4 lines"
+    "errors": {
+      "context": null,
+      "rules": null,
+      "semantic": null
     },
-    {
-      "kind": "dead_private_code_cluster",
-      "reason": "experimental_detector",
-      "scope": "src/components/ReviewPanel.tsx",
-      "summary": "File 'src/components/ReviewPanel.tsx' contains 4 uncalled private functions totaling 4 lines"
-    }
-  ],
-  "do_not_chase_count": 3,
+    "partial_results": false,
+    "warnings": []
+  },
+  "do_not_chase": [],
+  "do_not_chase_count": 0,
   "expired_suppression_match_count": 0,
   "expired_suppressions": [],
   "freshness": {
     "baseline_loaded": false,
-    "git_head": "515044a4bd3867142d6fff31bcbb0a31d76e34c5",
+    "git_head": "12d9cb5113e9050facc611584c92a881fd2dbed2",
     "session_baseline_compatible": false,
     "working_tree_path_count": 0
   },
@@ -48,30 +102,16 @@
   "primary_targets": [
     {
       "inspection_focus": [],
-      "kind": "closed_domain_exhaustiveness",
-      "leverage_class": "hardening_note",
+      "kind": "exact_clone_group",
+      "leverage_class": "secondary_cleanup",
       "likely_fix_sites": [
-        "src/components/app-shell/AppConnectionBanner.tsx",
-        "src/runtime/browser-session.ts"
+        "electron/remote/ws-server.ts",
+        "server/browser-websocket.ts"
       ],
-      "next_tools": [
-        {
-          "args": {
-            "id": "ConnectionBannerState"
-          },
-          "tool": "explain_concept"
-        },
-        {
-          "args": {
-            "concept": "ConnectionBannerState",
-            "scope": "all"
-          },
-          "tool": "obligations"
-        }
-      ],
-      "scope": "ConnectionBannerState",
+      "next_tools": [],
+      "scope": "electron/remote/ws-server.ts|server/browser-websocket.ts",
       "severity": "high",
-      "summary": "Closed domain 'ConnectionBannerState' is missing coverage for variants: connecting, reconnecting, restoring (moderate_signal)",
+      "summary": "2 functions share an identical normalized body across recently changed files (moderate_signal)",
       "trust_tier": "trusted",
       "why_now": [
         "high_trust",
@@ -80,29 +120,16 @@
     },
     {
       "inspection_focus": [],
-      "kind": "state_model_transition_coverage_gap",
+      "kind": "exact_clone_group",
       "leverage_class": "secondary_cleanup",
       "likely_fix_sites": [
-        "src/runtime/browser-state-sync-controller.ts"
+        "src/components/AgentGlyph.tsx",
+        "src/remote/RemoteAgentGlyph.tsx"
       ],
-      "next_tools": [
-        {
-          "args": {
-            "id": "browser_state_sync"
-          },
-          "tool": "explain_concept"
-        },
-        {
-          "args": {
-            "concept": "browser_state_sync",
-            "scope": "all"
-          },
-          "tool": "obligations"
-        }
-      ],
-      "scope": "browser_state_sync",
+      "next_tools": [],
+      "scope": "src/components/AgentGlyph.tsx|src/remote/RemoteAgentGlyph.tsx",
       "severity": "high",
-      "summary": "State model 'browser_state_sync' has 8 transition branch(es) without an explicit next-state mapping and 3 uncovered source variant(s) (moderate_signal)",
+      "summary": "2 functions share an identical normalized body across recently changed files (moderate_signal)",
       "trust_tier": "trusted",
       "why_now": [
         "high_trust",
@@ -110,26 +137,20 @@
       ]
     },
     {
-      "inspection_focus": [
-        "inspect whether the best cut keeps component-facing barrel access while moving deeper orchestration behind a narrower seam",
-        "inspect whether app or runtime dependencies can stop flowing back through the shared barrel"
-      ],
-      "kind": "cycle_cluster",
-      "leverage_class": "architecture_signal",
+      "inspection_focus": [],
+      "kind": "exact_clone_group",
+      "leverage_class": "secondary_cleanup",
       "likely_fix_sites": [
-        "src/app/task-command-lease-runtime-subscriptions.ts",
-        "src/app/task-command-lease-runtime.ts",
-        "src/app/task-command-lease-session.ts",
-        "src/app/task-command-lease-takeover.ts",
-        "src/app/task-command-lease.ts"
+        "scripts/profile-terminal-input-latency.mjs",
+        "scripts/profile-terminal-ui-fluidity.mjs"
       ],
       "next_tools": [],
-      "scope": "cycle:src/app/task-command-lease-runtime-subscriptions.ts|src/app/task-command-lease-runtime.ts|src/app/task-command-lease-session.ts|src/app/task-command-lease-takeover.ts|src/app/task-command-lease.ts|src/app/task-presentation-status.ts|src/lib/runtime-client-id.ts|src/store/agent-output-activity.ts|src/store/agents.ts|src/store/auto-trust.ts|src/store/client-session.ts|src/store/completion.ts|src/store/core.ts|src/store/focus.ts|src/store/navigation.ts|src/store/notification.ts|src/store/peer-presence.ts|src/store/persistence-codecs.ts|src/store/persistence-load-context.ts|src/store/persistence-load.ts|src/store/persistence-projects.ts|src/store/persistence-save.ts|src/store/persistence-terminal-restore.ts|src/store/persistence.ts|src/store/projects.ts|src/store/review.ts|src/store/sidebar-order.ts|src/store/state.ts|src/store/store.ts|src/store/task-command-controllers.ts|src/store/task-command-takeovers.ts|src/store/task-git-status.ts|src/store/task-state-cleanup.ts|src/store/taskStatus.ts|src/store/tasks.ts|src/store/terminals.ts|src/store/ui.ts",
+      "scope": "scripts/profile-terminal-input-latency.mjs|scripts/profile-terminal-ui-fluidity.mjs",
       "severity": "high",
-      "summary": "Files src/app/task-command-lease-runtime-subscriptions.ts, src/app/task-command-lease-runtime.ts, src/app/task-command-lease-session.ts, src/app/task-command-lease-takeover.ts, src/app/task-command-lease.ts, src/app/task-presentation-status.ts, src/lib/runtime-client-id.ts, src/store/agent-output-activity.ts, src/store/agents.ts, src/store/auto-trust.ts, src/store/client-session.ts, src/store/completion.ts, src/store/core.ts, src/store/focus.ts, src/store/navigation.ts, src/store/notification.ts, src/store/peer-presence.ts, src/store/persistence-codecs.ts, src/store/persistence-load-context.ts, src/store/persistence-load.ts, src/store/persistence-projects.ts, src/store/persistence-save.ts, src/store/persistence-terminal-restore.ts, src/store/persistence.ts, src/store/projects.ts, src/store/review.ts, src/store/sidebar-order.ts, src/store/state.ts, src/store/store.ts, src/store/task-command-controllers.ts, src/store/task-command-takeovers.ts, src/store/task-git-status.ts, src/store/task-state-cleanup.ts, src/store/taskStatus.ts, src/store/tasks.ts, src/store/terminals.ts, src/store/ui.ts form a dependency cycle (very_high_signal)",
-      "trust_tier": "watchpoint",
+      "summary": "2 functions share an identical normalized body across recently changed files (moderate_signal)",
+      "trust_tier": "trusted",
       "why_now": [
-        "high_leverage",
+        "high_trust",
         "clear_fix_surface"
       ]
     }
@@ -140,53 +161,52 @@
     ],
     "effective_archetypes": [],
     "primary_archetype": null,
-    "starter_rules_toml": "[project]\nprimary_language = \"typescript\"\nexclude = [\"vendor/**\", \"dist/**\", \"coverage/**\", \"build/**\", \"node_modules/**\"]\n\n# Candidate boundary roots detected from repo shape:\n# - client_state at src/store (top-level client state layer detected)\n"
+    "starter_rules_toml": "[project]\nprimary_language = \"typescript\"\nexclude = [\"vendor/**\", \"dist/**\", \"coverage/**\", \"build/**\", \"node_modules/**\"]\n\n# Candidate boundary roots detected from repo shape:\n# - client_state at src/store (top-level client state layer detected)\n",
+    "working_rules_toml": "[project]\nprimary_language = \"typescript\"\nexclude = [\"vendor/**\", \"dist/**\", \"coverage/**\", \"build/**\", \"node_modules/**\"]\n"
   },
   "resolved_finding_count": 0,
   "resolved_findings": [],
-  "rules_error": null,
   "scan_trust": {
-    "candidate_files": 789,
+    "candidate_files": 967,
     "exclusions": {
       "bucketed": {
         "build": 12,
         "cache": 0,
-        "fixture": 7,
+        "fixture": 13,
         "generated": 0,
         "vendor": 102
       },
       "ignored_extension": 11,
       "metadata_error": 0,
       "too_large": 2,
-      "total": 134
+      "total": 140
     },
     "fallback_reason": null,
-    "kept_files": 655,
+    "kept_files": 827,
     "mode": "git",
-    "overall_confidence_0_10000": 8302,
+    "overall_confidence_0_10000": 8552,
     "partial": false,
     "resolution": {
-      "internal_confidence_0_10000": 9995,
-      "resolved": 2008,
-      "unresolved_external": 533,
+      "internal_confidence_0_10000": 9996,
+      "resolved": 2675,
+      "unresolved_external": 770,
       "unresolved_internal": 1,
-      "unresolved_unknown": 86
+      "unresolved_unknown": 112
     },
-    "scope_coverage_0_10000": 8302,
-    "tracked_candidates": 789,
+    "scope_coverage_0_10000": 8552,
+    "tracked_candidates": 967,
     "truncated": false,
     "untracked_candidates": 0
   },
   "semantic_cache": {
-    "analyzed_files": 573,
+    "analyzed_files": 700,
     "available": true,
     "bridge_protocol_version": "0.1.0",
-    "git_head": "515044a4bd3867142d6fff31bcbb0a31d76e34c5",
+    "git_head": "12d9cb5113e9050facc611584c92a881fd2dbed2",
     "project_fingerprint": "bd376b35c69fd0f7",
     "source": "memory",
     "working_tree_path_count": 0
   },
-  "semantic_error": null,
   "summary": "repo onboarding brief with 3 primary target(s) and 3 watchpoint(s)",
   "suppressed_finding_count": 0,
   "suppression_hits": [],
@@ -195,29 +215,37 @@
     {
       "boundary_pressure_count": 0,
       "candidate_split_axes": [
-        "guarded boundary cut",
-        "app store boundary"
+        "app store boundary",
+        "guarded boundary cut"
       ],
       "clone_family_count": 0,
       "evidence": [
-        "cycle size: 37",
-        "total lines in cycle: 5535",
+        "cycle size: 51",
+        "total lines in cycle: 10026",
         "peak function complexity inside cycle: 72",
         "candidate cuts: 3",
-        "best cut candidate: src/store/core.ts -> src/store/store.ts (removes 9 cyclic files)",
-        "role tags in cycle: guarded_seam, state_container, guarded_boundary, component_barrel"
+        "best cut candidate: src/store/types.ts -> src/app/markdown-viewer.ts (removes 13 cyclic files)",
+        "role tags in cycle: guarded_seam, transport_facade, state_container, guarded_boundary, component_barrel"
       ],
       "files": [
+        "src/app/markdown-viewer.ts",
         "src/app/task-command-lease-runtime-subscriptions.ts",
         "src/app/task-command-lease-runtime.ts",
         "src/app/task-command-lease-session.ts",
         "src/app/task-command-lease-takeover.ts",
         "src/app/task-command-lease.ts",
         "src/app/task-presentation-status.ts",
+        "src/domain/browser-cold-bootstrap.ts",
+        "src/domain/renderer-invoke.ts",
+        "src/domain/task-closing.ts",
+        "src/lib/browser-http-ipc.ts",
+        "src/lib/dialog.ts",
+        "src/lib/ipc.ts",
         "src/lib/runtime-client-id.ts",
         "src/store/agent-output-activity.ts",
         "src/store/agents.ts",
         "src/store/auto-trust.ts",
+        "src/store/browser-cold-bootstrap-projection.ts",
         "src/store/client-session.ts",
         "src/store/completion.ts",
         "src/store/core.ts",
@@ -225,25 +253,31 @@
         "src/store/navigation.ts",
         "src/store/notification.ts",
         "src/store/peer-presence.ts",
+        "src/store/persistence-agent-defaults.ts",
         "src/store/persistence-codecs.ts",
+        "src/store/persistence-legacy-state.ts",
         "src/store/persistence-load-context.ts",
         "src/store/persistence-load.ts",
         "src/store/persistence-projects.ts",
         "src/store/persistence-save.ts",
+        "src/store/persistence-task-hydration.ts",
         "src/store/persistence-terminal-restore.ts",
         "src/store/persistence.ts",
         "src/store/projects.ts",
         "src/store/review.ts",
         "src/store/sidebar-order.ts",
+        "src/store/sidebar-section-state.ts",
         "src/store/state.ts",
         "src/store/store.ts",
         "src/store/task-command-controllers.ts",
         "src/store/task-command-takeovers.ts",
+        "src/store/task-git-isolation.ts",
         "src/store/task-git-status.ts",
         "src/store/task-state-cleanup.ts",
         "src/store/taskStatus.ts",
         "src/store/tasks.ts",
         "src/store/terminals.ts",
+        "src/store/types.ts",
         "src/store/ui.ts"
       ],
       "hotspot_count": 0,
@@ -264,29 +298,29 @@
       "missing_site_count": 0,
       "presentation_class": "watchpoint",
       "related_surfaces": [
+        "src/store/types.ts",
+        "src/app/markdown-viewer.ts",
         "src/store/core.ts",
         "src/store/store.ts",
-        "src/store/auto-trust.ts",
-        "src/app/task-command-lease.ts",
-        "src/store/persistence-codecs.ts",
+        "src/store/notification.ts",
         "src/app/task-command-lease-runtime-subscriptions.ts",
-        "src/app/task-command-lease-runtime.ts",
-        "src/app/task-command-lease-session.ts"
+        "src/app/task-command-lease-runtime.ts"
       ],
       "role_tags": [
         "guarded_seam",
+        "transport_facade",
         "state_container",
         "guarded_boundary",
         "component_barrel"
       ],
-      "scope": "cycle:src/app/task-command-lease-runtime-subscriptions.ts|src/app/task-command-lease-runtime.ts|src/app/task-command-lease-session.ts|src/app/task-command-lease-takeover.ts|src/app/task-command-lease.ts|src/app/task-presentation-status.ts|src/lib/runtime-client-id.ts|src/store/agent-output-activity.ts|src/store/agents.ts|src/store/auto-trust.ts|src/store/client-session.ts|src/store/completion.ts|src/store/core.ts|src/store/focus.ts|src/store/navigation.ts|src/store/notification.ts|src/store/peer-presence.ts|src/store/persistence-codecs.ts|src/store/persistence-load-context.ts|src/store/persistence-load.ts|src/store/persistence-projects.ts|src/store/persistence-save.ts|src/store/persistence-terminal-restore.ts|src/store/persistence.ts|src/store/projects.ts|src/store/review.ts|src/store/sidebar-order.ts|src/store/state.ts|src/store/store.ts|src/store/task-command-controllers.ts|src/store/task-command-takeovers.ts|src/store/task-git-status.ts|src/store/task-state-cleanup.ts|src/store/taskStatus.ts|src/store/tasks.ts|src/store/terminals.ts|src/store/ui.ts",
+      "scope": "cycle:src/app/markdown-viewer.ts|src/app/task-command-lease-runtime-subscriptions.ts|src/app/task-command-lease-runtime.ts|src/app/task-command-lease-session.ts|src/app/task-command-lease-takeover.ts|src/app/task-command-lease.ts|src/app/task-presentation-status.ts|src/domain/browser-cold-bootstrap.ts|src/domain/renderer-invoke.ts|src/domain/task-closing.ts|src/lib/browser-http-ipc.ts|src/lib/dialog.ts|src/lib/ipc.ts|src/lib/runtime-client-id.ts|src/store/agent-output-activity.ts|src/store/agents.ts|src/store/auto-trust.ts|src/store/browser-cold-bootstrap-projection.ts|src/store/client-session.ts|src/store/completion.ts|src/store/core.ts|src/store/focus.ts|src/store/navigation.ts|src/store/notification.ts|src/store/peer-presence.ts|src/store/persistence-agent-defaults.ts|src/store/persistence-codecs.ts|src/store/persistence-legacy-state.ts|src/store/persistence-load-context.ts|src/store/persistence-load.ts|src/store/persistence-projects.ts|src/store/persistence-save.ts|src/store/persistence-task-hydration.ts|src/store/persistence-terminal-restore.ts|src/store/persistence.ts|src/store/projects.ts|src/store/review.ts|src/store/sidebar-order.ts|src/store/sidebar-section-state.ts|src/store/state.ts|src/store/store.ts|src/store/task-command-controllers.ts|src/store/task-command-takeovers.ts|src/store/task-git-isolation.ts|src/store/task-git-status.ts|src/store/task-state-cleanup.ts|src/store/taskStatus.ts|src/store/tasks.ts|src/store/terminals.ts|src/store/types.ts|src/store/ui.ts",
       "score_0_10000": 10000,
       "severity": "high",
       "signal_families": [
         "dependency",
         "layering"
       ],
-      "summary": "Files src/app/task-command-lease-runtime-subscriptions.ts, src/app/task-command-lease-runtime.ts, src/app/task-command-lease-session.ts, src/app/task-command-lease-takeover.ts, src/app/task-command-lease.ts, src/app/task-presentation-status.ts, src/lib/runtime-client-id.ts, src/store/agent-output-activity.ts, src/store/agents.ts, src/store/auto-trust.ts, src/store/client-session.ts, src/store/completion.ts, src/store/core.ts, src/store/focus.ts, src/store/navigation.ts, src/store/notification.ts, src/store/peer-presence.ts, src/store/persistence-codecs.ts, src/store/persistence-load-context.ts, src/store/persistence-load.ts, src/store/persistence-projects.ts, src/store/persistence-save.ts, src/store/persistence-terminal-restore.ts, src/store/persistence.ts, src/store/projects.ts, src/store/review.ts, src/store/sidebar-order.ts, src/store/state.ts, src/store/store.ts, src/store/task-command-controllers.ts, src/store/task-command-takeovers.ts, src/store/task-git-status.ts, src/store/task-state-cleanup.ts, src/store/taskStatus.ts, src/store/tasks.ts, src/store/terminals.ts, src/store/ui.ts form a dependency cycle",
+      "summary": "Files src/app/markdown-viewer.ts, src/app/task-command-lease-runtime-subscriptions.ts, src/app/task-command-lease-runtime.ts, src/app/task-command-lease-session.ts, src/app/task-command-lease-takeover.ts, src/app/task-command-lease.ts, src/app/task-presentation-status.ts, src/domain/browser-cold-bootstrap.ts, src/domain/renderer-invoke.ts, src/domain/task-closing.ts, src/lib/browser-http-ipc.ts, src/lib/dialog.ts, src/lib/ipc.ts, src/lib/runtime-client-id.ts, src/store/agent-output-activity.ts, src/store/agents.ts, src/store/auto-trust.ts, src/store/browser-cold-bootstrap-projection.ts, src/store/client-session.ts, src/store/completion.ts, src/store/core.ts, src/store/focus.ts, src/store/navigation.ts, src/store/notification.ts, src/store/peer-presence.ts, src/store/persistence-agent-defaults.ts, src/store/persistence-codecs.ts, src/store/persistence-legacy-state.ts, src/store/persistence-load-context.ts, src/store/persistence-load.ts, src/store/persistence-projects.ts, src/store/persistence-save.ts, src/store/persistence-task-hydration.ts, src/store/persistence-terminal-restore.ts, src/store/persistence.ts, src/store/projects.ts, src/store/review.ts, src/store/sidebar-order.ts, src/store/sidebar-section-state.ts, src/store/state.ts, src/store/store.ts, src/store/task-command-controllers.ts, src/store/task-command-takeovers.ts, src/store/task-git-isolation.ts, src/store/task-git-status.ts, src/store/task-state-cleanup.ts, src/store/taskStatus.ts, src/store/tasks.ts, src/store/terminals.ts, src/store/types.ts, src/store/ui.ts form a dependency cycle",
       "trust_tier": "watchpoint"
     },
     {
@@ -297,8 +331,8 @@
       "clone_family_count": 0,
       "evidence": [
         "cycle size: 2",
-        "total lines in cycle: 133",
-        "peak function complexity inside cycle: 4",
+        "total lines in cycle: 170",
+        "peak function complexity inside cycle: 5",
         "candidate cuts: 2",
         "best cut candidate: electron/ipc/handlers.ts -> electron/ipc/notification-handlers.ts (removes 2 cyclic files)",
         "role tags: none"
@@ -327,7 +361,7 @@
       ],
       "role_tags": [],
       "scope": "cycle:electron/ipc/handlers.ts|electron/ipc/notification-handlers.ts",
-      "score_0_10000": 6829,
+      "score_0_10000": 6832,
       "severity": "high",
       "signal_families": [
         "dependency",
@@ -346,7 +380,7 @@
       "clone_family_count": 1,
       "evidence": [
         "4 exact clone groups repeat across 2 files",
-        "highest-risk representative exact clone scores 70",
+        "highest-risk representative exact clone scores 74",
         "2 family file(s) changed within the last 30 day(s)"
       ],
       "files": [
@@ -373,13 +407,13 @@
       ],
       "role_tags": [],
       "scope": "clone-family-0x7e50d49dc16ef925",
-      "score_0_10000": 86,
+      "score_0_10000": 90,
       "severity": "high",
       "signal_families": [
         "duplication",
         "drift"
       ],
-      "summary": "4 exact clone groups repeat across 2 files and churn differs by 0 recent commit(s) across siblings; sibling file age spans 1 day(s)",
+      "summary": "4 exact clone groups repeat across 2 files and churn differs by 1 recent commit(s) across siblings; sibling file age spans 5 day(s)",
       "trust_tier": "watchpoint"
     }
   ]

@@ -30,9 +30,18 @@
       "src/components/SidebarTaskRow.architecture.test.ts"
     ]
   },
+  "diagnostics": {
+    "errors": {
+      "rules": null,
+      "semantic": null
+    },
+    "partial_results": false,
+    "warnings": []
+  },
   "expired_suppression_match_count": 0,
   "expired_suppressions": [],
   "findings": [],
+  "kind": "explain_concept",
   "obligations": [],
   "parity": [],
   "related_contract_ids": [],
@@ -64,47 +73,52 @@
       "pattern": "src/components/SidebarTaskRow.architecture.test.ts"
     }
   ],
-  "rules_error": null,
   "semantic": {
     "reads": [
       {
-        "line": 201,
+        "line": 93,
+        "path": "src/store/task-git-status.ts",
+        "read_kind": "property_access",
+        "symbol_name": "store.taskGitStatus"
+      },
+      {
+        "line": 266,
         "path": "src/app/task-presentation-status.ts",
         "read_kind": "property_access",
         "symbol_name": "store.taskGitStatus"
       },
       {
-        "line": 295,
+        "line": 520,
         "path": "src/app/task-workflows.control.test.ts",
         "read_kind": "element_access",
         "symbol_name": "store.taskGitStatus.task-1"
       },
       {
-        "line": 295,
+        "line": 520,
         "path": "src/app/task-workflows.control.test.ts",
         "read_kind": "property_access",
         "symbol_name": "store.taskGitStatus"
       },
       {
-        "line": 888,
+        "line": 1106,
         "path": "src/store/persistence.test.ts",
         "read_kind": "element_access",
         "symbol_name": "store.taskGitStatus.task-1"
       },
       {
-        "line": 888,
+        "line": 1106,
         "path": "src/store/persistence.test.ts",
         "read_kind": "property_access",
         "symbol_name": "store.taskGitStatus"
       },
       {
-        "line": 1127,
+        "line": 1489,
         "path": "src/store/persistence.test.ts",
         "read_kind": "element_access",
         "symbol_name": "store.taskGitStatus.task-1"
       },
       {
-        "line": 1127,
+        "line": 1489,
         "path": "src/store/persistence.test.ts",
         "read_kind": "property_access",
         "symbol_name": "store.taskGitStatus"
@@ -112,50 +126,79 @@
     ],
     "writes": [
       {
-        "line": 97,
+        "line": 107,
         "path": "src/store/task-git-status.ts",
         "symbol_name": "store.taskGitStatus.*",
         "write_kind": "store_call"
       },
       {
-        "line": 114,
+        "line": 126,
         "path": "src/store/task-git-status.ts",
         "symbol_name": "store.taskGitStatus.*",
         "write_kind": "store_call"
       },
       {
-        "line": 142,
+        "line": 159,
         "path": "src/store/task-git-status.ts",
         "symbol_name": "store.taskGitStatus",
         "write_kind": "store_call"
       },
       {
-        "line": 175,
+        "line": 666,
         "path": "src/app/task-presentation-status.test.ts",
         "symbol_name": "store.taskGitStatus",
         "write_kind": "store_call"
       },
       {
-        "line": 237,
+        "line": 462,
         "path": "src/app/task-workflows.control.test.ts",
         "symbol_name": "store.taskGitStatus",
         "write_kind": "store_call"
       },
       {
-        "line": 846,
+        "line": 83,
+        "path": "src/components/CloseTaskDialog.test.tsx",
+        "symbol_name": "store.taskGitStatus.task-1",
+        "write_kind": "store_call"
+      },
+      {
+        "line": 112,
+        "path": "src/components/CloseTaskDialog.test.tsx",
+        "symbol_name": "store.taskGitStatus.task-1",
+        "write_kind": "store_call"
+      },
+      {
+        "line": 143,
+        "path": "src/components/MergeDialog.test.tsx",
+        "symbol_name": "store.taskGitStatus.task-1",
+        "write_kind": "store_call"
+      },
+      {
+        "line": 189,
+        "path": "src/components/MergeDialog.test.tsx",
+        "symbol_name": "store.taskGitStatus.task-1",
+        "write_kind": "store_call"
+      },
+      {
+        "line": 274,
+        "path": "src/components/MergeDialog.test.tsx",
+        "symbol_name": "store.taskGitStatus.task-1",
+        "write_kind": "store_call"
+      },
+      {
+        "line": 1064,
         "path": "src/store/persistence.test.ts",
         "symbol_name": "store.taskGitStatus",
         "write_kind": "store_call"
       },
       {
-        "line": 1091,
+        "line": 1450,
         "path": "src/store/persistence.test.ts",
         "symbol_name": "store.taskGitStatus",
         "write_kind": "store_call"
       }
     ]
   },
-  "semantic_error": null,
   "suppressed_finding_count": 0,
   "suppression_hits": []
 }

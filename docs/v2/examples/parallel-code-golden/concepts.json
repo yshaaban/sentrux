@@ -115,6 +115,14 @@
       ]
     }
   ],
+  "diagnostics": {
+    "errors": {
+      "rules": null,
+      "semantic": null
+    },
+    "partial_results": false,
+    "warnings": []
+  },
   "guardrail_tests": [
     {
       "matched_concepts": [],
@@ -138,9 +146,7 @@
       ],
       "matched_symbols": [
         "TaskAttentionEntry",
-        "TaskDotStatus",
         "getTaskAttentionEntry",
-        "getTaskDotStatus",
         "related_test:src/components/SidebarTaskRow.architecture.test.ts",
         "store.agentSupervision",
         "store.taskGitStatus",
@@ -161,6 +167,11 @@
     {
       "matched_concepts": [],
       "matched_symbols": [],
+      "path": "src/components/task-dialogs.architecture.test.ts"
+    },
+    {
+      "matched_concepts": [],
+      "matched_symbols": [],
       "path": "src/components/terminal-view/terminal-session.architecture.test.ts"
     }
   ],
@@ -171,7 +182,7 @@
       ],
       "confidence_0_10000": 8500,
       "evidence": [
-        "closed domain 'AgentSupervisionState' has 5 exhaustiveness site(s)"
+        "closed domain 'AgentSupervisionState' has 7 exhaustiveness site(s)"
       ],
       "id": "agent_supervision_state",
       "kind": "closed_domain"
@@ -189,22 +200,11 @@
     },
     {
       "anchors": [
-        "src/domain/git-status.ts::ChangedFileStatusCategory"
-      ],
-      "confidence_0_10000": 8500,
-      "evidence": [
-        "closed domain 'ChangedFileStatusCategory' has 4 exhaustiveness site(s)"
-      ],
-      "id": "changed_file_status_category",
-      "kind": "closed_domain"
-    },
-    {
-      "anchors": [
         "electron/ipc/channels.ts::IPC"
       ],
       "confidence_0_10000": 8500,
       "evidence": [
-        "closed domain 'IPC' has 14 exhaustiveness site(s)"
+        "closed domain 'IPC' has 46 exhaustiveness site(s)"
       ],
       "id": "ipc",
       "kind": "closed_domain"
@@ -215,9 +215,53 @@
       ],
       "confidence_0_10000": 8500,
       "evidence": [
-        "closed domain 'RemoteAgentStatus' has 5 exhaustiveness site(s)"
+        "closed domain 'RemoteAgentStatus' has 6 exhaustiveness site(s)"
       ],
       "id": "remote_agent_status",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/app/task-presentation-status.ts::TaskActivityStatus"
+      ],
+      "confidence_0_10000": 8500,
+      "evidence": [
+        "closed domain 'TaskActivityStatus' has 4 exhaustiveness site(s)"
+      ],
+      "id": "task_activity_status",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/app/terminal-frame-pressure.ts::TerminalFramePressureLevel"
+      ],
+      "confidence_0_10000": 8500,
+      "evidence": [
+        "closed domain 'TerminalFramePressureLevel' has 4 exhaustiveness site(s)"
+      ],
+      "id": "terminal_frame_pressure_level",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/app/terminal-interactivity-governor.ts::TerminalInteractivityEchoReservationState"
+      ],
+      "confidence_0_10000": 8500,
+      "evidence": [
+        "closed domain 'TerminalInteractivityEchoReservationState' has 4 exhaustiveness site(s)"
+      ],
+      "id": "terminal_interactivity_echo_reservation_state",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/app/terminal-interactivity-governor.ts::TerminalInteractivityState"
+      ],
+      "confidence_0_10000": 8500,
+      "evidence": [
+        "closed domain 'TerminalInteractivityState' has 5 exhaustiveness site(s)"
+      ],
+      "id": "terminal_interactivity_state",
       "kind": "closed_domain"
     },
     {
@@ -226,9 +270,53 @@
       ],
       "confidence_0_10000": 8500,
       "evidence": [
-        "closed domain 'TerminalOutputPriority' has 5 exhaustiveness site(s)"
+        "closed domain 'TerminalOutputPriority' has 17 exhaustiveness site(s)"
       ],
       "id": "terminal_output_priority",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/app/terminal-switch-echo-grace.ts::TerminalSwitchEchoGraceState"
+      ],
+      "confidence_0_10000": 8500,
+      "evidence": [
+        "closed domain 'TerminalSwitchEchoGraceState' has 7 exhaustiveness site(s)"
+      ],
+      "id": "terminal_switch_echo_grace_state",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/components/terminal-view/types.ts::TerminalViewStatus"
+      ],
+      "confidence_0_10000": 8500,
+      "evidence": [
+        "closed domain 'TerminalViewStatus' has 4 exhaustiveness site(s)"
+      ],
+      "id": "terminal_view_status",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/domain/git-status.ts::ChangedFileStatusCategory"
+      ],
+      "confidence_0_10000": 8000,
+      "evidence": [
+        "closed domain 'ChangedFileStatusCategory' has 3 exhaustiveness site(s)"
+      ],
+      "id": "changed_file_status_category",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/domain/server-state.ts::ClassifiedGitStatusSyncEvent"
+      ],
+      "confidence_0_10000": 8000,
+      "evidence": [
+        "closed domain 'ClassifiedGitStatusSyncEvent' has 3 exhaustiveness site(s)"
+      ],
+      "id": "classified_git_status_sync_event",
       "kind": "closed_domain"
     },
     {
@@ -244,6 +332,17 @@
     },
     {
       "anchors": [
+        "src/remote/agent-presentation.ts::RemoteAgentGlyphKind"
+      ],
+      "confidence_0_10000": 8000,
+      "evidence": [
+        "closed domain 'RemoteAgentGlyphKind' has 3 exhaustiveness site(s)"
+      ],
+      "id": "remote_agent_glyph_kind",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
         "src/domain/server-state.ts::TaskAttentionReason"
       ],
       "confidence_0_10000": 8000,
@@ -255,6 +354,17 @@
     },
     {
       "anchors": [
+        "src/components/terminal-view/terminal-recovery-runtime.ts::TerminalRecoveryReason"
+      ],
+      "confidence_0_10000": 8000,
+      "evidence": [
+        "closed domain 'TerminalRecoveryReason' has 3 exhaustiveness site(s)"
+      ],
+      "id": "terminal_recovery_reason",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
         "src/components/AgentGlyph.tsx::AgentGlyphKind"
       ],
       "confidence_0_10000": 7500,
@@ -262,6 +372,17 @@
         "closed domain 'AgentGlyphKind' has 2 exhaustiveness site(s)"
       ],
       "id": "agent_glyph_kind",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "electron/ipc/pty.ts::AgentTerminalRecovery"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "closed domain 'AgentTerminalRecovery' has 2 exhaustiveness site(s)"
+      ],
+      "id": "agent_terminal_recovery",
       "kind": "closed_domain"
     },
     {
@@ -299,17 +420,6 @@
     },
     {
       "anchors": [
-        "src/remote/agent-presentation.ts::RemoteAgentGlyphKind"
-      ],
-      "confidence_0_10000": 7500,
-      "evidence": [
-        "closed domain 'RemoteAgentGlyphKind' has 2 exhaustiveness site(s)"
-      ],
-      "id": "remote_agent_glyph_kind",
-      "kind": "closed_domain"
-    },
-    {
-      "anchors": [
         "src/app/server-state-bootstrap.ts::ServerStateBootstrapGateState"
       ],
       "confidence_0_10000": 7500,
@@ -325,7 +435,7 @@
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.activeAgentId' is touched from 7 file(s)"
+        "symbol 'store.activeAgentId' is touched from 9 file(s)"
       ],
       "id": "store_active_agent_id",
       "kind": "store_like_symbol"
@@ -336,7 +446,7 @@
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.activeTaskId' is touched from 24 file(s)"
+        "symbol 'store.activeTaskId' is touched from 28 file(s)"
       ],
       "id": "store_active_task_id",
       "kind": "store_like_symbol"
@@ -354,13 +464,35 @@
     },
     {
       "anchors": [
+        "src/app/task-attention.test.ts::store.agentSupervision.agent-1"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.agentSupervision.agent-1' is touched from 4 file(s)"
+      ],
+      "id": "store_agent_supervision_agent_1",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
         "src/app/task-attention.test.ts::store.agents"
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.agents' is touched from 20 file(s)"
+        "symbol 'store.agents' is touched from 26 file(s)"
       ],
       "id": "store_agents",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/task-workflows.control.test.ts::store.agents.agent-1"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.agents.agent-1' is touched from 5 file(s)"
+      ],
+      "id": "store_agents_agent_1",
       "kind": "store_like_symbol"
     },
     {
@@ -380,7 +512,7 @@
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.availableAgents' is touched from 4 file(s)"
+        "symbol 'store.availableAgents' is touched from 5 file(s)"
       ],
       "id": "store_available_agents",
       "kind": "store_like_symbol"
@@ -391,7 +523,7 @@
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.collapsedTaskOrder' is touched from 9 file(s)"
+        "symbol 'store.collapsedTaskOrder' is touched from 12 file(s)"
       ],
       "id": "store_collapsed_task_order",
       "kind": "store_like_symbol"
@@ -424,7 +556,7 @@
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.focusedPanel' is touched from 9 file(s)"
+        "symbol 'store.focusedPanel' is touched from 10 file(s)"
       ],
       "id": "store_focused_panel",
       "kind": "store_like_symbol"
@@ -530,6 +662,17 @@
     },
     {
       "anchors": [
+        "src/App.tsx::store.markdownViewer"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.markdownViewer' is touched from 4 file(s)"
+      ],
+      "id": "store_markdown_viewer",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
         "src/store/autosave.test.ts::store.panelSizes"
       ],
       "confidence_0_10000": 7500,
@@ -537,6 +680,17 @@
         "symbol 'store.panelSizes' is touched from 7 file(s)"
       ],
       "id": "store_panel_sizes",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/task-notification-runtime.test.tsx::store.peerSessions"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.peerSessions' is touched from 4 file(s)"
+      ],
+      "id": "store_peer_sessions",
       "kind": "store_like_symbol"
     },
     {
@@ -567,7 +721,7 @@
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.projects' is touched from 20 file(s)"
+        "symbol 'store.projects' is touched from 24 file(s)"
       ],
       "id": "store_projects",
       "kind": "store_like_symbol"
@@ -578,7 +732,7 @@
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.projects.find' is touched from 6 file(s)"
+        "symbol 'store.projects.find' is touched from 5 file(s)"
       ],
       "id": "store_projects_find",
       "kind": "store_like_symbol"
@@ -699,7 +853,7 @@
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.taskCommandControllers.task-1' is touched from 4 file(s)"
+        "symbol 'store.taskCommandControllers.task-1' is touched from 5 file(s)"
       ],
       "id": "store_task_command_controllers_task_1",
       "kind": "store_like_symbol"
@@ -724,6 +878,17 @@
         "symbol 'store.taskConvergence.task-1' is touched from 4 file(s)"
       ],
       "id": "store_task_convergence_task_1",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/task-workflows.control.test.ts::store.taskGitStatus.task-1"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.taskGitStatus.task-1' is touched from 4 file(s)"
+      ],
+      "id": "store_task_git_status_task_1",
       "kind": "store_like_symbol"
     },
     {
@@ -754,7 +919,7 @@
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.taskOrder' is touched from 25 file(s)"
+        "symbol 'store.taskOrder' is touched from 28 file(s)"
       ],
       "id": "store_task_order",
       "kind": "store_like_symbol"
@@ -776,9 +941,20 @@
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.tasks' is touched from 38 file(s)"
+        "symbol 'store.tasks' is touched from 41 file(s)"
       ],
       "id": "store_tasks",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/task-notification-runtime.test.tsx::store.tasks.task-1"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.tasks.task-1' is touched from 4 file(s)"
+      ],
+      "id": "store_tasks_task_1",
       "kind": "store_like_symbol"
     },
     {
@@ -794,11 +970,22 @@
     },
     {
       "anchors": [
+        "src/app/terminal-dense-overload.test.ts::store.terminalHighLoadMode"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.terminalHighLoadMode' is touched from 15 file(s)"
+      ],
+      "id": "store_terminal_high_load_mode",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
         "src/app/task-lifecycle-workflows.ts::store.terminals"
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.terminals' is touched from 10 file(s)"
+        "symbol 'store.terminals' is touched from 12 file(s)"
       ],
       "id": "store_terminals",
       "kind": "store_like_symbol"
@@ -827,6 +1014,17 @@
     },
     {
       "anchors": [
+        "src/domain/server-state.ts::TaskPortsEvent"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "closed domain 'TaskPortsEvent' has 2 exhaustiveness site(s)"
+      ],
+      "id": "task_ports_event",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
         "src/domain/server-state.ts::TaskPreviewAvailability"
       ],
       "confidence_0_10000": 7500,
@@ -849,24 +1047,57 @@
     },
     {
       "anchors": [
-        "src/store/terminal-startup.ts::TerminalStartupPhase"
+        "src/domain/terminal-input-tracing.ts::TerminalInputTraceKind"
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "closed domain 'TerminalStartupPhase' has 2 exhaustiveness site(s)"
+        "closed domain 'TerminalInputTraceKind' has 2 exhaustiveness site(s)"
       ],
-      "id": "terminal_startup_phase",
+      "id": "terminal_input_trace_kind",
       "kind": "closed_domain"
     },
     {
       "anchors": [
-        "electron/ipc/pty.ts::AgentTerminalRecovery"
+        "src/components/terminal-view/terminal-input-pipeline.ts::TerminalResizeState"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "closed domain 'TerminalResizeState' has 2 exhaustiveness site(s)"
+      ],
+      "id": "terminal_resize_state",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/ipc/types.ts::TerminalStartupRecoveryRole"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "closed domain 'TerminalStartupRecoveryRole' has 2 exhaustiveness site(s)"
+      ],
+      "id": "terminal_startup_recovery_role",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/app/terminal-switch-window.ts::TerminalSwitchWindowActiveState"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "closed domain 'TerminalSwitchWindowActiveState' has 2 exhaustiveness site(s)"
+      ],
+      "id": "terminal_switch_window_active_state",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/remote/AgentList.tsx::AgentMetaChipTone"
       ],
       "confidence_0_10000": 7000,
       "evidence": [
-        "closed domain 'AgentTerminalRecovery' has 1 exhaustiveness site(s)"
+        "closed domain 'AgentMetaChipTone' has 1 exhaustiveness site(s)"
       ],
-      "id": "agent_terminal_recovery",
+      "id": "agent_meta_chip_tone",
       "kind": "closed_domain"
     },
     {
@@ -893,6 +1124,17 @@
     },
     {
       "anchors": [
+        "src/ipc/types.ts::ArenaCompetitorInspectStatus"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'ArenaCompetitorInspectStatus' has 1 exhaustiveness site(s)"
+      ],
+      "id": "arena_competitor_inspect_status",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
         "src/arena/types.ts::BattleCompetitorStatus"
       ],
       "confidence_0_10000": 7000,
@@ -900,6 +1142,17 @@
         "closed domain 'BattleCompetitorStatus' has 1 exhaustiveness site(s)"
       ],
       "id": "battle_competitor_status",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/lib/browser-http-ipc.ts::BrowserHttpIpcState"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'BrowserHttpIpcState' has 1 exhaustiveness site(s)"
+      ],
+      "id": "browser_http_ipc_state",
       "kind": "closed_domain"
     },
     {
@@ -926,6 +1179,28 @@
     },
     {
       "anchors": [
+        "src/app/browser-startup.ts::BrowserStartupTier"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'BrowserStartupTier' has 1 exhaustiveness site(s)"
+      ],
+      "id": "browser_startup_tier",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/app/server-state-bootstrap-registry.ts::BrowserTaskPortsServerMessage"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'BrowserTaskPortsServerMessage' has 1 exhaustiveness site(s)"
+      ],
+      "id": "browser_task_ports_server_message",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
         "electron/remote/ws-transport.ts::ClaimAgentControlFailure"
       ],
       "confidence_0_10000": 7000,
@@ -933,6 +1208,61 @@
         "closed domain 'ClaimAgentControlFailure' has 1 exhaustiveness site(s)"
       ],
       "id": "claim_agent_control_failure",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/components/DialogHeader.tsx::DialogHeaderDescriptionTone"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'DialogHeaderDescriptionTone' has 1 exhaustiveness site(s)"
+      ],
+      "id": "dialog_header_description_tone",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/components/DialogHeader.tsx::DialogHeaderTitleSize"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'DialogHeaderTitleSize' has 1 exhaustiveness site(s)"
+      ],
+      "id": "dialog_header_title_size",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/lib/terminal-performance-experiments.ts::FocusedPreemptionDrainScope"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'FocusedPreemptionDrainScope' has 1 exhaustiveness site(s)"
+      ],
+      "id": "focused_preemption_drain_scope",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/components/InlineNotice.tsx::InlineNoticeTone"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'InlineNoticeTone' has 1 exhaustiveness site(s)"
+      ],
+      "id": "inline_notice_tone",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/components/InlineNotice.tsx::InlineNoticeWeight"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'InlineNoticeWeight' has 1 exhaustiveness site(s)"
+      ],
+      "id": "inline_notice_weight",
       "kind": "closed_domain"
     },
     {
@@ -945,6 +1275,50 @@
       ],
       "id": "preview_target_resolution",
       "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/remote/agent-presentation.ts::RemoteAgentListState"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'RemoteAgentListState' has 1 exhaustiveness site(s)"
+      ],
+      "id": "remote_agent_list_state",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/components/SectionLabel.tsx::SectionLabelTone"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'SectionLabelTone' has 1 exhaustiveness site(s)"
+      ],
+      "id": "section_label_tone",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/app/task-notification-runtime.test.tsx::store.agentSupervision.shell-1"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "symbol 'store.agentSupervision.shell-1' is touched from 3 file(s)"
+      ],
+      "id": "store_agent_supervision_shell_1",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/store/completion.ts::store.completedTaskDate"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "symbol 'store.completedTaskDate' is touched from 3 file(s)"
+      ],
+      "id": "store_completed_task_date",
+      "kind": "store_like_symbol"
     },
     {
       "anchors": [
@@ -1080,6 +1454,28 @@
     },
     {
       "anchors": [
+        "src/domain/task-containers.ts::TaskContainerLifecycleAction"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'TaskContainerLifecycleAction' has 1 exhaustiveness site(s)"
+      ],
+      "id": "task_container_lifecycle_action",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "electron/ipc/task-containers.ts::TaskContainerPlanOperation"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'TaskContainerPlanOperation' has 1 exhaustiveness site(s)"
+      ],
+      "id": "task_container_plan_operation",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
         "src/domain/task-notification.ts::TaskNotificationPermission"
       ],
       "confidence_0_10000": 7000,
@@ -1113,13 +1509,35 @@
     },
     {
       "anchors": [
-        "src/app/terminal-output-scheduler.ts::TerminalOutputDrainLane"
+        "src/app/terminal-anomaly-monitor.ts::TerminalAnomalyKind"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'TerminalAnomalyKind' has 1 exhaustiveness site(s)"
+      ],
+      "id": "terminal_anomaly_kind",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/app/terminal-output-scheduler-policy.ts::TerminalOutputDrainLane"
       ],
       "confidence_0_10000": 7000,
       "evidence": [
         "closed domain 'TerminalOutputDrainLane' has 1 exhaustiveness site(s)"
       ],
       "id": "terminal_output_drain_lane",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/lib/terminal-presentation-mode.ts::TerminalPresentationMode"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'TerminalPresentationMode' has 1 exhaustiveness site(s)"
+      ],
+      "id": "terminal_presentation_mode",
       "kind": "closed_domain"
     },
     {
@@ -1131,6 +1549,94 @@
         "closed domain 'TerminalRecoveryPayload' has 1 exhaustiveness site(s)"
       ],
       "id": "terminal_recovery_payload",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/components/terminal-view/terminal-recovery-runtime.ts::TerminalRecoveryPhase"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'TerminalRecoveryPhase' has 1 exhaustiveness site(s)"
+      ],
+      "id": "terminal_recovery_phase",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/lib/terminal-shortcuts.ts::TerminalShortcutAction"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'TerminalShortcutAction' has 1 exhaustiveness site(s)"
+      ],
+      "id": "terminal_shortcut_action",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/lib/terminal-performance-experiments.ts::TerminalStartupHiddenReplayUnblockPhase"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'TerminalStartupHiddenReplayUnblockPhase' has 1 exhaustiveness site(s)"
+      ],
+      "id": "terminal_startup_hidden_replay_unblock_phase",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/app/terminal-startup-paint.ts::TerminalStartupPaintCoordinationRole"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'TerminalStartupPaintCoordinationRole' has 1 exhaustiveness site(s)"
+      ],
+      "id": "terminal_startup_paint_coordination_role",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/store/terminal-startup.ts::TerminalStartupPhase"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'TerminalStartupPhase' has 1 exhaustiveness site(s)"
+      ],
+      "id": "terminal_startup_phase",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/lib/terminal-performance-experiments.ts::TerminalStartupTaskSchedulingRole"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'TerminalStartupTaskSchedulingRole' has 1 exhaustiveness site(s)"
+      ],
+      "id": "terminal_startup_task_scheduling_role",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/lib/terminal-performance-experiments.ts::TerminalStartupVisibleSiblingReplayUnblockPhase"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'TerminalStartupVisibleSiblingReplayUnblockPhase' has 1 exhaustiveness site(s)"
+      ],
+      "id": "terminal_startup_visible_sibling_replay_unblock_phase",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/app/terminal-switch-window.ts::TerminalSwitchWindowState"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'TerminalSwitchWindowState' has 1 exhaustiveness site(s)"
+      ],
+      "id": "terminal_switch_window_state",
       "kind": "closed_domain"
     },
     {
@@ -1153,6 +1659,17 @@
         "closed domain 'WebSocketConnectionState' has 1 exhaustiveness site(s)"
       ],
       "id": "web_socket_connection_state",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/components/TaskBranchInfoBar.tsx::WorktreeActionKind"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'WorktreeActionKind' has 1 exhaustiveness site(s)"
+      ],
+      "id": "worktree_action_kind",
       "kind": "closed_domain"
     },
     {
@@ -1190,28 +1707,6 @@
     },
     {
       "anchors": [
-        "src/app/task-workflows.control.test.ts::store.agentSupervision.agent-1"
-      ],
-      "confidence_0_10000": 6500,
-      "evidence": [
-        "symbol 'store.agentSupervision.agent-1' is touched from 2 file(s)"
-      ],
-      "id": "store_agent_supervision_agent_1",
-      "kind": "store_like_symbol"
-    },
-    {
-      "anchors": [
-        "src/app/task-workflows.control.test.ts::store.agentSupervision.shell-1"
-      ],
-      "confidence_0_10000": 6500,
-      "evidence": [
-        "symbol 'store.agentSupervision.shell-1' is touched from 2 file(s)"
-      ],
-      "id": "store_agent_supervision_shell_1",
-      "kind": "store_like_symbol"
-    },
-    {
-      "anchors": [
         "src/store/persistence.test.ts::store.agentSupervision.terminal-agent-1"
       ],
       "confidence_0_10000": 6500,
@@ -1219,17 +1714,6 @@
         "symbol 'store.agentSupervision.terminal-agent-1' is touched from 2 file(s)"
       ],
       "id": "store_agent_supervision_terminal_agent_1",
-      "kind": "store_like_symbol"
-    },
-    {
-      "anchors": [
-        "src/app/task-workflows.control.test.ts::store.agents.agent-1"
-      ],
-      "confidence_0_10000": 6500,
-      "evidence": [
-        "symbol 'store.agents.agent-1' is touched from 2 file(s)"
-      ],
-      "id": "store_agents_agent_1",
       "kind": "store_like_symbol"
     },
     {
@@ -1256,17 +1740,6 @@
     },
     {
       "anchors": [
-        "src/app/project-workflows.ts::store.collapsedTaskOrder.filter"
-      ],
-      "confidence_0_10000": 6500,
-      "evidence": [
-        "symbol 'store.collapsedTaskOrder.filter' is touched from 2 file(s)"
-      ],
-      "id": "store_collapsed_task_order_filter",
-      "kind": "store_like_symbol"
-    },
-    {
-      "anchors": [
         "src/store/completion.ts::store.completedTaskCount"
       ],
       "confidence_0_10000": 6500,
@@ -1274,17 +1747,6 @@
         "symbol 'store.completedTaskCount' is touched from 2 file(s)"
       ],
       "id": "store_completed_task_count",
-      "kind": "store_like_symbol"
-    },
-    {
-      "anchors": [
-        "src/store/completion.ts::store.completedTaskDate"
-      ],
-      "confidence_0_10000": 6500,
-      "evidence": [
-        "symbol 'store.completedTaskDate' is touched from 2 file(s)"
-      ],
-      "id": "store_completed_task_date",
       "kind": "store_like_symbol"
     },
     {
@@ -1318,6 +1780,17 @@
         "symbol 'store.fontScales.terminal-1:terminal' is touched from 2 file(s)"
       ],
       "id": "store_font_scales_terminal_1_terminal",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/store/persistence.test.ts::store.incomingTaskTakeoverRequests"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.incomingTaskTakeoverRequests' is touched from 2 file(s)"
+      ],
+      "id": "store_incoming_task_takeover_requests",
       "kind": "store_like_symbol"
     },
     {
@@ -1377,17 +1850,6 @@
     },
     {
       "anchors": [
-        "src/app/task-notification-runtime.test.tsx::store.peerSessions"
-      ],
-      "confidence_0_10000": 6500,
-      "evidence": [
-        "symbol 'store.peerSessions' is touched from 2 file(s)"
-      ],
-      "id": "store_peer_sessions",
-      "kind": "store_like_symbol"
-    },
-    {
-      "anchors": [
         "src/components/TaskPanel.tsx::store.pendingAction"
       ],
       "confidence_0_10000": 6500,
@@ -1443,17 +1905,6 @@
     },
     {
       "anchors": [
-        "src/app/task-workflows.control.test.ts::store.taskGitStatus.task-1"
-      ],
-      "confidence_0_10000": 6500,
-      "evidence": [
-        "symbol 'store.taskGitStatus.task-1' is touched from 2 file(s)"
-      ],
-      "id": "store_task_git_status_task_1",
-      "kind": "store_like_symbol"
-    },
-    {
-      "anchors": [
         "src/components/TilingLayout.tsx::store.taskOrder.map"
       ],
       "confidence_0_10000": 6500,
@@ -1498,17 +1949,6 @@
     },
     {
       "anchors": [
-        "src/app/task-workflows.control.test.ts::store.tasks.task-1"
-      ],
-      "confidence_0_10000": 6500,
-      "evidence": [
-        "symbol 'store.tasks.task-1' is touched from 2 file(s)"
-      ],
-      "id": "store_tasks_task_1",
-      "kind": "store_like_symbol"
-    },
-    {
-      "anchors": [
         "src/app/task-workflows.control.test.ts::store.tasks.task-1.collapsed"
       ],
       "confidence_0_10000": 6500,
@@ -1516,6 +1956,17 @@
         "symbol 'store.tasks.task-1.collapsed' is touched from 2 file(s)"
       ],
       "id": "store_tasks_task_1_collapsed",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/store/browser-cold-bootstrap-projection.test.ts::store.terminals.shell-1"
+      ],
+      "confidence_0_10000": 6500,
+      "evidence": [
+        "symbol 'store.terminals.shell-1' is touched from 2 file(s)"
+      ],
+      "id": "store_terminals_shell_1",
       "kind": "store_like_symbol"
     },
     {
@@ -1559,7 +2010,8 @@
     "effective_archetypes": [],
     "module_contracts": [],
     "primary_archetype": null,
-    "starter_rules_toml": "[project]\nprimary_language = \"typescript\"\nexclude = [\"vendor/**\", \"dist/**\", \"coverage/**\", \"build/**\", \"node_modules/**\"]\n\n# Candidate boundary roots detected from repo shape:\n# - client_state at src/store (top-level client state layer detected)\n"
+    "starter_rules_toml": "[project]\nprimary_language = \"typescript\"\nexclude = [\"vendor/**\", \"dist/**\", \"coverage/**\", \"build/**\", \"node_modules/**\"]\n\n# Candidate boundary roots detected from repo shape:\n# - client_state at src/store (top-level client state layer detected)\n",
+    "working_rules_toml": "[project]\nprimary_language = \"typescript\"\nexclude = [\"vendor/**\", \"dist/**\", \"coverage/**\", \"build/**\", \"node_modules/**\"]\n"
   },
   "rule_coverage": {
     "concepts_declared": 3,
@@ -1574,17 +2026,15 @@
     "suppressions_declared": 0,
     "suppressions_expiring": 0
   },
-  "rules_error": null,
   "semantic_cache": {
-    "analyzed_files": 573,
+    "analyzed_files": 700,
     "available": true,
     "bridge_protocol_version": "0.1.0",
-    "git_head": "515044a4bd3867142d6fff31bcbb0a31d76e34c5",
+    "git_head": "12d9cb5113e9050facc611584c92a881fd2dbed2",
     "project_fingerprint": "bd376b35c69fd0f7",
     "source": "bridge",
     "working_tree_path_count": 0
   },
-  "semantic_error": null,
   "state_models": [
     {
       "id": "server_state_bootstrap_gate",
@@ -1608,8 +2058,8 @@
   "summary": {
     "configured_concept_count": 3,
     "contract_count": 1,
-    "guardrail_test_count": 7,
-    "inferred_concept_count": 124,
+    "guardrail_test_count": 8,
+    "inferred_concept_count": 164,
     "matched_guardrail_test_count": 1,
     "state_model_count": 2
   },

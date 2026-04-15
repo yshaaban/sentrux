@@ -1,26 +1,1969 @@
 {
   "benchmark_format_version": 3,
-  "generated_at": "2026-04-02T11:06:27.125Z",
-  "parallel_code_root": "<parallel-code-root>",
-  "analysis_mode": "head_clone",
-  "source_tree_identity": {
-    "commit": "be23faef6ed5654ae3f9ce146cfd653182699a72",
-    "dirty_paths": [
-      ".gitignore",
-      "src/app/markdown-viewer.ts"
-    ],
-    "dirty_paths_count": 2,
-    "dirty_paths_fingerprint": "38c584409ec4333f9ebae5a9509b9093f55645026596b43d66198420cf52bd5b",
-    "tree_fingerprint": "92d4d8a6205160c8942ee3af3d4394687e8c25ab7ae5495fceb37bb0495388e6",
-    "analysis_mode": "head_clone"
+  "generated_at": "2026-04-15T06:37:11.322Z",
+  "parallel_code_root": "<home>/.sentrux/benchmark-clean/parallel-code",
+  "benchmark_repeat_count": 5,
+  "benchmark_aggregate_basis": "median",
+  "benchmark_representative_sample_index": 1,
+  "benchmark_representative_sample_id": "sample_2",
+  "benchmark_metric_statistics": {
+    "cold_process_total_ms": {
+      "sample_count": 5,
+      "values_ms": [
+        18460.1,
+        19048.5,
+        20350.5,
+        19593.9,
+        18887.3
+      ],
+      "min_ms": 18460.1,
+      "max_ms": 20350.5,
+      "median_ms": 19048.5,
+      "mean_ms": 19268.1,
+      "stddev_ms": 651.7,
+      "spread_ms": 1890.4
+    },
+    "cold.scan.elapsed_ms": {
+      "sample_count": 5,
+      "values_ms": [
+        3670.4,
+        3704.2,
+        4476.1,
+        3805.9,
+        4278.1
+      ],
+      "min_ms": 3670.4,
+      "max_ms": 4476.1,
+      "median_ms": 3805.9,
+      "mean_ms": 3986.9,
+      "stddev_ms": 327.7,
+      "spread_ms": 805.7
+    },
+    "cold.concepts.elapsed_ms": {
+      "sample_count": 5,
+      "values_ms": [
+        4904.3,
+        4524.8,
+        4337.6,
+        4395.1,
+        4353.1
+      ],
+      "min_ms": 4337.6,
+      "max_ms": 4904.3,
+      "median_ms": 4395.1,
+      "mean_ms": 4503,
+      "stddev_ms": 211.2,
+      "spread_ms": 566.7
+    },
+    "cold.agent_brief_onboarding.elapsed_ms": {
+      "sample_count": 5,
+      "values_ms": [
+        1352.8,
+        1469.7,
+        1645.3,
+        1338.3,
+        1590
+      ],
+      "min_ms": 1338.3,
+      "max_ms": 1645.3,
+      "median_ms": 1469.7,
+      "mean_ms": 1479.2,
+      "stddev_ms": 123.1,
+      "spread_ms": 307
+    },
+    "warm_cached_total_ms": {
+      "sample_count": 5,
+      "values_ms": [
+        4343,
+        5013.7,
+        4967.6,
+        4420.1,
+        5005.6
+      ],
+      "min_ms": 4343,
+      "max_ms": 5013.7,
+      "median_ms": 4967.6,
+      "mean_ms": 4750,
+      "stddev_ms": 302.2,
+      "spread_ms": 670.7
+    },
+    "warm_cached.findings.elapsed_ms": {
+      "sample_count": 5,
+      "values_ms": [
+        1380.9,
+        1601.8,
+        1642.2,
+        1391.5,
+        1589.2
+      ],
+      "min_ms": 1380.9,
+      "max_ms": 1642.2,
+      "median_ms": 1589.2,
+      "mean_ms": 1521.1,
+      "stddev_ms": 111.6,
+      "spread_ms": 261.3
+    },
+    "warm_cached.agent_brief_onboarding.elapsed_ms": {
+      "sample_count": 5,
+      "values_ms": [
+        1424.6,
+        1539,
+        1533.9,
+        1505.1,
+        1579.5
+      ],
+      "min_ms": 1424.6,
+      "max_ms": 1579.5,
+      "median_ms": 1533.9,
+      "mean_ms": 1516.4,
+      "stddev_ms": 51.7,
+      "spread_ms": 154.9
+    },
+    "warm_persisted_total_ms": {
+      "sample_count": 5,
+      "values_ms": [
+        13023.9,
+        12451.6,
+        12726.3,
+        13965.9,
+        14279.4
+      ],
+      "min_ms": 12451.6,
+      "max_ms": 14279.4,
+      "median_ms": 13023.9,
+      "mean_ms": 13289.4,
+      "stddev_ms": 710.9,
+      "spread_ms": 1827.8
+    },
+    "warm_persisted.concepts.elapsed_ms": {
+      "sample_count": 5,
+      "values_ms": [
+        399.2,
+        333.9,
+        355.4,
+        356,
+        401.4
+      ],
+      "min_ms": 333.9,
+      "max_ms": 401.4,
+      "median_ms": 356,
+      "mean_ms": 369.2,
+      "stddev_ms": 26.6,
+      "spread_ms": 67.5
+    },
+    "warm_persisted.findings.elapsed_ms": {
+      "sample_count": 5,
+      "values_ms": [
+        7364.7,
+        7062.2,
+        6776,
+        7338.9,
+        7954.6
+      ],
+      "min_ms": 6776,
+      "max_ms": 7954.6,
+      "median_ms": 7338.9,
+      "mean_ms": 7299.3,
+      "stddev_ms": 391.2,
+      "spread_ms": 1178.6
+    },
+    "warm_persisted.agent_brief_onboarding.elapsed_ms": {
+      "sample_count": 5,
+      "values_ms": [
+        1375.2,
+        1365.4,
+        1344.5,
+        1573.5,
+        1513.7
+      ],
+      "min_ms": 1344.5,
+      "max_ms": 1573.5,
+      "median_ms": 1375.2,
+      "mean_ms": 1434.5,
+      "stddev_ms": 91.6,
+      "spread_ms": 229
+    },
+    "warm_patch_safety_total_ms": {
+      "sample_count": 5,
+      "values_ms": [
+        3997.2,
+        4705,
+        3952.6,
+        4354.9,
+        4780.5
+      ],
+      "min_ms": 3952.6,
+      "max_ms": 4780.5,
+      "median_ms": 4354.9,
+      "mean_ms": 4358,
+      "stddev_ms": 344.5,
+      "spread_ms": 827.9
+    },
+    "warm_patch_safety.session_start.elapsed_ms": {
+      "sample_count": 5,
+      "values_ms": [
+        683.1,
+        815.6,
+        681.7,
+        680.5,
+        831.6
+      ],
+      "min_ms": 680.5,
+      "max_ms": 831.6,
+      "median_ms": 683.1,
+      "mean_ms": 738.5,
+      "stddev_ms": 69.7,
+      "spread_ms": 151.1
+    },
+    "warm_patch_safety.agent_brief_patch.elapsed_ms": {
+      "sample_count": 5,
+      "values_ms": [
+        844.2,
+        1012.4,
+        889.3,
+        841.7,
+        1021.7
+      ],
+      "min_ms": 841.7,
+      "max_ms": 1021.7,
+      "median_ms": 889.3,
+      "mean_ms": 921.9,
+      "stddev_ms": 79.6,
+      "spread_ms": 180
+    },
+    "warm_patch_safety.gate.elapsed_ms": {
+      "sample_count": 5,
+      "values_ms": [
+        667.8,
+        780,
+        648.3,
+        758.7,
+        810.2
+      ],
+      "min_ms": 648.3,
+      "max_ms": 810.2,
+      "median_ms": 758.7,
+      "mean_ms": 733,
+      "stddev_ms": 63.6,
+      "spread_ms": 161.9
+    },
+    "warm_patch_safety.check.elapsed_ms": {
+      "sample_count": 5,
+      "values_ms": [
+        69.9,
+        76.3,
+        61.8,
+        70.4,
+        83.8
+      ],
+      "min_ms": 61.8,
+      "max_ms": 83.8,
+      "median_ms": 70.4,
+      "mean_ms": 72.4,
+      "stddev_ms": 7.3,
+      "spread_ms": 22
+    },
+    "warm_patch_safety.agent_brief_pre_merge.elapsed_ms": {
+      "sample_count": 5,
+      "values_ms": [
+        852.5,
+        1008.3,
+        839.2,
+        992.7,
+        1017.8
+      ],
+      "min_ms": 839.2,
+      "max_ms": 1017.8,
+      "median_ms": 992.7,
+      "mean_ms": 942.1,
+      "stddev_ms": 79.1,
+      "spread_ms": 178.6
+    },
+    "warm_patch_safety.session_end.elapsed_ms": {
+      "sample_count": 5,
+      "values_ms": [
+        878.8,
+        1011.9,
+        831.7,
+        1010.4,
+        1014.9
+      ],
+      "min_ms": 831.7,
+      "max_ms": 1014.9,
+      "median_ms": 1010.4,
+      "mean_ms": 949.5,
+      "stddev_ms": 78.4,
+      "spread_ms": 183.2
+    }
   },
-  "analyzed_tree_identity": {
-    "commit": "be23faef6ed5654ae3f9ce146cfd653182699a72",
+  "benchmark_samples": [
+    {
+      "sample_id": "sample_1",
+      "generated_at": "2026-04-15T06:34:31.943Z",
+      "benchmark": {
+        "cold_process_total_ms": 18460.1,
+        "cold": {
+          "scan": {
+            "label": "scan",
+            "tool": "scan",
+            "elapsed_ms": 3670.4,
+            "summary": {
+              "files": 827,
+              "import_edges": 2674,
+              "quality_signal": 4210,
+              "overall_confidence_0_10000": 8552,
+              "resolved": 2675,
+              "unresolved_internal": 1
+            }
+          },
+          "concepts": {
+            "label": "concepts",
+            "tool": "concepts",
+            "elapsed_ms": 4904.3,
+            "summary": {
+              "configured_concept_count": 3,
+              "contract_count": 1,
+              "matched_guardrail_test_count": 1,
+              "inferred_concept_count": 164,
+              "state_model_count": 2,
+              "semantic_cache_source": "bridge"
+            }
+          },
+          "findings": {
+            "label": "findings_top12",
+            "tool": "findings",
+            "elapsed_ms": 7084.5,
+            "summary": {
+              "clone_group_count": 46,
+              "clone_family_count": 8,
+              "finding_count": 12,
+              "semantic_finding_count": 4,
+              "debt_signal_count": 5,
+              "watchpoint_count": 5
+            }
+          },
+          "explain_task_git_status": {
+            "label": "explain_task_git_status",
+            "tool": "explain_concept",
+            "elapsed_ms": 531.3,
+            "summary": {
+              "finding_count": 0,
+              "obligation_count": 0,
+              "read_count": 8,
+              "write_count": 12,
+              "related_test_count": 4
+            }
+          },
+          "explain_task_presentation_status": {
+            "label": "explain_task_presentation_status",
+            "tool": "explain_concept",
+            "elapsed_ms": 585.4,
+            "summary": {
+              "finding_count": 1,
+              "obligation_count": 1,
+              "read_count": 40,
+              "write_count": 0,
+              "related_test_count": 4
+            }
+          },
+          "parity_server_state_bootstrap": {
+            "label": "parity_server_state_bootstrap",
+            "tool": "parity",
+            "elapsed_ms": 120,
+            "summary": {
+              "contract_count": 1,
+              "missing_cell_count": 0,
+              "parity_score_0_10000": 10000,
+              "finding_count": 0
+            }
+          },
+          "state": {
+            "label": "state",
+            "tool": "state",
+            "elapsed_ms": 209.3,
+            "summary": {
+              "state_model_count": 2,
+              "finding_count": 3,
+              "state_integrity_score_0_10000": 8333
+            }
+          },
+          "agent_brief_onboarding": {
+            "label": "agent_brief_onboarding",
+            "tool": "agent_brief",
+            "elapsed_ms": 1352.8,
+            "summary": {
+              "mode": "repo_onboarding",
+              "decision": "fix_now",
+              "primary_target_count": 3,
+              "missing_obligation_count": 0,
+              "watchpoint_count": 3,
+              "semantic_cache_source": "memory"
+            }
+          }
+        },
+        "warm_cached_total_ms": 4343,
+        "warm_cached": {
+          "concepts": {
+            "label": "concepts",
+            "tool": "concepts",
+            "elapsed_ms": 131.6,
+            "summary": {
+              "configured_concept_count": 3,
+              "contract_count": 1,
+              "matched_guardrail_test_count": 1,
+              "inferred_concept_count": 164,
+              "state_model_count": 2,
+              "semantic_cache_source": "memory"
+            }
+          },
+          "findings": {
+            "label": "findings_top12",
+            "tool": "findings",
+            "elapsed_ms": 1380.9,
+            "summary": {
+              "clone_group_count": 46,
+              "clone_family_count": 8,
+              "finding_count": 12,
+              "semantic_finding_count": 4,
+              "debt_signal_count": 5,
+              "watchpoint_count": 5
+            }
+          },
+          "explain_task_git_status": {
+            "label": "explain_task_git_status",
+            "tool": "explain_concept",
+            "elapsed_ms": 526.8,
+            "summary": {
+              "finding_count": 0,
+              "obligation_count": 0,
+              "read_count": 8,
+              "write_count": 12,
+              "related_test_count": 4
+            }
+          },
+          "explain_task_presentation_status": {
+            "label": "explain_task_presentation_status",
+            "tool": "explain_concept",
+            "elapsed_ms": 547,
+            "summary": {
+              "finding_count": 1,
+              "obligation_count": 1,
+              "read_count": 40,
+              "write_count": 0,
+              "related_test_count": 4
+            }
+          },
+          "parity_server_state_bootstrap": {
+            "label": "parity_server_state_bootstrap",
+            "tool": "parity",
+            "elapsed_ms": 114.8,
+            "summary": {
+              "contract_count": 1,
+              "missing_cell_count": 0,
+              "parity_score_0_10000": 10000,
+              "finding_count": 0
+            }
+          },
+          "state": {
+            "label": "state",
+            "tool": "state",
+            "elapsed_ms": 215.8,
+            "summary": {
+              "state_model_count": 2,
+              "finding_count": 3,
+              "state_integrity_score_0_10000": 8333
+            }
+          },
+          "agent_brief_onboarding": {
+            "label": "agent_brief_onboarding",
+            "tool": "agent_brief",
+            "elapsed_ms": 1424.6,
+            "summary": {
+              "mode": "repo_onboarding",
+              "decision": "fix_now",
+              "primary_target_count": 3,
+              "missing_obligation_count": 0,
+              "watchpoint_count": 3,
+              "semantic_cache_source": "memory"
+            }
+          }
+        },
+        "warm_persisted_total_ms": 13023.9,
+        "warm_persisted": {
+          "scan": {
+            "label": "persisted_scan",
+            "tool": "scan",
+            "elapsed_ms": 3880.9,
+            "summary": {
+              "files": 827,
+              "import_edges": 2674,
+              "quality_signal": 4210,
+              "overall_confidence_0_10000": 8552,
+              "resolved": 2675,
+              "unresolved_internal": 1
+            }
+          },
+          "concepts": {
+            "label": "persisted_concepts",
+            "tool": "concepts",
+            "elapsed_ms": 399.2,
+            "summary": {
+              "configured_concept_count": 3,
+              "contract_count": 1,
+              "matched_guardrail_test_count": 1,
+              "inferred_concept_count": 164,
+              "state_model_count": 2,
+              "semantic_cache_source": "disk"
+            }
+          },
+          "findings": {
+            "label": "persisted_findings_top12",
+            "tool": "findings",
+            "elapsed_ms": 7364.7,
+            "summary": {
+              "clone_group_count": 46,
+              "clone_family_count": 8,
+              "finding_count": 12,
+              "semantic_finding_count": 4,
+              "debt_signal_count": 5,
+              "watchpoint_count": 5
+            }
+          },
+          "agent_brief_onboarding": {
+            "label": "persisted_agent_brief_onboarding",
+            "tool": "agent_brief",
+            "elapsed_ms": 1375.2,
+            "summary": {
+              "mode": "repo_onboarding",
+              "decision": "fix_now",
+              "primary_target_count": 3,
+              "missing_obligation_count": 0,
+              "watchpoint_count": 3,
+              "semantic_cache_source": "memory"
+            }
+          }
+        },
+        "warm_patch_safety_total_ms": 3997.2,
+        "warm_patch_safety": {
+          "session_start": {
+            "label": "session_start",
+            "tool": "session_start",
+            "elapsed_ms": 683.1,
+            "summary": {
+              "session_finding_count": 197,
+              "suppressed_finding_count": 0
+            }
+          },
+          "agent_brief_patch": {
+            "label": "agent_brief_patch",
+            "tool": "agent_brief",
+            "elapsed_ms": 844.2,
+            "summary": {
+              "mode": "patch",
+              "decision": "continue",
+              "primary_target_count": 0,
+              "missing_obligation_count": 0,
+              "watchpoint_count": 2,
+              "semantic_cache_source": "memory"
+            }
+          },
+          "gate": {
+            "label": "gate",
+            "tool": "gate",
+            "elapsed_ms": 667.8,
+            "summary": {
+              "decision": "pass",
+              "changed_file_count": 0,
+              "introduced_finding_count": 0,
+              "missing_obligation_count": 0,
+              "obligation_completeness_0_10000": 10000
+            }
+          },
+          "check": {
+            "label": "check",
+            "tool": "check",
+            "elapsed_ms": 69.9,
+            "summary": {
+              "gate": "pass",
+              "issue_count": 0,
+              "changed_file_count": 0,
+              "partial_results": false,
+              "changed_scope_available": true
+            }
+          },
+          "agent_brief_pre_merge": {
+            "label": "agent_brief_pre_merge",
+            "tool": "agent_brief",
+            "elapsed_ms": 852.5,
+            "summary": {
+              "mode": "pre_merge",
+              "decision": "continue",
+              "primary_target_count": 0,
+              "missing_obligation_count": 0,
+              "watchpoint_count": 2,
+              "semantic_cache_source": "memory"
+            }
+          },
+          "session_end": {
+            "label": "session_end",
+            "tool": "session_end",
+            "elapsed_ms": 878.8,
+            "summary": {
+              "pass": true,
+              "changed_file_count": 0,
+              "introduced_finding_count": 0,
+              "missing_obligation_count": 0,
+              "gate_decision": "pass"
+            }
+          }
+        },
+        "stdout_log": [],
+        "stderr_log": [
+          "[build_project_map] 827 files, 33 unique dirs, 33 cache misses, 5.8ms",
+          "[resolve] 2675 resolved, 1 unresolved_internal, 770 unresolved_external, 112 unresolved_unknown (of 3558 total specs)",
+          "[resolve_imports] project_map 7.3ms, suffix_idx 10.9ms, suffix_resolve 99.8ms, total 118.0ms",
+          "[build_graphs] 827 files | maps 14.5ms, imports 118.6ms, calls+inherit 70.1ms, total 203.2ms | 2674 import, 6499 call, 0 inherit edges",
+          "[evolution] walked 964 commits, skipped 92 (oid_err=0, commit_err=0, unparseable=92)"
+        ]
+      }
+    },
+    {
+      "sample_id": "sample_2",
+      "generated_at": "2026-04-15T06:35:10.805Z",
+      "benchmark": {
+        "cold_process_total_ms": 19048.5,
+        "cold": {
+          "scan": {
+            "label": "scan",
+            "tool": "scan",
+            "elapsed_ms": 3704.2,
+            "summary": {
+              "files": 827,
+              "import_edges": 2674,
+              "quality_signal": 4210,
+              "overall_confidence_0_10000": 8552,
+              "resolved": 2675,
+              "unresolved_internal": 1
+            }
+          },
+          "concepts": {
+            "label": "concepts",
+            "tool": "concepts",
+            "elapsed_ms": 4524.8,
+            "summary": {
+              "configured_concept_count": 3,
+              "contract_count": 1,
+              "matched_guardrail_test_count": 1,
+              "inferred_concept_count": 164,
+              "state_model_count": 2,
+              "semantic_cache_source": "bridge"
+            }
+          },
+          "findings": {
+            "label": "findings_top12",
+            "tool": "findings",
+            "elapsed_ms": 7890.6,
+            "summary": {
+              "clone_group_count": 46,
+              "clone_family_count": 8,
+              "finding_count": 12,
+              "semantic_finding_count": 4,
+              "debt_signal_count": 5,
+              "watchpoint_count": 5
+            }
+          },
+          "explain_task_git_status": {
+            "label": "explain_task_git_status",
+            "tool": "explain_concept",
+            "elapsed_ms": 574.7,
+            "summary": {
+              "finding_count": 0,
+              "obligation_count": 0,
+              "read_count": 8,
+              "write_count": 12,
+              "related_test_count": 4
+            }
+          },
+          "explain_task_presentation_status": {
+            "label": "explain_task_presentation_status",
+            "tool": "explain_concept",
+            "elapsed_ms": 560.7,
+            "summary": {
+              "finding_count": 1,
+              "obligation_count": 1,
+              "read_count": 40,
+              "write_count": 0,
+              "related_test_count": 4
+            }
+          },
+          "parity_server_state_bootstrap": {
+            "label": "parity_server_state_bootstrap",
+            "tool": "parity",
+            "elapsed_ms": 109.4,
+            "summary": {
+              "contract_count": 1,
+              "missing_cell_count": 0,
+              "parity_score_0_10000": 10000,
+              "finding_count": 0
+            }
+          },
+          "state": {
+            "label": "state",
+            "tool": "state",
+            "elapsed_ms": 212.8,
+            "summary": {
+              "state_model_count": 2,
+              "finding_count": 3,
+              "state_integrity_score_0_10000": 8333
+            }
+          },
+          "agent_brief_onboarding": {
+            "label": "agent_brief_onboarding",
+            "tool": "agent_brief",
+            "elapsed_ms": 1469.7,
+            "summary": {
+              "mode": "repo_onboarding",
+              "decision": "fix_now",
+              "primary_target_count": 3,
+              "missing_obligation_count": 0,
+              "watchpoint_count": 3,
+              "semantic_cache_source": "memory"
+            }
+          }
+        },
+        "warm_cached_total_ms": 5013.7,
+        "warm_cached": {
+          "concepts": {
+            "label": "concepts",
+            "tool": "concepts",
+            "elapsed_ms": 179.1,
+            "summary": {
+              "configured_concept_count": 3,
+              "contract_count": 1,
+              "matched_guardrail_test_count": 1,
+              "inferred_concept_count": 164,
+              "state_model_count": 2,
+              "semantic_cache_source": "memory"
+            }
+          },
+          "findings": {
+            "label": "findings_top12",
+            "tool": "findings",
+            "elapsed_ms": 1601.8,
+            "summary": {
+              "clone_group_count": 46,
+              "clone_family_count": 8,
+              "finding_count": 12,
+              "semantic_finding_count": 4,
+              "debt_signal_count": 5,
+              "watchpoint_count": 5
+            }
+          },
+          "explain_task_git_status": {
+            "label": "explain_task_git_status",
+            "tool": "explain_concept",
+            "elapsed_ms": 634.1,
+            "summary": {
+              "finding_count": 0,
+              "obligation_count": 0,
+              "read_count": 8,
+              "write_count": 12,
+              "related_test_count": 4
+            }
+          },
+          "explain_task_presentation_status": {
+            "label": "explain_task_presentation_status",
+            "tool": "explain_concept",
+            "elapsed_ms": 662.3,
+            "summary": {
+              "finding_count": 1,
+              "obligation_count": 1,
+              "read_count": 40,
+              "write_count": 0,
+              "related_test_count": 4
+            }
+          },
+          "parity_server_state_bootstrap": {
+            "label": "parity_server_state_bootstrap",
+            "tool": "parity",
+            "elapsed_ms": 140.5,
+            "summary": {
+              "contract_count": 1,
+              "missing_cell_count": 0,
+              "parity_score_0_10000": 10000,
+              "finding_count": 0
+            }
+          },
+          "state": {
+            "label": "state",
+            "tool": "state",
+            "elapsed_ms": 256,
+            "summary": {
+              "state_model_count": 2,
+              "finding_count": 3,
+              "state_integrity_score_0_10000": 8333
+            }
+          },
+          "agent_brief_onboarding": {
+            "label": "agent_brief_onboarding",
+            "tool": "agent_brief",
+            "elapsed_ms": 1539,
+            "summary": {
+              "mode": "repo_onboarding",
+              "decision": "fix_now",
+              "primary_target_count": 3,
+              "missing_obligation_count": 0,
+              "watchpoint_count": 3,
+              "semantic_cache_source": "memory"
+            }
+          }
+        },
+        "warm_persisted_total_ms": 12451.6,
+        "warm_persisted": {
+          "scan": {
+            "label": "persisted_scan",
+            "tool": "scan",
+            "elapsed_ms": 3685.9,
+            "summary": {
+              "files": 827,
+              "import_edges": 2674,
+              "quality_signal": 4210,
+              "overall_confidence_0_10000": 8552,
+              "resolved": 2675,
+              "unresolved_internal": 1
+            }
+          },
+          "concepts": {
+            "label": "persisted_concepts",
+            "tool": "concepts",
+            "elapsed_ms": 333.9,
+            "summary": {
+              "configured_concept_count": 3,
+              "contract_count": 1,
+              "matched_guardrail_test_count": 1,
+              "inferred_concept_count": 164,
+              "state_model_count": 2,
+              "semantic_cache_source": "disk"
+            }
+          },
+          "findings": {
+            "label": "persisted_findings_top12",
+            "tool": "findings",
+            "elapsed_ms": 7062.2,
+            "summary": {
+              "clone_group_count": 46,
+              "clone_family_count": 8,
+              "finding_count": 12,
+              "semantic_finding_count": 4,
+              "debt_signal_count": 5,
+              "watchpoint_count": 5
+            }
+          },
+          "agent_brief_onboarding": {
+            "label": "persisted_agent_brief_onboarding",
+            "tool": "agent_brief",
+            "elapsed_ms": 1365.4,
+            "summary": {
+              "mode": "repo_onboarding",
+              "decision": "fix_now",
+              "primary_target_count": 3,
+              "missing_obligation_count": 0,
+              "watchpoint_count": 3,
+              "semantic_cache_source": "memory"
+            }
+          }
+        },
+        "warm_patch_safety_total_ms": 4705,
+        "warm_patch_safety": {
+          "session_start": {
+            "label": "session_start",
+            "tool": "session_start",
+            "elapsed_ms": 815.6,
+            "summary": {
+              "session_finding_count": 197,
+              "suppressed_finding_count": 0
+            }
+          },
+          "agent_brief_patch": {
+            "label": "agent_brief_patch",
+            "tool": "agent_brief",
+            "elapsed_ms": 1012.4,
+            "summary": {
+              "mode": "patch",
+              "decision": "continue",
+              "primary_target_count": 0,
+              "missing_obligation_count": 0,
+              "watchpoint_count": 2,
+              "semantic_cache_source": "memory"
+            }
+          },
+          "gate": {
+            "label": "gate",
+            "tool": "gate",
+            "elapsed_ms": 780,
+            "summary": {
+              "decision": "pass",
+              "changed_file_count": 0,
+              "introduced_finding_count": 0,
+              "missing_obligation_count": 0,
+              "obligation_completeness_0_10000": 10000
+            }
+          },
+          "check": {
+            "label": "check",
+            "tool": "check",
+            "elapsed_ms": 76.3,
+            "summary": {
+              "gate": "pass",
+              "issue_count": 0,
+              "changed_file_count": 0,
+              "partial_results": false,
+              "changed_scope_available": true
+            }
+          },
+          "agent_brief_pre_merge": {
+            "label": "agent_brief_pre_merge",
+            "tool": "agent_brief",
+            "elapsed_ms": 1008.3,
+            "summary": {
+              "mode": "pre_merge",
+              "decision": "continue",
+              "primary_target_count": 0,
+              "missing_obligation_count": 0,
+              "watchpoint_count": 2,
+              "semantic_cache_source": "memory"
+            }
+          },
+          "session_end": {
+            "label": "session_end",
+            "tool": "session_end",
+            "elapsed_ms": 1011.9,
+            "summary": {
+              "pass": true,
+              "changed_file_count": 0,
+              "introduced_finding_count": 0,
+              "missing_obligation_count": 0,
+              "gate_decision": "pass"
+            }
+          }
+        },
+        "stdout_log": [],
+        "stderr_log": [
+          "[build_project_map] 827 files, 33 unique dirs, 33 cache misses, 5.1ms",
+          "[resolve] 2675 resolved, 1 unresolved_internal, 770 unresolved_external, 112 unresolved_unknown (of 3558 total specs)",
+          "[resolve_imports] project_map 6.2ms, suffix_idx 7.4ms, suffix_resolve 44.2ms, total 57.7ms",
+          "[build_graphs] 827 files | maps 9.9ms, imports 58.2ms, calls+inherit 37.8ms, total 105.9ms | 2674 import, 6499 call, 0 inherit edges",
+          "[evolution] walked 964 commits, skipped 92 (oid_err=0, commit_err=0, unparseable=92)"
+        ]
+      }
+    },
+    {
+      "sample_id": "sample_3",
+      "generated_at": "2026-04-15T06:35:50.414Z",
+      "benchmark": {
+        "cold_process_total_ms": 20350.5,
+        "cold": {
+          "scan": {
+            "label": "scan",
+            "tool": "scan",
+            "elapsed_ms": 4476.1,
+            "summary": {
+              "files": 827,
+              "import_edges": 2674,
+              "quality_signal": 4210,
+              "overall_confidence_0_10000": 8552,
+              "resolved": 2675,
+              "unresolved_internal": 1
+            }
+          },
+          "concepts": {
+            "label": "concepts",
+            "tool": "concepts",
+            "elapsed_ms": 4337.6,
+            "summary": {
+              "configured_concept_count": 3,
+              "contract_count": 1,
+              "matched_guardrail_test_count": 1,
+              "inferred_concept_count": 164,
+              "state_model_count": 2,
+              "semantic_cache_source": "bridge"
+            }
+          },
+          "findings": {
+            "label": "findings_top12",
+            "tool": "findings",
+            "elapsed_ms": 8205.8,
+            "summary": {
+              "clone_group_count": 46,
+              "clone_family_count": 8,
+              "finding_count": 12,
+              "semantic_finding_count": 4,
+              "debt_signal_count": 5,
+              "watchpoint_count": 5
+            }
+          },
+          "explain_task_git_status": {
+            "label": "explain_task_git_status",
+            "tool": "explain_concept",
+            "elapsed_ms": 643.9,
+            "summary": {
+              "finding_count": 0,
+              "obligation_count": 0,
+              "read_count": 8,
+              "write_count": 12,
+              "related_test_count": 4
+            }
+          },
+          "explain_task_presentation_status": {
+            "label": "explain_task_presentation_status",
+            "tool": "explain_concept",
+            "elapsed_ms": 648,
+            "summary": {
+              "finding_count": 1,
+              "obligation_count": 1,
+              "read_count": 40,
+              "write_count": 0,
+              "related_test_count": 4
+            }
+          },
+          "parity_server_state_bootstrap": {
+            "label": "parity_server_state_bootstrap",
+            "tool": "parity",
+            "elapsed_ms": 137.7,
+            "summary": {
+              "contract_count": 1,
+              "missing_cell_count": 0,
+              "parity_score_0_10000": 10000,
+              "finding_count": 0
+            }
+          },
+          "state": {
+            "label": "state",
+            "tool": "state",
+            "elapsed_ms": 255,
+            "summary": {
+              "state_model_count": 2,
+              "finding_count": 3,
+              "state_integrity_score_0_10000": 8333
+            }
+          },
+          "agent_brief_onboarding": {
+            "label": "agent_brief_onboarding",
+            "tool": "agent_brief",
+            "elapsed_ms": 1645.3,
+            "summary": {
+              "mode": "repo_onboarding",
+              "decision": "fix_now",
+              "primary_target_count": 3,
+              "missing_obligation_count": 0,
+              "watchpoint_count": 3,
+              "semantic_cache_source": "memory"
+            }
+          }
+        },
+        "warm_cached_total_ms": 4967.6,
+        "warm_cached": {
+          "concepts": {
+            "label": "concepts",
+            "tool": "concepts",
+            "elapsed_ms": 175.4,
+            "summary": {
+              "configured_concept_count": 3,
+              "contract_count": 1,
+              "matched_guardrail_test_count": 1,
+              "inferred_concept_count": 164,
+              "state_model_count": 2,
+              "semantic_cache_source": "memory"
+            }
+          },
+          "findings": {
+            "label": "findings_top12",
+            "tool": "findings",
+            "elapsed_ms": 1642.2,
+            "summary": {
+              "clone_group_count": 46,
+              "clone_family_count": 8,
+              "finding_count": 12,
+              "semantic_finding_count": 4,
+              "debt_signal_count": 5,
+              "watchpoint_count": 5
+            }
+          },
+          "explain_task_git_status": {
+            "label": "explain_task_git_status",
+            "tool": "explain_concept",
+            "elapsed_ms": 604.1,
+            "summary": {
+              "finding_count": 0,
+              "obligation_count": 0,
+              "read_count": 8,
+              "write_count": 12,
+              "related_test_count": 4
+            }
+          },
+          "explain_task_presentation_status": {
+            "label": "explain_task_presentation_status",
+            "tool": "explain_concept",
+            "elapsed_ms": 621.7,
+            "summary": {
+              "finding_count": 1,
+              "obligation_count": 1,
+              "read_count": 40,
+              "write_count": 0,
+              "related_test_count": 4
+            }
+          },
+          "parity_server_state_bootstrap": {
+            "label": "parity_server_state_bootstrap",
+            "tool": "parity",
+            "elapsed_ms": 135.8,
+            "summary": {
+              "contract_count": 1,
+              "missing_cell_count": 0,
+              "parity_score_0_10000": 10000,
+              "finding_count": 0
+            }
+          },
+          "state": {
+            "label": "state",
+            "tool": "state",
+            "elapsed_ms": 253.9,
+            "summary": {
+              "state_model_count": 2,
+              "finding_count": 3,
+              "state_integrity_score_0_10000": 8333
+            }
+          },
+          "agent_brief_onboarding": {
+            "label": "agent_brief_onboarding",
+            "tool": "agent_brief",
+            "elapsed_ms": 1533.9,
+            "summary": {
+              "mode": "repo_onboarding",
+              "decision": "fix_now",
+              "primary_target_count": 3,
+              "missing_obligation_count": 0,
+              "watchpoint_count": 3,
+              "semantic_cache_source": "memory"
+            }
+          }
+        },
+        "warm_persisted_total_ms": 12726.3,
+        "warm_persisted": {
+          "scan": {
+            "label": "persisted_scan",
+            "tool": "scan",
+            "elapsed_ms": 4246.1,
+            "summary": {
+              "files": 827,
+              "import_edges": 2674,
+              "quality_signal": 4210,
+              "overall_confidence_0_10000": 8552,
+              "resolved": 2675,
+              "unresolved_internal": 1
+            }
+          },
+          "concepts": {
+            "label": "persisted_concepts",
+            "tool": "concepts",
+            "elapsed_ms": 355.4,
+            "summary": {
+              "configured_concept_count": 3,
+              "contract_count": 1,
+              "matched_guardrail_test_count": 1,
+              "inferred_concept_count": 164,
+              "state_model_count": 2,
+              "semantic_cache_source": "disk"
+            }
+          },
+          "findings": {
+            "label": "persisted_findings_top12",
+            "tool": "findings",
+            "elapsed_ms": 6776,
+            "summary": {
+              "clone_group_count": 46,
+              "clone_family_count": 8,
+              "finding_count": 12,
+              "semantic_finding_count": 4,
+              "debt_signal_count": 5,
+              "watchpoint_count": 5
+            }
+          },
+          "agent_brief_onboarding": {
+            "label": "persisted_agent_brief_onboarding",
+            "tool": "agent_brief",
+            "elapsed_ms": 1344.5,
+            "summary": {
+              "mode": "repo_onboarding",
+              "decision": "fix_now",
+              "primary_target_count": 3,
+              "missing_obligation_count": 0,
+              "watchpoint_count": 3,
+              "semantic_cache_source": "memory"
+            }
+          }
+        },
+        "warm_patch_safety_total_ms": 3952.6,
+        "warm_patch_safety": {
+          "session_start": {
+            "label": "session_start",
+            "tool": "session_start",
+            "elapsed_ms": 681.7,
+            "summary": {
+              "session_finding_count": 197,
+              "suppressed_finding_count": 0
+            }
+          },
+          "agent_brief_patch": {
+            "label": "agent_brief_patch",
+            "tool": "agent_brief",
+            "elapsed_ms": 889.3,
+            "summary": {
+              "mode": "patch",
+              "decision": "continue",
+              "primary_target_count": 0,
+              "missing_obligation_count": 0,
+              "watchpoint_count": 2,
+              "semantic_cache_source": "memory"
+            }
+          },
+          "gate": {
+            "label": "gate",
+            "tool": "gate",
+            "elapsed_ms": 648.3,
+            "summary": {
+              "decision": "pass",
+              "changed_file_count": 0,
+              "introduced_finding_count": 0,
+              "missing_obligation_count": 0,
+              "obligation_completeness_0_10000": 10000
+            }
+          },
+          "check": {
+            "label": "check",
+            "tool": "check",
+            "elapsed_ms": 61.8,
+            "summary": {
+              "gate": "pass",
+              "issue_count": 0,
+              "changed_file_count": 0,
+              "partial_results": false,
+              "changed_scope_available": true
+            }
+          },
+          "agent_brief_pre_merge": {
+            "label": "agent_brief_pre_merge",
+            "tool": "agent_brief",
+            "elapsed_ms": 839.2,
+            "summary": {
+              "mode": "pre_merge",
+              "decision": "continue",
+              "primary_target_count": 0,
+              "missing_obligation_count": 0,
+              "watchpoint_count": 2,
+              "semantic_cache_source": "memory"
+            }
+          },
+          "session_end": {
+            "label": "session_end",
+            "tool": "session_end",
+            "elapsed_ms": 831.7,
+            "summary": {
+              "pass": true,
+              "changed_file_count": 0,
+              "introduced_finding_count": 0,
+              "missing_obligation_count": 0,
+              "gate_decision": "pass"
+            }
+          }
+        },
+        "stdout_log": [],
+        "stderr_log": [
+          "[build_project_map] 827 files, 33 unique dirs, 33 cache misses, 4.4ms",
+          "[resolve] 2675 resolved, 1 unresolved_internal, 770 unresolved_external, 112 unresolved_unknown (of 3558 total specs)",
+          "[resolve_imports] project_map 5.4ms, suffix_idx 8.0ms, suffix_resolve 47.8ms, total 61.1ms",
+          "[build_graphs] 827 files | maps 11.3ms, imports 61.6ms, calls+inherit 48.2ms, total 121.1ms | 2674 import, 6499 call, 0 inherit edges",
+          "[evolution] walked 964 commits, skipped 92 (oid_err=0, commit_err=0, unparseable=92)"
+        ]
+      }
+    },
+    {
+      "sample_id": "sample_4",
+      "generated_at": "2026-04-15T06:36:30.407Z",
+      "benchmark": {
+        "cold_process_total_ms": 19593.9,
+        "cold": {
+          "scan": {
+            "label": "scan",
+            "tool": "scan",
+            "elapsed_ms": 3805.9,
+            "summary": {
+              "files": 827,
+              "import_edges": 2674,
+              "quality_signal": 4210,
+              "overall_confidence_0_10000": 8552,
+              "resolved": 2675,
+              "unresolved_internal": 1
+            }
+          },
+          "concepts": {
+            "label": "concepts",
+            "tool": "concepts",
+            "elapsed_ms": 4395.1,
+            "summary": {
+              "configured_concept_count": 3,
+              "contract_count": 1,
+              "matched_guardrail_test_count": 1,
+              "inferred_concept_count": 164,
+              "state_model_count": 2,
+              "semantic_cache_source": "bridge"
+            }
+          },
+          "findings": {
+            "label": "findings_top12",
+            "tool": "findings",
+            "elapsed_ms": 8649.4,
+            "summary": {
+              "clone_group_count": 46,
+              "clone_family_count": 8,
+              "finding_count": 12,
+              "semantic_finding_count": 4,
+              "debt_signal_count": 5,
+              "watchpoint_count": 5
+            }
+          },
+          "explain_task_git_status": {
+            "label": "explain_task_git_status",
+            "tool": "explain_concept",
+            "elapsed_ms": 508.9,
+            "summary": {
+              "finding_count": 0,
+              "obligation_count": 0,
+              "read_count": 8,
+              "write_count": 12,
+              "related_test_count": 4
+            }
+          },
+          "explain_task_presentation_status": {
+            "label": "explain_task_presentation_status",
+            "tool": "explain_concept",
+            "elapsed_ms": 578.3,
+            "summary": {
+              "finding_count": 1,
+              "obligation_count": 1,
+              "read_count": 40,
+              "write_count": 0,
+              "related_test_count": 4
+            }
+          },
+          "parity_server_state_bootstrap": {
+            "label": "parity_server_state_bootstrap",
+            "tool": "parity",
+            "elapsed_ms": 111.3,
+            "summary": {
+              "contract_count": 1,
+              "missing_cell_count": 0,
+              "parity_score_0_10000": 10000,
+              "finding_count": 0
+            }
+          },
+          "state": {
+            "label": "state",
+            "tool": "state",
+            "elapsed_ms": 204.9,
+            "summary": {
+              "state_model_count": 2,
+              "finding_count": 3,
+              "state_integrity_score_0_10000": 8333
+            }
+          },
+          "agent_brief_onboarding": {
+            "label": "agent_brief_onboarding",
+            "tool": "agent_brief",
+            "elapsed_ms": 1338.3,
+            "summary": {
+              "mode": "repo_onboarding",
+              "decision": "fix_now",
+              "primary_target_count": 3,
+              "missing_obligation_count": 0,
+              "watchpoint_count": 3,
+              "semantic_cache_source": "memory"
+            }
+          }
+        },
+        "warm_cached_total_ms": 4420.1,
+        "warm_cached": {
+          "concepts": {
+            "label": "concepts",
+            "tool": "concepts",
+            "elapsed_ms": 122.6,
+            "summary": {
+              "configured_concept_count": 3,
+              "contract_count": 1,
+              "matched_guardrail_test_count": 1,
+              "inferred_concept_count": 164,
+              "state_model_count": 2,
+              "semantic_cache_source": "memory"
+            }
+          },
+          "findings": {
+            "label": "findings_top12",
+            "tool": "findings",
+            "elapsed_ms": 1391.5,
+            "summary": {
+              "clone_group_count": 46,
+              "clone_family_count": 8,
+              "finding_count": 12,
+              "semantic_finding_count": 4,
+              "debt_signal_count": 5,
+              "watchpoint_count": 5
+            }
+          },
+          "explain_task_git_status": {
+            "label": "explain_task_git_status",
+            "tool": "explain_concept",
+            "elapsed_ms": 534.8,
+            "summary": {
+              "finding_count": 0,
+              "obligation_count": 0,
+              "read_count": 8,
+              "write_count": 12,
+              "related_test_count": 4
+            }
+          },
+          "explain_task_presentation_status": {
+            "label": "explain_task_presentation_status",
+            "tool": "explain_concept",
+            "elapsed_ms": 544.5,
+            "summary": {
+              "finding_count": 1,
+              "obligation_count": 1,
+              "read_count": 40,
+              "write_count": 0,
+              "related_test_count": 4
+            }
+          },
+          "parity_server_state_bootstrap": {
+            "label": "parity_server_state_bootstrap",
+            "tool": "parity",
+            "elapsed_ms": 114,
+            "summary": {
+              "contract_count": 1,
+              "missing_cell_count": 0,
+              "parity_score_0_10000": 10000,
+              "finding_count": 0
+            }
+          },
+          "state": {
+            "label": "state",
+            "tool": "state",
+            "elapsed_ms": 206.8,
+            "summary": {
+              "state_model_count": 2,
+              "finding_count": 3,
+              "state_integrity_score_0_10000": 8333
+            }
+          },
+          "agent_brief_onboarding": {
+            "label": "agent_brief_onboarding",
+            "tool": "agent_brief",
+            "elapsed_ms": 1505.1,
+            "summary": {
+              "mode": "repo_onboarding",
+              "decision": "fix_now",
+              "primary_target_count": 3,
+              "missing_obligation_count": 0,
+              "watchpoint_count": 3,
+              "semantic_cache_source": "memory"
+            }
+          }
+        },
+        "warm_persisted_total_ms": 13965.9,
+        "warm_persisted": {
+          "scan": {
+            "label": "persisted_scan",
+            "tool": "scan",
+            "elapsed_ms": 4692.8,
+            "summary": {
+              "files": 827,
+              "import_edges": 2674,
+              "quality_signal": 4210,
+              "overall_confidence_0_10000": 8552,
+              "resolved": 2675,
+              "unresolved_internal": 1
+            }
+          },
+          "concepts": {
+            "label": "persisted_concepts",
+            "tool": "concepts",
+            "elapsed_ms": 356,
+            "summary": {
+              "configured_concept_count": 3,
+              "contract_count": 1,
+              "matched_guardrail_test_count": 1,
+              "inferred_concept_count": 164,
+              "state_model_count": 2,
+              "semantic_cache_source": "disk"
+            }
+          },
+          "findings": {
+            "label": "persisted_findings_top12",
+            "tool": "findings",
+            "elapsed_ms": 7338.9,
+            "summary": {
+              "clone_group_count": 46,
+              "clone_family_count": 8,
+              "finding_count": 12,
+              "semantic_finding_count": 4,
+              "debt_signal_count": 5,
+              "watchpoint_count": 5
+            }
+          },
+          "agent_brief_onboarding": {
+            "label": "persisted_agent_brief_onboarding",
+            "tool": "agent_brief",
+            "elapsed_ms": 1573.5,
+            "summary": {
+              "mode": "repo_onboarding",
+              "decision": "fix_now",
+              "primary_target_count": 3,
+              "missing_obligation_count": 0,
+              "watchpoint_count": 3,
+              "semantic_cache_source": "memory"
+            }
+          }
+        },
+        "warm_patch_safety_total_ms": 4354.9,
+        "warm_patch_safety": {
+          "session_start": {
+            "label": "session_start",
+            "tool": "session_start",
+            "elapsed_ms": 680.5,
+            "summary": {
+              "session_finding_count": 197,
+              "suppressed_finding_count": 0
+            }
+          },
+          "agent_brief_patch": {
+            "label": "agent_brief_patch",
+            "tool": "agent_brief",
+            "elapsed_ms": 841.7,
+            "summary": {
+              "mode": "patch",
+              "decision": "continue",
+              "primary_target_count": 0,
+              "missing_obligation_count": 0,
+              "watchpoint_count": 2,
+              "semantic_cache_source": "memory"
+            }
+          },
+          "gate": {
+            "label": "gate",
+            "tool": "gate",
+            "elapsed_ms": 758.7,
+            "summary": {
+              "decision": "pass",
+              "changed_file_count": 0,
+              "introduced_finding_count": 0,
+              "missing_obligation_count": 0,
+              "obligation_completeness_0_10000": 10000
+            }
+          },
+          "check": {
+            "label": "check",
+            "tool": "check",
+            "elapsed_ms": 70.4,
+            "summary": {
+              "gate": "pass",
+              "issue_count": 0,
+              "changed_file_count": 0,
+              "partial_results": false,
+              "changed_scope_available": true
+            }
+          },
+          "agent_brief_pre_merge": {
+            "label": "agent_brief_pre_merge",
+            "tool": "agent_brief",
+            "elapsed_ms": 992.7,
+            "summary": {
+              "mode": "pre_merge",
+              "decision": "continue",
+              "primary_target_count": 0,
+              "missing_obligation_count": 0,
+              "watchpoint_count": 2,
+              "semantic_cache_source": "memory"
+            }
+          },
+          "session_end": {
+            "label": "session_end",
+            "tool": "session_end",
+            "elapsed_ms": 1010.4,
+            "summary": {
+              "pass": true,
+              "changed_file_count": 0,
+              "introduced_finding_count": 0,
+              "missing_obligation_count": 0,
+              "gate_decision": "pass"
+            }
+          }
+        },
+        "stdout_log": [],
+        "stderr_log": [
+          "[build_project_map] 827 files, 33 unique dirs, 33 cache misses, 5.8ms",
+          "[resolve] 2675 resolved, 1 unresolved_internal, 770 unresolved_external, 112 unresolved_unknown (of 3558 total specs)",
+          "[resolve_imports] project_map 7.3ms, suffix_idx 11.4ms, suffix_resolve 117.1ms, total 135.8ms",
+          "[build_graphs] 827 files | maps 14.6ms, imports 137.0ms, calls+inherit 44.2ms, total 195.8ms | 2674 import, 6499 call, 0 inherit edges",
+          "[evolution] walked 964 commits, skipped 92 (oid_err=0, commit_err=0, unparseable=92)"
+        ]
+      }
+    },
+    {
+      "sample_id": "sample_5",
+      "generated_at": "2026-04-15T06:37:11.321Z",
+      "benchmark": {
+        "cold_process_total_ms": 18887.3,
+        "cold": {
+          "scan": {
+            "label": "scan",
+            "tool": "scan",
+            "elapsed_ms": 4278.1,
+            "summary": {
+              "files": 827,
+              "import_edges": 2674,
+              "quality_signal": 4210,
+              "overall_confidence_0_10000": 8552,
+              "resolved": 2675,
+              "unresolved_internal": 1
+            }
+          },
+          "concepts": {
+            "label": "concepts",
+            "tool": "concepts",
+            "elapsed_ms": 4353.1,
+            "summary": {
+              "configured_concept_count": 3,
+              "contract_count": 1,
+              "matched_guardrail_test_count": 1,
+              "inferred_concept_count": 164,
+              "state_model_count": 2,
+              "semantic_cache_source": "bridge"
+            }
+          },
+          "findings": {
+            "label": "findings_top12",
+            "tool": "findings",
+            "elapsed_ms": 7157,
+            "summary": {
+              "clone_group_count": 46,
+              "clone_family_count": 8,
+              "finding_count": 12,
+              "semantic_finding_count": 4,
+              "debt_signal_count": 5,
+              "watchpoint_count": 5
+            }
+          },
+          "explain_task_git_status": {
+            "label": "explain_task_git_status",
+            "tool": "explain_concept",
+            "elapsed_ms": 541.4,
+            "summary": {
+              "finding_count": 0,
+              "obligation_count": 0,
+              "read_count": 8,
+              "write_count": 12,
+              "related_test_count": 4
+            }
+          },
+          "explain_task_presentation_status": {
+            "label": "explain_task_presentation_status",
+            "tool": "explain_concept",
+            "elapsed_ms": 589.2,
+            "summary": {
+              "finding_count": 1,
+              "obligation_count": 1,
+              "read_count": 40,
+              "write_count": 0,
+              "related_test_count": 4
+            }
+          },
+          "parity_server_state_bootstrap": {
+            "label": "parity_server_state_bootstrap",
+            "tool": "parity",
+            "elapsed_ms": 124.8,
+            "summary": {
+              "contract_count": 1,
+              "missing_cell_count": 0,
+              "parity_score_0_10000": 10000,
+              "finding_count": 0
+            }
+          },
+          "state": {
+            "label": "state",
+            "tool": "state",
+            "elapsed_ms": 251.8,
+            "summary": {
+              "state_model_count": 2,
+              "finding_count": 3,
+              "state_integrity_score_0_10000": 8333
+            }
+          },
+          "agent_brief_onboarding": {
+            "label": "agent_brief_onboarding",
+            "tool": "agent_brief",
+            "elapsed_ms": 1590,
+            "summary": {
+              "mode": "repo_onboarding",
+              "decision": "fix_now",
+              "primary_target_count": 3,
+              "missing_obligation_count": 0,
+              "watchpoint_count": 3,
+              "semantic_cache_source": "memory"
+            }
+          }
+        },
+        "warm_cached_total_ms": 5005.6,
+        "warm_cached": {
+          "concepts": {
+            "label": "concepts",
+            "tool": "concepts",
+            "elapsed_ms": 157,
+            "summary": {
+              "configured_concept_count": 3,
+              "contract_count": 1,
+              "matched_guardrail_test_count": 1,
+              "inferred_concept_count": 164,
+              "state_model_count": 2,
+              "semantic_cache_source": "memory"
+            }
+          },
+          "findings": {
+            "label": "findings_top12",
+            "tool": "findings",
+            "elapsed_ms": 1589.2,
+            "summary": {
+              "clone_group_count": 46,
+              "clone_family_count": 8,
+              "finding_count": 12,
+              "semantic_finding_count": 4,
+              "debt_signal_count": 5,
+              "watchpoint_count": 5
+            }
+          },
+          "explain_task_git_status": {
+            "label": "explain_task_git_status",
+            "tool": "explain_concept",
+            "elapsed_ms": 635.2,
+            "summary": {
+              "finding_count": 0,
+              "obligation_count": 0,
+              "read_count": 8,
+              "write_count": 12,
+              "related_test_count": 4
+            }
+          },
+          "explain_task_presentation_status": {
+            "label": "explain_task_presentation_status",
+            "tool": "explain_concept",
+            "elapsed_ms": 646.8,
+            "summary": {
+              "finding_count": 1,
+              "obligation_count": 1,
+              "read_count": 40,
+              "write_count": 0,
+              "related_test_count": 4
+            }
+          },
+          "parity_server_state_bootstrap": {
+            "label": "parity_server_state_bootstrap",
+            "tool": "parity",
+            "elapsed_ms": 141.2,
+            "summary": {
+              "contract_count": 1,
+              "missing_cell_count": 0,
+              "parity_score_0_10000": 10000,
+              "finding_count": 0
+            }
+          },
+          "state": {
+            "label": "state",
+            "tool": "state",
+            "elapsed_ms": 256,
+            "summary": {
+              "state_model_count": 2,
+              "finding_count": 3,
+              "state_integrity_score_0_10000": 8333
+            }
+          },
+          "agent_brief_onboarding": {
+            "label": "agent_brief_onboarding",
+            "tool": "agent_brief",
+            "elapsed_ms": 1579.5,
+            "summary": {
+              "mode": "repo_onboarding",
+              "decision": "fix_now",
+              "primary_target_count": 3,
+              "missing_obligation_count": 0,
+              "watchpoint_count": 3,
+              "semantic_cache_source": "memory"
+            }
+          }
+        },
+        "warm_persisted_total_ms": 14279.4,
+        "warm_persisted": {
+          "scan": {
+            "label": "persisted_scan",
+            "tool": "scan",
+            "elapsed_ms": 4405.4,
+            "summary": {
+              "files": 827,
+              "import_edges": 2674,
+              "quality_signal": 4210,
+              "overall_confidence_0_10000": 8552,
+              "resolved": 2675,
+              "unresolved_internal": 1
+            }
+          },
+          "concepts": {
+            "label": "persisted_concepts",
+            "tool": "concepts",
+            "elapsed_ms": 401.4,
+            "summary": {
+              "configured_concept_count": 3,
+              "contract_count": 1,
+              "matched_guardrail_test_count": 1,
+              "inferred_concept_count": 164,
+              "state_model_count": 2,
+              "semantic_cache_source": "disk"
+            }
+          },
+          "findings": {
+            "label": "persisted_findings_top12",
+            "tool": "findings",
+            "elapsed_ms": 7954.6,
+            "summary": {
+              "clone_group_count": 46,
+              "clone_family_count": 8,
+              "finding_count": 12,
+              "semantic_finding_count": 4,
+              "debt_signal_count": 5,
+              "watchpoint_count": 5
+            }
+          },
+          "agent_brief_onboarding": {
+            "label": "persisted_agent_brief_onboarding",
+            "tool": "agent_brief",
+            "elapsed_ms": 1513.7,
+            "summary": {
+              "mode": "repo_onboarding",
+              "decision": "fix_now",
+              "primary_target_count": 3,
+              "missing_obligation_count": 0,
+              "watchpoint_count": 3,
+              "semantic_cache_source": "memory"
+            }
+          }
+        },
+        "warm_patch_safety_total_ms": 4780.5,
+        "warm_patch_safety": {
+          "session_start": {
+            "label": "session_start",
+            "tool": "session_start",
+            "elapsed_ms": 831.6,
+            "summary": {
+              "session_finding_count": 197,
+              "suppressed_finding_count": 0
+            }
+          },
+          "agent_brief_patch": {
+            "label": "agent_brief_patch",
+            "tool": "agent_brief",
+            "elapsed_ms": 1021.7,
+            "summary": {
+              "mode": "patch",
+              "decision": "continue",
+              "primary_target_count": 0,
+              "missing_obligation_count": 0,
+              "watchpoint_count": 2,
+              "semantic_cache_source": "memory"
+            }
+          },
+          "gate": {
+            "label": "gate",
+            "tool": "gate",
+            "elapsed_ms": 810.2,
+            "summary": {
+              "decision": "pass",
+              "changed_file_count": 0,
+              "introduced_finding_count": 0,
+              "missing_obligation_count": 0,
+              "obligation_completeness_0_10000": 10000
+            }
+          },
+          "check": {
+            "label": "check",
+            "tool": "check",
+            "elapsed_ms": 83.8,
+            "summary": {
+              "gate": "pass",
+              "issue_count": 0,
+              "changed_file_count": 0,
+              "partial_results": false,
+              "changed_scope_available": true
+            }
+          },
+          "agent_brief_pre_merge": {
+            "label": "agent_brief_pre_merge",
+            "tool": "agent_brief",
+            "elapsed_ms": 1017.8,
+            "summary": {
+              "mode": "pre_merge",
+              "decision": "continue",
+              "primary_target_count": 0,
+              "missing_obligation_count": 0,
+              "watchpoint_count": 2,
+              "semantic_cache_source": "memory"
+            }
+          },
+          "session_end": {
+            "label": "session_end",
+            "tool": "session_end",
+            "elapsed_ms": 1014.9,
+            "summary": {
+              "pass": true,
+              "changed_file_count": 0,
+              "introduced_finding_count": 0,
+              "missing_obligation_count": 0,
+              "gate_decision": "pass"
+            }
+          }
+        },
+        "stdout_log": [],
+        "stderr_log": [
+          "[build_project_map] 827 files, 33 unique dirs, 33 cache misses, 4.8ms",
+          "[resolve] 2675 resolved, 1 unresolved_internal, 770 unresolved_external, 112 unresolved_unknown (of 3558 total specs)",
+          "[resolve_imports] project_map 5.8ms, suffix_idx 7.5ms, suffix_resolve 50.7ms, total 64.0ms",
+          "[build_graphs] 827 files | maps 11.4ms, imports 64.5ms, calls+inherit 36.1ms, total 112.0ms | 2674 import, 6499 call, 0 inherit edges",
+          "[evolution] walked 964 commits, skipped 92 (oid_err=0, commit_err=0, unparseable=92)"
+        ]
+      }
+    }
+  ],
+  "analysis_mode": "working_tree",
+  "source_tree_identity": {
+    "commit": "12d9cb5113e9050facc611584c92a881fd2dbed2",
     "dirty_paths": [],
     "dirty_paths_count": 0,
     "dirty_paths_fingerprint": "53c1562521679823f3ee3c10c2585dec4c3ecd862d145f868947047fd32725ac",
-    "tree_fingerprint": "b14fb9062e2e32f73a706557162f2414c102a195c178c715e0b17a2d35d08d5c",
-    "analysis_mode": "head_clone"
+    "tree_fingerprint": "235b5a5cb7c9850c73a89751645164868fb188fa782240a9cd2abddaf0a400d7",
+    "analysis_mode": "working_tree"
+  },
+  "analyzed_tree_identity": {
+    "commit": "12d9cb5113e9050facc611584c92a881fd2dbed2",
+    "dirty_paths": [],
+    "dirty_paths_count": 0,
+    "dirty_paths_fingerprint": "53c1562521679823f3ee3c10c2585dec4c3ecd862d145f868947047fd32725ac",
+    "tree_fingerprint": "235b5a5cb7c9850c73a89751645164868fb188fa782240a9cd2abddaf0a400d7",
+    "analysis_mode": "working_tree"
   },
   "rules_identity": {
     "path": "<sentrux-root>/docs/v2/examples/parallel-code.rules.toml",
@@ -30,34 +1973,34 @@
   "binary_identity": {
     "path": "<sentrux-root>/target/debug/sentrux",
     "exists": true,
-    "sha256": "f9d71e715363761130dd0f609213bb02285418eb6d65d27a4412e97c9a4daa0d"
+    "sha256": "a3beb4975b809a1a8e2f586449dd6a64fea9143429c2cac29acc4e255d35b614"
   },
   "sentrux_binary": "<sentrux-root>/target/debug/sentrux",
   "benchmark": {
-    "cold_process_total_ms": 36083.3,
+    "cold_process_total_ms": 19048.5,
     "cold": {
       "scan": {
         "label": "scan",
         "tool": "scan",
-        "elapsed_ms": 14031.7,
+        "elapsed_ms": 3805.9,
         "summary": {
-          "files": 813,
-          "import_edges": 2621,
-          "quality_signal": 4224,
-          "overall_confidence_0_10000": 8531,
-          "resolved": 2622,
+          "files": 827,
+          "import_edges": 2674,
+          "quality_signal": 4210,
+          "overall_confidence_0_10000": 8552,
+          "resolved": 2675,
           "unresolved_internal": 1
         }
       },
       "concepts": {
         "label": "concepts",
         "tool": "concepts",
-        "elapsed_ms": 5440.1,
+        "elapsed_ms": 4395.1,
         "summary": {
           "configured_concept_count": 3,
           "contract_count": 1,
           "matched_guardrail_test_count": 1,
-          "inferred_concept_count": 162,
+          "inferred_concept_count": 164,
           "state_model_count": 2,
           "semantic_cache_source": "bridge"
         }
@@ -65,10 +2008,10 @@
       "findings": {
         "label": "findings_top12",
         "tool": "findings",
-        "elapsed_ms": 9381.1,
+        "elapsed_ms": 7890.6,
         "summary": {
-          "clone_group_count": 44,
-          "clone_family_count": 7,
+          "clone_group_count": 46,
+          "clone_family_count": 8,
           "finding_count": 12,
           "semantic_finding_count": 4,
           "debt_signal_count": 5,
@@ -78,7 +2021,7 @@
       "explain_task_git_status": {
         "label": "explain_task_git_status",
         "tool": "explain_concept",
-        "elapsed_ms": 1135.6,
+        "elapsed_ms": 574.7,
         "summary": {
           "finding_count": 0,
           "obligation_count": 0,
@@ -90,7 +2033,7 @@
       "explain_task_presentation_status": {
         "label": "explain_task_presentation_status",
         "tool": "explain_concept",
-        "elapsed_ms": 1584.8,
+        "elapsed_ms": 560.7,
         "summary": {
           "finding_count": 1,
           "obligation_count": 1,
@@ -102,7 +2045,7 @@
       "parity_server_state_bootstrap": {
         "label": "parity_server_state_bootstrap",
         "tool": "parity",
-        "elapsed_ms": 497.8,
+        "elapsed_ms": 109.4,
         "summary": {
           "contract_count": 1,
           "missing_cell_count": 0,
@@ -113,7 +2056,7 @@
       "state": {
         "label": "state",
         "tool": "state",
-        "elapsed_ms": 693.1,
+        "elapsed_ms": 212.8,
         "summary": {
           "state_model_count": 2,
           "finding_count": 3,
@@ -123,7 +2066,7 @@
       "agent_brief_onboarding": {
         "label": "agent_brief_onboarding",
         "tool": "agent_brief",
-        "elapsed_ms": 3316.5,
+        "elapsed_ms": 1469.7,
         "summary": {
           "mode": "repo_onboarding",
           "decision": "fix_now",
@@ -134,17 +2077,17 @@
         }
       }
     },
-    "warm_cached_total_ms": 7512.9,
+    "warm_cached_total_ms": 4967.6,
     "warm_cached": {
       "concepts": {
         "label": "concepts",
         "tool": "concepts",
-        "elapsed_ms": 590.9,
+        "elapsed_ms": 179.1,
         "summary": {
           "configured_concept_count": 3,
           "contract_count": 1,
           "matched_guardrail_test_count": 1,
-          "inferred_concept_count": 162,
+          "inferred_concept_count": 164,
           "state_model_count": 2,
           "semantic_cache_source": "memory"
         }
@@ -152,10 +2095,10 @@
       "findings": {
         "label": "findings_top12",
         "tool": "findings",
-        "elapsed_ms": 2447.2,
+        "elapsed_ms": 1589.2,
         "summary": {
-          "clone_group_count": 44,
-          "clone_family_count": 7,
+          "clone_group_count": 46,
+          "clone_family_count": 8,
           "finding_count": 12,
           "semantic_finding_count": 4,
           "debt_signal_count": 5,
@@ -165,7 +2108,7 @@
       "explain_task_git_status": {
         "label": "explain_task_git_status",
         "tool": "explain_concept",
-        "elapsed_ms": 950.4,
+        "elapsed_ms": 634.1,
         "summary": {
           "finding_count": 0,
           "obligation_count": 0,
@@ -177,7 +2120,7 @@
       "explain_task_presentation_status": {
         "label": "explain_task_presentation_status",
         "tool": "explain_concept",
-        "elapsed_ms": 857.4,
+        "elapsed_ms": 662.3,
         "summary": {
           "finding_count": 1,
           "obligation_count": 1,
@@ -189,7 +2132,7 @@
       "parity_server_state_bootstrap": {
         "label": "parity_server_state_bootstrap",
         "tool": "parity",
-        "elapsed_ms": 210,
+        "elapsed_ms": 140.5,
         "summary": {
           "contract_count": 1,
           "missing_cell_count": 0,
@@ -200,7 +2143,7 @@
       "state": {
         "label": "state",
         "tool": "state",
-        "elapsed_ms": 313,
+        "elapsed_ms": 256,
         "summary": {
           "state_model_count": 2,
           "finding_count": 3,
@@ -210,7 +2153,7 @@
       "agent_brief_onboarding": {
         "label": "agent_brief_onboarding",
         "tool": "agent_brief",
-        "elapsed_ms": 2142.4,
+        "elapsed_ms": 1533.9,
         "summary": {
           "mode": "repo_onboarding",
           "decision": "fix_now",
@@ -221,30 +2164,30 @@
         }
       }
     },
-    "warm_persisted_total_ms": 22477.4,
+    "warm_persisted_total_ms": 13023.9,
     "warm_persisted": {
       "scan": {
         "label": "persisted_scan",
         "tool": "scan",
-        "elapsed_ms": 7883.2,
+        "elapsed_ms": 3685.9,
         "summary": {
-          "files": 813,
-          "import_edges": 2621,
-          "quality_signal": 4224,
-          "overall_confidence_0_10000": 8531,
-          "resolved": 2622,
+          "files": 827,
+          "import_edges": 2674,
+          "quality_signal": 4210,
+          "overall_confidence_0_10000": 8552,
+          "resolved": 2675,
           "unresolved_internal": 1
         }
       },
       "concepts": {
         "label": "persisted_concepts",
         "tool": "concepts",
-        "elapsed_ms": 533,
+        "elapsed_ms": 356,
         "summary": {
           "configured_concept_count": 3,
           "contract_count": 1,
           "matched_guardrail_test_count": 1,
-          "inferred_concept_count": 162,
+          "inferred_concept_count": 164,
           "state_model_count": 2,
           "semantic_cache_source": "disk"
         }
@@ -252,10 +2195,10 @@
       "findings": {
         "label": "persisted_findings_top12",
         "tool": "findings",
-        "elapsed_ms": 12506.8,
+        "elapsed_ms": 7338.9,
         "summary": {
-          "clone_group_count": 44,
-          "clone_family_count": 7,
+          "clone_group_count": 46,
+          "clone_family_count": 8,
           "finding_count": 12,
           "semantic_finding_count": 4,
           "debt_signal_count": 5,
@@ -265,7 +2208,7 @@
       "agent_brief_onboarding": {
         "label": "persisted_agent_brief_onboarding",
         "tool": "agent_brief",
-        "elapsed_ms": 1550.6,
+        "elapsed_ms": 1375.2,
         "summary": {
           "mode": "repo_onboarding",
           "decision": "fix_now",
@@ -276,21 +2219,21 @@
         }
       }
     },
-    "warm_patch_safety_total_ms": 5383.9,
+    "warm_patch_safety_total_ms": 4354.9,
     "warm_patch_safety": {
       "session_start": {
         "label": "session_start",
         "tool": "session_start",
-        "elapsed_ms": 1003.1,
+        "elapsed_ms": 683.1,
         "summary": {
-          "session_finding_count": 194,
+          "session_finding_count": 197,
           "suppressed_finding_count": 0
         }
       },
       "agent_brief_patch": {
         "label": "agent_brief_patch",
         "tool": "agent_brief",
-        "elapsed_ms": 894.8,
+        "elapsed_ms": 889.3,
         "summary": {
           "mode": "patch",
           "decision": "continue",
@@ -303,7 +2246,7 @@
       "gate": {
         "label": "gate",
         "tool": "gate",
-        "elapsed_ms": 1032.1,
+        "elapsed_ms": 758.7,
         "summary": {
           "decision": "pass",
           "changed_file_count": 0,
@@ -315,7 +2258,7 @@
       "check": {
         "label": "check",
         "tool": "check",
-        "elapsed_ms": 66.7,
+        "elapsed_ms": 70.4,
         "summary": {
           "gate": "pass",
           "issue_count": 0,
@@ -327,7 +2270,7 @@
       "agent_brief_pre_merge": {
         "label": "agent_brief_pre_merge",
         "tool": "agent_brief",
-        "elapsed_ms": 896.6,
+        "elapsed_ms": 992.7,
         "summary": {
           "mode": "pre_merge",
           "decision": "continue",
@@ -340,7 +2283,7 @@
       "session_end": {
         "label": "session_end",
         "tool": "session_end",
-        "elapsed_ms": 1489.3,
+        "elapsed_ms": 1010.4,
         "summary": {
           "pass": true,
           "changed_file_count": 0,
@@ -349,14 +2292,216 @@
           "gate_decision": "pass"
         }
       }
+    }
+  },
+  "comparison": {
+    "compared_to": "<sentrux-root>/docs/v2/examples/parallel-code-benchmark.json",
+    "previous_generated_at": "2026-04-15T06:19:48.256Z",
+    "comparable": true,
+    "comparability": {
+      "comparable": true,
+      "mismatches": []
     },
-    "stdout_log": [],
-    "stderr_log": [
-      "[build_project_map] 813 files, 33 unique dirs, 33 cache misses, 6.9ms",
-      "[resolve] 2622 resolved, 1 unresolved_internal, 755 unresolved_external, 111 unresolved_unknown (of 3489 total specs)",
-      "[resolve_imports] project_map 8.1ms, suffix_idx 26.4ms, suffix_resolve 143.5ms, total 178.1ms",
-      "[build_graphs] 813 files | maps 14.2ms, imports 179.4ms, calls+inherit 78.7ms, total 272.3ms | 2621 import, 6394 call, 0 inherit edges",
-      "[evolution] walked 954 commits, skipped 92 (oid_err=0, commit_err=0, unparseable=92)"
-    ]
+    "aggregate_basis": {
+      "current": "median",
+      "previous": "median",
+      "current_sample_count": 5,
+      "previous_sample_count": 3
+    },
+    "policy": {
+      "fail": {
+        "max_regression_ms": 250,
+        "max_regression_percent": 20
+      },
+      "warn": {
+        "max_regression_ms": 150,
+        "max_regression_percent": 10
+      },
+      "mode": "delta_ms_and_percent"
+    },
+    "metrics": [
+      {
+        "metric": "cold process total",
+        "path": "cold_process_total_ms",
+        "previous_ms": 20095.1,
+        "current_ms": 19048.5,
+        "delta_ms": -1046.6,
+        "delta_percent": -5.2,
+        "classification": "info"
+      },
+      {
+        "metric": "cold scan",
+        "path": "cold.scan.elapsed_ms",
+        "previous_ms": 3231.5,
+        "current_ms": 3805.9,
+        "delta_ms": 574.4,
+        "delta_percent": 17.8,
+        "classification": "warn"
+      },
+      {
+        "metric": "cold concepts",
+        "path": "cold.concepts.elapsed_ms",
+        "previous_ms": 4525.6,
+        "current_ms": 4395.1,
+        "delta_ms": -130.5,
+        "delta_percent": -2.9,
+        "classification": "info"
+      },
+      {
+        "metric": "cold agent_brief onboarding",
+        "path": "cold.agent_brief_onboarding.elapsed_ms",
+        "previous_ms": 1617.2,
+        "current_ms": 1469.7,
+        "delta_ms": -147.5,
+        "delta_percent": -9.1,
+        "classification": "info"
+      },
+      {
+        "metric": "warm cached total",
+        "path": "warm_cached_total_ms",
+        "previous_ms": 5154.6,
+        "current_ms": 4967.6,
+        "delta_ms": -187,
+        "delta_percent": -3.6,
+        "classification": "info"
+      },
+      {
+        "metric": "warm findings",
+        "path": "warm_cached.findings.elapsed_ms",
+        "previous_ms": 1647.9,
+        "current_ms": 1589.2,
+        "delta_ms": -58.7,
+        "delta_percent": -3.6,
+        "classification": "info"
+      },
+      {
+        "metric": "warm agent_brief onboarding",
+        "path": "warm_cached.agent_brief_onboarding.elapsed_ms",
+        "previous_ms": 1635,
+        "current_ms": 1533.9,
+        "delta_ms": -101.1,
+        "delta_percent": -6.2,
+        "classification": "info"
+      },
+      {
+        "metric": "warm persisted total",
+        "path": "warm_persisted_total_ms",
+        "previous_ms": 12653,
+        "current_ms": 13023.9,
+        "delta_ms": 370.9,
+        "delta_percent": 2.9,
+        "classification": "info"
+      },
+      {
+        "metric": "warm persisted concepts",
+        "path": "warm_persisted.concepts.elapsed_ms",
+        "previous_ms": 387.6,
+        "current_ms": 356,
+        "delta_ms": -31.6,
+        "delta_percent": -8.2,
+        "classification": "info"
+      },
+      {
+        "metric": "warm persisted findings",
+        "path": "warm_persisted.findings.elapsed_ms",
+        "previous_ms": 7649.5,
+        "current_ms": 7338.9,
+        "delta_ms": -310.6,
+        "delta_percent": -4.1,
+        "classification": "info"
+      },
+      {
+        "metric": "warm persisted agent_brief onboarding",
+        "path": "warm_persisted.agent_brief_onboarding.elapsed_ms",
+        "previous_ms": 1416.9,
+        "current_ms": 1375.2,
+        "delta_ms": -41.7,
+        "delta_percent": -2.9,
+        "classification": "info"
+      },
+      {
+        "metric": "warm patch-safety total",
+        "path": "warm_patch_safety_total_ms",
+        "previous_ms": 4706.9,
+        "current_ms": 4354.9,
+        "delta_ms": -352,
+        "delta_percent": -7.5,
+        "classification": "info"
+      },
+      {
+        "metric": "warm session_start",
+        "path": "warm_patch_safety.session_start.elapsed_ms",
+        "previous_ms": 824,
+        "current_ms": 683.1,
+        "delta_ms": -140.9,
+        "delta_percent": -17.1,
+        "classification": "info"
+      },
+      {
+        "metric": "warm agent_brief patch",
+        "path": "warm_patch_safety.agent_brief_patch.elapsed_ms",
+        "previous_ms": 1003.9,
+        "current_ms": 889.3,
+        "delta_ms": -114.6,
+        "delta_percent": -11.4,
+        "classification": "info"
+      },
+      {
+        "metric": "warm gate",
+        "path": "warm_patch_safety.gate.elapsed_ms",
+        "previous_ms": 798.8,
+        "current_ms": 758.7,
+        "delta_ms": -40.1,
+        "delta_percent": -5,
+        "classification": "info"
+      },
+      {
+        "metric": "warm check",
+        "path": "warm_patch_safety.check.elapsed_ms",
+        "previous_ms": 72.4,
+        "current_ms": 70.4,
+        "delta_ms": -2,
+        "delta_percent": -2.8,
+        "classification": "info"
+      },
+      {
+        "metric": "warm agent_brief pre_merge",
+        "path": "warm_patch_safety.agent_brief_pre_merge.elapsed_ms",
+        "previous_ms": 1024.6,
+        "current_ms": 992.7,
+        "delta_ms": -31.9,
+        "delta_percent": -3.1,
+        "classification": "info"
+      },
+      {
+        "metric": "warm session_end",
+        "path": "warm_patch_safety.session_end.elapsed_ms",
+        "previous_ms": 1005.7,
+        "current_ms": 1010.4,
+        "delta_ms": 4.7,
+        "delta_percent": 0.5,
+        "classification": "info"
+      }
+    ],
+    "summary": {
+      "total": 18,
+      "fail_count": 0,
+      "warn_count": 1,
+      "info_count": 17,
+      "blocked_count": 0
+    },
+    "regressions": [],
+    "warnings": [
+      {
+        "metric": "cold scan",
+        "path": "cold.scan.elapsed_ms",
+        "previous_ms": 3231.5,
+        "current_ms": 3805.9,
+        "delta_ms": 574.4,
+        "delta_percent": 17.8,
+        "classification": "warn"
+      }
+    ],
+    "blocked_metrics": []
   }
 }

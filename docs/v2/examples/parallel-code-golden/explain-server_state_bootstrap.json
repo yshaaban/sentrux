@@ -26,9 +26,18 @@
       "src/app/session-bootstrap-controller.test.ts"
     ]
   },
+  "diagnostics": {
+    "errors": {
+      "rules": null,
+      "semantic": null
+    },
+    "partial_results": false,
+    "warnings": []
+  },
   "expired_suppression_match_count": 0,
   "expired_suppressions": [],
   "findings": [],
+  "kind": "explain_concept",
   "obligations": [],
   "parity": [
     {
@@ -122,107 +131,100 @@
       "pattern": "src/app/session-bootstrap-controller.test.ts"
     }
   ],
-  "rules_error": null,
   "semantic": {
     "reads": [
       {
-        "line": 28,
-        "path": "src/app/runtime-diagnostics.ts",
-        "read_kind": "property_access",
-        "symbol_name": "SERVER_STATE_BOOTSTRAP_CATEGORIES.map"
-      },
-      {
-        "line": 199,
+        "line": 181,
         "path": "src/app/server-state-bootstrap-registry.ts",
         "read_kind": "property_access",
         "symbol_name": "SERVER_STATE_BOOTSTRAP_REGISTRY.git-status.createDescriptor"
       },
       {
-        "line": 199,
+        "line": 181,
         "path": "src/app/server-state-bootstrap-registry.ts",
         "read_kind": "element_access",
         "symbol_name": "SERVER_STATE_BOOTSTRAP_REGISTRY.git-status"
       },
       {
-        "line": 200,
+        "line": 182,
         "path": "src/app/server-state-bootstrap-registry.ts",
         "read_kind": "property_access",
         "symbol_name": "SERVER_STATE_BOOTSTRAP_REGISTRY.remote-status.createDescriptor"
       },
       {
-        "line": 200,
+        "line": 182,
         "path": "src/app/server-state-bootstrap-registry.ts",
         "read_kind": "element_access",
         "symbol_name": "SERVER_STATE_BOOTSTRAP_REGISTRY.remote-status"
       },
       {
-        "line": 201,
+        "line": 183,
         "path": "src/app/server-state-bootstrap-registry.ts",
         "read_kind": "property_access",
         "symbol_name": "SERVER_STATE_BOOTSTRAP_REGISTRY.peer-presence.createDescriptor"
       },
       {
-        "line": 201,
+        "line": 183,
         "path": "src/app/server-state-bootstrap-registry.ts",
         "read_kind": "element_access",
         "symbol_name": "SERVER_STATE_BOOTSTRAP_REGISTRY.peer-presence"
       },
       {
-        "line": 203,
+        "line": 185,
         "path": "src/app/server-state-bootstrap-registry.ts",
         "read_kind": "property_access",
         "symbol_name": "SERVER_STATE_BOOTSTRAP_REGISTRY.task-command-controller.createDescriptor"
       },
       {
-        "line": 203,
+        "line": 185,
         "path": "src/app/server-state-bootstrap-registry.ts",
         "read_kind": "element_access",
         "symbol_name": "SERVER_STATE_BOOTSTRAP_REGISTRY.task-command-controller"
       },
       {
-        "line": 204,
+        "line": 186,
         "path": "src/app/server-state-bootstrap-registry.ts",
         "read_kind": "property_access",
         "symbol_name": "SERVER_STATE_BOOTSTRAP_REGISTRY.agent-supervision.createDescriptor"
       },
       {
-        "line": 204,
+        "line": 186,
         "path": "src/app/server-state-bootstrap-registry.ts",
         "read_kind": "element_access",
         "symbol_name": "SERVER_STATE_BOOTSTRAP_REGISTRY.agent-supervision"
       },
       {
-        "line": 205,
+        "line": 187,
         "path": "src/app/server-state-bootstrap-registry.ts",
         "read_kind": "property_access",
         "symbol_name": "SERVER_STATE_BOOTSTRAP_REGISTRY.task-convergence.createDescriptor"
       },
       {
-        "line": 205,
+        "line": 187,
         "path": "src/app/server-state-bootstrap-registry.ts",
         "read_kind": "element_access",
         "symbol_name": "SERVER_STATE_BOOTSTRAP_REGISTRY.task-convergence"
       },
       {
-        "line": 206,
+        "line": 188,
         "path": "src/app/server-state-bootstrap-registry.ts",
         "read_kind": "property_access",
         "symbol_name": "SERVER_STATE_BOOTSTRAP_REGISTRY.task-review.createDescriptor"
       },
       {
-        "line": 206,
+        "line": 188,
         "path": "src/app/server-state-bootstrap-registry.ts",
         "read_kind": "element_access",
         "symbol_name": "SERVER_STATE_BOOTSTRAP_REGISTRY.task-review"
       },
       {
-        "line": 207,
+        "line": 189,
         "path": "src/app/server-state-bootstrap-registry.ts",
         "read_kind": "property_access",
         "symbol_name": "SERVER_STATE_BOOTSTRAP_REGISTRY.task-ports.createDescriptor"
       },
       {
-        "line": 207,
+        "line": 189,
         "path": "src/app/server-state-bootstrap-registry.ts",
         "read_kind": "element_access",
         "symbol_name": "SERVER_STATE_BOOTSTRAP_REGISTRY.task-ports"
@@ -236,7 +238,6 @@
     ],
     "writes": []
   },
-  "semantic_error": null,
   "suppressed_finding_count": 0,
   "suppression_hits": []
 }

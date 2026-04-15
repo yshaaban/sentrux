@@ -1,10 +1,9 @@
 {
-  "baseline_error": null,
   "baseline_loaded": false,
-  "baseline_path": "<parallel-code-root>/.sentrux/baseline.json",
+  "baseline_path": "<home>/.sentrux/benchmark-clean/parallel-code/.sentrux/baseline.json",
   "confidence": {
     "rule_coverage_0_10000": 10000,
-    "scan_confidence_0_10000": 8302,
+    "scan_confidence_0_10000": 8552,
     "semantic_rules_loaded": true,
     "session_baseline": {
       "compatible": false,
@@ -13,9 +12,18 @@
       "schema_version": null
     }
   },
-  "files": 655,
-  "import_edges": 2007,
-  "lines": 145011,
+  "diagnostics": {
+    "errors": {
+      "baseline": null,
+      "rules": null
+    },
+    "partial_results": false,
+    "warnings": []
+  },
+  "files": 827,
+  "import_edges": 2674,
+  "kind": "scan",
+  "lines": 223298,
   "project_shape": {
     "boundary_roots": [
       {
@@ -34,40 +42,40 @@
     "effective_archetypes": [],
     "module_contracts": [],
     "primary_archetype": null,
-    "starter_rules_toml": "[project]\nprimary_language = \"typescript\"\nexclude = [\"vendor/**\", \"dist/**\", \"coverage/**\", \"build/**\", \"node_modules/**\"]\n\n# Candidate boundary roots detected from repo shape:\n# - client_state at src/store (top-level client state layer detected)\n"
+    "starter_rules_toml": "[project]\nprimary_language = \"typescript\"\nexclude = [\"vendor/**\", \"dist/**\", \"coverage/**\", \"build/**\", \"node_modules/**\"]\n\n# Candidate boundary roots detected from repo shape:\n# - client_state at src/store (top-level client state layer detected)\n",
+    "working_rules_toml": "[project]\nprimary_language = \"typescript\"\nexclude = [\"vendor/**\", \"dist/**\", \"coverage/**\", \"build/**\", \"node_modules/**\"]\n"
   },
-  "rules_error": null,
   "scan_trust": {
-    "candidate_files": 789,
+    "candidate_files": 967,
     "exclusions": {
       "bucketed": {
         "build": 12,
         "cache": 0,
-        "fixture": 7,
+        "fixture": 13,
         "generated": 0,
         "vendor": 102
       },
       "ignored_extension": 11,
       "metadata_error": 0,
       "too_large": 2,
-      "total": 134
+      "total": 140
     },
     "fallback_reason": null,
-    "kept_files": 655,
+    "kept_files": 827,
     "mode": "git",
-    "overall_confidence_0_10000": 8302,
+    "overall_confidence_0_10000": 8552,
     "partial": false,
     "resolution": {
-      "internal_confidence_0_10000": 9995,
-      "resolved": 2008,
-      "unresolved_external": 533,
+      "internal_confidence_0_10000": 9996,
+      "resolved": 2675,
+      "unresolved_external": 770,
       "unresolved_internal": 1,
-      "unresolved_unknown": 86
+      "unresolved_unknown": 112
     },
-    "scope_coverage_0_10000": 8302,
-    "tracked_candidates": 789,
+    "scope_coverage_0_10000": 8552,
+    "tracked_candidates": 967,
     "truncated": false,
     "untracked_candidates": 0
   },
-  "scanned": "<parallel-code-root>"
+  "scanned": "<home>/.sentrux/benchmark-clean/parallel-code"
 }

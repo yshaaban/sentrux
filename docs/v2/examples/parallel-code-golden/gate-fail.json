@@ -1,13 +1,13 @@
 {
   "baseline_delta": {
     "available": true,
-    "coupling_after": 0.4803188839063279,
-    "coupling_before": 0.4803188839063279,
+    "coupling_after": 0.49850411368735975,
+    "coupling_before": 0.49850411368735975,
     "cycles_after": 2,
     "cycles_before": 2,
     "degraded": false,
-    "signal_after": 4371,
-    "signal_before": 4371,
+    "signal_after": 4210,
+    "signal_before": 4210,
     "signal_delta": 0
   },
   "blocking_findings": [],
@@ -16,7 +16,7 @@
   ],
   "confidence": {
     "rule_coverage_0_10000": 10000,
-    "scan_confidence_0_10000": 8302,
+    "scan_confidence_0_10000": 8552,
     "semantic_rules_loaded": true,
     "session_baseline": {
       "compatible": true,
@@ -26,53 +26,16 @@
     }
   },
   "decision": "fail",
-  "experimental_finding_count": 1,
-  "experimental_findings": [
-    {
-      "evidence": [
-        "dead private functions: 2",
-        "dead private lines: 29",
-        "sample dead functions: boxShadow, fontWeight",
-        "total file lines: 560"
-      ],
-      "files": [
-        "src/components/SidebarTaskRow.tsx"
-      ],
-      "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
-      "inspection_focus": [
-        "inspect whether the dead helpers should be deleted or intentionally reconnected",
-        "inspect whether the file still reflects the supported control flow"
-      ],
-      "kind": "dead_private_code_cluster",
-      "leverage_class": "experimental",
-      "leverage_reasons": [
-        "detector_under_evaluation"
-      ],
-      "metrics": {
-        "dead_line_count": 29,
-        "dead_symbol_count": 2,
-        "file_count": 1,
-        "function_count": 40,
-        "line_count": 560,
-        "max_complexity": 5,
-        "role_count": 1
-      },
-      "presentation_class": "experimental",
-      "role_tags": [
-        "guarded_seam"
-      ],
-      "scope": "src/components/SidebarTaskRow.tsx",
-      "score_0_10000": 3822,
-      "severity": "medium",
-      "signal_class": "watchpoint",
-      "signal_families": [
-        "staleness",
-        "maintainability"
-      ],
-      "summary": "File 'src/components/SidebarTaskRow.tsx' contains 2 uncalled private functions totaling 29 lines",
-      "trust_tier": "experimental"
-    }
-  ],
+  "diagnostics": {
+    "errors": {
+      "rules": null,
+      "semantic": null
+    },
+    "partial_results": false,
+    "warnings": []
+  },
+  "experimental_finding_count": 0,
+  "experimental_findings": [],
   "expired_suppression_match_count": 0,
   "expired_suppressions": [],
   "introduced_findings": [
@@ -84,11 +47,11 @@
         "private helper surface split"
       ],
       "evidence": [
-        "line count: 560",
+        "line count: 587",
         "large-file threshold: 500",
-        "function count: 40",
-        "peak function complexity: 5",
-        "outbound dependencies: 12",
+        "function count: 43",
+        "peak function complexity: 4",
+        "outbound dependencies: 16",
         "guardrail tests: src/components/SidebarTaskRow.architecture.test.ts"
       ],
       "files": [
@@ -105,41 +68,108 @@
         "supporting_size_pressure"
       ],
       "metrics": {
-        "fan_out": 12,
+        "fan_out": 16,
         "file_count": 1,
-        "function_count": 40,
+        "function_count": 43,
         "guardrail_test_count": 1,
-        "line_count": 560,
-        "max_complexity": 5,
+        "line_count": 587,
+        "max_complexity": 4,
         "role_count": 1
       },
       "presentation_class": "structural_debt",
       "related_surfaces": [
+        "src/app/task-activity-clock.ts",
         "src/app/task-convergence.ts",
         "src/app/task-presentation-status.ts",
         "src/app/task-workflows.ts",
-        "src/components/AgentGlyph.tsx",
-        "src/components/StatusDot.tsx",
+        "src/app/terminal-prewarm.ts",
         "src/components/SidebarTaskRow.architecture.test.ts"
       ],
       "role_tags": [
         "guarded_seam"
       ],
       "scope": "src/components/SidebarTaskRow.tsx",
-      "score_0_10000": 2832,
-      "severity": "low",
+      "score_0_10000": 3026,
+      "severity": "medium",
       "signal_class": "debt",
       "signal_families": [
         "size",
         "coordination"
       ],
-      "summary": "File 'src/components/SidebarTaskRow.tsx' is 560 lines, above the typescript threshold of 500",
+      "summary": "File 'src/components/SidebarTaskRow.tsx' is 587 lines, above the typescript threshold of 500",
+      "trust_tier": "trusted"
+    },
+    {
+      "candidate_split_axes": [
+        "app dependency boundary",
+        "components dependency boundary",
+        "lib dependency boundary"
+      ],
+      "evidence": [
+        "fan-out: 16",
+        "fan-out threshold: 15",
+        "instability: 0.89",
+        "dominant dependency categories: app(5), components(3), lib(3)",
+        "sample dependencies: src/app/task-activity-clock.ts, src/app/task-convergence.ts, src/app/task-presentation-status.ts",
+        "guardrail tests: src/components/SidebarTaskRow.architecture.test.ts"
+      ],
+      "files": [
+        "src/components/SidebarTaskRow.tsx"
+      ],
+      "impact": "Broad dependency fan-out expands change surface and makes orchestration drift harder to localize.",
+      "inspection_focus": [
+        "inspect whether orchestration and policy code can move behind narrower helpers",
+        "inspect whether unrelated adapter dependencies are accumulating in one module"
+      ],
+      "kind": "dependency_sprawl",
+      "leverage_class": "local_refactor_target",
+      "leverage_reasons": [
+        "guardrail_backed_refactor_surface",
+        "contained_refactor_surface",
+        "contained_dependency_pressure"
+      ],
+      "metrics": {
+        "fan_in": 2,
+        "fan_out": 16,
+        "file_count": 1,
+        "function_count": 43,
+        "guardrail_test_count": 1,
+        "instability_0_10000": 8889,
+        "line_count": 587,
+        "max_complexity": 4,
+        "role_count": 1
+      },
+      "presentation_class": "structural_debt",
+      "related_surfaces": [
+        "src/app/task-activity-clock.ts",
+        "src/app/task-convergence.ts",
+        "src/app/task-presentation-status.ts",
+        "src/components/SidebarTaskRow.architecture.test.ts"
+      ],
+      "role_tags": [
+        "guarded_seam"
+      ],
+      "scope": "src/components/SidebarTaskRow.tsx",
+      "score_0_10000": 5235,
+      "severity": "medium",
+      "signal_class": "debt",
+      "signal_families": [
+        "coupling",
+        "coordination"
+      ],
+      "summary": "File 'src/components/SidebarTaskRow.tsx' depends on 16 real surfaces, above the typescript threshold of 15",
       "trust_tier": "trusted"
     },
     {
       "concept_id": "task_presentation_status",
       "evidence": [
-        "src/components/SidebarTaskRow.tsx::store.taskGitStatus"
+        "src/components/SidebarTaskRow.tsx::store.taskGitStatus",
+        "preferred accessor: src/app/task-presentation-status.ts::getTaskPresentationStatus",
+        "preferred accessor: src/app/task-presentation-status.ts::getTaskDotStatus",
+        "preferred accessor: src/app/task-presentation-status.ts::getTaskAttentionEntry",
+        "preferred accessor: src/app/task-attention.ts::getTaskAttentionEntries",
+        "preferred accessor: src/app/task-attention.ts::getTaskAttentionFocusPanel",
+        "canonical owner: src/app/task-presentation-status.ts::TaskDotStatus"
       ],
       "files": [
         "src/components/SidebarTaskRow.tsx"
@@ -173,9 +203,9 @@
           "path": "src/app/task-presentation-status.test.ts"
         },
         {
-          "detail": "no exhaustive mapping or switch site found for 'TaskDotStatus'",
+          "detail": "domain 'TaskDotStatus' in src/app/task-presentation-status.ts has variants [busy, waiting, ready, paused, flow-controlled, restoring, failed], but no exhaustive mapping or switch site was found",
           "kind": "closed_domain",
-          "line": 12,
+          "line": 17,
           "path": "src/app/task-presentation-status.ts"
         },
         {
@@ -206,9 +236,9 @@
           "path": "src/app/task-presentation-status.test.ts"
         },
         {
-          "detail": "no exhaustive mapping or switch site found for 'TaskDotStatus'",
+          "detail": "domain 'TaskDotStatus' in src/app/task-presentation-status.ts has variants [busy, waiting, ready, paused, flow-controlled, restoring, failed], but no exhaustive mapping or switch site was found",
           "kind": "closed_domain",
-          "line": 12,
+          "line": 17,
           "path": "src/app/task-presentation-status.ts"
         },
         {
@@ -225,44 +255,42 @@
         }
       ],
       "satisfied_sites": [],
-      "summary": "Closed domain 'task_presentation_status' is missing required update sites"
+      "summary": "Domain 'task_presentation_status' in src/app/task-presentation-status.ts has variants [busy, waiting, ready, paused, flow-controlled, restoring, failed] but is missing required update sites"
     }
   ],
   "obligation_completeness_0_10000": 0,
-  "rules_error": null,
   "scan_trust": {
-    "candidate_files": 789,
+    "candidate_files": 967,
     "exclusions": {
       "bucketed": {
         "build": 12,
         "cache": 0,
-        "fixture": 7,
+        "fixture": 13,
         "generated": 0,
         "vendor": 102
       },
       "ignored_extension": 11,
       "metadata_error": 0,
       "too_large": 2,
-      "total": 134
+      "total": 140
     },
     "fallback_reason": null,
-    "kept_files": 655,
+    "kept_files": 827,
     "mode": "git",
-    "overall_confidence_0_10000": 8302,
+    "overall_confidence_0_10000": 8552,
     "partial": false,
     "resolution": {
-      "internal_confidence_0_10000": 9995,
-      "resolved": 2008,
-      "unresolved_external": 533,
+      "internal_confidence_0_10000": 9996,
+      "resolved": 2675,
+      "unresolved_external": 770,
       "unresolved_internal": 1,
-      "unresolved_unknown": 86
+      "unresolved_unknown": 112
     },
-    "scope_coverage_0_10000": 8302,
-    "tracked_candidates": 789,
+    "scope_coverage_0_10000": 8552,
+    "tracked_candidates": 967,
     "truncated": false,
     "untracked_candidates": 0
   },
-  "semantic_error": null,
   "strict": false,
   "summary": "Touched-concept regressions detected",
   "suppressed_finding_count": 0,

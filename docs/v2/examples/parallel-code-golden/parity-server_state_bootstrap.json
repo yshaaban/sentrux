@@ -2,6 +2,14 @@
   "assessable_cell_count": 8,
   "changed_files": [],
   "contract_count": 1,
+  "diagnostics": {
+    "errors": {
+      "rules": null,
+      "semantic": null
+    },
+    "partial_results": false,
+    "warnings": []
+  },
   "expired_suppression_match_count": 0,
   "expired_suppressions": [],
   "findings": [],
@@ -74,9 +82,7 @@
       "summary": "Contract 'server_state_bootstrap' satisfied 8 parity cells"
     }
   ],
-  "rules_error": null,
   "scope": "all",
-  "semantic_error": null,
   "suppressed_finding_count": 0,
   "suppression_hits": []
 }

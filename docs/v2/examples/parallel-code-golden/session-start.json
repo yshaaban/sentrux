@@ -1,8 +1,8 @@
 {
-  "baseline_path": "<parallel-code-root>/.sentrux/baseline.json",
+  "baseline_path": "<home>/.sentrux/benchmark-clean/parallel-code/.sentrux/baseline.json",
   "confidence": {
     "rule_coverage_0_10000": 10000,
-    "scan_confidence_0_10000": 8302,
+    "scan_confidence_0_10000": 8552,
     "semantic_rules_loaded": true,
     "session_baseline": {
       "compatible": true,
@@ -11,12 +11,19 @@
       "schema_version": 3
     }
   },
+  "diagnostics": {
+    "errors": {
+      "rules": null,
+      "semantic": null
+    },
+    "partial_results": false,
+    "warnings": []
+  },
   "expired_suppression_match_count": 0,
   "expired_suppressions": [],
   "message": "Call 'session_end' after making changes to see the diff",
-  "semantic_error": null,
-  "session_finding_count": 117,
-  "session_v2_baseline_path": "<parallel-code-root>/.sentrux/session-v2.json",
+  "session_finding_count": 197,
+  "session_v2_baseline_path": "<home>/.sentrux/benchmark-clean/parallel-code/.sentrux/session-v2.json",
   "status": "Baseline saved",
   "suppressed_finding_count": 0,
   "suppression_hits": []

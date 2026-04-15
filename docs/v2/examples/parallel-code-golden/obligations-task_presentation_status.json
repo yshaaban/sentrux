@@ -4,6 +4,13 @@
   ],
   "changed_files": [],
   "context_burden": 1,
+  "diagnostics": {
+    "errors": {
+      "semantic": null
+    },
+    "partial_results": false,
+    "warnings": []
+  },
   "kind": "obligations",
   "missing_site_count": 1,
   "obligation_completeness_0_10000": 0,
@@ -20,25 +27,24 @@
       "kind": "closed_domain_exhaustiveness",
       "missing_sites": [
         {
-          "detail": "no exhaustive mapping or switch site found for 'TaskDotStatus'",
+          "detail": "domain 'TaskDotStatus' in src/app/task-presentation-status.ts has variants [busy, waiting, ready, paused, flow-controlled, restoring, failed], but no exhaustive mapping or switch site was found",
           "kind": "closed_domain",
-          "line": 12,
+          "line": 17,
           "path": "src/app/task-presentation-status.ts"
         }
       ],
       "missing_variants": [],
       "required_sites": [
         {
-          "detail": "no exhaustive mapping or switch site found for 'TaskDotStatus'",
+          "detail": "domain 'TaskDotStatus' in src/app/task-presentation-status.ts has variants [busy, waiting, ready, paused, flow-controlled, restoring, failed], but no exhaustive mapping or switch site was found",
           "kind": "closed_domain",
-          "line": 12,
+          "line": 17,
           "path": "src/app/task-presentation-status.ts"
         }
       ],
       "satisfied_sites": [],
-      "summary": "Closed domain 'task_presentation_status' is missing required update sites"
+      "summary": "Domain 'task_presentation_status' in src/app/task-presentation-status.ts has variants [busy, waiting, ready, paused, flow-controlled, restoring, failed] but is missing required update sites"
     }
   ],
-  "scope": "all",
-  "semantic_error": null
+  "scope": "all"
 }
