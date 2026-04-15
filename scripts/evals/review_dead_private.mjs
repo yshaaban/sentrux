@@ -203,24 +203,51 @@ export function selectDeadPrivateCandidatesFromPayload(payload) {
   const legacyLane = Array.isArray(payload?.experimental_findings)
     ? payload.experimental_findings
     : [];
-
-  const selectedLane = canonicalLane.length > 0 ? canonicalLane : legacyLane;
-  const selectedLaneName = canonicalLane.length > 0 ? 'experimental_debt_signals' : 'experimental_findings';
-
-  const candidates = [];
-  for (const value of selectedLane) {
-    if (value?.kind !== 'dead_private_code_cluster') {
-      continue;
-    }
-    candidates.push(value);
-  }
+  const canonicalCandidates = canonicalLane.filter(function isDeadPrivate(value) {
+    return value?.kind === 'dead_private_code_cluster';
+  });
+  const legacyCandidates = legacyLane.filter(function isDeadPrivate(value) {
+    return value?.kind === 'dead_private_code_cluster';
+  });
+  const selectedLane = canonicalCandidates.length > 0 ? canonicalCandidates : legacyCandidates;
+  const selectedLaneName =
+    canonicalCandidates.length > 0 ? 'experimental_debt_signals' : 'experimental_findings';
 
   const deduped = new Map();
-  for (const candidate of candidates) {
+  for (const candidate of selectedLane) {
     const key = `${candidate.scope ?? candidate.files?.[0] ?? 'unknown'}:${candidate.kind}`;
     if (!deduped.has(key)) {
       deduped.set(key, candidate);
     }
+  }
+
+  const canonicalKeys = new Set(
+    canonicalCandidates.map(function toCandidateKey(candidate) {
+      return `${candidate.scope ?? candidate.files?.[0] ?? 'unknown'}:${candidate.kind}`;
+    }),
+  );
+  const legacyOnlyCandidates = [];
+  let overlappingCandidateCount = 0;
+  for (const candidate of legacyCandidates) {
+    const key = `${candidate.scope ?? candidate.files?.[0] ?? 'unknown'}:${candidate.kind}`;
+    if (canonicalKeys.has(key)) {
+      overlappingCandidateCount += 1;
+      continue;
+    }
+    legacyOnlyCandidates.push(candidate);
+  }
+
+  let reviewerLaneStatus = 'no_candidates';
+  let reviewerLaneReason = 'no dead-private candidates surfaced in either experimental lane';
+  if (canonicalCandidates.length > 0) {
+    reviewerLaneStatus =
+      legacyOnlyCandidates.length > 0 ? 'canonical_with_legacy_watchlist' : 'canonical_only';
+    reviewerLaneReason =
+      'the canonical experimental_debt_signals lane is the reviewer queue; legacy-only experimental_findings stay watchlist-only context until the taxonomy is unified';
+  } else if (legacyCandidates.length > 0) {
+    reviewerLaneStatus = 'legacy_fallback';
+    reviewerLaneReason =
+      'the canonical experimental_debt_signals lane is empty, so the reviewer queue falls back to experimental_findings';
   }
 
   return {
@@ -231,12 +258,23 @@ export function selectDeadPrivateCandidatesFromPayload(payload) {
       {
         lane: 'experimental_debt_signals',
         candidate_count: canonicalLane.length,
+        dead_private_candidate_count: canonicalCandidates.length,
+        selected_for_review: selectedLaneName === 'experimental_debt_signals',
       },
       {
         lane: 'experimental_findings',
         candidate_count: legacyLane.length,
+        dead_private_candidate_count: legacyCandidates.length,
+        selected_for_review: selectedLaneName === 'experimental_findings',
       },
     ],
+    canonical_candidate_count: canonicalCandidates.length,
+    legacy_candidate_count: legacyCandidates.length,
+    overlapping_candidate_count: overlappingCandidateCount,
+    legacy_only_candidate_count: legacyOnlyCandidates.length,
+    legacy_only_candidates: legacyOnlyCandidates,
+    reviewer_lane_status: reviewerLaneStatus,
+    reviewer_lane_reason: reviewerLaneReason,
   };
 }
 
@@ -445,6 +483,17 @@ async function collectDeadPrivateCandidates(repoPath, findingsLimit) {
       candidate_source_lane: selectedCandidates.source_lane,
       candidate_source_lane_count: selectedCandidates.source_lane_count,
       candidate_source_lanes_considered: selectedCandidates.considered_lanes,
+      candidate_reviewer_lane_status: selectedCandidates.reviewer_lane_status,
+      candidate_reviewer_lane_reason: selectedCandidates.reviewer_lane_reason,
+      candidate_canonical_count: selectedCandidates.canonical_candidate_count,
+      candidate_legacy_count: selectedCandidates.legacy_candidate_count,
+      candidate_overlap_count: selectedCandidates.overlapping_candidate_count,
+      candidate_legacy_only_count: selectedCandidates.legacy_only_candidate_count,
+      candidate_legacy_only_scopes: selectedCandidates.legacy_only_candidates.map(
+        function toScope(candidate) {
+          return candidate.scope ?? candidate.files?.[0] ?? 'unknown';
+        },
+      ),
       temp_root: tempRoot,
     };
   } finally {
@@ -494,6 +543,15 @@ function buildReviewPrompt(options, reviewedCandidates) {
     '- reject_too_ambiguous',
     '',
     'Canonical source lane: experimental_debt_signals (legacy fallback: experimental_findings only when the canonical lane is empty).',
+    `Reviewer queue lane: ${options.candidateSourceLane ?? 'none'} (${options.reviewedCandidateCount ?? reviewedCandidates.length} candidate(s) queued).`,
+    `Lane status: ${options.candidateReviewerLaneStatus ?? 'unknown'}.`,
+    `Lane rule: ${options.candidateReviewerLaneReason ?? 'unknown'}.`,
+    `Canonical dead-private candidates: ${options.canonicalCandidateCount ?? 0}.`,
+    `Legacy dead-private candidates: ${options.legacyCandidateCount ?? 0}.`,
+    `Legacy-only watchlist candidates excluded from this review queue: ${options.legacyOnlyCandidateCount ?? 0}.`,
+    options.legacyOnlyCandidateScopes?.length
+      ? `Legacy-only watchlist scopes: ${options.legacyOnlyCandidateScopes.join(', ')}`
+      : 'Legacy-only watchlist scopes: none',
     '',
     'Candidates:',
     JSON.stringify(reviewedCandidates, null, 2),
@@ -521,7 +579,20 @@ async function main() {
   );
   try {
     const reviewedCandidates = await buildReviewPayload(options, findings.candidates);
-    const prompt = buildReviewPrompt(options, reviewedCandidates);
+    const prompt = buildReviewPrompt(
+      {
+        ...options,
+        candidateSourceLane: findings.candidate_source_lane ?? null,
+        candidateReviewerLaneStatus: findings.candidate_reviewer_lane_status ?? null,
+        candidateReviewerLaneReason: findings.candidate_reviewer_lane_reason ?? null,
+        reviewedCandidateCount: reviewedCandidates.length,
+        canonicalCandidateCount: findings.candidate_canonical_count ?? 0,
+        legacyCandidateCount: findings.candidate_legacy_count ?? 0,
+        legacyOnlyCandidateCount: findings.candidate_legacy_only_count ?? 0,
+        legacyOnlyCandidateScopes: findings.candidate_legacy_only_scopes ?? [],
+      },
+      reviewedCandidates,
+    );
 
     if (reviewedCandidates.length === 0) {
       const emptyResult = {
@@ -534,6 +605,13 @@ async function main() {
         candidate_source_lane: findings.candidate_source_lane ?? null,
         candidate_source_lane_count: findings.candidate_source_lane_count ?? 0,
         candidate_source_lanes_considered: findings.candidate_source_lanes_considered ?? [],
+        candidate_reviewer_lane_status: findings.candidate_reviewer_lane_status ?? null,
+        candidate_reviewer_lane_reason: findings.candidate_reviewer_lane_reason ?? null,
+        candidate_canonical_count: findings.candidate_canonical_count ?? 0,
+        candidate_legacy_count: findings.candidate_legacy_count ?? 0,
+        candidate_overlap_count: findings.candidate_overlap_count ?? 0,
+        candidate_legacy_only_count: findings.candidate_legacy_only_count ?? 0,
+        candidate_legacy_only_scopes: findings.candidate_legacy_only_scopes ?? [],
         reviewed_candidate_count: 0,
         candidates: [],
         provider_output: null,
@@ -553,6 +631,13 @@ async function main() {
         candidate_source_lane: findings.candidate_source_lane ?? null,
         candidate_source_lane_count: findings.candidate_source_lane_count ?? 0,
         candidate_source_lanes_considered: findings.candidate_source_lanes_considered ?? [],
+        candidate_reviewer_lane_status: findings.candidate_reviewer_lane_status ?? null,
+        candidate_reviewer_lane_reason: findings.candidate_reviewer_lane_reason ?? null,
+        candidate_canonical_count: findings.candidate_canonical_count ?? 0,
+        candidate_legacy_count: findings.candidate_legacy_count ?? 0,
+        candidate_overlap_count: findings.candidate_overlap_count ?? 0,
+        candidate_legacy_only_count: findings.candidate_legacy_only_count ?? 0,
+        candidate_legacy_only_scopes: findings.candidate_legacy_only_scopes ?? [],
         prompt,
         reviewed_candidate_count: reviewedCandidates.length,
         candidates: reviewedCandidates,
@@ -587,6 +672,13 @@ async function main() {
       candidate_source_lane: findings.candidate_source_lane ?? null,
       candidate_source_lane_count: findings.candidate_source_lane_count ?? 0,
       candidate_source_lanes_considered: findings.candidate_source_lanes_considered ?? [],
+      candidate_reviewer_lane_status: findings.candidate_reviewer_lane_status ?? null,
+      candidate_reviewer_lane_reason: findings.candidate_reviewer_lane_reason ?? null,
+      candidate_canonical_count: findings.candidate_canonical_count ?? 0,
+      candidate_legacy_count: findings.candidate_legacy_count ?? 0,
+      candidate_overlap_count: findings.candidate_overlap_count ?? 0,
+      candidate_legacy_only_count: findings.candidate_legacy_only_count ?? 0,
+      candidate_legacy_only_scopes: findings.candidate_legacy_only_scopes ?? [],
       reviewed_candidate_count: reviewedCandidates.length,
       candidates: reviewedCandidates,
       provider_output: providerOutput,

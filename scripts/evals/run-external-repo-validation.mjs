@@ -87,14 +87,12 @@ function collectFindingKindCounts(findings) {
 function collectDeadPrivateCandidateSets(rawToolAnalysis) {
   const findingsPayload = rawToolAnalysis.findings ?? {};
   const selection = selectDeadPrivateCandidatesFromPayload(findingsPayload);
-  const legacyCandidates = Array.isArray(findingsPayload.experimental_findings)
-    ? findingsPayload.experimental_findings.filter(function isDeadPrivate(finding) {
-        return finding?.kind === 'dead_private_code_cluster';
-      })
-    : [];
   const dedupedCandidates = new Map();
+  const legacyOnlyCandidates = Array.isArray(selection.legacy_only_candidates)
+    ? selection.legacy_only_candidates
+    : [];
 
-  for (const candidate of [...selection.candidates, ...legacyCandidates]) {
+  for (const candidate of [...selection.candidates, ...legacyOnlyCandidates]) {
     const key = `${candidate.scope ?? candidate.files?.[0] ?? 'unknown'}:${candidate.kind}`;
     if (!dedupedCandidates.has(key)) {
       dedupedCandidates.set(key, candidate);
@@ -105,6 +103,13 @@ function collectDeadPrivateCandidateSets(rawToolAnalysis) {
     sourceLane: selection.source_lane,
     sourceLaneCount: selection.source_lane_count,
     selectedCandidates: selection.candidates,
+    consideredLanes: selection.considered_lanes,
+    reviewerLaneStatus: selection.reviewer_lane_status,
+    reviewerLaneReason: selection.reviewer_lane_reason,
+    canonicalCandidateCount: selection.canonical_candidate_count,
+    legacyCandidateCount: selection.legacy_candidate_count,
+    overlappingCandidateCount: selection.overlapping_candidate_count,
+    legacyOnlyCandidates,
     combinedCandidates: [...dedupedCandidates.values()],
   };
 }
@@ -117,6 +122,94 @@ function sanitizeRepoArtifactLabel(repoLabel) {
     .toUpperCase();
 
   return sanitized || 'REPO';
+}
+
+function calculateRatio0To10000(numerator, denominator) {
+  if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator <= 0) {
+    return null;
+  }
+
+  return Math.round((numerator / denominator) * 10000);
+}
+
+function findDominantExclusionBucket(bucketedExclusions, totalExclusions = null) {
+  const entries = Object.entries(bucketedExclusions ?? {}).filter(function hasFiniteValue([, value]) {
+    return Number.isFinite(value);
+  });
+  if (entries.length === 0) {
+    return {
+      bucket: null,
+      count: null,
+      share_0_10000: null,
+    };
+  }
+
+  const [bucket, count] = entries.reduce(function selectLargest(current, entry) {
+    if (!current || entry[1] > current[1]) {
+      return entry;
+    }
+    return current;
+  }, null);
+
+  return {
+    bucket,
+    count,
+    share_0_10000: calculateRatio0To10000(
+      count,
+      Number.isFinite(totalExclusions)
+        ? totalExclusions
+        : entries.reduce(function sum(total, [, value]) {
+            return total + value;
+          }, 0),
+    ),
+  };
+}
+
+function buildMixedRepoContext(scanTrust) {
+  const candidateFiles = scanTrust.candidate_files ?? null;
+  const keptFiles = scanTrust.kept_files ?? null;
+  const trackedCandidates = scanTrust.tracked_candidates ?? null;
+  const untrackedCandidates = scanTrust.untracked_candidates ?? null;
+  const totalExclusions = scanTrust.exclusions?.total ?? null;
+  const dominantExclusion = findDominantExclusionBucket(
+    scanTrust.exclusions?.bucketed,
+    totalExclusions,
+  );
+  const keptCandidateRatio = calculateRatio0To10000(keptFiles, candidateFiles);
+  const excludedCandidateRatio = calculateRatio0To10000(totalExclusions, candidateFiles);
+  const trackedCandidateRatio = calculateRatio0To10000(trackedCandidates, candidateFiles);
+  const untrackedCandidateRatio = calculateRatio0To10000(untrackedCandidates, candidateFiles);
+  const overallConfidence = scanTrust.overall_confidence_0_10000 ?? null;
+  const internalResolutionConfidence = scanTrust.resolution?.internal_confidence_0_10000 ?? null;
+  let interpretation =
+    'Top-line scan confidence should be read alongside candidate exclusions and kept-file resolution.';
+
+  if (
+    Number.isFinite(overallConfidence) &&
+    overallConfidence < 5000 &&
+    Number.isFinite(totalExclusions) &&
+    Number.isFinite(candidateFiles) &&
+    Number.isFinite(keptFiles) &&
+    totalExclusions > keptFiles &&
+    Number.isFinite(dominantExclusion.share_0_10000) &&
+    dominantExclusion.share_0_10000 >= 9000 &&
+    Number.isFinite(internalResolutionConfidence) &&
+    internalResolutionConfidence >= 9000
+  ) {
+    interpretation =
+      'Low top-line confidence is dominated by candidate exclusions in a mixed repo; the kept files still resolved internal imports cleanly.';
+  }
+
+  return {
+    kept_candidate_ratio_0_10000: keptCandidateRatio,
+    excluded_candidate_ratio_0_10000: excludedCandidateRatio,
+    tracked_candidate_ratio_0_10000: trackedCandidateRatio,
+    untracked_candidate_ratio_0_10000: untrackedCandidateRatio,
+    dominant_exclusion_bucket: dominantExclusion.bucket,
+    dominant_exclusion_count: dominantExclusion.count,
+    dominant_exclusion_share_0_10000: dominantExclusion.share_0_10000,
+    interpretation,
+  };
 }
 
 export function buildScanCoverageBreakdown(rawToolAnalysis) {
@@ -165,6 +258,7 @@ export function buildScanCoverageBreakdown(rawToolAnalysis) {
       semantic_rules_loaded: confidence.semantic_rules_loaded ?? null,
       session_baseline: confidence.session_baseline ?? null,
     },
+    mixed_repo_context: buildMixedRepoContext(scanTrust),
   };
 }
 
@@ -178,6 +272,7 @@ export function formatScanCoverageBreakdownMarkdown(breakdown) {
   const bucketedExclusions = exclusions.bucketed ?? {};
   const resolution = breakdown?.resolution ?? {};
   const confidence = breakdown?.confidence ?? {};
+  const mixedRepoContext = breakdown?.mixed_repo_context ?? {};
   const lines = ['# Scan Coverage Breakdown', ''];
 
   appendCodeBullet(lines, 'repository analyzed', breakdown?.repo_root ?? 'unknown');
@@ -210,6 +305,31 @@ export function formatScanCoverageBreakdownMarkdown(breakdown) {
   lines.push(`- ignored extension: \`${formatCount(exclusions.ignored_extension)}\``);
   lines.push(`- too large: \`${formatCount(exclusions.too_large)}\``);
   lines.push(`- metadata error: \`${formatCount(exclusions.metadata_error)}\``);
+  lines.push('');
+  lines.push('## Mixed-Repo Context');
+  lines.push('');
+  lines.push(
+    `- kept candidate ratio: \`${formatCount(mixedRepoContext.kept_candidate_ratio_0_10000)} / 10000\``,
+  );
+  lines.push(
+    `- excluded candidate ratio: \`${formatCount(mixedRepoContext.excluded_candidate_ratio_0_10000)} / 10000\``,
+  );
+  lines.push(
+    `- tracked candidate ratio: \`${formatCount(mixedRepoContext.tracked_candidate_ratio_0_10000)} / 10000\``,
+  );
+  lines.push(
+    `- untracked candidate ratio: \`${formatCount(mixedRepoContext.untracked_candidate_ratio_0_10000)} / 10000\``,
+  );
+  lines.push(
+    `- dominant exclusion bucket: \`${formatCount(mixedRepoContext.dominant_exclusion_bucket)}\``,
+  );
+  lines.push(
+    `- dominant exclusion count: \`${formatCount(mixedRepoContext.dominant_exclusion_count)}\``,
+  );
+  lines.push(
+    `- dominant exclusion share: \`${formatCount(mixedRepoContext.dominant_exclusion_share_0_10000)} / 10000\``,
+  );
+  lines.push(`- mixed-repo interpretation: ${mixedRepoContext.interpretation ?? 'n/a'}`);
   lines.push('');
   lines.push('## Resolution');
   lines.push('');
@@ -246,6 +366,7 @@ export function buildRawToolSummary(rawToolAnalysis) {
   const scanSummary = scanCoverageBreakdown.candidate_file_coverage;
   const scanResolution = scanCoverageBreakdown.resolution;
   const scanConfidence = scanCoverageBreakdown.confidence;
+  const mixedRepoContext = scanCoverageBreakdown.mixed_repo_context;
 
   return {
     repo_root: rawToolAnalysis.scan?.scanned ?? null,
@@ -270,6 +391,7 @@ export function buildRawToolSummary(rawToolAnalysis) {
       unresolved_internal: scanResolution.unresolved_internal,
       unresolved_external: scanResolution.unresolved_external,
       unresolved_unknown: scanResolution.unresolved_unknown,
+      mixed_repo_context: mixedRepoContext,
     },
     check_summary: {
       gate: rawToolAnalysis.check?.gate ?? null,
@@ -292,7 +414,14 @@ export function buildRawToolSummary(rawToolAnalysis) {
       experimental_debt_signal_count: experimentalDebtSignals.length,
       dead_private_source_lane: deadPrivateCandidates.sourceLane,
       dead_private_source_lane_count: deadPrivateCandidates.sourceLaneCount,
+      dead_private_lane_considered: deadPrivateCandidates.consideredLanes,
+      dead_private_reviewer_lane_status: deadPrivateCandidates.reviewerLaneStatus,
+      dead_private_reviewer_lane_reason: deadPrivateCandidates.reviewerLaneReason,
+      dead_private_canonical_candidate_count: deadPrivateCandidates.canonicalCandidateCount,
+      dead_private_legacy_candidate_count: deadPrivateCandidates.legacyCandidateCount,
+      dead_private_overlap_count: deadPrivateCandidates.overlappingCandidateCount,
       dead_private_candidate_count: deadPrivateCandidates.selectedCandidates.length,
+      dead_private_legacy_only_count: deadPrivateCandidates.legacyOnlyCandidates.length,
       kind_counts: {
         ...collectFindingKindCounts(visibleFindings),
         experimental_dead_private_code_cluster: deadPrivateCandidates.combinedCandidates.length,
@@ -460,6 +589,7 @@ export function buildValidationReport({
   const deadPrivateFalsePositives = deadPrivateFalsePositiveCandidates(rawToolAnalysis);
   const scanSummary = rawToolSummary.scan_summary ?? {};
   const findingsSummary = rawToolSummary.findings_summary ?? {};
+  const mixedRepoContext = scanSummary.mixed_repo_context ?? scanCoverageBreakdown?.mixed_repo_context ?? {};
   const lines = [];
 
   lines.push(`# ${repoLabel} Metrics Validation Report`);
@@ -509,6 +639,11 @@ export function buildValidationReport({
       '- the scan coverage breakdown artifact now preserves candidate coverage, exclusion buckets, fallback state, and resolution counts for the run',
     );
   }
+  if (findingsSummary.dead_private_reviewer_lane_status) {
+    lines.push(
+      `- dead-private review routing is explicit: reviewer queue=\`${findingsSummary.dead_private_source_lane ?? 'none'}\`, status=\`${findingsSummary.dead_private_reviewer_lane_status}\`, queued=\`${findingsSummary.dead_private_candidate_count ?? 0}\`, legacy-only watchlist=\`${findingsSummary.dead_private_legacy_only_count ?? 0}\``,
+    );
+  }
   lines.push('');
   lines.push('## What Needs Improvement');
   lines.push('');
@@ -530,21 +665,23 @@ export function buildValidationReport({
     );
   }
   if (packetValidation?.surfaces_scan_confidence) {
-    lines.push(
-      `- Public Repo still scans with low confidence: only ${scanSummary.kept_files ?? 'n/a'} of ${scanSummary.candidate_files ?? 'n/a'} candidate files were kept, and overall confidence is ${scanSummary.overall_confidence_0_10000 ?? 'n/a'} / 10000`,
-    );
+    const lowConfidenceLine = [
+      `- Public Repo still scans with low confidence: only ${scanSummary.kept_files ?? 'n/a'} of ${scanSummary.candidate_files ?? 'n/a'} candidate files were kept, and overall confidence is ${scanSummary.overall_confidence_0_10000 ?? 'n/a'} / 10000.`,
+    ];
+    if (Number.isFinite(scanSummary.exclusions?.total) && mixedRepoContext.dominant_exclusion_bucket) {
+      lowConfidenceLine.push(
+        `${scanSummary.exclusions.total} candidates were excluded before deep analysis, dominated by ${mixedRepoContext.dominant_exclusion_bucket} exclusions (${mixedRepoContext.dominant_exclusion_count ?? 'n/a'} files, ${mixedRepoContext.dominant_exclusion_share_0_10000 ?? 'n/a'} / 10000 of measured exclusions), while kept-file internal resolution stayed ${scanSummary.resolution?.internal_confidence_0_10000 ?? 'n/a'} / 10000.`,
+      );
+    }
+    lines.push(lowConfidenceLine.join(' '));
   } else {
     lines.push(
       `- scan trust must be more visible: only ${scanSummary.kept_files ?? 'n/a'} of ${scanSummary.candidate_files ?? 'n/a'} candidate files were kept, with confidence ${scanSummary.overall_confidence_0_10000 ?? 'n/a'} / 10000`,
     );
   }
-  if (
-    findingsSummary.dead_private_source_lane_count !== null &&
-    findingsSummary.kind_counts?.experimental_dead_private_code_cluster >
-      findingsSummary.dead_private_candidate_count
-  ) {
+  if (findingsSummary.dead_private_legacy_only_count > 0) {
     lines.push(
-      '- experimental signal taxonomy is still confusing when dead-private evidence is split between the canonical debt lane and the legacy experimental lane',
+      `- dead-private taxonomy still needs cleanup: ${findingsSummary.dead_private_legacy_only_count} legacy-only candidate(s) remain outside the canonical reviewer queue even though the reviewer routing is now explicit`,
     );
   }
   lines.push('');
@@ -555,19 +692,17 @@ export function buildValidationReport({
     lines.push('- enrich clone review packets with file paths, line counts, and recent-edit asymmetry reasons');
   }
   if (packetValidation?.surfaces_scan_confidence) {
-    lines.push('- improve scan coverage and internal resolution on large mixed repos like Public Repo');
+    lines.push(
+      '- improve eligible coverage reporting and candidate retention on large mixed repos like Public Repo without hiding exclusion-driven pressure',
+    );
   } else {
     lines.push('- surface scan trust and coverage in the first screen of every review surface');
   }
   if (scanCoverageBreakdown) {
     lines.push('- use the scan coverage breakdown artifact to separate precision issues from candidate-coverage losses');
   }
-  if (
-    findingsSummary.dead_private_source_lane_count !== null &&
-    findingsSummary.kind_counts?.experimental_dead_private_code_cluster >
-      findingsSummary.dead_private_candidate_count
-  ) {
-    lines.push('- simplify experimental finding lanes so dead-private has one clear reviewer-facing home');
+  if (findingsSummary.dead_private_legacy_only_count > 0) {
+    lines.push('- unify or retire the legacy dead-private watchlist so reviewer routing and remediation queues match');
   }
   lines.push('');
   lines.push('## Bottom Line');
@@ -605,6 +740,7 @@ export function buildEngineeringReport({
   const largeFiles = topLargeFiles(rawToolAnalysis, 3);
   const cycles = topCycles(rawToolAnalysis, 2);
   const clones = topClones(rawToolAnalysis, 10);
+  const deadPrivateCandidateSets = collectDeadPrivateCandidateSets(rawToolAnalysis);
   const plausibleDeadPrivate = deadPrivatePlausibleCandidates(rawToolAnalysis).slice(0, 5);
   const skepticalDeadPrivate = deadPrivateFalsePositiveCandidates(rawToolAnalysis).slice(0, 5);
   const lines = [];
@@ -674,6 +810,14 @@ export function buildEngineeringReport({
 
   lines.push('## Priority 2: Review Experimental Dead-Private Candidates');
   lines.push('');
+  lines.push(
+    `- reviewer queue: \`${deadPrivateCandidateSets.sourceLane ?? 'none'}\` (${deadPrivateCandidateSets.selectedCandidates.length} candidate(s), status=${deadPrivateCandidateSets.reviewerLaneStatus ?? 'unknown'})`,
+  );
+  if (deadPrivateCandidateSets.legacyOnlyCandidates.length > 0) {
+    lines.push(
+      `- legacy watchlist only: \`${deadPrivateCandidateSets.legacyOnlyCandidates.length}\` additional candidate(s) remain in experimental_findings outside the reviewer queue`,
+    );
+  }
   if (plausibleDeadPrivate.length > 0) {
     lines.push('- more plausible candidates:');
     for (const finding of plausibleDeadPrivate) {
