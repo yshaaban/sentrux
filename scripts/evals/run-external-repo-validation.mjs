@@ -14,7 +14,10 @@ import {
   formatSessionTelemetrySummaryMarkdown,
   loadSessionTelemetrySummary,
 } from '../lib/session-telemetry.mjs';
-import { selectDeadPrivateCandidatesFromPayload } from './review_dead_private.mjs';
+import {
+  deadPrivateCandidateKey,
+  selectDeadPrivateCandidatesFromPayload,
+} from './review_dead_private.mjs';
 
 const execFile = promisify(execFileCallback);
 
@@ -93,7 +96,7 @@ function collectDeadPrivateCandidateSets(rawToolAnalysis) {
     : [];
 
   for (const candidate of [...selection.candidates, ...legacyOnlyCandidates]) {
-    const key = `${candidate.scope ?? candidate.files?.[0] ?? 'unknown'}:${candidate.kind}`;
+    const key = deadPrivateCandidateKey(candidate);
     if (!dedupedCandidates.has(key)) {
       dedupedCandidates.set(key, candidate);
     }
@@ -165,6 +168,36 @@ function findDominantExclusionBucket(bucketedExclusions, totalExclusions = null)
   };
 }
 
+function shouldUseExclusionDrivenInterpretation({
+  overallConfidence,
+  totalExclusions,
+  candidateFiles,
+  keptFiles,
+  dominantExclusionShare,
+  internalResolutionConfidence,
+}) {
+  if (!Number.isFinite(overallConfidence) || overallConfidence >= 5000) {
+    return false;
+  }
+  if (
+    !Number.isFinite(totalExclusions) ||
+    !Number.isFinite(candidateFiles) ||
+    !Number.isFinite(keptFiles)
+  ) {
+    return false;
+  }
+  if (totalExclusions <= keptFiles) {
+    return false;
+  }
+  if (!Number.isFinite(dominantExclusionShare) || dominantExclusionShare < 9000) {
+    return false;
+  }
+
+  return (
+    Number.isFinite(internalResolutionConfidence) && internalResolutionConfidence >= 9000
+  );
+}
+
 function buildMixedRepoContext(scanTrust) {
   const candidateFiles = scanTrust.candidate_files ?? null;
   const keptFiles = scanTrust.kept_files ?? null;
@@ -185,16 +218,14 @@ function buildMixedRepoContext(scanTrust) {
     'Top-line scan confidence should be read alongside candidate exclusions and kept-file resolution.';
 
   if (
-    Number.isFinite(overallConfidence) &&
-    overallConfidence < 5000 &&
-    Number.isFinite(totalExclusions) &&
-    Number.isFinite(candidateFiles) &&
-    Number.isFinite(keptFiles) &&
-    totalExclusions > keptFiles &&
-    Number.isFinite(dominantExclusion.share_0_10000) &&
-    dominantExclusion.share_0_10000 >= 9000 &&
-    Number.isFinite(internalResolutionConfidence) &&
-    internalResolutionConfidence >= 9000
+    shouldUseExclusionDrivenInterpretation({
+      overallConfidence,
+      totalExclusions,
+      candidateFiles,
+      keptFiles,
+      dominantExclusionShare: dominantExclusion.share_0_10000,
+      internalResolutionConfidence,
+    })
   ) {
     interpretation =
       'Low top-line confidence is dominated by candidate exclusions in a mixed repo; the kept files still resolved internal imports cleanly.';
@@ -495,47 +526,33 @@ function deadPrivateSampleSymbols(finding) {
     .filter(Boolean);
 }
 
+function hasSuspiciousDeadPrivateSymbols(symbols) {
+  if (symbols.length === 0) {
+    return false;
+  }
+
+  if (symbols.every(function isCell(symbol) {
+    return symbol === 'cell';
+  })) {
+    return true;
+  }
+
+  return symbols.some(function isLifecycle(symbol) {
+    return symbol === 'getDerivedStateFromError' || symbol === 'componentDidCatch';
+  });
+}
+
 function deadPrivateFalsePositiveCandidates(rawToolAnalysis) {
   return topDeadPrivateExperimental(rawToolAnalysis, 20).filter(function isSuspicious(finding) {
     const symbols = deadPrivateSampleSymbols(finding);
-    if (symbols.length === 0) {
-      return false;
-    }
-
-    if (symbols.every(function isCell(symbol) {
-      return symbol === 'cell';
-    })) {
-      return true;
-    }
-
-    return symbols.some(function isLifecycle(symbol) {
-      return symbol === 'getDerivedStateFromError' || symbol === 'componentDidCatch';
-    });
+    return hasSuspiciousDeadPrivateSymbols(symbols);
   });
 }
 
 function deadPrivatePlausibleCandidates(rawToolAnalysis) {
   return topDeadPrivateExperimental(rawToolAnalysis, 20).filter(function isPlausible(finding) {
     const symbols = deadPrivateSampleSymbols(finding);
-    if (symbols.length === 0) {
-      return true;
-    }
-
-    if (symbols.every(function isCell(symbol) {
-      return symbol === 'cell';
-    })) {
-      return false;
-    }
-
-    if (
-      symbols.some(function isLifecycle(symbol) {
-        return symbol === 'getDerivedStateFromError' || symbol === 'componentDidCatch';
-      })
-    ) {
-      return false;
-    }
-
-    return true;
+    return symbols.length === 0 || !hasSuspiciousDeadPrivateSymbols(symbols);
   });
 }
 

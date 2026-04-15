@@ -196,6 +196,53 @@ function parseToolPayload(response) {
   return JSON.parse(text);
 }
 
+export function deadPrivateCandidateScope(candidate) {
+  return candidate?.scope ?? candidate?.files?.[0] ?? 'unknown';
+}
+
+export function deadPrivateCandidateKey(candidate) {
+  return `${deadPrivateCandidateScope(candidate)}:${candidate?.kind ?? 'unknown'}`;
+}
+
+function buildReviewLaneMetadata(findings) {
+  return {
+    candidate_source_lane: findings.candidate_source_lane ?? null,
+    candidate_source_lane_count: findings.candidate_source_lane_count ?? 0,
+    candidate_source_lanes_considered: findings.candidate_source_lanes_considered ?? [],
+    candidate_reviewer_lane_status: findings.candidate_reviewer_lane_status ?? null,
+    candidate_reviewer_lane_reason: findings.candidate_reviewer_lane_reason ?? null,
+    candidate_canonical_count: findings.candidate_canonical_count ?? 0,
+    candidate_legacy_count: findings.candidate_legacy_count ?? 0,
+    candidate_overlap_count: findings.candidate_overlap_count ?? 0,
+    candidate_legacy_only_count: findings.candidate_legacy_only_count ?? 0,
+    candidate_legacy_only_scopes: findings.candidate_legacy_only_scopes ?? [],
+  };
+}
+
+function buildPromptOptions(options, findings, reviewedCandidates) {
+  return {
+    ...options,
+    candidateSourceLane: findings.candidate_source_lane ?? null,
+    candidateReviewerLaneStatus: findings.candidate_reviewer_lane_status ?? null,
+    candidateReviewerLaneReason: findings.candidate_reviewer_lane_reason ?? null,
+    reviewedCandidateCount: reviewedCandidates.length,
+    canonicalCandidateCount: findings.candidate_canonical_count ?? 0,
+    legacyCandidateCount: findings.candidate_legacy_count ?? 0,
+    legacyOnlyCandidateCount: findings.candidate_legacy_only_count ?? 0,
+    legacyOnlyCandidateScopes: findings.candidate_legacy_only_scopes ?? [],
+  };
+}
+
+function buildReviewResultBase(options, startedAt, findings) {
+  return {
+    started_at: startedAt,
+    repo_name: options.repoName,
+    repo_root: options.repoRoot,
+    task_kind: 'dead_private_review',
+    ...buildReviewLaneMetadata(findings),
+  };
+}
+
 export function selectDeadPrivateCandidatesFromPayload(payload) {
   const canonicalLane = Array.isArray(payload?.experimental_debt_signals)
     ? payload.experimental_debt_signals
@@ -215,7 +262,7 @@ export function selectDeadPrivateCandidatesFromPayload(payload) {
 
   const deduped = new Map();
   for (const candidate of selectedLane) {
-    const key = `${candidate.scope ?? candidate.files?.[0] ?? 'unknown'}:${candidate.kind}`;
+    const key = deadPrivateCandidateKey(candidate);
     if (!deduped.has(key)) {
       deduped.set(key, candidate);
     }
@@ -223,13 +270,13 @@ export function selectDeadPrivateCandidatesFromPayload(payload) {
 
   const canonicalKeys = new Set(
     canonicalCandidates.map(function toCandidateKey(candidate) {
-      return `${candidate.scope ?? candidate.files?.[0] ?? 'unknown'}:${candidate.kind}`;
+      return deadPrivateCandidateKey(candidate);
     }),
   );
   const legacyOnlyCandidates = [];
   let overlappingCandidateCount = 0;
   for (const candidate of legacyCandidates) {
-    const key = `${candidate.scope ?? candidate.files?.[0] ?? 'unknown'}:${candidate.kind}`;
+    const key = deadPrivateCandidateKey(candidate);
     if (canonicalKeys.has(key)) {
       overlappingCandidateCount += 1;
       continue;
@@ -490,9 +537,7 @@ async function collectDeadPrivateCandidates(repoPath, findingsLimit) {
       candidate_overlap_count: selectedCandidates.overlapping_candidate_count,
       candidate_legacy_only_count: selectedCandidates.legacy_only_candidate_count,
       candidate_legacy_only_scopes: selectedCandidates.legacy_only_candidates.map(
-        function toScope(candidate) {
-          return candidate.scope ?? candidate.files?.[0] ?? 'unknown';
-        },
+        deadPrivateCandidateScope,
       ),
       temp_root: tempRoot,
     };
@@ -501,28 +546,33 @@ async function collectDeadPrivateCandidates(repoPath, findingsLimit) {
   }
 }
 
+async function buildReviewedCandidate(repoPath, candidate) {
+  const filePath = deadPrivateCandidateScope(candidate);
+  const scope = candidate.scope ?? filePath;
+  const symbols = sampleFunctionNames(candidate);
+
+  return {
+    scope,
+    file_path: filePath,
+    summary: candidate.summary ?? '',
+    impact: candidate.impact ?? '',
+    evidence: Array.isArray(candidate.evidence) ? candidate.evidence : [],
+    role_tags: Array.isArray(candidate.role_tags) ? candidate.role_tags : [],
+    leverage_class: candidate.leverage_class ?? null,
+    trust_tier: candidate.trust_tier ?? null,
+    severity: candidate.severity ?? null,
+    score_0_10000: candidate.score_0_10000 ?? null,
+    metrics: candidate.metrics ?? null,
+    snippets: await buildFileContext(repoPath, filePath, symbols),
+  };
+}
+
 async function buildReviewPayload(options, candidates) {
   const limitedCandidates = candidates.slice(0, options.limit);
   const reviewedCandidates = [];
 
   for (const candidate of limitedCandidates) {
-    const filePath = candidate.scope ?? candidate.files?.[0] ?? 'unknown';
-    const scope = candidate.scope ?? filePath;
-    const symbols = sampleFunctionNames(candidate);
-    reviewedCandidates.push({
-      scope,
-      file_path: filePath,
-      summary: candidate.summary ?? '',
-      impact: candidate.impact ?? '',
-      evidence: Array.isArray(candidate.evidence) ? candidate.evidence : [],
-      role_tags: Array.isArray(candidate.role_tags) ? candidate.role_tags : [],
-      leverage_class: candidate.leverage_class ?? null,
-      trust_tier: candidate.trust_tier ?? null,
-      severity: candidate.severity ?? null,
-      score_0_10000: candidate.score_0_10000 ?? null,
-      metrics: candidate.metrics ?? null,
-      snippets: await buildFileContext(options.repoRoot, filePath, symbols),
-    });
+    reviewedCandidates.push(await buildReviewedCandidate(options.repoRoot, candidate));
   }
 
   return reviewedCandidates;
@@ -580,38 +630,16 @@ async function main() {
   try {
     const reviewedCandidates = await buildReviewPayload(options, findings.candidates);
     const prompt = buildReviewPrompt(
-      {
-        ...options,
-        candidateSourceLane: findings.candidate_source_lane ?? null,
-        candidateReviewerLaneStatus: findings.candidate_reviewer_lane_status ?? null,
-        candidateReviewerLaneReason: findings.candidate_reviewer_lane_reason ?? null,
-        reviewedCandidateCount: reviewedCandidates.length,
-        canonicalCandidateCount: findings.candidate_canonical_count ?? 0,
-        legacyCandidateCount: findings.candidate_legacy_count ?? 0,
-        legacyOnlyCandidateCount: findings.candidate_legacy_only_count ?? 0,
-        legacyOnlyCandidateScopes: findings.candidate_legacy_only_scopes ?? [],
-      },
+      buildPromptOptions(options, findings, reviewedCandidates),
       reviewedCandidates,
     );
+    const resultBase = buildReviewResultBase(options, startedAt, findings);
 
     if (reviewedCandidates.length === 0) {
       const emptyResult = {
-        started_at: startedAt,
+        ...resultBase,
         finished_at: nowIso(),
-        repo_name: options.repoName,
-        repo_root: options.repoRoot,
-        task_kind: 'dead_private_review',
         summary: 'No dead_private_code_cluster candidates were available for review.',
-        candidate_source_lane: findings.candidate_source_lane ?? null,
-        candidate_source_lane_count: findings.candidate_source_lane_count ?? 0,
-        candidate_source_lanes_considered: findings.candidate_source_lanes_considered ?? [],
-        candidate_reviewer_lane_status: findings.candidate_reviewer_lane_status ?? null,
-        candidate_reviewer_lane_reason: findings.candidate_reviewer_lane_reason ?? null,
-        candidate_canonical_count: findings.candidate_canonical_count ?? 0,
-        candidate_legacy_count: findings.candidate_legacy_count ?? 0,
-        candidate_overlap_count: findings.candidate_overlap_count ?? 0,
-        candidate_legacy_only_count: findings.candidate_legacy_only_count ?? 0,
-        candidate_legacy_only_scopes: findings.candidate_legacy_only_scopes ?? [],
         reviewed_candidate_count: 0,
         candidates: [],
         provider_output: null,
@@ -623,21 +651,8 @@ async function main() {
 
     if (options.dryRun) {
       const dryRunResult = {
-        started_at: startedAt,
+        ...resultBase,
         finished_at: nowIso(),
-        repo_name: options.repoName,
-        repo_root: options.repoRoot,
-        task_kind: 'dead_private_review',
-        candidate_source_lane: findings.candidate_source_lane ?? null,
-        candidate_source_lane_count: findings.candidate_source_lane_count ?? 0,
-        candidate_source_lanes_considered: findings.candidate_source_lanes_considered ?? [],
-        candidate_reviewer_lane_status: findings.candidate_reviewer_lane_status ?? null,
-        candidate_reviewer_lane_reason: findings.candidate_reviewer_lane_reason ?? null,
-        candidate_canonical_count: findings.candidate_canonical_count ?? 0,
-        candidate_legacy_count: findings.candidate_legacy_count ?? 0,
-        candidate_overlap_count: findings.candidate_overlap_count ?? 0,
-        candidate_legacy_only_count: findings.candidate_legacy_only_count ?? 0,
-        candidate_legacy_only_scopes: findings.candidate_legacy_only_scopes ?? [],
         prompt,
         reviewed_candidate_count: reviewedCandidates.length,
         candidates: reviewedCandidates,
@@ -664,21 +679,8 @@ async function main() {
     });
 
     const result = {
-      started_at: startedAt,
+      ...resultBase,
       finished_at: nowIso(),
-      repo_name: options.repoName,
-      repo_root: options.repoRoot,
-      task_kind: 'dead_private_review',
-      candidate_source_lane: findings.candidate_source_lane ?? null,
-      candidate_source_lane_count: findings.candidate_source_lane_count ?? 0,
-      candidate_source_lanes_considered: findings.candidate_source_lanes_considered ?? [],
-      candidate_reviewer_lane_status: findings.candidate_reviewer_lane_status ?? null,
-      candidate_reviewer_lane_reason: findings.candidate_reviewer_lane_reason ?? null,
-      candidate_canonical_count: findings.candidate_canonical_count ?? 0,
-      candidate_legacy_count: findings.candidate_legacy_count ?? 0,
-      candidate_overlap_count: findings.candidate_overlap_count ?? 0,
-      candidate_legacy_only_count: findings.candidate_legacy_only_count ?? 0,
-      candidate_legacy_only_scopes: findings.candidate_legacy_only_scopes ?? [],
       reviewed_candidate_count: reviewedCandidates.length,
       candidates: reviewedCandidates,
       provider_output: providerOutput,
