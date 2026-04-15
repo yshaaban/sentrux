@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -59,6 +59,38 @@ test('collectFileIdentity leaves directory paths unhashed', async function () {
       exists: true,
       sha256: null,
     });
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('collectRepoIdentity hashes symlink targets instead of linked directory contents', async function () {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'sentrux-repo-symlink-identity-test-'));
+  const repoRoot = path.join(tempRoot, 'repo');
+  const externalRoot = path.join(tempRoot, 'external-target');
+
+  try {
+    await mkdir(repoRoot, { recursive: true });
+    await mkdir(externalRoot, { recursive: true });
+    runGit(repoRoot, ['init', '-q']);
+    runGit(repoRoot, ['config', 'user.email', 'test@example.com']);
+    runGit(repoRoot, ['config', 'user.name', 'Sentrux Test']);
+
+    await writeFile(path.join(repoRoot, 'tracked.txt'), 'tracked\n');
+    runGit(repoRoot, ['add', 'tracked.txt']);
+    runGit(repoRoot, ['commit', '-q', '-m', 'init']);
+
+    await writeFile(path.join(externalRoot, 'nested.txt'), 'one\n');
+    await symlink(externalRoot, path.join(repoRoot, 'linked-dir'));
+
+    const beforeEdit = collectRepoIdentity(repoRoot);
+    assert(beforeEdit.dirty_paths.includes('linked-dir'));
+
+    await writeFile(path.join(externalRoot, 'nested.txt'), 'two\n');
+    const afterEdit = collectRepoIdentity(repoRoot);
+
+    assert.equal(afterEdit.dirty_paths_fingerprint, beforeEdit.dirty_paths_fingerprint);
+    assert.equal(afterEdit.tree_fingerprint, beforeEdit.tree_fingerprint);
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }

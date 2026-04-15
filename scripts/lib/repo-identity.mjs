@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, lstatSync, readdirSync, readFileSync, readlinkSync, statSync } from 'node:fs';
 import { cp, mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -64,6 +64,10 @@ function hashFileContents(targetPath) {
   return createHash('sha256').update(readFileSync(targetPath)).digest('hex');
 }
 
+function hashSymlinkTarget(targetPath) {
+  return createHash('sha256').update(readlinkSync(targetPath)).digest('hex');
+}
+
 function updateDirectoryHash(hash, rootPath, currentPath) {
   const entries = readdirSync(currentPath, { withFileTypes: true }).sort(function compareEntries(left, right) {
     return left.name.localeCompare(right.name);
@@ -76,17 +80,25 @@ function updateDirectoryHash(hash, rootPath, currentPath) {
 
     const entryPath = path.join(currentPath, entry.name);
     const relPath = path.relative(rootPath, entryPath).split(path.sep).join('/');
-    const entryStat = statSync(entryPath);
 
     hash.update(relPath);
     hash.update('\0');
-    if (entryStat.isDirectory()) {
+    if (entry.isSymbolicLink()) {
+      hash.update('symlink');
+      hash.update('\0');
+      hash.update(hashSymlinkTarget(entryPath));
+      hash.update('\0');
+      continue;
+    }
+    if (entry.isDirectory()) {
       hash.update('directory');
       hash.update('\0');
       updateDirectoryHash(hash, rootPath, entryPath);
       continue;
     }
 
+    hash.update('file');
+    hash.update('\0');
     hash.update(hashFileContents(entryPath));
     hash.update('\0');
   }
@@ -100,12 +112,15 @@ function hashDirectoryContents(targetPath) {
 }
 
 function hashPathIdentity(targetPath) {
-  const stat = statSync(targetPath);
+  const stat = lstatSync(targetPath);
+  if (stat.isSymbolicLink()) {
+    return `symlink:${hashSymlinkTarget(targetPath)}`;
+  }
   if (stat.isDirectory()) {
-    return hashDirectoryContents(targetPath);
+    return `directory:${hashDirectoryContents(targetPath)}`;
   }
 
-  return hashFileContents(targetPath);
+  return `file:${hashFileContents(targetPath)}`;
 }
 
 function fingerprintPathList(repoRoot, relPaths) {
