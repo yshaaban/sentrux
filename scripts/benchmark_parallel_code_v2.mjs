@@ -316,8 +316,6 @@ async function runBenchmarkSample(sampleIndex) {
   let benchmark;
   let freshnessMetadata;
   try {
-    const pluginHome = await prepareTypeScriptBenchmarkHome({ tempRoot: clone.tempRoot });
-    benchmark = await runBenchmarkSession(clone.workRoot, pluginHome);
     freshnessMetadata = buildRepoFreshnessMetadata({
       repoRoot: parallelCodeRoot,
       analyzedRoot: clone.workRoot,
@@ -325,6 +323,8 @@ async function runBenchmarkSample(sampleIndex) {
       rulesSource,
       binaryPath: sentruxBin,
     });
+    const pluginHome = await prepareTypeScriptBenchmarkHome({ tempRoot: clone.tempRoot });
+    benchmark = await runBenchmarkSession(clone.workRoot, pluginHome);
   } finally {
     await clone.cleanup();
   }
