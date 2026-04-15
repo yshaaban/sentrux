@@ -34,6 +34,10 @@ function compactList(values, limit, mapper) {
   return (values ?? []).slice(0, limit).map(mapper);
 }
 
+function toPublicArtifactPath(targetPath) {
+  return `./${path.basename(targetPath)}`;
+}
+
 function compactFinding(finding) {
   return {
     id: finding.id ?? null,
@@ -364,8 +368,8 @@ async function main() {
   const snapshot = {
     generated_at: new Date().toISOString(),
     generated_from: {
-      golden_dir: goldenDir,
-      benchmark_path: benchmarkPath,
+      golden_dir: toPublicArtifactPath(goldenDir),
+      benchmark_path: toPublicArtifactPath(benchmarkPath),
       metadata,
     },
     top_findings: topFindings.map(compactSelectedCandidate),

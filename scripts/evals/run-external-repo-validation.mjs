@@ -666,7 +666,7 @@ export function buildValidationReport({
   lines.push('');
   if (deadPrivateFalsePositives.length > 0) {
     lines.push(
-      '- dead-private precision is not good enough yet; Public Repo exposed false positives from table callback keys and framework lifecycle methods:',
+      `- dead-private precision is not good enough yet; ${repoLabel} exposed false positives from repeated callback-style helper names and similar low-confidence samples:`,
     );
     for (const finding of deadPrivateFalsePositives.slice(0, 5)) {
       lines.push(
@@ -683,7 +683,7 @@ export function buildValidationReport({
   }
   if (packetValidation?.surfaces_scan_confidence) {
     const lowConfidenceLine = [
-      `- Public Repo still scans with low confidence: only ${scanSummary.kept_files ?? 'n/a'} of ${scanSummary.candidate_files ?? 'n/a'} candidate files were kept, and overall confidence is ${scanSummary.overall_confidence_0_10000 ?? 'n/a'} / 10000.`,
+      `- ${repoLabel} still scans with low confidence: only ${scanSummary.kept_files ?? 'n/a'} of ${scanSummary.candidate_files ?? 'n/a'} candidate files were kept, and overall confidence is ${scanSummary.overall_confidence_0_10000 ?? 'n/a'} / 10000.`,
     ];
     if (Number.isFinite(scanSummary.exclusions?.total) && mixedRepoContext.dominant_exclusion_bucket) {
       lowConfidenceLine.push(
@@ -704,13 +704,15 @@ export function buildValidationReport({
   lines.push('');
   lines.push('## Highest-ROI Next Steps');
   lines.push('');
-  lines.push('- tighten dead-private classification and measure precision against the Public Repo false-positive set');
+  lines.push(
+    '- tighten dead-private classification and measure precision against the exported external false-positive set',
+  );
   if (clones.length > 0 && !packetValidation?.rich_clone_sample_count) {
     lines.push('- enrich clone review packets with file paths, line counts, and recent-edit asymmetry reasons');
   }
   if (packetValidation?.surfaces_scan_confidence) {
     lines.push(
-      '- improve eligible coverage reporting and candidate retention on large mixed repos like Public Repo without hiding exclusion-driven pressure',
+      '- improve eligible coverage reporting and candidate retention on large mixed repos without hiding exclusion-driven pressure',
     );
   } else {
     lines.push('- surface scan trust and coverage in the first screen of every review surface');
@@ -726,11 +728,11 @@ export function buildValidationReport({
   lines.push('');
   if (packetValidation?.rich_clone_sample_count) {
     lines.push(
-      'Public Repo confirmed that Sentrux is already useful for clean-repo gating, duplicate-drift detection, and reviewer-facing evidence packaging. The main remaining trust gaps are dead-private precision calibration and low scan confidence on large mixed repos.',
+      `${repoLabel} confirmed that Sentrux is already useful for clean-repo gating, duplicate-drift detection, and reviewer-facing evidence packaging. The main remaining trust gaps are dead-private precision calibration and low scan confidence on large mixed repos.`,
     );
   } else {
     lines.push(
-      'Public Repo confirmed that Sentrux is already useful for clean-repo gating and duplicate-drift detection. The main trust breakers are dead-private precision and evidence loss in the clone packet path.',
+      `${repoLabel} confirmed that Sentrux is already useful for clean-repo gating and duplicate-drift detection. The main trust breakers are dead-private precision and evidence loss in the clone packet path.`,
     );
   }
   lines.push('');

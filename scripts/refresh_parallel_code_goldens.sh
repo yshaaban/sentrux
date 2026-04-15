@@ -103,6 +103,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const [, , responsesPath, outputDir, workRoot, sourceRoot] = process.argv;
+const publicRepoRoot = '<parallel-code-root>';
 const responseLines = fs
   .readFileSync(responsesPath, 'utf8')
   .split('\n')
@@ -135,7 +136,7 @@ const outputs = [
 
 function sanitizeValue(value) {
   if (typeof value === 'string') {
-    return value.split(workRoot).join(sourceRoot);
+    return value.split(workRoot).join(publicRepoRoot).split(sourceRoot).join(publicRepoRoot);
   }
   if (Array.isArray(value)) {
     return value.map(sanitizeValue);
@@ -222,6 +223,29 @@ async function main() {
     rulesSource,
     binaryPath: sentruxBinary,
   });
+  const publicPathReplacements = [
+    [sentruxBinary, '<sentrux-root>/target/debug/sentrux'],
+    [rulesSource, '<sentrux-root>/docs/v2/examples/parallel-code.rules.toml'],
+    [analyzedRoot, '<parallel-code-root>'],
+    [parallelCodeRoot, '<parallel-code-root>'],
+    [repoRoot, '<sentrux-root>'],
+  ];
+  function sanitizeValue(value) {
+    if (typeof value === 'string') {
+      return publicPathReplacements.reduce((current, [target, replacement]) => {
+        return current.split(target).join(replacement);
+      }, value);
+    }
+    if (Array.isArray(value)) {
+      return value.map(sanitizeValue);
+    }
+    if (value && typeof value === 'object') {
+      return Object.fromEntries(
+        Object.entries(value).map(([key, entry]) => [key, sanitizeValue(entry)]),
+      );
+    }
+    return value;
+  }
   if (analysisMode === 'working_tree') {
     assertRepoIdentityFresh({
       expected: freshness.source_tree_identity,
@@ -229,7 +253,7 @@ async function main() {
       label: 'parallel-code working-tree mirror',
     });
   }
-  const payload = {
+  const payload = sanitizeValue({
     generated_at: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
     parallel_code_root: parallelCodeRoot,
     analysis_mode: analysisMode,
@@ -243,7 +267,7 @@ async function main() {
     sentrux_binary: sentruxBinary,
     rules_identity: freshness.rules_identity,
     binary_identity: freshness.binary_identity,
-  };
+  });
 
   fs.writeFileSync(metadataPath, `${JSON.stringify(payload, null, 2)}\n`);
 }
@@ -285,6 +309,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const [, , responsesPath, outputDir, workRoot, sourceRoot] = process.argv;
+const publicRepoRoot = '<parallel-code-root>';
 const responseLines = fs
   .readFileSync(responsesPath, 'utf8')
   .split('\n')
@@ -304,7 +329,7 @@ const outputs = [
 
 function sanitizeValue(value) {
   if (typeof value === 'string') {
-    return value.split(workRoot).join(sourceRoot);
+    return value.split(workRoot).join(publicRepoRoot).split(sourceRoot).join(publicRepoRoot);
   }
   if (Array.isArray(value)) {
     return value.map(sanitizeValue);

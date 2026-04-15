@@ -1753,7 +1753,7 @@
     }
   },
   "comparison": {
-    "compared_to": "<sentrux-root>/docs/v2/examples/parallel-code-benchmark.json",
+    "compared_to": "./parallel-code-benchmark.json",
     "previous_generated_at": "2026-04-15T18:17:06.181Z",
     "comparable": true,
     "comparability": {

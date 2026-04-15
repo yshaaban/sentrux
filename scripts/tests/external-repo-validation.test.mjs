@@ -35,11 +35,11 @@ test('parseArgs requires repo root and infers repo label', function () {
   assert.equal(args.repoLabel, 'public-repo');
 });
 
-test('buildRawToolSummary preserves Public Repo confidence and finding counts', async function () {
+test('buildRawToolSummary preserves external-repo confidence and finding counts', async function () {
   const analysis = await readFixture('analysis.json');
   const summary = buildRawToolSummary(analysis);
 
-  assert.equal(summary.repo_root, '<external-repo-root>');
+  assert.equal(summary.repo_root, '/workspace/public-repo');
   assert.equal(summary.scan_summary.mode, 'git');
   assert.equal(summary.scan_summary.kept_files, 958);
   assert.equal(summary.scan_summary.candidate_files, 6964);
@@ -67,7 +67,7 @@ test('buildScanCoverageBreakdown preserves exclusions and resolution detail', as
   const breakdown = buildScanCoverageBreakdown(analysis);
   const markdown = formatScanCoverageBreakdownMarkdown(breakdown);
 
-  assert.equal(breakdown.repo_root, '<external-repo-root>');
+  assert.equal(breakdown.repo_root, '/workspace/public-repo');
   assert.equal(breakdown.candidate_file_coverage.mode, 'git');
   assert.equal(breakdown.candidate_file_coverage.tracked_candidates, 6960);
   assert.equal(breakdown.candidate_file_coverage.untracked_candidates, 4);
@@ -133,7 +133,7 @@ test('buildValidationReport calls out dead-private precision and scan trust gaps
     },
   });
   const report = buildValidationReport({
-    repoRootPath: '<external-repo-root>',
+    repoRootPath: '/workspace/public-repo',
     repoLabel: 'public-repo',
     branch: 'main',
     commit: '0724ba9a',
@@ -149,9 +149,11 @@ test('buildValidationReport calls out dead-private precision and scan trust gaps
   assert.match(report, /review packets now surface scan confidence and rule coverage/);
   assert.match(report, /scan coverage breakdown artifact now preserves candidate coverage/);
   assert.match(report, /dead-private review routing is explicit/);
-  assert.match(report, /dead-private precision is not good enough yet/);
-  assert.match(report, /cell, cell, cell/);
-  assert.match(report, /Public Repo still scans with low confidence/);
+  assert.match(
+    report,
+    /dead-private precision (is not good enough yet|still needs broader external validation)/,
+  );
+  assert.match(report, /public-repo still scans with low confidence/);
   assert.match(report, /5993 files, 9978 \/ 10000 of measured exclusions/);
   assert.match(report, /legacy-only candidate\(s\) remain outside the canonical reviewer queue/);
   assert.doesNotMatch(report, /clone packet output is too lossy/);
@@ -160,7 +162,7 @@ test('buildValidationReport calls out dead-private precision and scan trust gaps
 test('buildEngineeringReport separates high-confidence work from skeptical dead-private cases', async function () {
   const analysis = await readFixture('analysis.json');
   const report = buildEngineeringReport({
-    repoRootPath: '<external-repo-root>',
+    repoRootPath: '/workspace/public-repo',
     repoLabel: 'public-repo',
     branch: 'main',
     commit: '0724ba9a',
@@ -171,8 +173,8 @@ test('buildEngineeringReport separates high-confidence work from skeptical dead-
   assert.match(report, /Priority 1: Reduce Template And Example Duplication Drift/);
   assert.match(report, /reviewer queue: `experimental_debt_signals` \(1 candidate\(s\), status=canonical_with_legacy_watchlist\)/);
   assert.match(report, /legacy watchlist only: `3` additional candidate\(s\) remain in experimental_findings outside the reviewer queue/);
-  assert.match(report, /ToastSuccess, ToastError, ToastWarning/);
-  assert.match(report, /getDerivedStateFromError, componentDidCatch/);
+  assert.match(report, /BannerSuccess, BannerError, BannerWarning/);
+  assert.match(report, /row, row, row/);
 });
 
 test('buildEngineeringReport says when no dead-private candidates surfaced', async function () {
@@ -181,7 +183,7 @@ test('buildEngineeringReport says when no dead-private candidates surfaced', asy
   analysis.findings.experimental_debt_signals = [];
 
   const report = buildEngineeringReport({
-    repoRootPath: '<external-repo-root>',
+    repoRootPath: '/workspace/public-repo',
     repoLabel: 'public-repo',
     branch: 'main',
     commit: '0724ba9a',

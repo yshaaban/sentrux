@@ -154,7 +154,7 @@ Exit criteria:
 
 Open gap:
 
-- semantic proof now spans `parallel-code`, `private-benchmark-repo`, and `private-frontend`, and persisted snapshot reuse now exists, but long-lived cache maturity and further warm-path structural reductions are still missing
+- public proof now centers on `parallel-code` plus Sentrux dogfood artifacts, and persisted snapshot reuse now exists, but long-lived cache maturity and further warm-path structural reductions are still missing
 
 ## Tier 1C: Minimal Concept Graph And Rules
 
@@ -404,12 +404,9 @@ Status: mostly complete
 - [x] create initial scoped golden outputs for `parallel-code`
 - [x] expand `parallel-code` goldens to cover `session_end` and touched-concept gate scenarios
 - [x] add synthetic touched-concept gate and `session_end` regression scenarios
-- [x] add second benchmark repo proof loop (`private-benchmark-repo`)
-- [x] add checked-in scoped goldens for `private-benchmark-repo`
 - [-] add fixture repos for semantic frontends
 - [-] add bridge contract tests for the persistent Node subprocess
 - [x] capture initial `parallel-code` benchmark artifact
-- [x] capture initial `private-benchmark-repo` benchmark artifact
 - [x] add versioned performance regression benchmark comparison for `parallel-code`
 - [x] add multi-repo golden validation runner
 - [x] add external evaluator harness scaffolding with Claude Code CLI provider support
@@ -423,7 +420,7 @@ Status: mostly complete
 
 Open gap:
 
-- implementation is still ahead of release-grade validation, but the proof loop now spans `parallel-code` and `private-benchmark-repo`, includes multi-repo golden validation, explicit transition-controller bridge tests, and has versioned benchmark artifacts plus explicit benchmark policy for both repos; the remaining gap is mostly deeper unhappy-path validation, promotion criteria, and fuller migration coverage
+- implementation is still ahead of release-grade validation, but the public proof loop now centers on `parallel-code`, includes multi-repo validation wiring, explicit transition-controller bridge tests, and has versioned benchmark artifacts plus explicit benchmark policy; the remaining gap is mostly deeper unhappy-path validation, promotion criteria, and fuller migration coverage
 
 ## Target Outcome On `parallel-code`
 
@@ -456,6 +453,6 @@ Current reality:
 
 - the codebase is past a useful MCP beta and close to a broader MCP/CLI v2 beta
 - MCP exposes the full fast-path patch-safety wedge, while CLI exposes the current v2 lane mainly through `brief` and `gate`
-- the real proof loop now includes checked-in pass and fail goldens for `parallel-code` and scoped goldens plus a benchmark artifact for `private-benchmark-repo`
+- the real proof loop now includes checked-in pass and fail goldens for `parallel-code`, plus Sentrux dogfood benchmark and remediation artifacts
 - warm patch-safety is improving, but the remaining performance gap is still scan-bound structural work
 - broader benchmark-repo unhappy-path validation, richer migration coverage, and better analyzer promotion criteria are the next proof gaps

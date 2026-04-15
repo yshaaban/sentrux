@@ -2,7 +2,7 @@
 
 Last updated: 2026-03-19
 
-This document defines the next execution block for v2 after the current wedge is working in MCP and CLI, the second benchmark repo proof loop on `private-benchmark-repo`, the boundary and contract expansions, and the current evidence-first debt-signal surface.
+This document defines the next execution block for v2 after the current wedge is working in MCP and CLI, the second benchmark repo proof loop that existed at the time, the boundary and contract expansions, and the current evidence-first debt-signal surface.
 
 The goal of this batch is not to add broad new analyzer scope. It is to finish the remaining work that makes v2 dependable enough to surface objective technical-debt evidence on repos like `parallel-code`, while leaving final prioritization to engineers.
 
@@ -14,7 +14,7 @@ The current v2 implementation can already:
 - surface clone drift, authority/access violations, and incomplete propagation
 - surface concept-level quality opportunities
 - surface debt signals that combine boundary pressure, clone families, hotspots, and missing-site pressure
-- prove the core workflow on `parallel-code` and `private-benchmark-repo`
+- prove the core workflow on `parallel-code` and a second benchmark repo
 
 That is enough for a strong beta wedge.
 
@@ -47,7 +47,7 @@ Explicitly excluded from this batch:
 At the start of this batch:
 
 - the core wedge is working in MCP and CLI
-- the proof loop spans `parallel-code` and `private-benchmark-repo`
+- the proof loop spans `parallel-code` and a second benchmark repo
 - `findings` and `session_end` include:
   - concept summaries
   - quality opportunities
@@ -64,8 +64,6 @@ Relevant references:
 - [Parallel-Code Case Study](../../v2/parallel-code-case-study.md)
 - [Parallel-Code Scoped Goldens](../../v2/examples/parallel-code-golden/README.md)
 - [Parallel-Code Benchmark](../../v2/examples/parallel-code-benchmark.md)
-- [Private Benchmark Repo Scoped Goldens](../../v2/examples/private-benchmark-repo-golden/README.md)
-- [Private Benchmark Repo Benchmark](../../v2/examples/private-benchmark-repo-benchmark.md)
 
 ## Success Criteria
 
@@ -96,7 +94,7 @@ Deliverables:
 
 Tasks:
 
-- [x] define benchmark-threshold policy for `parallel-code` and `private-benchmark-repo`
+- [x] define benchmark-threshold policy for `parallel-code` and the second benchmark repo used at the time
 - [x] classify which benchmark regressions should fail CI versus warn only
 - [x] profile remaining warm-path scan/evolution cost in `gate` and `session_end`
 - [x] remove one warm-path overhead source by caching rules config across repeated MCP requests

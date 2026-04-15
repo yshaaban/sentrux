@@ -64,14 +64,6 @@
     {
       "scenario_id": "parallel-code",
       "path": "./scenarios/parallel-code.json"
-    },
-    {
-      "scenario_id": "private-benchmark-repo",
-      "path": "./scenarios/private-benchmark-repo.json"
-    },
-    {
-      "scenario_id": "private-frontend",
-      "path": "./scenarios/private-frontend.json"
     }
   ]
 }

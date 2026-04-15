@@ -3,15 +3,15 @@
   "scenarios": [
     {
       "name": "ownership-regression",
-      "output_dir": "<sentrux-root>/docs/v2/examples/parallel-code-proof-runs/ownership-regression"
+      "output_dir": "./ownership-regression"
     },
     {
       "name": "propagation-cleanup",
-      "output_dir": "<sentrux-root>/docs/v2/examples/parallel-code-proof-runs/propagation-cleanup"
+      "output_dir": "./propagation-cleanup"
     },
     {
       "name": "clone-cleanup",
-      "output_dir": "<sentrux-root>/docs/v2/examples/parallel-code-proof-runs/clone-cleanup"
+      "output_dir": "./clone-cleanup"
     }
   ]
 }

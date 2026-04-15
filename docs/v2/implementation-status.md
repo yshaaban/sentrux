@@ -58,8 +58,6 @@ The strongest completed work is:
 - parity and concentration context
 - conservative state-integrity analysis
 - session baseline project-fingerprint validation and confidence regression coverage
-- second benchmark repo proof loop on `private-benchmark-repo`
-- third benchmark repo proof loop on `private-frontend`
 - multi-repo golden validation runner
 - benchmark fail/warn/info classification with explicit thresholds
 - release checklist for proof artifacts, benchmark policy, and migration behavior
@@ -90,16 +88,16 @@ The strongest completed work is:
 | --- | --- | --- | --- |
 | Tier 0 | Mostly complete | Trust foundation is real in MCP and CLI | GUI productization and `health` inline delta surfacing are still uneven |
 | Tier 1A | Mostly complete | Clone drift findings now have stable ids, git-aware risk context, divergence-aware family clustering, remediation hints, and cleaner production-first ranking | no history-aware rename/copy tracing and no dedicated clone-drift CLI surface yet |
-| Tier 1B | Mostly complete | TS bridge, semantic facts, persisted semantic cache reuse, proof artifacts, and explicit benchmark policy now exist across `parallel-code` and `private-benchmark-repo` | warm-path structural cost is still higher than desired and the cache story is not yet fully incremental |
+| Tier 1B | Mostly complete | TS bridge, semantic facts, persisted semantic cache reuse, proof artifacts, and explicit benchmark policy now exist for the public `parallel-code` proof loop plus Sentrux dogfood artifacts | warm-path structural cost is still higher than desired and the cache story is not yet fully incremental |
 | Tier 1C | Mostly complete | v2 rules, concept graph, suppression enforcement, archetype-aware starter rules, and module-contract support now exist | broader policy UX and validation are still incomplete |
 | Tier 1D | Mostly complete | authority/access findings now include stronger public-boundary bypass and concept-boundary pressure summaries | limited generic public-entry inference and scorecard calibration still need more real-repo evidence |
 | Tier 1E | Mostly complete | obligation engine now handles closed-domain and initial contract-driven triggers | richer contract families and finer changed-symbol precision are still incomplete |
 | Tier 1F | Mostly complete | `session_end` and `gate` now work in MCP and CLI on the same touched-concept model, including suppression-aware decisions and shared patch-safety analysis reuse | release-grade gate validation is still incomplete |
 | Tier 2A | Mostly complete | parity analyzer, MCP tool, and real proof now exist on more than one repo shape | broader contract families still need more false-positive review and non-happy-path validation |
 | Tier 2B | Mostly complete | concentration analysis exists and is tested | not yet benchmarked or validated on the real case-study repo |
-| Tier 2C | Mostly complete | inspection tools, adoption helpers, trust-tiered debt signals, structural debt findings, debt clusters, `project_shape`, and three real benchmark repos now exist | broader onboarding proof and evidence-quality validation are still incomplete |
+| Tier 2C | Mostly complete | inspection tools, adoption helpers, trust-tiered debt signals, structural debt findings, debt clusters, and `project_shape` now exist with a public benchmark corpus and Sentrux dogfood artifacts | broader onboarding proof and evidence-quality validation are still incomplete |
 | Tier 3 | Partial | conservative state-integrity slice now includes explicit transition-site modeling and transition-coverage findings for rule-declared state domains | implicit lifecycle heuristics and broader invalid-state-risk inference are still not built |
-| Validation | Mostly complete | unit tests, synthetic gate/session regression scenarios, three real benchmark repos, multi-repo goldens, versioned benchmark comparison, explicit benchmark policy, confidence/migration checks, defect injection, review packets, remediation eval scaffolding, and signal scorecards now exist | no full migration suite and benchmark-repo unhappy-path coverage is still incomplete |
+| Validation | Mostly complete | unit tests, synthetic gate/session regression scenarios, public benchmark goldens, versioned benchmark comparison, explicit benchmark policy, confidence/migration checks, defect injection, review packets, remediation eval scaffolding, and signal scorecards now exist | no full migration suite and broader public benchmark-repo unhappy-path coverage are still incomplete |
 
 ## Tier-By-Tier Status
 

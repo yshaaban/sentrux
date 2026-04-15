@@ -1,0 +1,248 @@
+{
+  "scan": {
+    "scanned": "/workspace/public-repo",
+    "lines": 279145,
+    "quality_signal": 4899,
+    "confidence": {
+      "rule_coverage_0_10000": 0,
+      "scan_confidence_0_10000": 1376,
+      "semantic_rules_loaded": false,
+      "session_baseline": {
+        "compatible": true,
+        "error": null,
+        "loaded": true,
+        "schema_version": 3
+      }
+    },
+    "scan_trust": {
+      "candidate_files": 6964,
+      "tracked_candidates": 6960,
+      "untracked_candidates": 4,
+      "kept_files": 958,
+      "mode": "git",
+      "scope_coverage_0_10000": 1376,
+      "overall_confidence_0_10000": 1376,
+      "partial": false,
+      "truncated": false,
+      "fallback_reason": null,
+      "exclusions": {
+        "total": 6006,
+        "bucketed": {
+          "vendor": 5993,
+          "generated": 0,
+          "build": 0,
+          "fixture": 6,
+          "cache": 4
+        },
+        "ignored_extension": 3,
+        "too_large": 0,
+        "metadata_error": 0
+      },
+      "resolution": {
+        "resolved": 949,
+        "unresolved_internal": 20,
+        "unresolved_external": 533,
+        "unresolved_unknown": 311,
+        "internal_confidence_0_10000": 9794
+      }
+    }
+  },
+  "check": {
+    "gate": "pass",
+    "summary": "No working-tree changes detected.",
+    "actions": [],
+    "issues": []
+  },
+  "gate": {
+    "decision": "pass",
+    "summary": "No working-tree changes detected",
+    "blocking_findings": [],
+    "introduced_findings": [],
+    "obligation_completeness_0_10000": 10000
+  },
+  "findings": {
+    "findings": [
+      {
+        "kind": "large_file",
+        "scope": "packages/web/src/provisioning.ts",
+        "summary": "File 'packages/web/src/provisioning.ts' is 1294 lines, above the typescript threshold of 500",
+        "impact": "Responsibility concentration increases review friction and makes later splits harder to isolate.",
+        "metrics": {
+          "line_count": 1294,
+          "function_count": 27,
+          "max_complexity": 129,
+          "fan_out": 14
+        }
+      },
+      {
+        "kind": "large_file",
+        "scope": "apps/site/src/routes/project-page.tsx",
+        "summary": "File 'apps/site/src/routes/project-page.tsx' is 789 lines, above the typescript threshold of 500",
+        "impact": "Responsibility concentration increases review friction and makes later splits harder to isolate.",
+        "metrics": {
+          "line_count": 789,
+          "function_count": 14,
+          "max_complexity": 115,
+          "fan_out": 14
+        }
+      },
+      {
+        "kind": "large_file",
+        "scope": "apps/site/src/hooks/use-session.ts",
+        "summary": "File 'apps/site/src/hooks/use-session.ts' is 765 lines, above the typescript threshold of 500",
+        "impact": "Responsibility concentration increases review friction and makes later splits harder to isolate.",
+        "metrics": {
+          "line_count": 765,
+          "function_count": 13,
+          "max_complexity": 230,
+          "fan_out": 5
+        }
+      },
+      {
+        "kind": "cycle_cluster",
+        "scope": "cycle:templates/example-cli/src/agent.ts|templates/example-cli/src/server.ts|templates/example-cli/src/workspace-commands.ts|templates/example-cli/src/workspace-prompt.ts|templates/example-cli/src/workspace-session.ts",
+        "summary": "Files templates/example-cli/src/agent.ts, templates/example-cli/src/server.ts, templates/example-cli/src/workspace-commands.ts, templates/example-cli/src/workspace-prompt.ts, templates/example-cli/src/workspace-session.ts form a dependency cycle",
+        "impact": "The cycle prevents clean layering and makes initialization order and refactors harder to isolate.",
+        "metrics": {
+          "cycle_size": 5
+        },
+        "cut_candidates": [
+          {
+            "summary": "Inspect import edge 'templates/example-cli/src/server.ts' -> 'templates/example-cli/src/agent.ts' to reduce the cyclic footprint by 3 file(s)"
+          }
+        ]
+      },
+      {
+        "kind": "cycle_cluster",
+        "scope": "cycle:packages/ui/src/file-tree-context.tsx|packages/ui/src/file-tree.tsx",
+        "summary": "Files packages/ui/src/file-tree-context.tsx, packages/ui/src/file-tree.tsx form a dependency cycle",
+        "impact": "The cycle prevents clean layering and makes initialization order and refactors harder to isolate.",
+        "metrics": {
+          "cycle_size": 2
+        },
+        "cut_candidates": [
+          {
+            "summary": "Inspect import edge 'packages/ui/src/file-tree-context.tsx' -> 'packages/ui/src/file-tree.tsx' to reduce the cyclic footprint by 2 file(s)"
+          }
+        ]
+      },
+      {
+        "kind": "exact_clone_group",
+        "files": [
+          "packages/examples/pages/task-run.tsx",
+          "templates/webapp/src/examples/pages/task-run.tsx",
+          "templates/react-app/src/examples/pages/task-run.tsx"
+        ],
+        "total_lines": 243,
+        "reasons": [
+          "identical logic spans 3 files",
+          "largest clone instance is 81 lines",
+          "recent activity is uneven across clone instances"
+        ]
+      },
+      {
+        "kind": "exact_clone_group",
+        "files": [
+          "packages/examples/patterns/form-panel.tsx",
+          "templates/webapp/src/examples/patterns/form-panel.tsx",
+          "templates/react-app/src/examples/patterns/form-panel.tsx"
+        ],
+        "total_lines": 209,
+        "reasons": [
+          "identical logic spans 3 files",
+          "largest clone instance is 73 lines",
+          "recent activity is uneven across clone instances"
+        ]
+      },
+      {
+        "kind": "exact_clone_group",
+        "files": [
+          "packages/examples/patterns/confirm-panel.tsx",
+          "templates/webapp/src/examples/patterns/confirm-panel.tsx",
+          "templates/react-app/src/examples/patterns/confirm-panel.tsx"
+        ],
+        "total_lines": 186,
+        "reasons": [
+          "identical logic spans 3 files",
+          "largest clone instance is 62 lines",
+          "recent activity is uneven across clone instances"
+        ]
+      }
+    ],
+    "watchpoints": [
+      {
+        "kind": "cycle_cluster",
+        "scope": "cycle:templates/example-cli/src/agent.ts|templates/example-cli/src/server.ts|templates/example-cli/src/workspace-commands.ts|templates/example-cli/src/workspace-prompt.ts|templates/example-cli/src/workspace-session.ts"
+      },
+      {
+        "kind": "cycle_cluster",
+        "scope": "cycle:packages/ui/src/file-tree-context.tsx|packages/ui/src/file-tree.tsx"
+      }
+    ],
+    "experimental_findings": [
+      {
+        "kind": "dead_private_code_cluster",
+        "scope": "apps/site/src/routes/dashboard-page.tsx",
+        "score_0_10000": 5982,
+        "evidence": [
+          "dead private functions: 5",
+          "dead private lines: 49",
+          "sample dead functions: row, row, row",
+          "total file lines: 443"
+        ]
+      },
+      {
+        "kind": "dead_private_code_cluster",
+        "scope": "packages/examples/patterns/banner-notification.tsx",
+        "score_0_10000": 5316,
+        "evidence": [
+          "dead private functions: 4",
+          "dead private lines: 12",
+          "sample dead functions: BannerSuccess, BannerError, BannerWarning",
+          "total file lines: 85"
+        ]
+      },
+      {
+        "kind": "dead_private_code_cluster",
+        "scope": "apps/site/src/lib/stream-control-schema.ts",
+        "score_0_10000": 4506,
+        "evidence": [
+          "dead private functions: 3",
+          "dead private lines: 17",
+          "sample dead functions: TASK_STARTED, TASK_USAGE, TASK_PROGRESS",
+          "total file lines: 164"
+        ]
+      },
+      {
+        "kind": "dead_private_code_cluster",
+        "scope": "templates/example-web/src/error-boundary.tsx",
+        "score_0_10000": 3200,
+        "evidence": [
+          "dead private functions: 2",
+          "dead private lines: 6",
+          "sample dead functions: fallback, fallback, fallback",
+          "total file lines: 66"
+        ]
+      }
+    ],
+    "experimental_debt_signals": [
+      {
+        "kind": "dead_private_code_cluster",
+        "scope": "apps/site/src/routes/dashboard-page.tsx",
+        "score_0_10000": 5982,
+        "evidence": [
+          "sample dead functions: row, row, row"
+        ]
+      }
+    ]
+  },
+  "session_end": {
+    "pass": true,
+    "summary": "Quality stable or improved",
+    "actions": [],
+    "introduced_findings": [],
+    "signal_before": 4899,
+    "signal_after": 4899,
+    "signal_delta": 0
+  }
+}

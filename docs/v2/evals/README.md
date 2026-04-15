@@ -29,8 +29,6 @@ Goals:
 - `prompts/parallel-code/*.md` - checked-in prompt files for the `parallel-code` calibration tasks
 - `prompts/sentrux/*.md` - checked-in prompt files for the `sentrux` calibration tasks
 - `scenarios/parallel-code.json` - initial scenarios for the repo configured by `PARALLEL_CODE_ROOT`
-- `scenarios/private-benchmark-repo.json` - initial scenarios for the repo configured by `PRIVATE_BENCHMARK_ROOT`
-- `scenarios/private-frontend.json` - initial scenarios for the repo configured by `PRIVATE_FRONTEND_ROOT`
 
 ## Runner
 
@@ -51,11 +49,9 @@ Useful flags:
 - `--concurrency <n>` - number of tasks to run in parallel
 - `--dry-run` - load and validate scenarios without calling any provider
 
-Repo roots can be overridden with the same environment variables used by the benchmark docs:
+Repo roots can be overridden with the same environment variables used by the public benchmark docs:
 
 - `PARALLEL_CODE_ROOT`
-- `PRIVATE_BENCHMARK_ROOT`
-- `PRIVATE_FRONTEND_ROOT`
 
 If an override is not provided, each scenario falls back to its checked-in default root. Public documentation should prefer the environment variables above instead of assuming a workstation-specific path layout.
 

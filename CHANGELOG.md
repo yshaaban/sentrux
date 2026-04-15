@@ -7,7 +7,7 @@ All notable changes to this repository should be documented in this file.
 ### Added
 
 - MCP v2 patch-safety surfaces centered on `check`, `agent_brief`, `findings`, `obligations`, `gate`, and richer `session_end` output
-- checked-in multi-repo validation artifacts for `parallel-code`, `private-benchmark-repo`, and `private-frontend`
+- checked-in public validation artifacts for `parallel-code` plus dogfood calibration artifacts for `sentrux`
 - defect-injection, remediation-eval, review-packet, session-telemetry, and signal-scorecard tooling under `scripts/evals/`
 - archetype-aware onboarding helpers, starter rules, and project-shape output for adoption flows
 

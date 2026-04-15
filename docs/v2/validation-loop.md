@@ -39,13 +39,6 @@ This command:
 
 The live `parallel-code` worktree may be dirty, so every proof refresh must go through a disposable clone.
 
-The other benchmark repos follow the same pattern:
-
-```bash
-./scripts/refresh_h1_sdk_goldens.sh
-./scripts/refresh_admin_frontend_goldens.sh
-```
-
 For stable engineer-review artifacts against committed `HEAD`, use:
 
 ```bash
@@ -71,13 +64,6 @@ This command:
 - fails if the benchmark run is not comparable to the checked-in artifact
 
 The checked-in proof snapshots, proof runs, and engineer reports explain how the outputs from this command should be turned into concrete refactor targets and before/after proof records.
-
-For the other benchmark repos, use:
-
-```bash
-node scripts/validate_h1_sdk_v2.mjs
-node scripts/validate_admin_frontend_v2.mjs
-```
 
 To validate all benchmark repos together, use:
 
@@ -402,32 +388,15 @@ The validation loop is intentionally separate from baseline migration, but it de
 
 For the detailed migration rules, see [Baseline Migration](./baseline-migration.md).
 
-## Second Repo Cross-Check
+## Public Benchmark Scope
 
-Ranking heuristics should be validated on a second repo shape before they are treated as stable.
+The public tree intentionally keeps checked-in benchmark artifacts limited to public-safe repos.
 
-Use:
+Today that means:
 
-```bash
-node scripts/validate_h1_sdk_v2.mjs --goldens-only
-```
-
-This does not provide an engineer-report corpus like `parallel-code`, but it does verify that generic ranking-oriented analyzer changes do not accidentally destabilize the second checked-in benchmark repo shape.
-
-## Third Repo Cross-Check
-
-Archetype and onboarding changes should also be validated on a modular Next.js frontend shape.
-
-Use:
-
-```bash
-node scripts/validate_admin_frontend_v2.mjs --goldens-only
-```
-
-This verifies:
-
-- `project_shape` stability
-- starter-rule generation
+- `parallel-code` is the public checked-in real-repo proof loop
+- `sentrux` dogfood artifacts cover self-eval, remediation, and calibration evidence
+- internal benchmark repos must stay out of checked-in docs, scripts, and artifacts
 - framework-aware role tagging on route, provider, service, and state surfaces
 - generic `module_contract` enforcement through the synthetic benchmark fail path
 

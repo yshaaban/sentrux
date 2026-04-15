@@ -41,15 +41,15 @@ Run:
 Run:
 
 1. `node scripts/validate_parallel_code_v2.mjs`
-2. `node scripts/validate_h1_sdk_v2.mjs`
-3. `node scripts/validate_admin_frontend_v2.mjs`
-4. `node scripts/validate_benchmark_repos_v2.mjs`
+2. `node scripts/benchmark_sentrux_v2.mjs`
+3. `node scripts/validate_benchmark_repos_v2.mjs`
 
 Review:
 
 - whether the checked-in goldens changed intentionally
 - whether benchmark comparisons remain comparable
 - whether any fail-tier regression crosses the current policy
+- whether any public artifact still embeds internal repo names or workstation-specific paths
 
 Benchmark policy:
 

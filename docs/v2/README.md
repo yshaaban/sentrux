@@ -44,10 +44,8 @@ This folder is the maintained source of truth for the current v2 shape.
 - [Parallel-Code Benchmark](./examples/parallel-code-benchmark.md)
 - [Parallel-Code Proof Snapshot](./examples/parallel-code-proof-snapshot.md)
 - [Parallel-Code Proof Runs](./examples/parallel-code-proof-runs/README.md)
-- [Private Benchmark Repo Goldens](./examples/private-benchmark-repo-golden/README.md)
-- [Private Benchmark Repo Benchmark](./examples/private-benchmark-repo-benchmark.md)
-- [Private Frontend Goldens](./examples/private-frontend-golden/README.md)
-- [Private Frontend Benchmark](./examples/private-frontend-benchmark.md)
+- [Sentrux Review Packet](./examples/sentrux-review-packet.md)
+- [Sentrux Defect Injection](./examples/sentrux-defect-injection.md)
 
 ## Historical Material
 

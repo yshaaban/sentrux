@@ -11,8 +11,6 @@ const nodeBin = process.execPath;
 
 const validators = [
   path.join(repoRoot, 'scripts/validate_parallel_code_v2.mjs'),
-  path.join(repoRoot, 'scripts/validate_h1_sdk_v2.mjs'),
-  path.join(repoRoot, 'scripts/validate_admin_frontend_v2.mjs'),
 ];
 
 function runValidator(validatorPath) {
@@ -40,4 +38,4 @@ for (const validator of validators) {
   runValidator(validator);
 }
 
-console.log('All v2 benchmark repo validation loops completed successfully.');
+console.log('All checked-in public v2 benchmark repo validation loops completed successfully.');

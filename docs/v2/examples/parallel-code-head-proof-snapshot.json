@@ -1,8 +1,8 @@
 {
   "generated_at": "2026-03-20T00:27:48.149Z",
   "generated_from": {
-    "golden_dir": "<sentrux-root>/docs/v2/examples/parallel-code-head-golden",
-    "benchmark_path": "<sentrux-root>/docs/v2/examples/parallel-code-benchmark.json",
+    "golden_dir": "./parallel-code-head-golden",
+    "benchmark_path": "./parallel-code-benchmark.json",
     "metadata": {
       "generated_at": "2026-03-20T00:27:24Z",
       "parallel_code_root": "<parallel-code-root>",

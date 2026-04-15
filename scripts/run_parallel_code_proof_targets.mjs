@@ -470,7 +470,7 @@ async function main() {
     generated_at: new Date().toISOString(),
     scenarios: results.map((result) => ({
       name: result.name,
-      output_dir: path.join(outputDir, result.name),
+      output_dir: `./${result.name}`,
     })),
   };
   await writeJson(path.join(outputDir, 'index.json'), summary);
@@ -482,7 +482,7 @@ async function main() {
     '',
   ];
   for (const result of results) {
-    lines.push(`- \`${result.name}\`: ${path.join(outputDir, result.name, 'result.md')}`);
+    lines.push(`- \`${result.name}\`: ./${result.name}/result.md`);
   }
   lines.push('');
   await writeMarkdown(path.join(outputDir, 'README.md'), `${lines.join('\n')}\n`);

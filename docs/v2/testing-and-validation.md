@@ -92,11 +92,11 @@ Purpose:
 
 - regression-test user-visible findings and obligations
 
-Required golden targets:
+Current checked-in public golden target:
 
 1. `parallel-code`
-2. `private-benchmark-repo`
-3. `private-frontend`
+
+Internal or non-public benchmark repos must not be checked into the public tree. Additional public-safe benchmark repos can be added later once their artifacts are generated from repos that are safe to publish.
 
 Golden outputs should include:
 
@@ -114,10 +114,6 @@ Current status:
 - checked-in real-repo pass goldens now include `session_start`, `gate`, and `session_end` captured from a temporary local clone of `parallel-code`
 - checked-in real-repo regression goldens now include deterministic fail-path `gate` and `session_end` cases on a temporary local clone of `parallel-code`
 - initial benchmark notes exist in [examples/parallel-code-benchmark.md](./examples/parallel-code-benchmark.md)
-- scoped `private-benchmark-repo` goldens now exist in [examples/private-benchmark-repo-golden](./examples/private-benchmark-repo-golden/README.md)
-- `private-benchmark-repo` now has a checked-in benchmark artifact in [examples/private-benchmark-repo-benchmark.md](./examples/private-benchmark-repo-benchmark.md)
-- scoped `private-frontend` goldens now exist in [examples/private-frontend-golden](./examples/private-frontend-golden/README.md)
-- `private-frontend` now has a checked-in benchmark artifact in [examples/private-frontend-benchmark.md](./examples/private-frontend-benchmark.md)
 - the checked-in benchmark repos now include mode-aware `agent_brief` outputs for repo onboarding, patch guidance, and pre-merge guidance
 - the benchmark harness now records warm persisted semantic timings and semantic-cache source attribution
 - the external eval harness now includes repo-agnostic scenario schemas plus a focused `dead_private` review loop
@@ -132,9 +128,8 @@ Current status:
   - warn at `>150ms` and `>10%`
 - a release checklist now exists in [release-checklist.md](./release-checklist.md)
 - the validation loop now has a dedicated one-command runner for checked-in goldens and benchmark regression checks
-- the validation loop now has a multi-repo runner across all checked-in benchmark repos
-- the validation loop now has a third benchmark repo for modular Next.js frontend shape and onboarding helpers
-- full release-grade validation still needs broader benchmark-repo unhappy-path coverage and stronger analyzer promotion criteria
+- the validation loop now has a runner for all checked-in public benchmark repos
+- full release-grade validation still needs broader public benchmark-repo unhappy-path coverage and stronger analyzer promotion criteria
 
 ## Layer 5: False-Positive Review
 
@@ -253,10 +248,8 @@ it should have:
 - [x] create initial scoped golden outputs for `parallel-code`
 - [x] expand `parallel-code` goldens to include `session_end` and gate-oriented regression cases
 - [x] add synthetic gate/session regression scenarios for closed-domain changes
-- [x] add second benchmark repo proof loop (`private-benchmark-repo`)
 - [x] add analyzer false-positive review checklist
 - [x] capture initial `parallel-code` benchmark artifact
-- [x] capture initial `private-benchmark-repo` benchmark artifact
 - [x] add performance regression benchmarks
 - [x] expand baseline migration tests beyond the current schema and project-mismatch cases
 - [x] add a one-command validation loop for real-repo goldens and benchmark regression checks

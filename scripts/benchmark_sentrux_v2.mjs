@@ -71,6 +71,34 @@ const comparisonMetrics = [
   ['warm_patch_safety.gate.elapsed_ms', 'warm gate'],
   ['warm_patch_safety.session_end.elapsed_ms', 'warm session_end'],
 ];
+const publicPathReplacements = [
+  [compareToPath, '<sentrux-root>/docs/v2/examples/sentrux-benchmark.json'],
+  [sentruxBin, '<sentrux-root>/target/debug/sentrux'],
+  [rulesSource, '<sentrux-root>/.sentrux/rules.toml'],
+  [repoRoot, '<sentrux-root>'],
+];
+
+function sanitizePublicArtifactValue(value) {
+  if (typeof value === 'string') {
+    return publicPathReplacements.reduce(function replacePath(current, [target, replacement]) {
+      return current.split(target).join(replacement);
+    }, value);
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(sanitizePublicArtifactValue);
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(function sanitizeEntry([key, entry]) {
+        return [key, sanitizePublicArtifactValue(entry)];
+      }),
+    );
+  }
+
+  return value;
+}
 
 function createSession(homeOverride) {
   return createMcpSession({
@@ -321,7 +349,11 @@ async function main() {
   }
 
   await mkdir(path.dirname(outputPath), { recursive: true });
-  await writeFile(outputPath, `${JSON.stringify(result, null, 2)}\n`, 'utf8');
+  await writeFile(
+    outputPath,
+    `${JSON.stringify(sanitizePublicArtifactValue(result), null, 2)}\n`,
+    'utf8',
+  );
   console.log(
     `Wrote Sentrux v2 benchmark to ${outputPath} using ${aggregate.sample_count} sample(s) with median aggregation.`,
   );
