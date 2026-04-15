@@ -145,7 +145,8 @@ export function collectFileIdentity(targetPath) {
     return null;
   }
 
-  if (existsSync(targetPath) && statSync(targetPath).isDirectory()) {
+  const exists = existsSync(targetPath);
+  if (exists && statSync(targetPath).isDirectory()) {
     return {
       path: targetPath,
       exists: true,
@@ -155,8 +156,8 @@ export function collectFileIdentity(targetPath) {
 
   return {
     path: targetPath,
-    exists: existsSync(targetPath),
-    sha256: existsSync(targetPath) ? hashFileContents(targetPath) : null,
+    exists,
+    sha256: exists ? hashFileContents(targetPath) : null,
   };
 }
 

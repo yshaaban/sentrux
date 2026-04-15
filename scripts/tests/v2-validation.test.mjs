@@ -7,7 +7,7 @@ import test from 'node:test';
 import { resolveWorkspaceRepoRoot } from '../lib/path-roots.mjs';
 import { runValidationSuite } from '../lib/v2-validation.mjs';
 
-async function createValidationFixture({ benchmarkFormatVersion = 3 }) {
+async function createValidationFixture({ benchmarkFormatVersion = 3 } = {}) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'sentrux-v2-validation-test-'));
   const repoRoot = path.join(root, 'sample-repo');
   const expectedGoldenDir = path.join(root, 'expected-goldens');
@@ -72,6 +72,26 @@ async function createValidationFixture({ benchmarkFormatVersion = 3 }) {
   };
 }
 
+function runFixtureValidation(fixture, overrides = {}) {
+  return runValidationSuite({
+    repoLabel: 'sample-project',
+    repoEnvVar: 'SAMPLE_PROJECT_ROOT',
+    repoRoot: fixture.repoRoot,
+    sentruxBin: '/tmp/sentrux',
+    refreshScript: fixture.refreshScript,
+    benchmarkScript: fixture.benchmarkScript,
+    expectedGoldenDir: fixture.expectedGoldenDir,
+    expectedBenchmarkPath: fixture.expectedBenchmarkPath,
+    benchmarkTempFilename: 'benchmark.json',
+    tempRootPrefix: 'sentrux-v2-validation-suite-',
+    keepTemp: false,
+    skipGrammarDownload: '1',
+    repoWorkspaceRoot: fixture.root,
+    nodeBin: process.execPath,
+    ...overrides,
+  });
+}
+
 test('resolveWorkspaceRepoRoot prefers explicit env values and otherwise falls back to sibling repo roots', function () {
   assert.equal(
     resolveWorkspaceRepoRoot('/tmp/custom-root', 'one-tool', '/workspace/sentrux'),
@@ -84,26 +104,12 @@ test('resolveWorkspaceRepoRoot prefers explicit env values and otherwise falls b
 });
 
 test('runValidationSuite validates matching goldens and benchmark artifacts', async function () {
-  const fixture = await createValidationFixture({});
+  const fixture = await createValidationFixture();
 
   try {
-    await runValidationSuite({
-      repoLabel: 'sample-project',
-      repoEnvVar: 'SAMPLE_PROJECT_ROOT',
-      repoRoot: fixture.repoRoot,
-      sentruxBin: '/tmp/sentrux',
-      refreshScript: fixture.refreshScript,
-      benchmarkScript: fixture.benchmarkScript,
-      expectedGoldenDir: fixture.expectedGoldenDir,
-      expectedBenchmarkPath: fixture.expectedBenchmarkPath,
-      benchmarkTempFilename: 'benchmark.json',
-      tempRootPrefix: 'sentrux-v2-validation-suite-',
-      keepTemp: false,
+    await runFixtureValidation(fixture, {
       runGoldens: true,
       runBenchmark: true,
-      skipGrammarDownload: '1',
-      repoWorkspaceRoot: fixture.root,
-      nodeBin: process.execPath,
     });
 
     const expectedBenchmark = JSON.parse(await readFile(fixture.expectedBenchmarkPath, 'utf8'));
@@ -131,23 +137,9 @@ test('runValidationSuite rejects benchmark format mismatches', async function ()
 
   try {
     await assert.rejects(
-      runValidationSuite({
-        repoLabel: 'sample-project',
-        repoEnvVar: 'SAMPLE_PROJECT_ROOT',
-        repoRoot: fixture.repoRoot,
-        sentruxBin: '/tmp/sentrux',
-        refreshScript: fixture.refreshScript,
-        benchmarkScript: fixture.benchmarkScript,
-        expectedGoldenDir: fixture.expectedGoldenDir,
-        expectedBenchmarkPath: fixture.expectedBenchmarkPath,
-        benchmarkTempFilename: 'benchmark.json',
-        tempRootPrefix: 'sentrux-v2-validation-suite-',
-        keepTemp: false,
+      runFixtureValidation(fixture, {
         runGoldens: false,
         runBenchmark: true,
-        skipGrammarDownload: '1',
-        repoWorkspaceRoot: fixture.root,
-        nodeBin: process.execPath,
       }),
       /benchmark format mismatch/,
     );
@@ -157,7 +149,7 @@ test('runValidationSuite rejects benchmark format mismatches', async function ()
 });
 
 test('runValidationSuite propagates benchmark runner failures', async function () {
-  const fixture = await createValidationFixture({});
+  const fixture = await createValidationFixture();
 
   await writeFile(
     fixture.benchmarkScript,
@@ -175,23 +167,9 @@ test('runValidationSuite propagates benchmark runner failures', async function (
 
   try {
     await assert.rejects(
-      runValidationSuite({
-        repoLabel: 'sample-project',
-        repoEnvVar: 'SAMPLE_PROJECT_ROOT',
-        repoRoot: fixture.repoRoot,
-        sentruxBin: '/tmp/sentrux',
-        refreshScript: fixture.refreshScript,
-        benchmarkScript: fixture.benchmarkScript,
-        expectedGoldenDir: fixture.expectedGoldenDir,
-        expectedBenchmarkPath: fixture.expectedBenchmarkPath,
-        benchmarkTempFilename: 'benchmark.json',
-        tempRootPrefix: 'sentrux-v2-validation-suite-',
-        keepTemp: false,
+      runFixtureValidation(fixture, {
         runGoldens: false,
         runBenchmark: true,
-        skipGrammarDownload: '1',
-        repoWorkspaceRoot: fixture.root,
-        nodeBin: process.execPath,
       }),
       /exited with code 3/,
     );
@@ -201,7 +179,7 @@ test('runValidationSuite propagates benchmark runner failures', async function (
 });
 
 test('runValidationSuite passes benchmark gating env to the runner', async function () {
-  const fixture = await createValidationFixture({});
+  const fixture = await createValidationFixture();
 
   await writeFile(
     fixture.benchmarkScript,
@@ -227,24 +205,10 @@ test('runValidationSuite passes benchmark gating env to the runner', async funct
   );
 
   try {
-    await runValidationSuite({
-      repoLabel: 'sample-project',
-      repoEnvVar: 'SAMPLE_PROJECT_ROOT',
-      repoRoot: fixture.repoRoot,
-      sentruxBin: '/tmp/sentrux',
-      refreshScript: fixture.refreshScript,
-      benchmarkScript: fixture.benchmarkScript,
-      expectedGoldenDir: fixture.expectedGoldenDir,
-      expectedBenchmarkPath: fixture.expectedBenchmarkPath,
-      benchmarkTempFilename: 'benchmark.json',
-        tempRootPrefix: 'sentrux-v2-validation-suite-',
-        keepTemp: false,
-        runGoldens: false,
-        runBenchmark: true,
-        benchmarkRepeats: '5',
-        skipGrammarDownload: '1',
-        repoWorkspaceRoot: fixture.root,
-        nodeBin: process.execPath,
+    await runFixtureValidation(fixture, {
+      runGoldens: false,
+      runBenchmark: true,
+      benchmarkRepeats: '5',
     });
   } finally {
     await rm(fixture.root, { recursive: true, force: true });
@@ -252,7 +216,7 @@ test('runValidationSuite passes benchmark gating env to the runner', async funct
 });
 
 test('runValidationSuite accepts repeated benchmark artifacts with additive fields', async function () {
-  const fixture = await createValidationFixture({});
+  const fixture = await createValidationFixture();
   const repeatedBenchmark = {
     benchmark_format_version: 3,
     benchmark_repeat_count: 3,

@@ -3,9 +3,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { assertPathExists } from './lib/disposable-repo.mjs';
-import {
-  runValidationSuite,
-} from './lib/v2-validation.mjs';
+import { runValidationSuite } from './lib/v2-validation.mjs';
 import { resolveWorkspaceRepoRoot, assertRepoRootExists } from './lib/path-roots.mjs';
 
 const __filename = fileURLToPath(import.meta.url);

@@ -58,6 +58,29 @@ function normalizeMetadata(metadata) {
   return copy;
 }
 
+function buildValidationEnv({ repoEnvVar, repoRoot, sentruxBin, skipGrammarDownload }) {
+  return {
+    ...process.env,
+    [repoEnvVar]: repoRoot,
+    SENTRUX_BIN: sentruxBin,
+    SENTRUX_SKIP_GRAMMAR_DOWNLOAD: skipGrammarDownload,
+  };
+}
+
+function buildBenchmarkEnv({ baseEnv, tempBenchmarkPath, expectedBenchmarkPath, benchmarkRepeats }) {
+  const env = {
+    ...baseEnv,
+    OUTPUT_PATH: tempBenchmarkPath,
+    COMPARE_TO: expectedBenchmarkPath,
+    FAIL_ON_REGRESSION: '1',
+    FAIL_ON_NONCOMPARABLE: '1',
+  };
+  if (benchmarkRepeats) {
+    env.BENCHMARK_REPEATS = benchmarkRepeats;
+  }
+  return env;
+}
+
 export function compareJsonFiles(expectedPath, actualPath, label) {
   const expected = readJson(expectedPath);
   const actual = readJson(actualPath);
@@ -137,17 +160,20 @@ export async function runValidationSuite({
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), tempRootPrefix));
   const tempGoldenDir = path.join(tempRoot, 'goldens');
   const tempBenchmarkPath = path.join(tempRoot, benchmarkTempFilename);
+  const baseEnv = buildValidationEnv({
+    repoEnvVar,
+    repoRoot,
+    sentruxBin,
+    skipGrammarDownload,
+  });
 
   try {
     if (runGoldens) {
       runCheckedWithRetry('bash', [refreshScript], {
         cwd: repoWorkspaceRoot,
         env: {
-          ...process.env,
-          [repoEnvVar]: repoRoot,
+          ...baseEnv,
           OUTPUT_DIR: tempGoldenDir,
-          SENTRUX_BIN: sentruxBin,
-          SENTRUX_SKIP_GRAMMAR_DOWNLOAD: skipGrammarDownload,
         },
       });
       compareGoldenDirectories(expectedGoldenDir, tempGoldenDir);
@@ -157,17 +183,12 @@ export async function runValidationSuite({
     if (runBenchmark) {
       runChecked(nodeBin, [benchmarkScript], {
         cwd: repoWorkspaceRoot,
-        env: {
-          ...process.env,
-          [repoEnvVar]: repoRoot,
-          SENTRUX_BIN: sentruxBin,
-          OUTPUT_PATH: tempBenchmarkPath,
-          COMPARE_TO: expectedBenchmarkPath,
-          FAIL_ON_REGRESSION: '1',
-          FAIL_ON_NONCOMPARABLE: '1',
-          ...(benchmarkRepeats ? { BENCHMARK_REPEATS: benchmarkRepeats } : {}),
-          SENTRUX_SKIP_GRAMMAR_DOWNLOAD: skipGrammarDownload,
-        },
+        env: buildBenchmarkEnv({
+          baseEnv,
+          tempBenchmarkPath,
+          expectedBenchmarkPath,
+          benchmarkRepeats,
+        }),
       });
 
       assertBenchmarkFormatVersion({

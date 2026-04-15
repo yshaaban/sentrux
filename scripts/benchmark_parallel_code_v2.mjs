@@ -392,7 +392,7 @@ async function main() {
   }
 }
 
-main().catch(async (error) => {
+main().catch((error) => {
   console.error(error instanceof Error ? error.message : String(error));
   process.exitCode = 1;
 });
