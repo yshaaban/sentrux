@@ -111,8 +111,12 @@ fn large_file_inspection_focus(
     dedupe_strings_preserve_order(focus)
 }
 
-fn large_file_related_surfaces(graph: &StructuralGraph, path: &str) -> Vec<String> {
-    dedupe_strings_preserve_order(sample_paths(graph.outgoing.get(path), 5))
+fn graph_path_count(paths: Option<&BTreeSet<String>>) -> usize {
+    paths.map(BTreeSet::len).unwrap_or(0)
+}
+
+fn large_file_related_surfaces(outgoing_paths: Option<&BTreeSet<String>>) -> Vec<String> {
+    dedupe_strings_preserve_order(sample_paths(outgoing_paths, 5))
 }
 
 fn large_file_actionable_evidence(
@@ -333,21 +337,16 @@ pub(super) fn build_large_file_reports(
                 .large_file_lines;
             let score_0_10000 =
                 large_file_score(file_metric.value, threshold, facts.max_complexity);
-            let candidate_split_axes = large_file_split_axes(facts, graph, &file_metric.path);
-            let related_surfaces = large_file_related_surfaces(graph, &file_metric.path);
+            let outgoing_paths = graph.outgoing.get(&file_metric.path);
+            let fan_out = graph_path_count(outgoing_paths);
+            let candidate_split_axes = large_file_split_axes(facts, outgoing_paths);
+            let related_surfaces = large_file_related_surfaces(outgoing_paths);
             let mut evidence = vec![
                 format!("line count: {}", file_metric.value),
                 format!("large-file threshold: {}", threshold),
                 format!("function count: {}", facts.function_count),
                 format!("peak function complexity: {}", facts.max_complexity),
-                format!(
-                    "outbound dependencies: {}",
-                    graph
-                        .outgoing
-                        .get(&file_metric.path)
-                        .map(|paths| paths.len())
-                        .unwrap_or(0)
-                ),
+                format!("outbound dependencies: {}", fan_out),
             ];
             evidence.extend(large_file_actionable_evidence(
                 &candidate_split_axes,
@@ -394,13 +393,7 @@ pub(super) fn build_large_file_reports(
                     file_count: Some(1),
                     line_count: Some(file_metric.value),
                     function_count: Some(facts.function_count),
-                    fan_out: Some(
-                        graph
-                            .outgoing
-                            .get(&file_metric.path)
-                            .map(|paths| paths.len())
-                            .unwrap_or(0),
-                    ),
+                    fan_out: Some(fan_out),
                     max_complexity: Some(facts.max_complexity),
                     guardrail_test_count: Some(facts.guardrail_tests.len()),
                     role_count: Some(role_tags.len()),
@@ -422,20 +415,14 @@ pub(super) fn build_dependency_sprawl_reports(
         .filter_map(|file_metric| {
             let facts = file_facts.get(&file_metric.path)?;
             let role_tags = contextual_role_tags(&file_metric.path, facts, graph, file_facts);
-            let fan_in = graph
-                .incoming
-                .get(&file_metric.path)
-                .map(|paths| paths.len())
-                .unwrap_or(0);
-            let fan_out = graph
-                .outgoing
-                .get(&file_metric.path)
-                .map(|paths| paths.len())
-                .unwrap_or(0);
+            let incoming_paths = graph.incoming.get(&file_metric.path);
+            let outgoing_paths = graph.outgoing.get(&file_metric.path);
+            let fan_in = graph_path_count(incoming_paths);
+            let fan_out = graph_path_count(outgoing_paths);
             let threshold = lang_registry::profile(&facts.lang).thresholds.fan_out;
             let instability = instability_0_10000(fan_in, fan_out);
             let score_0_10000 = dependency_sprawl_score(fan_out, threshold, instability);
-            let dependency_examples = sample_paths(graph.outgoing.get(&file_metric.path), 3);
+            let dependency_examples = sample_paths(outgoing_paths, 3);
 
             Some(annotate_structural_leverage(StructuralDebtReport {
                 kind: "dependency_sprawl".to_string(),
@@ -471,10 +458,7 @@ pub(super) fn build_dependency_sprawl_reports(
                         format!("instability: {:.2}", instability as f64 / 10_000.0),
                         format!(
                             "dominant dependency categories: {}",
-                            join_or_none(&dependency_category_summaries(
-                                graph.outgoing.get(&file_metric.path),
-                                3,
-                            ))
+                            join_or_none(&dependency_category_summaries(outgoing_paths, 3))
                         ),
                         if dependency_examples.is_empty() {
                             "sample dependencies: none".to_string()
@@ -484,10 +468,7 @@ pub(super) fn build_dependency_sprawl_reports(
                     ],
                 )),
                 inspection_focus: dependency_sprawl_focus(&role_tags),
-                candidate_split_axes: dependency_category_axes(
-                    graph.outgoing.get(&file_metric.path),
-                    3,
-                ),
+                candidate_split_axes: dependency_category_axes(outgoing_paths, 3),
                 related_surfaces: related_structural_surfaces(facts, dependency_examples),
                 cut_candidates: Vec::new(),
                 metrics: StructuralDebtMetrics {
@@ -518,20 +499,14 @@ pub(super) fn build_unstable_hotspot_reports(
         .filter_map(|file_metric| {
             let facts = file_facts.get(&file_metric.path)?;
             let role_tags = contextual_role_tags(&file_metric.path, facts, graph, file_facts);
-            let fan_in = graph
-                .incoming
-                .get(&file_metric.path)
-                .map(|paths| paths.len())
-                .unwrap_or(0);
-            let fan_out = graph
-                .outgoing
-                .get(&file_metric.path)
-                .map(|paths| paths.len())
-                .unwrap_or(0);
+            let incoming_paths = graph.incoming.get(&file_metric.path);
+            let outgoing_paths = graph.outgoing.get(&file_metric.path);
+            let fan_in = graph_path_count(incoming_paths);
+            let fan_out = graph_path_count(outgoing_paths);
             let threshold = lang_registry::profile(&facts.lang).thresholds.fan_in;
             let instability = instability_0_10000(fan_in, fan_out);
             let score_0_10000 = unstable_hotspot_score(fan_in, threshold, instability);
-            let dependent_examples = sample_paths(graph.incoming.get(&file_metric.path), 3);
+            let dependent_examples = sample_paths(incoming_paths, 3);
 
             Some(annotate_structural_leverage(StructuralDebtReport {
                 kind: "unstable_hotspot".to_string(),
@@ -562,10 +537,7 @@ pub(super) fn build_unstable_hotspot_reports(
                         format!("instability: {:.2}", instability as f64 / 10_000.0),
                         format!(
                             "dominant dependent categories: {}",
-                            join_or_none(&dependency_category_summaries(
-                                graph.incoming.get(&file_metric.path),
-                                3,
-                            ))
+                            join_or_none(&dependency_category_summaries(incoming_paths, 3))
                         ),
                         if dependent_examples.is_empty() {
                             "sample dependents: none".to_string()
@@ -575,12 +547,7 @@ pub(super) fn build_unstable_hotspot_reports(
                     ],
                 )),
                 inspection_focus: unstable_hotspot_focus(&role_tags),
-                candidate_split_axes: hotspot_split_axes(
-                    facts,
-                    graph.incoming.get(&file_metric.path),
-                    graph.outgoing.get(&file_metric.path),
-                    3,
-                ),
+                candidate_split_axes: hotspot_split_axes(facts, incoming_paths, outgoing_paths, 3),
                 related_surfaces: related_structural_surfaces(facts, dependent_examples),
                 cut_candidates: Vec::new(),
                 metrics: StructuralDebtMetrics {
@@ -918,12 +885,13 @@ fn hotspot_split_axes(
     axes
 }
 
-fn large_file_split_axes(facts: &FileFacts, graph: &StructuralGraph, path: &str) -> Vec<String> {
-    let mut axes = if graph.outgoing.get(path).is_some() {
-        dependency_category_axes(graph.outgoing.get(path), 3)
-    } else {
-        Vec::new()
-    };
+fn large_file_split_axes(
+    facts: &FileFacts,
+    outgoing_paths: Option<&BTreeSet<String>>,
+) -> Vec<String> {
+    let mut axes = outgoing_paths
+        .map(|paths| dependency_category_axes(Some(paths), 3))
+        .unwrap_or_default();
     if has_role(facts, "facade_with_extracted_owners") {
         axes.push("facade owner boundary".to_string());
     }

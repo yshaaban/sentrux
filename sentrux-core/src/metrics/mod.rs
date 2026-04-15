@@ -492,17 +492,17 @@ fn is_excluded_function(func_name: &str, implicit: &HashSet<String>, lang: &str)
     let sem = &profile.semantics;
 
     // Skip test/bench functions using configured prefixes
-    let test_prefixes = if sem.test_function_prefixes.is_empty() {
-        DEFAULT_TEST_PREFIXES
-            .iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<_>>()
+    if sem.test_function_prefixes.is_empty() {
+        for prefix in DEFAULT_TEST_PREFIXES {
+            if func_name.starts_with(prefix) {
+                return true;
+            }
+        }
     } else {
-        sem.test_function_prefixes.clone()
-    };
-    for prefix in &test_prefixes {
-        if func_name.starts_with(prefix.as_str()) {
-            return true;
+        for prefix in &sem.test_function_prefixes {
+            if func_name.starts_with(prefix.as_str()) {
+                return true;
+            }
         }
     }
 
