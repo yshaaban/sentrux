@@ -92,4 +92,3 @@
 - session_end matched: false
 - check evidence: `$.actions[0]:zero_config_boundary_violation, $.issues[0]:zero_config_boundary_violation, decision=pass`
 - gate evidence: `decision=pass`
-

@@ -16,9 +16,9 @@ This report is for an engineer who does not already know `parallel-code` or Sent
 ## What Was Analyzed
 
 - live source checkout: `<parallel-code-root>`
-- rules file used for the run: `<sentrux-root>/docs/v2/examples/parallel-code.rules.toml`
-- comparison snapshot: `<sentrux-root>/docs/v2/examples/parallel-code-proof-snapshot.json`
-- benchmark artifact: `<sentrux-root>/docs/v2/examples/parallel-code-benchmark.json`
+- rules file used for the run: `./parallel-code.rules.toml`
+- comparison snapshot: `./parallel-code-proof-snapshot.json`
+- benchmark artifact: `./parallel-code-benchmark.json`
 
 ## Scan Coverage
 
@@ -46,7 +46,7 @@ The current live repo surfaces these primary pressure points:
 
 ## Strongest Trusted Debt Signals
 
-### [store.ts](<parallel-code-root>/src/store/store.ts)
+### `src/store/store.ts`
 
 - class: `structural_debt`
 - kind: `unstable_hotspot`
@@ -58,13 +58,13 @@ The current live repo surfaces these primary pressure points:
   - `store caller boundary`
   - `store dependency boundary`
 - related surfaces:
-  - [App.tsx](<parallel-code-root>/src/App.tsx)
-  - [ConfigScreen.tsx](<parallel-code-root>/src/arena/ConfigScreen.tsx)
-  - [ResultsScreen.tsx](<parallel-code-root>/src/arena/ResultsScreen.tsx)
-  - [store-boundary.architecture.test.ts](<parallel-code-root>/src/app/store-boundary.architecture.test.ts)
-  - [TaskPanel.architecture.test.ts](<parallel-code-root>/src/components/TaskPanel.architecture.test.ts)
+  - `src/App.tsx`
+  - `src/arena/ConfigScreen.tsx`
+  - `src/arena/ResultsScreen.tsx`
+  - `src/app/store-boundary.architecture.test.ts`
+  - `src/components/TaskPanel.architecture.test.ts`
 
-### [App.tsx](<parallel-code-root>/src/App.tsx)
+### `src/App.tsx`
 
 - class: `structural_debt`
 - kind: `dependency_sprawl`
@@ -76,12 +76,12 @@ The current live repo surfaces these primary pressure points:
   - `lib dependency boundary`
   - `app dependency boundary`
 - related surfaces:
-  - [app-action-keys.ts](<parallel-code-root>/src/app/app-action-keys.ts)
-  - [desktop-session.ts](<parallel-code-root>/src/app/desktop-session.ts)
-  - [task-command-lease.ts](<parallel-code-root>/src/app/task-command-lease.ts)
-  - [store-boundary.architecture.test.ts](<parallel-code-root>/src/app/store-boundary.architecture.test.ts)
+  - `src/app/app-action-keys.ts`
+  - `src/app/desktop-session.ts`
+  - `src/app/task-command-lease.ts`
+  - `src/app/store-boundary.architecture.test.ts`
 
-### [TaskPanel.tsx](<parallel-code-root>/src/components/TaskPanel.tsx)
+### `src/components/TaskPanel.tsx`
 
 - class: `structural_debt`
 - kind: `dependency_sprawl`
@@ -93,12 +93,12 @@ The current live repo surfaces these primary pressure points:
   - `lib dependency boundary`
   - `store dependency boundary`
 - related surfaces:
-  - [task-ports.ts](<parallel-code-root>/src/app/task-ports.ts)
-  - [CloseTaskDialog.tsx](<parallel-code-root>/src/components/CloseTaskDialog.tsx)
-  - [DiffViewerDialog.tsx](<parallel-code-root>/src/components/DiffViewerDialog.tsx)
-  - [TaskPanel.architecture.test.ts](<parallel-code-root>/src/components/TaskPanel.architecture.test.ts)
+  - `src/app/task-ports.ts`
+  - `src/components/CloseTaskDialog.tsx`
+  - `src/components/DiffViewerDialog.tsx`
+  - `src/components/TaskPanel.architecture.test.ts`
 
-### [ipc.ts](<parallel-code-root>/src/lib/ipc.ts)
+### `src/lib/ipc.ts`
 
 - class: `guarded_facade`
 - kind: `unstable_hotspot`
@@ -110,13 +110,13 @@ The current live repo surfaces these primary pressure points:
   - `components caller boundary`
   - `lib dependency boundary`
 - related surfaces:
-  - [App.tsx](<parallel-code-root>/src/App.tsx)
-  - [agent-catalog.ts](<parallel-code-root>/src/app/agent-catalog.ts)
-  - [desktop-notification-runtime.ts](<parallel-code-root>/src/app/desktop-notification-runtime.ts)
+  - `src/App.tsx`
+  - `src/app/agent-catalog.ts`
+  - `src/app/desktop-notification-runtime.ts`
 
 ## Secondary Hotspots
 
-### [terminal-session.ts](<parallel-code-root>/src/components/terminal-view/terminal-session.ts)
+### `src/components/terminal-view/terminal-session.ts`
 
 - class: `structural_debt`
 - kind: `dependency_sprawl`
@@ -128,10 +128,10 @@ The current live repo surfaces these primary pressure points:
   - `components dependency boundary`
   - `store dependency boundary`
 - related surfaces:
-  - [channels.ts](<parallel-code-root>/electron/ipc/channels.ts)
-  - [terminal-input-pipeline.ts](<parallel-code-root>/src/components/terminal-view/terminal-input-pipeline.ts)
-  - [terminal-output-pipeline.ts](<parallel-code-root>/src/components/terminal-view/terminal-output-pipeline.ts)
-  - [terminal-session.architecture.test.ts](<parallel-code-root>/src/components/terminal-view/terminal-session.architecture.test.ts)
+  - `electron/ipc/channels.ts`
+  - `src/components/terminal-view/terminal-input-pipeline.ts`
+  - `src/components/terminal-view/terminal-output-pipeline.ts`
+  - `src/components/terminal-view/terminal-session.architecture.test.ts`
 
 ## Targeted Hardening Notes
 
@@ -143,12 +143,12 @@ The current live repo surfaces these primary pressure points:
 - summary: Closed domain 'ConnectionBannerState' is missing coverage for variants: connecting, reconnecting, restoring
 - impact: Finite-domain changes can silently miss one surface unless all required cases stay in sync.
 - related surfaces:
-  - [AppConnectionBanner.tsx](<parallel-code-root>/src/components/app-shell/AppConnectionBanner.tsx)
-  - [browser-session.ts](<parallel-code-root>/src/runtime/browser-session.ts)
+  - `src/components/app-shell/AppConnectionBanner.tsx`
+  - `src/runtime/browser-session.ts`
 
 ## Tooling Debt
 
-### [session-stress.mjs](<parallel-code-root>/scripts/session-stress.mjs)
+### `scripts/session-stress.mjs`
 
 - class: `tooling_debt`
 - kind: `large_file`
@@ -160,8 +160,8 @@ The current live repo surfaces these primary pressure points:
   - `entry surface split`
   - `private helper surface split`
 - related surfaces:
-  - [browser-server-client.mjs](<parallel-code-root>/scripts/browser-server-client.mjs)
-  - [session-stress-profiles.mjs](<parallel-code-root>/scripts/session-stress-profiles.mjs)
+  - `scripts/browser-server-client.mjs`
+  - `scripts/session-stress-profiles.mjs`
 
 ## Watchpoints
 
@@ -186,5 +186,5 @@ The current live repo surfaces these primary pressure points:
 
 ## Source Documents
 
-- proof snapshot: `<sentrux-root>/docs/v2/examples/parallel-code-proof-snapshot.md`
-- golden metadata: `<sentrux-root>/docs/v2/examples/parallel-code-golden/metadata.json`
+- proof snapshot: `./parallel-code-proof-snapshot.md`
+- golden metadata: `./parallel-code-golden/metadata.json`

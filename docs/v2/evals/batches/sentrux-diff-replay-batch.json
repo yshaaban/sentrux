@@ -2,7 +2,7 @@
   "schema_version": 1,
   "batch_id": "sentrux-diff-replay-batch",
   "cohort_id": "agent-loop-core",
-  "repo_root": "<sentrux-root>",
+  "repo_root": "../../../..",
   "repo_label": "sentrux",
   "default_tags": ["calibration", "replay"],
   "replays": [

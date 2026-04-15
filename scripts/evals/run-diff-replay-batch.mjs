@@ -11,6 +11,7 @@ import {
   normalizeExpectedSignalKinds,
   nowIso,
   parseTagList,
+  resolveManifestPath,
   summarizeBundleOutcome,
   writeJson,
 } from '../lib/eval-batch.mjs';
@@ -75,7 +76,7 @@ async function gitRead(repoRootPath, args) {
   return result.stdout.trim();
 }
 
-async function resolveReplayItems(manifest, maxCount) {
+async function resolveReplayItems(manifest, sourceRoot, maxCount) {
   if (Array.isArray(manifest.replays) && manifest.replays.length > 0) {
     if (maxCount) {
       return manifest.replays.slice(0, maxCount);
@@ -84,7 +85,6 @@ async function resolveReplayItems(manifest, maxCount) {
     return manifest.replays;
   }
 
-  const sourceRoot = path.resolve(manifest.repo_root);
   const count = maxCount ?? manifest.max_count ?? 10;
   const log = await gitRead(sourceRoot, [
     'log',
@@ -149,15 +149,16 @@ function buildReplayResult(bundle, replay) {
 
 async function main() {
   const args = parseArgs(process.argv);
-  const manifest = await loadBatchManifest(args.manifestPath);
-  const manifestDir = path.dirname(path.resolve(args.manifestPath));
+  const manifestPath = path.resolve(args.manifestPath);
+  const manifest = await loadBatchManifest(manifestPath);
+  const manifestDir = path.dirname(manifestPath);
   const cohortManifest = await loadSignalCohortManifest(args.cohortManifestPath);
   const cohort = getSignalCohort(cohortManifest, args.cohortId ?? manifest.cohort_id ?? null);
-  const sourceRoot = path.resolve(manifest.repo_root);
+  const sourceRoot = resolveManifestPath(manifestPath, manifest.repo_root);
   const outputDir = path.resolve(
     args.outputDir ?? defaultBatchOutputDir(sourceRoot, 'replay-batch', manifest.batch_id ?? cohort.cohort_id),
   );
-  const replayItems = await resolveReplayItems(manifest, args.maxCount);
+  const replayItems = await resolveReplayItems(manifest, sourceRoot, args.maxCount);
 
   const replayResults = [];
   for (const replay of replayItems) {

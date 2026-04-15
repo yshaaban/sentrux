@@ -20,17 +20,17 @@ Goals:
 - `diff-replay-batch.schema.json` - schema for batch replay manifests
 - `scenario.schema.json` - task/scenario schema
 - `result.schema.json` - result schema emitted by the runner
-- `repos/parallel-code.json` - checked-in calibration manifest for `<parallel-code-root>`
-- `repos/sentrux.json` - checked-in calibration manifest for `<sentrux-root>`
+- `repos/parallel-code.json` - checked-in calibration manifest for the repo configured by `PARALLEL_CODE_ROOT`
+- `repos/sentrux.json` - checked-in calibration manifest for the current Sentrux checkout
 - `batches/parallel-code-codex-session-batch.json` - live Codex batch manifest for `parallel-code`
 - `batches/parallel-code-diff-replay-batch.json` - replay batch manifest for `parallel-code`
 - `batches/sentrux-codex-session-batch.json` - live Codex batch manifest for `sentrux`
 - `batches/sentrux-diff-replay-batch.json` - replay batch manifest for `sentrux`
 - `prompts/parallel-code/*.md` - checked-in prompt files for the `parallel-code` calibration tasks
 - `prompts/sentrux/*.md` - checked-in prompt files for the `sentrux` calibration tasks
-- `scenarios/parallel-code.json` - initial scenarios for `<parallel-code-root>`
-- `scenarios/private-benchmark-repo.json` - initial scenarios for `<private-benchmark-root>`
-- `scenarios/private-frontend.json` - initial scenarios for `<private-frontend-root>`
+- `scenarios/parallel-code.json` - initial scenarios for the repo configured by `PARALLEL_CODE_ROOT`
+- `scenarios/private-benchmark-repo.json` - initial scenarios for the repo configured by `PRIVATE_BENCHMARK_ROOT`
+- `scenarios/private-frontend.json` - initial scenarios for the repo configured by `PRIVATE_FRONTEND_ROOT`
 
 ## Runner
 
@@ -57,7 +57,7 @@ Repo roots can be overridden with the same environment variables used by the ben
 - `PRIVATE_BENCHMARK_ROOT`
 - `PRIVATE_FRONTEND_ROOT`
 
-If an override is not provided, each scenario falls back to the checked-in default root in its own file.
+If an override is not provided, each scenario falls back to its checked-in default root. Public documentation should prefer the environment variables above instead of assuming a workstation-specific path layout.
 
 ## Task Types
 

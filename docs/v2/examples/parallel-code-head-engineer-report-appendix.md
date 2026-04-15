@@ -3,16 +3,16 @@
 Generated on March 20, 2026 from a committed HEAD clone of `<parallel-code-root>`.
 
 This appendix contains the evidence behind
-[parallel-code-head-engineer-report.md](<sentrux-root>/docs/v2/examples/parallel-code-head-engineer-report.md).
+[parallel-code-head-engineer-report.md](./parallel-code-head-engineer-report.md).
 
 ## Method
 
 The analysis used:
 
-- live source repo: [<parallel-code-root>](<parallel-code-root>)
-- bundled rules file: [parallel-code.rules.toml](<sentrux-root>/docs/v2/examples/parallel-code.rules.toml)
-- goldens refresh path: [refresh_parallel_code_goldens.sh](<sentrux-root>/scripts/refresh_parallel_code_goldens.sh)
-- current binary used for the run: [<sentrux-root>/target/debug/sentrux](<sentrux-root>/target/debug/sentrux)
+- live source repo: `<parallel-code-root>`
+- bundled rules file: [parallel-code.rules.toml](./parallel-code.rules.toml)
+- goldens refresh path: [refresh_parallel_code_goldens.sh](../../../scripts/refresh_parallel_code_goldens.sh)
+- current binary used for the run: `<sentrux-root>/target/debug/sentrux`
 
 Scope caveat:
 
@@ -78,13 +78,13 @@ Current scan:
   - `guarded boundary cut`
   - `app store boundary`
 - related surfaces:
-  - [core.ts](<parallel-code-root>/src/store/core.ts)
-  - [store.ts](<parallel-code-root>/src/store/store.ts)
-  - [tasks.ts](<parallel-code-root>/src/store/tasks.ts)
-  - [task-workflows.ts](<parallel-code-root>/src/app/task-workflows.ts)
-  - [state.ts](<parallel-code-root>/src/store/state.ts)
+  - `src/store/core.ts`
+  - `src/store/store.ts`
+  - `src/store/tasks.ts`
+  - `src/app/task-workflows.ts`
+  - `src/store/state.ts`
 
-### [TaskPanel.tsx](<parallel-code-root>/src/components/TaskPanel.tsx)
+### `src/components/TaskPanel.tsx`
 
 - `trusted`
 - class: `structural_debt`
@@ -118,12 +118,12 @@ Current scan:
   - `lib dependency boundary`
   - `store dependency boundary`
 - related surfaces:
-  - [task-ports.ts](<parallel-code-root>/src/app/task-ports.ts)
-  - [CloseTaskDialog.tsx](<parallel-code-root>/src/components/CloseTaskDialog.tsx)
-  - [DiffViewerDialog.tsx](<parallel-code-root>/src/components/DiffViewerDialog.tsx)
-  - [TaskPanel.architecture.test.ts](<parallel-code-root>/src/components/TaskPanel.architecture.test.ts)
+  - `src/app/task-ports.ts`
+  - `src/components/CloseTaskDialog.tsx`
+  - `src/components/DiffViewerDialog.tsx`
+  - `src/components/TaskPanel.architecture.test.ts`
 
-### [ipc.ts](<parallel-code-root>/src/lib/ipc.ts)
+### `src/lib/ipc.ts`
 
 - `trusted`
 - class: `guarded_facade`
@@ -152,11 +152,11 @@ Current scan:
   - `components caller boundary`
   - `lib dependency boundary`
 - related surfaces:
-  - [App.tsx](<parallel-code-root>/src/App.tsx)
-  - [agent-catalog.ts](<parallel-code-root>/src/app/agent-catalog.ts)
-  - [desktop-session-startup.ts](<parallel-code-root>/src/app/desktop-session-startup.ts)
+  - `src/App.tsx`
+  - `src/app/agent-catalog.ts`
+  - `src/app/desktop-session-startup.ts`
 
-### [App.tsx](<parallel-code-root>/src/App.tsx)
+### `src/App.tsx`
 
 - `trusted`
 - class: `structural_debt`
@@ -185,12 +185,12 @@ Current scan:
   - `lib dependency boundary`
   - `app dependency boundary`
 - related surfaces:
-  - [app-action-keys.ts](<parallel-code-root>/src/app/app-action-keys.ts)
-  - [app-startup-status.ts](<parallel-code-root>/src/app/app-startup-status.ts)
-  - [desktop-session.ts](<parallel-code-root>/src/app/desktop-session.ts)
-  - [store-boundary.architecture.test.ts](<parallel-code-root>/src/app/store-boundary.architecture.test.ts)
+  - `src/app/app-action-keys.ts`
+  - `src/app/app-startup-status.ts`
+  - `src/app/desktop-session.ts`
+  - `src/app/store-boundary.architecture.test.ts`
 
-### [terminal-session.ts](<parallel-code-root>/src/components/terminal-view/terminal-session.ts)
+### `src/components/terminal-view/terminal-session.ts`
 
 - `trusted`
 - class: `structural_debt`
@@ -221,10 +221,10 @@ Current scan:
   - `components dependency boundary`
   - `store dependency boundary`
 - related surfaces:
-  - [channels.ts](<parallel-code-root>/electron/ipc/channels.ts)
-  - [terminal-input-pipeline.ts](<parallel-code-root>/src/components/terminal-view/terminal-input-pipeline.ts)
-  - [terminal-output-pipeline.ts](<parallel-code-root>/src/components/terminal-view/terminal-output-pipeline.ts)
-  - [terminal-session.architecture.test.ts](<parallel-code-root>/src/components/terminal-view/terminal-session.architecture.test.ts)
+  - `electron/ipc/channels.ts`
+  - `src/components/terminal-view/terminal-input-pipeline.ts`
+  - `src/components/terminal-view/terminal-output-pipeline.ts`
+  - `src/components/terminal-view/terminal-session.architecture.test.ts`
 
 ## Architecture Signals
 
@@ -256,7 +256,7 @@ Current scan:
 
 ## Tooling Debt
 
-- [session-stress.mjs](<parallel-code-root>/scripts/session-stress.mjs) File 'scripts/session-stress.mjs' is 2048 lines, above the javascript threshold of 500
+- `scripts/session-stress.mjs` File 'scripts/session-stress.mjs' is 2048 lines, above the javascript threshold of 500
 
 ## Top Watchpoints
 
@@ -350,11 +350,11 @@ Current experimental counts:
 
 Representative examples:
 
-- [review.ts](<parallel-code-root>/src/store/review.ts)
-- [terminalLatency.ts](<parallel-code-root>/src/lib/terminalLatency.ts)
-- [store.ts](<parallel-code-root>/src/arena/store.ts)
-- [diff-selection.ts](<parallel-code-root>/src/lib/diff-selection.ts)
-- [ui.ts](<parallel-code-root>/src/store/ui.ts)
+- `src/store/review.ts`
+- `src/lib/terminalLatency.ts`
+- `src/arena/store.ts`
+- `src/lib/diff-selection.ts`
+- `src/store/ui.ts`
 
 Current rule:
 

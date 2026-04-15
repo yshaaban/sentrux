@@ -14,8 +14,8 @@
   - `<sentrux-root>/.sentrux/evals/2026-04-11T18-16-29-511Z-repo-calibration-loop-sentrux/replay-batch/repo-local-session-telemetry/diff-replay.json`
   - `<sentrux-root>/.sentrux/evals/2026-04-11T18-16-29-511Z-repo-calibration-loop-sentrux/replay-batch/fast-check-zero-config/diff-replay.json`
   - `<sentrux-root>/.sentrux/evals/2026-04-11T18-16-29-511Z-repo-calibration-loop-sentrux/replay-batch/contract-surface-obligations/diff-replay.json`
-  - `<sentrux-root>/docs/v2/examples/sentrux-defect-injection.json`
-  - `<sentrux-root>/docs/v2/examples/sentrux-remediation.json`
+  - `./sentrux-defect-injection.json`
+  - `./sentrux-remediation.json`
 - generated at: `2026-04-12T10:26:58.140Z`
 - sample count: 16
 - kind counts: large_file=12, forbidden_raw_read=1, incomplete_propagation=1, session_introduced_clone=1, zero_config_boundary_violation=1
@@ -38,4 +38,3 @@
 | `check-14` | `incomplete_propagation` | `self_incomplete_propagation` | `seeded` | 14 | `scripts/defect-injection/catalog.mjs` | `trusted` | Seeded contract-surface defect surfaced incomplete propagation directly and remediated cleanly. | `boundary_discipline` | `treat sibling-surface drift as direct evidence` |
 | `check-15` | `session_introduced_clone` | `self_session_introduced_clone` | `seeded` | 15 | `src/copy.ts` | `watchpoint` | Seeded post-baseline duplicate introduction produced direct clone evidence and a clean remediation. | `duplication_pressure` | `keep direct clone followthrough visible` |
 | `check-16` | `zero_config_boundary_violation` | `self_zero_config_boundary_violation` | `seeded` | 16 | `src/app/task-dashboard.ts` | `watchpoint` | Seeded deep-import violation produced the missing zero-config boundary evidence and remediated cleanly. | `boundary_discipline` | `validate zero-config ranking against crowd-out` |
-

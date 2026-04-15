@@ -4,7 +4,7 @@ This document defines the repeatable proof loop for the v2 wedge across the chec
 
 The goal is not only to generate artifacts. The goal is to make regressions easy to detect, review, and refresh without guessing.
 
-The proof-and-improvement workflow is tracked separately in [Parallel-Code Proof Board](./parallel-code-proof-board.md).
+The maintained proof-and-improvement artifacts live in the checked-in proof runs, proof snapshots, engineer reports, and review verdicts under [`./examples/`](./examples/).
 
 ## What The Loop Covers
 
@@ -70,7 +70,7 @@ This command:
 - fails if the benchmark comparison reports a regression
 - fails if the benchmark run is not comparable to the checked-in artifact
 
-The proof board explains how the outputs from this command should be turned into real refactor targets and before/after proof records.
+The checked-in proof snapshots, proof runs, and engineer reports explain how the outputs from this command should be turned into concrete refactor targets and before/after proof records.
 
 For the other benchmark repos, use:
 
@@ -189,10 +189,16 @@ Use this when the goal is to improve `parallel-code`, not just validate analyzer
 3. select one ownership/boundary target, one propagation/obligation target, and one duplication/hotspot target
 4. make one refactor at a time in a disposable clone
 5. rerun the proof loop after each refactor
-6. record the before/after delta in the proof board and the case study
+6. record the before/after delta in the proof snapshots, proof-run artifacts, and the case study
 
-The proof board in [Parallel-Code Proof Board](./parallel-code-proof-board.md) is the tracking surface for that loop.
-The reviewed baseline and resolved overstatements are tracked in [Parallel-Code Proof Review](./parallel-code-proof-review.md).
+The maintained tracking surfaces for that loop are:
+
+- [parallel-code proof runs](./examples/parallel-code-proof-runs/README.md)
+- [parallel-code proof snapshot](./examples/parallel-code-proof-snapshot.md)
+- [parallel-code head proof snapshot](./examples/parallel-code-head-proof-snapshot.md)
+- [parallel-code review verdicts](./examples/parallel-code-review-verdicts.md)
+- [parallel-code engineer report](./examples/parallel-code-live-engineer-report.md)
+
 Maintainer feedback verdicts are tracked in [parallel-code-review-verdicts.json](./examples/parallel-code-review-verdicts.json) and summarized by [summarize_parallel_code_review_feedback.mjs](../../scripts/summarize_parallel_code_review_feedback.mjs).
 
 ## Finding-Class Evaluation Loop

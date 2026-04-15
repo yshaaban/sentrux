@@ -6,7 +6,7 @@
   "repo": {
     "name": "parallel-code",
     "root_env": "PARALLEL_CODE_ROOT",
-    "default_root": "<parallel-code-root>",
+    "default_root": "../../../../../parallel-code",
     "description": "Stateful desktop/web app case study with concept ownership, clone drift, and patch-safety surfaces."
   },
   "tasks": [

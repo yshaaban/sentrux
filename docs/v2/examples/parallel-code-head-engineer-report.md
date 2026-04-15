@@ -18,9 +18,9 @@ This report is for an engineer who does not already know `parallel-code` or Sent
 - live source checkout: `<parallel-code-root>`
 - report scope: committed `HEAD` only
 - ignored working-tree changes outside HEAD: `14`
-- rules file used for the run: `<sentrux-root>/docs/v2/examples/parallel-code.rules.toml`
-- comparison snapshot: `<sentrux-root>/docs/v2/examples/parallel-code-head-proof-snapshot.json`
-- benchmark artifact: `<sentrux-root>/docs/v2/examples/parallel-code-benchmark.json`
+- rules file used for the run: `./parallel-code.rules.toml`
+- comparison snapshot: `./parallel-code-head-proof-snapshot.json`
+- benchmark artifact: `./parallel-code-benchmark.json`
 
 ## Scan Coverage
 
@@ -71,13 +71,13 @@ The current analysis surfaces these highest-leverage improvement targets:
   - `guarded boundary cut`
   - `app store boundary`
 - related surfaces:
-  - [core.ts](<parallel-code-root>/src/store/core.ts)
-  - [store.ts](<parallel-code-root>/src/store/store.ts)
-  - [tasks.ts](<parallel-code-root>/src/store/tasks.ts)
-  - [task-workflows.ts](<parallel-code-root>/src/app/task-workflows.ts)
-  - [state.ts](<parallel-code-root>/src/store/state.ts)
+  - `src/store/core.ts`
+  - `src/store/store.ts`
+  - `src/store/tasks.ts`
+  - `src/app/task-workflows.ts`
+  - `src/store/state.ts`
 
-### [store.ts](<parallel-code-root>/src/store/store.ts)
+### `src/store/store.ts`
 
 - trust tier: `trusted`
 - class: `structural_debt`
@@ -99,15 +99,15 @@ The current analysis surfaces these highest-leverage improvement targets:
   - `store caller boundary`
   - `store dependency boundary`
 - related surfaces:
-  - [App.tsx](<parallel-code-root>/src/App.tsx)
-  - [ConfigScreen.tsx](<parallel-code-root>/src/arena/ConfigScreen.tsx)
-  - [ResultsScreen.tsx](<parallel-code-root>/src/arena/ResultsScreen.tsx)
-  - [store-boundary.architecture.test.ts](<parallel-code-root>/src/app/store-boundary.architecture.test.ts)
-  - [TaskPanel.architecture.test.ts](<parallel-code-root>/src/components/TaskPanel.architecture.test.ts)
+  - `src/App.tsx`
+  - `src/arena/ConfigScreen.tsx`
+  - `src/arena/ResultsScreen.tsx`
+  - `src/app/store-boundary.architecture.test.ts`
+  - `src/components/TaskPanel.architecture.test.ts`
 
 ## Best Local Refactor Targets
 
-### [TaskPanel.tsx](<parallel-code-root>/src/components/TaskPanel.tsx)
+### `src/components/TaskPanel.tsx`
 
 - trust tier: `trusted`
 - class: `structural_debt`
@@ -131,12 +131,12 @@ The current analysis surfaces these highest-leverage improvement targets:
   - `lib dependency boundary`
   - `store dependency boundary`
 - related surfaces:
-  - [task-ports.ts](<parallel-code-root>/src/app/task-ports.ts)
-  - [CloseTaskDialog.tsx](<parallel-code-root>/src/components/CloseTaskDialog.tsx)
-  - [DiffViewerDialog.tsx](<parallel-code-root>/src/components/DiffViewerDialog.tsx)
-  - [TaskPanel.architecture.test.ts](<parallel-code-root>/src/components/TaskPanel.architecture.test.ts)
+  - `src/app/task-ports.ts`
+  - `src/components/CloseTaskDialog.tsx`
+  - `src/components/DiffViewerDialog.tsx`
+  - `src/components/TaskPanel.architecture.test.ts`
 
-### [ReviewPanel.tsx](<parallel-code-root>/src/components/ReviewPanel.tsx)
+### `src/components/ReviewPanel.tsx`
 
 - trust tier: `trusted`
 - class: `structural_debt`
@@ -160,14 +160,14 @@ The current analysis surfaces these highest-leverage improvement targets:
   - `components dependency boundary`
   - `lib dependency boundary`
 - related surfaces:
-  - [channels.ts](<parallel-code-root>/electron/ipc/channels.ts)
-  - [async-request-guard.ts](<parallel-code-root>/src/app/async-request-guard.ts)
-  - [review-diffs.ts](<parallel-code-root>/src/app/review-diffs.ts)
-  - [review-surfaces.architecture.test.ts](<parallel-code-root>/src/components/review-surfaces.architecture.test.ts)
+  - `electron/ipc/channels.ts`
+  - `src/app/async-request-guard.ts`
+  - `src/app/review-diffs.ts`
+  - `src/components/review-surfaces.architecture.test.ts`
 
 ## Boundary Discipline
 
-### [ipc.ts](<parallel-code-root>/src/lib/ipc.ts)
+### `src/lib/ipc.ts`
 
 - trust tier: `trusted`
 - class: `guarded_facade`
@@ -187,13 +187,13 @@ The current analysis surfaces these highest-leverage improvement targets:
   - `components caller boundary`
   - `lib dependency boundary`
 - related surfaces:
-  - [App.tsx](<parallel-code-root>/src/App.tsx)
-  - [agent-catalog.ts](<parallel-code-root>/src/app/agent-catalog.ts)
-  - [desktop-session-startup.ts](<parallel-code-root>/src/app/desktop-session-startup.ts)
+  - `src/App.tsx`
+  - `src/app/agent-catalog.ts`
+  - `src/app/desktop-session-startup.ts`
 
 ## Regrowth Watchpoints
 
-### [App.tsx](<parallel-code-root>/src/App.tsx)
+### `src/App.tsx`
 
 - trust tier: `trusted`
 - class: `structural_debt`
@@ -213,14 +213,14 @@ The current analysis surfaces these highest-leverage improvement targets:
   - `lib dependency boundary`
   - `app dependency boundary`
 - related surfaces:
-  - [app-action-keys.ts](<parallel-code-root>/src/app/app-action-keys.ts)
-  - [app-startup-status.ts](<parallel-code-root>/src/app/app-startup-status.ts)
-  - [desktop-session.ts](<parallel-code-root>/src/app/desktop-session.ts)
-  - [store-boundary.architecture.test.ts](<parallel-code-root>/src/app/store-boundary.architecture.test.ts)
+  - `src/app/app-action-keys.ts`
+  - `src/app/app-startup-status.ts`
+  - `src/app/desktop-session.ts`
+  - `src/app/store-boundary.architecture.test.ts`
 
 ## Secondary Cleanup
 
-### [terminal-session.ts](<parallel-code-root>/src/components/terminal-view/terminal-session.ts)
+### `src/components/terminal-view/terminal-session.ts`
 
 - trust tier: `trusted`
 - class: `structural_debt`
@@ -241,10 +241,10 @@ The current analysis surfaces these highest-leverage improvement targets:
   - `components dependency boundary`
   - `store dependency boundary`
 - related surfaces:
-  - [channels.ts](<parallel-code-root>/electron/ipc/channels.ts)
-  - [terminal-input-pipeline.ts](<parallel-code-root>/src/components/terminal-view/terminal-input-pipeline.ts)
-  - [terminal-output-pipeline.ts](<parallel-code-root>/src/components/terminal-view/terminal-output-pipeline.ts)
-  - [terminal-session.architecture.test.ts](<parallel-code-root>/src/components/terminal-view/terminal-session.architecture.test.ts)
+  - `electron/ipc/channels.ts`
+  - `src/components/terminal-view/terminal-input-pipeline.ts`
+  - `src/components/terminal-view/terminal-output-pipeline.ts`
+  - `src/components/terminal-view/terminal-session.architecture.test.ts`
 
 ### browser_state_sync
 
@@ -259,7 +259,7 @@ The current analysis surfaces these highest-leverage improvement targets:
 - leverage reasons:
   - `real_but_lower_leverage_cleanup`
 - related surfaces:
-  - [browser-state-sync-controller.ts](<parallel-code-root>/src/runtime/browser-state-sync-controller.ts)
+  - `src/runtime/browser-state-sync-controller.ts`
 
 ### electron/remote/ws-server.ts|server/browser-websocket.ts
 
@@ -274,8 +274,8 @@ The current analysis surfaces these highest-leverage improvement targets:
 - leverage reasons:
   - `duplicate_maintenance_pressure`
 - related surfaces:
-  - [ws-server.ts](<parallel-code-root>/electron/remote/ws-server.ts)
-  - [browser-websocket.ts](<parallel-code-root>/server/browser-websocket.ts)
+  - `electron/remote/ws-server.ts`
+  - `server/browser-websocket.ts`
 
 ## Targeted Hardening Notes
 
@@ -294,12 +294,12 @@ The current analysis surfaces these highest-leverage improvement targets:
 - ranking reasons:
   - `narrow_surface_hardening`
 - related surfaces:
-  - [AppConnectionBanner.tsx](<parallel-code-root>/src/components/app-shell/AppConnectionBanner.tsx)
-  - [browser-session.ts](<parallel-code-root>/src/runtime/browser-session.ts)
+  - `src/components/app-shell/AppConnectionBanner.tsx`
+  - `src/runtime/browser-session.ts`
 
 ## Tooling Debt
 
-### [session-stress.mjs](<parallel-code-root>/scripts/session-stress.mjs)
+### `scripts/session-stress.mjs`
 
 - trust tier: `trusted`
 - class: `tooling_debt`
@@ -318,8 +318,8 @@ The current analysis surfaces these highest-leverage improvement targets:
   - `entry surface split`
   - `private helper surface split`
 - related surfaces:
-  - [browser-server-client.mjs](<parallel-code-root>/scripts/browser-server-client.mjs)
-  - [session-stress-profiles.mjs](<parallel-code-root>/scripts/session-stress-profiles.mjs)
+  - `scripts/browser-server-client.mjs`
+  - `scripts/session-stress-profiles.mjs`
 
 ## Watchpoints
 
@@ -344,5 +344,5 @@ The current analysis surfaces these highest-leverage improvement targets:
 
 ## Source Documents
 
-- proof snapshot: `<sentrux-root>/docs/v2/examples/parallel-code-head-proof-snapshot.md`
-- golden metadata: `<sentrux-root>/docs/v2/examples/parallel-code-head-golden/metadata.json`
+- proof snapshot: `./parallel-code-head-proof-snapshot.md`
+- golden metadata: `./parallel-code-head-golden/metadata.json`

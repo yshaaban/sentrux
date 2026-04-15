@@ -8,6 +8,12 @@ That means testing is part of the product design, not just an implementation det
 
 This document defines the validation strategy for the semantic frontend, analyzers, and patch-safety outputs.
 
+Current release note:
+
+- MCP `check` is the fast-path v2 validation target for ranked action quality
+- CLI `brief` and `gate` are the main v2 CLI validation targets
+- CLI `check` remains the legacy structural rules check and should be validated as supporting context, not as the primary v2 surface
+
 ## Testing Goals
 
 The test strategy must prove:

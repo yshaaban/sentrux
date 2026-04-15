@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { summarizeBundleOutcome } from '../lib/eval-batch.mjs';
+import { resolveManifestPath, summarizeBundleOutcome } from '../lib/eval-batch.mjs';
 
 test('summarizeBundleOutcome prefers telemetry-derived initial action kinds', function () {
   const outcome = summarizeBundleOutcome({
@@ -36,4 +36,23 @@ test('summarizeBundleOutcome falls back to initial check actions', function () {
     'forbidden_raw_read',
     'missing_test_coverage',
   ]);
+});
+
+test('resolveManifestPath resolves repo roots relative to the manifest file', function () {
+  assert.equal(
+    resolveManifestPath(
+      '/workspace/sentrux/docs/v2/evals/repos/parallel-code.json',
+      '../../../../../parallel-code',
+    ),
+    '/workspace/parallel-code',
+  );
+  assert.equal(
+    resolveManifestPath('/workspace/sentrux/docs/v2/evals/repos/sentrux.json', '../../../..'),
+    '/workspace/sentrux',
+  );
+  assert.equal(
+    resolveManifestPath('/workspace/sentrux/docs/v2/evals/repos/sentrux.json', '/tmp/repo'),
+    '/tmp/repo',
+  );
+  assert.equal(resolveManifestPath('/workspace/sentrux/docs/v2/evals/repos/sentrux.json', null), null);
 });

@@ -285,73 +285,73 @@
         "symbol_name": "store.agentSupervision"
       },
       {
-        "line": 1106,
+        "line": 1134,
         "path": "src/store/persistence.test.ts",
         "read_kind": "element_access",
         "symbol_name": "store.taskGitStatus.task-1"
       },
       {
-        "line": 1106,
+        "line": 1134,
         "path": "src/store/persistence.test.ts",
         "read_kind": "property_access",
         "symbol_name": "store.taskGitStatus"
       },
       {
-        "line": 1371,
+        "line": 1412,
         "path": "src/store/persistence.test.ts",
         "read_kind": "element_access",
         "symbol_name": "store.agentSupervision.terminal-agent-1"
       },
       {
-        "line": 1371,
+        "line": 1412,
         "path": "src/store/persistence.test.ts",
         "read_kind": "property_access",
         "symbol_name": "store.agentSupervision"
       },
       {
-        "line": 1489,
+        "line": 1553,
         "path": "src/store/persistence.test.ts",
         "read_kind": "element_access",
         "symbol_name": "store.taskGitStatus.task-1"
       },
       {
-        "line": 1489,
+        "line": 1553,
         "path": "src/store/persistence.test.ts",
         "read_kind": "property_access",
         "symbol_name": "store.taskGitStatus"
       },
       {
-        "line": 1492,
+        "line": 1556,
         "path": "src/store/persistence.test.ts",
         "read_kind": "element_access",
         "symbol_name": "store.taskReview.task-1"
       },
       {
-        "line": 1492,
+        "line": 1556,
         "path": "src/store/persistence.test.ts",
         "read_kind": "property_access",
         "symbol_name": "store.taskReview"
       },
       {
-        "line": 1498,
+        "line": 1562,
         "path": "src/store/persistence.test.ts",
         "read_kind": "element_access",
         "symbol_name": "store.agentSupervision.agent-1"
       },
       {
-        "line": 1498,
+        "line": 1562,
         "path": "src/store/persistence.test.ts",
         "read_kind": "property_access",
         "symbol_name": "store.agentSupervision"
       },
       {
-        "line": 1499,
+        "line": 1563,
         "path": "src/store/persistence.test.ts",
         "read_kind": "element_access",
         "symbol_name": "store.agentSupervision.shell-1"
       },
       {
-        "line": 1499,
+        "line": 1563,
         "path": "src/store/persistence.test.ts",
         "read_kind": "property_access",
         "symbol_name": "store.agentSupervision"

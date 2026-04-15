@@ -2,7 +2,7 @@
   "schema_version": 1,
   "batch_id": "parallel-code-codex-session-batch",
   "cohort_id": "agent-loop-core",
-  "repo_root": "<parallel-code-root>",
+  "repo_root": "../../../../../parallel-code",
   "repo_label": "parallel-code",
   "rules_source": "../../examples/parallel-code.rules.toml",
   "analysis_mode": "working_tree",

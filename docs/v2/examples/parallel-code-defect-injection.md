@@ -98,4 +98,3 @@
 - gate evidence: `$.blocking_findings[2]:writer_outside_allowlist, $.introduced_findings[2]:writer_outside_allowlist, decision=fail`
 - findings evidence: `$.finding_details[1]:writer_outside_allowlist, $.findings[1]:writer_outside_allowlist`
 - session_end evidence: `$.actions[1]:writer_outside_allowlist, $.finding_details[2]:writer_outside_allowlist, $.introduced_findings[2]:writer_outside_allowlist, $.touched_concept_gate.blocking_findings[2]:writer_outside_allowlist`
-

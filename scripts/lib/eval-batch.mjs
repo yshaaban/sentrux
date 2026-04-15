@@ -82,3 +82,17 @@ export async function loadBatchManifest(targetPath) {
 
   return manifest;
 }
+
+export function resolveManifestPath(manifestPath, relativePath) {
+  if (!relativePath) {
+    return null;
+  }
+
+  if (path.isAbsolute(relativePath)) {
+    return relativePath;
+  }
+
+  const resolvedManifestPath = path.resolve(manifestPath);
+  const manifestDir = path.dirname(resolvedManifestPath);
+  return path.resolve(manifestDir, relativePath);
+}

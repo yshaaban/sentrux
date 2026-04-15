@@ -68,18 +68,21 @@
       "blocking": false,
       "confidence": "high",
       "evidence": [
-        "line count: 587",
+        "line count: 586",
         "large-file threshold: 500",
         "function count: 43",
         "peak function complexity: 4",
         "outbound dependencies: 16",
+        "suggested split axes: app dependency boundary, components dependency boundary, lib dependency boundary, private helper surface split",
+        "related surfaces to peel out first: src/app/task-activity-clock.ts, src/app/task-convergence.ts, src/app/task-presentation-status.ts, src/app/task-workflows.ts, src/app/terminal-prewarm.ts",
+        "recommended first cut: move the behavior that couples to src/app/task-activity-clock.ts behind the app dependency boundary",
         "guardrail tests: src/components/SidebarTaskRow.architecture.test.ts"
       ],
       "file": "src/components/SidebarTaskRow.tsx",
-      "fix_hint": "Split the file along the app dependency boundary and move the behavior that couples to src/app/task-activity-clock.ts behind a smaller owner before adding more code here.",
+      "fix_hint": "Split the file along the app dependency boundary and the components dependency boundary and move the behavior that couples to src/app/task-activity-clock.ts and src/app/task-convergence.ts behind smaller owners before adding more code here.",
       "kind": "large_file",
       "line": null,
-      "message": "File 'src/components/SidebarTaskRow.tsx' is 587 lines, above the typescript threshold of 500",
+      "message": "File 'src/components/SidebarTaskRow.tsx' is 586 lines, above the typescript threshold of 500",
       "origin": "explicit",
       "priority": 4,
       "scope": "src/components/SidebarTaskRow.tsx",
@@ -88,13 +91,13 @@
   ],
   "baseline_delta": {
     "available": true,
-    "coupling_after": 0.49850411368735975,
-    "coupling_before": 0.49850411368735975,
+    "coupling_after": 0.49761467889908256,
+    "coupling_before": 0.49761467889908256,
     "cycles_after": 2,
     "cycles_before": 2,
     "degraded": false,
-    "signal_after": 4210,
-    "signal_before": 4210,
+    "signal_after": 4235,
+    "signal_before": 4235,
     "signal_delta": 0
   },
   "changed_concepts": [
@@ -130,7 +133,7 @@
   "concept_summary_count": 1,
   "confidence": {
     "rule_coverage_0_10000": 10000,
-    "scan_confidence_0_10000": 8552,
+    "scan_confidence_0_10000": 8571,
     "semantic_rules_loaded": true,
     "session_baseline": {
       "compatible": true,
@@ -140,8 +143,8 @@
     }
   },
   "coupling_change": [
-    0.49850411368735975,
-    0.49850411368735975
+    0.49761467889908256,
+    0.49761467889908256
   ],
   "cycles_change": [
     2,
@@ -156,7 +159,7 @@
         "affected files: 2",
         "role tags: guarded_seam",
         "dependency_sprawl: File 'src/components/SidebarTaskRow.tsx' depends on 16 real surfaces, above the typescript threshold of 15",
-        "large_file: File 'src/components/SidebarTaskRow.tsx' is 587 lines, above the typescript threshold of 500",
+        "large_file: File 'src/components/SidebarTaskRow.tsx' is 586 lines, above the typescript threshold of 500",
         "concept: Concept 'task_presentation_status' shows 1 boundary/ownership findings and 5 missing update sites"
       ],
       "files": [
@@ -167,8 +170,8 @@
       "inspection_focus": [
         "inspect whether orchestration and policy code can move behind narrower helpers",
         "inspect whether unrelated adapter dependencies are accumulating in one module",
-        "inspect whether orchestration, adapters, and data shaping are accumulating in one file",
-        "inspect whether the file can be split along responsibility boundaries instead of line-count slices"
+        "inspect whether the app dependency boundary can become the owner for behavior that currently couples to src/app/task-activity-clock.ts",
+        "inspect whether orchestration, adapters, and data shaping are accumulating in one file"
       ],
       "leverage_class": "architecture_signal",
       "leverage_reasons": [
@@ -249,7 +252,7 @@
         "function_count": 43,
         "guardrail_test_count": 1,
         "instability_0_10000": 8889,
-        "line_count": 587,
+        "line_count": 586,
         "max_complexity": 4,
         "role_count": 1
       },
@@ -334,11 +337,14 @@
         "private helper surface split"
       ],
       "evidence": [
-        "line count: 587",
+        "line count: 586",
         "large-file threshold: 500",
         "function count: 43",
         "peak function complexity: 4",
         "outbound dependencies: 16",
+        "suggested split axes: app dependency boundary, components dependency boundary, lib dependency boundary, private helper surface split",
+        "related surfaces to peel out first: src/app/task-activity-clock.ts, src/app/task-convergence.ts, src/app/task-presentation-status.ts, src/app/task-workflows.ts, src/app/terminal-prewarm.ts",
+        "recommended first cut: move the behavior that couples to src/app/task-activity-clock.ts behind the app dependency boundary",
         "guardrail tests: src/components/SidebarTaskRow.architecture.test.ts"
       ],
       "files": [
@@ -346,6 +352,7 @@
       ],
       "impact": "Responsibility concentration increases review friction and makes later splits harder to isolate.",
       "inspection_focus": [
+        "inspect whether the app dependency boundary can become the owner for behavior that currently couples to src/app/task-activity-clock.ts",
         "inspect whether orchestration, adapters, and data shaping are accumulating in one file",
         "inspect whether the file can be split along responsibility boundaries instead of line-count slices"
       ],
@@ -359,7 +366,7 @@
         "file_count": 1,
         "function_count": 43,
         "guardrail_test_count": 1,
-        "line_count": 587,
+        "line_count": 586,
         "max_complexity": 4,
         "role_count": 1
       },
@@ -369,21 +376,20 @@
         "src/app/task-convergence.ts",
         "src/app/task-presentation-status.ts",
         "src/app/task-workflows.ts",
-        "src/app/terminal-prewarm.ts",
-        "src/components/SidebarTaskRow.architecture.test.ts"
+        "src/app/terminal-prewarm.ts"
       ],
       "role_tags": [
         "guarded_seam"
       ],
       "scope": "src/components/SidebarTaskRow.tsx",
-      "score_0_10000": 3026,
+      "score_0_10000": 3019,
       "severity": "medium",
       "signal_class": "debt",
       "signal_families": [
         "size",
         "coordination"
       ],
-      "summary": "File 'src/components/SidebarTaskRow.tsx' is 587 lines, above the typescript threshold of 500",
+      "summary": "File 'src/components/SidebarTaskRow.tsx' is 586 lines, above the typescript threshold of 500",
       "trust_tier": "trusted"
     }
   ],
@@ -413,11 +419,14 @@
         "private helper surface split"
       ],
       "evidence": [
-        "line count: 587",
+        "line count: 586",
         "large-file threshold: 500",
         "function count: 43",
         "peak function complexity: 4",
         "outbound dependencies: 16",
+        "suggested split axes: app dependency boundary, components dependency boundary, lib dependency boundary, private helper surface split",
+        "related surfaces to peel out first: src/app/task-activity-clock.ts, src/app/task-convergence.ts, src/app/task-presentation-status.ts, src/app/task-workflows.ts, src/app/terminal-prewarm.ts",
+        "recommended first cut: move the behavior that couples to src/app/task-activity-clock.ts behind the app dependency boundary",
         "guardrail tests: src/components/SidebarTaskRow.architecture.test.ts"
       ],
       "files": [
@@ -425,6 +434,7 @@
       ],
       "impact": "Responsibility concentration increases review friction and makes later splits harder to isolate.",
       "inspection_focus": [
+        "inspect whether the app dependency boundary can become the owner for behavior that currently couples to src/app/task-activity-clock.ts",
         "inspect whether orchestration, adapters, and data shaping are accumulating in one file",
         "inspect whether the file can be split along responsibility boundaries instead of line-count slices"
       ],
@@ -434,7 +444,7 @@
         "supporting_size_pressure"
       ],
       "metrics": {
-        "evidence_count": 6,
+        "evidence_count": 9,
         "file_count": 1
       },
       "presentation_class": "structural_debt",
@@ -443,15 +453,14 @@
         "src/app/task-convergence.ts",
         "src/app/task-presentation-status.ts",
         "src/app/task-workflows.ts",
-        "src/app/terminal-prewarm.ts",
-        "src/components/SidebarTaskRow.architecture.test.ts"
+        "src/app/terminal-prewarm.ts"
       ],
       "role_tags": [
         "guarded_seam"
       ],
       "scope": "src/components/SidebarTaskRow.tsx",
       "severity": "medium",
-      "summary": "File 'src/components/SidebarTaskRow.tsx' is 587 lines, above the typescript threshold of 500",
+      "summary": "File 'src/components/SidebarTaskRow.tsx' is 586 lines, above the typescript threshold of 500",
       "trust_tier": "trusted"
     },
     {
@@ -551,11 +560,14 @@
         "private helper surface split"
       ],
       "evidence": [
-        "line count: 587",
+        "line count: 586",
         "large-file threshold: 500",
         "function count: 43",
         "peak function complexity: 4",
         "outbound dependencies: 16",
+        "suggested split axes: app dependency boundary, components dependency boundary, lib dependency boundary, private helper surface split",
+        "related surfaces to peel out first: src/app/task-activity-clock.ts, src/app/task-convergence.ts, src/app/task-presentation-status.ts, src/app/task-workflows.ts, src/app/terminal-prewarm.ts",
+        "recommended first cut: move the behavior that couples to src/app/task-activity-clock.ts behind the app dependency boundary",
         "guardrail tests: src/components/SidebarTaskRow.architecture.test.ts"
       ],
       "files": [
@@ -563,6 +575,7 @@
       ],
       "impact": "Responsibility concentration increases review friction and makes later splits harder to isolate.",
       "inspection_focus": [
+        "inspect whether the app dependency boundary can become the owner for behavior that currently couples to src/app/task-activity-clock.ts",
         "inspect whether orchestration, adapters, and data shaping are accumulating in one file",
         "inspect whether the file can be split along responsibility boundaries instead of line-count slices"
       ],
@@ -576,7 +589,7 @@
         "file_count": 1,
         "function_count": 43,
         "guardrail_test_count": 1,
-        "line_count": 587,
+        "line_count": 586,
         "max_complexity": 4,
         "role_count": 1
       },
@@ -586,21 +599,20 @@
         "src/app/task-convergence.ts",
         "src/app/task-presentation-status.ts",
         "src/app/task-workflows.ts",
-        "src/app/terminal-prewarm.ts",
-        "src/components/SidebarTaskRow.architecture.test.ts"
+        "src/app/terminal-prewarm.ts"
       ],
       "role_tags": [
         "guarded_seam"
       ],
       "scope": "src/components/SidebarTaskRow.tsx",
-      "score_0_10000": 3026,
+      "score_0_10000": 3019,
       "severity": "medium",
       "signal_class": "debt",
       "signal_families": [
         "size",
         "coordination"
       ],
-      "summary": "File 'src/components/SidebarTaskRow.tsx' is 587 lines, above the typescript threshold of 500",
+      "summary": "File 'src/components/SidebarTaskRow.tsx' is 586 lines, above the typescript threshold of 500",
       "trust_tier": "trusted"
     },
     {
@@ -639,7 +651,7 @@
         "function_count": 43,
         "guardrail_test_count": 1,
         "instability_0_10000": 8889,
-        "line_count": 587,
+        "line_count": 586,
         "max_complexity": 4,
         "role_count": 1
       },
@@ -778,11 +790,14 @@
         "private helper surface split"
       ],
       "evidence": [
-        "line count: 586",
+        "line count: 585",
         "large-file threshold: 500",
         "function count: 43",
         "peak function complexity: 4",
         "outbound dependencies: 16",
+        "suggested split axes: app dependency boundary, components dependency boundary, lib dependency boundary, private helper surface split",
+        "related surfaces to peel out first: src/app/task-activity-clock.ts, src/app/task-convergence.ts, src/app/task-presentation-status.ts, src/app/task-workflows.ts, src/app/terminal-prewarm.ts",
+        "recommended first cut: move the behavior that couples to src/app/task-activity-clock.ts behind the app dependency boundary",
         "guardrail tests: src/components/SidebarTaskRow.architecture.test.ts"
       ],
       "files": [
@@ -790,6 +805,7 @@
       ],
       "impact": "Responsibility concentration increases review friction and makes later splits harder to isolate.",
       "inspection_focus": [
+        "inspect whether the app dependency boundary can become the owner for behavior that currently couples to src/app/task-activity-clock.ts",
         "inspect whether orchestration, adapters, and data shaping are accumulating in one file",
         "inspect whether the file can be split along responsibility boundaries instead of line-count slices"
       ],
@@ -803,7 +819,7 @@
         "file_count": 1,
         "function_count": 43,
         "guardrail_test_count": 1,
-        "line_count": 586,
+        "line_count": 585,
         "max_complexity": 4,
         "role_count": 1
       },
@@ -813,21 +829,20 @@
         "src/app/task-convergence.ts",
         "src/app/task-presentation-status.ts",
         "src/app/task-workflows.ts",
-        "src/app/terminal-prewarm.ts",
-        "src/components/SidebarTaskRow.architecture.test.ts"
+        "src/app/terminal-prewarm.ts"
       ],
       "role_tags": [
         "guarded_seam"
       ],
       "scope": "src/components/SidebarTaskRow.tsx",
-      "score_0_10000": 3019,
+      "score_0_10000": 3012,
       "severity": "medium",
       "signal_class": "debt",
       "signal_families": [
         "size",
         "coordination"
       ],
-      "summary": "File 'src/components/SidebarTaskRow.tsx' is 586 lines, above the typescript threshold of 500",
+      "summary": "File 'src/components/SidebarTaskRow.tsx' is 585 lines, above the typescript threshold of 500",
       "trust_tier": "trusted"
     },
     {
@@ -866,7 +881,7 @@
         "function_count": 43,
         "guardrail_test_count": 1,
         "instability_0_10000": 8889,
-        "line_count": 586,
+        "line_count": 585,
         "max_complexity": 4,
         "role_count": 1
       },
@@ -893,7 +908,7 @@
     }
   ],
   "scan_trust": {
-    "candidate_files": 967,
+    "candidate_files": 980,
     "exclusions": {
       "bucketed": {
         "build": 12,
@@ -908,24 +923,24 @@
       "total": 140
     },
     "fallback_reason": null,
-    "kept_files": 827,
+    "kept_files": 840,
     "mode": "git",
-    "overall_confidence_0_10000": 8552,
+    "overall_confidence_0_10000": 8571,
     "partial": false,
     "resolution": {
       "internal_confidence_0_10000": 9996,
-      "resolved": 2675,
-      "unresolved_external": 770,
+      "resolved": 2726,
+      "unresolved_external": 776,
       "unresolved_internal": 1,
       "unresolved_unknown": 112
     },
-    "scope_coverage_0_10000": 8552,
-    "tracked_candidates": 967,
+    "scope_coverage_0_10000": 8571,
+    "tracked_candidates": 980,
     "truncated": false,
     "untracked_candidates": 0
   },
-  "signal_after": 4210,
-  "signal_before": 4210,
+  "signal_after": 4235,
+  "signal_before": 4235,
   "signal_delta": 0,
   "summary": "Touched-concept regressions detected",
   "suppressed_finding_count": 0,

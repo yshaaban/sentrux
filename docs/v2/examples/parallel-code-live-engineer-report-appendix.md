@@ -3,16 +3,16 @@
 Generated on March 19, 2026 from the live checkout at `<parallel-code-root>`.
 
 This appendix contains the evidence behind
-[parallel-code-live-engineer-report.md](<sentrux-root>/docs/v2/examples/parallel-code-live-engineer-report.md).
+[parallel-code-live-engineer-report.md](./parallel-code-live-engineer-report.md).
 
 ## Method
 
 The analysis used:
 
-- live source repo: [<parallel-code-root>](<parallel-code-root>)
-- bundled rules file: [parallel-code.rules.toml](<sentrux-root>/docs/v2/examples/parallel-code.rules.toml)
-- goldens refresh path: [refresh_parallel_code_goldens.sh](<sentrux-root>/scripts/refresh_parallel_code_goldens.sh)
-- current binary used for the run: [<sentrux-root>/target/debug/sentrux](<sentrux-root>/target/debug/sentrux)
+- live source repo: `<parallel-code-root>`
+- bundled rules file: [parallel-code.rules.toml](./parallel-code.rules.toml)
+- goldens refresh path: [refresh_parallel_code_goldens.sh](../../../scripts/refresh_parallel_code_goldens.sh)
+- current binary used for the run: `<sentrux-root>/target/debug/sentrux`
 
 Scope caveat:
 
@@ -45,7 +45,7 @@ Current scan:
 
 ## Lead Trusted Debt Signals
 
-### [store.ts](<parallel-code-root>/src/store/store.ts)
+### `src/store/store.ts`
 
 - `trusted`
 - class: `structural_debt`
@@ -63,19 +63,13 @@ Current scan:
   - dominant dependent categories: components(34), store(11), arena(2)
   - sample dependents: src/App.tsx, src/arena/ConfigScreen.tsx, src/arena/ResultsScreen.tsx
   - guardrail tests: src/app/store-boundary.architecture.test.ts, src/components/TaskPanel.architecture.test.ts
-  - guarded boundary literals: store/core, store/store, store.taskCommandControllers, store.focusedPanel[, setTaskFocusedPanel
-- candidate split axes:
-  - `components caller boundary`
-  - `store caller boundary`
-  - `store dependency boundary`
-- related surfaces:
-  - [App.tsx](<parallel-code-root>/src/App.tsx)
-  - [ConfigScreen.tsx](<parallel-code-root>/src/arena/ConfigScreen.tsx)
-  - [ResultsScreen.tsx](<parallel-code-root>/src/arena/ResultsScreen.tsx)
-  - [store-boundary.architecture.test.ts](<parallel-code-root>/src/app/store-boundary.architecture.test.ts)
-  - [TaskPanel.architecture.test.ts](<parallel-code-root>/src/components/TaskPanel.architecture.test.ts)
+  - guarded boundary literals: store/core, store/store, store.taskCommandControllers, store.focusedPanel`src/App.tsx`
+  - `src/arena/ConfigScreen.tsx`
+  - `src/arena/ResultsScreen.tsx`
+  - `src/app/store-boundary.architecture.test.ts`
+  - `src/components/TaskPanel.architecture.test.ts`
 
-### [App.tsx](<parallel-code-root>/src/App.tsx)
+### `src/App.tsx`
 
 - `trusted`
 - class: `structural_debt`
@@ -97,12 +91,12 @@ Current scan:
   - `lib dependency boundary`
   - `app dependency boundary`
 - related surfaces:
-  - [app-action-keys.ts](<parallel-code-root>/src/app/app-action-keys.ts)
-  - [desktop-session.ts](<parallel-code-root>/src/app/desktop-session.ts)
-  - [task-command-lease.ts](<parallel-code-root>/src/app/task-command-lease.ts)
-  - [store-boundary.architecture.test.ts](<parallel-code-root>/src/app/store-boundary.architecture.test.ts)
+  - `src/app/app-action-keys.ts`
+  - `src/app/desktop-session.ts`
+  - `src/app/task-command-lease.ts`
+  - `src/app/store-boundary.architecture.test.ts`
 
-### [TaskPanel.tsx](<parallel-code-root>/src/components/TaskPanel.tsx)
+### `src/components/TaskPanel.tsx`
 
 - `trusted`
 - class: `structural_debt`
@@ -125,12 +119,12 @@ Current scan:
   - `lib dependency boundary`
   - `store dependency boundary`
 - related surfaces:
-  - [task-ports.ts](<parallel-code-root>/src/app/task-ports.ts)
-  - [CloseTaskDialog.tsx](<parallel-code-root>/src/components/CloseTaskDialog.tsx)
-  - [DiffViewerDialog.tsx](<parallel-code-root>/src/components/DiffViewerDialog.tsx)
-  - [TaskPanel.architecture.test.ts](<parallel-code-root>/src/components/TaskPanel.architecture.test.ts)
+  - `src/app/task-ports.ts`
+  - `src/components/CloseTaskDialog.tsx`
+  - `src/components/DiffViewerDialog.tsx`
+  - `src/components/TaskPanel.architecture.test.ts`
 
-### [ipc.ts](<parallel-code-root>/src/lib/ipc.ts)
+### `src/lib/ipc.ts`
 
 - `trusted`
 - class: `guarded_facade`
@@ -152,9 +146,9 @@ Current scan:
   - `components caller boundary`
   - `lib dependency boundary`
 - related surfaces:
-  - [App.tsx](<parallel-code-root>/src/App.tsx)
-  - [agent-catalog.ts](<parallel-code-root>/src/app/agent-catalog.ts)
-  - [desktop-notification-runtime.ts](<parallel-code-root>/src/app/desktop-notification-runtime.ts)
+  - `src/App.tsx`
+  - `src/app/agent-catalog.ts`
+  - `src/app/desktop-notification-runtime.ts`
 
 ## Secondary Hotspots
 
@@ -166,7 +160,7 @@ Current scan:
 
 ## Tooling Debt
 
-- [session-stress.mjs](<parallel-code-root>/scripts/session-stress.mjs) File 'scripts/session-stress.mjs' is 2048 lines, above the javascript threshold of 500
+- `scripts/session-stress.mjs` File 'scripts/session-stress.mjs' is 2048 lines, above the javascript threshold of 500
 
 ## Top Watchpoints
 
@@ -255,11 +249,11 @@ Current experimental counts:
 
 Representative examples:
 
-- [ScrollingDiffView.tsx](<parallel-code-root>/src/components/ScrollingDiffView.tsx)
-- [review.ts](<parallel-code-root>/src/store/review.ts)
-- [PreviewPanel.tsx](<parallel-code-root>/src/components/PreviewPanel.tsx)
-- [server.ts](<parallel-code-root>/electron/remote/server.ts)
-- [SidebarTaskRow.tsx](<parallel-code-root>/src/components/SidebarTaskRow.tsx)
+- `src/components/ScrollingDiffView.tsx`
+- `src/store/review.ts`
+- `src/components/PreviewPanel.tsx`
+- `electron/remote/server.ts`
+- `src/components/SidebarTaskRow.tsx`
 
 Current rule:
 

@@ -10,6 +10,7 @@ import {
   normalizeExpectedSignalKinds,
   nowIso,
   parseTagList,
+  resolveManifestPath,
   summarizeBundleOutcome,
   writeJson,
 } from '../lib/eval-batch.mjs';
@@ -211,11 +212,12 @@ export function summarizeTaskRuns(taskRuns, sourceRoot) {
 
 async function main() {
   const args = parseArgs(process.argv);
-  const manifest = await loadBatchManifest(args.manifestPath);
-  const manifestDir = path.dirname(path.resolve(args.manifestPath));
+  const manifestPath = path.resolve(args.manifestPath);
+  const manifest = await loadBatchManifest(manifestPath);
+  const manifestDir = path.dirname(manifestPath);
   const cohortManifest = await loadSignalCohortManifest(args.cohortManifestPath);
   const cohort = getSignalCohort(cohortManifest, args.cohortId ?? manifest.cohort_id ?? null);
-  const sourceRoot = path.resolve(manifest.repo_root);
+  const sourceRoot = resolveManifestPath(manifestPath, manifest.repo_root);
   const outputDir = path.resolve(
     args.outputDir ?? defaultBatchOutputDir(sourceRoot, 'codex-batch', manifest.batch_id ?? cohort.cohort_id),
   );

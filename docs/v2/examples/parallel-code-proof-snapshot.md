@@ -1,7 +1,7 @@
 # Parallel-Code Proof Snapshot
 
-Generated from: `<sentrux-root>/docs/v2/examples/parallel-code-golden`
-Benchmark: `<sentrux-root>/docs/v2/examples/parallel-code-benchmark.json`
+Generated from: `./parallel-code-golden`
+Benchmark: `./parallel-code-benchmark.json`
 
 ## Freshness
 

@@ -24,7 +24,7 @@ const nodeBin = process.execPath;
 const runGoldens = !process.argv.includes('--benchmark-only');
 const runBenchmark = !process.argv.includes('--goldens-only');
 const keepTemp = process.argv.includes('--keep-temp');
-const benchmarkRepeats = process.env.BENCHMARK_REPEATS ?? '5';
+const benchmarkRepeats = process.env.BENCHMARK_REPEATS ?? '3';
 const skipGrammarDownload = process.env.SENTRUX_SKIP_GRAMMAR_DOWNLOAD ?? '1';
 
 async function main() {

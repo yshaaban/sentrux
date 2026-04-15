@@ -2,7 +2,7 @@
   "schema_version": 1,
   "repo_id": "sentrux",
   "repo_label": "sentrux",
-  "repo_root": "<sentrux-root>",
+  "repo_root": "../../../..",
   "cohort_manifest": "../signal-cohorts.json",
   "cohort_id": "agent-loop-core",
   "live_batch_manifest": "../batches/sentrux-codex-session-batch.json",

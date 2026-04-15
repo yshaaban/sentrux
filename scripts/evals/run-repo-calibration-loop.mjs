@@ -8,6 +8,7 @@ import { promisify } from 'node:util';
 import {
   defaultBatchOutputDir,
   readJson,
+  resolveManifestPath,
   writeJson,
   writeText,
 } from '../lib/eval-batch.mjs';
@@ -109,14 +110,6 @@ async function loadRepoCalibrationManifest(manifestPath) {
 
 function normalizeExpectedSignalKinds(expectedSignalKinds) {
   return [...new Set((expectedSignalKinds ?? []).filter(Boolean))].sort();
-}
-
-function resolveManifestPath(manifestDir, relativePath) {
-  if (!relativePath) {
-    return null;
-  }
-
-  return path.resolve(manifestDir, relativePath);
 }
 
 function resolveRepoArtifactPath(repoRootPath, relativePath) {
@@ -602,9 +595,8 @@ function buildWarnings(
 async function main() {
   const args = parseArgs(process.argv);
   const manifestPath = path.resolve(args.manifestPath);
-  const manifestDir = path.dirname(manifestPath);
   const manifest = await loadRepoCalibrationManifest(manifestPath);
-  const repoRootPath = path.resolve(manifest.repo_root);
+  const repoRootPath = resolveManifestPath(manifestPath, manifest.repo_root);
   const outputDir = path.resolve(
     args.outputDir ??
       defaultBatchOutputDir(
@@ -628,16 +620,16 @@ async function main() {
     manifest_path: manifestPath,
   });
 
+  function resolveFromManifest(relativePath) {
+    return resolveManifestPath(manifestPath, relativePath);
+  }
+
   try {
-    const cohortManifestPath = resolveManifestPath(manifestDir, manifest.cohort_manifest);
-    const codexBatchManifestPath = resolveManifestPath(
-      manifestDir,
+    const cohortManifestPath = resolveFromManifest(manifest.cohort_manifest);
+    const codexBatchManifestPath = resolveFromManifest(
       manifest.live_batch_manifest ?? manifest.codex_batch_manifest,
     );
-    const replayBatchManifestPath = resolveManifestPath(
-      manifestDir,
-      manifest.replay_batch_manifest,
-    );
+    const replayBatchManifestPath = resolveFromManifest(manifest.replay_batch_manifest);
     const codexBatchManifest =
       codexBatchManifestPath && (await pathExists(codexBatchManifestPath))
         ? await readJson(codexBatchManifestPath)
@@ -652,20 +644,16 @@ async function main() {
       repoRootPath,
       artifactConfig.review_verdicts_output,
     );
-    const reviewVerdictsPath = resolveManifestPath(
-      manifestDir,
+    const reviewVerdictsPath = resolveFromManifest(
       artifactConfig.review_verdicts_input ?? manifest.review_verdicts,
     );
-    const defectReportPath = resolveManifestPath(
-      manifestDir,
+    const defectReportPath = resolveFromManifest(
       artifactConfig.seeded_defect_report ?? manifest.defect_report,
     );
-    const remediationReportPath = resolveManifestPath(
-      manifestDir,
+    const remediationReportPath = resolveFromManifest(
       artifactConfig.remediation_report ?? manifest.remediation_report,
     );
-    const benchmarkPath = resolveManifestPath(
-      manifestDir,
+    const benchmarkPath = resolveFromManifest(
       artifactConfig.benchmark_artifact ?? manifest.benchmark_artifact,
     );
 

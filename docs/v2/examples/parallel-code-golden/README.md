@@ -1,8 +1,6 @@
 # Parallel-Code Scoped Golden Outputs
 
-These files are the first real-repo v2 golden outputs captured against:
-
-- `<parallel-code-root>`
+These files are the first real-repo v2 golden outputs captured against the repo configured by `PARALLEL_CODE_ROOT` (the maintainer default is the sibling checkout `../parallel-code`).
 
 They are intentionally **scoped** goldens, not the final full regression suite.
 

@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { resolveManifestPath } from '../lib/eval-batch.mjs';
 import { runClaudeCode } from './providers/claude-code.mjs';
 import { runCodexExec } from './providers/codex-cli.mjs';
 
@@ -330,9 +331,13 @@ function loadScenarioPathsFromManifest(manifestPath) {
   });
 }
 
-function resolveRepoRoot(scenario) {
+function resolveRepoRoot(scenario, scenarioPath) {
   const override = process.env[scenario.repo.root_env];
-  return override ? path.resolve(override) : path.resolve(scenario.repo.default_root);
+  if (override) {
+    return path.resolve(override);
+  }
+
+  return resolveManifestPath(scenarioPath, scenario.repo.default_root);
 }
 
 function getValueAtPath(value, pathExpression) {
@@ -388,10 +393,11 @@ function buildOutputSchema(task) {
   return DEAD_PRIVATE_OUTPUT_SCHEMA;
 }
 
-function buildTaskPrompt(scenario, task) {
+function buildTaskPrompt(scenario, scenarioPath, task) {
+  const repoRoot = resolveRepoRoot(scenario, scenarioPath);
   const lines = [
     `Repository: ${scenario.repo.name}`,
-    `Repository root: ${resolveRepoRoot(scenario)}`,
+    `Repository root: ${repoRoot}`,
     `Task kind: ${task.kind}`,
   ];
 
@@ -702,7 +708,7 @@ function buildDryRunProviderOutput(options, repoRoot) {
 }
 
 async function runTask({ scenario, scenarioPath, task, outputDir, options }) {
-  const repoRoot = resolveRepoRoot(scenario);
+  const repoRoot = resolveRepoRoot(scenario, scenarioPath);
   if (!existsSync(repoRoot)) {
     fail(`Scenario repo root does not exist: ${repoRoot}`);
   }
@@ -712,7 +718,7 @@ async function runTask({ scenario, scenarioPath, task, outputDir, options }) {
     : await runProvider({
         provider: options.provider,
         cwd: repoRoot,
-        prompt: buildTaskPrompt(scenario, task),
+        prompt: buildTaskPrompt(scenario, scenarioPath, task),
         model: options.model,
         jsonSchema: buildOutputSchema(task),
         appendSystemPrompt: BASE_APPEND_SYSTEM_PROMPT,

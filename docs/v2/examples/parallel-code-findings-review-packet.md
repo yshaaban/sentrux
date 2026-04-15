@@ -19,4 +19,3 @@
 | `findings-10` | `dependency_sprawl` | `src/components/TaskPanel.tsx` | `high` | File 'src/components/TaskPanel.tsx' depends on 35 real surfaces, above the typescript threshold of 15 |  |  |
 | `findings-11` | `large_file` | `scripts/profile-terminal-ui-fluidity.mjs` | `high` | File 'scripts/profile-terminal-ui-fluidity.mjs' is 2758 lines, above the javascript threshold of 500 |  |  |
 | `findings-12` | `dependency_sprawl` | `src/components/terminal-view/terminal-session.ts` | `high` | File 'src/components/terminal-view/terminal-session.ts' depends on 28 real surfaces, above the typescript threshold of 15 |  |  |
-
