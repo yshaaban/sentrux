@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { buildSignalBacklog, formatSignalBacklogMarkdown } from '../lib/signal-backlog.mjs';
 import { getSignalCohort, loadSignalCohortManifest } from '../lib/signal-cohorts.mjs';
 import { readJson, writeJson, writeText } from '../lib/eval-batch.mjs';
+import { resolveLatestRepoCalibrationArtifacts } from '../lib/repo-calibration-artifacts.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,6 +15,9 @@ function parseArgs(argv) {
   const result = {
     cohortManifestPath: path.join(repoRoot, 'docs/v2/evals', 'signal-cohorts.json'),
     cohortId: null,
+    repoRootPath: null,
+    repoLabel: null,
+    latestCalibrationPath: null,
     scorecardPath: null,
     codexBatchPath: null,
     replayBatchPath: null,
@@ -31,6 +35,21 @@ function parseArgs(argv) {
     if (value === '--cohort-id') {
       index += 1;
       result.cohortId = argv[index];
+      continue;
+    }
+    if (value === '--repo-root') {
+      index += 1;
+      result.repoRootPath = argv[index];
+      continue;
+    }
+    if (value === '--repo-label') {
+      index += 1;
+      result.repoLabel = argv[index];
+      continue;
+    }
+    if (value === '--latest-calibration') {
+      index += 1;
+      result.latestCalibrationPath = argv[index];
       continue;
     }
     if (value === '--scorecard') {
@@ -73,8 +92,19 @@ async function main() {
   const cohortManifest = await loadSignalCohortManifest(args.cohortManifestPath);
   const cohort = getSignalCohort(cohortManifest, args.cohortId ?? null);
   const scorecard = await readJson(args.scorecardPath);
-  const codexBatch = args.codexBatchPath ? await readJson(args.codexBatchPath) : null;
-  const replayBatch = args.replayBatchPath ? await readJson(args.replayBatchPath) : null;
+  const latestCalibration =
+    !args.codexBatchPath || !args.replayBatchPath
+      ? await resolveLatestRepoCalibrationArtifacts({
+          repoRootPath: args.repoRootPath,
+          repoLabel: args.repoLabel ?? scorecard.repo_label ?? null,
+          latestCalibrationPath: args.latestCalibrationPath,
+        })
+      : null;
+  const codexBatchPath = args.codexBatchPath ?? latestCalibration?.artifacts?.codex_batch_json ?? null;
+  const replayBatchPath =
+    args.replayBatchPath ?? latestCalibration?.artifacts?.replay_batch_json ?? null;
+  const codexBatch = codexBatchPath ? await readJson(codexBatchPath) : null;
+  const replayBatch = replayBatchPath ? await readJson(replayBatchPath) : null;
   const backlog = buildSignalBacklog({
     cohort,
     scorecard,

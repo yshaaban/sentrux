@@ -89,6 +89,10 @@ function sourceLabelFromPath(targetPath) {
   return baseName.endsWith('.json') ? baseName.slice(0, -5) : baseName;
 }
 
+function isPlainObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
 function selectRawSamples(tool, payload) {
   if (tool === 'findings') {
     return payload.findings ?? [];
@@ -97,6 +101,138 @@ function selectRawSamples(tool, payload) {
     return payload.introduced_findings ?? [];
   }
   return payload.actions ?? payload.issues ?? [];
+}
+
+function normalizeCloneInstance(instance) {
+  if (!isPlainObject(instance)) {
+    return null;
+  }
+
+  return {
+    file: instance.file ?? null,
+    func: instance.func ?? null,
+    lines: instance.lines ?? null,
+    commit_count: instance.commit_count ?? null,
+  };
+}
+
+function buildCloneEvidence(sample) {
+  if (!sample || typeof sample !== 'object') {
+    return null;
+  }
+  if (typeof sample.kind !== 'string' || !sample.kind.includes('clone')) {
+    return null;
+  }
+
+  const cloneFiles = Array.isArray(sample.files) ? sample.files.filter((file) => typeof file === 'string') : [];
+  const cloneInstances = Array.isArray(sample.instances)
+    ? sample.instances.map(normalizeCloneInstance).filter(Boolean)
+    : [];
+  const cloneReasons = Array.isArray(sample.reasons)
+    ? sample.reasons.filter((reason) => typeof reason === 'string' && reason.length > 0)
+    : [];
+  const cloneEvidence = {};
+
+  if (cloneFiles.length > 0) {
+    cloneEvidence.files = cloneFiles;
+  }
+  if (cloneInstances.length > 0) {
+    cloneEvidence.instances = cloneInstances;
+  }
+  if (sample.total_lines !== undefined) {
+    cloneEvidence.total_lines = sample.total_lines;
+  }
+  if (sample.max_lines !== undefined) {
+    cloneEvidence.max_lines = sample.max_lines;
+  }
+  if (sample.recently_touched_file_count !== undefined) {
+    cloneEvidence.recently_touched_file_count = sample.recently_touched_file_count;
+  }
+  if (sample.production_instance_count !== undefined) {
+    cloneEvidence.production_instance_count = sample.production_instance_count;
+  }
+  if (sample.asymmetric_recent_change !== undefined) {
+    cloneEvidence.asymmetric_recent_change = sample.asymmetric_recent_change;
+  }
+  if (cloneReasons.length > 0) {
+    cloneEvidence.recent_edit_reasons = cloneReasons;
+  }
+
+  return Object.keys(cloneEvidence).length > 0 ? cloneEvidence : null;
+}
+
+function buildScanMetadata(payload, sourceKind, sourceLabel, snapshotLabel, scanPayload = null) {
+  const confidence = isPlainObject(payload?.confidence)
+    ? payload.confidence
+    : isPlainObject(scanPayload?.confidence)
+      ? scanPayload.confidence
+      : null;
+  const scanTrust = isPlainObject(payload?.scan_trust)
+    ? payload.scan_trust
+    : isPlainObject(scanPayload?.scan_trust)
+      ? scanPayload.scan_trust
+      : null;
+
+  if (!confidence && !scanTrust) {
+    return null;
+  }
+
+  return {
+    source_kind: sourceKind,
+    source_label: sourceLabel,
+    snapshot_label: snapshotLabel ?? null,
+    confidence: confidence ?? null,
+    scan_trust: scanTrust ?? null,
+  };
+}
+
+function collectArtifactMetadata(tool, entries) {
+  for (const entry of entries) {
+    const bundleMetadata = buildScanMetadata(entry.bundle, entry.source_kind, entry.source_label, 'bundle');
+    if (bundleMetadata) {
+      return bundleMetadata;
+    }
+
+    const payloadEntry = selectArtifactPayload(tool, entry.bundle);
+    if (!payloadEntry) {
+      continue;
+    }
+
+    const metadata = buildScanMetadata(
+      payloadEntry.payload,
+      entry.source_kind,
+      entry.source_label,
+      payloadEntry.snapshot_label,
+    );
+    if (metadata) {
+      return metadata;
+    }
+  }
+
+  return null;
+}
+
+function collectSelectedArtifactMetadata(selection) {
+  if (!selection) {
+    return null;
+  }
+
+  const payloadMetadata = buildScanMetadata(
+    selection.payloadEntry.payload,
+    selection.entry.source_kind,
+    selection.entry.source_label,
+    selection.payloadEntry.snapshot_label,
+  );
+  if (payloadMetadata) {
+    return payloadMetadata;
+  }
+
+  return buildScanMetadata(
+    selection.entry.bundle,
+    selection.entry.source_kind,
+    selection.entry.source_label,
+    'bundle',
+  );
 }
 
 function buildToolArgs(tool, limit) {
@@ -263,29 +399,40 @@ export async function loadArtifactInput(args) {
 function extractSamples(tool, payloadEntry, sourceEntry) {
   const rawSamples = selectRawSamples(tool, payloadEntry.payload);
 
-  return rawSamples.map((sample, index) => ({
-    review_id: `${tool}-${index + 1}`,
-    rank: index + 1,
-    kind: sample.kind ?? null,
-    report_bucket: tool === 'check' ? 'actions' : tool,
-    scope: sample.scope ?? sample.file ?? null,
-    severity: sample.severity ?? null,
-    summary: sample.summary ?? sample.message ?? null,
-    evidence: sample.evidence ?? [],
-    source_kind: sourceEntry.source_kind,
-    source_label: sourceEntry.source_label,
-    snapshot_label: payloadEntry.snapshot_label,
-    task_id: sourceEntry.task_id,
-    task_label: sourceEntry.task_label,
-    replay_id: sourceEntry.replay_id,
-    commit: sourceEntry.commit,
-    output_dir: sourceEntry.output_dir,
-    expected_signal_kinds: sourceEntry.expected_signal_kinds,
-    expected_fix_surface: sourceEntry.expected_fix_surface,
-    classification: null,
-    notes: '',
-    action: '',
-  }));
+  return rawSamples.map(function toSample(sample, index) {
+    const cloneEvidence = buildCloneEvidence(sample);
+    const scope =
+      sample.scope ??
+      sample.file ??
+      cloneEvidence?.files?.slice(0, 2).join(' | ') ??
+      cloneEvidence?.instances?.[0]?.file ??
+      null;
+
+    return {
+      review_id: `${tool}-${index + 1}`,
+      rank: index + 1,
+      kind: sample.kind ?? null,
+      report_bucket: tool === 'check' ? 'actions' : tool,
+      scope,
+      severity: sample.severity ?? null,
+      summary: sample.summary ?? sample.message ?? null,
+      evidence: sample.evidence ?? [],
+      source_kind: sourceEntry.source_kind,
+      source_label: sourceEntry.source_label,
+      snapshot_label: payloadEntry.snapshot_label,
+      task_id: sourceEntry.task_id,
+      task_label: sourceEntry.task_label,
+      replay_id: sourceEntry.replay_id,
+      commit: sourceEntry.commit,
+      output_dir: sourceEntry.output_dir,
+      expected_signal_kinds: sourceEntry.expected_signal_kinds,
+      expected_fix_surface: sourceEntry.expected_fix_surface,
+      clone_evidence: cloneEvidence,
+      classification: null,
+      notes: '',
+      action: '',
+    };
+  });
 }
 
 function filterSamplesByKinds(samples, kinds) {
@@ -303,6 +450,7 @@ function limitSamples(samples, limit) {
 
 function buildPacketSamplesFromEntries(tool, entries, limit, kinds) {
   const samples = [];
+  let metadataSelection = null;
 
   for (const entry of entries) {
     const payloadEntry = selectArtifactPayload(tool, entry.bundle);
@@ -311,15 +459,27 @@ function buildPacketSamplesFromEntries(tool, entries, limit, kinds) {
     }
 
     const entrySamples = filterSamplesByKinds(extractSamples(tool, payloadEntry, entry), kinds);
+    if (entrySamples.length > 0 && !metadataSelection) {
+      metadataSelection = {
+        entry,
+        payloadEntry,
+      };
+    }
     for (const sample of entrySamples) {
       samples.push(sample);
       if (samples.length >= Math.max(limit, 1)) {
-        return samples;
+        return {
+          samples,
+          metadataSelection,
+        };
       }
     }
   }
 
-  return samples;
+  return {
+    samples,
+    metadataSelection,
+  };
 }
 
 function renumberSamples(tool, samples) {
@@ -346,8 +506,8 @@ function buildPacketSummary(samples) {
   };
 }
 
-function buildPacket(args, repoRootValue, sourceMode, sourcePaths, samples) {
-  return {
+function buildPacket(args, repoRootValue, sourceMode, sourcePaths, samples, scanMetadata = null) {
+  const packet = {
     schema_version: 1,
     generated_at: new Date().toISOString(),
     repo_root: repoRootValue,
@@ -360,6 +520,12 @@ function buildPacket(args, repoRootValue, sourceMode, sourcePaths, samples) {
     summary: buildPacketSummary(samples),
     samples,
   };
+
+  if (scanMetadata) {
+    packet.scan_metadata = scanMetadata;
+  }
+
+  return packet;
 }
 
 function createRepoHeadEntry() {
@@ -378,10 +544,16 @@ function createRepoHeadEntry() {
 
 export function buildPacketFromArtifactInput(args, source) {
   const repoRootValue = source.repo_root ?? args.repoRoot;
-  const samples = renumberSamples(
+  const sampleSelection = buildPacketSamplesFromEntries(
     args.tool,
-    buildPacketSamplesFromEntries(args.tool, source.entries, args.limit, args.kinds),
+    source.entries,
+    args.limit,
+    args.kinds,
   );
+  const scanMetadata =
+    collectSelectedArtifactMetadata(sampleSelection.metadataSelection) ??
+    collectArtifactMetadata(args.tool, source.entries);
+  const samples = renumberSamples(args.tool, sampleSelection.samples);
 
   return buildPacket(
     args,
@@ -389,11 +561,19 @@ export function buildPacketFromArtifactInput(args, source) {
     source.source_mode,
     source.source_paths,
     samples,
+    scanMetadata,
   );
 }
 
-export function buildPacketFromRepoHeadPayload(args, payload) {
+export function buildPacketFromRepoHeadPayload(args, payload, scanPayload = null) {
   const repoHeadEntry = createRepoHeadEntry();
+  const scanMetadata = buildScanMetadata(
+    payload,
+    'repo-head',
+    'repo-head',
+    'repo_head',
+    scanPayload,
+  );
   const samples = renumberSamples(
     args.tool,
     limitSamples(
@@ -409,7 +589,7 @@ export function buildPacketFromRepoHeadPayload(args, payload) {
     ),
   );
 
-  return buildPacket(args, args.repoRoot, 'repo-head', [], samples);
+  return buildPacket(args, args.repoRoot, 'repo-head', [], samples, scanMetadata);
 }
 
 function buildVerdictTemplate(packet, sourceReport) {
@@ -445,9 +625,151 @@ function escapeMarkdownCell(value) {
     .replace(/\r?\n/g, '<br>');
 }
 
+function formatScanMetadataLines(packet) {
+  const scanMetadata = packet.scan_metadata ?? null;
+  const confidence = scanMetadata?.confidence ?? packet.confidence ?? null;
+  const scanTrust = scanMetadata?.scan_trust ?? packet.scan_trust ?? null;
+
+  if (!confidence && !scanTrust) {
+    return [];
+  }
+
+  const lines = ['- scan trust / coverage:'];
+  if (scanMetadata?.source_label || scanMetadata?.snapshot_label) {
+    const sourceParts = [];
+    if (scanMetadata.source_label) {
+      sourceParts.push(scanMetadata.source_label);
+    }
+    if (scanMetadata.snapshot_label) {
+      sourceParts.push(scanMetadata.snapshot_label);
+    }
+    lines.push(`  - source: \`${sourceParts.join(' / ')}\``);
+  }
+  if (scanTrust) {
+    const keptFiles = scanTrust.kept_files ?? 'n/a';
+    const candidateFiles = scanTrust.candidate_files ?? 'n/a';
+    const trackedCandidates = scanTrust.tracked_candidates ?? 'n/a';
+    const untrackedCandidates = scanTrust.untracked_candidates ?? 'n/a';
+    lines.push(`  - kept files: \`${keptFiles} / ${candidateFiles}\``);
+    lines.push(`  - tracked candidates: \`${trackedCandidates}\``);
+    lines.push(`  - untracked candidates: \`${untrackedCandidates}\``);
+    lines.push(`  - scan mode: \`${scanTrust.mode ?? 'n/a'}\``);
+    lines.push(`  - scope coverage: \`${scanTrust.scope_coverage_0_10000 ?? 'n/a'} / 10000\``);
+    lines.push(`  - overall confidence: \`${scanTrust.overall_confidence_0_10000 ?? 'n/a'} / 10000\``);
+    lines.push(`  - partial: \`${scanTrust.partial ?? 'n/a'}\``);
+    lines.push(`  - truncated: \`${scanTrust.truncated ?? 'n/a'}\``);
+    lines.push(`  - fallback reason: \`${scanTrust.fallback_reason ?? 'n/a'}\``);
+    if (scanTrust.exclusions) {
+      const exclusions = scanTrust.exclusions;
+      const exclusionParts = [];
+      if (exclusions.total !== undefined) {
+        exclusionParts.push(`${exclusions.total} total`);
+      }
+      if (exclusions.bucketed?.vendor !== undefined) {
+        exclusionParts.push(`${exclusions.bucketed.vendor} vendor`);
+      }
+      if (exclusions.bucketed?.generated !== undefined) {
+        exclusionParts.push(`${exclusions.bucketed.generated} generated`);
+      }
+      if (exclusions.bucketed?.build !== undefined) {
+        exclusionParts.push(`${exclusions.bucketed.build} build`);
+      }
+      if (exclusions.bucketed?.fixture !== undefined) {
+        exclusionParts.push(`${exclusions.bucketed.fixture} fixture`);
+      }
+      if (exclusions.bucketed?.cache !== undefined) {
+        exclusionParts.push(`${exclusions.bucketed.cache} cache`);
+      }
+      if (exclusions.ignored_extension !== undefined) {
+        exclusionParts.push(`${exclusions.ignored_extension} ignored_extension`);
+      }
+      if (exclusions.too_large !== undefined) {
+        exclusionParts.push(`${exclusions.too_large} too_large`);
+      }
+      if (exclusions.metadata_error !== undefined) {
+        exclusionParts.push(`${exclusions.metadata_error} metadata_error`);
+      }
+      if (exclusionParts.length > 0) {
+        lines.push(`  - exclusions: \`${exclusionParts.join(', ')}\``);
+      }
+    }
+    if (scanTrust.resolution) {
+      lines.push(
+        `  - resolution: \`${scanTrust.resolution.resolved ?? 'n/a'} resolved, ${scanTrust.resolution.unresolved_internal ?? 'n/a'} internal unresolved, ${scanTrust.resolution.unresolved_external ?? 'n/a'} external unresolved, ${scanTrust.resolution.unresolved_unknown ?? 'n/a'} unknown unresolved\``,
+      );
+      lines.push(
+        `  - internal resolution confidence: \`${scanTrust.resolution.internal_confidence_0_10000 ?? 'n/a'} / 10000\``,
+      );
+    }
+  }
+  if (confidence) {
+    lines.push(`  - scan confidence: \`${confidence.scan_confidence_0_10000 ?? 'n/a'} / 10000\``);
+    lines.push(`  - rule coverage: \`${confidence.rule_coverage_0_10000 ?? 'n/a'} / 10000\``);
+    lines.push(`  - semantic rules loaded: \`${confidence.semantic_rules_loaded ?? 'n/a'}\``);
+  }
+
+  return lines;
+}
+
+function formatCloneEvidenceSummary(sample) {
+  const cloneEvidence = sample.clone_evidence;
+  if (!cloneEvidence) {
+    return '';
+  }
+
+  const parts = [];
+  if (Array.isArray(cloneEvidence.files) && cloneEvidence.files.length > 0) {
+    parts.push(`files=${cloneEvidence.files.join(', ')}`);
+  }
+  if (Array.isArray(cloneEvidence.instances) && cloneEvidence.instances.length > 0) {
+    parts.push(
+      `instance lines=${cloneEvidence.instances
+        .map((instance) => `${instance.file ?? 'unknown'}:${instance.lines ?? 'n/a'}`)
+        .join(', ')}`,
+    );
+  }
+  if (cloneEvidence.total_lines !== undefined) {
+    parts.push(`total lines=${cloneEvidence.total_lines}`);
+  }
+  if (cloneEvidence.max_lines !== undefined) {
+    parts.push(`max lines=${cloneEvidence.max_lines}`);
+  }
+  if (Array.isArray(cloneEvidence.recent_edit_reasons) && cloneEvidence.recent_edit_reasons.length > 0) {
+    parts.push(`recent-edit reasons=${cloneEvidence.recent_edit_reasons.join(' | ')}`);
+  }
+  if (cloneEvidence.asymmetric_recent_change !== undefined) {
+    parts.push(`asymmetric_recent_change=${cloneEvidence.asymmetric_recent_change}`);
+  }
+
+  return parts.join('; ');
+}
+
+function formatSampleEvidence(sample) {
+  if (sample.clone_evidence) {
+    return formatCloneEvidenceSummary(sample);
+  }
+
+  if (Array.isArray(sample.evidence) && sample.evidence.length > 0) {
+    return sample.evidence.join(' · ');
+  }
+
+  return '';
+}
+
+function packetTitle(tool) {
+  switch (tool) {
+    case 'findings':
+      return '# Findings Review Packet';
+    case 'session_end':
+      return '# Session End Review Packet';
+    default:
+      return '# Check Review Packet';
+  }
+}
+
 export function formatPacketMarkdown(packet) {
   const lines = [];
-  lines.push('# Check Review Packet');
+  lines.push(packetTitle(packet.tool));
   lines.push('');
   lines.push(`- repo root: \`${packet.repo_root}\``);
   lines.push(`- tool: \`${packet.tool}\``);
@@ -461,17 +783,18 @@ export function formatPacketMarkdown(packet) {
       lines.push(`  - \`${sourcePath}\``);
     }
   }
+  lines.push(...formatScanMetadataLines(packet));
   lines.push(`- generated at: \`${packet.generated_at}\``);
   lines.push(`- sample count: ${packet.samples.length}`);
   if (Array.isArray(packet.summary?.kind_counts) && packet.summary.kind_counts.length > 0) {
     lines.push(`- kind counts: ${packet.summary.kind_counts.map((entry) => `${entry.kind}=${entry.count}`).join(', ')}`);
   }
   lines.push('');
-  lines.push('| Review ID | Kind | Source | Snapshot | Rank | Scope | Severity | Summary | Classification | Action |');
-  lines.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
+  lines.push('| Review ID | Kind | Source | Snapshot | Rank | Scope | Severity | Summary | Evidence | Classification | Action |');
+  lines.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
   for (const sample of packet.samples) {
     lines.push(
-      `| \`${escapeMarkdownCell(sample.review_id)}\` | \`${escapeMarkdownCell(sample.kind ?? 'unknown')}\` | \`${escapeMarkdownCell(sample.source_label ?? sample.source_kind ?? 'unknown')}\` | \`${escapeMarkdownCell(sample.snapshot_label ?? 'n/a')}\` | ${escapeMarkdownCell(sample.rank ?? 'n/a')} | \`${escapeMarkdownCell(sample.scope ?? 'unknown')}\` | \`${escapeMarkdownCell(sample.severity ?? 'unknown')}\` | ${escapeMarkdownCell(sample.summary ?? '')} |  |  |`,
+      `| \`${escapeMarkdownCell(sample.review_id)}\` | \`${escapeMarkdownCell(sample.kind ?? 'unknown')}\` | \`${escapeMarkdownCell(sample.source_label ?? sample.source_kind ?? 'unknown')}\` | \`${escapeMarkdownCell(sample.snapshot_label ?? 'n/a')}\` | ${escapeMarkdownCell(sample.rank ?? 'n/a')} | \`${escapeMarkdownCell(sample.scope ?? 'unknown')}\` | \`${escapeMarkdownCell(sample.severity ?? 'unknown')}\` | ${escapeMarkdownCell(sample.summary ?? '')} | ${escapeMarkdownCell(formatSampleEvidence(sample))} |  |  |`,
     );
   }
   lines.push('');
@@ -490,14 +813,14 @@ async function buildRepoHeadPacket(args) {
   });
 
   try {
-    await runTool(session, 'scan', { path: args.repoRoot });
+    const scanPayload = (await runTool(session, 'scan', { path: args.repoRoot })).payload;
     if (args.tool === 'session_end') {
       await runTool(session, 'session_start', {});
     }
     const payload = (
       await runTool(session, args.tool, buildToolArgs(args.tool, args.limit))
     ).payload;
-    return buildPacketFromRepoHeadPayload(args, payload);
+    return buildPacketFromRepoHeadPayload(args, payload, scanPayload);
   } finally {
     await session.close();
     await rm(tempRoot, { recursive: true, force: true });

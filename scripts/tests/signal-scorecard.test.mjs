@@ -340,6 +340,33 @@ test('buildSignalScorecard builds a review-and-session-only scorecard without se
   assert.equal(scorecard.signals[0].session_clean_rate, 1);
 });
 
+test('buildSignalScorecard keeps provisional review verdicts out of curated coverage', function () {
+  const scorecard = buildSignalScorecard({
+    repoLabel: 'public-repo',
+    reviewVerdicts: {
+      provisional: true,
+      verdicts: [
+        {
+          kind: 'large_file',
+          category: 'useful_watchpoint',
+        },
+      ],
+    },
+  });
+
+  assert.equal(scorecard.signals.length, 1);
+  assert.equal(scorecard.signals[0].reviewed_total, 0);
+  assert.equal(scorecard.signals[0].reviewed_precision, null);
+  assert.equal(scorecard.signals[0].provisional_reviewed_total, 1);
+  assert.equal(scorecard.signals[0].provisional_reviewed_precision, 1);
+  assert.equal(scorecard.signals[0].has_review_evidence, false);
+  assert.equal(scorecard.signals[0].has_provisional_review_evidence, true);
+  assert.equal(scorecard.summary.kpis.review_sample_count, 0);
+  assert.equal(scorecard.summary.kpis.provisional_review_sample_count, 1);
+  assert.equal(scorecard.summary.coverage.has_review_verdicts, false);
+  assert.equal(scorecard.summary.coverage.has_provisional_review_verdicts, true);
+});
+
 test('formatSignalScorecardMarkdown renders the score table', function () {
   const markdown = formatSignalScorecardMarkdown({
     repo_label: 'parallel-code',

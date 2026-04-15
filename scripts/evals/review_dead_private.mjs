@@ -6,7 +6,8 @@ import os from 'node:os';
 import path from 'node:path';
 import readline from 'node:readline';
 import { spawn } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { closeChildProcess } from '../lib/child-process.mjs';
 import { prepareTypeScriptBenchmarkHome } from '../lib/benchmark-plugin-home.mjs';
 import { runClaudeCode } from './providers/claude-code.mjs';
 
@@ -195,6 +196,50 @@ function parseToolPayload(response) {
   return JSON.parse(text);
 }
 
+export function selectDeadPrivateCandidatesFromPayload(payload) {
+  const canonicalLane = Array.isArray(payload?.experimental_debt_signals)
+    ? payload.experimental_debt_signals
+    : [];
+  const legacyLane = Array.isArray(payload?.experimental_findings)
+    ? payload.experimental_findings
+    : [];
+
+  const selectedLane = canonicalLane.length > 0 ? canonicalLane : legacyLane;
+  const selectedLaneName = canonicalLane.length > 0 ? 'experimental_debt_signals' : 'experimental_findings';
+
+  const candidates = [];
+  for (const value of selectedLane) {
+    if (value?.kind !== 'dead_private_code_cluster') {
+      continue;
+    }
+    candidates.push(value);
+  }
+
+  const deduped = new Map();
+  for (const candidate of candidates) {
+    const key = `${candidate.scope ?? candidate.files?.[0] ?? 'unknown'}:${candidate.kind}`;
+    if (!deduped.has(key)) {
+      deduped.set(key, candidate);
+    }
+  }
+
+  return {
+    candidates: [...deduped.values()],
+    source_lane: selectedLaneName,
+    source_lane_count: selectedLane.length,
+    considered_lanes: [
+      {
+        lane: 'experimental_debt_signals',
+        candidate_count: canonicalLane.length,
+      },
+      {
+        lane: 'experimental_findings',
+        candidate_count: legacyLane.length,
+      },
+    ],
+  };
+}
+
 function createSession(binPath, homeOverride) {
   const child = spawn(binPath, ['--mcp'], {
     cwd: repoRoot,
@@ -288,10 +333,8 @@ function createSession(binPath, homeOverride) {
     if (closed) {
       return;
     }
-    child.stdin.end();
-    await new Promise((resolve) => {
-      child.once('exit', resolve);
-    });
+
+    await closeChildProcess(child);
   }
 
   return {
@@ -394,29 +437,14 @@ async function collectDeadPrivateCandidates(repoPath, findingsLimit) {
     await runTool(session, 'scan', { path: repoPath });
     const findings = await runTool(session, 'findings', { limit: findingsLimit });
     const payload = findings.payload;
-    const candidates = [];
-
-    for (const fieldName of ['experimental_debt_signals', 'experimental_findings']) {
-      const values = Array.isArray(payload[fieldName]) ? payload[fieldName] : [];
-      for (const value of values) {
-        if (value?.kind !== 'dead_private_code_cluster') {
-          continue;
-        }
-        candidates.push(value);
-      }
-    }
-
-    const deduped = new Map();
-    for (const candidate of candidates) {
-      const key = `${candidate.scope ?? candidate.files?.[0] ?? 'unknown'}:${candidate.kind}`;
-      if (!deduped.has(key)) {
-        deduped.set(key, candidate);
-      }
-    }
+    const selectedCandidates = selectDeadPrivateCandidatesFromPayload(payload);
 
     return {
       findings,
-      candidates: [...deduped.values()],
+      candidates: selectedCandidates.candidates,
+      candidate_source_lane: selectedCandidates.source_lane,
+      candidate_source_lane_count: selectedCandidates.source_lane_count,
+      candidate_source_lanes_considered: selectedCandidates.considered_lanes,
       temp_root: tempRoot,
     };
   } finally {
@@ -465,6 +493,8 @@ function buildReviewPrompt(options, reviewedCandidates) {
     '- reject_false_positive',
     '- reject_too_ambiguous',
     '',
+    'Canonical source lane: experimental_debt_signals (legacy fallback: experimental_findings only when the canonical lane is empty).',
+    '',
     'Candidates:',
     JSON.stringify(reviewedCandidates, null, 2),
   ];
@@ -501,6 +531,9 @@ async function main() {
         repo_root: options.repoRoot,
         task_kind: 'dead_private_review',
         summary: 'No dead_private_code_cluster candidates were available for review.',
+        candidate_source_lane: findings.candidate_source_lane ?? null,
+        candidate_source_lane_count: findings.candidate_source_lane_count ?? 0,
+        candidate_source_lanes_considered: findings.candidate_source_lanes_considered ?? [],
         reviewed_candidate_count: 0,
         candidates: [],
         provider_output: null,
@@ -517,6 +550,9 @@ async function main() {
         repo_name: options.repoName,
         repo_root: options.repoRoot,
         task_kind: 'dead_private_review',
+        candidate_source_lane: findings.candidate_source_lane ?? null,
+        candidate_source_lane_count: findings.candidate_source_lane_count ?? 0,
+        candidate_source_lanes_considered: findings.candidate_source_lanes_considered ?? [],
         prompt,
         reviewed_candidate_count: reviewedCandidates.length,
         candidates: reviewedCandidates,
@@ -548,6 +584,9 @@ async function main() {
       repo_name: options.repoName,
       repo_root: options.repoRoot,
       task_kind: 'dead_private_review',
+      candidate_source_lane: findings.candidate_source_lane ?? null,
+      candidate_source_lane_count: findings.candidate_source_lane_count ?? 0,
+      candidate_source_lanes_considered: findings.candidate_source_lanes_considered ?? [],
       reviewed_candidate_count: reviewedCandidates.length,
       candidates: reviewedCandidates,
       provider_output: providerOutput,
@@ -561,7 +600,11 @@ async function main() {
   }
 }
 
-main().catch(function handleError(error) {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exitCode = 1;
-});
+const invokedPath = process.argv[1] ? pathToFileURL(path.resolve(process.argv[1])).href : null;
+
+if (invokedPath === import.meta.url && !process.env.NODE_TEST_CONTEXT) {
+  main().catch(function handleError(error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+  });
+}

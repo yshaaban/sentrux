@@ -124,6 +124,8 @@ Supporting scripts now cover:
   Run the full per-repo calibration loop from one checked-in manifest. The loop now snapshots the previous repo-local scorecard/backlog/review packet when available, emits delta summaries, warns when seeded-defect, remediation, or benchmark inputs are missing, and can bootstrap provisional review verdicts from the latest review packet when a repo only has the generic template.
 - `node scripts/evals/build-check-review-packet.mjs`
   Build a reusable review packet from `check`, `findings`, or `session_end` for manual false-positive review. Artifact mode can read a single bundle, a live Codex batch, a replay batch, or a combined live+replay set without rescanning repo HEAD. For `check`, the builder samples the first non-empty ranked payload across recorded snapshots instead of assuming `initial_check` is representative, and it emits a companion verdict-template JSON matching the review-verdict schema.
+- `node scripts/evals/run-external-repo-validation.mjs --repo-root /path/to/repo`
+  Run a full external-repo validation pass, capture the raw MCP payloads plus reusable review packets, and emit both a Sentrux-facing `REPORT.md` and a repo-engineer-facing `ENGINEERING_REPORT.md` in one output directory.
 - `node scripts/evals/build-session-telemetry-summary.mjs --repo-root /path/to/repo`
   Summarize the repo-local `.sentrux/agent-session-events.jsonl` stream into per-session and per-signal resolution metrics.
 - `node scripts/evals/run-codex-session.mjs --source-root /path/to/repo --task-file task.txt`
@@ -137,11 +139,11 @@ Supporting scripts now cover:
 - `node scripts/evals/run-defect-remediation.mjs`
   Seed a defect, let a provider attempt a fix in a disposable clone, rerun `check`, and record whether the signal actually helped the agent repair the issue. Both `claude-code` and `codex-cli` are supported.
 - `node scripts/evals/build-signal-scorecard.mjs`
-  Merge defect-injection results, reviewed verdicts, remediation outcomes, session telemetry, and benchmark latency into a per-signal scorecard. The scorecard now keeps explicit review-noise, top-action-clear, follow-up regression, and evidence-coverage metrics so weak signals can be distinguished from under-instrumented ones.
+  Merge defect-injection results, reviewed verdicts, remediation outcomes, session telemetry, and benchmark latency into a per-signal scorecard. The scorecard now keeps explicit review-noise, top-action-clear, follow-up regression, and evidence-coverage metrics so weak signals can be distinguished from under-instrumented ones. When the benchmark artifact includes repeated samples, the scorecard consumes the authoritative top-level `benchmark` timings, so median-aggregated latency evidence flows through without extra wiring.
 - `node scripts/evals/build-signal-backlog.mjs`
   Combine the active cohort, scorecard, and live/replay batch outputs into a weak-signal and false-negative backlog. Candidate ordering now exposes an explicit priority score that weights live misses above replay misses and keeps regression follow-through pressure visible. Configured next candidates stay queued, but the recommended next signal now requires positive evidence instead of defaulting to a zero-score placeholder.
 - `node scripts/evals/run-signal-calibration.mjs`
-  Build the session telemetry summary and the refreshed scorecard together for the current repo or benchmark artifact set.
+  Build the session telemetry summary and the refreshed scorecard together for the current repo or benchmark artifact set. When explicit live/replay batch paths are omitted, the script now reuses the latest repo-calibration-loop batch artifacts for the same repo so stable self-eval scorecards do not silently lose session-trial evidence; when a cohort is available it also refreshes the backlog in the same pass.
 
 ## Real Session Instrumentation
 

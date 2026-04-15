@@ -60,6 +60,11 @@ function createEmptySignalEntry(signalKind, overrides = {}) {
     session_expected_presentations: 0,
     session_expected_top_actions: 0,
     session_expectation_misses: 0,
+    provisional_reviewed_total: 0,
+    provisional_true_positive: 0,
+    provisional_acceptable_warning: 0,
+    provisional_false_positive: 0,
+    provisional_inconclusive: 0,
     ...overrides,
   };
 }
@@ -111,6 +116,7 @@ function buildSessionMetrics(
 function buildCoverageFlags(entry, reviewedTotal, remediationTotal, sessionTopActions) {
   const hasSeededEvidence = entry.seeded_total > 0;
   const hasReviewEvidence = reviewedTotal > 0;
+  const hasProvisionalReviewEvidence = (entry.provisional_reviewed_total ?? 0) > 0;
   const hasRemediationEvidence = remediationTotal > 0;
   const hasSessionActionEvidence = sessionTopActions > 0;
   const hasSessionTrialEvidence = (entry.session_trial_count ?? 0) > 0;
@@ -119,6 +125,7 @@ function buildCoverageFlags(entry, reviewedTotal, remediationTotal, sessionTopAc
   return {
     has_seeded_evidence: hasSeededEvidence,
     has_review_evidence: hasReviewEvidence,
+    has_provisional_review_evidence: hasProvisionalReviewEvidence,
     has_remediation_evidence: hasRemediationEvidence,
     has_session_evidence: hasSessionEvidence,
     has_session_action_evidence: hasSessionActionEvidence,
@@ -194,6 +201,8 @@ function buildSeededEntries(defectReport) {
 }
 
 function applyReviewVerdicts(signalMap, reviewVerdicts) {
+  const provisionalPrefix = reviewVerdicts?.provisional ? 'provisional_' : '';
+
   for (const verdict of reviewVerdicts?.verdicts ?? []) {
     const signalKind = verdict.kind;
     if (!signalKind) {
@@ -201,9 +210,11 @@ function applyReviewVerdicts(signalMap, reviewVerdicts) {
     }
 
     const entry = ensureSignalEntry(signalMap, signalKind);
-    entry.reviewed_total = (entry.reviewed_total ?? 0) + 1;
+    entry[`${provisionalPrefix}reviewed_total`] =
+      (entry[`${provisionalPrefix}reviewed_total`] ?? 0) + 1;
     const normalizedCategory = normalizeReviewCategory(verdict.category);
-    entry[normalizedCategory] = (entry[normalizedCategory] ?? 0) + 1;
+    entry[`${provisionalPrefix}${normalizedCategory}`] =
+      (entry[`${provisionalPrefix}${normalizedCategory}`] ?? 0) + 1;
   }
 }
 
@@ -426,6 +437,11 @@ export function buildSignalScorecard({
       const acceptableWarning = entry.acceptable_warning ?? 0;
       const falsePositive = entry.false_positive ?? 0;
       const inconclusive = entry.inconclusive ?? 0;
+      const provisionalReviewedTotal = entry.provisional_reviewed_total ?? 0;
+      const provisionalTruePositive = entry.provisional_true_positive ?? 0;
+      const provisionalAcceptableWarning = entry.provisional_acceptable_warning ?? 0;
+      const provisionalFalsePositive = entry.provisional_false_positive ?? 0;
+      const provisionalInconclusive = entry.provisional_inconclusive ?? 0;
       const remediationTotal = entry.remediation_total ?? 0;
       const remediationSuccess = entry.remediation_success ?? 0;
       const remediationRegressions = entry.remediation_regressions ?? 0;
@@ -449,6 +465,13 @@ export function buildSignalScorecard({
         acceptableWarning,
         falsePositive,
         inconclusive,
+      );
+      const provisionalReviewMetrics = buildReviewMetrics(
+        provisionalReviewedTotal,
+        provisionalTruePositive,
+        provisionalAcceptableWarning,
+        provisionalFalsePositive,
+        provisionalInconclusive,
       );
       const sessionMetrics = buildSessionMetrics(
         sessionTopActions,
@@ -493,6 +516,7 @@ export function buildSignalScorecard({
         reviewed_total: reviewedTotal,
         has_seeded_evidence: coverageFlags.has_seeded_evidence,
         has_review_evidence: coverageFlags.has_review_evidence,
+        has_provisional_review_evidence: coverageFlags.has_provisional_review_evidence,
         has_remediation_evidence: coverageFlags.has_remediation_evidence,
         has_session_evidence: coverageFlags.has_session_evidence,
         has_session_action_evidence: coverageFlags.has_session_action_evidence,
@@ -510,6 +534,11 @@ export function buildSignalScorecard({
         review_noise_rate: reviewMetrics.review_noise_rate,
         false_positive_rate: reviewMetrics.false_positive_rate,
         inconclusive_rate: reviewMetrics.inconclusive_rate,
+        provisional_reviewed_total: provisionalReviewedTotal,
+        provisional_reviewed_helpful_count: provisionalReviewMetrics.reviewed_helpful_count,
+        provisional_reviewed_precision: provisionalReviewMetrics.reviewed_precision,
+        provisional_review_noise_count: provisionalReviewMetrics.review_noise_count,
+        provisional_review_noise_rate: provisionalReviewMetrics.review_noise_rate,
         remediation_total: remediationTotal,
         remediation_success: remediationSuccess,
         remediation_regressions: remediationRegressions,
@@ -578,14 +607,20 @@ export function buildSignalScorecard({
       ).length,
       kpis: {
         defect_sample_count: defectReport?.results?.length ?? 0,
-        review_sample_count: reviewVerdicts?.verdicts?.length ?? 0,
+        review_sample_count: reviewVerdicts?.provisional ? 0 : reviewVerdicts?.verdicts?.length ?? 0,
+        provisional_review_sample_count: reviewVerdicts?.provisional
+          ? reviewVerdicts?.verdicts?.length ?? 0
+          : 0,
         remediation_sample_count: remediationReport?.results?.length ?? 0,
         session_trial_count: totalSessionTrialCount,
         session_count: sessionCount,
       },
       coverage: {
         has_seeded_defects: (defectReport?.results?.length ?? 0) > 0,
-        has_review_verdicts: (reviewVerdicts?.verdicts?.length ?? 0) > 0,
+        has_review_verdicts:
+          !reviewVerdicts?.provisional && (reviewVerdicts?.verdicts?.length ?? 0) > 0,
+        has_provisional_review_verdicts:
+          Boolean(reviewVerdicts?.provisional) && (reviewVerdicts?.verdicts?.length ?? 0) > 0,
         has_remediation_results: (remediationReport?.results?.length ?? 0) > 0,
         has_session_telemetry: sessionCount > 0,
         has_session_trials: totalSessionTrialCount > 0,
@@ -610,6 +645,9 @@ export function formatSignalScorecardMarkdown(scorecard) {
   if (scorecard.summary.kpis) {
     lines.push(`- seeded samples: ${scorecard.summary.kpis.defect_sample_count ?? 0}`);
     lines.push(`- reviewed samples: ${scorecard.summary.kpis.review_sample_count ?? 0}`);
+    lines.push(
+      `- provisional reviewed samples: ${scorecard.summary.kpis.provisional_review_sample_count ?? 0}`,
+    );
     lines.push(`- remediation samples: ${scorecard.summary.kpis.remediation_sample_count ?? 0}`);
     lines.push(`- sessions: ${scorecard.summary.kpis.session_count ?? 0}`);
   }

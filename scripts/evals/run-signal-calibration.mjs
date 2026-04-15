@@ -11,6 +11,9 @@ import {
   buildSignalScorecard,
   formatSignalScorecardMarkdown,
 } from '../lib/signal-scorecard.mjs';
+import { buildSignalBacklog, formatSignalBacklogMarkdown } from '../lib/signal-backlog.mjs';
+import { loadSignalCohortManifest, getSignalCohort } from '../lib/signal-cohorts.mjs';
+import { resolveLatestRepoCalibrationArtifacts } from '../lib/repo-calibration-artifacts.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,12 +22,17 @@ const repoRoot = path.resolve(__dirname, '../..');
 function parseArgs(argv) {
   const result = {
     repoRoot: null,
-    repoLabel: 'repo',
+    repoLabel: null,
     defectReportPath: null,
     reviewVerdictsPath: null,
     remediationReportPath: null,
     benchmarkPath: null,
     sessionEventsPath: null,
+    codexBatchPath: null,
+    replayBatchPath: null,
+    latestCalibrationPath: null,
+    cohortManifestPath: path.join(repoRoot, 'docs/v2/evals', 'signal-cohorts.json'),
+    cohortId: null,
     outputDir: path.join(repoRoot, 'docs/v2/examples'),
   };
 
@@ -65,6 +73,31 @@ function parseArgs(argv) {
       result.sessionEventsPath = argv[index];
       continue;
     }
+    if (value === '--codex-batch') {
+      index += 1;
+      result.codexBatchPath = argv[index];
+      continue;
+    }
+    if (value === '--replay-batch') {
+      index += 1;
+      result.replayBatchPath = argv[index];
+      continue;
+    }
+    if (value === '--latest-calibration') {
+      index += 1;
+      result.latestCalibrationPath = argv[index];
+      continue;
+    }
+    if (value === '--cohort-manifest') {
+      index += 1;
+      result.cohortManifestPath = argv[index];
+      continue;
+    }
+    if (value === '--cohort-id') {
+      index += 1;
+      result.cohortId = argv[index];
+      continue;
+    }
     if (value === '--output-dir') {
       index += 1;
       result.outputDir = argv[index];
@@ -102,6 +135,31 @@ async function writeArtifact(targetPath, content) {
   await writeFile(targetPath, content, 'utf8');
 }
 
+async function writeArtifactWithStableCompanion(outputDir, repoLabel, fileName, content) {
+  const targetPath = path.join(outputDir, `${repoLabel}-${fileName}`);
+  await writeArtifact(targetPath, content);
+
+  if (path.basename(outputDir) === repoLabel) {
+    await writeArtifact(path.join(outputDir, fileName), content);
+  }
+}
+
+function resolveRepoLabel(args, inputs = {}) {
+  return (
+    args.repoLabel ??
+    inputs.defectReport?.repo_label ??
+    inputs.reviewVerdicts?.repo ??
+    inputs.remediationReport?.repo_label ??
+    inputs.sessionTelemetry?.repo_label ??
+    inputs.sessionTelemetry?.repo_root ??
+    inputs.benchmark?.repo ??
+    inputs.benchmark?.repo_root ??
+    (args.repoRoot ? path.basename(args.repoRoot) : null) ??
+    (args.outputDir ? path.basename(args.outputDir) : null) ??
+    'repo'
+  );
+}
+
 async function main() {
   const args = parseArgs(process.argv);
   const sessionEventsPath = args.sessionEventsPath ?? defaultSessionEventsPath(args.repoRoot);
@@ -112,42 +170,89 @@ async function main() {
   const reviewVerdicts = await readJson(args.reviewVerdictsPath);
   const remediationReport = await readJson(args.remediationReportPath);
   const benchmark = await readJson(args.benchmarkPath);
-
-  const scorecard = buildSignalScorecard({
-    repoLabel: args.repoLabel,
+  const resolvedRepoLabel = resolveRepoLabel(args, {
     defectReport,
     reviewVerdicts,
     remediationReport,
     benchmark,
     sessionTelemetry,
   });
-  const summaryJsonPath = path.join(
-    args.outputDir,
-    `${args.repoLabel}-session-telemetry-summary.json`,
-  );
-  const summaryMarkdownPath = path.join(
-    args.outputDir,
-    `${args.repoLabel}-session-telemetry-summary.md`,
-  );
-  const scorecardJsonPath = path.join(
-    args.outputDir,
-    `${args.repoLabel}-signal-scorecard.json`,
-  );
-  const scorecardMarkdownPath = path.join(
-    args.outputDir,
-    `${args.repoLabel}-signal-scorecard.md`,
-  );
+  const latestCalibration =
+    (!args.codexBatchPath || !args.replayBatchPath) && resolvedRepoLabel
+      ? await resolveLatestRepoCalibrationArtifacts({
+          repoRootPath: args.repoRoot,
+          repoLabel: resolvedRepoLabel,
+          latestCalibrationPath: args.latestCalibrationPath,
+        })
+      : null;
+  const codexBatchPath = args.codexBatchPath ?? latestCalibration?.artifacts?.codex_batch_json ?? null;
+  const replayBatchPath =
+    args.replayBatchPath ?? latestCalibration?.artifacts?.replay_batch_json ?? null;
+  const codexBatch = await readJson(codexBatchPath);
+  const replayBatch = await readJson(replayBatchPath);
 
-  await writeArtifact(summaryJsonPath, `${JSON.stringify(sessionTelemetry, null, 2)}\n`);
-  await writeArtifact(
-    summaryMarkdownPath,
+  const scorecard = buildSignalScorecard({
+    repoLabel: resolvedRepoLabel,
+    defectReport,
+    reviewVerdicts,
+    remediationReport,
+    benchmark,
+    sessionTelemetry,
+    codexBatch,
+    replayBatch,
+  });
+  const resolvedCohortId = args.cohortId ?? latestCalibration?.cohortId ?? null;
+
+  await writeArtifactWithStableCompanion(
+    args.outputDir,
+    resolvedRepoLabel,
+    'session-telemetry-summary.json',
+    `${JSON.stringify(sessionTelemetry, null, 2)}\n`,
+  );
+  await writeArtifactWithStableCompanion(
+    args.outputDir,
+    resolvedRepoLabel,
+    'session-telemetry-summary.md',
     formatSessionTelemetrySummaryMarkdown(sessionTelemetry),
   );
-  await writeArtifact(scorecardJsonPath, `${JSON.stringify(scorecard, null, 2)}\n`);
-  await writeArtifact(scorecardMarkdownPath, formatSignalScorecardMarkdown(scorecard));
+  await writeArtifactWithStableCompanion(
+    args.outputDir,
+    resolvedRepoLabel,
+    'signal-scorecard.json',
+    `${JSON.stringify(scorecard, null, 2)}\n`,
+  );
+  await writeArtifactWithStableCompanion(
+    args.outputDir,
+    resolvedRepoLabel,
+    'signal-scorecard.md',
+    formatSignalScorecardMarkdown(scorecard),
+  );
+  if (resolvedCohortId) {
+    const cohortManifest = await loadSignalCohortManifest(args.cohortManifestPath);
+    const cohort = getSignalCohort(cohortManifest, resolvedCohortId);
+    const backlog = buildSignalBacklog({
+      cohort,
+      scorecard,
+      codexBatch,
+      replayBatch,
+    });
+
+    await writeArtifactWithStableCompanion(
+      args.outputDir,
+      resolvedRepoLabel,
+      'signal-backlog.json',
+      `${JSON.stringify(backlog, null, 2)}\n`,
+    );
+    await writeArtifactWithStableCompanion(
+      args.outputDir,
+      resolvedRepoLabel,
+      'signal-backlog.md',
+      formatSignalBacklogMarkdown(backlog),
+    );
+  }
 
   console.log(
-    `Wrote calibration artifacts for ${args.repoLabel}: ${sessionTelemetry.summary.session_count} session(s), ${scorecard.summary.total_signals} signal(s).`,
+    `Wrote calibration artifacts for ${resolvedRepoLabel}: ${sessionTelemetry.summary.session_count} session(s), ${scorecard.summary.total_signals} signal(s).`,
   );
 }
 
