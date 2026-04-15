@@ -1,7 +1,8 @@
 //! MCP (Model Context Protocol) server — stdio transport.
 //!
 //! Implements the minimal MCP spec: initialize, tools/list, tools/call.
-//! Runs as `sentrux --mcp` — reads JSON-RPC from stdin, writes to stdout.
+//! Runs as `sentrux mcp` (with legacy `--mcp` compatibility) — reads JSON-RPC
+//! from stdin, writes to stdout.
 //! All analysis runs locally. Zero network calls.
 //!
 //! Architecture:
@@ -106,7 +107,7 @@ pub struct PatchSafetyAnalysisCache {
 
 /// Mutable state shared across MCP requests.
 /// Handlers receive `&mut McpState` directly — no more exploded parameters.
-/// Public so external crates (private-integration-crate) can access cached data.
+/// Public so optional integration crates can access cached data.
 pub struct McpState {
     pub tier: Tier,
     pub scan_root: Option<PathBuf>,
@@ -132,7 +133,7 @@ pub struct McpState {
 }
 
 /// Run the MCP server loop. Blocks until stdin is closed.
-/// Accepts an optional callback to register additional tools (e.g., pro tools from private-integration-crate).
+/// Accepts an optional callback to register additional tools from optional integrations.
 pub fn run_mcp_server(register_extra: Option<&dyn Fn(&mut registry::ToolRegistry)>) {
     let stdin = io::stdin();
     let stdout = io::stdout();

@@ -11,13 +11,23 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, ubuntu-latest]
-        # Windows: tree-sitter-scss build script incompatible with MSVC
-        # Will re-enable when upstream fixes -Wno-unused-parameter flag
+        include:
+          - os: macos-14
+            platform: darwin-arm64
+          - os: ubuntu-22.04
+            platform: linux-x86_64
     runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check public release hygiene
+        run: node scripts/check_public_release_hygiene.mjs
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -38,32 +48,46 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
 
-      - name: Build
-        run: cargo build
+      - name: Install tree-sitter CLI
+        run: npm install -g tree-sitter-cli
 
-      - name: Install language grammars
+      - name: Build and install current-commit language grammars
         shell: bash
         run: |
-          # Download grammar bundle from LATEST release.
-          # On tag pushes, grammars may still be building (race condition).
-          # Retry up to 5 times with 60s wait to let Build Grammars finish.
-          PLATFORM=$([ "$RUNNER_OS" = "macOS" ] && echo "darwin-arm64" || echo "linux-x86_64")
-          URL="https://github.com/sentrux/sentrux/releases/latest/download/grammars-${PLATFORM}.tar.gz"
+          chmod +x scripts/build_grammar_bundle.sh
+          ./scripts/build_grammar_bundle.sh \
+            --platform "${{ matrix.platform }}" \
+            --output /tmp/grammars.tar.gz
           mkdir -p ~/.sentrux/plugins
-          for i in 1 2 3 4 5; do
-            if curl -fsSL "$URL" -o /tmp/grammars.tar.gz 2>/dev/null; then
-              echo "Grammar bundle downloaded (attempt $i)"
-              tar xzf /tmp/grammars.tar.gz -C ~/.sentrux/plugins/
-              break
-            fi
-            echo "Grammar download attempt $i failed — waiting 60s for build to finish..."
-            sleep 60
-          done
-          # Sync embedded plugin configs (TOML) without triggering grammar download
-          SENTRUX_SKIP_GRAMMAR_DOWNLOAD=1 cargo run -- --version || true
+          tar xzf /tmp/grammars.tar.gz -C ~/.sentrux/plugins/
+          SENTRUX_SKIP_GRAMMAR_DOWNLOAD=1 cargo run -p sentrux -- --version || true
+
+      - name: Build
+        run: cargo build
 
       - name: Test
         run: cargo test
 
+      - name: Test ts-bridge
+        run: |
+          npm ci --prefix ts-bridge
+          npm --prefix ts-bridge test
+
+      - name: Test public release hygiene helpers
+        run: node --test scripts/tests/public-release-hygiene.test.mjs
+
       - name: Build release
-        run: cargo build --release
+        run: cargo build --release -p sentrux
+
+      - name: Smoke test install.sh
+        shell: bash
+        run: |
+          chmod +x scripts/smoke_test_install.sh
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            ARTIFACT_NAME="sentrux-darwin-arm64"
+          else
+            ARTIFACT_NAME="sentrux-linux-x86_64"
+          fi
+          ./scripts/smoke_test_install.sh \
+            --artifact-path target/release/sentrux \
+            --artifact-name "${ARTIFACT_NAME}"

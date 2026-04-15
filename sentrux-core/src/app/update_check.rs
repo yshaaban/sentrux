@@ -1,8 +1,9 @@
 //! Non-blocking update checker + anonymous usage telemetry.
 //!
 //! Runs once per day (cached in ~/.sentrux/last_update_check). Does not block
-//! the main thread — spawns a background thread. Collects the same data
-//! that VS Code, Next.js, Homebrew, Cargo, and npm collect.
+//! the main thread — spawns a background thread. Collects the same category
+//! of high-level usage data that editors, package managers, and build tools
+//! commonly collect.
 //!
 //! ## Design (race-free)
 //!
@@ -30,6 +31,8 @@
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+pub const PUBLIC_UPDATE_HINT: &str = "rerun install.sh or download the latest release";
 
 /// Stores the latest available version if newer than current.
 static LATEST_VERSION: Mutex<Option<String>> = Mutex::new(None);

@@ -13,23 +13,31 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-latest
+          - os: macos-14
+            platform: darwin-arm64
             target: aarch64-apple-darwin
             artifact: sentrux-darwin-arm64
+            smoke_mode: native
           - os: ubuntu-22.04
+            platform: linux-x86_64
             target: x86_64-unknown-linux-gnu
             artifact: sentrux-linux-x86_64
+            smoke_mode: native
           - os: ubuntu-22.04
+            platform: linux-aarch64
             target: aarch64-unknown-linux-gnu
             artifact: sentrux-linux-aarch64
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            artifact: sentrux-windows-x86_64.exe
+            smoke_mode: arm64-container
 
     runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -61,19 +69,8 @@ jobs:
               libxcb-xfixes0-dev libxkbcommon-dev libssl-dev libvulkan-dev
           fi
 
-      - name: Checkout Pro crate (private)
-        uses: actions/checkout@v4
-        with:
-          repository: sentrux/private-integration-crate
-          token: ${{ secrets.PRO_REPO_TOKEN }}
-          path: private-integration-crate-checkout
-
-      - name: Link Pro crate paths
-        shell: bash
-        run: |
-          mv private-integration-crate-checkout ../private-integration-crate
-          # Patch paths: private-integration-crate references ../sentrux-fresh, CI uses ../sentrux
-          sed -i.bak 's|../sentrux-fresh|../sentrux|g' ../private-integration-crate/Cargo.toml
+      - name: Install tree-sitter CLI
+        run: npm install -g tree-sitter-cli
 
       - name: Set cross-compilation linker
         if: matrix.target == 'aarch64-unknown-linux-gnu'
@@ -87,28 +84,80 @@ jobs:
           echo "OPENSSL_INCLUDE_DIR=/usr/include/aarch64-linux-gnu" >> $GITHUB_ENV
           echo "OPENSSL_LIB_DIR=/usr/lib/aarch64-linux-gnu" >> $GITHUB_ENV
 
-      - name: Build release binary (with Pro)
-        run: cargo build --release --manifest-path ../private-integration-crate/Cargo.toml --target-dir target --target ${{ matrix.target }}
+      - name: Build release binary
+        run: cargo build --release --locked -p sentrux --target-dir target --target ${{ matrix.target }}
 
       - name: Package binary
         shell: bash
         run: |
-          if [[ "${{ matrix.os }}" == windows-* ]]; then
-            cp target/${{ matrix.target }}/release/sentrux.exe ${{ matrix.artifact }}
-          else
-            cp target/${{ matrix.target }}/release/sentrux ${{ matrix.artifact }}
-            chmod +x ${{ matrix.artifact }}
-          fi
+          cp target/${{ matrix.target }}/release/sentrux ${{ matrix.artifact }}
+          chmod +x ${{ matrix.artifact }}
 
-      - name: Upload artifact
+      - name: Setup QEMU for arm64 smoke
+        if: matrix.smoke_mode == 'arm64-container'
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Smoke test install.sh (native)
+        if: matrix.smoke_mode == 'native'
+        shell: bash
+        run: |
+          chmod +x scripts/smoke_test_install.sh
+          ./scripts/smoke_test_install.sh \
+            --artifact-path "${{ matrix.artifact }}" \
+            --artifact-name "${{ matrix.artifact }}"
+
+      - name: Smoke test install.sh (arm64 container)
+        if: matrix.smoke_mode == 'arm64-container'
+        shell: bash
+        run: |
+          docker run --rm --platform linux/arm64 \
+            -v "$PWD:/work" \
+            -w /work \
+            ubuntu:22.04 \
+            bash -lc '
+              export DEBIAN_FRONTEND=noninteractive
+              apt-get update >/dev/null
+              apt-get install -y \
+                bash \
+                curl \
+                python3 \
+                libgtk-3-0 \
+                libxcb-render0 \
+                libxcb-shape0 \
+                libxcb-xfixes0 \
+                libxkbcommon0 \
+                libssl3 \
+                libvulkan1 >/dev/null
+              chmod +x install.sh scripts/smoke_test_install.sh
+              ./scripts/smoke_test_install.sh \
+                --artifact-path "/work/${{ matrix.artifact }}" \
+                --artifact-name "${{ matrix.artifact }}"
+            '
+
+      - name: Build grammar bundle
+        shell: bash
+        run: |
+          chmod +x scripts/build_grammar_bundle.sh
+          ./scripts/build_grammar_bundle.sh \
+            --platform "${{ matrix.platform }}" \
+            --output "grammars-${{ matrix.platform }}.tar.gz"
+
+      - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.artifact }}
 
+      - name: Upload grammar artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: grammars-${{ matrix.platform }}
+          path: grammars-${{ matrix.platform }}.tar.gz
+
   release:
     needs: build
-    if: always() && !cancelled()
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
@@ -117,63 +166,12 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          fail_on_unmatched_files: true
           files: |
             sentrux-darwin-arm64/sentrux-darwin-arm64
             sentrux-linux-x86_64/sentrux-linux-x86_64
             sentrux-linux-aarch64/sentrux-linux-aarch64
-            sentrux-windows-x86_64.exe/sentrux-windows-x86_64.exe
+            grammars-darwin-arm64/grammars-darwin-arm64.tar.gz
+            grammars-linux-x86_64/grammars-linux-x86_64.tar.gz
+            grammars-linux-aarch64/grammars-linux-aarch64.tar.gz
           generate_release_notes: true
-
-      - name: Update Homebrew formula
-        env:
-          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          SHA_DARWIN=$(sha256sum sentrux-darwin-arm64/sentrux-darwin-arm64 | cut -d' ' -f1)
-          SHA_LINUX=$(sha256sum sentrux-linux-x86_64/sentrux-linux-x86_64 | cut -d' ' -f1)
-
-          FORMULA=$(cat <<RUBY
-          class Sentrux < Formula
-            desc "Live codebase visualization and structural quality gate"
-            homepage "https://github.com/sentrux/sentrux"
-            version "${VERSION}"
-            license "MIT"
-
-            on_macos do
-              on_arm do
-                url "https://github.com/sentrux/sentrux/releases/download/v${VERSION}/sentrux-darwin-arm64"
-                sha256 "${SHA_DARWIN}"
-              end
-            end
-
-            on_linux do
-              on_intel do
-                url "https://github.com/sentrux/sentrux/releases/download/v${VERSION}/sentrux-linux-x86_64"
-                sha256 "${SHA_LINUX}"
-              end
-            end
-
-            def install
-              if OS.mac? && Hardware::CPU.arm?
-                bin.install "sentrux-darwin-arm64" => "sentrux"
-              elsif OS.linux? && Hardware::CPU.intel?
-                bin.install "sentrux-linux-x86_64" => "sentrux"
-              end
-            end
-
-            test do
-              assert_match "sentrux", shell_output("#{bin}/sentrux --help 2>&1", 1)
-            end
-          end
-          RUBY
-          )
-
-          FILE_SHA=$(gh api repos/sentrux/homebrew-tap/contents/Formula/sentrux.rb --jq '.sha')
-          CONTENT_B64=$(echo "$FORMULA" | base64 -w0)
-
-          gh api repos/sentrux/homebrew-tap/contents/Formula/sentrux.rb -X PUT \
-            -f message="Update sentrux to v${VERSION}" \
-            -f "committer[name]=yjing" \
-            -f "committer[email]=yjing@sentrux.dev" \
-            -f "sha=$FILE_SHA" \
-            -f "content=$CONTENT_B64"

@@ -39,8 +39,10 @@ fn version_string() -> &'static str {
         };
         if let Some(latest) = sentrux_core::app::update_check::available_update() {
             format!(
-                "{}\n  Update available: v{} → brew upgrade sentrux",
-                base, latest
+                "{}\n  Update available: v{} → {}",
+                base,
+                latest,
+                sentrux_core::app::update_check::PUBLIC_UPDATE_HINT
             )
         } else {
             base
@@ -199,8 +201,8 @@ impl BriefModeArg {
 // ---------------------------------------------------------------------------
 
 pub fn run() -> eframe::Result<()> {
-    // Pro initialization is handled by the private-integration-crate crate externally
-    // before calling run(). See private-integration-crate/src/main.rs.
+    // Pro initialization is handled by an optional integration crate externally
+    // before calling run().
 
     // Step 1: Download missing grammar binaries (may overwrite configs with old versions)
     ensure_grammars_installed();
@@ -287,10 +289,9 @@ fn run_login() {
         println!();
         println!("  Sentrux Pro requires the official binary.");
         println!();
-        println!("  Install the official binary:");
-        println!("    macOS:   brew install sentrux/tap/sentrux");
-        println!("    Linux:   curl -fsSL https://raw.githubusercontent.com/sentrux/sentrux/main/install.sh | sh");
-        println!("    Windows: curl -L -o sentrux.exe https://github.com/sentrux/sentrux/releases/latest/download/sentrux-windows-x86_64.exe");
+        println!("  Install the public beta binary:");
+        println!("    macOS/Linux: curl -fsSL https://raw.githubusercontent.com/yshaaban/sentrux/main/install.sh | sh");
+        println!("    Source:      git clone https://github.com/yshaaban/sentrux.git && cd sentrux && cargo build --release -p sentrux");
         println!();
         println!("  Then run `sentrux login` to activate Pro.");
         println!();
@@ -301,7 +302,7 @@ fn run_analytics(action: Option<AnalyticsAction>) {
     let path = analytics_opt_out_path();
     match action {
         None => {
-            // No subcommand = show state (like `brew analytics`)
+            // No subcommand = show the current analytics state.
             let opted_out = path.as_ref().map_or(false, |p| p.exists());
             if opted_out {
                 println!("Analytics are disabled.");
@@ -1496,7 +1497,7 @@ fn ensure_grammars_installed() {
     }
 
     let url = format!(
-        "https://github.com/sentrux/sentrux/releases/download/v{version}/grammars-{platform_key}.tar.gz"
+        "https://github.com/yshaaban/sentrux/releases/download/v{version}/grammars-{platform_key}.tar.gz"
     );
     let tarball = dir.join("grammars.tar.gz");
 

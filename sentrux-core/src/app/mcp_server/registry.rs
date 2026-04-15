@@ -13,12 +13,12 @@ use serde_json::{json, Value};
 
 /// Handler function signature: args + tier + mutable state → result.
 /// Every tool handler has this exact signature, enabling uniform dispatch.
-/// Public so external crates (private-integration-crate) can define handlers.
+/// Public so optional integration crates can define handlers.
 pub type ToolHandler = fn(&Value, &Tier, &mut McpState) -> Result<Value, String>;
 
 /// Complete definition of an MCP tool.
 /// Schema, handler, and tier requirement are co-located — impossible to desync.
-/// Public so external crates (private-integration-crate) can register tools.
+/// Public so optional integration crates can register tools.
 pub struct ToolDef {
     pub name: &'static str,
     pub description: &'static str,
@@ -114,6 +114,6 @@ impl ToolRegistry {
 fn upgrade_message(tool: &str, required: Tier) -> String {
     format!(
         "'{tool}' requires sentrux {required}. \
-         Learn more: https://github.com/sentrux/sentrux"
+         Learn more: https://github.com/yshaaban/sentrux"
     )
 }

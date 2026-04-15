@@ -40,7 +40,7 @@ function request(id, name, argumentsObject = {}) {
 
 function runMcpRequests(workRoot, requests) {
   const input = `${requests.map((entry) => JSON.stringify(entry)).join('\n')}\n`;
-  const result = spawnSync(sentruxBin, ['--mcp'], {
+  const result = spawnSync(sentruxBin, ['mcp'], {
     cwd: repoRoot,
     encoding: 'utf8',
     input,

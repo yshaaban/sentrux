@@ -1060,7 +1060,7 @@ pub trait MetricsExtension: Send + Sync {
 static METRICS_EXTENSIONS: std::sync::OnceLock<Vec<Box<dyn MetricsExtension>>> =
     std::sync::OnceLock::new();
 
-/// Register Pro metrics extensions (called by private-integration-crate at startup).
+/// Register Pro metrics extensions (called by an optional integration at startup).
 pub fn register_extensions(extensions: Vec<Box<dyn MetricsExtension>>) {
     let _ = METRICS_EXTENSIONS.set(extensions);
 }

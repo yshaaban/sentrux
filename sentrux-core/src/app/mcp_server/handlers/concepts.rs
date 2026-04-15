@@ -710,7 +710,7 @@ pub(crate) fn handle_check_rules(
         response["truncated"] = json!({
             "total_rules_defined": total_rules,
             "rules_checked": result.rules_checked,
-            "message": "Checking up to 3 rules. More available with sentrux Pro: https://github.com/sentrux/sentrux"
+            "message": "Checking up to 3 rules. More available with sentrux Pro: https://github.com/yshaaban/sentrux"
         });
     }
     if let Some(object) = response.as_object_mut() {

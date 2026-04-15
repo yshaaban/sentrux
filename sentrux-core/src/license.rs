@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 /// License tier determining feature access.
 ///
 /// Ordered by privilege: Free < Pro < Team.
-/// Pro/Team tiers are activated by the optional `private-integration-crate` crate
+/// Pro/Team tiers are activated by an optional integration crate
 /// which provides Ed25519 license key validation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]

@@ -1,0 +1,73 @@
+name: Benchmark Gate
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: benchmark-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libxcb-render0-dev libxcb-shape0-dev \
+            libxcb-xfixes0-dev libxkbcommon-dev libssl-dev libvulkan-dev
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: benchmark-gate-${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+
+      - name: Install tree-sitter CLI
+        run: npm install -g tree-sitter-cli
+
+      - name: Build and install current-commit language grammars
+        shell: bash
+        run: |
+          chmod +x scripts/build_grammar_bundle.sh
+          ./scripts/build_grammar_bundle.sh \
+            --platform linux-x86_64 \
+            --output /tmp/grammars.tar.gz
+          mkdir -p ~/.sentrux/plugins
+          tar xzf /tmp/grammars.tar.gz -C ~/.sentrux/plugins/
+          SENTRUX_SKIP_GRAMMAR_DOWNLOAD=1 cargo run -p sentrux -- --version || true
+
+      - name: Build benchmark binary
+        run: cargo build -p sentrux
+
+      - name: Run benchmark gate
+        shell: bash
+        run: |
+          node scripts/validate_benchmark_repos_v2.mjs 2>&1 | tee benchmark-gate.log
+
+      - name: Upload benchmark gate log
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-gate-log
+          path: benchmark-gate.log

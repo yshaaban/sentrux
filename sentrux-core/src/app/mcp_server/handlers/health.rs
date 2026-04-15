@@ -142,7 +142,7 @@ pub(crate) fn handle_health(
             object.insert(
                 "upgrade".to_string(),
                 json!({
-                    "message": "Upgrade to Pro for root-cause diagnostics: https://github.com/sentrux/sentrux"
+                    "message": "Upgrade to Pro for root-cause diagnostics: https://github.com/yshaaban/sentrux"
                 }),
             );
         }

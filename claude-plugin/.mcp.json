@@ -2,7 +2,7 @@
   "mcpServers": {
     "sentrux": {
       "command": "sentrux",
-      "args": ["--mcp"]
+      "args": ["mcp"]
     }
   }
 }

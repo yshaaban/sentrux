@@ -315,7 +315,7 @@ fn draw_update_indicator(ui: &mut egui::Ui, tc: &ThemeConfig) {
                     .size(9.0)
                     .color(egui::Color32::from_rgb(115, 201, 145)),
             )
-            .on_hover_text("brew upgrade sentrux");
+            .on_hover_text(crate::app::update_check::PUBLIC_UPDATE_HINT);
         });
         draw_sep(ui, tc, 2.0);
         ui.ctx().request_repaint();

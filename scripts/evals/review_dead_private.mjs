@@ -326,7 +326,7 @@ export function selectDeadPrivateCandidatesFromPayload(payload) {
 }
 
 function createSession(binPath, homeOverride) {
-  const child = spawn(binPath, ['--mcp'], {
+  const child = spawn(binPath, ['mcp'], {
     cwd: repoRoot,
     env: {
       ...process.env,

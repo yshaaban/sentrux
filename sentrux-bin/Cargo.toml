@@ -4,8 +4,8 @@ version = "0.5.6"
 edition = "2021"
 description = "Live codebase visualization and structural quality gate for AI-agent-written code"
 license = "MIT"
-repository = "https://github.com/sentrux/sentrux"
-homepage = "https://github.com/sentrux/sentrux"
+repository = "https://github.com/yshaaban/sentrux"
+homepage = "https://github.com/yshaaban/sentrux"
 
 [lib]
 name = "sentrux_bin"
