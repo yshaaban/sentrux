@@ -1,6 +1,6 @@
 # Sentrux V2 Roadmap
 
-Last audited: 2026-03-20
+Last audited: 2026-04-15
 
 Status legend:
 
@@ -13,6 +13,12 @@ This roadmap tracks implementation work, not just design ideas.
 It is organized by ROI and dependency, not by the full analyzer wish list.
 
 For a detailed current-state assessment, see [Implementation Status](./implementation-status.md).
+
+Current public-release framing:
+
+- MCP `check` is the fast-path v2 patch surface
+- CLI `brief` and `gate` are the current v2 CLI entry points
+- CLI `check` is still the legacy structural rules check
 
 ## Strategy
 
@@ -449,7 +455,7 @@ Tier 3 should improve the repo story, but it is not required for the wedge to be
 Current reality:
 
 - the codebase is past a useful MCP beta and close to a broader MCP/CLI v2 beta
-- MCP and CLI now both expose the core patch-safety wedge with quality-guidance summaries
+- MCP exposes the full fast-path patch-safety wedge, while CLI exposes the current v2 lane mainly through `brief` and `gate`
 - the real proof loop now includes checked-in pass and fail goldens for `parallel-code` and scoped goldens plus a benchmark artifact for `private-benchmark-repo`
 - warm patch-safety is improving, but the remaining performance gap is still scan-bound structural work
 - broader benchmark-repo unhappy-path validation, richer migration coverage, and better analyzer promotion criteria are the next proof gaps

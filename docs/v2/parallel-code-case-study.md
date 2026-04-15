@@ -18,7 +18,7 @@ It is not the product spec. It is the validation target.
 
 That makes it a good target for static conformance metrics.
 
-The proof-and-improvement workflow for this repo is tracked in [Parallel-Code Proof Board](./parallel-code-proof-board.md).
+The proof-and-improvement workflow for this repo is represented by the checked-in proof runs, proof snapshots, engineer reports, and review verdicts under [`./examples/`](./examples/).
 
 This case study is evidence-first. It reports objective findings, debt signals, watchpoints, and patch risks. Engineers should use the repo's own architecture docs and tests to decide final prioritization.
 
@@ -266,7 +266,7 @@ For each target:
 3. rerun the proof loop
 4. record the before/after delta
 
-The proof board in [Parallel-Code Proof Board](./parallel-code-proof-board.md) is the running checklist for that work.
+The running evidence for that work lives in the checked-in proof runs, proof snapshots, and engineer reports under [`./examples/`](./examples/).
 
 ## Success Condition
 

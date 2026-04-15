@@ -124,8 +124,8 @@ Expected proof output:
 
 Current proof outputs:
 
-- [Proof Snapshot](./examples/parallel-code-proof-snapshot.md)
-- [Disposable Proof Runs](./examples/parallel-code-proof-runs/README.md)
+- [Proof Snapshot](../../v2/examples/parallel-code-proof-snapshot.md)
+- [Disposable Proof Runs](../../v2/examples/parallel-code-proof-runs/README.md)
 
 ### Phase 5: Publish The Case Study
 

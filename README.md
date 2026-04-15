@@ -8,17 +8,15 @@
 
 <br>
 
-**The sensor that helps AI agents close the feedback loop.<br>Recursive self-improvement of code quality.**
-
+**Structural feedback for AI-assisted code changes.**
 
 [![CI](https://github.com/sentrux/sentrux/actions/workflows/ci.yml/badge.svg)](https://github.com/sentrux/sentrux/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/sentrux/sentrux)](https://github.com/sentrux/sentrux/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-
 **English** | [中文](README.zh-CN.md) | [Deutsch](README.de.md) | [日本語](README.ja.md)
 
-[How it Works](#how-it-works) · [Quick Start](#quick-start) · [MCP Integration](#mcp-server) · [Rules Engine](#rules-engine) · [V2 Design Docs](docs/v2/README.md) · [Releases](https://github.com/sentrux/sentrux/releases)
+[Quick Start](#quick-start) · [Support Matrix](#support-matrix) · [MCP](#mcp-integration) · [Languages](#languages-and-plugins) · [Docs](#documentation) · [Releases](https://github.com/sentrux/sentrux/releases)
 
 </div>
 
@@ -30,230 +28,118 @@
 
 </div>
 
-<div align="center">
-<sub>Live: Claude Code Opus 4.6 builds a FastAPI project. Even with good prompts, quality lands at 6772.</sub>
-<br>
-<sub>Not because the agent can't do better — but because without a sensor, it doesn't know what to improve.</sub>
-</div>
+Sentrux gives coding agents a structural feedback loop. The current product has three practical surfaces:
 
-<div align="center">
-<img src="assets/screenshot-health.gif" width="360" alt="Quality Signal">
-</div>
+- the desktop GUI for live structural visualization
+- MCP patch-safety tools for agent loops
+- CLI entry points for baselines, pre-merge checks, and legacy structural rules
 
-## How it works
+The v2 patch-safety wedge is real, but the public docs now distinguish the shipping surfaces honestly:
 
-<div align="center">
-<img src="assets/how-it-works.svg" width="600" alt="How sentrux works: scan → score → agent improves → rescan → better score → repeat">
-</div>
-
-## V2 Design Work
-
-The detailed v2 planning docs live under [`docs/v2/`](docs/v2/README.md).
-
-Current implementation audit: [`docs/v2/implementation-status.md`](docs/v2/implementation-status.md)
-
-That folder tracks the working specification for:
-
-- product model
-- semantic data model
-- analyzer pipeline
-- rules v2
-- MCP and CLI surface
-- phased implementation roadmap
-- `parallel-code` case-study validation plan
-
+- MCP `check` is the fast-path v2 patch surface
+- CLI `sentrux brief` and `sentrux gate` are the main v2 CLI entry points
+- CLI `sentrux check` is still the legacy structural rules check
 
 ## Quick Start
 
-**Install** (macOS · Linux · Windows)
+Preferred installs:
 
-**macOS**
+- Homebrew on `macOS arm64` and `Linux x86_64`
+- `install.sh` on `macOS arm64`, `Linux x86_64`, and `Linux aarch64`
+- GitHub release download on `Windows x86_64`
+- source build on `macOS x86_64` and any unsupported target
+
 ```bash
 brew install sentrux/tap/sentrux
 ```
 
-**Linux**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/sentrux/sentrux/main/install.sh | sh
 ```
 
-**Windows** — download from [Releases](https://github.com/sentrux/sentrux/releases), or:
-```
+```bash
 curl -L -o sentrux.exe https://github.com/sentrux/sentrux/releases/latest/download/sentrux-windows-x86_64.exe
 ```
 
-Pure Rust. Single binary. No runtime dependencies. **52 languages** via tree-sitter plugins. Runs on **macOS**, **Linux**, and **Windows**.
+```bash
+git clone https://github.com/sentrux/sentrux.git
+cd sentrux
+cargo build --release -p sentrux
+```
 
-**Run it**
+Common commands:
 
 ```bash
-sentrux                    # open the GUI — live treemap of your project
-sentrux /path/to/project   # open GUI scanning a specific directory
-sentrux check .            # check rules (CI-friendly, exits 0 or 1)
-sentrux gate --save .      # save baseline before agent session
-sentrux gate .             # compare after — catches degradation
+sentrux                       # GUI
+sentrux gate --save .         # save touched-concept baseline
+sentrux gate .                # compare current patch against the baseline
+sentrux brief --mode patch .  # structured v2 patch guidance JSON
+sentrux check .               # legacy structural rules check
 ```
 
-**Connect to your AI agent (optional)**
+If the GUI has trouble with Linux GPU drivers, try:
 
-Give your agent real-time access to structural health via [MCP](https://modelcontextprotocol.io).
-
-Claude Code:
-
-```
-/plugin marketplace add sentrux/sentrux
-/plugin install sentrux
+```bash
+WGPU_BACKEND=vulkan sentrux
+WGPU_BACKEND=gl sentrux
 ```
 
-Cursor / Windsurf / OpenCode / OpenClaw / any MCP client — add to your MCP config:
+## Support Matrix
+
+- `macOS arm64`: official release binary, `install.sh`, and Homebrew are supported
+- `macOS x86_64`: no official binary yet; build from source
+- `Linux x86_64`: official release binary, `install.sh`, and Homebrew are supported
+- `Linux aarch64`: official release binary and `install.sh` are supported
+- `Windows x86_64`: official release binary is supported
+- Homebrew does not currently ship `macOS x86_64`, `Linux aarch64`, or Windows artifacts
+
+## MCP Integration
+
+Use MCP when you want the fast patch-safety loop inside an agent:
+
+- `check`
+- `agent_brief`
+- `findings`
+- `obligations`
+- `gate`
+- `session_end`
+
+Preferred MCP server config:
 
 ```json
 {
   "mcpServers": {
     "sentrux": {
       "command": "sentrux",
-      "args": ["--mcp"]
+      "args": ["mcp"]
     }
   }
 }
 ```
 
-**From source / upgrade / troubleshooting**
+`sentrux --mcp` still works for older configs, but `sentrux mcp` is the explicit public command.
+
+## What Ships Today
+
+- GUI: live treemap, dependency edges, structural panels, and export flow
+- MCP v2 wedge: touched-concept patch safety, trusted findings, obligations, confidence, debt signals, and watchpoints
+- CLI v2: `gate` and `brief`
+- CLI legacy structural lane: `check`
+- TypeScript-first semantic analysis through the Node bridge in [`ts-bridge/`](ts-bridge/README.md)
+- calibration tooling for goldens, benchmarks, defect injection, remediation runs, and review packets under [`docs/v2/`](docs/v2/README.md)
+
+## Languages And Plugins
+
+Sentrux ships with tree-sitter-based language plugins and a plugin workflow for adding or extending language support.
 
 ```bash
-# Build from source
-git clone https://github.com/sentrux/sentrux.git
-cd sentrux && cargo build --release
-
-# Upgrade
-brew update && brew upgrade sentrux
-# or re-run the curl install — it always pulls the latest release
+sentrux plugin list
+sentrux plugin add <name>
+sentrux plugin add-standard
+sentrux plugin init my-lang
 ```
 
-**Linux GPU issues?** If the app won't start, sentrux automatically tries multiple GPU backends (Vulkan → GL → fallback). You can also force one:
-
-```bash
-WGPU_BACKEND=vulkan sentrux    # force Vulkan
-WGPU_BACKEND=gl sentrux        # force OpenGL
-```
-
-<br>
-
-## The problem nobody talks about
-
-You start a project with Claude Code or Cursor. Day one is magic. The agent writes clean code, understands your intent, ships features fast.
-
-Then something shifts.
-
-The agent starts hallucinating functions that don't exist. It puts new code in the wrong place. It introduces bugs in files it touched yesterday. You ask for a simple feature and it breaks three other things. You're spending more time fixing the agent's output than writing it yourself.
-
-Everyone assumes the AI got worse. **It didn't.** Your codebase did.
-
-Here's what actually happened: when you used an IDE, you saw the file tree. You opened files. You built a mental model of the architecture — which module does what, how they connect, where things belong. You were the governor. Every edit passed through your understanding of the whole.
-
-Then AI agents moved us to the terminal. The agent modifies dozens of files per session. You see a stream of `Modified src/foo.rs` — but you've lost the spatial awareness. You don't see where that file sits in the dependency graph. You don't see that it just created a cycle. You don't see that three modules now depend on a file that was supposed to be internal. Many developers let AI agents build entire applications without ever opening the file browser.
-
-**You've lost control. And you don't even know it yet.**
-
-Every AI session silently degrades your architecture. Same function names, different purposes, scattered across files. Unrelated code dumped in the same folder. Dependencies tangling into spaghetti. When the agent searches your project, it finds twenty conflicting matches — and picks the wrong one. Every session makes the mess worse. Every mess makes the next session harder.
-
-This is the dirty secret of AI-assisted development: **the better the AI generates code, the faster your codebase becomes ungovernable.**
-
-The traditional answer — *"plan your architecture first, then let AI implement"* — sounds right but misses the point. Tools like GitHub's [Spec Kit](https://github.com/github/spec-kit) try this approach: generate detailed specs and plans before writing code. But in practice, it [reinvents waterfall](https://blog.scottlogic.com/2025/11/26/putting-spec-kit-through-its-paces-radical-idea-or-reinvented-waterfall.html) — producing seas of markdown documents while having zero visibility into the code that actually gets produced. No feedback loop. No way to detect when the implementation drifts from the spec. No structural analysis of any kind. The spec goes in, the agent writes code, and nobody checks what came out.
-
-That's not how anyone actually works with AI agents anyway. You prototype fast. You iterate through conversation. You follow inspiration. You let the creative flow drive the code. That creative flow is exactly what makes AI agents powerful. And it's exactly what destroys codebases.
-
-**You don't need a better plan. You need a better sensor.**
-
-## The solution
-
-**sentrux is the missing feedback loop.**
-
-Every system that works at scale has one: a sensor that observes reality, a spec that defines "good," and an actuator that corrects drift. Compilers close a feedback loop on syntax. Test suites close a loop on behavior. Linters close a loop on style.
-
-But architecture — does this change fit the system? will this abstraction cause problems as the codebase grows? — had no sensor and no actuator. Only humans could judge that. And humans can't keep up with machine-speed code generation.
-
-**sentrux closes the loop at the architecture level.**
-
-It watches your codebase in real-time — not the diffs, not the terminal output — the *actual structure*. Every file. Every dependency. Every architectural relationship. Visualized as a live interactive treemap that updates as the agent writes code.
-
-5 root cause metrics. One continuous score. Computed in milliseconds.
-
-When architecture degrades, you see it immediately — not two weeks later when everything is broken and nobody remembers which session caused it.
-
-sentrux gives you the sensor. Your rules give you the spec. The agent is the actuator. **The loop closes.**
-
-<br>
-
-<div align="center">
-<table>
-<tr>
-<td align="center" width="33%"><b>Visualize</b><br><sub>Live treemap with dependency edges,<br>files glow when the agent modifies them</sub></td>
-<td align="center" width="33%"><b>Measure</b><br><sub>5 root cause metrics, one score 0–10000:<br>modularity, acyclicity, depth, equality, redundancy</sub></td>
-<td align="center" width="33%"><b>Govern</b><br><sub>Quality gate catches regression.<br>Rules engine enforces constraints.</sub></td>
-</tr>
-</table>
-</div>
-
-<br>
-
-## MCP server
-
-**Agent workflow**
-
-```
-Agent: scan("/Users/me/myproject")
-  → { quality_signal: 7342, files: 139, bottleneck: "modularity" }
-
-Agent: session_start()
-  → { status: "Baseline saved", quality_signal: 7342 }
-
-  ... agent writes 500 lines of code ...
-
-Agent: session_end()
-  → { pass: false, signal_before: 7342, signal_after: 6891,
-      summary: "Quality degraded during this session" }
-```
-
-9 tools: `scan` · `health` · `session_start` · `session_end` · `rescan` · `check_rules` · `evolution` · `dsm` · `test_gaps`
-
-## Rules engine
-
-Define architectural constraints. Enforce them in CI. Let the agent know the boundaries.
-
-**Example `.sentrux/rules.toml`**
-
-```toml
-[constraints]
-max_cycles = 0
-max_coupling = "B"
-max_cc = 25
-no_god_files = true
-
-[[layers]]
-name = "core"
-paths = ["src/core/*"]
-order = 0
-
-[[layers]]
-name = "app"
-paths = ["src/app/*"]
-order = 2
-
-[[boundaries]]
-from = "src/app/*"
-to = "src/core/internal/*"
-reason = "App must not depend on core internals"
-```
-
-```bash
-sentrux check .
-# ✓ All rules pass — Quality: 7342
-```
-
-## Supported languages
-
-**52 languages** built-in via [tree-sitter](https://tree-sitter.github.io/) plugins — zero language knowledge in the binary:
+Built-in registry coverage currently spans:
 
 | | | | | | |
 |---|---|---|---|---|---|
@@ -267,44 +153,18 @@ sentrux check .
 | Solidity | SQL | Svelte | Swift | TOML | TypeScript |
 | V | Vue | YAML | Zig | | |
 
-**Plugin system** — add any language, or create your own:
+## Documentation
 
-```bash
-sentrux plugin list              # see installed plugins
-sentrux plugin add <name>        # install from registry
-sentrux plugin add-standard      # install all 52 languages
-sentrux plugin init my-lang      # scaffold a new language plugin
-```
-
-Architecture: the binary is a **generic platform** — all language knowledge lives in `plugin.toml` + `tags.scm` query files. Adding a new language requires zero Rust code.
-
-Missing a language? [Open an issue](https://github.com/sentrux/sentrux/issues) or add a plugin to [`plugins/`](plugins/).
-
----
+- Release overview: [README.md](README.md)
+- Current v2 source of truth: [docs/v2/README.md](docs/v2/README.md)
+- Current implementation audit: [docs/v2/implementation-status.md](docs/v2/implementation-status.md)
+- Public release checklist: [docs/v2/release-checklist.md](docs/v2/release-checklist.md)
+- Changelog: [CHANGELOG.md](CHANGELOG.md)
+- Historical planning and design material: [docs/archive/README.md](docs/archive/README.md)
 
 ## Philosophy
 
-**The human role is changing — from writing code to governing code.**
-
-Every engineering practice that mattered before AI — documentation, testing, codified architecture, fast feedback loops — now matters exponentially more. Skip the tests and the feedback loop can't close. Skip the architectural constraints and drift compounds at machine speed. And here's the trap: you can't use agents to clean up the mess if the agents don't know what clean looks like.
-
-sentrux is built on three beliefs:
-
-**1. Human-in-the-loop is non-negotiable.** AI agents are powerful but limited. They cannot hold the big picture and the small details at the same time. A human must be able to see, at any moment, what the agent is doing to the whole — not just which file it touched, but what that file means to the architecture. sentrux makes that possible.
-
-**2. Verification is more valuable than generation.** Generating a correct solution is harder than verifying one (the intuition behind P vs NP). You don't need to out-code the machine. You need to out-evaluate it — specify what "correct" looks like, recognize when the output misses, judge whether the direction is right. sentrux turns architectural judgment into machine-readable grades and constraints.
-
-**3. Good systems make good outcomes inevitable.** A well-designed system constrains behavior so that the right thing is the easy thing. A quality gate that blocks degradation before it ships. A rules engine that encodes your architectural decisions. A visual map that makes structural rot impossible to ignore. The practices haven't changed. The penalty for ignoring them has become unbearable.
-
-*Once you have a feedback loop that works, you don't go back to doing it by hand. Not because you can't. Because it no longer makes sense.*
-
----
-
-<div align="center">
-
-<sub>AI agents write code at machine speed. Without structural governance, codebases decay at machine speed too.<br><b>sentrux is the governor.</b></sub>
-
-</div>
+Sentrux is built around a simple idea: agent output improves faster when the feedback loop is specific, structural, and cheap to run. Tests verify behavior. Sentrux is meant to help verify whether the patch still fits the system you are trying to keep coherent.
 
 <div align="center">
 

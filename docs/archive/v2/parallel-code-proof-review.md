@@ -30,7 +30,7 @@ Previous issue:
 
 Fix:
 
-- expanded `allowed_writers` in [parallel-code.rules.toml](./examples/parallel-code.rules.toml) to include `src/store/task-git-status.ts::store.taskGitStatus.*`
+- expanded `allowed_writers` in [parallel-code.rules.toml](../../v2/examples/parallel-code.rules.toml) to include `src/store/task-git-status.ts::store.taskGitStatus.*`
 
 Result:
 

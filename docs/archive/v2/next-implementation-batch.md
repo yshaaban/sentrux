@@ -57,15 +57,15 @@ At the start of this batch:
 
 Relevant references:
 
-- [Implementation Status](./implementation-status.md)
-- [Roadmap](./roadmap.md)
-- [Testing And Validation](./testing-and-validation.md)
-- [MCP And CLI](./mcp-and-cli.md)
-- [Parallel-Code Case Study](./parallel-code-case-study.md)
-- [Parallel-Code Scoped Goldens](./examples/parallel-code-golden/README.md)
-- [Parallel-Code Benchmark](./examples/parallel-code-benchmark.md)
-- [Private Benchmark Repo Scoped Goldens](./examples/private-benchmark-repo-golden/README.md)
-- [Private Benchmark Repo Benchmark](./examples/private-benchmark-repo-benchmark.md)
+- [Implementation Status](../../v2/implementation-status.md)
+- [Roadmap](../../v2/roadmap.md)
+- [Testing And Validation](../../v2/testing-and-validation.md)
+- [MCP And CLI](../../v2/mcp-and-cli.md)
+- [Parallel-Code Case Study](../../v2/parallel-code-case-study.md)
+- [Parallel-Code Scoped Goldens](../../v2/examples/parallel-code-golden/README.md)
+- [Parallel-Code Benchmark](../../v2/examples/parallel-code-benchmark.md)
+- [Private Benchmark Repo Scoped Goldens](../../v2/examples/private-benchmark-repo-golden/README.md)
+- [Private Benchmark Repo Benchmark](../../v2/examples/private-benchmark-repo-benchmark.md)
 
 ## Success Criteria
 

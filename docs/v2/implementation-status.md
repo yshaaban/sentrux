@@ -1,6 +1,6 @@
 # Sentrux V2 Implementation Status
 
-Last audited: 2026-04-03
+Last audited: 2026-04-15
 
 ## Overall Verdict
 
@@ -11,7 +11,7 @@ Current assessment:
 - doctrine alignment: strong
 - core patch-safety wedge: strongly implemented
 - full roadmap: partially implemented
-- cross-cutting proof and validation: materially improved, with fast-path `check`, defect injection, and signal-quality scorecard foundations now landed
+- cross-cutting proof and validation: materially improved, with fast-path MCP `check`, defect injection, and signal-quality scorecard foundations now landed
 
 Working estimate:
 
@@ -23,7 +23,8 @@ Working estimate:
 
 The product shape in code matches the doctrine in [doctrine.md](./doctrine.md):
 
-- `check` is now the primary fast-path structured patch surface in MCP and CLI
+- MCP `check` is now the primary fast-path structured patch surface
+- CLI v2 entry points are `brief` and `gate`; CLI `check` remains the legacy structural rules check
 - `agent_brief` is the synthesized guidance surface when more context is needed
 - patch safety is primary
 - findings, obligations, and session delta are primary MCP outputs
@@ -70,7 +71,7 @@ The strongest completed work is:
 - explicit transition-table extraction for rule-declared state domains in the TS bridge
 - external Claude-backed eval harness scaffolding plus a focused `dead_private` review loop
 - mode-aware `agent_brief` composition for repo onboarding, patch guidance, and pre-merge readiness in MCP and CLI
-- fast-path `check` with flat issue output, ranked actions, explicit changed-scope availability, missing-test watchpoints, and inferred zero-config boundary findings
+- fast-path MCP `check` with flat issue output, ranked actions, explicit changed-scope availability, missing-test watchpoints, and inferred zero-config boundary findings
 - project-shape caching with adoption-ready `working_rules_toml`
 - seeded defect-injection harness and dogfood loop for `check`
 - review-packet builder, remediation-eval runner, and per-signal scorecard tooling

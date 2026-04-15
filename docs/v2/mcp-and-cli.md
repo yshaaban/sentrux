@@ -7,15 +7,21 @@ V2 should be consumable by agents without breaking the current MCP workflow.
 That means:
 
 - keep existing tools working
-- add a fast-path `check` as the primary patch surface
+- make MCP `check` the primary fast-path patch surface
 - add a mode-aware `agent_brief` as the synthesized guidance surface
 - add patch-safety-first v2 tools
-- make `check` the primary guided entrypoint and `session_end` the primary confirmation touchpoint
+- make MCP `check` the primary guided entrypoint and `session_end` the primary confirmation touchpoint
 - return objective findings, debt signals, watchpoints, and patch risks before score summaries
+
+Current shipped distinction:
+
+- MCP `check` is the v2 fast-path tool
+- CLI `sentrux brief` and `sentrux gate` are the public v2 CLI entry points
+- CLI `sentrux check` still names the legacy structural rules check
 
 ## Guidance Surface
 
-`check` is the primary structured guidance surface for agents in the coding loop.
+MCP `check` is the primary structured guidance surface for agents in the coding loop.
 
 It should return a ranked list of actions for the current patch in one fast call.
 
@@ -29,7 +35,7 @@ Modes:
 - `patch`: summarize the current change, findings, obligations, and touched-concept risk
 - `pre_merge`: summarize remaining blockers, unresolved obligations, and merge readiness
 
-`check` is the entry point. `agent_brief`, `session_end`, `findings`, `obligations`, `gate`, and `scorecard` remain the broader structured evidence.
+MCP `check` is the entry point for the fastest loop. `agent_brief`, `session_end`, `findings`, `obligations`, `gate`, and `scorecard` remain the broader structured evidence.
 
 ## Product Surface Priority
 
@@ -44,7 +50,7 @@ For v2 integrations, the preferred order is:
 7. `scorecard`
 8. concept and parity inspection tools
 
-This ordering should shape both MCP and CLI design. Any ranking or optimization-like output is a sorting aid, not the final decision.
+This ordering should shape MCP design first and CLI convergence second. Any ranking or optimization-like output is a sorting aid, not the final decision.
 
 Finding trust model:
 
@@ -113,6 +119,11 @@ Returns:
 - diagnostics and availability
 
 `check` is the default tool for mid-loop agent feedback. It should stay fast-path only and never fall back to all-scope expensive analysis.
+
+Current CLI note:
+
+- CLI `sentrux check` is not this surface yet
+- CLI currently exposes v2 primarily through `sentrux brief` and `sentrux gate`
 
 ## `agent_brief`
 
