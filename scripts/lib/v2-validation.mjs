@@ -121,7 +121,66 @@ export function compareGoldenDirectories(expectedDir, actualDir) {
   }
 }
 
-export function assertBenchmarkFormatVersion({ expectedPath, actualPath, label }) {
+function assertBenchmarkFieldEqual(label, field, expected, actual) {
+  if (expected[field] == null) {
+    return;
+  }
+  if (expected[field] !== actual[field]) {
+    throw new Error(
+      `${label} benchmark ${field.replaceAll('_', ' ')} mismatch: expected ${expected[field]}, got ${actual[field] ?? 'missing'}`,
+    );
+  }
+}
+
+function assertBenchmarkShape(label, expected, actual) {
+  if (!actual.benchmark || typeof actual.benchmark !== 'object' || Array.isArray(actual.benchmark)) {
+    throw new Error(`${label} benchmark artifact is missing the benchmark payload`);
+  }
+
+  assertBenchmarkFieldEqual(label, 'benchmark_repeat_count', expected, actual);
+  assertBenchmarkFieldEqual(label, 'benchmark_aggregate_basis', expected, actual);
+
+  if (expected.benchmark_metric_statistics != null) {
+    if (
+      !actual.benchmark_metric_statistics ||
+      typeof actual.benchmark_metric_statistics !== 'object' ||
+      Array.isArray(actual.benchmark_metric_statistics)
+    ) {
+      throw new Error(`${label} benchmark artifact is missing benchmark metric statistics`);
+    }
+  }
+
+  if (expected.benchmark_representative_sample_index != null) {
+    if (!Number.isInteger(actual.benchmark_representative_sample_index)) {
+      throw new Error(`${label} benchmark artifact is missing the representative sample index`);
+    }
+  }
+
+  if (expected.benchmark_representative_sample_id != null) {
+    if (
+      typeof actual.benchmark_representative_sample_id !== 'string' ||
+      actual.benchmark_representative_sample_id.length === 0
+    ) {
+      throw new Error(`${label} benchmark artifact is missing the representative sample id`);
+    }
+  }
+
+  if (expected.benchmark_samples != null) {
+    if (!Array.isArray(actual.benchmark_samples)) {
+      throw new Error(`${label} benchmark artifact is missing benchmark samples`);
+    }
+    if (
+      Number.isInteger(actual.benchmark_repeat_count) &&
+      actual.benchmark_samples.length !== actual.benchmark_repeat_count
+    ) {
+      throw new Error(
+        `${label} benchmark sample count mismatch: expected ${actual.benchmark_repeat_count} sample(s), got ${actual.benchmark_samples.length}`,
+      );
+    }
+  }
+}
+
+export function assertBenchmarkArtifact({ expectedPath, actualPath, label }) {
   if (!existsSync(expectedPath)) {
     throw new Error(`Missing expected benchmark artifact: ${expectedPath}`);
   }
@@ -136,6 +195,8 @@ export function assertBenchmarkFormatVersion({ expectedPath, actualPath, label }
       `${label} benchmark format mismatch: expected ${expected.benchmark_format_version}, got ${actual.benchmark_format_version}`,
     );
   }
+
+  assertBenchmarkShape(label, expected, actual);
 }
 
 export async function runValidationSuite({
@@ -191,7 +252,7 @@ export async function runValidationSuite({
         }),
       });
 
-      assertBenchmarkFormatVersion({
+      assertBenchmarkArtifact({
         expectedPath: expectedBenchmarkPath,
         actualPath: tempBenchmarkPath,
         label: repoLabel,

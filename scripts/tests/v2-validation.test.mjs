@@ -280,3 +280,59 @@ test('runValidationSuite accepts repeated benchmark artifacts with additive fiel
     await rm(fixture.root, { recursive: true, force: true });
   }
 });
+
+test('runValidationSuite rejects mismatched repeated benchmark metadata', async function () {
+  const fixture = await createValidationFixture();
+  const expectedBenchmark = {
+    benchmark_format_version: 3,
+    benchmark_repeat_count: 5,
+    benchmark_aggregate_basis: 'median',
+    benchmark_representative_sample_index: 2,
+    benchmark_representative_sample_id: 'sample_3',
+    benchmark_metric_statistics: {
+      cold_process_total_ms: {
+        sample_count: 5,
+        values_ms: [39, 40, 41, 42, 43],
+      },
+    },
+    benchmark_samples: [
+      { sample_id: 'sample_1', generated_at: '2026-04-15T00:00:00.000Z', benchmark: { cold_process_total_ms: 39 } },
+      { sample_id: 'sample_2', generated_at: '2026-04-15T00:01:00.000Z', benchmark: { cold_process_total_ms: 40 } },
+      { sample_id: 'sample_3', generated_at: '2026-04-15T00:02:00.000Z', benchmark: { cold_process_total_ms: 41 } },
+      { sample_id: 'sample_4', generated_at: '2026-04-15T00:03:00.000Z', benchmark: { cold_process_total_ms: 42 } },
+      { sample_id: 'sample_5', generated_at: '2026-04-15T00:04:00.000Z', benchmark: { cold_process_total_ms: 43 } },
+    ],
+    benchmark: {
+      cold_process_total_ms: 41,
+    },
+  };
+  const actualBenchmark = {
+    ...expectedBenchmark,
+    benchmark_repeat_count: 3,
+    benchmark_samples: expectedBenchmark.benchmark_samples.slice(0, 3),
+  };
+
+  await writeFile(fixture.expectedBenchmarkPath, `${JSON.stringify(expectedBenchmark, null, 2)}\n`);
+  await writeFile(
+    fixture.benchmarkScript,
+    [
+      'import { writeFile } from "node:fs/promises";',
+      '',
+      `const actualBenchmark = ${JSON.stringify(actualBenchmark)};`,
+      'await writeFile(process.env.OUTPUT_PATH, `${JSON.stringify(actualBenchmark, null, 2)}\\n`);',
+      '',
+    ].join('\n'),
+  );
+
+  try {
+    await assert.rejects(
+      runFixtureValidation(fixture, {
+        runGoldens: false,
+        runBenchmark: true,
+      }),
+      /benchmark repeat count mismatch/,
+    );
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
