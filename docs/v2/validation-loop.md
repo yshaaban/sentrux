@@ -1,6 +1,6 @@
 # Sentrux V2 Validation Loop
 
-This document defines the repeatable proof loop for the v2 wedge across the checked-in benchmark repos.
+This document defines the repeatable proof loop for the v2 wedge across the checked-in public-safe benchmark repos.
 
 The goal is not only to generate artifacts. The goal is to make regressions easy to detect, review, and refresh without guessing.
 
@@ -21,6 +21,30 @@ The loop validates the full v2 proof loop across these areas:
 9. remediation success on seeded defects
 
 ## Commands
+
+### Public Release Preflight
+
+Use this for the supported public release path from a normal maintainer machine.
+
+```bash
+node scripts/release_preflight_public.mjs
+```
+
+This command:
+
+- runs the core Rust and TypeScript validation lanes
+- builds the current-platform release binary and runs the `install.sh` smoke path on supported hosts
+- runs the public release hygiene scan
+- validates deterministic checked-in `parallel-code` goldens
+- refreshes the checked-in benchmark artifacts used by the public docs
+
+It intentionally stops short of making fail-tier benchmark regression decisions for the whole benchmark corpus. Those decisions belong on a quieter dedicated runner.
+
+To run the hygiene check only, use:
+
+```bash
+node scripts/check_public_release_hygiene.mjs
+```
 
 ### Refresh Goldens
 
@@ -49,7 +73,7 @@ OUTPUT_DIR=docs/v2/examples/parallel-code-head-golden \
 
 ### Validate Goldens And Benchmark
 
-Use this for the normal proof loop.
+Use this for the repo-specific `parallel-code` proof loop when you want one command that validates both the checked-in goldens and benchmark comparability/regression behavior.
 
 ```bash
 node scripts/validate_parallel_code_v2.mjs
@@ -63,6 +87,8 @@ This command:
 - fails if the benchmark comparison reports a regression
 - fails if the benchmark run is not comparable to the checked-in artifact
 
+For broader public-release work, prefer `node scripts/release_preflight_public.mjs` locally and reserve full benchmark regression gating for the dedicated benchmark-runner step below.
+
 The checked-in proof snapshots, proof runs, and engineer reports explain how the outputs from this command should be turned into concrete refactor targets and before/after proof records.
 
 To validate all benchmark repos together, use:
@@ -70,6 +96,10 @@ To validate all benchmark repos together, use:
 ```bash
 node scripts/validate_benchmark_repos_v2.mjs
 ```
+
+Run that command on a quiet machine or dedicated CI runner when you want to treat fail-tier benchmark deltas as release-gating evidence.
+
+The checked-in GitHub Actions workflow for that lane is [`.github/workflows/benchmark-gate.yml`](../../.github/workflows/benchmark-gate.yml). If a quieter self-hosted runner becomes available later, move this workflow there instead of overloading the normal CI workflow.
 
 ### Run Proof Targets
 
@@ -97,6 +127,7 @@ node scripts/benchmark_parallel_code_v2.mjs
 
 The benchmark runners now support repeated samples through `BENCHMARK_REPEATS` and classify
 regressions against the median aggregate written into the top-level `benchmark` object.
+For checked-in benchmark artifacts, the harness freezes one disposable source snapshot first and runs repeated samples from clones of that frozen input. In `head_clone` mode it also pins age-sensitive proof timing to the analyzed commit epoch so clone/evolution wording stays deterministic.
 
 ### Golden Only
 
@@ -134,6 +165,7 @@ The `metadata.json` check ignores the timestamp field and verifies the stable pa
 The benchmark harness records and compares:
 
 - repeated benchmark samples when `BENCHMARK_REPEATS` is greater than `1`
+- frozen source-tree identity for repeated samples so local dirty worktrees do not leak variance into checked-in artifacts
 - median-aggregated benchmark timings in the top-level `benchmark` object
 - cold scan latency
 - first semantic materialization latency
@@ -158,13 +190,25 @@ If the benchmark fails:
 
 1. confirm whether the change is a real regression or a noisy run
 2. rerun with the same artifact and the same clean tree before changing the baseline
-3. only update the baseline after the change is understood
+3. use a quiet machine or dedicated benchmark runner before treating the delta as release-gating evidence
+4. only update the baseline after the change is understood
 
 If the benchmark is non-comparable:
 
 1. stop treating the result as a regression signal
-2. rebuild from a clean committed tree with the intended code and binary
+2. rebuild from a clean committed tree or a frozen committed clone with the intended code and binary
 3. refresh the checked-in benchmark artifact from that clean run before resuming validation
+
+## Public-Safety Discipline
+
+The public tree must not carry:
+
+- private repo names
+- internal domains or unpublished release infrastructure
+- maintainer workstation paths
+- checked-in artifacts generated from non-public repos
+
+Use `node scripts/check_public_release_hygiene.mjs` to enforce that barrier before tagging or pushing public-release docs and artifacts.
 
 ## Proof-And-Improvement Loop
 

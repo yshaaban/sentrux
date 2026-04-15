@@ -13,6 +13,7 @@ Current release note:
 - MCP `check` is the fast-path v2 validation target for ranked action quality
 - CLI `brief` and `gate` are the main v2 CLI validation targets
 - CLI `check` remains the legacy structural rules check and should be validated as supporting context, not as the primary v2 surface
+- public release validation must keep checked-in artifacts and docs free of private repo names, internal infrastructure links, and workstation-specific paths
 
 ## Testing Goals
 
@@ -127,8 +128,12 @@ Current status:
   - fail at `>250ms` and `>20%`
   - warn at `>150ms` and `>10%`
 - a release checklist now exists in [release-checklist.md](./release-checklist.md)
-- the validation loop now has a dedicated one-command runner for checked-in goldens and benchmark regression checks
+- the validation loop now has a dedicated local public release preflight in `scripts/release_preflight_public.mjs`, including current-platform installer smoke on supported hosts
+- the public tree now has a hygiene scanner that blocks abandoned upstream links, private repo names, internal domains, and maintainer workstation paths
 - the validation loop now has a runner for all checked-in public benchmark repos
+- repeated-sample benchmark and golden refreshes now freeze the analyzed input in a disposable clone, and age-sensitive proof runs pin "now" to the analyzed commit epoch for deterministic public artifacts
+- fail-tier benchmark regression decisions are now documented as a dedicated quiet-runner step rather than a noisy local laptop gate
+- the repo now has a dedicated benchmark-gate workflow for that quiet-runner lane plus installer smoke automation in local preflight, CI, and release builds
 - full release-grade validation still needs broader public benchmark-repo unhappy-path coverage and stronger analyzer promotion criteria
 
 ## Layer 5: False-Positive Review
@@ -189,13 +194,16 @@ The goal is high trust on the findings we choose to surface and gate on.
 For the current `parallel-code` proof loop:
 
 1. refresh checked-in goldens when the expected outputs intentionally change with `./scripts/refresh_parallel_code_goldens.sh`
-2. validate checked-in goldens and benchmark behavior with `node scripts/validate_parallel_code_v2.mjs`
-3. run performance-only checks with `node scripts/benchmark_parallel_code_v2.mjs`
+2. validate checked-in goldens deterministically with `node scripts/validate_parallel_code_v2.mjs --goldens-only`
+3. run the local public release preflight with `node scripts/release_preflight_public.mjs`
+4. run fail-tier benchmark regression review on a quiet machine or dedicated CI runner with `node scripts/validate_benchmark_repos_v2.mjs`
 
 The validation loop catches two classes of regressions:
 
 - output drift in the real-repo goldens
-- warm or cold patch-safety regressions in the benchmark artifact
+- warm or cold patch-safety regressions in the benchmark artifacts once they are measured on comparable quiet-runner inputs
+
+That split is intentional. Local preflight should be deterministic and cheap enough to run often; final benchmark regression decisions need quieter hardware and more comparable inputs than a normal maintainer workstation can guarantee.
 
 ## Beta Validation Scope
 
@@ -239,6 +247,19 @@ it should have:
 2. benchmark-repo validation
 3. reviewed false-positive samples
 4. documented confidence behavior
+5. scorecard evidence that meets the current promotion policy in [`../../scripts/lib/signal-calibration-policy.mjs`](../../scripts/lib/signal-calibration-policy.mjs)
+
+Current promotion policy thresholds:
+
+- seeded recall at least `0.95`
+- reviewed precision at least `0.8`
+- review noise rate at most `0.2`
+- remediation success rate at least `0.6`
+- top-action clear rate at least `0.6`
+- session clean rate at least `0.6`
+- follow-up regression rate at most `0.4`
+
+Signals that fail those thresholds should stay `watchpoint` or `experimental` until the scorecard evidence improves.
 
 ## Implementation Tasks
 
@@ -255,4 +276,6 @@ it should have:
 - [x] add a one-command validation loop for real-repo goldens and benchmark regression checks
 - [x] add a multi-repo validation loop for benchmark repos
 - [x] capture a short release checklist for proof artifacts and migration checks
-- [ ] define promotion criteria for gating analyzers
+- [x] add public release hygiene scanning for banned public-tree content
+- [x] add a one-command public release preflight for the supported public matrix
+- [x] define promotion criteria for gating analyzers

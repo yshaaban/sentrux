@@ -1,6 +1,6 @@
 # Sentrux V2 Implementation Status
 
-Last audited: 2026-04-15
+Last audited: 2026-04-16
 
 ## Overall Verdict
 
@@ -12,6 +12,7 @@ Current assessment:
 - core patch-safety wedge: strongly implemented
 - full roadmap: partially implemented
 - cross-cutting proof and validation: materially improved, with fast-path MCP `check`, defect injection, and signal-quality scorecard foundations now landed
+- public release readiness: materially improved, with public-safe docs, hygiene enforcement, and deterministic local release preflight now in place
 
 Working estimate:
 
@@ -61,6 +62,9 @@ The strongest completed work is:
 - multi-repo golden validation runner
 - benchmark fail/warn/info classification with explicit thresholds
 - release checklist for proof artifacts, benchmark policy, and migration behavior
+- public release hygiene scanning against private repo names, internal domains, abandoned upstream links, and workstation-specific paths
+- one-command public release preflight for the supported public matrix
+- deterministic checked-in benchmark and golden refreshes via frozen disposable clones and fixed analyzed-commit epochs for age-sensitive proof signals
 - warm-path rules-config caching across repeated MCP requests
 - persisted semantic snapshot reuse across repeated MCP requests and fresh processes when the project fingerprint and working tree still match
 - generic archetype detection with `project_shape` output, starter-rule generation, and framework-aware role defaults for modular Next.js and React frontend repos
@@ -97,7 +101,7 @@ The strongest completed work is:
 | Tier 2B | Mostly complete | concentration analysis exists and is tested | not yet benchmarked or validated on the real case-study repo |
 | Tier 2C | Mostly complete | inspection tools, adoption helpers, trust-tiered debt signals, structural debt findings, debt clusters, and `project_shape` now exist with a public benchmark corpus and Sentrux dogfood artifacts | broader onboarding proof and evidence-quality validation are still incomplete |
 | Tier 3 | Partial | conservative state-integrity slice now includes explicit transition-site modeling and transition-coverage findings for rule-declared state domains | implicit lifecycle heuristics and broader invalid-state-risk inference are still not built |
-| Validation | Mostly complete | unit tests, synthetic gate/session regression scenarios, public benchmark goldens, versioned benchmark comparison, explicit benchmark policy, confidence/migration checks, defect injection, review packets, remediation eval scaffolding, and signal scorecards now exist | no full migration suite and broader public benchmark-repo unhappy-path coverage are still incomplete |
+| Validation | Mostly complete | unit tests, synthetic gate/session regression scenarios, public benchmark goldens, versioned benchmark comparison, explicit benchmark policy, confidence/migration checks, defect injection, review packets, remediation eval scaffolding, signal scorecards, public hygiene checks, and local release preflight now exist | dedicated quiet-runner benchmark gating, no full migration suite, and broader public benchmark-repo unhappy-path coverage are still incomplete |
 
 ## Tier-By-Tier Status
 
@@ -350,12 +354,15 @@ Delivered:
 - no-change patch-safety reuse for cached scan state plus an empty-change semantic short-circuit
 - shared patch-safety analysis reuse across `gate` and `session_end`
 - false-positive review workflow and promotion checklist
+- public release hygiene scan and banned-content test coverage
+- one-command public release preflight
+- deterministic frozen-clone benchmark and golden refresh discipline for checked-in public artifacts
 
 Still missing:
 
-- full v1/v2 migration suite, including schema/version mismatch cases
+- full v1/v2 migration suite breadth beyond the current coexistence, malformed-baseline, and schema/version-mismatch cases
 - remaining patch-safety performance work beyond the shared-analysis reuse work, especially file-hash walk cost and cold-path variance
-- broader benchmark-threshold enforcement for release gating
+- dedicated quiet-runner benchmark-threshold enforcement for release gating
 
 ## Where We Are Relative To The Plan
 
@@ -374,7 +381,7 @@ It is not enough to say:
 ## Biggest Remaining Gaps
 
 1. remaining warm-path performance work is still dominated by structural scan and changed-file bookkeeping
-2. benchmark-repo unhappy-path validation and analyzer promotion criteria are still thinner than the main happy-path proof loop
+2. benchmark-repo unhappy-path validation, dedicated quiet-runner regression gating, and analyzer promotion evidence coverage are still thinner than the main happy-path proof loop
 3. GUI wording is aligned, but the desktop surface still lacks first-class v2 findings, obligations, and debt-signal panels
 4. richer contract-driven obligations are materially better, but true field-diff precision is still incomplete
 5. Tier 3 is still only an initial conservative slice

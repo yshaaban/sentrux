@@ -5,9 +5,11 @@
 参照先:
 
 - 製品概要: [README.md](README.md)
+- Public beta ガイド: [docs/public-beta.md](docs/public-beta.md)
+- privacy / telemetry: [docs/privacy-and-telemetry.md](docs/privacy-and-telemetry.md)
 - 変更履歴: [CHANGELOG.md](CHANGELOG.md)
 - V2 ドキュメント: [docs/v2/README.md](docs/v2/README.md)
-- Releases: <https://github.com/sentrux/sentrux/releases>
+- Releases: <https://github.com/yshaaban/sentrux/releases>
 
 現在の要点:
 

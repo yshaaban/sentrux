@@ -1,6 +1,6 @@
 # Sentrux V2 Roadmap
 
-Last audited: 2026-04-15
+Last audited: 2026-04-16
 
 Status legend:
 
@@ -417,10 +417,13 @@ Status: mostly complete
 - [x] verify case-study examples against the current target repo before docs or demos cite them
 - [x] define release-grade benchmark-threshold policy
 - [x] capture a release checklist for proof artifacts and migration checks
+- [x] add public release hygiene scanning for banned public-tree content
+- [x] add deterministic local public release preflight automation
+- [x] freeze checked-in benchmark and golden generation against disposable committed snapshots
 
 Open gap:
 
-- implementation is still ahead of release-grade validation, but the public proof loop now centers on `parallel-code`, includes multi-repo validation wiring, explicit transition-controller bridge tests, and has versioned benchmark artifacts plus explicit benchmark policy; the remaining gap is mostly deeper unhappy-path validation, promotion criteria, and fuller migration coverage
+- implementation is still ahead of release-grade validation, but the public proof loop now centers on `parallel-code`, includes multi-repo validation wiring, explicit transition-controller bridge tests, versioned benchmark artifacts, explicit benchmark policy, public release hygiene scanning, deterministic local preflight, installer smoke coverage, and a dedicated benchmark-gate workflow; the remaining gap is mostly deeper unhappy-path validation, fuller promotion evidence, and broader migration coverage
 
 ## Target Outcome On `parallel-code`
 
@@ -455,4 +458,4 @@ Current reality:
 - MCP exposes the full fast-path patch-safety wedge, while CLI exposes the current v2 lane mainly through `brief` and `gate`
 - the real proof loop now includes checked-in pass and fail goldens for `parallel-code`, plus Sentrux dogfood benchmark and remediation artifacts
 - warm patch-safety is improving, but the remaining performance gap is still scan-bound structural work
-- broader benchmark-repo unhappy-path validation, richer migration coverage, and better analyzer promotion criteria are the next proof gaps
+- broader benchmark-repo unhappy-path validation, richer migration coverage, and stronger analyzer promotion evidence are the next proof gaps

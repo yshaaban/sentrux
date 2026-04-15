@@ -1,0 +1,67 @@
+name: Bug report
+description: Report a reproducible problem in the public repo or public release artifacts.
+title: "[bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template only for public-safe reports. Do not include secrets, private repository contents, customer data, internal links, or unnecessary absolute paths.
+  - type: checkboxes
+    id: hygiene
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed secrets, private code, and sensitive environment details from this report.
+          required: true
+        - label: I searched for an existing report first.
+          required: true
+  - type: dropdown
+    id: install_method
+    attributes:
+      label: Install method
+      options:
+        - Release binary
+        - install.sh
+        - Source build
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: OS and architecture
+      placeholder: "Ubuntu 24.04 x86_64"
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Exact command
+      description: Include the command you ran or the UI action sequence.
+      placeholder: "sentrux gate ."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Share a public-safe repro repo, patch, or step list if available.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized logs or screenshots
+      description: Redact anything sensitive before posting.

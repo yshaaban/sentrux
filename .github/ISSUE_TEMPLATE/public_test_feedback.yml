@@ -1,0 +1,44 @@
+name: Public test feedback
+description: Share results from trying Sentrux in a real but public-safe workflow.
+title: "[feedback] "
+labels:
+  - feedback
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This template is for broad public testing feedback. Keep examples sanitized and avoid posting private repository details.
+  - type: input
+    id: scenario
+    attributes:
+      label: What did you try?
+      placeholder: "MCP check in a TypeScript repo"
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: What happened?
+      description: Include what worked, what failed, and what was confusing.
+    validations:
+      required: true
+  - type: textarea
+    id: signals
+    attributes:
+      label: Most useful output
+      description: Which findings, signals, or reports helped most?
+  - type: textarea
+    id: gaps
+    attributes:
+      label: Missing or weak output
+      description: What did Sentrux fail to explain, catch, or prioritize?
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: "macOS arm64, release binary, monorepo with TS + Rust"
+  - type: textarea
+    id: artifacts
+    attributes:
+      label: Public-safe artifacts
+      description: Paste or link sanitized outputs, screenshots, or repro repos if helpful.

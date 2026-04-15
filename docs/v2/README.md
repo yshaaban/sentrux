@@ -1,8 +1,10 @@
 # Sentrux V2
 
-Status: public docs refreshed on 2026-04-15
+Status: public maintainer docs refreshed on 2026-04-16
 
 V2 is the patch-safety and structured-guidance lane for Sentrux. It sits beside the older structural lane rather than replacing it outright.
+
+This folder is maintainer and evaluation documentation for the current v2 shape. New public testers should start with the root [README](../../README.md), the [public beta guide](../public-beta.md), and the [privacy and telemetry note](../privacy-and-telemetry.md) before diving into this material.
 
 Current surface reality:
 
@@ -11,7 +13,7 @@ Current surface reality:
 - CLI `sentrux brief` and `sentrux gate` are the current v2 CLI entry points
 - CLI `sentrux check` is still the legacy structural rules check
 
-This folder is the maintained source of truth for the current v2 shape.
+This folder is the maintained source of truth for the current v2 implementation details, validation loops, and design intent.
 
 ## Start Here
 
@@ -19,6 +21,8 @@ This folder is the maintained source of truth for the current v2 shape.
 - [MCP And CLI](./mcp-and-cli.md)
 - [Testing And Validation](./testing-and-validation.md)
 - [Release Checklist](./release-checklist.md)
+- public release preflight: `node scripts/release_preflight_public.mjs`
+- public release hygiene scan: `node scripts/check_public_release_hygiene.mjs`
 - [Roadmap](./roadmap.md)
 
 ## Core Design
@@ -39,6 +43,8 @@ This folder is the maintained source of truth for the current v2 shape.
 - [Eval Harness](./evals/README.md)
 
 ## Checked-In Reference Artifacts
+
+Checked-in reference artifacts in this repo must come from public-safe repos and sanitized outputs only.
 
 - [Parallel-Code Goldens](./examples/parallel-code-golden/README.md)
 - [Parallel-Code Benchmark](./examples/parallel-code-benchmark.md)

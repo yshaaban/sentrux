@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security reporting guidance
+    url: https://github.com/yshaaban/sentrux/blob/main/SECURITY.md
+    about: Read this before reporting a vulnerability or any issue that may include sensitive details.
+  - name: Contribution guide
+    url: https://github.com/yshaaban/sentrux/blob/main/CONTRIBUTING.md
+    about: Read the reporting and pull request guidance before filing.

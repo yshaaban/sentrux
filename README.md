@@ -10,13 +10,13 @@
 
 **Structural feedback for AI-assisted code changes.**
 
-[![CI](https://github.com/sentrux/sentrux/actions/workflows/ci.yml/badge.svg)](https://github.com/sentrux/sentrux/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/sentrux/sentrux)](https://github.com/sentrux/sentrux/releases)
+[![CI](https://github.com/yshaaban/sentrux/actions/workflows/ci.yml/badge.svg)](https://github.com/yshaaban/sentrux/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/yshaaban/sentrux)](https://github.com/yshaaban/sentrux/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 **English** | [中文](README.zh-CN.md) | [Deutsch](README.de.md) | [日本語](README.ja.md)
 
-[Quick Start](#quick-start) · [Support Matrix](#support-matrix) · [MCP](#mcp-integration) · [Languages](#languages-and-plugins) · [Docs](#documentation) · [Releases](https://github.com/sentrux/sentrux/releases)
+[Quick Start](#quick-start) · [Support Matrix](#support-matrix) · [MCP](#mcp-integration) · [Public Beta](#public-beta) · [Documentation](#documentation) · [Releases](https://github.com/yshaaban/sentrux/releases)
 
 </div>
 
@@ -28,41 +28,34 @@
 
 </div>
 
-Sentrux gives coding agents a structural feedback loop. The current product has three practical surfaces:
+Sentrux gives coding agents a structural feedback loop. The current public beta has three practical surfaces:
 
 - the desktop GUI for live structural visualization
-- MCP patch-safety tools for agent loops
+- MCP tools for patch-safety and reviewer-facing evidence
 - CLI entry points for baselines, pre-merge checks, and legacy structural rules
 
-The v2 patch-safety wedge is real, but the public docs now distinguish the shipping surfaces honestly:
+The active public v2 surfaces are:
 
-- MCP `check` is the fast-path v2 patch surface
-- CLI `sentrux brief` and `sentrux gate` are the main v2 CLI entry points
-- CLI `sentrux check` is still the legacy structural rules check
+- MCP `check` for fast patch-safety guidance
+- CLI `sentrux brief` and `sentrux gate` for structured v2 CLI workflows
+- CLI `sentrux check` as the older structural-rules lane
+
+The maintained public repository is `yshaaban/sentrux`.
 
 ## Quick Start
 
-Preferred installs:
+Preferred installs for the current public beta:
 
-- Homebrew on `macOS arm64` and `Linux x86_64`
 - `install.sh` on `macOS arm64`, `Linux x86_64`, and `Linux aarch64`
-- GitHub release download on `Windows x86_64`
-- source build on `macOS x86_64` and any unsupported target
+- direct GitHub release downloads for those same supported targets
+- source build everywhere else
 
 ```bash
-brew install sentrux/tap/sentrux
+curl -fsSL https://raw.githubusercontent.com/yshaaban/sentrux/main/install.sh | sh
 ```
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/sentrux/sentrux/main/install.sh | sh
-```
-
-```bash
-curl -L -o sentrux.exe https://github.com/sentrux/sentrux/releases/latest/download/sentrux-windows-x86_64.exe
-```
-
-```bash
-git clone https://github.com/sentrux/sentrux.git
+git clone https://github.com/yshaaban/sentrux.git
 cd sentrux
 cargo build --release -p sentrux
 ```
@@ -74,6 +67,7 @@ sentrux                       # GUI
 sentrux gate --save .         # save touched-concept baseline
 sentrux gate .                # compare current patch against the baseline
 sentrux brief --mode patch .  # structured v2 patch guidance JSON
+sentrux mcp                   # MCP server for AI agents
 sentrux check .               # legacy structural rules check
 ```
 
@@ -86,12 +80,11 @@ WGPU_BACKEND=gl sentrux
 
 ## Support Matrix
 
-- `macOS arm64`: official release binary, `install.sh`, and Homebrew are supported
-- `macOS x86_64`: no official binary yet; build from source
-- `Linux x86_64`: official release binary, `install.sh`, and Homebrew are supported
+- `macOS arm64`: official release binary and `install.sh` are supported
+- `Linux x86_64`: official release binary and `install.sh` are supported
 - `Linux aarch64`: official release binary and `install.sh` are supported
-- `Windows x86_64`: official release binary is supported
-- Homebrew does not currently ship `macOS x86_64`, `Linux aarch64`, or Windows artifacts
+- `macOS x86_64`: source build only; not part of the public beta support matrix
+- `Windows`: not part of the public beta support matrix yet
 
 ## MCP Integration
 
@@ -119,14 +112,33 @@ Preferred MCP server config:
 
 `sentrux --mcp` still works for older configs, but `sentrux mcp` is the explicit public command.
 
-## What Ships Today
+## Public Beta
+
+What ships today:
 
 - GUI: live treemap, dependency edges, structural panels, and export flow
 - MCP v2 wedge: touched-concept patch safety, trusted findings, obligations, confidence, debt signals, and watchpoints
 - CLI v2: `gate` and `brief`
-- CLI legacy structural lane: `check`
+- CLI legacy lane: `check`
 - TypeScript-first semantic analysis through the Node bridge in [`ts-bridge/`](ts-bridge/README.md)
-- calibration tooling for goldens, benchmarks, defect injection, remediation runs, and review packets under [`docs/v2/`](docs/v2/README.md)
+
+What is still intentionally beta-quality:
+
+- some detector families stay quarantined as `experimental` until validation evidence is stronger
+- platform support is limited to the matrix above
+- maintainer calibration and eval tooling lives under [`docs/v2/`](docs/v2/README.md) and is not the first-stop guide for new users
+
+Known limitations, feedback expectations, and public-test guidance live in [docs/public-beta.md](docs/public-beta.md).
+
+## Privacy And Telemetry
+
+- code analysis runs locally against your checkout
+- repo-local calibration or eval artifacts are only written when you run the eval, benchmark, or calibration tooling explicitly
+- the desktop app performs update checks and anonymous aggregate usage telemetry unless you opt out with `sentrux analytics off`
+- repo contents are not uploaded by default
+- any model or provider traffic only happens through tools or providers you configure yourself
+
+More detail is in [docs/privacy-and-telemetry.md](docs/privacy-and-telemetry.md).
 
 ## Languages And Plugins
 
@@ -155,16 +167,25 @@ Built-in registry coverage currently spans:
 
 ## Documentation
 
-- Release overview: [README.md](README.md)
-- Current v2 source of truth: [docs/v2/README.md](docs/v2/README.md)
+- Public beta guide: [docs/public-beta.md](docs/public-beta.md)
+- Privacy and telemetry: [docs/privacy-and-telemetry.md](docs/privacy-and-telemetry.md)
+- Contributing: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Security reporting: [SECURITY.md](SECURITY.md)
+- Current v2 maintainer docs: [docs/v2/README.md](docs/v2/README.md)
 - Current implementation audit: [docs/v2/implementation-status.md](docs/v2/implementation-status.md)
 - Public release checklist: [docs/v2/release-checklist.md](docs/v2/release-checklist.md)
 - Changelog: [CHANGELOG.md](CHANGELOG.md)
 - Historical planning and design material: [docs/archive/README.md](docs/archive/README.md)
 
+## Feedback And Security
+
+- bug reports and feature requests: [GitHub Issues](https://github.com/yshaaban/sentrux/issues)
+- public test feedback: use the dedicated issue template in this repo
+- security reporting guidance: [SECURITY.md](SECURITY.md)
+
 ## Philosophy
 
-Sentrux is built around a simple idea: agent output improves faster when the feedback loop is specific, structural, and cheap to run. Tests verify behavior. Sentrux is meant to help verify whether the patch still fits the system you are trying to keep coherent.
+Sentrux is built around a simple idea: agent output improves faster when the feedback loop is specific, structural, and cheap to run. Tests verify behavior. Sentrux helps verify whether the patch still fits the system you are trying to keep coherent.
 
 <div align="center">
 

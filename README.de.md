@@ -5,9 +5,11 @@ Die englische README ist fuer das aktuelle Major Release die einzige vollstaendi
 Verwende bitte diese Seiten:
 
 - Produktueberblick: [README.md](README.md)
+- Public-Beta-Hinweise: [docs/public-beta.md](docs/public-beta.md)
+- Datenschutz und Telemetrie: [docs/privacy-and-telemetry.md](docs/privacy-and-telemetry.md)
 - Changelog: [CHANGELOG.md](CHANGELOG.md)
 - V2-Dokumentation: [docs/v2/README.md](docs/v2/README.md)
-- Releases: <https://github.com/sentrux/sentrux/releases>
+- Releases: <https://github.com/yshaaban/sentrux/releases>
 
 Kurzer Status:
 

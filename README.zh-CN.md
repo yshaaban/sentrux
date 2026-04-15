@@ -5,9 +5,11 @@
 请优先查看：
 
 - 产品概览：[README.md](README.md)
+- Public beta 指南：[docs/public-beta.md](docs/public-beta.md)
+- 隐私与遥测说明：[docs/privacy-and-telemetry.md](docs/privacy-and-telemetry.md)
 - 变更记录：[CHANGELOG.md](CHANGELOG.md)
 - V2 文档：[docs/v2/README.md](docs/v2/README.md)
-- Releases: <https://github.com/sentrux/sentrux/releases>
+- Releases: <https://github.com/yshaaban/sentrux/releases>
 
 当前关键信息：
 
