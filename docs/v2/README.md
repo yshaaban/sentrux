@@ -1,6 +1,6 @@
 # Sentrux V2
 
-Status: public maintainer docs refreshed on 2026-04-16
+Status: public maintainer docs refreshed on 2026-04-17
 
 V2 is the patch-safety and structured-guidance lane for Sentrux. It sits beside the older structural lane rather than replacing it outright.
 
@@ -48,10 +48,11 @@ Checked-in reference artifacts in this repo must come from public-safe repos and
 
 - [Parallel-Code Goldens](./examples/parallel-code-golden/README.md)
 - [Parallel-Code Benchmark](./examples/parallel-code-benchmark.md)
+- [One-Tool Onboarding](./examples/one-tool-onboarding.json)
 - [One-Tool Benchmark](./examples/one-tool-benchmark.md)
 - [Parallel-Code Proof Snapshot](./examples/parallel-code-proof-snapshot.md)
 - [Parallel-Code Proof Runs](./examples/parallel-code-proof-runs/README.md)
-- [One-Tool Review Verdicts](./examples/one-tool-review-verdicts.json)
+- [One-Tool Review Verdicts](./examples/one-tool-review-verdicts.md)
 - [Sentrux Review Packet](./examples/sentrux-review-packet.md)
 - [Sentrux Defect Injection](./examples/sentrux-defect-injection.md)
 
