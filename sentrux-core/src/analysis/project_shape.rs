@@ -444,122 +444,192 @@ fn detect_boundary_roots(
     capabilities: &[String],
 ) -> Vec<BoundaryRootSuggestion> {
     let mut roots = Vec::new();
-    if capabilities.iter().any(|entry| entry == "feature_modules") {
-        roots.push(BoundaryRootSuggestion {
-            kind: "feature_modules".to_string(),
-            root: "src/modules".to_string(),
-            evidence: vec![
-                "feature-module barrels detected".to_string(),
-                "cross-module public API likely lives in index.ts".to_string(),
+    for (capability, kind, root, evidence) in capability_boundary_root_specs() {
+        push_capability_boundary_root(&mut roots, capabilities, capability, kind, root, evidence);
+    }
+    for (prefix, kind, root, evidence) in default_path_boundary_root_specs() {
+        push_path_boundary_root(&mut roots, file_paths, prefix, kind, root, evidence);
+    }
+    if has_capability(capabilities, "provider_stack") {
+        for (prefix, root, evidence) in provider_stack_boundary_root_specs() {
+            push_path_boundary_root(
+                &mut roots,
+                file_paths,
+                prefix,
+                "provider_stack",
+                root,
+                evidence,
+            );
+        }
+    }
+    if has_capability(capabilities, "query_layer") {
+        push_path_boundary_root(
+            &mut roots,
+            file_paths,
+            "src/hooks/queries/",
+            "query_layer",
+            "src/hooks/queries",
+            &["top-level query hook layer detected"],
+        );
+    }
+    for (prefix, kind, root, evidence) in persistence_boundary_root_specs() {
+        push_path_boundary_root(&mut roots, file_paths, prefix, kind, root, evidence);
+    }
+    roots
+}
+
+fn capability_boundary_root_specs() -> [(
+    &'static str,
+    &'static str,
+    &'static str,
+    &'static [&'static str],
+); 2] {
+    [
+        (
+            "feature_modules",
+            "feature_modules",
+            "src/modules",
+            &[
+                "feature-module barrels detected",
+                "cross-module public API likely lives in index.ts",
             ],
-        });
-    }
-    if capabilities.iter().any(|entry| entry == "api_routes") {
-        roots.push(BoundaryRootSuggestion {
-            kind: "api_routes".to_string(),
-            root: "src/app/api".to_string(),
-            evidence: vec!["Next.js route handlers detected".to_string()],
-        });
-    }
-    if file_paths
-        .iter()
-        .any(|path| path.starts_with("src/routes/"))
-    {
-        roots.push(BoundaryRootSuggestion {
-            kind: "http_handlers".to_string(),
-            root: "src/routes".to_string(),
-            evidence: vec!["top-level route handlers detected".to_string()],
-        });
-    }
-    if file_paths
-        .iter()
-        .any(|path| path.starts_with("src/controllers/"))
-    {
-        roots.push(BoundaryRootSuggestion {
-            kind: "http_handlers".to_string(),
-            root: "src/controllers".to_string(),
-            evidence: vec!["top-level controller layer detected".to_string()],
-        });
-    }
-    if file_paths
-        .iter()
-        .any(|path| path.starts_with("src/services/"))
-    {
-        roots.push(BoundaryRootSuggestion {
-            kind: "service_layer".to_string(),
-            root: "src/services".to_string(),
-            evidence: vec!["top-level service layer detected".to_string()],
-        });
-    }
-    if file_paths.iter().any(|path| path.starts_with("src/store/")) {
-        roots.push(BoundaryRootSuggestion {
-            kind: "client_state".to_string(),
-            root: "src/store".to_string(),
-            evidence: vec!["top-level client state layer detected".to_string()],
-        });
-    }
-    if capabilities.iter().any(|entry| entry == "provider_stack") {
-        if file_paths
-            .iter()
-            .any(|path| path.starts_with("src/providers/"))
-        {
-            roots.push(BoundaryRootSuggestion {
-                kind: "provider_stack".to_string(),
-                root: "src/providers".to_string(),
-                evidence: vec!["top-level provider stack detected".to_string()],
-            });
-        }
-        if file_paths
-            .iter()
-            .any(|path| path.starts_with("src/contexts/"))
-        {
-            roots.push(BoundaryRootSuggestion {
-                kind: "provider_stack".to_string(),
-                root: "src/contexts".to_string(),
-                evidence: vec!["top-level shared context layer detected".to_string()],
-            });
-        }
-    }
-    if capabilities.iter().any(|entry| entry == "query_layer")
-        && file_paths
-            .iter()
-            .any(|path| path.starts_with("src/hooks/queries/"))
-    {
-        roots.push(BoundaryRootSuggestion {
-            kind: "query_layer".to_string(),
-            root: "src/hooks/queries".to_string(),
-            evidence: vec!["top-level query hook layer detected".to_string()],
-        });
-    }
-    if file_paths
-        .iter()
-        .any(|path| path.starts_with("src/repositories/"))
-    {
-        roots.push(BoundaryRootSuggestion {
-            kind: "persistence_layer".to_string(),
-            root: "src/repositories".to_string(),
-            evidence: vec!["top-level repository layer detected".to_string()],
-        });
-    }
-    if file_paths.iter().any(|path| path.starts_with("src/db/")) {
-        roots.push(BoundaryRootSuggestion {
-            kind: "persistence_layer".to_string(),
-            root: "src/db".to_string(),
-            evidence: vec!["top-level database layer detected".to_string()],
-        });
-    }
-    if file_paths
-        .iter()
-        .any(|path| path.starts_with("src/middleware/"))
-    {
-        roots.push(BoundaryRootSuggestion {
-            kind: "middleware_stack".to_string(),
-            root: "src/middleware".to_string(),
-            evidence: vec!["top-level middleware stack detected".to_string()],
-        });
+        ),
+        (
+            "api_routes",
+            "api_routes",
+            "src/app/api",
+            &["Next.js route handlers detected"],
+        ),
+    ]
+}
+
+fn default_path_boundary_root_specs() -> [(
+    &'static str,
+    &'static str,
+    &'static str,
+    &'static [&'static str],
+); 4] {
+    [
+        (
+            "src/routes/",
+            "http_handlers",
+            "src/routes",
+            &["top-level route handlers detected"],
+        ),
+        (
+            "src/controllers/",
+            "http_handlers",
+            "src/controllers",
+            &["top-level controller layer detected"],
+        ),
+        (
+            "src/services/",
+            "service_layer",
+            "src/services",
+            &["top-level service layer detected"],
+        ),
+        (
+            "src/store/",
+            "client_state",
+            "src/store",
+            &["top-level client state layer detected"],
+        ),
+    ]
+}
+
+fn provider_stack_boundary_root_specs() -> [(&'static str, &'static str, &'static [&'static str]); 2]
+{
+    [
+        (
+            "src/providers/",
+            "src/providers",
+            &["top-level provider stack detected"],
+        ),
+        (
+            "src/contexts/",
+            "src/contexts",
+            &["top-level shared context layer detected"],
+        ),
+    ]
+}
+
+fn persistence_boundary_root_specs() -> [(
+    &'static str,
+    &'static str,
+    &'static str,
+    &'static [&'static str],
+); 3] {
+    [
+        (
+            "src/repositories/",
+            "persistence_layer",
+            "src/repositories",
+            &["top-level repository layer detected"],
+        ),
+        (
+            "src/db/",
+            "persistence_layer",
+            "src/db",
+            &["top-level database layer detected"],
+        ),
+        (
+            "src/middleware/",
+            "middleware_stack",
+            "src/middleware",
+            &["top-level middleware stack detected"],
+        ),
+    ]
+}
+
+fn push_capability_boundary_root(
+    roots: &mut Vec<BoundaryRootSuggestion>,
+    capabilities: &[String],
+    capability: &str,
+    kind: &str,
+    root: &str,
+    evidence: &[&str],
+) {
+    if !has_capability(capabilities, capability) {
+        return;
     }
 
-    roots
+    push_boundary_root(roots, kind, root, evidence);
+}
+
+fn push_path_boundary_root(
+    roots: &mut Vec<BoundaryRootSuggestion>,
+    file_paths: &[String],
+    prefix: &str,
+    kind: &str,
+    root: &str,
+    evidence: &[&str],
+) {
+    if !has_path_prefix(file_paths, prefix) {
+        return;
+    }
+
+    push_boundary_root(roots, kind, root, evidence);
+}
+
+fn push_boundary_root(
+    roots: &mut Vec<BoundaryRootSuggestion>,
+    kind: &str,
+    root: &str,
+    evidence: &[&str],
+) {
+    roots.push(BoundaryRootSuggestion {
+        kind: kind.to_string(),
+        root: root.to_string(),
+        evidence: evidence.iter().map(|entry| (*entry).to_string()).collect(),
+    });
+}
+
+fn has_capability(capabilities: &[String], capability: &str) -> bool {
+    capabilities.iter().any(|entry| entry == capability)
+}
+
+fn has_path_prefix(file_paths: &[String], prefix: &str) -> bool {
+    file_paths.iter().any(|path| path.starts_with(prefix))
 }
 
 fn detect_module_contracts(

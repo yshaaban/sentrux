@@ -380,12 +380,39 @@ mod tests {
 
     #[test]
     fn rust_use_tree_resolves_to_module_files() {
+        let tmp = rust_use_tree_fixture_root();
+        let gr = rust_use_tree_graph(&tmp);
+        let db_targets = import_targets_for_file(&gr, "src/store/db.rs");
+
+        assert!(db_targets.contains("src/models/episode.rs"));
+        assert!(db_targets.contains("src/models/primitive.rs"));
+        assert!(db_targets.contains("src/store/schema.rs"));
+        assert!(!db_targets.contains("src/models/mod.rs"));
+        assert!(!db_targets.contains("src/store/mod.rs"));
+        assert_eq!(db_targets.len(), 3);
+
+        let mod_targets = import_targets_for_file(&gr, "src/models/mod.rs");
+        assert!(mod_targets.contains("src/models/episode.rs"));
+        assert!(mod_targets.contains("src/models/primitive.rs"));
+
+        let store_targets = import_targets_for_file(&gr, "src/store/mod.rs");
+        assert!(store_targets.contains("src/store/db.rs"));
+        assert!(store_targets.contains("src/store/schema.rs"));
+        assert!(store_targets.contains("src/store/vectors.rs"));
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    fn rust_use_tree_fixture_root() -> std::path::PathBuf {
         let tmp = std::env::temp_dir().join("sentrux_test_rust_usetree");
         let _ = std::fs::remove_dir_all(&tmp);
         std::fs::create_dir_all(tmp.join("src/models")).unwrap();
         std::fs::create_dir_all(tmp.join("src/store")).unwrap();
         std::fs::write(tmp.join("Cargo.toml"), "[package]\nname = \"beemem\"").unwrap();
+        tmp
+    }
 
+    fn rust_use_tree_graph(tmp: &std::path::Path) -> crate::analysis::graph::GraphResult {
         let files = vec![
             make_file(
                 "db.rs",
@@ -441,45 +468,19 @@ mod tests {
         ];
 
         let refs: Vec<&FileNode> = files.iter().collect();
-        let gr = build_graphs(&refs, Some(&tmp), 5);
+        build_graphs(&refs, Some(tmp), 5)
+    }
 
-        let db_edges: Vec<&ImportEdge> = gr
+    fn import_targets_for_file(
+        graph: &crate::analysis::graph::GraphResult,
+        from_file: &str,
+    ) -> std::collections::HashSet<String> {
+        graph
             .import_edges
             .iter()
-            .filter(|e| e.from_file == "src/store/db.rs")
-            .collect();
-        let db_targets: std::collections::HashSet<&str> =
-            db_edges.iter().map(|e| e.to_file.as_str()).collect();
-
-        assert!(db_targets.contains("src/models/episode.rs"));
-        assert!(db_targets.contains("src/models/primitive.rs"));
-        assert!(db_targets.contains("src/store/schema.rs"));
-        assert!(!db_targets.contains("src/models/mod.rs"));
-        assert!(!db_targets.contains("src/store/mod.rs"));
-        assert_eq!(db_edges.len(), 3);
-
-        let mod_edges: Vec<&ImportEdge> = gr
-            .import_edges
-            .iter()
-            .filter(|e| e.from_file == "src/models/mod.rs")
-            .collect();
-        let mod_targets: std::collections::HashSet<&str> =
-            mod_edges.iter().map(|e| e.to_file.as_str()).collect();
-        assert!(mod_targets.contains("src/models/episode.rs"));
-        assert!(mod_targets.contains("src/models/primitive.rs"));
-
-        let store_mod_edges: Vec<&ImportEdge> = gr
-            .import_edges
-            .iter()
-            .filter(|e| e.from_file == "src/store/mod.rs")
-            .collect();
-        let store_targets: std::collections::HashSet<&str> =
-            store_mod_edges.iter().map(|e| e.to_file.as_str()).collect();
-        assert!(store_targets.contains("src/store/db.rs"));
-        assert!(store_targets.contains("src/store/schema.rs"));
-        assert!(store_targets.contains("src/store/vectors.rs"));
-
-        let _ = std::fs::remove_dir_all(&tmp);
+            .filter(|edge| edge.from_file == from_file)
+            .map(|edge| edge.to_file.clone())
+            .collect::<std::collections::HashSet<_>>()
     }
 
     #[test]

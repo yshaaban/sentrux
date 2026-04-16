@@ -135,79 +135,15 @@ pub fn build_concentration_reports(
     let mut reports = file_paths
         .iter()
         .map(|path| {
-            let contents = match std::fs::read_to_string(root.join(path)) {
-                Ok(contents) => contents,
-                Err(error) => {
-                    read_warnings.push(format!(
-                        "Failed to read concentration source '{}': {error}",
-                        path
-                    ));
-                    String::new()
-                }
-            };
-            let signal_source = scrub_non_code_regions(&contents);
-            let side_effect_api_weight =
-                capped_pattern_hits(&signal_source, SIDE_EFFECT_PATTERNS, 3);
-            let timer_retry_weight = capped_pattern_hits(&signal_source, TIMER_RETRY_PATTERNS, 4);
-            let async_branch_weight = capped_pattern_hits(&signal_source, ASYNC_BRANCH_PATTERNS, 6);
-            let authority_breadth = authority_by_file.get(path).copied().unwrap_or(0);
-            let side_effect_breadth = side_effect_api_weight
-                + semantic
-                    .map(|semantic| {
-                        semantic
-                            .writes
-                            .iter()
-                            .filter(|write| write.path == *path)
-                            .map(|write| write.symbol_name.clone())
-                            .collect::<HashSet<_>>()
-                            .len() as u32
-                    })
-                    .unwrap_or(0);
-            let max_complexity = complexity_map.get(path).copied().unwrap_or(0);
-            let churn_commits = history
-                .and_then(|history| history.churn_commits.get(path).copied())
-                .unwrap_or(0);
-            let hotspot_risk = history
-                .and_then(|history| history.hotspot_risk.get(path).copied())
-                .unwrap_or(0);
-            let history_available = history
-                .map(|history| {
-                    history.churn_commits.contains_key(path)
-                        || history.hotspot_risk.contains_key(path)
-                })
-                .unwrap_or(false);
-
-            let score_0_10000 = concentration_score_0_10000(
-                authority_breadth,
-                side_effect_breadth,
-                timer_retry_weight,
-                async_branch_weight,
-                max_complexity,
-                churn_commits,
-                hotspot_risk,
-                history_available,
-            );
-
-            ConcentrationReport {
-                path: path.clone(),
-                score_0_10000,
-                authority_breadth,
-                side_effect_breadth,
-                timer_retry_weight,
-                async_branch_weight,
-                max_complexity,
-                churn_commits,
-                hotspot_risk,
-                reasons: concentration_reasons(
-                    authority_breadth,
-                    side_effect_breadth,
-                    timer_retry_weight,
-                    async_branch_weight,
-                    max_complexity,
-                    churn_commits,
-                    hotspot_risk,
-                ),
-            }
+            build_concentration_report(
+                root,
+                path,
+                complexity_map,
+                semantic,
+                history,
+                &authority_by_file,
+                &mut read_warnings,
+            )
         })
         .filter(|report| report.score_0_10000 > 0)
         .collect::<Vec<_>>();
@@ -223,6 +159,90 @@ pub fn build_concentration_reports(
         reports,
         read_warnings,
     }
+}
+
+fn build_concentration_report(
+    root: &Path,
+    path: &str,
+    complexity_map: &HashMap<String, u32>,
+    semantic: Option<&SemanticSnapshot>,
+    history: Option<&ConcentrationHistory>,
+    authority_by_file: &HashMap<String, u32>,
+    read_warnings: &mut Vec<String>,
+) -> ConcentrationReport {
+    let contents = match std::fs::read_to_string(root.join(path)) {
+        Ok(contents) => contents,
+        Err(error) => {
+            read_warnings.push(format!(
+                "Failed to read concentration source '{}': {error}",
+                path
+            ));
+            String::new()
+        }
+    };
+    let signal_source = scrub_non_code_regions(&contents);
+    let side_effect_api_weight = capped_pattern_hits(&signal_source, SIDE_EFFECT_PATTERNS, 3);
+    let timer_retry_weight = capped_pattern_hits(&signal_source, TIMER_RETRY_PATTERNS, 4);
+    let async_branch_weight = capped_pattern_hits(&signal_source, ASYNC_BRANCH_PATTERNS, 6);
+    let authority_breadth = authority_by_file.get(path).copied().unwrap_or(0);
+    let side_effect_breadth = side_effect_api_weight + semantic_side_effect_breadth(semantic, path);
+    let max_complexity = complexity_map.get(path).copied().unwrap_or(0);
+    let churn_commits = history
+        .and_then(|history| history.churn_commits.get(path).copied())
+        .unwrap_or(0);
+    let hotspot_risk = history
+        .and_then(|history| history.hotspot_risk.get(path).copied())
+        .unwrap_or(0);
+    let history_available = history
+        .map(|history| {
+            history.churn_commits.contains_key(path) || history.hotspot_risk.contains_key(path)
+        })
+        .unwrap_or(false);
+    let score_0_10000 = concentration_score_0_10000(
+        authority_breadth,
+        side_effect_breadth,
+        timer_retry_weight,
+        async_branch_weight,
+        max_complexity,
+        churn_commits,
+        hotspot_risk,
+        history_available,
+    );
+
+    ConcentrationReport {
+        path: path.to_string(),
+        score_0_10000,
+        authority_breadth,
+        side_effect_breadth,
+        timer_retry_weight,
+        async_branch_weight,
+        max_complexity,
+        churn_commits,
+        hotspot_risk,
+        reasons: concentration_reasons(
+            authority_breadth,
+            side_effect_breadth,
+            timer_retry_weight,
+            async_branch_weight,
+            max_complexity,
+            churn_commits,
+            hotspot_risk,
+        ),
+    }
+}
+
+fn semantic_side_effect_breadth(semantic: Option<&SemanticSnapshot>, path: &str) -> u32 {
+    semantic
+        .map(|semantic| {
+            semantic
+                .writes
+                .iter()
+                .filter(|write| write.path == path)
+                .map(|write| write.symbol_name.clone())
+                .collect::<HashSet<_>>()
+                .len() as u32
+        })
+        .unwrap_or(0)
 }
 
 pub fn build_concentration_findings(

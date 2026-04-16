@@ -9,7 +9,36 @@ use std::sync::Arc;
 
 #[test]
 fn reports_large_files_sprawl_hotspots_cycles_and_dead_private_clusters() {
-    let snapshot = Snapshot {
+    let snapshot = sample_structural_snapshot();
+    let health = sample_structural_health();
+
+    let reports = build_structural_debt_reports(&snapshot, &health);
+    let kinds = reports
+        .iter()
+        .map(|report| report.kind.as_str())
+        .collect::<Vec<_>>();
+
+    assert!(kinds.contains(&"large_file"));
+    assert!(kinds.contains(&"dependency_sprawl"));
+    assert!(kinds.contains(&"unstable_hotspot"));
+    assert!(kinds.contains(&"cycle_cluster"));
+    assert!(kinds.contains(&"dead_private_code_cluster"));
+}
+
+#[test]
+fn reports_dead_island_for_disconnected_internal_cycle() {
+    let snapshot = dead_island_snapshot();
+    let health = dead_island_health();
+
+    let reports = build_structural_debt_reports(&snapshot, &health);
+    assert!(has_dead_island_report(
+        &reports,
+        &["src/orphan-a.ts", "src/orphan-b.ts"]
+    ));
+}
+
+fn sample_structural_snapshot() -> Snapshot {
+    Snapshot {
         root: Arc::new(FileNode {
             path: ".".to_string(),
             name: ".".to_string(),
@@ -62,15 +91,13 @@ fn reports_large_files_sprawl_hotspots_cycles_and_dead_private_clusters() {
             },
         ],
         inherit_graph: Vec::new(),
-        entry_points: vec![EntryPoint {
-            file: "src/app.ts".into(),
-            func: "main".into(),
-            lang: "typescript".into(),
-            confidence: "high".into(),
-        }],
+        entry_points: vec![sample_entry_point()],
         exec_depth: HashMap::new(),
-    };
-    let health = HealthReport {
+    }
+}
+
+fn sample_structural_health() -> HealthReport {
+    HealthReport {
         coupling_score: 0.0,
         circular_dep_count: 1,
         circular_dep_files: vec![vec!["src/a.ts".into(), "src/b.ts".into()]],
@@ -139,24 +166,11 @@ fn reports_large_files_sprawl_hotspots_cycles_and_dead_private_clusters() {
             equality: 0.0,
             redundancy: 0.0,
         },
-    };
-
-    let reports = build_structural_debt_reports(&snapshot, &health);
-    let kinds = reports
-        .iter()
-        .map(|report| report.kind.as_str())
-        .collect::<Vec<_>>();
-
-    assert!(kinds.contains(&"large_file"));
-    assert!(kinds.contains(&"dependency_sprawl"));
-    assert!(kinds.contains(&"unstable_hotspot"));
-    assert!(kinds.contains(&"cycle_cluster"));
-    assert!(kinds.contains(&"dead_private_code_cluster"));
+    }
 }
 
-#[test]
-fn reports_dead_island_for_disconnected_internal_cycle() {
-    let snapshot = Snapshot {
+fn dead_island_snapshot() -> Snapshot {
+    Snapshot {
         root: Arc::new(FileNode {
             path: ".".to_string(),
             name: ".".to_string(),
@@ -196,15 +210,13 @@ fn reports_dead_island_for_disconnected_internal_cycle() {
         ],
         call_graph: Vec::new(),
         inherit_graph: Vec::new(),
-        entry_points: vec![EntryPoint {
-            file: "src/app.ts".into(),
-            func: "main".into(),
-            lang: "typescript".into(),
-            confidence: "high".into(),
-        }],
+        entry_points: vec![sample_entry_point()],
         exec_depth: HashMap::new(),
-    };
-    let health = HealthReport {
+    }
+}
+
+fn dead_island_health() -> HealthReport {
+    HealthReport {
         coupling_score: 0.0,
         circular_dep_count: 1,
         circular_dep_files: vec![vec!["src/orphan-a.ts".into(), "src/orphan-b.ts".into()]],
@@ -253,13 +265,16 @@ fn reports_dead_island_for_disconnected_internal_cycle() {
             equality: 0.0,
             redundancy: 0.0,
         },
-    };
+    }
+}
 
-    let reports = build_structural_debt_reports(&snapshot, &health);
-    assert!(has_dead_island_report(
-        &reports,
-        &["src/orphan-a.ts", "src/orphan-b.ts"]
-    ));
+fn sample_entry_point() -> EntryPoint {
+    EntryPoint {
+        file: "src/app.ts".into(),
+        func: "main".into(),
+        lang: "typescript".into(),
+        confidence: "high".into(),
+    }
 }
 
 #[test]

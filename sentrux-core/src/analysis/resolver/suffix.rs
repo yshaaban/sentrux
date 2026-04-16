@@ -209,78 +209,15 @@ fn resolve_tier2_imports(
         .par_iter()
         .filter(|f| !f.is_dir)
         .flat_map_iter(|file| {
-            let imports = match file.sa.as_ref().and_then(|sa| sa.imp.as_ref()) {
-                Some(imp) => imp,
-                None => return Vec::new(),
-            };
-            // Per-file env: directory_is_package comes from the file's language profile (TOML)
-            let profile = crate::analysis::lang_registry::profile(&file.lang);
-            let env = ResolveEnv {
-                suffix_index,
-                known_files,
+            resolve_file_imports(
+                file,
+                &idx,
                 exts,
-                directory_is_package: profile.semantics.project.directory_is_package,
-            };
-            let file_dir = Path::new(&file.path).parent().unwrap_or(Path::new(""));
-            let src_project = project_map
-                .get(&file.path)
-                .map(|s| s.as_str())
-                .unwrap_or("");
-
-            // Get path aliases for this file's project
-            let project_aliases = path_aliases
-                .get(src_project)
-                .map(|v| v.as_slice())
-                .unwrap_or(&[]);
-
-            // Also try root-level aliases (from manifest name discovery)
-            let root_aliases = path_aliases.get("").map(|v| v.as_slice()).unwrap_or(&[]);
-
-            imports
-                .iter()
-                .filter_map(|specifier| {
-                    let resolution_kind =
-                        classify_specifier_kind(specifier, project_aliases, root_aliases);
-                    // Try alias-substituted specifier first, fall back to original.
-                    // Aliases are hints, not absolute — if the substituted path
-                    // doesn't exist (source not in src/), the original may still resolve.
-                    let alias_specs = [
-                        apply_path_alias(specifier, project_aliases),
-                        apply_path_alias(specifier, root_aliases),
-                    ];
-                    let mut resolved_edge: Option<ImportEdge> = None;
-                    for aliased in &alias_specs {
-                        if let Some(ref spec) = aliased {
-                            let src = SourceContext {
-                                specifier: spec,
-                                file,
-                                file_dir,
-                            };
-                            if let Some(edge) = resolve_single_specifier(&src, &idx, &env) {
-                                resolved_edge = Some(edge);
-                                break;
-                            }
-                        }
-                    }
-                    if resolved_edge.is_none() {
-                        let src = SourceContext {
-                            specifier,
-                            file,
-                            file_dir,
-                        };
-                        resolved_edge = resolve_single_specifier(&src, &idx, &env);
-                    }
-
-                    if resolved_edge.is_some() {
-                        stats
-                            .resolved_count
-                            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                    } else {
-                        increment_unresolved(&stats, resolution_kind);
-                    }
-                    resolved_edge
-                })
-                .collect()
+                known_files,
+                project_map,
+                path_aliases,
+                &stats,
+            )
         })
         .collect();
 
@@ -297,6 +234,103 @@ fn resolve_tier2_imports(
         );
     }
     (edges, summary)
+}
+
+fn resolve_file_imports<'a>(
+    file: &'a FileNode,
+    idx: &ResolutionIndex<'a>,
+    exts: &[&str],
+    known_files: &HashSet<&'a str>,
+    project_map: &HashMap<String, String>,
+    path_aliases: &HashMap<String, Vec<PathAlias>>,
+    stats: &ResolutionStats,
+) -> Vec<ImportEdge> {
+    let imports = match file.sa.as_ref().and_then(|sa| sa.imp.as_ref()) {
+        Some(imports) => imports,
+        None => return Vec::new(),
+    };
+    let profile = crate::analysis::lang_registry::profile(&file.lang);
+    let env = ResolveEnv {
+        suffix_index: idx.suffix_index,
+        known_files,
+        exts,
+        directory_is_package: profile.semantics.project.directory_is_package,
+    };
+    let file_dir = Path::new(&file.path).parent().unwrap_or(Path::new(""));
+    let src_project = project_map
+        .get(&file.path)
+        .map(|value| value.as_str())
+        .unwrap_or("");
+    let project_aliases = path_aliases
+        .get(src_project)
+        .map(|values| values.as_slice())
+        .unwrap_or(&[]);
+    let root_aliases = path_aliases
+        .get("")
+        .map(|values| values.as_slice())
+        .unwrap_or(&[]);
+
+    imports
+        .iter()
+        .filter_map(|specifier| {
+            resolve_import_specifier(
+                file,
+                file_dir,
+                specifier,
+                idx,
+                &env,
+                project_aliases,
+                root_aliases,
+                stats,
+            )
+        })
+        .collect()
+}
+
+fn resolve_import_specifier(
+    file: &FileNode,
+    file_dir: &Path,
+    specifier: &str,
+    idx: &ResolutionIndex<'_>,
+    env: &ResolveEnv<'_>,
+    project_aliases: &[PathAlias],
+    root_aliases: &[PathAlias],
+    stats: &ResolutionStats,
+) -> Option<ImportEdge> {
+    let resolution_kind = classify_specifier_kind(specifier, project_aliases, root_aliases);
+    let alias_specs = [
+        apply_path_alias(specifier, project_aliases),
+        apply_path_alias(specifier, root_aliases),
+    ];
+    let resolved_edge = alias_specs
+        .iter()
+        .filter_map(|aliased| aliased.as_deref())
+        .find_map(|aliased| {
+            let src = SourceContext {
+                specifier: aliased,
+                file,
+                file_dir,
+            };
+            resolve_single_specifier(&src, idx, env)
+        })
+        .or_else(|| {
+            let src = SourceContext {
+                specifier,
+                file,
+                file_dir,
+            };
+            resolve_single_specifier(&src, idx, env)
+        });
+
+    if resolved_edge.is_some() {
+        stats
+            .resolved_count
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    } else {
+        increment_unresolved(stats, resolution_kind);
+    }
+
+    resolved_edge
 }
 
 #[derive(Clone, Copy)]

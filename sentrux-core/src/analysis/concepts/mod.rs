@@ -152,15 +152,39 @@ pub fn infer_concepts(
     let mut suggestions = Vec::new();
     let mut seen_ids = HashSet::new();
 
+    push_closed_domain_suggestions(
+        &mut suggestions,
+        &mut seen_ids,
+        &configured_symbols,
+        semantic,
+    );
+    push_store_like_symbol_suggestions(
+        &mut suggestions,
+        &mut seen_ids,
+        &configured_symbols,
+        semantic,
+    );
+    suggestions.sort_by(|left, right| {
+        right
+            .confidence_0_10000
+            .cmp(&left.confidence_0_10000)
+            .then_with(|| left.id.cmp(&right.id))
+    });
+    suggestions
+}
+
+fn push_closed_domain_suggestions(
+    suggestions: &mut Vec<InferredConceptSuggestion>,
+    seen_ids: &mut HashSet<String>,
+    configured_symbols: &HashSet<String>,
+    semantic: &SemanticSnapshot,
+) {
     for domain in &semantic.closed_domains {
         if configured_symbols.contains(&domain.symbol_name) {
             continue;
         }
-        let site_count = semantic
-            .closed_domain_sites
-            .iter()
-            .filter(|site| site.domain_symbol_name == domain.symbol_name)
-            .count();
+
+        let site_count = closed_domain_site_count(semantic, &domain.symbol_name);
         if site_count == 0 {
             continue;
         }
@@ -169,6 +193,7 @@ pub fn infer_concepts(
         if !seen_ids.insert(id.clone()) {
             continue;
         }
+
         suggestions.push(InferredConceptSuggestion {
             id,
             kind: "closed_domain".to_string(),
@@ -180,34 +205,23 @@ pub fn infer_concepts(
             confidence_0_10000: (6500 + (site_count.min(4) as u32 * 500)).min(9000),
         });
     }
+}
 
-    let mut accessed_symbols: HashMap<String, BTreeSet<String>> = HashMap::new();
-    for read in &semantic.reads {
-        if is_store_like_symbol(&read.symbol_name) {
-            accessed_symbols
-                .entry(read.symbol_name.clone())
-                .or_default()
-                .insert(read.path.clone());
-        }
-    }
-    for write in &semantic.writes {
-        if is_store_like_symbol(&write.symbol_name) {
-            accessed_symbols
-                .entry(write.symbol_name.clone())
-                .or_default()
-                .insert(write.path.clone());
-        }
-    }
+fn closed_domain_site_count(semantic: &SemanticSnapshot, domain_symbol_name: &str) -> usize {
+    semantic
+        .closed_domain_sites
+        .iter()
+        .filter(|site| site.domain_symbol_name == domain_symbol_name)
+        .count()
+}
 
-    let mut accessed_entries = accessed_symbols.into_iter().collect::<Vec<_>>();
-    accessed_entries.sort_by(|(left_symbol, left_files), (right_symbol, right_files)| {
-        right_files
-            .len()
-            .cmp(&left_files.len())
-            .then_with(|| left_symbol.cmp(right_symbol))
-    });
-
-    for (symbol_name, files) in accessed_entries {
+fn push_store_like_symbol_suggestions(
+    suggestions: &mut Vec<InferredConceptSuggestion>,
+    seen_ids: &mut HashSet<String>,
+    configured_symbols: &HashSet<String>,
+    semantic: &SemanticSnapshot,
+) {
+    for (symbol_name, files) in sorted_accessed_store_symbols(semantic) {
         if configured_symbols.contains(&symbol_name) || files.len() < 2 {
             continue;
         }
@@ -216,28 +230,11 @@ pub fn infer_concepts(
         if !seen_ids.insert(id.clone()) {
             continue;
         }
-        let anchors = semantic
-            .symbols
-            .iter()
-            .filter(|symbol| symbol.name == symbol_name)
-            .map(|symbol| format!("{}::{}", symbol.path, symbol.name))
-            .collect::<Vec<_>>();
-        let mut anchors = if anchors.is_empty() {
-            files
-                .iter()
-                .next()
-                .map(|path| vec![format!("{path}::{symbol_name}")])
-                .unwrap_or_default()
-        } else {
-            anchors
-        };
-        anchors.sort();
-        anchors.dedup();
 
         suggestions.push(InferredConceptSuggestion {
             id,
             kind: "store_like_symbol".to_string(),
-            anchors,
+            anchors: store_like_suggestion_anchors(semantic, &symbol_name, &files),
             evidence: vec![format!(
                 "symbol '{}' is touched from {} file(s)",
                 symbol_name,
@@ -246,14 +243,89 @@ pub fn infer_concepts(
             confidence_0_10000: (5500 + (files.len().min(4) as u32 * 500)).min(8000),
         });
     }
+}
 
-    suggestions.sort_by(|left, right| {
-        right
-            .confidence_0_10000
-            .cmp(&left.confidence_0_10000)
-            .then_with(|| left.id.cmp(&right.id))
+fn sorted_accessed_store_symbols(semantic: &SemanticSnapshot) -> Vec<(String, BTreeSet<String>)> {
+    let mut accessed_symbols: HashMap<String, BTreeSet<String>> = HashMap::new();
+    record_store_like_symbol_accesses(&mut accessed_symbols, &semantic.reads);
+    record_store_like_symbol_accesses(&mut accessed_symbols, &semantic.writes);
+
+    let mut accessed_entries = accessed_symbols.into_iter().collect::<Vec<_>>();
+    accessed_entries.sort_by(|(left_symbol, left_files), (right_symbol, right_files)| {
+        right_files
+            .len()
+            .cmp(&left_files.len())
+            .then_with(|| left_symbol.cmp(right_symbol))
     });
-    suggestions
+    accessed_entries
+}
+
+fn record_store_like_symbol_accesses<T>(
+    accessed_symbols: &mut HashMap<String, BTreeSet<String>>,
+    accesses: &[T],
+) where
+    T: StoreLikeSymbolAccess,
+{
+    for access in accesses {
+        if !is_store_like_symbol(access.symbol_name()) {
+            continue;
+        }
+
+        accessed_symbols
+            .entry(access.symbol_name().to_string())
+            .or_default()
+            .insert(access.path().to_string());
+    }
+}
+
+trait StoreLikeSymbolAccess {
+    fn path(&self) -> &str;
+    fn symbol_name(&self) -> &str;
+}
+
+impl StoreLikeSymbolAccess for crate::analysis::semantic::ReadFact {
+    fn path(&self) -> &str {
+        &self.path
+    }
+
+    fn symbol_name(&self) -> &str {
+        &self.symbol_name
+    }
+}
+
+impl StoreLikeSymbolAccess for crate::analysis::semantic::WriteFact {
+    fn path(&self) -> &str {
+        &self.path
+    }
+
+    fn symbol_name(&self) -> &str {
+        &self.symbol_name
+    }
+}
+
+fn store_like_suggestion_anchors(
+    semantic: &SemanticSnapshot,
+    symbol_name: &str,
+    files: &BTreeSet<String>,
+) -> Vec<String> {
+    let anchors = semantic
+        .symbols
+        .iter()
+        .filter(|symbol| symbol.name == symbol_name)
+        .map(|symbol| format!("{}::{}", symbol.path, symbol.name))
+        .collect::<Vec<_>>();
+    let mut anchors = if anchors.is_empty() {
+        files
+            .iter()
+            .next()
+            .map(|path| vec![format!("{path}::{symbol_name}")])
+            .unwrap_or_default()
+    } else {
+        anchors
+    };
+    anchors.sort();
+    anchors.dedup();
+    anchors
 }
 
 fn concept_node_from_rule(rule: &ConceptRule) -> ConceptNode {

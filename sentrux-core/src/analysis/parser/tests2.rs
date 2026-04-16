@@ -494,9 +494,32 @@ class Bar:
     /// This is the REAL verification — not string matching on files.
     #[test]
     fn all_langs_extract_verified() {
-        // (lang, code, expected_func_or_class_name, expected_import_substring_or_empty)
-        let cases: &[(&str, &[u8], &str, &str)] = &[
-            // --- Original 11 languages with import_ast ---
+        let mut passed = 0;
+        let mut failed = 0;
+        for case in verified_language_cases() {
+            match verify_language_extraction_case(*case) {
+                VerificationOutcome::Passed => passed += 1,
+                VerificationOutcome::Failed => failed += 1,
+                VerificationOutcome::Skipped => {}
+            }
+        }
+
+        eprintln!("\n=== ALL LANGS VERIFIED: {passed} passed, {failed} failed ===");
+        assert_eq!(
+            failed, 0,
+            "{failed} languages failed extraction verification"
+        );
+    }
+
+    enum VerificationOutcome {
+        Passed,
+        Failed,
+        Skipped,
+    }
+
+    fn verified_language_cases(
+    ) -> &'static [(&'static str, &'static [u8], &'static str, &'static str)] {
+        &[
             ("python", b"import os\nfrom collections import defaultdict\ndef greet(name): pass\nclass Cat: pass\n", "greet", "os"),
             ("rust", b"use std::collections::HashMap;\nfn hello() {}\nstruct Cat {}\n", "hello", "std/collections/HashMap"),
             ("javascript", b"import React from 'react';\nfunction hello() {}\nclass Cat {}\n", "hello", "react"),
@@ -508,8 +531,6 @@ class Bar:
             ("csharp", b"using System.Collections;\nclass Cat {\n  void Hello() {}\n}\n", "Hello", ""),
             ("scala", b"import scala.collection.mutable\ndef greet(): Unit = {}\nclass Cat\n", "greet", ""),
             ("elixir", b"alias Acme.Shared.V1\ndef greet(name), do: name\n", "greet", "acme/shared/v1"),
-
-            // --- 12 new languages ---
             ("nim", b"proc hello(name: string) =\n  echo name\nimport strutils\n", "hello", "strutils"),
             ("julia", b"function greet(name)\n  println(name)\nend\nimport LinearAlgebra\n", "greet", "LinearAlgebra"),
             ("groovy", b"def hello(name) {\n  println name\n}\nimport groovy.json.JsonSlurper\n", "hello", "groovy.json.JsonSlurper"),
@@ -522,85 +543,76 @@ class Bar:
             ("erlang", b"-module(mymod).\n-import(lists, [map/2]).\nhello(Name) -> ok.\n", "hello", "lists"),
             ("kotlin", b"import kotlin.collections.List\nfun greet(name: String) {}\nclass Cat\n", "greet", "kotlin/collections/List"),
             ("protobuf", b"syntax = \"proto3\";\nimport \"other.proto\";\nmessage Person { string name = 1; }\n", "Person", "other.proto"),
-
-            // --- Languages fixed in this session ---
             ("bash", b"#!/bin/bash\nmy_func() { echo hi; }\nsource ./utils.sh\n", "my_func", "utils"),
             ("haskell", b"module Main where\nimport Data.List\ngreet name = name\n", "greet", "Data.List"),
             ("html", b"<link rel=\"stylesheet\" href=\"/style.css\">\n<script src=\"/app.js\"></script>\n", "", "/style.css"),
             ("zig", b"const std = @import(\"std\");\nfn hello() void {}\n", "hello", "std"),
             ("nix", b"{ }:\nlet\n  utils = import ./utils.nix;\n  hello = x: x;\nin hello\n", "hello", "utils"),
             ("objective-c", b"#import \"MyClass.h\"\nvoid hello() {}\n", "hello", "MyClass"),
-
-            // --- Svelte/Vue: functions only (no imports — grammar limitation) ---
             ("cobol", b"       IDENTIFICATION DIVISION.\n       PROGRAM-ID. HELLO-WORLD.\n       PROCEDURE DIVISION.\n           DISPLAY \"Hello\".\n           STOP RUN.\n       COPY \"UTILS.CPY\".\n", "HELLO-WORLD", "UTILS"),
             ("ruby", b"require 'json'\ndef hello; end\nclass Cat; end\n", "hello", "json"),
             ("php", b"<?php\nuse App\\Models\\User;\nfunction hello() {}\nclass Cat {}\n", "hello", ""),
             ("lua", b"local json = require('json')\nfunction hello() end\n", "hello", "json"),
             ("swift", b"import Foundation\nfunc hello() {}\nclass Cat {}\n", "hello", "Foundation"),
             ("r", b"library(ggplot2)\nhello <- function(x) { x }\n", "hello", "ggplot2"),
-        ];
+        ]
+    }
 
-        let mut passed = 0;
-        let mut failed = 0;
-        for &(lang, code, expected_name, expected_import) in cases {
-            let sa = match parse_bytes(code, lang) {
-                Some(sa) => sa,
-                None => {
-                    eprintln!("[{}] SKIP — grammar not loaded", lang);
-                    continue;
-                }
-            };
-
-            // Check name extraction (if expected)
-            if !expected_name.is_empty() {
-                let has_name = sa
-                    .functions
+    fn verify_language_extraction_case(case: (&str, &[u8], &str, &str)) -> VerificationOutcome {
+        let (lang, code, expected_name, expected_import) = case;
+        let sa = match parse_bytes(code, lang) {
+            Some(sa) => sa,
+            None => {
+                eprintln!("[{}] SKIP — grammar not loaded", lang);
+                return VerificationOutcome::Skipped;
+            }
+        };
+        if !expected_name.is_empty() && !extracted_name_matches(&sa, expected_name) {
+            eprintln!(
+                "[{}] FAIL name: expected '{}', got functions={:?} classes={:?}",
+                lang,
+                expected_name,
+                sa.functions
                     .as_ref()
-                    .map_or(false, |fns| fns.iter().any(|f| f.n == expected_name))
-                    || sa
-                        .cls
-                        .as_ref()
-                        .map_or(false, |cls| cls.iter().any(|c| c.n == expected_name));
-                if !has_name {
-                    eprintln!(
-                        "[{}] FAIL name: expected '{}', got functions={:?} classes={:?}",
-                        lang,
-                        expected_name,
-                        sa.functions
-                            .as_ref()
-                            .map(|f| f.iter().map(|x| x.n.as_str()).collect::<Vec<_>>()),
-                        sa.cls
-                            .as_ref()
-                            .map(|c| c.iter().map(|x| x.n.as_str()).collect::<Vec<_>>())
-                    );
-                    failed += 1;
-                    continue;
-                }
-            }
-
-            // Check import extraction (if expected)
-            if !expected_import.is_empty() {
-                let has_import = sa.imp.as_ref().map_or(false, |imps| {
-                    imps.iter().any(|i| i.contains(expected_import))
-                });
-                if !has_import {
-                    eprintln!(
-                        "[{}] FAIL import: expected substring '{}', got {:?}",
-                        lang, expected_import, sa.imp
-                    );
-                    failed += 1;
-                    continue;
-                }
-            }
-
-            passed += 1;
+                    .map(|f| f.iter().map(|x| x.n.as_str()).collect::<Vec<_>>()),
+                sa.cls
+                    .as_ref()
+                    .map(|c| c.iter().map(|x| x.n.as_str()).collect::<Vec<_>>())
+            );
+            return VerificationOutcome::Failed;
         }
+        if !expected_import.is_empty() && !extracted_import_matches(&sa, expected_import) {
+            eprintln!(
+                "[{}] FAIL import: expected substring '{}', got {:?}",
+                lang, expected_import, sa.imp
+            );
+            return VerificationOutcome::Failed;
+        }
+        VerificationOutcome::Passed
+    }
 
-        eprintln!("\n=== ALL LANGS VERIFIED: {passed} passed, {failed} failed ===");
-        assert_eq!(
-            failed, 0,
-            "{failed} languages failed extraction verification"
-        );
+    fn extracted_name_matches(
+        sa: &crate::core::types::StructuralAnalysis,
+        expected_name: &str,
+    ) -> bool {
+        sa.functions
+            .as_ref()
+            .is_some_and(|fns| fns.iter().any(|f| f.n == expected_name))
+            || sa
+                .cls
+                .as_ref()
+                .is_some_and(|classes| classes.iter().any(|class| class.n == expected_name))
+    }
+
+    fn extracted_import_matches(
+        sa: &crate::core::types::StructuralAnalysis,
+        expected_import: &str,
+    ) -> bool {
+        sa.imp.as_ref().is_some_and(|imports| {
+            imports
+                .iter()
+                .any(|import| import.contains(expected_import))
+        })
     }
 
     #[test]

@@ -19,66 +19,22 @@ pub(crate) fn build_contract_parity_report(
     let mut missing = BTreeSet::new();
     let mut files = BTreeSet::new();
 
-    push_symbol_cell(
+    let (browser_entry_present, electron_entry_present) = push_contract_presence_cells(
         &mut satisfied,
         &mut missing,
         &mut files,
         semantic,
-        contract.categories_symbol.as_deref(),
-        ParityCellKind::CategoriesSymbol,
-        "categories symbol declared",
-    );
-    push_symbol_cell(
-        &mut satisfied,
-        &mut missing,
-        &mut files,
-        semantic,
-        contract.payload_map_symbol.as_deref(),
-        ParityCellKind::PayloadMapSymbol,
-        "payload map symbol declared",
-    );
-    push_symbol_cell(
-        &mut satisfied,
-        &mut missing,
-        &mut files,
-        semantic,
-        contract.registry_symbol.as_deref(),
-        ParityCellKind::RegistrySymbol,
-        "registry symbol declared",
-    );
-
-    let browser_entry_present = push_file_presence_cell(
-        &mut satisfied,
-        &mut missing,
-        &mut files,
+        contract,
         root,
-        contract.browser_entry.as_deref(),
-        ParityCellKind::BrowserEntry,
-        "browser entry present",
-    );
-    let electron_entry_present = push_file_presence_cell(
-        &mut satisfied,
-        &mut missing,
-        &mut files,
-        root,
-        contract.electron_entry.as_deref(),
-        ParityCellKind::ElectronEntry,
-        "electron entry present",
     );
 
     let contract_symbol_names = contract_symbol_names(config, contract, semantic);
-    let browser_has_binding = runtime_binding_present(
+    let (browser_has_binding, electron_has_binding) = runtime_binding_status(
         root,
-        contract.browser_entry.as_deref(),
+        contract,
         &contract_symbol_names,
         read_warnings,
         browser_entry_present,
-    );
-    let electron_has_binding = runtime_binding_present(
-        root,
-        contract.electron_entry.as_deref(),
-        &contract_symbol_names,
-        read_warnings,
         electron_entry_present,
     );
 
@@ -115,6 +71,90 @@ pub(crate) fn build_contract_parity_report(
     push_versioning_cell(&mut satisfied, &mut missing, root, contract);
 
     build_contract_report(contract, satisfied, missing, files)
+}
+
+fn push_contract_presence_cells(
+    satisfied: &mut BTreeSet<ParityCell>,
+    missing: &mut BTreeSet<ParityCell>,
+    files: &mut BTreeSet<String>,
+    semantic: &SemanticSnapshot,
+    contract: &ContractRule,
+    root: &Path,
+) -> (bool, bool) {
+    push_symbol_cell(
+        satisfied,
+        missing,
+        files,
+        semantic,
+        contract.categories_symbol.as_deref(),
+        ParityCellKind::CategoriesSymbol,
+        "categories symbol declared",
+    );
+    push_symbol_cell(
+        satisfied,
+        missing,
+        files,
+        semantic,
+        contract.payload_map_symbol.as_deref(),
+        ParityCellKind::PayloadMapSymbol,
+        "payload map symbol declared",
+    );
+    push_symbol_cell(
+        satisfied,
+        missing,
+        files,
+        semantic,
+        contract.registry_symbol.as_deref(),
+        ParityCellKind::RegistrySymbol,
+        "registry symbol declared",
+    );
+
+    let browser_entry_present = push_file_presence_cell(
+        satisfied,
+        missing,
+        files,
+        root,
+        contract.browser_entry.as_deref(),
+        ParityCellKind::BrowserEntry,
+        "browser entry present",
+    );
+    let electron_entry_present = push_file_presence_cell(
+        satisfied,
+        missing,
+        files,
+        root,
+        contract.electron_entry.as_deref(),
+        ParityCellKind::ElectronEntry,
+        "electron entry present",
+    );
+
+    (browser_entry_present, electron_entry_present)
+}
+
+fn runtime_binding_status(
+    root: &Path,
+    contract: &ContractRule,
+    contract_symbol_names: &HashSet<String>,
+    read_warnings: &mut Vec<String>,
+    browser_entry_present: bool,
+    electron_entry_present: bool,
+) -> (bool, bool) {
+    let browser_has_binding = runtime_binding_present(
+        root,
+        contract.browser_entry.as_deref(),
+        contract_symbol_names,
+        read_warnings,
+        browser_entry_present,
+    );
+    let electron_has_binding = runtime_binding_present(
+        root,
+        contract.electron_entry.as_deref(),
+        contract_symbol_names,
+        read_warnings,
+        electron_entry_present,
+    );
+
+    (browser_has_binding, electron_has_binding)
 }
 
 pub(crate) fn contract_in_scope(

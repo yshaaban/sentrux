@@ -395,6 +395,37 @@ mod tests {
             "binding-family",
             &["src/domain", "src/app", "src/runtime"],
         );
+        write_runtime_binding_fixture(&root);
+        let config = runtime_binding_rules_config();
+        let semantic = runtime_binding_semantic_snapshot();
+
+        let reports = build_parity_reports(
+            &config,
+            &semantic,
+            &root,
+            ParityScope::All,
+            &BTreeSet::new(),
+        )
+        .reports;
+        let report = report_by_id(&reports, "bootstrap");
+
+        assert!(report
+            .satisfied_cells
+            .iter()
+            .any(|cell| cell.kind == "browser_live_update_binding"));
+        assert!(report
+            .satisfied_cells
+            .iter()
+            .any(|cell| cell.kind == "electron_live_update_binding"));
+        assert!(!report
+            .missing_cells
+            .iter()
+            .any(|cell| cell.kind == "snapshot_without_live_update"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    fn write_runtime_binding_fixture(root: &std::path::Path) {
         std::fs::write(
             root.join("src/domain/bootstrap.ts"),
             r#"
@@ -423,8 +454,10 @@ mod tests {
             "import { replaceServerStateBootstrap } from '../app/bootstrap';\nreplaceServerStateBootstrap();\n",
         )
         .expect("write electron");
+    }
 
-        let config: RulesConfig = toml::from_str(
+    fn runtime_binding_rules_config() -> RulesConfig {
+        toml::from_str(
             r#"
                 [[concept]]
                 id = "bootstrap"
@@ -439,8 +472,11 @@ mod tests {
                 required_capabilities = ["snapshot", "live_updates"]
             "#,
         )
-        .expect("rules config");
-        let semantic = SemanticSnapshot {
+        .expect("rules config")
+    }
+
+    fn runtime_binding_semantic_snapshot() -> SemanticSnapshot {
+        SemanticSnapshot {
             project: ProjectModel::default(),
             analyzed_files: 5,
             capabilities: vec![SemanticCapability::Symbols],
@@ -480,32 +516,7 @@ mod tests {
             closed_domains: Vec::new(),
             closed_domain_sites: Vec::new(),
             transition_sites: Vec::new(),
-        };
-
-        let reports = build_parity_reports(
-            &config,
-            &semantic,
-            &root,
-            ParityScope::All,
-            &BTreeSet::new(),
-        )
-        .reports;
-        let report = report_by_id(&reports, "bootstrap");
-
-        assert!(report
-            .satisfied_cells
-            .iter()
-            .any(|cell| cell.kind == "browser_live_update_binding"));
-        assert!(report
-            .satisfied_cells
-            .iter()
-            .any(|cell| cell.kind == "electron_live_update_binding"));
-        assert!(!report
-            .missing_cells
-            .iter()
-            .any(|cell| cell.kind == "snapshot_without_live_update"));
-
-        let _ = std::fs::remove_dir_all(root);
+        }
     }
 
     #[test]

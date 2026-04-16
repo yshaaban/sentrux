@@ -143,17 +143,7 @@ pub fn compute_rule_coverage(
         .count();
     let contracts_machine_checkable = contracts
         .iter()
-        .filter(|contract| {
-            let core_declared =
-                contract.registry_symbol.is_some() && contract.categories_symbol.is_some();
-            let additional_surfaces = contract.browser_entry.is_some()
-                || contract.electron_entry.is_some()
-                || contract.payload_map_symbol.is_some()
-                || !contract.required_symbols.is_empty()
-                || !contract.required_files.is_empty();
-
-            core_declared && additional_surfaces
-        })
+        .filter(|contract| contract_machine_checkable(contract))
         .count();
     let state_models_machine_checkable = state_models
         .iter()
@@ -201,6 +191,18 @@ pub fn compute_rule_coverage(
         suppressions_expiring,
         coverage_0_10000,
     }
+}
+
+fn contract_machine_checkable(contract: &ContractRule) -> bool {
+    let symbol_surfaces = contract.categories_symbol.iter().count()
+        + contract.payload_map_symbol.iter().count()
+        + contract.registry_symbol.iter().count()
+        + contract.required_symbols.len();
+    let file_surfaces = contract.browser_entry.iter().count()
+        + contract.electron_entry.iter().count()
+        + contract.required_files.len();
+
+    symbol_surfaces + file_surfaces >= 2
 }
 
 #[cfg(test)]
@@ -308,5 +310,31 @@ mod tests {
         assert_eq!(coverage.state_models_machine_checkable, 1);
         assert_eq!(coverage.module_contracts_machine_checkable, 1);
         assert_eq!(coverage.coverage_0_10000, 8000);
+    }
+
+    #[test]
+    fn rule_coverage_counts_contracts_without_categories_when_other_surfaces_exist() {
+        let config: RulesConfig = toml::from_str(
+            r#"
+                [[contract]]
+                id = "ts_bridge_transport"
+                payload_map_symbol = "ts-bridge/src/types.ts::AnalyzeProjectsResult"
+                registry_symbol = "ts-bridge/src/transport.ts::REQUEST_HANDLER_DEPENDENCIES"
+                browser_entry = "ts-bridge/src/transport.ts"
+            "#,
+        )
+        .expect("rules config");
+
+        let coverage = compute_rule_coverage(
+            &config.concept,
+            &config.contract,
+            &config.state_model,
+            &config.module_contract,
+            &config.suppress,
+        );
+
+        assert_eq!(coverage.contracts_declared, 1);
+        assert_eq!(coverage.contracts_machine_checkable, 1);
+        assert_eq!(coverage.coverage_0_10000, 10000);
     }
 }
