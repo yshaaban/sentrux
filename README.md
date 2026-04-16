@@ -16,7 +16,7 @@
 
 **English** | [中文](README.zh-CN.md) | [Deutsch](README.de.md) | [日本語](README.ja.md)
 
-[Quick Start](#quick-start) · [Support Matrix](#support-matrix) · [MCP](#mcp-integration) · [Public Beta](#public-beta) · [Documentation](#documentation) · [Releases](https://github.com/yshaaban/sentrux/releases)
+[Quick Start](#quick-start) · [Support Matrix](#support-matrix) · [MCP](#mcp-integration) · [Signals](#metrics-and-signals) · [Public Beta](#public-beta) · [Documentation](#documentation) · [Releases](https://github.com/yshaaban/sentrux/releases)
 
 </div>
 
@@ -130,6 +130,45 @@ What is still intentionally beta-quality:
 
 Known limitations, feedback expectations, and public-test guidance live in [docs/public-beta.md](docs/public-beta.md).
 
+## Metrics And Signals
+
+Most users do not need the full internal metric catalog. They need to know what the tool is telling them when it blocks a patch or highlights follow-through risk.
+
+If you only remember one rule, use the signals in this order:
+
+1. Can I trust this run?
+2. What is risky or incomplete?
+3. Did my patch make the repo structurally worse?
+
+Fields ending in `_0_10000` use a `0-10000` scale where `10000` is best, most complete, or most trustworthy.
+
+The main user-facing signals are:
+
+| Signal | What it tells you | Why it matters |
+|---|---|---|
+| `touched_concept_gate.decision` | Whether the changed scope is `pass`, `warn`, or `fail` under the current patch gate. | This is the top-line answer to "is this patch safe enough to move forward?" |
+| `scan_trust.overall_confidence_0_10000` | How complete and trustworthy the current scan is. Higher is better. | A low-confidence run means you should treat the rest of the output as partial evidence, not a hard decision. |
+| `findings` | Concrete risky, inconsistent, or incomplete changes in the patch. | This is the main review surface. It answers "what looks wrong?" |
+| `obligations` and `obligation_completeness_0_10000` | Required follow-through sites implied by the changed concept or domain. | These catch partial edits, missing branches, and forgotten update sites. |
+| `clone_families` and `clone_remediations` | Duplicate logic that now needs synchronized edits or extraction. | These are useful when a patch changed one copy of logic but likely missed others. |
+| `debt_signals` | Trusted structural debt worth scheduling or fixing. | These help separate real cleanup work from noise. |
+| `watchpoints` | Lower-confidence issues worth inspecting next. | These are review hints, not hard failures. |
+| `introduced_findings` and `resolved_findings` | What your patch made worse or better relative to the baseline. | Useful for code review, PR summaries, and end-of-session handoff. |
+| `signal_delta`, `coupling_change`, and `cycles_change` | Whether the patch made the overall structure worse or better relative to the saved baseline. | This gives whole-repo context even when the changed-scope check is the primary decision. |
+
+If you want repo-level context beyond the patch, the main legacy structural metrics are:
+
+| Metric | What it means | Why it is useful |
+|---|---|---|
+| `quality_signal` | Overall structural health score for the snapshot. Higher is better. | Good quick answer to "is this codebase generally getting healthier or noisier?" |
+| `modularity`, `acyclicity`, `depth`, `equality`, `redundancy` | The five root-cause dimensions behind `quality_signal`. | Useful for understanding what kind of structural problem dominates the repo. |
+| `coupling_score` | Harmful cross-module coupling. Lower is better. | Useful for spotting boundary erosion. |
+| `circular_dep_count` | Number of dependency cycle clusters. | Useful for identifying tangles that make changes harder to reason about. |
+| `coverage_ratio` and `gaps[].risk_score` | Structural test reach and risky untested areas. | Useful for deciding where missing tests matter most. |
+| `hotspots` and `churn` | Frequently changing, complex parts of the repo. | Useful for prioritizing hardening and refactoring. |
+
+The full reference, including lower-level structural fields and maintainer-only benchmark metrics, lives in [docs/metrics-and-signals.md](docs/metrics-and-signals.md).
+
 ## Privacy And Telemetry
 
 - code analysis runs locally against your checkout
@@ -167,14 +206,20 @@ Built-in registry coverage currently spans:
 
 ## Documentation
 
+### User Docs
+
 - Public beta guide: [docs/public-beta.md](docs/public-beta.md)
+- Metrics and signals reference: [docs/metrics-and-signals.md](docs/metrics-and-signals.md)
 - Privacy and telemetry: [docs/privacy-and-telemetry.md](docs/privacy-and-telemetry.md)
+- Changelog: [CHANGELOG.md](CHANGELOG.md)
+
+### Contributor And Maintainer Docs
+
 - Contributing: [CONTRIBUTING.md](CONTRIBUTING.md)
 - Security reporting: [SECURITY.md](SECURITY.md)
 - Current v2 maintainer docs: [docs/v2/README.md](docs/v2/README.md)
 - Current implementation audit: [docs/v2/implementation-status.md](docs/v2/implementation-status.md)
 - Public release checklist: [docs/v2/release-checklist.md](docs/v2/release-checklist.md)
-- Changelog: [CHANGELOG.md](CHANGELOG.md)
 - Historical planning and design material: [docs/archive/README.md](docs/archive/README.md)
 
 ## Feedback And Security
