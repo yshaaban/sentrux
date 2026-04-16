@@ -8,16 +8,17 @@ import test from 'node:test';
 import {
   PUBLIC_HYGIENE_IGNORED_PATHS,
   PUBLIC_HYGIENE_RULES,
+  hashNormalizedToken,
   isBinaryContent,
   listRepoFiles,
   scanFiles,
   scanText,
 } from '../lib/public-release-hygiene.mjs';
 
-test('scanText catches abandoned repo links and internal repo names', function () {
+test('scanText catches abandoned repo links, non-public root vars, and workstation paths', function () {
   const text = [
     'See https://github.com/sentrux/sentrux/releases for the old release page.',
-    'This artifact must not mention private-benchmark-repo-a, private-repo, or /home/private-user/private.',
+    'Do not publish SECRET_PROJECT_ROOT or /home/tester/private in checked-in artifacts.',
   ].join('\n');
 
   const matches = scanText(text, 'README.md');
@@ -26,8 +27,26 @@ test('scanText catches abandoned repo links and internal repo names', function (
   });
 
   assert.ok(ruleIds.includes('abandoned_public_repo'));
-  assert.ok(ruleIds.includes('internal_repo_name'));
+  assert.ok(ruleIds.includes('non_public_root_env'));
   assert.ok(ruleIds.includes('workstation_path'));
+});
+
+test('scanText catches hashed private-token rules without storing literals in the repo', function () {
+  const hashedRule = {
+    id: 'synthetic_private_token',
+    tokenHashes: new Set([hashNormalizedToken('shadow-repo')]),
+    message: 'Synthetic rule for hashed token matching.',
+  };
+  const matches = scanText('shadow-repo should be redacted from public fixtures.', 'README.md', [
+    hashedRule,
+  ]);
+
+  assert.deepEqual(
+    matches.map(function toRuleId(match) {
+      return match.ruleId;
+    }),
+    ['synthetic_private_token'],
+  );
 });
 
 test('scanText stays quiet on sanitized public content', function () {
@@ -52,8 +71,8 @@ test('rules cover the key public-release leak classes', function () {
 
   assert.ok(ruleIds.includes('abandoned_public_repo'));
   assert.ok(ruleIds.includes('private_release_dependency'));
-  assert.ok(ruleIds.includes('internal_repo_name'));
-  assert.ok(ruleIds.includes('internal_domain'));
+  assert.ok(ruleIds.includes('private_repo_token'));
+  assert.ok(ruleIds.includes('self_hosted_gitlab'));
   assert.ok(ruleIds.includes('workstation_path'));
 });
 
