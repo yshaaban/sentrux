@@ -154,27 +154,18 @@ function collectIfTransitionSites(context, node) {
         if (!match) {
             return;
         }
-        if (!domainInfo) {
-            domainInfo = match.domainInfo;
-            subjectPath = match.subjectPath;
-        }
-        else if (subjectPath !== match.subjectPath ||
-            domainInfo.domainSymbolName !== match.domainInfo.domainSymbolName) {
+        if (!matchesIfTransitionGroup(domainInfo, subjectPath, match)) {
             return;
         }
+        if (!domainInfo) {
+            ({ domainInfo, subjectPath } = initializeIfTransitionGroup(match));
+        }
         matchedVariants.add(match.sourceVariant);
-        groupSites.push({
-            path: context.relativePath,
-            domain_symbol_name: match.domainInfo.domainSymbolName,
-            group_id: `${context.relativePath}:${groupLine}:${match.domainInfo.domainSymbolName}`,
-            transition_kind: TransitionKind.IfBranch,
-            source_variant: match.sourceVariant,
-            target_variants: collectTransitionTargetVariants(statementsOf(current.thenStatement), match.domainInfo.variants),
-            line: lineOfNode(context.sourceFile, current.expression),
-        });
+        const thenStatements = statementsOf(current.thenStatement);
+        groupSites.push(buildIfBranchTransitionSite(context, current, match, groupLine, thenStatements));
         hasPotentialIntent =
             hasPotentialIntent ||
-                hasPotentialTransitionIntent(context, statementsOf(current.thenStatement), match.domainInfo);
+                hasPotentialTransitionIntent(context, thenStatements, match.domainInfo);
         if (!current.elseStatement) {
             current = undefined;
             continue;
@@ -184,22 +175,7 @@ function collectIfTransitionSites(context, node) {
             continue;
         }
         if (domainInfo) {
-            const remainingVariants = domainInfo.variants.filter((variant) => !matchedVariants.has(variant));
-            const elseTargets = collectTransitionTargetVariants(statementsOf(current.elseStatement), domainInfo.variants);
-            hasPotentialIntent =
-                hasPotentialIntent ||
-                    hasPotentialTransitionIntent(context, statementsOf(current.elseStatement), domainInfo);
-            for (const sourceVariant of remainingVariants) {
-                groupSites.push({
-                    path: context.relativePath,
-                    domain_symbol_name: domainInfo.domainSymbolName,
-                    group_id: `${context.relativePath}:${groupLine}:${domainInfo.domainSymbolName}`,
-                    transition_kind: TransitionKind.IfElse,
-                    source_variant: sourceVariant,
-                    target_variants: elseTargets,
-                    line: lineOfNode(context.sourceFile, current.elseStatement),
-                });
-            }
+            hasPotentialIntent = appendIfElseTransitionSites(context, current, domainInfo, groupLine, matchedVariants, groupSites, hasPotentialIntent);
         }
         current = undefined;
     }
@@ -207,6 +183,48 @@ function collectIfTransitionSites(context, node) {
         (hasPotentialIntent && groupSites.length > 0)) {
         context.transitionSites.push(...groupSites);
     }
+}
+function matchesIfTransitionGroup(domainInfo, subjectPath, match) {
+    if (!domainInfo) {
+        return true;
+    }
+    return (subjectPath === match.subjectPath &&
+        domainInfo.domainSymbolName === match.domainInfo.domainSymbolName);
+}
+function initializeIfTransitionGroup(match) {
+    return {
+        domainInfo: match.domainInfo,
+        subjectPath: match.subjectPath,
+    };
+}
+function buildIfBranchTransitionSite(context, current, match, groupLine, thenStatements) {
+    return {
+        path: context.relativePath,
+        domain_symbol_name: match.domainInfo.domainSymbolName,
+        group_id: `${context.relativePath}:${groupLine}:${match.domainInfo.domainSymbolName}`,
+        transition_kind: TransitionKind.IfBranch,
+        source_variant: match.sourceVariant,
+        target_variants: collectTransitionTargetVariants(thenStatements, match.domainInfo.variants),
+        line: lineOfNode(context.sourceFile, current.expression),
+    };
+}
+function appendIfElseTransitionSites(context, current, domainInfo, groupLine, matchedVariants, groupSites, hasPotentialIntent) {
+    const elseStatements = statementsOf(current.elseStatement);
+    const remainingVariants = domainInfo.variants.filter((variant) => !matchedVariants.has(variant));
+    const elseTargets = collectTransitionTargetVariants(elseStatements, domainInfo.variants);
+    const nextHasPotentialIntent = hasPotentialIntent || hasPotentialTransitionIntent(context, elseStatements, domainInfo);
+    for (const sourceVariant of remainingVariants) {
+        groupSites.push({
+            path: context.relativePath,
+            domain_symbol_name: domainInfo.domainSymbolName,
+            group_id: `${context.relativePath}:${groupLine}:${domainInfo.domainSymbolName}`,
+            transition_kind: TransitionKind.IfElse,
+            source_variant: sourceVariant,
+            target_variants: elseTargets,
+            line: lineOfNode(context.sourceFile, current.elseStatement),
+        });
+    }
+    return nextHasPotentialIntent;
 }
 function ifConditionVariant(context, expression, expectedSubjectPath, expectedDomainInfo) {
     const current = unwrapTransitionExpression(expression);

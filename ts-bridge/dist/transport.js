@@ -1,5 +1,8 @@
 import { analyzeProject } from "./analysis.js";
 import { dispatchRequest, toRequest } from "./protocol.js";
+export const REQUEST_HANDLER_DEPENDENCIES = {
+    analyzeProject,
+};
 export function parseHeaders(headerText) {
     const headers = new Map();
     for (const line of headerText.split("\r\n")) {
@@ -89,9 +92,7 @@ export function main() {
                 writeInvalidRequest();
                 continue;
             }
-            const outcome = dispatchRequest(request, {
-                analyzeProject,
-            });
+            const outcome = dispatchRequest(request, REQUEST_HANDLER_DEPENDENCIES);
             if (outcome.kind === "ignore") {
                 continue;
             }
