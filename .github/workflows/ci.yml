@@ -76,6 +76,11 @@ jobs:
           tar xzf /tmp/grammars.tar.gz -C ~/.sentrux/plugins/
           SENTRUX_SKIP_GRAMMAR_DOWNLOAD=1 cargo run -p sentrux -- --version || true
 
+      - name: Smoke test runtime grammars
+        run: |
+          cargo test -p sentrux-core analysis::plugin::loader::tests::core_runtime_grammars_load -- --exact --nocapture
+          cargo test -p sentrux-core analysis::parser::tests2::tests::core_runtime_parsers_parse_smoke -- --exact --nocapture
+
       - name: Build
         run: cargo build
 

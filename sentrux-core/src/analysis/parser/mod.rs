@@ -459,10 +459,19 @@ pub fn parse_files_batch_with_progress(
 /// Parse raw bytes without file I/O or cache. Used by tests in parser_tests.
 #[cfg(test)]
 pub(crate) fn parse_bytes(content: &[u8], lang: &str) -> Option<StructuralAnalysis> {
-    let (grammar, query) = lang_registry::get_grammar_and_query(lang)?;
+    let (grammar, query) = match lang_registry::get_grammar_and_query(lang) {
+        Some(config) => config,
+        None => {
+            crate::debug_log!("[parser] grammar lookup failed for {}", lang);
+            return None;
+        }
+    };
     let tree = TL_PARSER.with(|parser_cell| {
         let mut parser = parser_cell.borrow_mut();
-        parser.set_language(grammar).ok()?;
+        if let Err(error) = parser.set_language(grammar) {
+            crate::debug_log!("[parser] set_language failed for {}: {}", lang, error);
+            return None;
+        }
         parser.parse(content, None)
     })?;
     Some(extract_with_queries(&tree, content, query, lang))

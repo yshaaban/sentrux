@@ -101,7 +101,10 @@ pub(crate) fn invalidate_rules_cache(state: &mut McpState) {
 }
 
 pub(crate) fn semantic_rules_loaded(config: &RulesConfig) -> bool {
-    !config.concept.is_empty() || !config.contract.is_empty() || !config.state_model.is_empty()
+    !config.concept.is_empty()
+        || !config.contract.is_empty()
+        || !config.state_model.is_empty()
+        || !config.module_contract.is_empty()
 }
 
 pub(crate) fn semantic_cache_status_json(state: &McpState) -> Value {

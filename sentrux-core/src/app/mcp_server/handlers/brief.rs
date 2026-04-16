@@ -5,6 +5,7 @@ use super::session::{
     patch_safety_semantic_error, prepare_patch_check_context,
 };
 use super::*;
+use crate::analysis::inferred_rules::{merge_inferred_rules, InferredRulesSummary};
 use crate::metrics::v2::FindingSeverity;
 use std::collections::BTreeMap;
 
@@ -89,7 +90,12 @@ fn handle_onboarding_agent_brief(
     let surface = build_onboarding_brief_surface(state, &context, limit);
     let mut brief = build_onboarding_agent_brief_value(state, &context, &surface, strict, limit)?;
     if let Some(object) = brief.as_object_mut() {
-        insert_onboarding_brief_support_fields(object, state, &surface.suppression_application);
+        insert_onboarding_brief_support_fields(
+            object,
+            state,
+            &surface.suppression_application,
+            &context.inferred_rules,
+        );
         insert_rules_semantic_context_diagnostics(
             object,
             context.rules_error.clone(),
@@ -115,6 +121,7 @@ struct OnboardingBriefContext {
     metadata: crate::analysis::scanner::common::ScanMetadata,
     rules_config: crate::metrics::rules::RulesConfig,
     rules_error: Option<String>,
+    inferred_rules: InferredRulesSummary,
     session_v2_status: SessionBaselineStatus,
 }
 
@@ -137,7 +144,15 @@ fn load_onboarding_brief_context(state: &mut McpState) -> Result<OnboardingBrief
         .as_ref()
         .cloned()
         .ok_or("No scan data. Call 'scan' first.")?;
-    let (rules_config, rules_error) = load_v2_rules_config(state, &root);
+    let (configured_rules, rules_error) = load_v2_rules_config(state, &root);
+    let project_shape_report =
+        project_shape_report_cached(state, &root, &snapshot, &configured_rules);
+    let semantic = match analyze_semantic_snapshot(state, &root) {
+        Ok(snapshot) => snapshot,
+        Err(_) => None,
+    };
+    let (rules_config, inferred_rules) =
+        merge_inferred_rules(&configured_rules, &project_shape_report, semantic.as_ref());
     let (_, session_v2_status) = load_session_v2_baseline_status(&root);
     Ok(OnboardingBriefContext {
         health,
@@ -146,6 +161,7 @@ fn load_onboarding_brief_context(state: &mut McpState) -> Result<OnboardingBrief
         metadata,
         rules_config,
         rules_error,
+        inferred_rules,
         session_v2_status,
     })
 }
@@ -289,11 +305,13 @@ fn insert_onboarding_brief_support_fields(
     object: &mut serde_json::Map<String, Value>,
     state: &McpState,
     suppression_application: &SuppressionApplication,
+    inferred_rules: &InferredRulesSummary,
 ) {
     object.insert(
         "semantic_cache".to_string(),
         semantic_cache_status_json(state),
     );
+    object.insert("inferred_rules".to_string(), json!(inferred_rules));
     object.insert(
         "suppression_hits".to_string(),
         json!(suppression_application.active_matches),

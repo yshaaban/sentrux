@@ -218,21 +218,34 @@ fn verify_grammar_exports(path: &Path, symbol_name: &str) -> Result<(), String> 
     let object = object::File::parse(bytes.as_slice())
         .map_err(|e| format!("Failed to parse grammar binary: {e}"))?;
 
+    let alternate_symbol_name = prefixed_symbol_name(symbol_name);
     let has_export = object
         .dynamic_symbols()
         .chain(object.symbols())
         .filter_map(|symbol| symbol.name().ok())
-        .any(|name| name == symbol_name);
+        .any(|name| name == symbol_name || Some(name) == alternate_symbol_name.as_deref());
 
     if has_export {
         return Ok(());
     }
 
     Err(format!(
-        "Grammar binary {} does not export required symbol '{}'.",
+        "Grammar binary {} does not export required symbol '{}'{}.",
         path.display(),
-        symbol_name
+        symbol_name,
+        alternate_symbol_name
+            .as_ref()
+            .map(|alternate| format!(" or '{}'", alternate))
+            .unwrap_or_default()
     ))
+}
+
+fn prefixed_symbol_name(symbol_name: &str) -> Option<String> {
+    if cfg!(target_os = "macos") {
+        Some(format!("_{symbol_name}"))
+    } else {
+        None
+    }
 }
 
 /// Load a tree-sitter Language from a dynamic library (.so/.dylib).
@@ -317,6 +330,7 @@ fn copy_bundled_grammars(bundled_dir: &Path, user_dir: &Path) {
 mod tests {
     use super::verify_grammar_exports;
     use super::*;
+    use crate::analysis::lang_registry;
 
     #[test]
     fn test_plugins_dir() {
@@ -350,6 +364,30 @@ mod tests {
         assert!(error.contains("Failed to parse grammar binary"));
         let _ = std::fs::remove_file(&path);
         let _ = std::fs::remove_dir(&temp_dir);
+    }
+
+    #[test]
+    fn accepts_macho_style_prefixed_symbol_names() {
+        let symbol = "tree_sitter_python";
+        let prefixed = prefixed_symbol_name(symbol);
+
+        if cfg!(target_os = "macos") {
+            assert_eq!(prefixed.as_deref(), Some("_tree_sitter_python"));
+        } else {
+            assert!(prefixed.is_none());
+        }
+    }
+
+    #[test]
+    fn core_runtime_grammars_load() {
+        for language in ["python", "javascript", "typescript", "rust", "go"] {
+            let plugin = lang_registry::get(language)
+                .unwrap_or_else(|| panic!("missing runtime grammar for {language}"));
+            assert!(
+                !plugin.extensions.is_empty(),
+                "runtime grammar {language} should declare extensions"
+            );
+        }
     }
 
     /// Diagnostic: dump all node types for grammars that fail to load.

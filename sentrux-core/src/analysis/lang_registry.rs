@@ -368,9 +368,13 @@ pub fn profile(name: &str) -> &'static LanguageProfile {
 
 /// Get grammar + query for a language name.
 pub fn get_grammar_and_query(name: &str) -> Option<(&'static Language, &'static Query)> {
-    REGISTRY
-        .get(name)
-        .map(|config| (&config.grammar, &config.query))
+    match REGISTRY.get(name) {
+        Some(config) => Some((&config.grammar, &config.query)),
+        None => {
+            crate::debug_log!("[lang_registry] grammar/query unavailable for {}", name);
+            None
+        }
+    }
 }
 
 /// All registered extensions.

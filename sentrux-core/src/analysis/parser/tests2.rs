@@ -487,6 +487,26 @@ class Bar:
         }
     }
 
+    #[test]
+    fn core_runtime_parsers_parse_smoke() {
+        let cases: [(&str, &[u8]); 5] = [
+            ("python", b"def hello(name):\n    return name\n"),
+            ("javascript", b"function hello() {}\n"),
+            ("typescript", b"function hello(): void {}\n"),
+            ("rust", b"fn hello() {}\n"),
+            ("go", b"package main\nfunc hello() {}\n"),
+        ];
+
+        for (language, source) in cases {
+            let analysis = parse_bytes(source, language)
+                .unwrap_or_else(|| panic!("runtime parser smoke failed for {language}"));
+            assert!(
+                analysis.functions.is_some() || analysis.imp.is_some() || analysis.cls.is_some(),
+                "runtime parser smoke for {language} should produce structural output"
+            );
+        }
+    }
+
     // ---- Verify all new language queries extract names (not flat captures) ----
 
     /// Comprehensive extraction test: for EVERY language that declares capabilities,

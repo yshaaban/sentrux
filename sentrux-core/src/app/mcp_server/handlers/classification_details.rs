@@ -257,21 +257,10 @@ pub(crate) fn merge_findings(
     other_findings: Vec<Value>,
     limit: usize,
 ) -> Vec<Value> {
-    let mut merged: Vec<(u8, Value)> = clone_findings
-        .into_iter()
-        .map(|finding| (severity_priority(severity_of_value(&finding)), finding))
-        .collect();
-    merged.extend(
-        other_findings
-            .into_iter()
-            .map(|finding| (severity_priority(severity_of_value(&finding)), finding)),
-    );
-    merged.sort_by(|left, right| right.0.cmp(&left.0));
-    merged
-        .into_iter()
-        .take(limit)
-        .map(|(_, finding)| finding)
-        .collect()
+    let mut merged = clone_findings;
+    merged.extend(other_findings);
+    merged.sort_by(compare_findings_for_brief);
+    merged.into_iter().take(limit).collect()
 }
 
 pub(crate) fn severity_priority(severity: FindingSeverity) -> u8 {
@@ -280,6 +269,51 @@ pub(crate) fn severity_priority(severity: FindingSeverity) -> u8 {
         FindingSeverity::Medium => 2,
         FindingSeverity::Low => 1,
     }
+}
+
+fn trust_tier_priority(trust_tier: FindingTrustTier) -> u8 {
+    match trust_tier {
+        FindingTrustTier::Trusted => 3,
+        FindingTrustTier::Watchpoint => 2,
+        FindingTrustTier::Experimental => 1,
+    }
+}
+
+fn leverage_priority(leverage_class: FindingLeverageClass) -> u8 {
+    (FindingLeverageClass::Experimental.rank() - leverage_class.rank()) as u8
+}
+
+fn presentation_priority(presentation_class: FindingPresentationClass) -> u8 {
+    (FindingPresentationClass::Experimental.rank() - presentation_class.rank()) as u8
+}
+
+fn finding_score_0_10000(finding: &Value) -> u64 {
+    finding
+        .get("score_0_10000")
+        .and_then(Value::as_u64)
+        .unwrap_or_default()
+}
+
+fn compare_findings_for_brief(left: &Value, right: &Value) -> std::cmp::Ordering {
+    let left_severity = severity_priority(severity_of_value(left));
+    let right_severity = severity_priority(severity_of_value(right));
+    let left_leverage = leverage_priority(finding_leverage_class(left));
+    let right_leverage = leverage_priority(finding_leverage_class(right));
+    let left_presentation = presentation_priority(finding_presentation_class(left));
+    let right_presentation = presentation_priority(finding_presentation_class(right));
+    let left_trust = trust_tier_priority(finding_trust_tier(left));
+    let right_trust = trust_tier_priority(finding_trust_tier(right));
+    let left_score = finding_score_0_10000(left);
+    let right_score = finding_score_0_10000(right);
+
+    right_severity
+        .cmp(&left_severity)
+        .then_with(|| right_leverage.cmp(&left_leverage))
+        .then_with(|| right_presentation.cmp(&left_presentation))
+        .then_with(|| right_trust.cmp(&left_trust))
+        .then_with(|| right_score.cmp(&left_score))
+        .then_with(|| finding_scope(left).cmp(&finding_scope(right)))
+        .then_with(|| finding_kind(left).cmp(finding_kind(right)))
 }
 
 #[derive(Debug, Clone, serde::Serialize, Default)]
@@ -392,6 +426,61 @@ mod tests {
         assert_eq!(merged[0]["severity"], "high");
         assert_eq!(merged[1]["severity"], "medium");
         assert_eq!(merged[2]["severity"], "low");
+    }
+
+    #[test]
+    fn merge_findings_prefers_architecture_signals_over_clone_cleanup_at_equal_severity() {
+        let merged = merge_findings(
+            vec![json!({
+                "kind": "exact_clone_group",
+                "severity": "high",
+                "summary": "clone cleanup",
+                "files": ["src/a.ts", "src/b.ts"],
+            })],
+            vec![json!({
+                "kind": "dependency_sprawl",
+                "severity": "high",
+                "summary": "dependency sprawl",
+                "scope": "src/App.tsx",
+                "role_tags": ["composition_root", "guarded_seam"],
+                "evidence": ["fan-out: 37"],
+                "score_0_10000": 8200,
+            })],
+            2,
+        );
+
+        assert_eq!(merged[0]["kind"], "dependency_sprawl");
+        assert_eq!(merged[1]["kind"], "exact_clone_group");
+    }
+
+    #[test]
+    fn merge_findings_prefers_cycle_architecture_pressure_over_clone_cleanup() {
+        let merged = merge_findings(
+            vec![json!({
+                "kind": "exact_clone_group",
+                "severity": "high",
+                "summary": "clone cleanup",
+                "files": ["src/a.ts", "src/b.ts"],
+            })],
+            vec![json!({
+                "kind": "cycle_cluster",
+                "severity": "high",
+                "summary": "store cycle",
+                "files": ["src/store/core.ts", "src/store/store.ts"],
+                "role_tags": [
+                    "guarded_seam",
+                    "state_container",
+                    "guarded_boundary",
+                    "component_barrel"
+                ],
+                "evidence": ["cycle size: 12", "candidate cuts: 3"],
+                "score_0_10000": 9100,
+            })],
+            2,
+        );
+
+        assert_eq!(merged[0]["kind"], "cycle_cluster");
+        assert_eq!(merged[1]["kind"], "exact_clone_group");
     }
 
     #[test]
