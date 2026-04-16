@@ -80,7 +80,7 @@ The strongest completed work is:
 - repo-local MCP session telemetry with session-summary generation and calibration-run wiring
 - disposable-clone Codex task capture and historical diff replay now feed the same session-telemetry and scorecard loop
 - cohort-driven batch Codex capture, batch diff replay, and signal-backlog synthesis now exist for continuous calibration
-- checked-in repo calibration manifests, batch manifests, prompt files, and review-verdict schema/template now exist for `parallel-code` and `sentrux`
+- checked-in repo calibration manifests, batch manifests, prompt files, and review-verdict schema/template now exist for `parallel-code`, `one-tool`, and `sentrux`
 - one-command repo calibration orchestration now exists through `run-repo-calibration-loop.mjs`
 - legacy MCP and CLI surfaces now frame structural output as context rather than the main v2 story
 - desktop structural panels and export flow now frame structural output as supporting context
@@ -92,7 +92,7 @@ The strongest completed work is:
 | --- | --- | --- | --- |
 | Tier 0 | Mostly complete | Trust foundation is real in MCP and CLI | GUI productization and `health` inline delta surfacing are still uneven |
 | Tier 1A | Mostly complete | Clone drift findings now have stable ids, git-aware risk context, divergence-aware family clustering, remediation hints, and cleaner production-first ranking | no history-aware rename/copy tracing and no dedicated clone-drift CLI surface yet |
-| Tier 1B | Mostly complete | TS bridge, semantic facts, persisted semantic cache reuse, proof artifacts, and explicit benchmark policy now exist for the public `parallel-code` proof loop plus Sentrux dogfood artifacts | warm-path structural cost is still higher than desired and the cache story is not yet fully incremental |
+| Tier 1B | Mostly complete | TS bridge, semantic facts, persisted semantic cache reuse, proof artifacts, and explicit benchmark policy now exist for the public `parallel-code` and `one-tool` proof loops plus Sentrux dogfood artifacts | warm-path structural cost is still higher than desired and the cache story is not yet fully incremental |
 | Tier 1C | Mostly complete | v2 rules, concept graph, suppression enforcement, archetype-aware starter rules, and module-contract support now exist | broader policy UX and validation are still incomplete |
 | Tier 1D | Mostly complete | authority/access findings now include stronger public-boundary bypass and concept-boundary pressure summaries | limited generic public-entry inference and scorecard calibration still need more real-repo evidence |
 | Tier 1E | Mostly complete | obligation engine now handles closed-domain and initial contract-driven triggers | richer contract families and finer changed-symbol precision are still incomplete |

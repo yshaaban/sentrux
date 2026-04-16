@@ -8,6 +8,7 @@ All notable changes to this repository should be documented in this file.
 
 - MCP v2 patch-safety surfaces centered on `check`, `agent_brief`, `findings`, `obligations`, `gate`, and richer `session_end` output
 - checked-in public validation artifacts for `parallel-code` plus dogfood calibration artifacts for `sentrux`
+- `one-tool` added as a checked-in public proof repo for mixed-language onboarding and benchmark evidence
 - defect-injection, remediation-eval, review-packet, session-telemetry, and signal-scorecard tooling under `scripts/evals/`
 - archetype-aware onboarding helpers, starter rules, and project-shape output for adoption flows
 - public beta governance and support docs: `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, issue templates, and PR template

@@ -33,7 +33,7 @@ Before release:
 
 Prerequisite:
 
-- make sure the public `parallel-code` repo is available at `../parallel-code`, or set `PARALLEL_CODE_ROOT` to its checkout path before running the preflight
+- make sure the public `parallel-code` repo is available at `../parallel-code`, or set `PARALLEL_CODE_ROOT` before running the preflight
 
 Run:
 

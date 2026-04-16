@@ -21,14 +21,19 @@ Goals:
 - `scenario.schema.json` - task/scenario schema
 - `result.schema.json` - result schema emitted by the runner
 - `repos/parallel-code.json` - checked-in calibration manifest for the repo configured by `PARALLEL_CODE_ROOT`
+- `repos/one-tool.json` - checked-in calibration manifest for the repo configured by `ONE_TOOL_ROOT`
 - `repos/sentrux.json` - checked-in calibration manifest for the current Sentrux checkout
 - `batches/parallel-code-codex-session-batch.json` - live Codex batch manifest for `parallel-code`
 - `batches/parallel-code-diff-replay-batch.json` - replay batch manifest for `parallel-code`
+- `batches/one-tool-codex-session-batch.json` - live Codex batch manifest for `one-tool`
+- `batches/one-tool-diff-replay-batch.json` - replay batch manifest for `one-tool`
 - `batches/sentrux-codex-session-batch.json` - live Codex batch manifest for `sentrux`
 - `batches/sentrux-diff-replay-batch.json` - replay batch manifest for `sentrux`
 - `prompts/parallel-code/*.md` - checked-in prompt files for the `parallel-code` calibration tasks
+- `prompts/one-tool/*.md` - checked-in prompt files for the `one-tool` calibration tasks
 - `prompts/sentrux/*.md` - checked-in prompt files for the `sentrux` calibration tasks
 - `scenarios/parallel-code.json` - initial scenarios for the repo configured by `PARALLEL_CODE_ROOT`
+- `scenarios/one-tool.json` - initial scenarios for the repo configured by `ONE_TOOL_ROOT`
 
 ## Runner
 
@@ -52,6 +57,7 @@ Useful flags:
 Repo roots can be overridden with the same environment variables used by the public benchmark docs:
 
 - `PARALLEL_CODE_ROOT`
+- `ONE_TOOL_ROOT`
 
 If an override is not provided, each scenario falls back to its checked-in default root. Public documentation should prefer the environment variables above instead of assuming a workstation-specific path layout.
 
@@ -205,6 +211,7 @@ For the duplication family, treat the checked-in signals as distinct surfaces:
 Current operating stance after the 2026-04-12 calibration refresh:
 
 - use `parallel-code` as the primary duplication and structural replay repo because it still surfaces the clearest clone, boundary, and exhaustiveness pressure
+- use `one-tool` as the mixed TypeScript/Python public proof repo for onboarding ranking, command-surface pressure, and small-boundary-cycle evidence
 - use Sentrux as the dogfood calibration repo with checked-in seeded-defect, remediation, benchmark, and curated-review artifacts; its replay lane is still most useful for ranking and watchpoint pressure rather than clone promotion
 - keep `touched_clone_family` as contextual clone pressure unless a future pass shows it consistently outranking more important actions
 - treat `zero_config_boundary_violation` as the current next out-of-cohort candidate because the latest Sentrux replay backlog gave it the highest positive priority score
@@ -219,6 +226,7 @@ Current replay-expansion stance after the 2026-04-12 structural pass:
 For the current checked-in repo manifests, start with:
 
 - `docs/v2/evals/repos/parallel-code.json`
+- `docs/v2/evals/repos/one-tool.json`
 - `docs/v2/evals/repos/sentrux.json`
 
 End-to-end examples:

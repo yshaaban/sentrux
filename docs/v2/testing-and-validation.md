@@ -93,11 +93,12 @@ Purpose:
 
 - regression-test user-visible findings and obligations
 
-Current checked-in public golden target:
+Current checked-in public proof targets:
 
 1. `parallel-code`
+2. `one-tool`
 
-For commands that validate checked-in `parallel-code` goldens or benchmarks, keep a public `parallel-code` checkout available at `../parallel-code` or set `PARALLEL_CODE_ROOT` explicitly.
+For commands that validate checked-in public proof artifacts, keep public `parallel-code` and `one-tool` checkouts available at `../parallel-code` and `../one-tool`, or set `PARALLEL_CODE_ROOT` and `ONE_TOOL_ROOT` explicitly.
 
 Internal or non-public benchmark repos must not be checked into the public tree. Additional public-safe benchmark repos can be added later once their artifacts are generated from repos that are safe to publish.
 
@@ -114,6 +115,7 @@ Golden outputs should include:
 Current status:
 
 - initial scoped `parallel-code` goldens exist in [examples/parallel-code-golden](./examples/parallel-code-golden/README.md)
+- checked-in mixed-language onboarding and benchmark evidence now exist for `one-tool` in [examples/one-tool-onboarding.json](./examples/one-tool-onboarding.json) and [examples/one-tool-benchmark.json](./examples/one-tool-benchmark.json)
 - checked-in real-repo pass goldens now include `session_start`, `gate`, and `session_end` captured from a temporary local clone of `parallel-code`
 - checked-in real-repo regression goldens now include deterministic fail-path `gate` and `session_end` cases on a temporary local clone of `parallel-code`
 - initial benchmark notes exist in [examples/parallel-code-benchmark.md](./examples/parallel-code-benchmark.md)
@@ -194,7 +196,7 @@ The goal is high trust on the findings we choose to surface and gate on.
 
 ## Recommended Loop
 
-For the current `parallel-code` proof loop:
+For the current checked-in public proof loop:
 
 1. refresh checked-in goldens when the expected outputs intentionally change with `./scripts/refresh_parallel_code_goldens.sh`
 2. validate checked-in goldens deterministically with `node scripts/validate_parallel_code_v2.mjs --goldens-only`
@@ -207,6 +209,8 @@ The validation loop catches two classes of regressions:
 - warm or cold patch-safety regressions in the benchmark artifacts once they are measured on comparable quiet-runner inputs
 
 That split is intentional. Local preflight should be deterministic and cheap enough to run often while still proving the current-platform binary and grammar bundle install path; final benchmark regression decisions need quieter hardware and more comparable inputs than a normal maintainer workstation can guarantee.
+
+The checked-in `one-tool` benchmark artifact is part of that dedicated benchmark lane. Use `node scripts/validate_one_tool_v2.mjs` only when you are intentionally validating that one repo on comparable quiet hardware or the benchmark-runner CI environment.
 
 ## Beta Validation Scope
 

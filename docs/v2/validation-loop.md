@@ -98,6 +98,16 @@ For broader public-release work, prefer `node scripts/release_preflight_public.m
 
 The checked-in proof snapshots, proof runs, and engineer reports explain how the outputs from this command should be turned into concrete refactor targets and before/after proof records.
 
+Use this for the checked-in `one-tool` benchmark proof loop:
+
+```bash
+node scripts/validate_one_tool_v2.mjs
+```
+
+That command validates the checked-in `one-tool` benchmark artifact against a fresh temporary run from the configured `ONE_TOOL_ROOT`.
+
+Treat it the same way you treat the broader benchmark gate: run it on comparable quiet hardware or the dedicated benchmark-runner CI lane, not as part of the deterministic local preflight.
+
 To validate all benchmark repos together, use:
 
 ```bash
@@ -313,6 +323,7 @@ Current operating stance after the 2026-04-12 calibration refresh:
 - keep `session_introduced_clone` and `clone_propagation_drift` in the active loop as clone watchpoints
 - treat `touched_clone_family` as contextual pressure, not a primary top-action target
 - use `parallel-code` as the main duplication evidence repo
+- use `one-tool` as the mixed-language public proof repo for onboarding ranking, command-surface pressure, and benchmark comparison
 - use Sentrux as the dogfood calibration repo with checked-in seeded-defect, remediation, benchmark, and curated-review artifacts; replay there is still more useful for ranking pressure than for promoting clone debt
 - treat `zero_config_boundary_violation` as the current next out-of-cohort candidate because the latest Sentrux replay backlog gave it the highest positive priority score
 - keep `multi_writer_concept`, `forbidden_writer`, and `writer_outside_allowlist` queued until they accumulate real live or replay misses

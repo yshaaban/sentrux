@@ -154,7 +154,7 @@ Exit criteria:
 
 Open gap:
 
-- public proof now centers on `parallel-code` plus Sentrux dogfood artifacts, and persisted snapshot reuse now exists, but long-lived cache maturity and further warm-path structural reductions are still missing
+- public proof now centers on `parallel-code`, `one-tool`, and Sentrux dogfood artifacts, and persisted snapshot reuse now exists, but long-lived cache maturity and further warm-path structural reductions are still missing
 
 ## Tier 1C: Minimal Concept Graph And Rules
 
@@ -423,7 +423,7 @@ Status: mostly complete
 
 Open gap:
 
-- implementation is still ahead of release-grade validation, but the public proof loop now centers on `parallel-code`, includes multi-repo validation wiring, explicit transition-controller bridge tests, versioned benchmark artifacts, explicit benchmark policy, public release hygiene scanning, deterministic local preflight, installer smoke coverage, and a dedicated benchmark-gate workflow; the remaining gap is mostly deeper unhappy-path validation, fuller promotion evidence, and broader migration coverage
+- implementation is still ahead of release-grade validation, but the public proof loop now centers on `parallel-code`, `one-tool`, and Sentrux dogfood artifacts, includes multi-repo validation wiring, explicit transition-controller bridge tests, versioned benchmark artifacts, explicit benchmark policy, public release hygiene scanning, deterministic local preflight, installer smoke coverage, and a dedicated benchmark-gate workflow; the remaining gap is mostly deeper unhappy-path validation, fuller promotion evidence, and broader migration coverage
 
 ## Target Outcome On `parallel-code`
 
