@@ -1,0 +1,338 @@
+use super::cli::{AnalyticsAction, BriefModeArg};
+use super::output;
+
+pub(crate) fn run_login() {
+    #[cfg(feature = "pro")]
+    {
+        println!("Opening browser for Sentrux Pro login...");
+        println!("(Not yet implemented — coming soon)");
+        return;
+    }
+
+    #[cfg(not(feature = "pro"))]
+    {
+        println!();
+        println!("  Sentrux Pro requires the official binary.");
+        println!();
+        println!("  Install the public beta binary:");
+        println!("    macOS/Linux: curl -fsSL https://raw.githubusercontent.com/yshaaban/sentrux/main/install.sh | sh");
+        println!("    Source:      git clone https://github.com/yshaaban/sentrux.git && cd sentrux && cargo build --release -p sentrux");
+        println!();
+        println!("  Then run `sentrux login` to activate Pro.");
+        println!();
+    }
+}
+
+pub(crate) fn run_analytics(action: Option<AnalyticsAction>) {
+    let path = analytics_opt_out_path();
+    match action {
+        None => {
+            let opted_out = path.as_ref().map_or(false, |p| p.exists());
+            if opted_out {
+                println!("Analytics are disabled.");
+            } else {
+                println!("Analytics are enabled.");
+            }
+        }
+        Some(AnalyticsAction::On) => {
+            if let Some(p) = &path {
+                let _ = std::fs::remove_file(p);
+            }
+            println!("Analytics are enabled.");
+        }
+        Some(AnalyticsAction::Off) => {
+            if let Some(p) = &path {
+                let _ = std::fs::create_dir_all(p.parent().unwrap());
+                let _ = std::fs::write(p, "1");
+            }
+            println!("Analytics are disabled.");
+        }
+    }
+}
+
+pub(crate) fn run_check(path: &str) -> i32 {
+    let root = std::path::Path::new(path);
+    if !root.is_dir() {
+        eprintln!("Error: not a directory: {path}");
+        return 1;
+    }
+
+    let config = match sentrux_core::metrics::rules::RulesConfig::try_load(root) {
+        Some(c) => c,
+        None => {
+            eprintln!("No .sentrux/rules.toml found in {path}");
+            eprintln!("Create one to define architectural constraints.");
+            return 1;
+        }
+    };
+
+    eprintln!("Scanning {path}...");
+    let result = match sentrux_core::analysis::scanner::scan_directory(
+        path,
+        None,
+        None,
+        &cli_scan_limits(),
+        None,
+    ) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("Scan failed: {e}");
+            return 1;
+        }
+    };
+
+    let health = sentrux_core::metrics::compute_health(&result.snapshot);
+    let arch_report = sentrux_core::metrics::arch::compute_arch(&result.snapshot);
+    let check = sentrux_core::metrics::rules::check_rules(
+        &config,
+        &health,
+        &arch_report,
+        &result.snapshot.import_graph,
+    );
+
+    let has_v2_rules = config_has_v2_rules(&config);
+    print_check_results(&check, &health, &arch_report, has_v2_rules)
+}
+
+pub(crate) fn run_gate(path: &str, save_mode: bool, strict: bool) -> i32 {
+    let root = std::path::Path::new(path);
+    if !root.is_dir() {
+        eprintln!("Error: not a directory: {path}");
+        return 1;
+    }
+
+    if v2_rules_enabled(root) {
+        return run_v2_gate(root, save_mode, strict);
+    }
+
+    let baseline_path = sentrux_core::metrics::arch::baseline_path(root);
+
+    eprintln!("Scanning {path}...");
+    let result = match sentrux_core::analysis::scanner::scan_directory(
+        path,
+        None,
+        None,
+        &cli_scan_limits(),
+        None,
+    ) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("Scan failed: {e}");
+            return 1;
+        }
+    };
+
+    let health = sentrux_core::metrics::compute_health(&result.snapshot);
+    let arch_report = sentrux_core::metrics::arch::compute_arch(&result.snapshot);
+
+    if save_mode {
+        gate_save(&baseline_path, &health, &arch_report)
+    } else {
+        gate_compare(&baseline_path, &health, &arch_report)
+    }
+}
+
+pub(crate) fn run_brief(path: &str, mode: BriefModeArg, strict: bool, limit: usize) -> i32 {
+    let root = std::path::Path::new(path);
+    if !root.is_dir() {
+        eprintln!("Error: not a directory: {path}");
+        return 1;
+    }
+
+    match sentrux_core::app::mcp_server::handlers::cli_agent_brief(
+        root,
+        mode.as_str(),
+        strict,
+        limit,
+    ) {
+        Ok(payload) => match serde_json::to_string_pretty(&payload) {
+            Ok(text) => {
+                println!("{text}");
+                0
+            }
+            Err(error) => {
+                eprintln!("Failed to serialize brief JSON: {error}");
+                1
+            }
+        },
+        Err(error) => {
+            eprintln!("agent brief failed: {error}");
+            1
+        }
+    }
+}
+
+fn analytics_opt_out_path() -> Option<std::path::PathBuf> {
+    sentrux_core::analysis::plugin::plugins_dir()
+        .map(|d| d.parent().unwrap().join("telemetry_opt_out"))
+}
+
+fn cli_scan_limits() -> sentrux_core::analysis::scanner::common::ScanLimits {
+    let s = sentrux_core::core::settings::Settings::default();
+    sentrux_core::analysis::scanner::common::ScanLimits {
+        max_file_size_kb: s.max_file_size_kb,
+        max_parse_size_kb: s.max_parse_size_kb,
+        max_call_targets: s.max_call_targets,
+    }
+}
+
+fn config_has_v2_rules(config: &sentrux_core::metrics::rules::RulesConfig) -> bool {
+    !config.concept.is_empty() || !config.contract.is_empty() || !config.state_model.is_empty()
+}
+
+fn print_check_results(
+    check: &sentrux_core::metrics::rules::RuleCheckResult,
+    health: &sentrux_core::metrics::HealthReport,
+    _arch_report: &sentrux_core::metrics::arch::ArchReport,
+    has_v2_rules: bool,
+) -> i32 {
+    println!(
+        "sentrux check — legacy structural rules check ({} rules checked)\n",
+        check.rules_checked
+    );
+    if has_v2_rules {
+        println!(
+            "Primary v2 workflow: use `sentrux gate` for touched-concept regressions and MCP `findings` / `session_end` for actionable findings, obligations, and optimization priorities.\n"
+        );
+    }
+    println!(
+        "Supporting structural context: {}\n",
+        (health.quality_signal * 10000.0).round() as u32
+    );
+
+    if check.violations.is_empty() {
+        println!("✓ All rules pass");
+        0
+    } else {
+        for v in &check.violations {
+            let icon = match v.severity {
+                sentrux_core::metrics::rules::Severity::Error => "✗",
+                sentrux_core::metrics::rules::Severity::Warning => "⚠",
+            };
+            println!("{icon} [{:?}] {}: {}", v.severity, v.rule, v.message);
+            for f in &v.files {
+                println!("    {f}");
+            }
+        }
+        println!("\n✗ {} violation(s) found", check.violations.len());
+        1
+    }
+}
+
+fn v2_rules_enabled(root: &std::path::Path) -> bool {
+    sentrux_core::metrics::rules::RulesConfig::try_load(root)
+        .map(|config| config_has_v2_rules(&config))
+        .unwrap_or(false)
+}
+
+fn run_v2_gate(root: &std::path::Path, save_mode: bool, strict: bool) -> i32 {
+    let result = if save_mode {
+        sentrux_core::app::mcp_server::handlers::cli_save_v2_session(root)
+    } else {
+        sentrux_core::app::mcp_server::handlers::cli_evaluate_v2_gate(root, strict)
+    };
+
+    match result {
+        Ok(payload) => {
+            if save_mode {
+                output::print_v2_gate_save(&payload);
+                0
+            } else {
+                output::print_v2_gate_result(&payload)
+            }
+        }
+        Err(error) => {
+            eprintln!("v2 gate failed: {error}");
+            1
+        }
+    }
+}
+
+fn gate_save(
+    baseline_path: &std::path::Path,
+    health: &sentrux_core::metrics::HealthReport,
+    _arch_report: &sentrux_core::metrics::arch::ArchReport,
+) -> i32 {
+    if let Some(parent) = baseline_path.parent() {
+        if let Err(e) = std::fs::create_dir_all(parent) {
+            eprintln!("Failed to create directory {}: {e}", parent.display());
+            return 1;
+        }
+    }
+    let baseline = sentrux_core::metrics::arch::ArchBaseline::from_health(health);
+    match baseline.save(baseline_path) {
+        Ok(()) => {
+            println!(
+                "Legacy structural baseline saved to {}",
+                baseline_path.display()
+            );
+            println!(
+                "Supporting structural context: {}",
+                (health.quality_signal * 10000.0).round() as u32
+            );
+            println!("\nRun `sentrux gate` after making changes to compare.");
+            0
+        }
+        Err(e) => {
+            eprintln!("Failed to save baseline: {e}");
+            1
+        }
+    }
+}
+
+fn gate_compare(
+    baseline_path: &std::path::Path,
+    health: &sentrux_core::metrics::HealthReport,
+    arch_report: &sentrux_core::metrics::arch::ArchReport,
+) -> i32 {
+    let baseline = match sentrux_core::metrics::arch::ArchBaseline::load(baseline_path) {
+        Ok(b) => b,
+        Err(e) => {
+            eprintln!(
+                "Failed to load baseline at {}: {e}",
+                baseline_path.display()
+            );
+            eprintln!("Run `sentrux gate --save` first to create one.");
+            return 1;
+        }
+    };
+
+    let diff = baseline.diff(health);
+
+    println!("sentrux gate — legacy structural context check\n");
+    println!(
+        "Supporting structural context: {} -> {}",
+        (diff.signal_before * 10000.0).round() as u32,
+        (diff.signal_after * 10000.0).round() as u32
+    );
+    println!(
+        "Coupling:     {:.2} → {:.2}",
+        diff.coupling_before, diff.coupling_after
+    );
+    println!(
+        "Cycles:       {} → {}",
+        diff.cycles_before, diff.cycles_after
+    );
+    println!(
+        "God files:    {} → {}",
+        diff.god_files_before, diff.god_files_after
+    );
+
+    if !arch_report.distance_metrics.is_empty() {
+        println!(
+            "\nDistance from Main Sequence: {:.2}",
+            arch_report.avg_distance
+        );
+    }
+
+    if diff.degraded {
+        println!("\n✗ DEGRADED");
+        for v in &diff.violations {
+            println!("  ✗ {v}");
+        }
+        1
+    } else {
+        println!("\n✓ No degradation detected");
+        0
+    }
+}

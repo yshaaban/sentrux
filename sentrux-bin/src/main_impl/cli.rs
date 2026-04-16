@@ -1,0 +1,180 @@
+use clap::{Parser, Subcommand, ValueEnum};
+
+pub(crate) fn edition_name() -> &'static str {
+    let tier = sentrux_core::license::current_tier();
+    if tier >= sentrux_core::license::Tier::Pro {
+        "Pro"
+    } else {
+        "" // Don't show "Free" or "Community" — just "sentrux"
+    }
+}
+
+fn version_string() -> &'static str {
+    use std::sync::OnceLock;
+
+    static VERSION: OnceLock<String> = OnceLock::new();
+    VERSION.get_or_init(|| {
+        let edition = edition_name();
+        let base = if edition.is_empty() {
+            env!("CARGO_PKG_VERSION").to_string()
+        } else {
+            format!("{} ({})", env!("CARGO_PKG_VERSION"), edition)
+        };
+        if let Some(latest) = sentrux_core::app::update_check::available_update() {
+            format!(
+                "{}\n  Update available: v{} → {}",
+                base,
+                latest,
+                sentrux_core::app::update_check::PUBLIC_UPDATE_HINT
+            )
+        } else {
+            base
+        }
+    })
+}
+
+#[derive(Parser)]
+#[command(
+    name = "sentrux",
+    about = "Live codebase visualization and patch-safety gate",
+    version = version_string(),
+    arg_required_else_help = false,
+)]
+pub(crate) struct Cli {
+    #[command(subcommand)]
+    pub(crate) command: Option<Command>,
+
+    /// Directory to open in the GUI
+    #[arg(global = false)]
+    pub(crate) path: Option<String>,
+
+    /// Start MCP server (hidden alias for `sentrux mcp`)
+    #[arg(long = "mcp", hide = true)]
+    pub(crate) mcp_flag: bool,
+}
+
+#[derive(Subcommand)]
+pub(crate) enum Command {
+    /// Enforce architectural rules defined in .sentrux/rules.toml
+    Check {
+        /// Directory to check
+        #[arg(default_value = ".")]
+        path: String,
+    },
+
+    /// Touched-concept patch-safety gate with legacy structural fallback
+    Gate {
+        /// Save current metrics as the new baseline
+        #[arg(long)]
+        save: bool,
+
+        /// Treat introduced medium-severity findings as blocking in v2 mode
+        #[arg(long)]
+        strict: bool,
+
+        /// Directory to gate
+        #[arg(default_value = ".")]
+        path: String,
+    },
+
+    /// Emit a structured v2 agent guidance brief as JSON
+    Brief {
+        /// Brief mode to generate
+        #[arg(long, value_enum, default_value_t = BriefModeArg::Patch)]
+        mode: BriefModeArg,
+
+        /// Treat introduced medium-severity findings as blocking in pre_merge mode
+        #[arg(long)]
+        strict: bool,
+
+        /// Maximum number of primary targets to include
+        #[arg(long, default_value_t = 3)]
+        limit: usize,
+
+        /// Directory to analyze
+        #[arg(default_value = ".")]
+        path: String,
+    },
+
+    /// Open the GUI with a pre-loaded directory
+    Scan {
+        /// Directory to visualize
+        path: Option<String>,
+    },
+
+    /// Start the MCP (Model Context Protocol) server for AI agent integration
+    Mcp,
+
+    /// Manage language plugins
+    Plugin {
+        #[command(subcommand)]
+        action: PluginAction,
+    },
+
+    /// Control anonymous aggregate usage analytics
+    Analytics {
+        #[command(subcommand)]
+        action: Option<AnalyticsAction>,
+    },
+
+    /// Upgrade to Sentrux Pro
+    Login,
+}
+
+#[derive(Subcommand)]
+pub(crate) enum AnalyticsAction {
+    /// Turn analytics on
+    On,
+    /// Turn analytics off
+    Off,
+}
+
+#[derive(Subcommand)]
+pub(crate) enum PluginAction {
+    /// List installed plugins
+    List,
+
+    /// Install all standard language plugins
+    AddStandard,
+
+    /// Install a single language plugin from the plugin registry
+    Add {
+        /// Plugin name (e.g. "python", "rust")
+        name: String,
+    },
+
+    /// Remove an installed plugin
+    Remove {
+        /// Plugin name to remove
+        name: String,
+    },
+
+    /// Create a new plugin template
+    Init {
+        /// Language name for the new plugin
+        name: String,
+    },
+
+    /// Validate a plugin directory
+    Validate {
+        /// Path to the plugin directory
+        dir: String,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+pub(crate) enum BriefModeArg {
+    RepoOnboarding,
+    Patch,
+    PreMerge,
+}
+
+impl BriefModeArg {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::RepoOnboarding => "repo_onboarding",
+            Self::Patch => "patch",
+            Self::PreMerge => "pre_merge",
+        }
+    }
+}
