@@ -61,6 +61,10 @@ function listJsonFiles(directoryPath) {
 function normalizeMetadata(metadata) {
   const copy = { ...metadata };
   delete copy.generated_at;
+  if (copy.binary_identity && typeof copy.binary_identity === 'object') {
+    copy.binary_identity = { ...copy.binary_identity };
+    delete copy.binary_identity.sha256;
+  }
   return copy;
 }
 

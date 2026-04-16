@@ -25,6 +25,9 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Install ts-bridge dependencies
+        run: npm ci --prefix ts-bridge
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 

@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 
+import { mkdtempSync, rmSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import process from 'node:process';
 
+const TREE_SITTER_CLI_BIN_DIR = path.join(os.homedir(), '.local', 'tree-sitter-cli', 'bin');
 const COMMANDS = [
   ['cargo', ['fmt', '--all', '--check']],
   ['cargo', ['test', '-p', 'sentrux-core', '--', '--nocapture']],
@@ -10,8 +14,6 @@ const COMMANDS = [
   ['cargo', ['build', '--release', '-p', 'sentrux']],
   ['npm', ['--prefix', 'ts-bridge', 'test']],
   ['node', ['scripts/validate_parallel_code_v2.mjs', '--goldens-only']],
-  ['node', ['scripts/benchmark_sentrux_v2.mjs']],
-  ['node', ['scripts/benchmark_parallel_code_v2.mjs']],
   ['git', ['diff', '--check']],
   ['node', ['scripts/check_public_release_hygiene.mjs']],
 ];
@@ -36,12 +38,35 @@ function resolveInstallArtifactName() {
   }
 }
 
-function runCommand(command, args) {
+function resolveGrammarBundlePlatform() {
+  switch (process.platform) {
+    case 'darwin':
+      if (process.arch === 'arm64') {
+        return 'darwin-arm64';
+      }
+      return null;
+    case 'linux':
+      if (process.arch === 'x64') {
+        return 'linux-x86_64';
+      }
+      if (process.arch === 'arm64') {
+        return 'linux-aarch64';
+      }
+      return null;
+    default:
+      return null;
+  }
+}
+
+function runCommand(command, args, extraEnv = {}) {
   console.log(`\n$ ${command} ${args.join(' ')}`);
   const result = spawnSync(command, args, {
     cwd: process.cwd(),
     stdio: 'inherit',
-    env: process.env,
+    env: {
+      ...process.env,
+      ...extraEnv,
+    },
   });
 
   if (result.status !== 0) {
@@ -49,21 +74,48 @@ function runCommand(command, args) {
   }
 }
 
+function treeSitterCliEnv() {
+  return {
+    PATH: `${TREE_SITTER_CLI_BIN_DIR}:${process.env.PATH ?? ''}`,
+  };
+}
+
+function ensureTreeSitterCliInstalled() {
+  runCommand('bash', ['./scripts/install_tree_sitter_cli.sh']);
+}
+
 function runInstallSmokeIfSupported() {
   const artifactName = resolveInstallArtifactName();
-  if (!artifactName) {
+  const bundlePlatform = resolveGrammarBundlePlatform();
+  if (!artifactName || !bundlePlatform) {
     console.log(
       `\n# Skipping install smoke: unsupported local platform ${process.platform}/${process.arch}`,
     );
     return;
   }
 
-  runCommand('./scripts/smoke_test_install.sh', [
-    '--artifact-path',
-    'target/release/sentrux',
-    '--artifact-name',
-    artifactName,
-  ]);
+  const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'sentrux-public-preflight-'));
+  const grammarBundlePath = path.join(tempRoot, `grammars-${bundlePlatform}.tar.gz`);
+
+  try {
+    ensureTreeSitterCliInstalled();
+    runCommand('./scripts/build_grammar_bundle.sh', [
+      '--platform',
+      bundlePlatform,
+      '--output',
+      grammarBundlePath,
+    ], treeSitterCliEnv());
+    runCommand('./scripts/smoke_test_install.sh', [
+      '--artifact-path',
+      'target/release/sentrux',
+      '--artifact-name',
+      artifactName,
+      '--grammar-bundle-path',
+      grammarBundlePath,
+    ]);
+  } finally {
+    rmSync(tempRoot, { recursive: true, force: true });
+  }
 }
 
 function main() {

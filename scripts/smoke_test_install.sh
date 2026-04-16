@@ -3,11 +3,12 @@ set -euo pipefail
 
 artifact_path=""
 artifact_name=""
+grammar_bundle_path=""
 version="v-smoke-test"
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 
 usage() {
-  echo "Usage: $0 --artifact-path <path> --artifact-name <name> [--version <version>]" >&2
+  echo "Usage: $0 --artifact-path <path> --artifact-name <name> [--grammar-bundle-path <path>] [--version <version>]" >&2
   exit 1
 }
 
@@ -19,6 +20,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --artifact-name)
       artifact_name="${2:-}"
+      shift 2
+      ;;
+    --grammar-bundle-path)
+      grammar_bundle_path="${2:-}"
       shift 2
       ;;
     --version)
@@ -38,6 +43,8 @@ fi
 tmpdir="$(mktemp -d)"
 release_dir="$tmpdir/releases/download/$version"
 install_dir="$tmpdir/install/bin"
+runtime_home="$tmpdir/runtime-home"
+runtime_repo="$tmpdir/runtime-repo"
 server_log="$tmpdir/http.log"
 mkdir -p "$release_dir" "$install_dir"
 cp "$artifact_path" "$release_dir/$artifact_name"
@@ -81,4 +88,21 @@ if [[ ! -x "$installed_bin" ]]; then
 fi
 
 "$installed_bin" --version >/dev/null
+
+if [[ -n "$grammar_bundle_path" ]]; then
+  mkdir -p "$runtime_home/.sentrux/plugins" "$runtime_repo"
+  tar xzf "$grammar_bundle_path" -C "$runtime_home/.sentrux/plugins"
+  cat >"$runtime_repo/example.js" <<'EOF'
+function smokeTest(input) {
+  if (input) {
+    return 1;
+  }
+  return 0;
+}
+EOF
+
+  HOME="$runtime_home" SENTRUX_SKIP_GRAMMAR_DOWNLOAD=1 \
+    "$installed_bin" brief --mode repo-onboarding "$runtime_repo" >/dev/null
+fi
+
 echo "Install smoke test passed for $artifact_name"

@@ -6,7 +6,7 @@ import test from 'node:test';
 
 import { buildMetricStatistics } from '../lib/benchmark-harness.mjs';
 import { resolveWorkspaceRepoRoot } from '../lib/path-roots.mjs';
-import { runValidationSuite } from '../lib/v2-validation.mjs';
+import { compareJsonFiles, runValidationSuite } from '../lib/v2-validation.mjs';
 
 async function createValidationFixture({ benchmarkFormatVersion = 3 } = {}) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'sentrux-v2-validation-test-'));
@@ -197,6 +197,59 @@ test('runValidationSuite rejects benchmark format mismatches', async function ()
     );
   } finally {
     await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('compareJsonFiles ignores metadata timestamps and binary hashes', async function () {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'sentrux-v2-validation-metadata-'));
+  const expectedPath = path.join(root, 'expected-metadata.json');
+  const actualPath = path.join(root, 'actual-metadata.json');
+
+  try {
+    const basePayload = {
+      parallel_code_root: '<parallel-code-dir>',
+      analysis_mode: 'head_clone',
+      binary_identity: {
+        path: '<sentrux-root>/target/debug/sentrux',
+        exists: true,
+      },
+    };
+    await writeFile(
+      expectedPath,
+      `${JSON.stringify(
+        {
+          ...basePayload,
+          generated_at: '2026-04-16T11:40:41Z',
+          binary_identity: {
+            ...basePayload.binary_identity,
+            sha256: 'old-hash',
+          },
+        },
+        null,
+        2,
+      )}\n`,
+    );
+    await writeFile(
+      actualPath,
+      `${JSON.stringify(
+        {
+          ...basePayload,
+          generated_at: '2026-04-16T12:21:44Z',
+          binary_identity: {
+            ...basePayload.binary_identity,
+            sha256: 'new-hash',
+          },
+        },
+        null,
+        2,
+      )}\n`,
+    );
+
+    assert.doesNotThrow(function compareMetadata() {
+      compareJsonFiles(expectedPath, actualPath, 'metadata.json');
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
   }
 });
 

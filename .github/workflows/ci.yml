@@ -26,6 +26,9 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Install ts-bridge dependencies
+        run: npm ci --prefix ts-bridge
+
       - name: Check public release hygiene
         run: node scripts/check_public_release_hygiene.mjs
 
@@ -81,7 +84,6 @@ jobs:
 
       - name: Test ts-bridge
         run: |
-          npm ci --prefix ts-bridge
           npm --prefix ts-bridge test
 
       - name: Test public release hygiene helpers
@@ -101,4 +103,5 @@ jobs:
           fi
           ./scripts/smoke_test_install.sh \
             --artifact-path target/release/sentrux \
-            --artifact-name "${ARTIFACT_NAME}"
+            --artifact-name "${ARTIFACT_NAME}" \
+            --grammar-bundle-path /tmp/grammars.tar.gz
