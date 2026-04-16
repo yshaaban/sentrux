@@ -315,7 +315,7 @@ cat > "$tmpdir/regression-requests.jsonl" <<EOF
 {"jsonrpc":"2.0","id":22,"method":"tools/call","params":{"name":"session_end","arguments":{}}}
 EOF
 
-HOME="$PLUGIN_HOME" "$SENTRUX_BIN" mcp < "$tmpdir/regression-requests.jsonl" | grep '^[{]' > "$tmpdir/regression-responses.jsonl"
+HOME="$PLUGIN_HOME" SENTRUX_FIXED_NOW_EPOCH="$FIXED_NOW_EPOCH" "$SENTRUX_BIN" mcp < "$tmpdir/regression-requests.jsonl" | grep '^[{]' > "$tmpdir/regression-responses.jsonl"
 
 node - "$tmpdir/regression-responses.jsonl" "$OUTPUT_DIR" "$WORK_DIR" "$PARALLEL_CODE_DIR" <<'EOF'
 const fs = require('node:fs');
