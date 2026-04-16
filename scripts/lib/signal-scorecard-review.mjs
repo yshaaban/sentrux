@@ -267,111 +267,155 @@ export function buildSignalReviewFields(
   };
 }
 
-export function buildPromotionRecommendation(entry) {
-  const seededRecall = safeRatio(entry.seeded_detected, entry.seeded_total);
+function buildPromotionInputs(entry) {
   const reviewedTotal = entry.reviewed_total ?? 0;
   const falsePositives = entry.false_positive ?? 0;
   const inconclusive = entry.inconclusive ?? 0;
-  const reviewedPrecision = safeRatio(
-    (entry.true_positive ?? 0) + (entry.acceptable_warning ?? 0),
-    reviewedTotal,
-  );
-  const reviewNoiseRate = safeRatio(falsePositives + inconclusive, reviewedTotal);
-  const remediationSuccess = safeRatio(
-    entry.remediation_success ?? 0,
-    entry.remediation_total ?? 0,
-  );
   const top1ReviewedTotal = entry.review_top_1_total ?? 0;
-  const top1ActionablePrecision = safeRatio(
-    entry.review_top_1_actionable ?? 0,
-    top1ReviewedTotal,
-  );
   const top3ReviewedTotal = entry.review_top_3_total ?? 0;
-  const top3ActionablePrecision = safeRatio(
-    entry.review_top_3_actionable ?? 0,
-    top3ReviewedTotal,
-  );
   const rankingPreferenceTotal = entry.ranking_preference_total ?? 0;
-  const rankingPreferenceSatisfactionRate = safeRatio(
-    entry.ranking_preference_satisfied ?? 0,
-    rankingPreferenceTotal,
-  );
-  const topActionClearRate = safeRatio(
-    entry.sessions_cleared ?? 0,
-    entry.session_top_actions ?? 0,
-  );
-  const followupRegressionRate = safeRatio(
-    entry.session_regressions ?? 0,
-    entry.session_followups ?? 0,
-  );
-  const sessionCleanRate = safeRatio(entry.session_clean ?? 0, entry.session_top_actions ?? 0);
 
-  if (reviewedTotal > 0 && falsePositives > 0) {
+  return {
+    falsePositives,
+    followupRegressionRate: safeRatio(
+      entry.session_regressions ?? 0,
+      entry.session_followups ?? 0,
+    ),
+    inconclusive,
+    rankingPreferenceSatisfactionRate: safeRatio(
+      entry.ranking_preference_satisfied ?? 0,
+      rankingPreferenceTotal,
+    ),
+    rankingPreferenceTotal,
+    remediationSuccess: safeRatio(
+      entry.remediation_success ?? 0,
+      entry.remediation_total ?? 0,
+    ),
+    reviewNoiseRate: safeRatio(falsePositives + inconclusive, reviewedTotal),
+    reviewedPrecision: safeRatio(
+      (entry.true_positive ?? 0) + (entry.acceptable_warning ?? 0),
+      reviewedTotal,
+    ),
+    reviewedTotal,
+    seededRecall: safeRatio(entry.seeded_detected, entry.seeded_total),
+    sessionCleanRate: safeRatio(entry.session_clean ?? 0, entry.session_top_actions ?? 0),
+    top1ActionablePrecision: safeRatio(
+      entry.review_top_1_actionable ?? 0,
+      top1ReviewedTotal,
+    ),
+    top1ReviewedTotal,
+    top3ActionablePrecision: safeRatio(
+      entry.review_top_3_actionable ?? 0,
+      top3ReviewedTotal,
+    ),
+    top3ReviewedTotal,
+    topActionClearRate: safeRatio(
+      entry.sessions_cleared ?? 0,
+      entry.session_top_actions ?? 0,
+    ),
+  };
+}
+
+function promotionNoiseDecision(metrics) {
+  if (metrics.reviewedTotal > 0 && metrics.falsePositives > 0) {
     return 'degrade_or_quarantine';
   }
   if (
-    reviewedTotal > 0 &&
-    reviewNoiseRate !== null &&
-    reviewNoiseRate > SIGNAL_PROMOTION_POLICY.reviewNoiseRateMax
+    metrics.reviewedTotal > 0 &&
+    metrics.reviewNoiseRate !== null &&
+    metrics.reviewNoiseRate > SIGNAL_PROMOTION_POLICY.reviewNoiseRateMax
   ) {
     return 'needs_review';
   }
-  if (seededRecall !== null && seededRecall < SIGNAL_PROMOTION_POLICY.seededRecallMin) {
+  if (
+    metrics.seededRecall !== null &&
+    metrics.seededRecall < SIGNAL_PROMOTION_POLICY.seededRecallMin
+  ) {
     return 'improve_detection';
   }
   if (
-    reviewedPrecision !== null &&
-    reviewedPrecision < SIGNAL_PROMOTION_POLICY.reviewedPrecisionMin
+    metrics.reviewedPrecision !== null &&
+    metrics.reviewedPrecision < SIGNAL_PROMOTION_POLICY.reviewedPrecisionMin
+  ) {
+    return 'reduce_noise';
+  }
+  return null;
+}
+
+function promotionPrimaryTargetDecision(metrics) {
+  if (
+    metrics.top1ReviewedTotal >= SIGNAL_PRIMARY_TARGET_POLICY.top1MinReviewedSamples &&
+    metrics.top1ActionablePrecision !== null &&
+    metrics.top1ActionablePrecision <
+      SIGNAL_PRIMARY_TARGET_POLICY.top1ActionablePrecisionMin
   ) {
     return 'reduce_noise';
   }
   if (
-    top1ReviewedTotal >= SIGNAL_PRIMARY_TARGET_POLICY.top1MinReviewedSamples &&
-    top1ActionablePrecision !== null &&
-    top1ActionablePrecision < SIGNAL_PRIMARY_TARGET_POLICY.top1ActionablePrecisionMin
+    metrics.top3ReviewedTotal >= SIGNAL_PRIMARY_TARGET_POLICY.top3MinReviewedSamples &&
+    metrics.top3ActionablePrecision !== null &&
+    metrics.top3ActionablePrecision <
+      SIGNAL_PRIMARY_TARGET_POLICY.top3ActionablePrecisionMin
   ) {
     return 'reduce_noise';
   }
   if (
-    top3ReviewedTotal >= SIGNAL_PRIMARY_TARGET_POLICY.top3MinReviewedSamples &&
-    top3ActionablePrecision !== null &&
-    top3ActionablePrecision < SIGNAL_PRIMARY_TARGET_POLICY.top3ActionablePrecisionMin
-  ) {
-    return 'reduce_noise';
-  }
-  if (
-    rankingPreferenceTotal >=
+    metrics.rankingPreferenceTotal >=
       SIGNAL_PRIMARY_TARGET_POLICY.rankingPreferenceMinComparisons &&
-    rankingPreferenceSatisfactionRate !== null &&
-    rankingPreferenceSatisfactionRate <
+    metrics.rankingPreferenceSatisfactionRate !== null &&
+    metrics.rankingPreferenceSatisfactionRate <
       SIGNAL_PRIMARY_TARGET_POLICY.rankingPreferenceSatisfactionMin
   ) {
     return 'reduce_noise';
   }
+  return null;
+}
+
+function promotionFixGuidanceDecision(metrics) {
   if (
-    remediationSuccess !== null &&
-    remediationSuccess < SIGNAL_PROMOTION_POLICY.remediationSuccessMin
+    metrics.remediationSuccess !== null &&
+    metrics.remediationSuccess < SIGNAL_PROMOTION_POLICY.remediationSuccessMin
   ) {
     return 'improve_fix_guidance';
   }
   if (
-    topActionClearRate !== null &&
-    topActionClearRate < SIGNAL_PROMOTION_POLICY.topActionClearRateMin
+    metrics.topActionClearRate !== null &&
+    metrics.topActionClearRate < SIGNAL_PROMOTION_POLICY.topActionClearRateMin
   ) {
     return 'improve_fix_guidance';
   }
   if (
-    sessionCleanRate !== null &&
-    sessionCleanRate < SIGNAL_PROMOTION_POLICY.sessionCleanRateMin
+    metrics.sessionCleanRate !== null &&
+    metrics.sessionCleanRate < SIGNAL_PROMOTION_POLICY.sessionCleanRateMin
   ) {
     return 'improve_fix_guidance';
   }
   if (
-    followupRegressionRate !== null &&
-    followupRegressionRate > SIGNAL_PROMOTION_POLICY.followupRegressionRateMax
+    metrics.followupRegressionRate !== null &&
+    metrics.followupRegressionRate > SIGNAL_PROMOTION_POLICY.followupRegressionRateMax
   ) {
     return 'improve_fix_guidance';
   }
+  return null;
+}
+
+export function buildPromotionRecommendation(entry) {
+  const metrics = buildPromotionInputs(entry);
+  const noiseDecision = promotionNoiseDecision(metrics);
+  if (noiseDecision) {
+    return noiseDecision;
+  }
+
+  const primaryTargetDecision = promotionPrimaryTargetDecision(metrics);
+  if (primaryTargetDecision) {
+    return primaryTargetDecision;
+  }
+
+  const fixGuidanceDecision = promotionFixGuidanceDecision(metrics);
+  if (fixGuidanceDecision) {
+    return fixGuidanceDecision;
+  }
+
   return `keep_${entry.promotion_status ?? 'unspecified'}`;
 }
 
