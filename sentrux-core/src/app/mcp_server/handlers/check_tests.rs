@@ -1,6 +1,6 @@
 use super::agent_format::{
     actions_from_issues, compare_agent_issues, to_agent_issue, AgentIssue, IssueConfidence,
-    IssueOrigin, IssueSource,
+    IssueOrigin, IssueSource, RepairPacket,
 };
 use super::test_support::{
     append_session_clone_watchpoint_note, commit_all, init_git_repo, temp_root,
@@ -14,6 +14,50 @@ use crate::license::Tier;
 use crate::metrics::v2::FindingSeverity;
 use serde_json::json;
 use std::fs;
+
+fn test_issue(
+    scope: &str,
+    file: &str,
+    line: Option<u32>,
+    kind: &str,
+    message: &str,
+    severity: FindingSeverity,
+    source: IssueSource,
+    origin: IssueOrigin,
+    confidence: IssueConfidence,
+) -> AgentIssue {
+    AgentIssue {
+        scope: scope.to_string(),
+        concept_id: None,
+        file: file.to_string(),
+        line,
+        kind: kind.to_string(),
+        message: message.to_string(),
+        severity,
+        trust_tier: match confidence {
+            IssueConfidence::High => "trusted",
+            IssueConfidence::Medium => "watchpoint",
+            IssueConfidence::Experimental => "experimental",
+        }
+        .to_string(),
+        presentation_class: "structural_debt".to_string(),
+        leverage_class: "secondary_cleanup".to_string(),
+        score_0_10000: 6_000,
+        fix_hint: None,
+        evidence: Vec::new(),
+        source,
+        origin,
+        confidence,
+        repair_packet: RepairPacket {
+            risk_statement: "test packet".to_string(),
+            likely_fix_sites: vec![file.to_string()],
+            smallest_safe_first_cut: Some("test first cut".to_string()),
+            verify_after: vec!["re-run sentrux check".to_string()],
+            do_not_touch_yet: Vec::new(),
+            completeness_0_10000: 9_000,
+        },
+    }
+}
 #[test]
 fn check_returns_partial_when_changed_scope_is_unavailable() {
     let root = temp_root("check-unavailable-scope");
@@ -203,32 +247,28 @@ fn check_applies_suppressions_to_inferred_boundary_findings() {
 #[test]
 fn actions_prioritize_explicit_rule_breaks_over_structural_watchpoints() {
     let mut issues = vec![
-        AgentIssue {
-            scope: "SidebarTaskRow".to_string(),
-            file: "src/components/SidebarTaskRow.tsx".to_string(),
-            line: Some(12),
-            kind: "dependency_sprawl".to_string(),
-            message: "SidebarTaskRow depends on too many modules.".to_string(),
-            severity: FindingSeverity::Medium,
-            fix_hint: None,
-            evidence: Vec::new(),
-            source: IssueSource::Structural,
-            origin: IssueOrigin::Explicit,
-            confidence: IssueConfidence::High,
-        },
-        AgentIssue {
-            scope: "task_presentation_status".to_string(),
-            file: "src/components/SidebarTaskRow.tsx".to_string(),
-            line: Some(18),
-            kind: "forbidden_raw_read".to_string(),
-            message: "Task presentation status is read directly.".to_string(),
-            severity: FindingSeverity::Medium,
-            fix_hint: None,
-            evidence: Vec::new(),
-            source: IssueSource::Rules,
-            origin: IssueOrigin::Explicit,
-            confidence: IssueConfidence::High,
-        },
+        test_issue(
+            "SidebarTaskRow",
+            "src/components/SidebarTaskRow.tsx",
+            Some(12),
+            "dependency_sprawl",
+            "SidebarTaskRow depends on too many modules.",
+            FindingSeverity::Medium,
+            IssueSource::Structural,
+            IssueOrigin::Explicit,
+            IssueConfidence::High,
+        ),
+        test_issue(
+            "task_presentation_status",
+            "src/components/SidebarTaskRow.tsx",
+            Some(18),
+            "forbidden_raw_read",
+            "Task presentation status is read directly.",
+            FindingSeverity::Medium,
+            IssueSource::Rules,
+            IssueOrigin::Explicit,
+            IssueConfidence::High,
+        ),
     ];
     issues.sort_by(compare_agent_issues);
     let actions = actions_from_issues(&issues, 4);
@@ -241,36 +281,71 @@ fn actions_prioritize_explicit_rule_breaks_over_structural_watchpoints() {
 #[test]
 fn structural_actions_prioritize_sprawl_over_large_file() {
     let mut issues = vec![
-        AgentIssue {
-            scope: "src/app.ts".to_string(),
-            file: "src/app.ts".to_string(),
-            line: None,
-            kind: "large_file".to_string(),
-            message: "src/app.ts grew to 900 lines.".to_string(),
-            severity: FindingSeverity::Medium,
-            fix_hint: None,
-            evidence: Vec::new(),
-            source: IssueSource::Structural,
-            origin: IssueOrigin::ZeroConfig,
-            confidence: IssueConfidence::Medium,
-        },
-        AgentIssue {
-            scope: "src/app.ts".to_string(),
-            file: "src/app.ts".to_string(),
-            line: None,
-            kind: "dependency_sprawl".to_string(),
-            message: "src/app.ts fans out across too many dependencies.".to_string(),
-            severity: FindingSeverity::Medium,
-            fix_hint: None,
-            evidence: Vec::new(),
-            source: IssueSource::Structural,
-            origin: IssueOrigin::ZeroConfig,
-            confidence: IssueConfidence::Medium,
-        },
+        test_issue(
+            "src/app.ts",
+            "src/app.ts",
+            None,
+            "large_file",
+            "src/app.ts grew to 900 lines.",
+            FindingSeverity::Medium,
+            IssueSource::Structural,
+            IssueOrigin::ZeroConfig,
+            IssueConfidence::Medium,
+        ),
+        test_issue(
+            "src/app.ts",
+            "src/app.ts",
+            None,
+            "dependency_sprawl",
+            "src/app.ts fans out across too many dependencies.",
+            FindingSeverity::Medium,
+            IssueSource::Structural,
+            IssueOrigin::ZeroConfig,
+            IssueConfidence::Medium,
+        ),
     ];
     issues.sort_by(compare_agent_issues);
 
     assert_eq!(issues[0].kind, "dependency_sprawl");
+}
+
+#[test]
+fn architecture_cycles_rank_above_large_file_cleanup() {
+    let mut large_file_issue = test_issue(
+        "src/lib/ipc.ts",
+        "src/lib/ipc.ts",
+        None,
+        "large_file",
+        "src/lib/ipc.ts is oversized.",
+        FindingSeverity::Medium,
+        IssueSource::Structural,
+        IssueOrigin::Explicit,
+        IssueConfidence::High,
+    );
+    large_file_issue.trust_tier = "trusted".to_string();
+    large_file_issue.presentation_class = "guarded_facade".to_string();
+    large_file_issue.leverage_class = "boundary_discipline".to_string();
+
+    let mut cycle_issue = test_issue(
+        "cycle:src/mcp/index.ts|src/mcp/server.ts",
+        "src/mcp/index.ts",
+        None,
+        "cycle_cluster",
+        "src/mcp/index.ts and src/mcp/server.ts form a cycle.",
+        FindingSeverity::High,
+        IssueSource::Structural,
+        IssueOrigin::Explicit,
+        IssueConfidence::High,
+    );
+    cycle_issue.trust_tier = "watchpoint".to_string();
+    cycle_issue.presentation_class = "watchpoint".to_string();
+    cycle_issue.leverage_class = "architecture_signal".to_string();
+    cycle_issue.score_0_10000 = 10_000;
+
+    let mut issues = vec![large_file_issue, cycle_issue];
+    issues.sort_by(compare_agent_issues);
+
+    assert_eq!(issues[0].kind, "cycle_cluster");
 }
 
 #[test]
@@ -340,32 +415,28 @@ fn check_surfaces_session_introduced_clone_actions() {
 #[test]
 fn session_introduced_clone_actions_rank_above_structural_watchpoints() {
     let mut issues = vec![
-        AgentIssue {
-            scope: "src/app.ts".to_string(),
-            file: "src/app.ts".to_string(),
-            line: None,
-            kind: "large_file".to_string(),
-            message: "src/app.ts grew to 900 lines.".to_string(),
-            severity: FindingSeverity::Medium,
-            fix_hint: None,
-            evidence: Vec::new(),
-            source: IssueSource::Structural,
-            origin: IssueOrigin::ZeroConfig,
-            confidence: IssueConfidence::Medium,
-        },
-        AgentIssue {
-            scope: "src/source.ts and src/copy.ts".to_string(),
-            file: "src/copy.ts".to_string(),
-            line: None,
-            kind: "session_introduced_clone".to_string(),
-            message: "Patch introduced a duplicate helper.".to_string(),
-            severity: FindingSeverity::Medium,
-            fix_hint: None,
-            evidence: Vec::new(),
-            source: IssueSource::Clone,
-            origin: IssueOrigin::Explicit,
-            confidence: IssueConfidence::High,
-        },
+        test_issue(
+            "src/app.ts",
+            "src/app.ts",
+            None,
+            "large_file",
+            "src/app.ts grew to 900 lines.",
+            FindingSeverity::Medium,
+            IssueSource::Structural,
+            IssueOrigin::ZeroConfig,
+            IssueConfidence::Medium,
+        ),
+        test_issue(
+            "src/source.ts and src/copy.ts",
+            "src/copy.ts",
+            None,
+            "session_introduced_clone",
+            "Patch introduced a duplicate helper.",
+            FindingSeverity::Medium,
+            IssueSource::Clone,
+            IssueOrigin::Explicit,
+            IssueConfidence::High,
+        ),
     ];
     issues.sort_by(compare_agent_issues);
 

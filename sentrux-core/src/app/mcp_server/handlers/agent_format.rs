@@ -1,14 +1,19 @@
+use super::agent_guidance::{
+    fix_hint_for_value, obligation_confidence, obligation_evidence, obligation_files,
+    obligation_fix_hint, obligation_line, obligation_message, obligation_origin,
+    obligation_score_0_10000, obligation_severity, obligation_trust_tier,
+    repair_packet_for_finding, repair_packet_for_obligation,
+};
 use super::*;
 use crate::metrics::v2::FindingSeverity;
 use serde::Serialize;
 use std::collections::BTreeMap;
 
-const PREFERRED_ACCESSOR_PREFIX: &str = "preferred accessor: ";
-const CANONICAL_OWNER_PREFIX: &str = "canonical owner: ";
-const INTRODUCED_DUPLICATE_PREFIX: &str = "introduced duplicate: ";
-const PREFERRED_OWNER_PREFIX: &str = "preferred owner: ";
-const CHANGED_CLONE_MEMBER_PREFIX: &str = "changed clone member: ";
-const UNCHANGED_CLONE_SIBLING_PREFIX: &str = "unchanged clone sibling: ";
+pub(crate) use super::agent_guidance::RepairPacket;
+pub(crate) use super::agent_ranking::{
+    actions_from_findings_and_obligations, actions_from_issues, compare_agent_issues,
+    issue_blocks_gate, issues_from_findings_and_obligations,
+};
 
 #[derive(Debug, Clone, Copy, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "lowercase")]
@@ -45,32 +50,48 @@ pub(crate) enum AgentGate {
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct AgentIssue {
     pub(crate) scope: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) concept_id: Option<String>,
     pub(crate) file: String,
     pub(crate) line: Option<u32>,
     pub(crate) kind: String,
     pub(crate) message: String,
     pub(crate) severity: FindingSeverity,
+    pub(crate) trust_tier: String,
+    pub(crate) presentation_class: String,
+    pub(crate) leverage_class: String,
+    pub(crate) score_0_10000: u32,
     pub(crate) fix_hint: Option<String>,
     pub(crate) evidence: Vec<String>,
     pub(crate) source: IssueSource,
     pub(crate) origin: IssueOrigin,
     pub(crate) confidence: IssueConfidence,
+    pub(crate) repair_packet: RepairPacket,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct AgentAction {
     pub(crate) priority: usize,
     pub(crate) scope: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) concept_id: Option<String>,
     pub(crate) file: String,
     pub(crate) line: Option<u32>,
     pub(crate) kind: String,
     pub(crate) message: String,
+    pub(crate) severity: FindingSeverity,
+    pub(crate) trust_tier: String,
+    pub(crate) presentation_class: String,
+    pub(crate) leverage_class: String,
+    pub(crate) score_0_10000: u32,
     pub(crate) fix_hint: Option<String>,
     pub(crate) evidence: Vec<String>,
     pub(crate) blocking: bool,
     pub(crate) source: IssueSource,
     pub(crate) origin: IssueOrigin,
     pub(crate) confidence: IssueConfidence,
+    pub(crate) why_now: Vec<String>,
+    pub(crate) repair_packet: RepairPacket,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -100,11 +121,17 @@ pub(crate) struct AgentCheckResponse {
 }
 
 pub(crate) fn to_agent_issue(finding: &Value) -> AgentIssue {
-    let kind = canonical_issue_kind(finding_kind(finding)).to_string();
-    let files = finding_files(finding);
+    let finding = decorate_finding_with_classification(finding);
+    let kind = canonical_issue_kind(finding_kind(&finding)).to_string();
+    let files = finding_files(&finding);
     let file = files.first().cloned().unwrap_or_default();
+    let repair_packet = repair_packet_for_finding(&finding, &kind);
     AgentIssue {
-        scope: issue_scope_for_value(finding, &files, &kind),
+        scope: issue_scope_for_value(&finding, &files, &kind),
+        concept_id: finding
+            .get("concept_id")
+            .and_then(Value::as_str)
+            .map(str::to_string),
         file,
         line: finding
             .get("line")
@@ -113,10 +140,30 @@ pub(crate) fn to_agent_issue(finding: &Value) -> AgentIssue {
         message: finding
             .get("summary")
             .and_then(|value| value.as_str())
-            .unwrap_or_else(|| finding_kind(finding))
+            .unwrap_or_else(|| finding_kind(&finding))
             .to_string(),
-        severity: severity_of_value(finding),
-        fix_hint: fix_hint_for_value(finding, &kind),
+        severity: severity_of_value(&finding),
+        trust_tier: finding
+            .get("trust_tier")
+            .and_then(Value::as_str)
+            .unwrap_or("trusted")
+            .to_string(),
+        presentation_class: finding
+            .get("presentation_class")
+            .and_then(Value::as_str)
+            .unwrap_or("structural_debt")
+            .to_string(),
+        leverage_class: finding
+            .get("leverage_class")
+            .and_then(Value::as_str)
+            .unwrap_or("secondary_cleanup")
+            .to_string(),
+        score_0_10000: finding
+            .get("score_0_10000")
+            .and_then(Value::as_u64)
+            .map(|value| value as u32)
+            .unwrap_or_default(),
+        fix_hint: fix_hint_for_value(&finding, &kind),
         evidence: finding
             .get("evidence")
             .and_then(|value| value.as_array())
@@ -128,8 +175,9 @@ pub(crate) fn to_agent_issue(finding: &Value) -> AgentIssue {
             })
             .unwrap_or_default(),
         source: issue_source_for_kind(&kind),
-        origin: issue_origin_for_value(finding, &kind),
-        confidence: issue_confidence_for_value(finding, &kind),
+        origin: issue_origin_for_value(&finding, &kind),
+        confidence: issue_confidence_for_value(&finding, &kind),
+        repair_packet,
         kind,
     }
 }
@@ -153,234 +201,27 @@ pub(crate) fn obligation_value_to_agent_issue(obligation: &Value) -> AgentIssue 
 
     AgentIssue {
         scope,
+        concept_id: obligation
+            .get("concept_id")
+            .or_else(|| obligation.get("concept"))
+            .and_then(Value::as_str)
+            .map(str::to_string),
         file,
         line: obligation_line(obligation),
         kind: kind.clone(),
         message: obligation_message(obligation, &kind),
         severity: obligation_severity(obligation),
+        trust_tier: obligation_trust_tier(obligation).to_string(),
+        presentation_class: "hardening_note".to_string(),
+        leverage_class: "hardening_note".to_string(),
+        score_0_10000: obligation_score_0_10000(obligation),
         fix_hint: obligation_fix_hint(obligation, &kind),
         evidence: obligation_evidence(obligation),
         source: IssueSource::Obligation,
         origin: obligation_origin(obligation),
         confidence: obligation_confidence(obligation),
+        repair_packet: repair_packet_for_obligation(obligation, &kind),
     }
-}
-
-fn fix_hint_for_value(finding: &Value, kind: &str) -> Option<String> {
-    if kind == "forbidden_raw_read" {
-        return forbidden_raw_read_fix_hint(finding);
-    }
-
-    if kind == "session_introduced_clone" {
-        return session_introduced_clone_fix_hint(finding);
-    }
-
-    if kind == "clone_propagation_drift" {
-        return clone_propagation_drift_fix_hint(finding);
-    }
-
-    if kind == "touched_clone_family" {
-        if let Some(unchanged_sibling) =
-            evidence_value_for_prefix(finding, UNCHANGED_CLONE_SIBLING_PREFIX)
-        {
-            return Some(format!(
-                "Inspect sibling clone {unchanged_sibling} before finishing the patch, or collapse the duplicate paths behind one shared helper."
-            ));
-        }
-    }
-
-    if kind == "large_file" {
-        let split_axes = string_array_values(finding, "candidate_split_axes", 2);
-        let related_surfaces = string_array_values(finding, "related_surfaces", 2)
-            .into_iter()
-            .filter(|surface| !looks_like_test_surface(surface))
-            .collect::<Vec<_>>();
-        if split_axes.len() == 1 && related_surfaces.len() == 1 {
-            let split_axis = &split_axes[0];
-            let related_surface = &related_surfaces[0];
-            return Some(format!(
-                "Split the file along the {split_axis} and move the behavior that couples to {related_surface} behind a smaller owner before adding more code here."
-            ));
-        }
-        if !split_axes.is_empty() && !related_surfaces.is_empty() {
-            return Some(format!(
-                "Split the file along {} and move the behavior that couples to {} behind smaller owners before adding more code here.",
-                describe_split_axes(&split_axes),
-                describe_list(&related_surfaces),
-            ));
-        }
-        if !split_axes.is_empty() {
-            return Some(format!(
-                "Split the file along {} and keep the public surface thin.",
-                describe_split_axes(&split_axes),
-            ));
-        }
-        if !related_surfaces.is_empty() {
-            return Some(format!(
-                "Extract the behavior that couples to {} behind smaller owners and keep the public surface thin.",
-                describe_list(&related_surfaces),
-            ));
-        }
-    }
-
-    fix_hint_for_kind(kind)
-}
-
-fn forbidden_raw_read_fix_hint(finding: &Value) -> Option<String> {
-    let preferred_accessor = evidence_value_for_prefix(finding, PREFERRED_ACCESSOR_PREFIX);
-    let canonical_owner = evidence_value_for_prefix(finding, CANONICAL_OWNER_PREFIX);
-    if let Some(accessor) = preferred_accessor {
-        if let Some(owner) = canonical_owner {
-            return Some(format!(
-                "Replace the raw read with {accessor} from {owner} instead of recreating the projection in the caller."
-            ));
-        }
-        return Some(format!(
-            "Replace the raw read with {accessor} instead of recreating the projection in the caller."
-        ));
-    }
-    canonical_owner.map(|owner| {
-        format!("Move the read behind {owner} instead of recreating the projection in the caller.")
-    })
-}
-
-fn session_introduced_clone_fix_hint(finding: &Value) -> Option<String> {
-    let introduced_duplicate = evidence_value_for_prefix(finding, INTRODUCED_DUPLICATE_PREFIX);
-    let preferred_owner = evidence_value_for_prefix(finding, PREFERRED_OWNER_PREFIX);
-    if let (Some(introduced_duplicate), Some(preferred_owner)) =
-        (introduced_duplicate, preferred_owner.as_ref())
-    {
-        return Some(format!(
-            "Collapse the new duplicate {introduced_duplicate} into {preferred_owner} instead of maintaining both paths."
-        ));
-    }
-    preferred_owner.map(|preferred_owner| {
-        format!(
-            "Route the new duplicate back through {preferred_owner} before the two paths drift."
-        )
-    })
-}
-
-fn clone_propagation_drift_fix_hint(finding: &Value) -> Option<String> {
-    let changed_member = evidence_value_for_prefix(finding, CHANGED_CLONE_MEMBER_PREFIX);
-    let unchanged_sibling = evidence_value_for_prefix(finding, UNCHANGED_CLONE_SIBLING_PREFIX);
-    if let (Some(changed_member), Some(unchanged_sibling)) =
-        (changed_member.as_ref(), unchanged_sibling.as_ref())
-    {
-        return Some(format!(
-            "Sync {unchanged_sibling} with the behavior change in {changed_member}, or collapse both paths behind one shared owner."
-        ));
-    }
-    unchanged_sibling.map(|unchanged_sibling| {
-        format!(
-            "Update {unchanged_sibling} to match the changed clone path, or remove the duplicate split."
-        )
-    })
-}
-
-fn evidence_value_for_prefix(finding: &Value, prefix: &str) -> Option<String> {
-    finding
-        .get("evidence")
-        .and_then(Value::as_array)
-        .and_then(|values| {
-            values.iter().find_map(|value| {
-                value
-                    .as_str()
-                    .and_then(|evidence| evidence.strip_prefix(prefix))
-                    .map(str::to_string)
-            })
-        })
-}
-
-fn string_array_values(finding: &Value, key: &str, limit: usize) -> Vec<String> {
-    finding
-        .get(key)
-        .and_then(Value::as_array)
-        .map(|values| {
-            values
-                .iter()
-                .filter_map(Value::as_str)
-                .take(limit.max(1))
-                .map(str::to_string)
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default()
-}
-
-fn describe_split_axes(split_axes: &[String]) -> String {
-    describe_list(
-        &split_axes
-            .iter()
-            .map(|split_axis| format!("the {split_axis}"))
-            .collect::<Vec<_>>(),
-    )
-}
-
-fn describe_list(values: &[String]) -> String {
-    match values {
-        [] => String::new(),
-        [value] => value.clone(),
-        [first, second] => format!("{first} and {second}"),
-        _ => {
-            let last = values.last().expect("non-empty list");
-            let leading = &values[..values.len() - 1];
-            format!("{}, and {}", leading.join(", "), last)
-        }
-    }
-}
-
-fn looks_like_test_surface(path: &str) -> bool {
-    path.contains(".test.")
-        || path.contains(".spec.")
-        || path.contains(".architecture.test.")
-        || path.contains("/__tests__/")
-        || path.ends_with("_test.rs")
-}
-
-pub(crate) fn issue_blocks_gate(issue: &AgentIssue) -> bool {
-    match issue.source {
-        IssueSource::Obligation => issue.severity == FindingSeverity::High,
-        IssueSource::Rules => {
-            issue.origin == IssueOrigin::Explicit && issue.severity.priority() >= 2
-        }
-        IssueSource::Structural | IssueSource::Clone => false,
-    }
-}
-
-pub(crate) fn actions_from_issues(issues: &[AgentIssue], limit: usize) -> Vec<AgentAction> {
-    issues
-        .iter()
-        .take(limit.max(1))
-        .enumerate()
-        .map(|(index, issue)| AgentAction {
-            priority: index + 1,
-            scope: issue.scope.clone(),
-            file: issue.file.clone(),
-            line: issue.line,
-            kind: issue.kind.clone(),
-            message: issue.message.clone(),
-            fix_hint: issue.fix_hint.clone(),
-            evidence: issue.evidence.clone(),
-            blocking: issue_blocks_gate(issue),
-            source: issue.source,
-            origin: issue.origin,
-            confidence: issue.confidence,
-        })
-        .collect()
-}
-
-pub(crate) fn actions_from_findings_and_obligations(
-    findings: &[Value],
-    missing_obligations: &[Value],
-    limit: usize,
-) -> Vec<AgentAction> {
-    let mut issues = missing_obligations
-        .iter()
-        .map(obligation_value_to_agent_issue)
-        .collect::<Vec<_>>();
-    issues.extend(findings.iter().map(to_agent_issue));
-    issues.sort_by(compare_agent_issues);
-    actions_from_issues(&issues, limit)
 }
 
 fn issue_source_for_kind(kind: &str) -> IssueSource {
@@ -423,214 +264,6 @@ fn canonical_issue_kind(kind: &str) -> &str {
     }
 }
 
-fn obligation_message(obligation: &Value, kind: &str) -> String {
-    if kind == "incomplete_propagation" {
-        let scope = obligation
-            .get("concept_id")
-            .or_else(|| obligation.get("concept"))
-            .and_then(Value::as_str)
-            .unwrap_or("changed contract");
-        return format!(
-            "Propagation is incomplete for '{}': update the remaining sibling surfaces listed in the evidence.",
-            scope
-        );
-    }
-
-    if kind == "closed_domain_exhaustiveness" {
-        let domain = obligation_domain_label(obligation);
-        let missing_variants = obligation_missing_variants(obligation);
-        let site_suffix = obligation_site_suffix(obligation);
-
-        if !missing_variants.is_empty() {
-            return format!(
-                "Domain '{}' still needs explicit handling for variants [{}]{}.",
-                domain,
-                missing_variants.join(", "),
-                site_suffix
-            );
-        }
-
-        return format!(
-            "Domain '{}' still needs an explicit exhaustive branch{}.",
-            domain, site_suffix
-        );
-    }
-
-    obligation
-        .get("summary")
-        .and_then(Value::as_str)
-        .unwrap_or("Changed concept still has missing update sites")
-        .to_string()
-}
-
-fn obligation_fix_hint(obligation: &Value, kind: &str) -> Option<String> {
-    let hint = match kind {
-        "incomplete_propagation" => {
-            "Update the remaining sibling surfaces listed in the evidence before considering the change complete."
-        }
-        "closed_domain_exhaustiveness" => {
-            let site_suffix = obligation_site_suffix(obligation);
-            let missing_variants = obligation_missing_variants(obligation);
-            if !missing_variants.is_empty() {
-                return Some(format!(
-                    "Handle the missing variants [{}] with an explicit exhaustive switch or mapping{site_suffix}, and keep the fallback/default path out of the production branch.",
-                    missing_variants.join(", "),
-                ));
-            }
-
-            return Some(format!(
-                "Add an explicit exhaustive switch or mapping{site_suffix}, and keep the fallback/default path out of the production branch."
-            ));
-        }
-        _ => "Update the missing sites tied to the changed concept before continuing.",
-    };
-    Some(hint.to_string())
-}
-
-fn obligation_domain_label(obligation: &Value) -> String {
-    obligation
-        .get("domain_symbol_name")
-        .or_else(|| obligation.get("concept_id"))
-        .or_else(|| obligation.get("concept"))
-        .and_then(Value::as_str)
-        .unwrap_or("closed domain")
-        .to_string()
-}
-
-fn obligation_missing_variants(obligation: &Value) -> Vec<String> {
-    obligation
-        .get("missing_variants")
-        .and_then(Value::as_array)
-        .map(|variants| {
-            variants
-                .iter()
-                .filter_map(Value::as_str)
-                .map(str::to_string)
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default()
-}
-
-fn obligation_missing_site(obligation: &Value) -> Option<String> {
-    let sites = obligation.get("missing_sites").and_then(Value::as_array)?;
-    let site = sites.first()?;
-    let path = site.get("path").and_then(Value::as_str)?;
-    let line = site
-        .get("line")
-        .and_then(Value::as_u64)
-        .map(|line| format!(":{line}"))
-        .unwrap_or_default();
-
-    Some(format!("{path}{line}"))
-}
-
-fn obligation_site_suffix(obligation: &Value) -> String {
-    obligation_missing_site(obligation)
-        .map(|site| format!(" at {site}"))
-        .unwrap_or_default()
-}
-
-fn obligation_origin(obligation: &Value) -> IssueOrigin {
-    if matches!(
-        obligation.get("origin").and_then(Value::as_str),
-        Some("zero_config")
-    ) || obligation.get("concept_id").is_none()
-    {
-        IssueOrigin::ZeroConfig
-    } else {
-        IssueOrigin::Explicit
-    }
-}
-
-fn obligation_confidence(obligation: &Value) -> IssueConfidence {
-    match obligation_origin(obligation) {
-        IssueOrigin::Explicit => IssueConfidence::High,
-        IssueOrigin::ZeroConfig => IssueConfidence::Medium,
-    }
-}
-
-fn obligation_severity(obligation: &Value) -> FindingSeverity {
-    if obligation
-        .get("kind")
-        .and_then(Value::as_str)
-        .is_some_and(|kind| kind == "closed_domain_exhaustiveness")
-        || obligation
-            .get("missing_variants")
-            .and_then(Value::as_array)
-            .is_some_and(|variants| !variants.is_empty())
-    {
-        FindingSeverity::High
-    } else {
-        FindingSeverity::Medium
-    }
-}
-
-fn obligation_files(obligation: &Value) -> Vec<String> {
-    let files = obligation
-        .get("files")
-        .and_then(Value::as_array)
-        .map(|files| {
-            files
-                .iter()
-                .filter_map(Value::as_str)
-                .map(str::to_string)
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default();
-    if !files.is_empty() {
-        return files;
-    }
-
-    obligation
-        .get("missing_sites")
-        .and_then(Value::as_array)
-        .map(|sites| {
-            sites
-                .iter()
-                .filter_map(|site| site.get("path").and_then(Value::as_str))
-                .map(str::to_string)
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default()
-}
-
-fn obligation_line(obligation: &Value) -> Option<u32> {
-    obligation
-        .get("missing_sites")
-        .and_then(Value::as_array)
-        .and_then(|sites| {
-            sites
-                .iter()
-                .find_map(|site| site.get("line").and_then(Value::as_u64))
-        })
-        .map(|line| line as u32)
-}
-
-fn obligation_evidence(obligation: &Value) -> Vec<String> {
-    obligation
-        .get("missing_sites")
-        .and_then(Value::as_array)
-        .map(|sites| {
-            sites
-                .iter()
-                .filter_map(|site| {
-                    let path = site.get("path").and_then(Value::as_str)?;
-                    let detail = site
-                        .get("detail")
-                        .and_then(Value::as_str)
-                        .unwrap_or("missing site");
-                    let line_suffix = site
-                        .get("line")
-                        .and_then(Value::as_u64)
-                        .map(|line| format!(":{line}"))
-                        .unwrap_or_default();
-                    Some(format!("{path}{line_suffix} [{detail}]"))
-                })
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default()
-}
-
 fn issue_scope_for_value(finding: &Value, files: &[String], kind: &str) -> String {
     finding
         .get("scope")
@@ -639,63 +272,6 @@ fn issue_scope_for_value(finding: &Value, files: &[String], kind: &str) -> Strin
         .map(str::to_string)
         .or_else(|| files.first().cloned())
         .unwrap_or_else(|| kind.to_string())
-}
-
-fn right_gate_weight(issue: &AgentIssue) -> u8 {
-    if issue_blocks_gate(issue) {
-        1
-    } else {
-        0
-    }
-}
-
-fn issue_source_weight(issue: &AgentIssue) -> u8 {
-    if matches!(
-        issue.kind.as_str(),
-        "session_introduced_clone" | "clone_propagation_drift"
-    ) {
-        return 2;
-    }
-    if issue.kind == "touched_clone_family" {
-        return 1;
-    }
-
-    match (issue.source, issue.origin) {
-        (IssueSource::Rules, IssueOrigin::Explicit) => 4,
-        (IssueSource::Obligation, _) => 3,
-        (IssueSource::Rules, IssueOrigin::ZeroConfig) => 2,
-        (IssueSource::Structural, _) => 1,
-        (IssueSource::Clone, _) => 0,
-    }
-}
-
-fn issue_confidence_weight(issue: &AgentIssue) -> u8 {
-    match issue.confidence {
-        IssueConfidence::High => 2,
-        IssueConfidence::Medium => 1,
-        IssueConfidence::Experimental => 0,
-    }
-}
-
-fn issue_kind_weight(issue: &AgentIssue) -> u8 {
-    match issue.kind.as_str() {
-        "dependency_sprawl" => 3,
-        "unstable_hotspot" => 2,
-        "cycle_cluster" => 1,
-        "large_file" => 0,
-        _ => 0,
-    }
-}
-
-pub(crate) fn compare_agent_issues(left: &AgentIssue, right: &AgentIssue) -> std::cmp::Ordering {
-    right_gate_weight(right)
-        .cmp(&right_gate_weight(left))
-        .then_with(|| issue_source_weight(right).cmp(&issue_source_weight(left)))
-        .then_with(|| issue_kind_weight(right).cmp(&issue_kind_weight(left)))
-        .then_with(|| right.severity.priority().cmp(&left.severity.priority()))
-        .then_with(|| issue_confidence_weight(right).cmp(&issue_confidence_weight(left)))
-        .then_with(|| left.file.cmp(&right.file))
-        .then_with(|| left.kind.cmp(&right.kind))
 }
 
 fn issue_origin_for_value(finding: &Value, kind: &str) -> IssueOrigin {
@@ -724,53 +300,6 @@ fn issue_confidence_for_value(finding: &Value, kind: &str) -> IssueConfidence {
             },
         },
     }
-}
-
-fn fix_hint_for_kind(kind: &str) -> Option<String> {
-    let hint = match kind {
-        "forbidden_raw_read" => {
-            "Route the read through the concept's canonical accessor instead of reading raw state."
-        }
-        "forbidden_writer" | "writer_outside_allowlist" => {
-            "Move the write behind an allowed writer or update the rule if the new writer is intentional."
-        }
-        "multi_writer_concept" => {
-            "Reduce the concept to one authoritative writer or document the additional writer explicitly."
-        }
-        "closed_domain_exhaustiveness" => {
-            "Handle the missing variants with an explicit exhaustive switch or mapping, and keep the fallback/default branch out of the production path."
-        }
-        "state_model_missing_exhaustive_switch" | "state_model_missing_assert_never" => {
-            "Restore the exhaustive switch and assert-never guard for the state model."
-        }
-        "large_file" => "Split the file along the boundary suggested by the evidence and keep the public surface thin.",
-        "dependency_sprawl" => {
-            "Extract a narrower facade or move behavior behind an existing module boundary."
-        }
-        "unstable_hotspot" => "Stabilize the hotspot before adding more change pressure.",
-        "cycle_cluster" => "Cut the highest-leverage cycle seam first and re-run check.",
-        "exact_clone_group" | "clone_group" | "clone_family" => {
-            "Extract shared behavior or collapse the duplicated flow."
-        }
-        "session_introduced_clone" => {
-            "Collapse the new duplicate now: extract the shared behavior or route both call sites through the same owner before they drift."
-        }
-        "clone_propagation_drift" => {
-            "Sync the unchanged sibling clone with the changed path, or collapse both behind one shared owner before behavior drifts."
-        }
-        "touched_clone_family" => {
-            "Inspect the sibling clone surfaces before finishing the patch, even if you keep the duplicate for now."
-        }
-        "incomplete_propagation" => {
-            "Update the remaining sibling surfaces listed in the evidence before considering the change complete."
-        }
-        "missing_test_coverage" => "Add a sibling test covering the new production surface.",
-        "zero_config_boundary_violation" => {
-            "Replace the deep import with the module's public API."
-        }
-        _ => return None,
-    };
-    Some(hint.to_string())
 }
 
 #[cfg(test)]
