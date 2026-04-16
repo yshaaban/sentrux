@@ -33,10 +33,11 @@ node scripts/release_preflight_public.mjs
 This command:
 
 - runs the core Rust and TypeScript validation lanes
-- builds the current-platform release binary and runs the `install.sh` smoke path on supported hosts
+- builds the current-platform release binary
+- installs the pinned `tree-sitter` CLI locally when needed
+- builds the current-platform grammar bundle and runs the bundle-aware `install.sh` smoke path on supported hosts
 - runs the public release hygiene scan
 - validates deterministic checked-in `parallel-code` goldens
-- refreshes the checked-in benchmark artifacts used by the public docs
 
 It intentionally stops short of making fail-tier benchmark regression decisions for the whole benchmark corpus. Those decisions belong on a quieter dedicated runner.
 
@@ -87,7 +88,7 @@ This command:
 - fails if the benchmark comparison reports a regression
 - fails if the benchmark run is not comparable to the checked-in artifact
 
-For broader public-release work, prefer `node scripts/release_preflight_public.mjs` locally and reserve full benchmark regression gating for the dedicated benchmark-runner step below.
+For broader public-release work, prefer `node scripts/release_preflight_public.mjs` locally and reserve full benchmark regression gating for the dedicated benchmark-runner step below. The local preflight is intentionally read-only and does not rewrite benchmark artifacts.
 
 The checked-in proof snapshots, proof runs, and engineer reports explain how the outputs from this command should be turned into concrete refactor targets and before/after proof records.
 
@@ -158,7 +159,7 @@ The validation runner compares the checked-in `parallel-code-golden` files again
 - `agent_brief` outputs for the supported modes when they are part of the checked-in golden set
 - `metadata.json`
 
-The `metadata.json` check ignores the timestamp field and verifies the stable payload instead.
+The `metadata.json` check ignores the timestamp field and binary sha256 field and verifies the stable payload instead.
 
 ## What The Benchmark Harness Checks
 
@@ -209,6 +210,8 @@ The public tree must not carry:
 - checked-in artifacts generated from non-public repos
 
 Use `node scripts/check_public_release_hygiene.mjs` to enforce that barrier before tagging or pushing public-release docs and artifacts.
+
+Pinned grammar bundle builds must also fail closed. If a pinned upstream grammar ref cannot be fetched, the bundle build should stop instead of falling back to a moving default branch.
 
 ## Proof-And-Improvement Loop
 

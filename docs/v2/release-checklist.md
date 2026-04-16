@@ -26,6 +26,7 @@ Before release:
 - confirm [`../../install.sh`](../../install.sh) still matches the actual uploaded artifacts
 - confirm [`.github/workflows/release.yml`](../../.github/workflows/release.yml) still matches the public support matrix
 - confirm [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) validates the same supported public paths you advertise
+- confirm grammar bundle inputs are pinned to exact upstream commits rather than moving branch names
 - if the support matrix changed, update docs before tagging
 
 ## 3. Core Validation Commands
@@ -40,18 +41,20 @@ Or, if you need to run the lanes manually:
 2. `cargo test -p sentrux-core -- --nocapture`
 3. `cargo build -p sentrux`
 4. `cargo build --release -p sentrux`
-5. `./scripts/smoke_test_install.sh --artifact-path target/release/sentrux --artifact-name <current-platform-artifact>`
-6. `npm --prefix ts-bridge test`
-7. `git diff --check`
+5. `bash ./scripts/install_tree_sitter_cli.sh`
+6. `./scripts/build_grammar_bundle.sh --platform <current-platform-bundle> --output <tmp-bundle-path>`
+7. `./scripts/smoke_test_install.sh --artifact-path target/release/sentrux --artifact-name <current-platform-artifact> --grammar-bundle-path <tmp-bundle-path>`
+8. `npm --prefix ts-bridge test`
+9. `git diff --check`
+
+The local public preflight is intentionally read-only. It does not regenerate benchmark artifacts.
 
 ## 4. Benchmark And Golden Validation
 
 Run:
 
 1. `node scripts/validate_parallel_code_v2.mjs --goldens-only`
-2. `node scripts/benchmark_sentrux_v2.mjs`
-3. `node scripts/benchmark_parallel_code_v2.mjs`
-4. `node scripts/check_public_release_hygiene.mjs`
+2. `node scripts/check_public_release_hygiene.mjs`
 
 Run the benchmark regression gate only on a quiet machine or dedicated CI runner:
 
@@ -63,6 +66,7 @@ Review:
 - whether benchmark comparisons remain comparable
 - whether any fail-tier regression on the dedicated benchmark runner crosses the current policy
 - whether any public artifact still embeds internal repo names or workstation-specific paths
+- whether any informational self-benchmark docs such as [`./examples/sentrux-benchmark.json`](./examples/sentrux-benchmark.json) need a deliberate refresh outside the clean-tree preflight path
 
 Benchmark policy:
 
@@ -87,8 +91,9 @@ Benchmark policy:
 ## 7. Packaging And Install Smoke
 
 - smoke-test the published binary or a locally built equivalent on each supported platform path you intend to advertise
-- remember that [`../../scripts/release_preflight_public.mjs`](../../scripts/release_preflight_public.mjs) now includes the current-platform installer smoke path
+- remember that [`../../scripts/release_preflight_public.mjs`](../../scripts/release_preflight_public.mjs) now installs the pinned `tree-sitter` CLI if needed, builds the current-platform grammar bundle, and runs the bundle-aware installer smoke path
 - run [`../../scripts/smoke_test_install.sh`](../../scripts/smoke_test_install.sh) directly when you need to debug installer or packaging changes in isolation
+- confirm the release workflow now exercises both local bundle-consumption smoke before upload and exact-tag public install smoke after publication on every supported public platform
 - on Linux, confirm the GUI still starts on at least one Vulkan path and one OpenGL fallback path if relevant to the release
 - confirm first-run grammar installation works against the release you just published
 - confirm the root README install snippet still works from a fresh clone or a clean machine

@@ -128,12 +128,13 @@ Current status:
   - fail at `>250ms` and `>20%`
   - warn at `>150ms` and `>10%`
 - a release checklist now exists in [release-checklist.md](./release-checklist.md)
-- the validation loop now has a dedicated local public release preflight in `scripts/release_preflight_public.mjs`, including current-platform installer smoke on supported hosts
+- the validation loop now has a dedicated local public release preflight in `scripts/release_preflight_public.mjs`, including pinned `tree-sitter` CLI setup when needed, current-platform grammar-bundle generation, and bundle-aware installer smoke on supported hosts without regenerating benchmark artifacts
 - the public tree now has a hygiene scanner that blocks abandoned upstream links, private repo names, internal domains, and maintainer workstation paths
-- the validation loop now has a runner for all checked-in public benchmark repos
+- the validation loop now has a runner for checked-in public benchmark repos that are intended to gate release decisions; self-benchmark docs remain informational until they are promoted into that lane explicitly
 - repeated-sample benchmark and golden refreshes now freeze the analyzed input in a disposable clone, and age-sensitive proof runs pin "now" to the analyzed commit epoch for deterministic public artifacts
 - fail-tier benchmark regression decisions are now documented as a dedicated quiet-runner step rather than a noisy local laptop gate
 - the repo now has a dedicated benchmark-gate workflow for that quiet-runner lane plus installer smoke automation in local preflight, CI, and release builds
+- grammar bundle refreshes now fail closed on unreachable pinned refs instead of silently falling back to a repo default branch
 - full release-grade validation still needs broader public benchmark-repo unhappy-path coverage and stronger analyzer promotion criteria
 
 ## Layer 5: False-Positive Review
@@ -203,7 +204,7 @@ The validation loop catches two classes of regressions:
 - output drift in the real-repo goldens
 - warm or cold patch-safety regressions in the benchmark artifacts once they are measured on comparable quiet-runner inputs
 
-That split is intentional. Local preflight should be deterministic and cheap enough to run often; final benchmark regression decisions need quieter hardware and more comparable inputs than a normal maintainer workstation can guarantee.
+That split is intentional. Local preflight should be deterministic and cheap enough to run often while still proving the current-platform binary and grammar bundle install path; final benchmark regression decisions need quieter hardware and more comparable inputs than a normal maintainer workstation can guarantee.
 
 ## Beta Validation Scope
 
