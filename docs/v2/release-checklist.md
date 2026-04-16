@@ -31,6 +31,10 @@ Before release:
 
 ## 3. Core Validation Commands
 
+Prerequisite:
+
+- make sure the public `parallel-code` repo is available at `../parallel-code`, or set `PARALLEL_CODE_ROOT` to its checkout path before running the preflight
+
 Run:
 
 1. `node scripts/release_preflight_public.mjs`
@@ -38,16 +42,18 @@ Run:
 Or, if you need to run the lanes manually:
 
 1. `cargo fmt --all --check`
-2. `cargo test -p sentrux-core -- --nocapture`
-3. `cargo build -p sentrux`
-4. `cargo build --release -p sentrux`
-5. `bash ./scripts/install_tree_sitter_cli.sh`
-6. `./scripts/build_grammar_bundle.sh --platform <current-platform-bundle> --output <tmp-bundle-path>`
-7. `./scripts/smoke_test_install.sh --artifact-path target/release/sentrux --artifact-name <current-platform-artifact> --grammar-bundle-path <tmp-bundle-path>`
-8. `npm --prefix ts-bridge test`
-9. `git diff --check`
+2. `npm ci --prefix ts-bridge`
+3. `cargo test -p sentrux-core -- --nocapture`
+4. `cargo build -p sentrux`
+5. `cargo build --release -p sentrux`
+6. `npm --prefix ts-bridge test`
+7. `bash ./scripts/install_tree_sitter_cli.sh`
+8. `./scripts/build_grammar_bundle.sh --platform <current-platform-bundle> --output <tmp-bundle-path>`
+9. `./scripts/smoke_test_install.sh --artifact-path target/release/sentrux --artifact-name <current-platform-artifact> --grammar-bundle-path <tmp-bundle-path>`
+10. `git diff --check`
+11. `git diff --exit-code`
 
-The local public preflight is intentionally read-only. It does not regenerate benchmark artifacts.
+The local public preflight is intentionally read-only for tracked repo content. It does not regenerate benchmark artifacts, and it fails if tracked files change during the run.
 
 ## 4. Benchmark And Golden Validation
 
@@ -91,7 +97,7 @@ Benchmark policy:
 ## 7. Packaging And Install Smoke
 
 - smoke-test the published binary or a locally built equivalent on each supported platform path you intend to advertise
-- remember that [`../../scripts/release_preflight_public.mjs`](../../scripts/release_preflight_public.mjs) now installs the pinned `tree-sitter` CLI if needed, builds the current-platform grammar bundle, and runs the bundle-aware installer smoke path
+- remember that [`../../scripts/release_preflight_public.mjs`](../../scripts/release_preflight_public.mjs) now installs `ts-bridge` dependencies, installs the pinned `tree-sitter` CLI if needed, builds the current-platform grammar bundle, runs the bundle-aware installer smoke path, and fails if tracked files change
 - run [`../../scripts/smoke_test_install.sh`](../../scripts/smoke_test_install.sh) directly when you need to debug installer or packaging changes in isolation
 - confirm the release workflow now exercises both local bundle-consumption smoke before upload and exact-tag public install smoke after publication on every supported public platform
 - on Linux, confirm the GUI still starts on at least one Vulkan path and one OpenGL fallback path if relevant to the release

@@ -26,6 +26,10 @@ The loop validates the full v2 proof loop across these areas:
 
 Use this for the supported public release path from a normal maintainer machine.
 
+Prerequisite:
+
+- make sure the public `parallel-code` checkout is available at `../parallel-code`, or set `PARALLEL_CODE_ROOT` explicitly before running the preflight
+
 ```bash
 node scripts/release_preflight_public.mjs
 ```
@@ -33,11 +37,13 @@ node scripts/release_preflight_public.mjs
 This command:
 
 - runs the core Rust and TypeScript validation lanes
+- installs `ts-bridge` dependencies before the local TypeScript bridge tests
 - builds the current-platform release binary
 - installs the pinned `tree-sitter` CLI locally when needed
 - builds the current-platform grammar bundle and runs the bundle-aware `install.sh` smoke path on supported hosts
 - runs the public release hygiene scan
 - validates deterministic checked-in `parallel-code` goldens
+- fails if tracked files change during the run
 
 It intentionally stops short of making fail-tier benchmark regression decisions for the whole benchmark corpus. Those decisions belong on a quieter dedicated runner.
 

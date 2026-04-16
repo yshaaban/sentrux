@@ -97,6 +97,8 @@ Current checked-in public golden target:
 
 1. `parallel-code`
 
+For commands that validate checked-in `parallel-code` goldens or benchmarks, keep a public `parallel-code` checkout available at `../parallel-code` or set `PARALLEL_CODE_ROOT` explicitly.
+
 Internal or non-public benchmark repos must not be checked into the public tree. Additional public-safe benchmark repos can be added later once their artifacts are generated from repos that are safe to publish.
 
 Golden outputs should include:
@@ -128,7 +130,7 @@ Current status:
   - fail at `>250ms` and `>20%`
   - warn at `>150ms` and `>10%`
 - a release checklist now exists in [release-checklist.md](./release-checklist.md)
-- the validation loop now has a dedicated local public release preflight in `scripts/release_preflight_public.mjs`, including pinned `tree-sitter` CLI setup when needed, current-platform grammar-bundle generation, and bundle-aware installer smoke on supported hosts without regenerating benchmark artifacts
+- the validation loop now has a dedicated local public release preflight in `scripts/release_preflight_public.mjs`, including `ts-bridge` dependency installation, pinned `tree-sitter` CLI setup when needed, current-platform grammar-bundle generation, bundle-aware installer smoke on supported hosts, and an explicit tracked-tree cleanliness check without regenerating benchmark artifacts
 - the public tree now has a hygiene scanner that blocks abandoned upstream links, private repo names, internal domains, and maintainer workstation paths
 - the validation loop now has a runner for checked-in public benchmark repos that are intended to gate release decisions; self-benchmark docs remain informational until they are promoted into that lane explicitly
 - repeated-sample benchmark and golden refreshes now freeze the analyzed input in a disposable clone, and age-sensitive proof runs pin "now" to the analyzed commit epoch for deterministic public artifacts
