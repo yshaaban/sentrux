@@ -1,4 +1,8 @@
+use super::checkpoint::SessionBaselineStatus;
+use super::clone_support::CloneFindingPayload;
+use super::debt::DebtReportOutputs;
 use super::*;
+use std::path::PathBuf;
 
 pub(crate) fn refresh_changed_scope(
     state: &mut McpState,
@@ -46,13 +50,73 @@ pub(crate) fn handle_findings(
     _tier: &Tier,
     state: &mut McpState,
 ) -> Result<Value, String> {
+    let context = load_findings_context(args, state)?;
+    let surface = build_findings_review_surface(state, &context);
+    let mut result = serde_json::Map::new();
+    let confidence = build_v2_confidence_report(
+        &context.metadata,
+        &surface.rules_config,
+        surface.session_v2_status.clone(),
+    );
+    result.insert("kind".to_string(), json!("mixed_findings"));
+    result.insert("confidence".to_string(), json!(confidence));
+    result.insert(
+        "project_shape".to_string(),
+        project_shape_json_cached(
+            state,
+            &context.root,
+            &context.snapshot,
+            &surface.rules_config,
+        ),
+    );
+    insert_findings_clone_fields(&mut result, &surface);
+    insert_findings_result_fields(&mut result, &surface);
+    insert_findings_suppression_fields(&mut result, &surface.suppression_application);
+    let debt_context_error = insert_debt_report_fields(&mut result, surface.debt_outputs);
+    insert_rules_semantic_context_diagnostics(
+        &mut result,
+        merge_optional_errors(surface.config_error, surface.suppression_error),
+        merge_optional_errors(surface.semantic_error, surface.clone_error),
+        debt_context_error,
+    );
+    Ok(Value::Object(result))
+}
+
+struct FindingsContext {
+    health: metrics::HealthReport,
+    snapshot: Snapshot,
+    root: PathBuf,
+    metadata: crate::app::mcp_server::ScanMetadata,
+    limit: usize,
+}
+
+struct FindingsReviewSurface {
+    rules_config: crate::metrics::rules::RulesConfig,
+    session_v2_status: SessionBaselineStatus,
+    clone_payload: CloneFindingPayload,
+    suppression_application: SuppressionApplication,
+    suppression_error: Option<String>,
+    config_error: Option<String>,
+    clone_error: Option<String>,
+    semantic_error: Option<String>,
+    visible_clone_group_count: usize,
+    semantic_finding_count: usize,
+    findings: Vec<Value>,
+    finding_details: Vec<Value>,
+    experimental_findings: Vec<Value>,
+    clone_families: Vec<Value>,
+    clone_remediations: Vec<Value>,
+    debt_outputs: DebtReportOutputs,
+}
+
+fn load_findings_context(args: &Value, state: &McpState) -> Result<FindingsContext, String> {
     let health = state
         .cached_health
         .clone()
         .ok_or("No scan data. Call 'scan' first.")?;
     let snapshot = state
         .cached_snapshot
-        .as_ref()
+        .as_deref()
         .cloned()
         .ok_or("No scan data. Call 'scan' first.")?;
     let root = state
@@ -69,132 +133,179 @@ pub(crate) fn handle_findings(
         .and_then(|value| value.as_u64())
         .unwrap_or(10)
         .min(FINDINGS_LIMIT_MAX as u64) as usize;
-    let (rules_config, config_error) = load_v2_rules_config(state, &root);
-    let (_, session_v2_status) = load_session_v2_baseline_status(&root);
+    Ok(FindingsContext {
+        health,
+        snapshot,
+        root,
+        metadata,
+        limit,
+    })
+}
+
+fn build_findings_review_surface(
+    state: &mut McpState,
+    context: &FindingsContext,
+) -> FindingsReviewSurface {
+    let (rules_config, config_error) = load_v2_rules_config(state, &context.root);
+    let (_, session_v2_status) = load_session_v2_baseline_status(&context.root);
     let (clone_payload, clone_error) = clone_findings_for_health(
         state,
-        &root,
-        &snapshot,
-        &health,
-        health.duplicate_groups.len(),
+        &context.root,
+        &context.snapshot,
+        &context.health,
+        context.health.duplicate_groups.len(),
         true,
     );
     let (semantic_findings, obligations, semantic_error) = semantic_findings_and_obligations(
         state,
-        &root,
-        Some(&snapshot),
+        &context.root,
+        Some(&context.snapshot),
         crate::metrics::v2::ObligationScope::All,
         &BTreeSet::new(),
     );
-    let structural_reports =
-        crate::metrics::v2::build_structural_debt_reports_with_root(&root, &snapshot, &health);
-    let other_findings = combined_other_finding_values(&semantic_findings, &structural_reports);
+    let structural_reports = crate::metrics::v2::build_structural_debt_reports_with_root(
+        &context.root,
+        &context.snapshot,
+        &context.health,
+    );
     let merged_findings = merge_findings(
         clone_payload.prioritized_findings.clone(),
-        other_findings,
+        combined_other_finding_values(&semantic_findings, &structural_reports),
         usize::MAX,
     );
     let (suppression_application, suppression_error) =
-        apply_root_suppressions(state, &root, merged_findings);
-    let (visible_findings, experimental_findings) = partition_review_surface_experimental_findings(
-        &suppression_application.visible_findings,
-        limit,
-    );
-    let visible_findings = visible_findings
-        .into_iter()
-        .map(|finding| decorate_finding_with_classification(&finding))
-        .collect::<Vec<_>>();
-    let experimental_findings = experimental_findings
-        .into_iter()
-        .map(|finding| decorate_finding_with_classification(&finding))
-        .collect::<Vec<_>>();
+        apply_root_suppressions(state, &context.root, merged_findings);
+    let (visible_findings, experimental_findings) =
+        decorate_findings_surface(&suppression_application.visible_findings, context.limit);
     let visible_clone_ids = visible_clone_ids(&visible_findings);
-    let semantic_finding_count = visible_findings
-        .iter()
-        .filter(|finding| finding.get("concept_id").is_some())
-        .count();
     let findings = visible_findings
         .iter()
-        .take(limit)
+        .take(context.limit)
         .cloned()
         .collect::<Vec<_>>();
-    let finding_details = build_finding_details(&visible_findings, limit);
+    let finding_details =
+        serialized_values(&build_finding_details(&visible_findings, context.limit));
     let clone_families = filter_clone_values_by_visible_clone_ids(
-        clone_payload.families,
+        clone_payload.families.clone(),
         &visible_clone_ids,
         "clone_ids",
-        limit.min(FINDINGS_CLONE_SUPPORT_LIMIT),
+        context.limit.min(FINDINGS_CLONE_SUPPORT_LIMIT),
     );
     let clone_remediations = filter_clone_values_by_visible_clone_ids(
-        clone_payload.remediation_hints,
+        clone_payload.remediation_hints.clone(),
         &visible_clone_ids,
         "clone_ids",
-        limit.min(FINDINGS_CLONE_SUPPORT_LIMIT),
+        context.limit.min(FINDINGS_CLONE_SUPPORT_LIMIT),
     );
     let debt_outputs = build_debt_report_outputs(
         state,
-        &root,
-        &snapshot,
-        &health,
+        &context.root,
+        &context.snapshot,
+        &context.health,
         &visible_findings,
         &obligations,
         &clone_families,
         &BTreeSet::new(),
-        limit.min(FINDINGS_DEBT_SUPPORT_LIMIT),
+        context.limit.min(FINDINGS_DEBT_SUPPORT_LIMIT),
         true,
     );
-    let mut result = serde_json::Map::new();
-    result.insert("kind".to_string(), json!("mixed_findings"));
-    result.insert(
-        "confidence".to_string(),
-        json!(build_v2_confidence_report(
-            &metadata,
-            &rules_config,
-            session_v2_status
-        )),
-    );
-    result.insert(
-        "project_shape".to_string(),
-        project_shape_json_cached(state, &root, &snapshot, &rules_config),
-    );
+
+    FindingsReviewSurface {
+        rules_config,
+        session_v2_status,
+        clone_payload,
+        suppression_application,
+        suppression_error,
+        config_error,
+        clone_error,
+        semantic_error,
+        visible_clone_group_count: visible_clone_ids.len(),
+        semantic_finding_count: visible_findings
+            .iter()
+            .filter(|finding| finding.get("concept_id").is_some())
+            .count(),
+        findings,
+        finding_details,
+        experimental_findings,
+        clone_families,
+        clone_remediations,
+        debt_outputs,
+    }
+}
+
+fn decorate_findings_surface(visible_findings: &[Value], limit: usize) -> (Vec<Value>, Vec<Value>) {
+    let (visible_findings, experimental_findings) =
+        partition_review_surface_experimental_findings(visible_findings, limit);
+    (
+        visible_findings
+            .into_iter()
+            .map(|finding| decorate_finding_with_classification(&finding))
+            .collect::<Vec<_>>(),
+        experimental_findings
+            .into_iter()
+            .map(|finding| decorate_finding_with_classification(&finding))
+            .collect::<Vec<_>>(),
+    )
+}
+
+fn insert_findings_clone_fields(
+    result: &mut serde_json::Map<String, Value>,
+    surface: &FindingsReviewSurface,
+) {
     result.insert(
         "clone_group_count".to_string(),
-        json!(clone_payload.clone_group_count),
+        json!(surface.clone_payload.clone_group_count),
     );
     result.insert(
         "clone_family_count".to_string(),
-        json!(clone_payload.clone_family_count),
+        json!(surface.clone_payload.clone_family_count),
     );
     result.insert(
         "visible_clone_group_count".to_string(),
-        json!(visible_clone_ids.len()),
+        json!(surface.visible_clone_group_count),
     );
     result.insert(
         "visible_clone_family_count".to_string(),
-        json!(clone_families.len()),
+        json!(surface.clone_families.len()),
     );
-    result.insert("clone_families".to_string(), json!(clone_families));
-    result.insert("clone_remediations".to_string(), json!(clone_remediations));
-    let debt_context_error = insert_debt_report_fields(&mut result, debt_outputs);
+    result.insert("clone_families".to_string(), json!(surface.clone_families));
+    result.insert(
+        "clone_remediations".to_string(),
+        json!(surface.clone_remediations),
+    );
+}
+
+fn insert_findings_result_fields(
+    result: &mut serde_json::Map<String, Value>,
+    surface: &FindingsReviewSurface,
+) {
     result.insert(
         "semantic_finding_count".to_string(),
-        json!(semantic_finding_count),
+        json!(surface.semantic_finding_count),
     );
     result.insert(
         "finding_detail_count".to_string(),
-        json!(finding_details.len()),
+        json!(surface.finding_details.len()),
     );
-    result.insert("finding_details".to_string(), json!(finding_details));
+    result.insert(
+        "finding_details".to_string(),
+        json!(surface.finding_details),
+    );
     result.insert(
         "experimental_finding_count".to_string(),
-        json!(experimental_findings.len()),
+        json!(surface.experimental_findings.len()),
     );
     result.insert(
         "experimental_findings".to_string(),
-        json!(experimental_findings),
+        json!(surface.experimental_findings),
     );
-    let rules_error = merge_optional_errors(config_error, suppression_error);
-    let semantic_error = merge_optional_errors(semantic_error, clone_error);
+    result.insert("findings".to_string(), json!(surface.findings));
+}
+
+fn insert_findings_suppression_fields(
+    result: &mut serde_json::Map<String, Value>,
+    suppression_application: &SuppressionApplication,
+) {
     result.insert(
         "suppression_hits".to_string(),
         json!(suppression_application.active_matches),
@@ -215,14 +326,6 @@ pub(crate) fn handle_findings(
             &suppression_application.expired_matches
         )),
     );
-    result.insert("findings".to_string(), json!(findings));
-    insert_rules_semantic_context_diagnostics(
-        &mut result,
-        rules_error,
-        semantic_error,
-        debt_context_error,
-    );
-    Ok(Value::Object(result))
 }
 
 pub fn obligations_def() -> ToolDef {
@@ -617,35 +720,8 @@ pub(crate) fn handle_state(
     };
 
     let (config, rules_error) = load_v2_rules_config(state, &root);
-    let (reports, semantic_error) = match analyze_semantic_snapshot(state, &root) {
-        Ok(Some(semantic)) => {
-            let obligation_scope = if scope == crate::metrics::v2::StateScope::Changed {
-                crate::metrics::v2::ObligationScope::Changed
-            } else {
-                crate::metrics::v2::ObligationScope::All
-            };
-            let obligations =
-                crate::metrics::v2::build_obligations(&config, &semantic, obligation_scope, &changed_files);
-            (
-                crate::metrics::v2::build_state_integrity_reports(
-                    &config,
-                    &semantic,
-                    &obligations,
-                    scope,
-                    &changed_files,
-                ),
-                None,
-            )
-        }
-        Ok(None) => (
-            Vec::new(),
-            (!config.state_model.is_empty()).then(|| {
-                "State integrity analysis requires TypeScript semantic analysis for configured state models"
-                    .to_string()
-            }),
-        ),
-        Err(error) => (Vec::new(), Some(error)),
-    };
+    let (reports, semantic_error) =
+        load_state_reports(state, &root, &config, scope, &changed_files);
     let reports = reports
         .into_iter()
         .filter(|report| {
@@ -679,13 +755,86 @@ pub(crate) fn handle_state(
         .map(|report| report.transition_gap_sites.len())
         .sum::<usize>();
 
-    let rules_error = merge_optional_errors(rules_error, suppression_rules_error);
-    let mut response = json!({
+    let mut response = build_state_response(
+        scope,
+        &changed_files,
+        &reports,
+        &suppression_application,
+        missing_variant_count,
+        missing_site_count,
+        transition_site_count,
+        transition_gap_count,
+        state_integrity_score_0_10000,
+    );
+    if let Some(object) = response.as_object_mut() {
+        insert_rules_semantic_diagnostics(
+            object,
+            merge_optional_errors(rules_error, suppression_rules_error),
+            semantic_error,
+            Vec::new(),
+        );
+    }
+    Ok(response)
+}
+
+fn load_state_reports(
+    state: &mut McpState,
+    root: &Path,
+    config: &crate::metrics::rules::RulesConfig,
+    scope: crate::metrics::v2::StateScope,
+    changed_files: &BTreeSet<String>,
+) -> (
+    Vec<crate::metrics::v2::StateIntegrityReport>,
+    Option<String>,
+) {
+    match analyze_semantic_snapshot(state, root) {
+        Ok(Some(semantic)) => {
+            let obligation_scope = if scope == crate::metrics::v2::StateScope::Changed {
+                crate::metrics::v2::ObligationScope::Changed
+            } else {
+                crate::metrics::v2::ObligationScope::All
+            };
+            let obligations =
+                crate::metrics::v2::build_obligations(config, &semantic, obligation_scope, changed_files);
+            (
+                crate::metrics::v2::build_state_integrity_reports(
+                    config,
+                    &semantic,
+                    &obligations,
+                    scope,
+                    changed_files,
+                ),
+                None,
+            )
+        }
+        Ok(None) => (
+            Vec::new(),
+            (!config.state_model.is_empty()).then(|| {
+                "State integrity analysis requires TypeScript semantic analysis for configured state models"
+                    .to_string()
+            }),
+        ),
+        Err(error) => (Vec::new(), Some(error)),
+    }
+}
+
+fn build_state_response(
+    scope: crate::metrics::v2::StateScope,
+    changed_files: &BTreeSet<String>,
+    reports: &[crate::metrics::v2::StateIntegrityReport],
+    suppression_application: &SuppressionApplication,
+    missing_variant_count: usize,
+    missing_site_count: usize,
+    transition_site_count: usize,
+    transition_gap_count: usize,
+    state_integrity_score_0_10000: Option<u32>,
+) -> Value {
+    json!({
         "kind": "state",
         "scope": if scope == crate::metrics::v2::StateScope::Changed { "changed" } else { "all" },
         "changed_files": changed_files.iter().cloned().collect::<Vec<_>>(),
         "state_model_count": reports.len(),
-        "finding_count": findings.len(),
+        "finding_count": suppression_application.visible_findings.len(),
         "missing_variant_count": missing_variant_count,
         "missing_site_count": missing_site_count,
         "transition_site_count": transition_site_count,
@@ -697,9 +846,5 @@ pub(crate) fn handle_state(
         "expired_suppression_match_count": suppression_match_count(&suppression_application.expired_matches),
         "findings": suppression_application.visible_findings,
         "reports": reports,
-    });
-    if let Some(object) = response.as_object_mut() {
-        insert_rules_semantic_diagnostics(object, rules_error, semantic_error, Vec::new());
-    }
-    Ok(response)
+    })
 }

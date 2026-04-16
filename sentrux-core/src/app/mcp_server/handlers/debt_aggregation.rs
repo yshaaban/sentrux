@@ -11,117 +11,161 @@ pub(super) fn collect_debt_signals(
     clone_families: &[Value],
     concentration_reports: &[crate::metrics::v2::ConcentrationReport],
 ) -> Vec<DebtSignal> {
-    let mut covered_hotspot_paths = BTreeSet::new();
-    let mut signals = concept_summaries
-        .iter()
-        .filter(|summary| summary.score_0_10000 >= 2500)
-        .map(|summary| {
-            let related_hotspots = concentration_reports
-                .iter()
-                .filter(|report| summary.files.iter().any(|path| path == &report.path))
-                .collect::<Vec<_>>();
-            covered_hotspot_paths.extend(
-                related_hotspots
-                    .iter()
-                    .map(|report| report.path.clone())
-                    .collect::<Vec<_>>(),
-            );
-            let mut score_0_10000 = summary.score_0_10000;
-            if let Some(top_hotspot) = related_hotspots.first() {
-                score_0_10000 = (score_0_10000 + top_hotspot.score_0_10000 / 3).min(10_000);
-            }
-            let mut evidence = summary
-                .dominant_kinds
-                .iter()
-                .map(|kind| format!("finding kind: {kind}"))
-                .collect::<Vec<_>>();
-            if summary.missing_site_count > 0 {
-                evidence.push(format!(
-                    "missing update sites: {}",
-                    summary.missing_site_count
-                ));
-            }
-            if summary.context_burden > 0 {
-                evidence.push(format!("context burden: {}", summary.context_burden));
-            }
-            if let Some(top_hotspot) = related_hotspots.first() {
-                evidence.push(format!("hotspot file: {}", top_hotspot.path));
-                evidence.extend(top_hotspot.reasons.iter().cloned().take(2));
-            }
-
-            annotate_debt_signal(DebtSignal {
-                kind: "concept".to_string(),
-                trust_tier: DebtTrustTier::Trusted,
-                presentation_class: classify_debt_presentation_class(
-                    "concept",
-                    DebtTrustTier::Trusted,
-                    &summary.concept_id,
-                    &summary.files,
-                    &[],
-                    evidence.len(),
-                    summary.finding_count,
-                    summary.boundary_pressure_count,
-                    summary.missing_site_count,
-                ),
-                leverage_class: None,
-                scope: summary.concept_id.clone(),
-                signal_class: concept_signal_class(summary),
-                signal_families: concept_signal_families(summary),
-                severity: signal_severity(score_0_10000),
-                score_0_10000,
-                summary: summary.summary.clone(),
-                impact: concept_signal_impact(summary),
-                files: summary.files.clone(),
-                role_tags: Vec::new(),
-                leverage_reasons: Vec::new(),
-                evidence,
-                inspection_focus: summary.inspection_focus.clone(),
-                candidate_split_axes: concept_candidate_split_axes(summary),
-                related_surfaces: summary.files.iter().take(5).cloned().collect(),
-                metrics: concept_signal_metrics(summary),
-            })
-        })
-        .collect::<Vec<_>>();
-
+    let (mut signals, mut covered_hotspot_paths) =
+        collect_concept_debt_signals(concept_summaries, concentration_reports);
     let structural_signals = structural_reports
         .iter()
         .map(super::structural_signal)
         .collect::<Vec<_>>();
-    covered_hotspot_paths.extend(
-        structural_signals
-            .iter()
-            .filter(|signal| signal.kind == "unstable_hotspot")
-            .flat_map(|signal| signal.files.iter().cloned())
-            .collect::<Vec<_>>(),
-    );
+    covered_hotspot_paths.extend(structural_hotspot_paths(&structural_signals));
     signals.extend(structural_signals);
+    signals.extend(clone_debt_signals(findings, clone_families));
+    signals.extend(uncovered_hotspot_signals(
+        concentration_reports,
+        &covered_hotspot_paths,
+    ));
+    sort_debt_signals(&mut signals);
+    signals
+}
 
-    if !clone_families.is_empty() {
-        signals.extend(
-            clone_families
-                .iter()
-                .filter_map(super::clone_family_signal)
-                .collect::<Vec<_>>(),
-        );
-    } else {
-        signals.extend(
-            findings
-                .iter()
-                .filter(|finding| finding_kind(finding) == "exact_clone_group")
-                .filter_map(super::clone_group_signal)
-                .collect::<Vec<_>>(),
-        );
+fn collect_concept_debt_signals(
+    concept_summaries: &[ConceptDebtSummary],
+    concentration_reports: &[crate::metrics::v2::ConcentrationReport],
+) -> (Vec<DebtSignal>, BTreeSet<String>) {
+    let mut covered_hotspot_paths = BTreeSet::new();
+    let signals = concept_summaries
+        .iter()
+        .filter(|summary| summary.score_0_10000 >= 2500)
+        .map(|summary| {
+            let related_hotspots = related_debt_hotspots(summary, concentration_reports);
+            covered_hotspot_paths.extend(related_hotspots.iter().map(|report| report.path.clone()));
+            build_concept_debt_signal(summary, &related_hotspots)
+        })
+        .collect::<Vec<_>>();
+    (signals, covered_hotspot_paths)
+}
+
+fn related_debt_hotspots<'a>(
+    summary: &ConceptDebtSummary,
+    concentration_reports: &'a [crate::metrics::v2::ConcentrationReport],
+) -> Vec<&'a crate::metrics::v2::ConcentrationReport> {
+    concentration_reports
+        .iter()
+        .filter(|report| summary.files.iter().any(|path| path == &report.path))
+        .collect::<Vec<_>>()
+}
+
+fn build_concept_debt_signal(
+    summary: &ConceptDebtSummary,
+    related_hotspots: &[&crate::metrics::v2::ConcentrationReport],
+) -> DebtSignal {
+    let score_0_10000 = concept_debt_signal_score(summary, related_hotspots);
+    let evidence = concept_debt_signal_evidence(summary, related_hotspots);
+    annotate_debt_signal(DebtSignal {
+        kind: "concept".to_string(),
+        trust_tier: DebtTrustTier::Trusted,
+        presentation_class: classify_debt_presentation_class(
+            "concept",
+            DebtTrustTier::Trusted,
+            &summary.concept_id,
+            &summary.files,
+            &[],
+            evidence.len(),
+            summary.finding_count,
+            summary.boundary_pressure_count,
+            summary.missing_site_count,
+        ),
+        leverage_class: None,
+        scope: summary.concept_id.clone(),
+        signal_class: concept_signal_class(summary),
+        signal_families: concept_signal_families(summary),
+        severity: signal_severity(score_0_10000),
+        score_0_10000,
+        summary: summary.summary.clone(),
+        impact: concept_signal_impact(summary),
+        files: summary.files.clone(),
+        role_tags: Vec::new(),
+        leverage_reasons: Vec::new(),
+        evidence,
+        inspection_focus: summary.inspection_focus.clone(),
+        candidate_split_axes: concept_candidate_split_axes(summary),
+        related_surfaces: summary.files.iter().take(5).cloned().collect(),
+        metrics: concept_signal_metrics(summary),
+    })
+}
+
+fn concept_debt_signal_score(
+    summary: &ConceptDebtSummary,
+    related_hotspots: &[&crate::metrics::v2::ConcentrationReport],
+) -> u32 {
+    if let Some(top_hotspot) = related_hotspots.first() {
+        return (summary.score_0_10000 + top_hotspot.score_0_10000 / 3).min(10_000);
     }
 
-    signals.extend(
-        concentration_reports
-            .iter()
-            .filter(|report| report.score_0_10000 >= 4000)
-            .filter(|report| !covered_hotspot_paths.contains(&report.path))
-            .filter_map(super::hotspot_signal)
-            .collect::<Vec<_>>(),
-    );
+    summary.score_0_10000
+}
 
+fn concept_debt_signal_evidence(
+    summary: &ConceptDebtSummary,
+    related_hotspots: &[&crate::metrics::v2::ConcentrationReport],
+) -> Vec<String> {
+    let mut evidence = summary
+        .dominant_kinds
+        .iter()
+        .map(|kind| format!("finding kind: {kind}"))
+        .collect::<Vec<_>>();
+    if summary.missing_site_count > 0 {
+        evidence.push(format!(
+            "missing update sites: {}",
+            summary.missing_site_count
+        ));
+    }
+    if summary.context_burden > 0 {
+        evidence.push(format!("context burden: {}", summary.context_burden));
+    }
+    if let Some(top_hotspot) = related_hotspots.first() {
+        evidence.push(format!("hotspot file: {}", top_hotspot.path));
+        evidence.extend(top_hotspot.reasons.iter().cloned().take(2));
+    }
+    evidence
+}
+
+fn structural_hotspot_paths(signals: &[DebtSignal]) -> BTreeSet<String> {
+    signals
+        .iter()
+        .filter(|signal| signal.kind == "unstable_hotspot")
+        .flat_map(|signal| signal.files.iter().cloned())
+        .collect::<BTreeSet<_>>()
+}
+
+fn clone_debt_signals(findings: &[Value], clone_families: &[Value]) -> Vec<DebtSignal> {
+    if !clone_families.is_empty() {
+        return clone_families
+            .iter()
+            .filter_map(super::clone_family_signal)
+            .collect::<Vec<_>>();
+    }
+
+    findings
+        .iter()
+        .filter(|finding| finding_kind(finding) == "exact_clone_group")
+        .filter_map(super::clone_group_signal)
+        .collect::<Vec<_>>()
+}
+
+fn uncovered_hotspot_signals(
+    concentration_reports: &[crate::metrics::v2::ConcentrationReport],
+    covered_hotspot_paths: &BTreeSet<String>,
+) -> Vec<DebtSignal> {
+    concentration_reports
+        .iter()
+        .filter(|report| report.score_0_10000 >= 4000)
+        .filter(|report| !covered_hotspot_paths.contains(&report.path))
+        .filter_map(super::hotspot_signal)
+        .collect::<Vec<_>>()
+}
+
+fn sort_debt_signals(signals: &mut [DebtSignal]) {
     signals.sort_by(|left, right| {
         right
             .severity
@@ -130,7 +174,6 @@ pub(super) fn collect_debt_signals(
             .then_with(|| right.score_0_10000.cmp(&left.score_0_10000))
             .then_with(|| left.scope.cmp(&right.scope))
     });
-    signals
 }
 
 pub(super) fn truncate_debt_signals(mut signals: Vec<DebtSignal>, limit: usize) -> Vec<DebtSignal> {
@@ -339,86 +382,19 @@ fn debt_cluster_component(
 }
 
 fn debt_cluster(signals: &[DebtSignal]) -> Option<DebtCluster> {
-    let files = signals
-        .iter()
-        .flat_map(|signal| signal.files.iter().cloned())
-        .collect::<Vec<_>>();
-    let files = dedupe_strings_preserve_order(files);
+    let files = debt_cluster_files(signals);
     if files.is_empty() {
         return None;
     }
     let file_count = files.len();
 
-    let mut signal_kinds = signals
-        .iter()
-        .map(|signal| signal.kind.clone())
-        .collect::<Vec<_>>();
-    signal_kinds = dedupe_strings_preserve_order(signal_kinds);
-
-    let mut signal_families = signals
-        .iter()
-        .flat_map(|signal| signal.signal_families.iter().cloned())
-        .collect::<Vec<_>>();
-    signal_families = dedupe_strings_preserve_order(signal_families);
-    let role_tags = dedupe_strings_preserve_order(
-        signals
-            .iter()
-            .flat_map(|signal| signal.role_tags.iter().cloned())
-            .collect::<Vec<_>>(),
-    );
-
-    let summary = if files.len() == 1 {
-        format!(
-            "File '{}' intersects {} debt signals: {}",
-            files[0],
-            signals.len(),
-            signal_kinds.join(", ")
-        )
-    } else {
-        format!(
-            "Files {} intersect {} debt signals: {}",
-            sample_file_labels(&files, 3),
-            signals.len(),
-            signal_kinds.join(", ")
-        )
-    };
-
-    let impact = if signal_families.iter().any(|family| family == "ownership")
-        && signal_families.iter().any(|family| family == "propagation")
-    {
-        "Overlapping ownership drift and propagation burden make partial edits easier to miss and harder to validate.".to_string()
-    } else if signal_families.iter().any(|family| family == "duplication")
-        && signal_families
-            .iter()
-            .any(|family| family == "coordination")
-    {
-        "Duplicated logic inside coordination-heavy seams increases the chance that fixes land in one path but not the others.".to_string()
-    } else {
-        "Multiple overlapping debt signals in the same surface increase change cost and make regressions harder to isolate.".to_string()
-    };
-
-    let mut evidence = vec![
-        format!("overlapping signals: {}", signals.len()),
-        format!("signal kinds: {}", signal_kinds.join(", ")),
-        format!("affected files: {}", files.len()),
-    ];
-    if !role_tags.is_empty() {
-        evidence.push(format!("role tags: {}", role_tags.join(", ")));
-    }
-    evidence.extend(
-        signals
-            .iter()
-            .take(3)
-            .map(|signal| format!("{}: {}", signal.kind, signal.summary)),
-    );
-    evidence = dedupe_strings_preserve_order(evidence);
-
-    let mut inspection_focus = signals
-        .iter()
-        .flat_map(|signal| signal.inspection_focus.iter().cloned())
-        .collect::<Vec<_>>();
-    inspection_focus = dedupe_strings_preserve_order(inspection_focus);
-    inspection_focus.truncate(4);
+    let signal_kinds = debt_cluster_signal_kinds(signals);
+    let signal_families = debt_cluster_signal_families(signals);
+    let role_tags = debt_cluster_role_tags(signals);
+    let summary = debt_cluster_summary(&files, &signal_kinds, signals.len());
+    let impact = debt_cluster_impact(&signal_families);
+    let evidence = debt_cluster_evidence(signals, &signal_kinds, &role_tags, files.len());
+    let inspection_focus = debt_cluster_inspection_focus(signals);
 
     let highest_score = signals
         .iter()
@@ -466,6 +442,110 @@ fn debt_cluster(signals: &[DebtSignal]) -> Option<DebtCluster> {
                 .count(),
         },
     })
+}
+
+fn debt_cluster_files(signals: &[DebtSignal]) -> Vec<String> {
+    dedupe_strings_preserve_order(
+        signals
+            .iter()
+            .flat_map(|signal| signal.files.iter().cloned())
+            .collect::<Vec<_>>(),
+    )
+}
+
+fn debt_cluster_signal_kinds(signals: &[DebtSignal]) -> Vec<String> {
+    dedupe_strings_preserve_order(
+        signals
+            .iter()
+            .map(|signal| signal.kind.clone())
+            .collect::<Vec<_>>(),
+    )
+}
+
+fn debt_cluster_signal_families(signals: &[DebtSignal]) -> Vec<String> {
+    dedupe_strings_preserve_order(
+        signals
+            .iter()
+            .flat_map(|signal| signal.signal_families.iter().cloned())
+            .collect::<Vec<_>>(),
+    )
+}
+
+fn debt_cluster_role_tags(signals: &[DebtSignal]) -> Vec<String> {
+    dedupe_strings_preserve_order(
+        signals
+            .iter()
+            .flat_map(|signal| signal.role_tags.iter().cloned())
+            .collect::<Vec<_>>(),
+    )
+}
+
+fn debt_cluster_summary(files: &[String], signal_kinds: &[String], signal_count: usize) -> String {
+    if files.len() == 1 {
+        return format!(
+            "File '{}' intersects {} debt signals: {}",
+            files[0],
+            signal_count,
+            signal_kinds.join(", ")
+        );
+    }
+
+    format!(
+        "Files {} intersect {} debt signals: {}",
+        sample_file_labels(files, 3),
+        signal_count,
+        signal_kinds.join(", ")
+    )
+}
+
+fn debt_cluster_impact(signal_families: &[String]) -> String {
+    if signal_families.iter().any(|family| family == "ownership")
+        && signal_families.iter().any(|family| family == "propagation")
+    {
+        return "Overlapping ownership drift and propagation burden make partial edits easier to miss and harder to validate.".to_string();
+    }
+    if signal_families.iter().any(|family| family == "duplication")
+        && signal_families
+            .iter()
+            .any(|family| family == "coordination")
+    {
+        return "Duplicated logic inside coordination-heavy seams increases the chance that fixes land in one path but not the others.".to_string();
+    }
+
+    "Multiple overlapping debt signals in the same surface increase change cost and make regressions harder to isolate.".to_string()
+}
+
+fn debt_cluster_evidence(
+    signals: &[DebtSignal],
+    signal_kinds: &[String],
+    role_tags: &[String],
+    file_count: usize,
+) -> Vec<String> {
+    let mut evidence = vec![
+        format!("overlapping signals: {}", signals.len()),
+        format!("signal kinds: {}", signal_kinds.join(", ")),
+        format!("affected files: {}", file_count),
+    ];
+    if !role_tags.is_empty() {
+        evidence.push(format!("role tags: {}", role_tags.join(", ")));
+    }
+    evidence.extend(
+        signals
+            .iter()
+            .take(3)
+            .map(|signal| format!("{}: {}", signal.kind, signal.summary)),
+    );
+    dedupe_strings_preserve_order(evidence)
+}
+
+fn debt_cluster_inspection_focus(signals: &[DebtSignal]) -> Vec<String> {
+    let mut inspection_focus = signals
+        .iter()
+        .flat_map(|signal| signal.inspection_focus.iter().cloned())
+        .collect::<Vec<_>>();
+    inspection_focus = dedupe_strings_preserve_order(inspection_focus);
+    inspection_focus.truncate(4);
+    inspection_focus
 }
 
 fn cluster_trust_tier(signals: &[DebtSignal]) -> DebtTrustTier {

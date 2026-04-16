@@ -204,6 +204,21 @@ fn draw_viewport_sections(ui: &mut egui::Ui, settings: &mut Settings) -> (bool, 
 fn draw_misc_sections(ui: &mut egui::Ui, settings: &mut Settings) -> (bool, bool) {
     let mut lc = false;
     let mut vc = false;
+    let (layout_changed, visual_changed) = draw_animation_sections(ui, settings);
+    lc |= layout_changed;
+    vc |= visual_changed;
+    let (layout_changed, visual_changed) = draw_graph_misc_sections(ui, settings);
+    lc |= layout_changed;
+    vc |= visual_changed;
+    let (layout_changed, visual_changed) = draw_scanner_timing_sections(ui, settings);
+    lc |= layout_changed;
+    vc |= visual_changed;
+    (lc, vc)
+}
+
+fn draw_animation_sections(ui: &mut egui::Ui, settings: &mut Settings) -> (bool, bool) {
+    let lc = false;
+    let mut vc = false;
     ui.collapsing("Animation / Heat", |ui| {
         vc |= slider_f64(
             ui,
@@ -238,6 +253,12 @@ fn draw_misc_sections(ui: &mut egui::Ui, settings: &mut Settings) -> (bool, bool
             0.0..=5.0,
         );
     });
+    (lc, vc)
+}
+
+fn draw_graph_misc_sections(ui: &mut egui::Ui, settings: &mut Settings) -> (bool, bool) {
+    let mut lc = false;
+    let vc = false;
     ui.collapsing("Graph Analysis", |ui| {
         lc |= slider_usize(
             ui,
@@ -272,6 +293,12 @@ fn draw_misc_sections(ui: &mut egui::Ui, settings: &mut Settings) -> (bool, bool
             0.05..=0.5,
         );
     });
+    (lc, vc)
+}
+
+fn draw_scanner_timing_sections(ui: &mut egui::Ui, settings: &mut Settings) -> (bool, bool) {
+    let lc = false;
+    let mut vc = false;
     ui.collapsing("Scanner Limits", |ui| {
         vc |= slider_u64(
             ui,

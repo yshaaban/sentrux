@@ -7,32 +7,7 @@ pub(crate) fn build_concept_debt_summaries(
     let mut aggregates = BTreeMap::<String, ConceptDebtAggregate>::new();
 
     for finding in findings {
-        let Some(concept_id) = finding_concept_id(finding) else {
-            continue;
-        };
-        let entry = aggregates.entry(concept_id.to_string()).or_default();
-        let kind = finding_kind(finding).to_string();
-        entry.finding_count += 1;
-        if severity_of_value(finding) == FindingSeverity::High {
-            entry.high_severity_count += 1;
-        }
-        if matches!(
-            kind.as_str(),
-            "multi_writer_concept"
-                | "forbidden_writer"
-                | "writer_outside_allowlist"
-                | "forbidden_raw_read"
-                | "authoritative_import_bypass"
-                | "concept_boundary_pressure"
-        ) {
-            entry.boundary_pressure_count += 1;
-        }
-        entry
-            .kinds
-            .entry(kind)
-            .and_modify(|count| *count += 1)
-            .or_insert(1);
-        entry.files.extend(finding_files(finding));
+        accumulate_concept_debt_finding(&mut aggregates, finding);
     }
 
     for obligation in obligations {
@@ -48,57 +23,7 @@ pub(crate) fn build_concept_debt_summaries(
 
     let mut summaries = aggregates
         .into_iter()
-        .map(|(concept_id, aggregate)| {
-            let ConceptDebtAggregate {
-                finding_count,
-                high_severity_count,
-                boundary_pressure_count,
-                obligation_count,
-                missing_site_count,
-                context_burden,
-                kinds,
-                files,
-            } = aggregate;
-            let mut dominant_kinds = kinds.into_iter().collect::<Vec<_>>();
-            dominant_kinds
-                .sort_by(|left, right| right.1.cmp(&left.1).then_with(|| left.0.cmp(&right.0)));
-            let dominant_kinds = dominant_kinds
-                .into_iter()
-                .map(|(kind, _)| kind)
-                .take(3)
-                .collect::<Vec<_>>();
-            let score_0_10000 = concept_debt_score(
-                finding_count,
-                high_severity_count,
-                boundary_pressure_count,
-                missing_site_count,
-                context_burden,
-            );
-            let inspection_focus =
-                concept_debt_inspection_focus(&dominant_kinds, missing_site_count > 0);
-
-            ConceptDebtSummary {
-                summary: concept_debt_summary(
-                    &concept_id,
-                    finding_count,
-                    obligation_count,
-                    missing_site_count,
-                    high_severity_count,
-                    boundary_pressure_count,
-                ),
-                concept_id,
-                score_0_10000,
-                finding_count,
-                high_severity_count,
-                boundary_pressure_count,
-                obligation_count,
-                missing_site_count,
-                context_burden,
-                dominant_kinds,
-                files: files.into_iter().collect(),
-                inspection_focus,
-            }
-        })
+        .map(|(concept_id, aggregate)| summarize_concept_debt(concept_id, aggregate))
         .filter(|summary| summary.finding_count > 0 || summary.missing_site_count > 0)
         .collect::<Vec<_>>();
 
@@ -110,6 +35,91 @@ pub(crate) fn build_concept_debt_summaries(
             .then_with(|| left.concept_id.cmp(&right.concept_id))
     });
     summaries
+}
+
+fn accumulate_concept_debt_finding(
+    aggregates: &mut BTreeMap<String, ConceptDebtAggregate>,
+    finding: &Value,
+) {
+    let Some(concept_id) = finding_concept_id(finding) else {
+        return;
+    };
+    let entry = aggregates.entry(concept_id.to_string()).or_default();
+    let kind = finding_kind(finding).to_string();
+    entry.finding_count += 1;
+    if severity_of_value(finding) == FindingSeverity::High {
+        entry.high_severity_count += 1;
+    }
+    if matches!(
+        kind.as_str(),
+        "multi_writer_concept"
+            | "forbidden_writer"
+            | "writer_outside_allowlist"
+            | "forbidden_raw_read"
+            | "authoritative_import_bypass"
+            | "concept_boundary_pressure"
+    ) {
+        entry.boundary_pressure_count += 1;
+    }
+    entry
+        .kinds
+        .entry(kind)
+        .and_modify(|count| *count += 1)
+        .or_insert(1);
+    entry.files.extend(finding_files(finding));
+}
+
+fn summarize_concept_debt(
+    concept_id: String,
+    aggregate: ConceptDebtAggregate,
+) -> ConceptDebtSummary {
+    let ConceptDebtAggregate {
+        finding_count,
+        high_severity_count,
+        boundary_pressure_count,
+        obligation_count,
+        missing_site_count,
+        context_burden,
+        kinds,
+        files,
+    } = aggregate;
+    let mut dominant_kinds = kinds.into_iter().collect::<Vec<_>>();
+    dominant_kinds.sort_by(|left, right| right.1.cmp(&left.1).then_with(|| left.0.cmp(&right.0)));
+    let dominant_kinds = dominant_kinds
+        .into_iter()
+        .map(|(kind, _)| kind)
+        .take(3)
+        .collect::<Vec<_>>();
+    let score_0_10000 = concept_debt_score(
+        finding_count,
+        high_severity_count,
+        boundary_pressure_count,
+        missing_site_count,
+        context_burden,
+    );
+    let inspection_focus = concept_debt_inspection_focus(&dominant_kinds, missing_site_count > 0);
+
+    ConceptDebtSummary {
+        summary: concept_debt_summary(
+            &concept_id,
+            finding_count,
+            obligation_count,
+            missing_site_count,
+            high_severity_count,
+            boundary_pressure_count,
+        ),
+        concept_id,
+        score_0_10000,
+        finding_count,
+        high_severity_count,
+        boundary_pressure_count,
+        obligation_count,
+        missing_site_count,
+        context_burden,
+        dominant_kinds,
+        files: files.into_iter().collect(),
+        inspection_focus,
+    }
 }
 
 pub(crate) fn concept_debt_score(

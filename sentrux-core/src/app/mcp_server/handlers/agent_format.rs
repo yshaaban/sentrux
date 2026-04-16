@@ -168,57 +168,15 @@ pub(crate) fn obligation_value_to_agent_issue(obligation: &Value) -> AgentIssue 
 
 fn fix_hint_for_value(finding: &Value, kind: &str) -> Option<String> {
     if kind == "forbidden_raw_read" {
-        let preferred_accessor = evidence_value_for_prefix(finding, PREFERRED_ACCESSOR_PREFIX);
-        let canonical_owner = evidence_value_for_prefix(finding, CANONICAL_OWNER_PREFIX);
-        if let Some(accessor) = preferred_accessor {
-            if let Some(owner) = canonical_owner {
-                return Some(format!(
-                    "Replace the raw read with {accessor} from {owner} instead of recreating the projection in the caller."
-                ));
-            }
-            return Some(format!(
-                "Replace the raw read with {accessor} instead of recreating the projection in the caller."
-            ));
-        }
-        if let Some(owner) = canonical_owner {
-            return Some(format!(
-                "Move the read behind {owner} instead of recreating the projection in the caller."
-            ));
-        }
+        return forbidden_raw_read_fix_hint(finding);
     }
 
     if kind == "session_introduced_clone" {
-        let introduced_duplicate = evidence_value_for_prefix(finding, INTRODUCED_DUPLICATE_PREFIX);
-        let preferred_owner = evidence_value_for_prefix(finding, PREFERRED_OWNER_PREFIX);
-        if let (Some(introduced_duplicate), Some(preferred_owner)) =
-            (introduced_duplicate, preferred_owner.as_ref())
-        {
-            return Some(format!(
-                "Collapse the new duplicate {introduced_duplicate} into {preferred_owner} instead of maintaining both paths."
-            ));
-        }
-        if let Some(preferred_owner) = preferred_owner {
-            return Some(format!(
-                "Route the new duplicate back through {preferred_owner} before the two paths drift."
-            ));
-        }
+        return session_introduced_clone_fix_hint(finding);
     }
 
     if kind == "clone_propagation_drift" {
-        let changed_member = evidence_value_for_prefix(finding, CHANGED_CLONE_MEMBER_PREFIX);
-        let unchanged_sibling = evidence_value_for_prefix(finding, UNCHANGED_CLONE_SIBLING_PREFIX);
-        if let (Some(changed_member), Some(unchanged_sibling)) =
-            (changed_member.as_ref(), unchanged_sibling.as_ref())
-        {
-            return Some(format!(
-                "Sync {unchanged_sibling} with the behavior change in {changed_member}, or collapse both paths behind one shared owner."
-            ));
-        }
-        if let Some(unchanged_sibling) = unchanged_sibling {
-            return Some(format!(
-                "Update {unchanged_sibling} to match the changed clone path, or remove the duplicate split."
-            ));
-        }
+        return clone_propagation_drift_fix_hint(finding);
     }
 
     if kind == "touched_clone_family" {
@@ -266,6 +224,58 @@ fn fix_hint_for_value(finding: &Value, kind: &str) -> Option<String> {
     }
 
     fix_hint_for_kind(kind)
+}
+
+fn forbidden_raw_read_fix_hint(finding: &Value) -> Option<String> {
+    let preferred_accessor = evidence_value_for_prefix(finding, PREFERRED_ACCESSOR_PREFIX);
+    let canonical_owner = evidence_value_for_prefix(finding, CANONICAL_OWNER_PREFIX);
+    if let Some(accessor) = preferred_accessor {
+        if let Some(owner) = canonical_owner {
+            return Some(format!(
+                "Replace the raw read with {accessor} from {owner} instead of recreating the projection in the caller."
+            ));
+        }
+        return Some(format!(
+            "Replace the raw read with {accessor} instead of recreating the projection in the caller."
+        ));
+    }
+    canonical_owner.map(|owner| {
+        format!("Move the read behind {owner} instead of recreating the projection in the caller.")
+    })
+}
+
+fn session_introduced_clone_fix_hint(finding: &Value) -> Option<String> {
+    let introduced_duplicate = evidence_value_for_prefix(finding, INTRODUCED_DUPLICATE_PREFIX);
+    let preferred_owner = evidence_value_for_prefix(finding, PREFERRED_OWNER_PREFIX);
+    if let (Some(introduced_duplicate), Some(preferred_owner)) =
+        (introduced_duplicate, preferred_owner.as_ref())
+    {
+        return Some(format!(
+            "Collapse the new duplicate {introduced_duplicate} into {preferred_owner} instead of maintaining both paths."
+        ));
+    }
+    preferred_owner.map(|preferred_owner| {
+        format!(
+            "Route the new duplicate back through {preferred_owner} before the two paths drift."
+        )
+    })
+}
+
+fn clone_propagation_drift_fix_hint(finding: &Value) -> Option<String> {
+    let changed_member = evidence_value_for_prefix(finding, CHANGED_CLONE_MEMBER_PREFIX);
+    let unchanged_sibling = evidence_value_for_prefix(finding, UNCHANGED_CLONE_SIBLING_PREFIX);
+    if let (Some(changed_member), Some(unchanged_sibling)) =
+        (changed_member.as_ref(), unchanged_sibling.as_ref())
+    {
+        return Some(format!(
+            "Sync {unchanged_sibling} with the behavior change in {changed_member}, or collapse both paths behind one shared owner."
+        ));
+    }
+    unchanged_sibling.map(|unchanged_sibling| {
+        format!(
+            "Update {unchanged_sibling} to match the changed clone path, or remove the duplicate split."
+        )
+    })
 }
 
 fn evidence_value_for_prefix(finding: &Value, prefix: &str) -> Option<String> {

@@ -2,6 +2,7 @@ use super::agent_format::{
     actions_from_issues, compare_agent_issues, issue_blocks_gate, to_agent_issue,
     AgentCheckResponse, AgentGate, AgentIssue, CheckAvailability, CheckDiagnostics,
 };
+use super::semantic_batch::SemanticAnalysisBatch;
 use super::*;
 use crate::metrics::v2::{build_clone_drift_findings, FindingSeverity, SemanticFinding};
 use serde_json::{json, Value};
@@ -116,17 +117,10 @@ fn build_fast_check_issues(
     _expected_patch_cache_identity: Option<&ScanCacheIdentity>,
 ) -> (Vec<AgentIssue>, CheckDiagnostics) {
     let (rules_config, rules_error) = load_v2_rules_config(state, root);
-    let (semantic, semantic_error, semantic_available) =
-        match analyze_semantic_snapshot(state, root) {
-            Ok(semantic) => {
-                let available = semantic.is_some();
-                (semantic, None, available)
-            }
-            Err(error) => (None, Some(error), false),
-        };
-
+    let semantic_status = analyze_check_semantics(state, root);
     let mut warnings = Vec::new();
-    let changed_analysis = semantic
+    let changed_analysis = semantic_status
+        .semantic
         .as_ref()
         .map(|semantic| {
             build_semantic_analysis_batch(
@@ -139,19 +133,7 @@ fn build_fast_check_issues(
         })
         .unwrap_or_default();
 
-    let mut findings = changed_analysis
-        .obligations
-        .iter()
-        .filter(|obligation| !obligation.missing_sites.is_empty())
-        .map(obligation_issue_value)
-        .collect::<Vec<_>>();
-    findings.extend(
-        changed_analysis
-            .findings
-            .iter()
-            .filter(|finding| finding.kind != "closed_domain_exhaustiveness")
-            .map(semantic_finding_value),
-    );
+    let mut findings = build_changed_semantic_finding_values(&changed_analysis);
     findings.extend(build_changed_structural_finding_values(
         root,
         snapshot,
@@ -209,6 +191,60 @@ fn build_fast_check_issues(
         .collect::<Vec<_>>();
     issues.sort_by(compare_agent_issues);
 
+    let diagnostics = build_fast_check_diagnostics(
+        &rules_error,
+        &semantic_status.error,
+        semantic_status.available,
+        warnings,
+    );
+
+    (issues, diagnostics)
+}
+
+struct SemanticCheckStatus {
+    semantic: Option<crate::analysis::semantic::SemanticSnapshot>,
+    error: Option<String>,
+    available: bool,
+}
+
+fn analyze_check_semantics(state: &mut McpState, root: &Path) -> SemanticCheckStatus {
+    match analyze_semantic_snapshot(state, root) {
+        Ok(semantic) => SemanticCheckStatus {
+            available: semantic.is_some(),
+            semantic,
+            error: None,
+        },
+        Err(error) => SemanticCheckStatus {
+            semantic: None,
+            error: Some(error),
+            available: false,
+        },
+    }
+}
+
+fn build_changed_semantic_finding_values(changed_analysis: &SemanticAnalysisBatch) -> Vec<Value> {
+    let mut findings = changed_analysis
+        .obligations
+        .iter()
+        .filter(|obligation| !obligation.missing_sites.is_empty())
+        .map(obligation_issue_value)
+        .collect::<Vec<_>>();
+    findings.extend(
+        changed_analysis
+            .findings
+            .iter()
+            .filter(|finding| finding.kind != "closed_domain_exhaustiveness")
+            .map(semantic_finding_value),
+    );
+    findings
+}
+
+fn build_fast_check_diagnostics(
+    rules_error: &Option<String>,
+    semantic_error: &Option<String>,
+    semantic_available: bool,
+    warnings: Vec<String>,
+) -> CheckDiagnostics {
     let availability = CheckAvailability {
         semantic: semantic_available,
         evolution: false,
@@ -217,16 +253,12 @@ fn build_fast_check_issues(
     };
     let errors = diagnostics_errors(rules_error.clone(), semantic_error.clone());
     let partial_results = !semantic_available || errors.values().any(Option::is_some);
-
-    (
-        issues,
-        CheckDiagnostics {
-            errors,
-            warnings,
-            partial_results,
-            availability,
-        },
-    )
+    CheckDiagnostics {
+        errors,
+        warnings,
+        partial_results,
+        availability,
+    }
 }
 
 fn build_unavailable_changed_scope_response() -> (Vec<AgentIssue>, CheckDiagnostics) {

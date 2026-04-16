@@ -189,54 +189,13 @@ pub(crate) fn handle_explain_concept(
         .into_iter()
         .filter(|obligation| obligation.concept_id.as_deref() == Some(concept_id))
         .collect::<Vec<_>>();
-    let related_contracts = config
-        .contract
-        .iter()
-        .filter(|contract| contract_relates_to_concept(contract, &concept))
-        .map(|contract| contract.id.clone())
-        .collect::<BTreeSet<_>>();
-    let parity = semantic.as_ref().map(|semantic| {
-        let parity_result = crate::metrics::v2::build_parity_reports(
-            &config,
-            semantic,
-            &root,
-            crate::metrics::v2::ParityScope::All,
-            &BTreeSet::new(),
-        );
-        parity_result
-            .reports
-            .into_iter()
-            .filter(|report| related_contracts.contains(&report.id))
-            .collect::<Vec<_>>()
-    });
-    let semantic_summary = semantic.as_ref().map(|semantic| {
-        let writes = crate::metrics::v2::relevant_writes(&concept, &semantic)
-            .into_iter()
-            .map(|write| {
-                json!({
-                    "path": write.path,
-                    "symbol_name": write.symbol_name,
-                    "write_kind": write.write_kind,
-                    "line": write.line,
-                })
-            })
-            .collect::<Vec<_>>();
-        let reads = crate::metrics::v2::relevant_reads(&concept, &semantic)
-            .into_iter()
-            .map(|read| {
-                json!({
-                    "path": read.path,
-                    "symbol_name": read.symbol_name,
-                    "read_kind": read.read_kind,
-                    "line": read.line,
-                })
-            })
-            .collect::<Vec<_>>();
-        json!({
-            "writes": writes,
-            "reads": reads,
-        })
-    });
+    let related_contracts = related_contract_ids_for_concept(&config, &concept);
+    let parity = semantic
+        .as_ref()
+        .map(|semantic| build_explain_concept_parity(&config, semantic, &root, &related_contracts));
+    let semantic_summary = semantic
+        .as_ref()
+        .map(|semantic| build_concept_semantic_summary(&concept, semantic));
     let related_tests = describe_concept_related_tests(&root, &concept);
 
     let mut response = json!({
@@ -257,6 +216,69 @@ pub(crate) fn handle_explain_concept(
         insert_rules_semantic_diagnostics(object, rules_error, semantic_error, Vec::new());
     }
     Ok(response)
+}
+
+fn related_contract_ids_for_concept(
+    config: &crate::metrics::rules::RulesConfig,
+    concept: &crate::metrics::rules::ConceptRule,
+) -> BTreeSet<String> {
+    config
+        .contract
+        .iter()
+        .filter(|contract| contract_relates_to_concept(contract, concept))
+        .map(|contract| contract.id.clone())
+        .collect::<BTreeSet<_>>()
+}
+
+fn build_explain_concept_parity(
+    config: &crate::metrics::rules::RulesConfig,
+    semantic: &crate::analysis::semantic::SemanticSnapshot,
+    root: &Path,
+    related_contracts: &BTreeSet<String>,
+) -> Vec<crate::metrics::v2::ContractParityReport> {
+    crate::metrics::v2::build_parity_reports(
+        config,
+        semantic,
+        root,
+        crate::metrics::v2::ParityScope::All,
+        &BTreeSet::new(),
+    )
+    .reports
+    .into_iter()
+    .filter(|report| related_contracts.contains(&report.id))
+    .collect::<Vec<_>>()
+}
+
+fn build_concept_semantic_summary(
+    concept: &crate::metrics::rules::ConceptRule,
+    semantic: &crate::analysis::semantic::SemanticSnapshot,
+) -> Value {
+    let writes = crate::metrics::v2::relevant_writes(concept, semantic)
+        .into_iter()
+        .map(|write| {
+            json!({
+                "path": write.path,
+                "symbol_name": write.symbol_name,
+                "write_kind": write.write_kind,
+                "line": write.line,
+            })
+        })
+        .collect::<Vec<_>>();
+    let reads = crate::metrics::v2::relevant_reads(concept, semantic)
+        .into_iter()
+        .map(|read| {
+            json!({
+                "path": read.path,
+                "symbol_name": read.symbol_name,
+                "read_kind": read.read_kind,
+                "line": read.line,
+            })
+        })
+        .collect::<Vec<_>>();
+    json!({
+        "writes": writes,
+        "reads": reads,
+    })
 }
 
 pub fn trace_symbol_def() -> ToolDef {
@@ -284,6 +306,75 @@ pub(crate) fn handle_trace_symbol(
     _tier: &Tier,
     state: &mut McpState,
 ) -> Result<Value, String> {
+    let trace_context = load_trace_symbol_context(args, state)?;
+    let query = trace_context.query.as_str();
+    let symbol_matches = trace_symbol_matches(&trace_context.semantic, query);
+    let related_concepts = trace_related_concepts(&trace_context.config, query);
+    let related_contracts = trace_related_contracts(&trace_context.config, query);
+    let cached_snapshot = state.cached_snapshot.clone();
+    let (semantic_findings, obligations, semantic_error) = semantic_findings_and_obligations(
+        state,
+        &trace_context.root,
+        cached_snapshot.as_deref(),
+        crate::metrics::v2::ObligationScope::All,
+        &BTreeSet::new(),
+    );
+    let semantic_error =
+        semantic_error.filter(|error| Some(error) != trace_context.rules_error.as_ref());
+    let findings = semantic_findings
+        .into_iter()
+        .filter(|finding| {
+            related_concepts.contains(&finding.concept_id)
+                || symbol_query_matches("", &finding.concept_id, query)
+        })
+        .collect::<Vec<_>>();
+    let (suppression_application, suppression_rules_error) =
+        apply_root_suppressions(state, &trace_context.root, serialized_values(&findings));
+    let obligations = filter_trace_symbol_obligations(obligations, &related_concepts, query);
+    let reference_ambiguity = trace_reference_ambiguity(query, &symbol_matches);
+    let rules_error = merge_optional_errors(trace_context.rules_error, suppression_rules_error);
+    let mut response = json!({
+        "kind": "trace_symbol",
+        "symbol": query,
+        "declarations": symbol_matches.declarations,
+        "reads": symbol_matches.reads,
+        "writes": symbol_matches.writes,
+        "related_concepts": related_concepts.into_iter().collect::<Vec<_>>(),
+        "related_contracts": related_contracts.into_iter().collect::<Vec<_>>(),
+        "findings": suppression_application.visible_findings,
+        "obligations": obligations,
+        "suppression_hits": suppression_application.active_matches,
+        "suppressed_finding_count": suppression_match_count(&suppression_application.active_matches),
+        "expired_suppressions": suppression_application.expired_matches,
+        "expired_suppression_match_count": suppression_match_count(&suppression_application.expired_matches),
+        "reference_ambiguity": reference_ambiguity,
+    });
+    if let Some(object) = response.as_object_mut() {
+        insert_rules_semantic_diagnostics(object, rules_error, semantic_error, Vec::new());
+    }
+    Ok(response)
+}
+
+struct TraceSymbolContext {
+    root: PathBuf,
+    query: String,
+    config: crate::metrics::rules::RulesConfig,
+    semantic: crate::analysis::semantic::SemanticSnapshot,
+    rules_error: Option<String>,
+}
+
+struct TraceSymbolMatches {
+    declarations: Vec<Value>,
+    reads: Vec<Value>,
+    writes: Vec<Value>,
+    ambiguous_declarations: Vec<Value>,
+    references_are_ambiguous: bool,
+}
+
+fn load_trace_symbol_context(
+    args: &Value,
+    state: &mut McpState,
+) -> Result<TraceSymbolContext, String> {
     let root = state
         .scan_root
         .clone()
@@ -291,7 +382,8 @@ pub(crate) fn handle_trace_symbol(
     let query = args
         .get("symbol")
         .and_then(|value| value.as_str())
-        .ok_or("Missing 'symbol' argument")?;
+        .ok_or("Missing 'symbol' argument")?
+        .to_string();
     let (config, rules_error) = load_v2_rules_config(state, &root);
     let semantic = analyze_semantic_snapshot(state, &root)
         .map_err(|error| {
@@ -308,8 +400,20 @@ pub(crate) fn handle_trace_symbol(
             )
             .unwrap()
         })?;
-    let (query_path, query_symbol) = split_symbol_query(query);
+    Ok(TraceSymbolContext {
+        root,
+        query,
+        config,
+        semantic,
+        rules_error,
+    })
+}
 
+fn trace_symbol_matches(
+    semantic: &crate::analysis::semantic::SemanticSnapshot,
+    query: &str,
+) -> TraceSymbolMatches {
+    let (query_path, query_symbol) = split_symbol_query(query);
     let matched_declarations = semantic
         .symbols
         .iter()
@@ -330,80 +434,107 @@ pub(crate) fn handle_trace_symbol(
         .unwrap_or_default();
     let references_are_ambiguous = query_path.is_some() && !ambiguous_declarations.is_empty();
 
-    let declarations = matched_declarations
-        .iter()
-        .map(|symbol| {
-            json!({
-                "id": symbol.id,
-                "path": symbol.path,
-                "name": symbol.name,
-                "kind": symbol.kind,
-                "line": symbol.line,
-            })
-        })
-        .collect::<Vec<_>>();
-    let reads = semantic
-        .reads
-        .iter()
-        .filter(|read| {
-            !references_are_ambiguous && symbol_query_matches("", &read.symbol_name, query)
-        })
-        .map(|read| {
-            json!({
-                "path": read.path,
-                "symbol_name": read.symbol_name,
-                "read_kind": read.read_kind,
-                "line": read.line,
-            })
-        })
-        .collect::<Vec<_>>();
-    let writes = semantic
-        .writes
-        .iter()
-        .filter(|write| {
-            !references_are_ambiguous && symbol_query_matches("", &write.symbol_name, query)
-        })
-        .map(|write| {
-            json!({
-                "path": write.path,
-                "symbol_name": write.symbol_name,
-                "write_kind": write.write_kind,
-                "line": write.line,
-            })
-        })
-        .collect::<Vec<_>>();
+    TraceSymbolMatches {
+        declarations: matched_declarations
+            .iter()
+            .map(|symbol| trace_symbol_declaration_json(symbol))
+            .collect(),
+        reads: trace_symbol_reference_jsons(
+            &semantic.reads,
+            query,
+            references_are_ambiguous,
+            |read| {
+                json!({
+                    "path": read.path,
+                    "symbol_name": read.symbol_name,
+                    "read_kind": read.read_kind,
+                    "line": read.line,
+                })
+            },
+            |read| &read.symbol_name,
+        ),
+        writes: trace_symbol_reference_jsons(
+            &semantic.writes,
+            query,
+            references_are_ambiguous,
+            |write| {
+                json!({
+                    "path": write.path,
+                    "symbol_name": write.symbol_name,
+                    "write_kind": write.write_kind,
+                    "line": write.line,
+                })
+            },
+            |write| &write.symbol_name,
+        ),
+        ambiguous_declarations: ambiguous_declarations
+            .iter()
+            .map(|symbol| trace_symbol_declaration_json(symbol))
+            .collect(),
+        references_are_ambiguous,
+    }
+}
 
-    let related_concepts = config
+fn trace_symbol_declaration_json(symbol: &crate::analysis::semantic::SymbolFact) -> Value {
+    json!({
+        "id": symbol.id,
+        "path": symbol.path,
+        "name": symbol.name,
+        "kind": symbol.kind,
+        "line": symbol.line,
+    })
+}
+
+fn trace_symbol_reference_jsons<T, FValue, FName>(
+    references: &[T],
+    query: &str,
+    references_are_ambiguous: bool,
+    to_json: FValue,
+    symbol_name: FName,
+) -> Vec<Value>
+where
+    FValue: Fn(&T) -> Value,
+    FName: Fn(&T) -> &str,
+{
+    references
+        .iter()
+        .filter(|reference| {
+            !references_are_ambiguous && symbol_query_matches("", symbol_name(reference), query)
+        })
+        .map(to_json)
+        .collect::<Vec<_>>()
+}
+
+fn trace_related_concepts(
+    config: &crate::metrics::rules::RulesConfig,
+    query: &str,
+) -> BTreeSet<String> {
+    config
         .concept
         .iter()
         .filter(|concept| concept_matches_symbol(concept, query))
         .map(|concept| concept.id.clone())
-        .collect::<BTreeSet<_>>();
-    let related_contracts = config
+        .collect::<BTreeSet<_>>()
+}
+
+fn trace_related_contracts(
+    config: &crate::metrics::rules::RulesConfig,
+    query: &str,
+) -> BTreeSet<String> {
+    config
         .contract
         .iter()
         .filter(|contract| contract_matches_symbol(contract, query))
         .map(|contract| contract.id.clone())
-        .collect::<BTreeSet<_>>();
-    let cached_snapshot = state.cached_snapshot.clone();
-    let (semantic_findings, obligations, semantic_error) = semantic_findings_and_obligations(
-        state,
-        &root,
-        cached_snapshot.as_deref(),
-        crate::metrics::v2::ObligationScope::All,
-        &BTreeSet::new(),
-    );
-    let semantic_error = semantic_error.filter(|error| Some(error) != rules_error.as_ref());
-    let findings = semantic_findings
-        .into_iter()
-        .filter(|finding| {
-            related_concepts.contains(&finding.concept_id)
-                || symbol_query_matches("", &finding.concept_id, query)
-        })
-        .collect::<Vec<_>>();
-    let (suppression_application, suppression_rules_error) =
-        apply_root_suppressions(state, &root, serialized_values(&findings));
-    let obligations = obligations
+        .collect::<BTreeSet<_>>()
+}
+
+fn filter_trace_symbol_obligations(
+    obligations: Vec<crate::metrics::v2::ObligationReport>,
+    related_concepts: &BTreeSet<String>,
+    query: &str,
+) -> Vec<crate::metrics::v2::ObligationReport> {
+    obligations
         .into_iter()
         .filter(|obligation| {
             obligation
@@ -417,51 +548,21 @@ pub(crate) fn handle_trace_symbol(
                     .map(|concept_id| related_concepts.contains(concept_id))
                     .unwrap_or(false)
         })
-        .collect::<Vec<_>>();
-    let reference_ambiguity = if references_are_ambiguous {
-        Some(json!({
-            "message": format!(
-                "Scoped query '{}' matches additional declarations in other files, so cross-file reads and writes are omitted to avoid false positives",
-                query
-            ),
-            "conflicting_declarations": ambiguous_declarations
-                .iter()
-                .map(|symbol| {
-                    json!({
-                        "id": symbol.id,
-                        "path": symbol.path,
-                        "name": symbol.name,
-                        "kind": symbol.kind,
-                        "line": symbol.line,
-                    })
-                })
-                .collect::<Vec<_>>(),
-        }))
-    } else {
-        None
-    };
+        .collect::<Vec<_>>()
+}
 
-    let rules_error = merge_optional_errors(rules_error, suppression_rules_error);
-    let mut response = json!({
-        "kind": "trace_symbol",
-        "symbol": query,
-        "declarations": declarations,
-        "reads": reads,
-        "writes": writes,
-        "related_concepts": related_concepts.into_iter().collect::<Vec<_>>(),
-        "related_contracts": related_contracts.into_iter().collect::<Vec<_>>(),
-        "findings": suppression_application.visible_findings,
-        "obligations": obligations,
-        "suppression_hits": suppression_application.active_matches,
-        "suppressed_finding_count": suppression_match_count(&suppression_application.active_matches),
-        "expired_suppressions": suppression_application.expired_matches,
-        "expired_suppression_match_count": suppression_match_count(&suppression_application.expired_matches),
-        "reference_ambiguity": reference_ambiguity,
-    });
-    if let Some(object) = response.as_object_mut() {
-        insert_rules_semantic_diagnostics(object, rules_error, semantic_error, Vec::new());
+fn trace_reference_ambiguity(query: &str, symbol_matches: &TraceSymbolMatches) -> Option<Value> {
+    if !symbol_matches.references_are_ambiguous {
+        return None;
     }
-    Ok(response)
+
+    Some(json!({
+        "message": format!(
+            "Scoped query '{}' matches additional declarations in other files, so cross-file reads and writes are omitted to avoid false positives",
+            query
+        ),
+        "conflicting_declarations": symbol_matches.ambiguous_declarations,
+    }))
 }
 
 fn describe_concept_related_tests(

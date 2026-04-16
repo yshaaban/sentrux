@@ -1,6 +1,11 @@
 import { analyzeProject } from "./analysis.js";
 import { dispatchRequest, toRequest } from "./protocol.js";
+import type { RequestHandlerDependencies } from "./protocol.js";
 import type { JsonRpcResponse } from "./types.js";
+
+export const REQUEST_HANDLER_DEPENDENCIES = {
+  analyzeProject,
+} satisfies RequestHandlerDependencies;
 
 export function parseHeaders(headerText: string): Map<string, string> {
   const headers = new Map<string, string>();
@@ -110,9 +115,7 @@ export function main(): void {
         continue;
       }
 
-      const outcome = dispatchRequest(request, {
-        analyzeProject,
-      });
+      const outcome = dispatchRequest(request, REQUEST_HANDLER_DEPENDENCIES);
 
       if (outcome.kind === "ignore") {
         continue;

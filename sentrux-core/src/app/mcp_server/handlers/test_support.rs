@@ -470,6 +470,103 @@ pub(crate) fn contract_gate_fixture_root() -> std::path::PathBuf {
     root
 }
 
+pub(crate) fn ts_bridge_transport_gate_fixture_root() -> std::path::PathBuf {
+    let root = temp_root("ts-bridge-transport-gate");
+    write_file(
+        &root,
+        ".sentrux/rules.toml",
+        r#"
+                [[contract]]
+                id = "ts_bridge_semantic_transport"
+                kind = "runtime_parity"
+                priority = "critical"
+                payload_map_symbol = "ts-bridge/src/types.ts::AnalyzeProjectsResult"
+                registry_symbol = "ts-bridge/src/transport.ts::REQUEST_HANDLER_DEPENDENCIES"
+                browser_entry = "ts-bridge/src/transport.ts"
+                required_capabilities = ["snapshot"]
+            "#,
+    );
+    write_file(
+        &root,
+        "package.json",
+        r#"{ "name": "ts-bridge-transport-gate-fixture", "type": "module" }"#,
+    );
+    write_file(
+        &root,
+        "tsconfig.json",
+        r#"
+                {
+                  "compilerOptions": {
+                    "module": "esnext",
+                    "target": "es2020",
+                    "strict": true
+                  },
+                  "include": ["ts-bridge/src/**/*.ts"]
+                }
+            "#,
+    );
+    write_file(
+        &root,
+        "ts-bridge/src/types.ts",
+        r#"
+                export interface ProjectModel {
+                  root: string;
+                }
+
+                export interface SemanticSnapshot {
+                  project: ProjectModel;
+                }
+
+                export type AnalyzeProjectsResult = SemanticSnapshot;
+            "#,
+    );
+    write_file(
+        &root,
+        "ts-bridge/src/analysis.ts",
+        r#"
+                import type { AnalyzeProjectsResult, ProjectModel } from './types';
+
+                export function analyzeProject(project: ProjectModel): AnalyzeProjectsResult {
+                  return { project };
+                }
+            "#,
+    );
+    write_file(
+        &root,
+        "ts-bridge/src/protocol.ts",
+        r#"
+                import type { AnalyzeProjectsResult, ProjectModel } from './types';
+
+                export const PROTOCOL_VERSION = '0.1.0';
+
+                export interface RequestHandlerDependencies {
+                  analyzeProject: (project: ProjectModel) => AnalyzeProjectsResult;
+                }
+
+                export function dispatchRequest(): void {}
+            "#,
+    );
+    write_file(
+        &root,
+        "ts-bridge/src/transport.ts",
+        r#"
+                import { analyzeProject } from './analysis';
+                import { dispatchRequest } from './protocol';
+                import type { RequestHandlerDependencies } from './protocol';
+
+                export const REQUEST_HANDLER_DEPENDENCIES = {
+                  analyzeProject,
+                } satisfies RequestHandlerDependencies;
+
+                export function main(): void {
+                  void dispatchRequest;
+                  void REQUEST_HANDLER_DEPENDENCIES;
+                }
+            "#,
+    );
+    root
+}
+
 pub(crate) fn concept_fixture_semantic(root: &Path) -> SemanticSnapshot {
     SemanticSnapshot {
         project: ProjectModel {

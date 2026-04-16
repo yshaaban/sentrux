@@ -1,16 +1,16 @@
 import type {
+  AnalyzeProjectsResult,
   JsonRpcId,
   ProjectArchetypeMatch,
   JsonRpcRequest,
   JsonRpcResponse,
   ProjectModel,
-  SemanticSnapshot,
 } from "./types.js";
 
 export const PROTOCOL_VERSION = "0.1.0";
 
 export interface RequestHandlerDependencies {
-  analyzeProject: (project: ProjectModel) => SemanticSnapshot;
+  analyzeProject: (project: ProjectModel) => AnalyzeProjectsResult;
 }
 
 export type DispatchOutcome =
@@ -149,111 +149,112 @@ export function dispatchRequest(
   dependencies: RequestHandlerDependencies,
 ): DispatchOutcome {
   const id = request.id ?? null;
-  const method = request.method;
-
-  if (request.jsonrpc !== "2.0") {
-    return {
-      kind: "response",
-      response: response(id, undefined, { code: -32600, message: "Invalid Request" }),
-    };
-  }
-
+  const method = validateRequestMethod(request);
   if (!method) {
-    return {
-      kind: "response",
-      response: response(id, undefined, { code: -32600, message: "Invalid Request" }),
-    };
+    return invalidRequestOutcome(id);
   }
 
-  if (method === "initialize") {
-    if (request.id === undefined) {
-      return { kind: "ignore" };
-    }
-
-    return {
-      kind: "response",
-      response: response(id, {
-        protocolVersion: PROTOCOL_VERSION,
-        capabilities: {
-          semanticAnalysis: true,
-          incrementalUpdates: false,
-        },
-        serverInfo: {
-          name: "sentrux-ts-bridge",
-          version: "0.1.0",
-        },
-      }),
-    };
-  }
-
-  if (method === "ping") {
-    if (request.id === undefined) {
-      return { kind: "ignore" };
-    }
-
-    return { kind: "response", response: response(id, { ok: true }) };
-  }
-
-  if (method === "shutdown") {
-    if (request.id === undefined) {
-      return { kind: "ignore" };
-    }
-
-    return { kind: "response", response: response(id, null) };
-  }
-
-  if (method === "analyze_projects") {
-    if (request.id === undefined) {
-      return { kind: "ignore" };
-    }
-
-    const project = toProjectModel(request.params);
-    if (!project) {
-      return {
-        kind: "response",
-        response: response(id, undefined, {
-          code: -32602,
-          message: "Invalid params",
-          data: {
-            expected: "ProjectModel",
-          },
-        }),
-      };
-    }
-
-    try {
-      return {
-        kind: "response",
-        response: response(id, dependencies.analyzeProject(project)),
-      };
-    } catch (error) {
-      return {
-        kind: "response",
-        response: response(id, undefined, {
-          code: -32001,
-          message: "Semantic analysis failed",
-          data: {
-            message: error instanceof Error ? error.message : String(error),
-          },
-        }),
-      };
-    }
-  }
-
-  if (method === "exit") {
-    if (request.id === undefined) {
-      return { kind: "exit", code: 0 };
-    }
-
-    return {
-      kind: "exit",
-      code: 0,
-      response: response(id, null),
-    };
+  const outcome = dispatchNotification(method, request, id);
+  if (outcome) {
+    return outcome;
   }
 
   if (request.id === undefined) {
     return { kind: "ignore" };
+  }
+
+  return dispatchMethodRequest(method, request, id, dependencies);
+}
+
+function validateRequestMethod(request: JsonRpcRequest): string | null {
+  if (request.jsonrpc !== "2.0" || !request.method) {
+    return null;
+  }
+
+  return request.method;
+}
+
+function invalidRequestOutcome(id: JsonRpcId): DispatchOutcome {
+  return {
+    kind: "response",
+    response: response(id, undefined, { code: -32600, message: "Invalid Request" }),
+  };
+}
+
+function dispatchNotification(
+  method: string,
+  request: JsonRpcRequest,
+  id: JsonRpcId,
+): DispatchOutcome | null {
+  if (method === "initialize") {
+    return respondToInitialize(request, id);
+  }
+  if (method === "ping") {
+    return respondToSimpleRequest(request, id, { ok: true });
+  }
+  if (method === "shutdown") {
+    return respondToSimpleRequest(request, id, null);
+  }
+  if (method === "exit") {
+    return exitOutcome(request, id);
+  }
+
+  return null;
+}
+
+function respondToInitialize(request: JsonRpcRequest, id: JsonRpcId): DispatchOutcome {
+  if (request.id === undefined) {
+    return { kind: "ignore" };
+  }
+
+  return {
+    kind: "response",
+    response: response(id, {
+      protocolVersion: PROTOCOL_VERSION,
+      capabilities: {
+        semanticAnalysis: true,
+        incrementalUpdates: false,
+      },
+      serverInfo: {
+        name: "sentrux-ts-bridge",
+        version: "0.1.0",
+      },
+    }),
+  };
+}
+
+function respondToSimpleRequest(
+  request: JsonRpcRequest,
+  id: JsonRpcId,
+  result: unknown,
+): DispatchOutcome {
+  if (request.id === undefined) {
+    return { kind: "ignore" };
+  }
+
+  return { kind: "response", response: response(id, result) };
+}
+
+function exitOutcome(request: JsonRpcRequest, id: JsonRpcId): DispatchOutcome {
+  if (request.id === undefined) {
+    return { kind: "exit", code: 0 };
+  }
+
+  return {
+    kind: "exit",
+    code: 0,
+    response: response(id, null),
+  };
+}
+
+function dispatchMethodRequest(
+  method: string,
+  request: JsonRpcRequest,
+  id: JsonRpcId,
+  dependencies: RequestHandlerDependencies,
+): DispatchOutcome {
+  if (method === "analyze_projects") {
+    return analyzeProjectsOutcome(request, id, dependencies);
   }
 
   return {
@@ -264,4 +265,42 @@ export function dispatchRequest(
       data: { method },
     }),
   };
+}
+
+function analyzeProjectsOutcome(
+  request: JsonRpcRequest,
+  id: JsonRpcId,
+  dependencies: RequestHandlerDependencies,
+): DispatchOutcome {
+  const project = toProjectModel(request.params);
+  if (!project) {
+    return {
+      kind: "response",
+      response: response(id, undefined, {
+        code: -32602,
+        message: "Invalid params",
+        data: {
+          expected: "ProjectModel",
+        },
+      }),
+    };
+  }
+
+  try {
+    return {
+      kind: "response",
+      response: response(id, dependencies.analyzeProject(project)),
+    };
+  } catch (error) {
+    return {
+      kind: "response",
+      response: response(id, undefined, {
+        code: -32001,
+        message: "Semantic analysis failed",
+        data: {
+          message: error instanceof Error ? error.message : String(error),
+        },
+      }),
+    };
+  }
 }

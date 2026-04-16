@@ -77,6 +77,8 @@ export interface SemanticSnapshot {
   transition_sites: TransitionSite[];
 }
 
+export type AnalyzeProjectsResult = SemanticSnapshot;
+
 export interface SemanticFileFact {
   path: string;
   symbol_count: number;

@@ -606,11 +606,38 @@ fn print_v2_gate_result(payload: &serde_json::Value) -> i32 {
     let changed_concepts = string_array_from_value(payload.get("changed_concepts"));
 
     println!("sentrux gate — touched-concept regression check\n");
+    print_v2_gate_summary(
+        payload,
+        decision,
+        summary,
+        &changed_files,
+        &changed_concepts,
+        &introduced_findings,
+        &blocking_findings,
+        &missing_obligations,
+    );
+    print_v2_gate_suppression_sections(&suppression_hits, &expired_suppressions);
+    print_v2_gate_findings(&blocking_findings, &introduced_nonblocking_findings);
+    print_v2_gate_obligations(&missing_obligations);
+    print_v2_gate_notes(payload);
+    exit_code_for_gate_decision(decision)
+}
+
+fn print_v2_gate_summary(
+    payload: &serde_json::Value,
+    decision: &str,
+    summary: &str,
+    changed_files: &[serde_json::Value],
+    changed_concepts: &[String],
+    introduced_findings: &[serde_json::Value],
+    blocking_findings: &[serde_json::Value],
+    missing_obligations: &[serde_json::Value],
+) {
     println!("Decision:     {decision}");
     println!("Summary:      {summary}");
     println!("Changed files: {}", changed_files.len());
     if !changed_concepts.is_empty() {
-        print_string_section("Changed concepts", &changed_concepts, 10);
+        print_string_section("Changed concepts", changed_concepts, 10);
     }
     print_legacy_baseline_delta(payload);
     println!("Introduced findings: {}", introduced_findings.len());
@@ -624,52 +651,72 @@ fn print_v2_gate_result(payload: &serde_json::Value) -> i32 {
     }
     print_scan_trust_summary(payload);
     print_cli_confidence_summary(payload);
+}
 
+fn print_v2_gate_suppression_sections(
+    suppression_hits: &[serde_json::Value],
+    expired_suppressions: &[serde_json::Value],
+) {
     println!("Suppression hits: {}", suppression_hits.len());
     println!("Expired suppressions: {}", expired_suppressions.len());
+    print_gate_suppression_section("Suppression hits", suppression_hits);
+    print_gate_suppression_section("Expired suppressions", expired_suppressions);
+}
 
-    if !suppression_hits.is_empty() {
-        println!("\nSuppression hits:");
-        for matched in suppression_hits.iter().take(10) {
-            print_cli_suppression_match(matched);
-        }
+fn print_gate_suppression_section(title: &str, matches: &[serde_json::Value]) {
+    if matches.is_empty() {
+        return;
     }
 
-    if !expired_suppressions.is_empty() {
-        println!("\nExpired suppressions:");
-        for matched in expired_suppressions.iter().take(10) {
-            print_cli_suppression_match(matched);
-        }
+    println!("\n{title}:");
+    for matched in matches.iter().take(10) {
+        print_cli_suppression_match(matched);
+    }
+}
+
+fn print_v2_gate_findings(
+    blocking_findings: &[serde_json::Value],
+    introduced_nonblocking_findings: &[serde_json::Value],
+) {
+    print_gate_finding_section("Blocking findings", blocking_findings);
+    print_gate_finding_section(
+        "Introduced findings (non-blocking)",
+        introduced_nonblocking_findings,
+    );
+}
+
+fn print_gate_finding_section(title: &str, findings: &[serde_json::Value]) {
+    if findings.is_empty() {
+        return;
     }
 
-    if !blocking_findings.is_empty() {
-        println!("\nBlocking findings:");
-        for finding in blocking_findings.iter().take(10) {
-            print_cli_finding(finding);
-        }
+    println!("\n{title}:");
+    for finding in findings.iter().take(10) {
+        print_cli_finding(finding);
+    }
+}
+
+fn print_v2_gate_obligations(missing_obligations: &[serde_json::Value]) {
+    if missing_obligations.is_empty() {
+        return;
     }
 
-    if !introduced_nonblocking_findings.is_empty() {
-        println!("\nIntroduced findings (non-blocking):");
-        for finding in introduced_nonblocking_findings.iter().take(10) {
-            print_cli_finding(finding);
-        }
+    println!("\nMissing obligations:");
+    for obligation in missing_obligations.iter().take(10) {
+        print_cli_obligation(obligation);
     }
+}
 
-    if !missing_obligations.is_empty() {
-        println!("\nMissing obligations:");
-        for obligation in missing_obligations.iter().take(10) {
-            print_cli_obligation(obligation);
-        }
-    }
-
+fn print_v2_gate_notes(payload: &serde_json::Value) {
     if let Some(error) = diagnostics_error(payload, "semantic") {
         println!("\nSemantic note: {error}");
     }
     if let Some(error) = diagnostics_error(payload, "baseline") {
         println!("Baseline note: {error}");
     }
+}
 
+fn exit_code_for_gate_decision(decision: &str) -> i32 {
     if decision == "pass" {
         0
     } else {

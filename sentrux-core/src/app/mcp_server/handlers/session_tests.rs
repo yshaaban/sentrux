@@ -1,8 +1,8 @@
 use super::test_support::{
     append_file, cli_gate_fixture_root, commit_all, concept_fixture_root, concept_fixture_semantic,
-    experimental_gate_fixture_root, init_git_repo, temp_root, write_file,
-    write_session_clone_duplicate, write_session_clone_fixture_files,
-    write_session_clone_followthrough_fixture_files,
+    experimental_gate_fixture_root, init_git_repo, temp_root,
+    ts_bridge_transport_gate_fixture_root, write_file, write_session_clone_duplicate,
+    write_session_clone_fixture_files, write_session_clone_followthrough_fixture_files,
     write_session_clone_followthrough_source_drift,
 };
 use super::{
@@ -12,6 +12,14 @@ use super::{
 use crate::app::mcp_server::SESSION_V2_SCHEMA_VERSION;
 use crate::license::Tier;
 use serde_json::json;
+
+fn prepare_ts_bridge_transport_gate_root() -> std::path::PathBuf {
+    let root = ts_bridge_transport_gate_fixture_root();
+    init_git_repo(&root);
+    commit_all(&root, "initial");
+    cli_save_v2_session(&root).expect("save v2 session");
+    root
+}
 
 #[test]
 fn patch_check_context_reuses_cached_scan_when_nothing_changed() {
@@ -118,6 +126,50 @@ fn cli_v2_gate_ignores_invalid_legacy_baseline_when_v2_session_exists() {
     assert!(response.get("decision").is_some());
     assert!(response["diagnostics"]["errors"].is_object());
     assert!(response.get("baseline_error").is_none());
+}
+
+#[test]
+fn gate_ignores_protocol_only_ts_bridge_transport_refactors() {
+    let root = prepare_ts_bridge_transport_gate_root();
+    append_file(
+        &root,
+        "ts-bridge/src/protocol.ts",
+        "\nexport function protocolHelper(): boolean { return true; }\n",
+    );
+
+    let response = cli_evaluate_v2_gate(&root, true).expect("evaluate gate");
+
+    assert_eq!(response["decision"], json!("pass"));
+    assert_eq!(response["missing_obligations"], json!([]));
+    assert!(response["introduced_findings"]
+        .as_array()
+        .is_some_and(|findings| findings
+            .iter()
+            .all(|finding| finding["kind"] != "contract_surface_completeness")));
+}
+
+#[test]
+fn gate_requires_transport_contract_followthrough_when_transport_surface_changes() {
+    let root = prepare_ts_bridge_transport_gate_root();
+    append_file(
+        &root,
+        "ts-bridge/src/transport.ts",
+        "\nexport function transportHelper(): number { return 1; }\n",
+    );
+
+    let response = cli_evaluate_v2_gate(&root, true).expect("evaluate gate");
+    let missing_obligations = response["missing_obligations"]
+        .as_array()
+        .expect("missing obligations");
+
+    assert_eq!(response["decision"], json!("fail"));
+    assert!(!missing_obligations.is_empty());
+    assert!(missing_obligations.iter().any(|obligation| {
+        obligation["kind"] == "contract_surface_completeness"
+            && obligation["summary"]
+                .as_str()
+                .is_some_and(|summary| summary.contains("ts_bridge_semantic_transport"))
+    }));
 }
 
 #[test]
