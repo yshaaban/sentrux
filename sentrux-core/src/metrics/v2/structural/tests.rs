@@ -410,6 +410,61 @@ fn does_not_report_dead_island_for_zero_inbound_root_when_no_entry_points_exist(
 }
 
 #[test]
+fn does_not_report_dead_island_for_support_only_components() {
+    let snapshot = Snapshot {
+        root: Arc::new(FileNode {
+            path: ".".to_string(),
+            name: ".".to_string(),
+            is_dir: true,
+            lines: 0,
+            logic: 0,
+            comments: 0,
+            blanks: 0,
+            funcs: 0,
+            mtime: 0.0,
+            gs: String::new(),
+            lang: String::new(),
+            sa: None,
+            children: Some(vec![
+                test_file("src/app.ts", 120, 2, 10),
+                test_file(".github/ISSUE_TEMPLATE/config.yml", 20, 1, 1),
+                test_file("plugins/gdscript/tests/sample.gd", 25, 1, 1),
+            ]),
+        }),
+        total_files: 3,
+        total_lines: 165,
+        total_dirs: 1,
+        import_graph: vec![
+            ImportEdge {
+                from_file: "src/app.ts".into(),
+                to_file: "src/app.ts".into(),
+            },
+            ImportEdge {
+                from_file: ".github/ISSUE_TEMPLATE/config.yml".into(),
+                to_file: "plugins/gdscript/tests/sample.gd".into(),
+            },
+        ],
+        call_graph: Vec::new(),
+        inherit_graph: Vec::new(),
+        entry_points: vec![EntryPoint {
+            file: "src/app.ts".into(),
+            func: "main".into(),
+            lang: "typescript".into(),
+            confidence: "high".into(),
+        }],
+        exec_depth: HashMap::new(),
+    };
+    let health = empty_health_report();
+
+    let reports = build_structural_debt_reports(&snapshot, &health);
+
+    assert!(
+        !reports.iter().any(|report| report.kind == "dead_island"),
+        "support-only components should not surface as dead-island debt"
+    );
+}
+
+#[test]
 fn large_file_guarded_facade_reports_role_tags_and_guardrail_evidence() {
     let root = temp_root("sentrux-structural", "guarded-facade", &[]);
     write_file(

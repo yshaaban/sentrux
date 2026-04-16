@@ -5,6 +5,7 @@ mod clones;
 mod concentration;
 mod obligations;
 mod parity;
+mod parity_support;
 mod state;
 mod structural;
 mod test_coverage;

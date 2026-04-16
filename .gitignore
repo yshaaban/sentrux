@@ -11,6 +11,7 @@ target/
 # Runtime data
 .sentrux/baseline.json
 .sentrux/agent-session-events.jsonl
+.sentrux/cache/
 .sentrux/evals/
 *.key
 

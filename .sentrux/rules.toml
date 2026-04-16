@@ -1,50 +1,81 @@
-# Sentrux Architectural Rules
-# These constraints are checked by `sentrux check` and the `check_rules` MCP tool.
+# Sentrux architectural rules for the public repo.
+#
+# Keep this file honest:
+# - legacy rules should reflect the real Rust/CLI layout
+# - v2 rules should describe surfaces the tool can actually check today
+# - avoid synthetic rule coverage that does not improve real user trust
+
+[project]
+primary_language = "rust"
+exclude = [
+  ".sentrux/cache/**",
+  "coverage/**",
+  "docs/archive/**",
+  "node_modules/**",
+  "target/**",
+]
 
 [constraints]
-max_cycles = 0           # No circular dependencies allowed
-max_cc = 25              # Max cyclomatic complexity per function
-max_fn_lines = 100       # Max function length
-no_god_files = false     # Allow god files for now
-
-# Layer definitions: higher order depends on lower order only.
-[[layers]]
-name = "core"
-paths = ["src/core/*"]
-order = 0
-
-[[layers]]
-name = "analysis"
-paths = ["src/analysis/*"]
-order = 1
-
-[[layers]]
-name = "metrics"
-paths = ["src/metrics/*"]
-order = 2
-
-[[layers]]
-name = "layout"
-paths = ["src/layout/*"]
-order = 3
-
-[[layers]]
-name = "renderer"
-paths = ["src/renderer/*"]
-order = 4
+max_cycles = 0
+max_cc = 25
+max_fn_lines = 100
+no_god_files = false
 
 [[layers]]
 name = "app"
-paths = ["src/app/*"]
-order = 5
+paths = [
+  "sentrux-core/src/app/**",
+  "sentrux-bin/src/**",
+]
+order = 0
 
-# Boundary rules: forbidden cross-layer shortcuts
-[[boundaries]]
-from = "src/renderer/*"
-to = "src/analysis/*"
-reason = "Renderer must not depend on analysis directly"
+[[layers]]
+name = "ui"
+paths = [
+  "sentrux-core/src/layout/**",
+  "sentrux-core/src/renderer/**",
+]
+order = 1
 
-[[boundaries]]
-from = "src/layout/*"
-to = "src/app/*"
-reason = "Layout must not depend on app layer"
+[[layers]]
+name = "engine"
+paths = [
+  "sentrux-core/src/core/**",
+  "sentrux-core/src/analysis/**",
+  "sentrux-core/src/metrics/**",
+  "sentrux-core/src/queries/**",
+]
+order = 2
+
+[[concept]]
+id = "ts_bridge_rpc_protocol"
+kind = "interface"
+priority = "critical"
+anchors = [
+  "ts-bridge/src/protocol.ts::dispatchRequest",
+  "ts-bridge/src/protocol.ts::toProjectModel",
+  "ts-bridge/src/protocol.ts::toRequest",
+]
+authoritative_inputs = [
+  "ts-bridge/src/types.ts::JsonRpcRequest",
+  "ts-bridge/src/types.ts::ProjectModel",
+]
+canonical_accessors = [
+  "ts-bridge/src/protocol.ts::dispatchRequest",
+  "ts-bridge/src/protocol.ts::toProjectModel",
+  "ts-bridge/src/protocol.ts::toRequest",
+]
+related_tests = [
+  "ts-bridge/src/protocol.ts",
+  "sentrux-core/src/app/mcp_server/handlers/root_tests.rs",
+]
+
+[[contract]]
+id = "ts_bridge_semantic_transport"
+kind = "runtime_parity"
+priority = "critical"
+categories_symbol = "ts-bridge/src/protocol.ts::PROTOCOL_VERSION"
+payload_map_symbol = "ts-bridge/src/types.ts::SemanticSnapshot"
+registry_symbol = "ts-bridge/src/protocol.ts::dispatchRequest"
+browser_entry = "ts-bridge/src/transport.ts"
+required_capabilities = ["snapshot"]

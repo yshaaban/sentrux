@@ -89,22 +89,7 @@ pub fn render_starter_rules(
 ) -> String {
     let mut lines = render_base_rules_lines(shape, primary_language, existing_excludes);
     for contract in &shape.module_contracts {
-        lines.push(String::new());
-        lines.push("[[module_contract]]".to_string());
-        lines.push(format!("id = {:?}", contract.id));
-        lines.push(format!("root = {:?}", contract.root));
-        lines.push(format!(
-            "public_api = [{}]",
-            quoted_list(&contract.public_api)
-        ));
-        lines.push("forbid_cross_module_deep_imports = true".to_string());
-        lines.push(format!("# confidence: {}", contract.confidence));
-        if !contract.nested_public_api.is_empty() {
-            lines.push(format!(
-                "# observed nested public APIs: {}",
-                contract.nested_public_api.join(", ")
-            ));
-        }
+        push_module_contract_lines(&mut lines, contract, false, true);
     }
 
     if !shape.boundary_roots.is_empty() {
@@ -130,23 +115,41 @@ pub fn render_working_rules(
 ) -> String {
     let mut lines = render_base_rules_lines(shape, primary_language, existing_excludes);
     for contract in &shape.module_contracts {
-        lines.push(String::new());
-        lines.push("[[module_contract]]".to_string());
-        lines.push(format!("id = {:?}", contract.id));
-        lines.push(format!("root = {:?}", contract.root));
-        lines.push(format!(
-            "public_api = [{}]",
-            quoted_list(&contract.public_api)
-        ));
-        if !contract.nested_public_api.is_empty() {
-            lines.push(format!(
-                "nested_public_api = [{}]",
-                quoted_list(&contract.nested_public_api)
-            ));
-        }
-        lines.push("forbid_cross_module_deep_imports = true".to_string());
+        push_module_contract_lines(&mut lines, contract, true, false);
     }
     lines.join("\n") + "\n"
+}
+
+fn push_module_contract_lines(
+    lines: &mut Vec<String>,
+    contract: &ModuleContractSuggestion,
+    include_nested_public_api: bool,
+    include_comments: bool,
+) {
+    lines.push(String::new());
+    lines.push("[[module_contract]]".to_string());
+    lines.push(format!("id = {:?}", contract.id));
+    lines.push(format!("root = {:?}", contract.root));
+    lines.push(format!(
+        "public_api = [{}]",
+        quoted_list(&contract.public_api)
+    ));
+    if include_nested_public_api && !contract.nested_public_api.is_empty() {
+        lines.push(format!(
+            "nested_public_api = [{}]",
+            quoted_list(&contract.nested_public_api)
+        ));
+    }
+    lines.push("forbid_cross_module_deep_imports = true".to_string());
+    if include_comments {
+        lines.push(format!("# confidence: {}", contract.confidence));
+        if !contract.nested_public_api.is_empty() {
+            lines.push(format!(
+                "# observed nested public APIs: {}",
+                contract.nested_public_api.join(", ")
+            ));
+        }
+    }
 }
 
 fn render_base_rules_lines(
@@ -201,110 +204,155 @@ fn collect_manifest_keys(section: Option<&serde_json::Value>, dependencies: &mut
     }
 }
 
+fn any_matching_path(file_paths: &[String], predicate: impl Fn(&str) -> bool) -> bool {
+    file_paths.iter().any(|path| predicate(path))
+}
+
+fn has_http_handlers(file_paths: &[String]) -> bool {
+    any_matching_path(file_paths, |path| {
+        path.starts_with("src/routes/")
+            || path.starts_with("src/controllers/")
+            || path.starts_with("src/api/")
+            || path.starts_with("src/server/routes/")
+            || path.starts_with("src/server/controllers/")
+    })
+}
+
+fn has_service_layer(file_paths: &[String]) -> bool {
+    any_matching_path(file_paths, |path| {
+        path.starts_with("src/services/") || path.contains("/services/")
+    })
+}
+
+fn has_provider_stack(file_paths: &[String]) -> bool {
+    any_matching_path(file_paths, |path| {
+        path == "src/app/providers.tsx"
+            || path.starts_with("src/providers/")
+            || path.contains("/providers/")
+            || path.starts_with("src/contexts/")
+            || path.contains("/contexts/")
+    })
+}
+
+fn has_state_layer(file_paths: &[String]) -> bool {
+    any_matching_path(file_paths, |path| {
+        path.starts_with("src/store/")
+            || path.contains("/store/")
+            || path.ends_with(".store.ts")
+            || path.ends_with(".store.tsx")
+    })
+}
+
+fn has_query_layer(file_paths: &[String]) -> bool {
+    any_matching_path(file_paths, |path| {
+        path.starts_with("src/hooks/queries/")
+            || path.contains("/hooks/queries/")
+            || path.contains("/controllers/use-")
+            || path.contains("/hooks/use-")
+    })
+}
+
+fn has_persistence_layer(file_paths: &[String]) -> bool {
+    any_matching_path(file_paths, |path| {
+        path.starts_with("src/repositories/")
+            || path.starts_with("src/db/")
+            || path.starts_with("src/persistence/")
+            || path.contains("/repositories/")
+            || path.contains("/persistence/")
+    })
+}
+
+fn has_middleware_stack(file_paths: &[String]) -> bool {
+    any_matching_path(file_paths, |path| {
+        path.starts_with("src/middleware/")
+            || path.contains("/middleware/")
+            || path.ends_with("/middleware.ts")
+            || path.ends_with("/middleware.tsx")
+    })
+}
+
+fn push_capability_if(capabilities: &mut Vec<String>, enabled: bool, capability: &str) {
+    if enabled {
+        capabilities.push(capability.to_string());
+    }
+}
+
 fn detect_capabilities(
     file_paths: &[String],
     workspace_files: &[String],
     package_signals: &PackageManifestSignals,
 ) -> Vec<String> {
     let mut capabilities = Vec::new();
-    let has_src_app = file_paths.iter().any(|path| path.starts_with("src/app/"));
-    let has_app_router_entries = file_paths.iter().any(|path| is_app_router_entry_path(path));
-    let has_api_routes = file_paths
-        .iter()
-        .any(|path| path.starts_with("src/app/api/") && is_route_handler_path(path));
-    let has_modules_root = file_paths
-        .iter()
-        .any(|path| path.starts_with("src/modules/"));
+    let has_src_app = any_matching_path(file_paths, |path| path.starts_with("src/app/"));
+    let has_app_router_entries = any_matching_path(file_paths, is_app_router_entry_path);
+    let has_api_routes = any_matching_path(file_paths, |path| {
+        path.starts_with("src/app/api/") && is_route_handler_path(path)
+    });
+    let has_modules_root = any_matching_path(file_paths, |path| path.starts_with("src/modules/"));
     let feature_module_count = feature_module_names(file_paths).len();
-    let has_http_handlers = file_paths.iter().any(|path| {
-        path.starts_with("src/routes/")
-            || path.starts_with("src/controllers/")
-            || path.starts_with("src/api/")
-            || path.starts_with("src/server/routes/")
-            || path.starts_with("src/server/controllers/")
-    });
-    let has_service_layer = file_paths
-        .iter()
-        .any(|path| path.starts_with("src/services/") || path.contains("/services/"));
-    let has_provider_stack = file_paths.iter().any(|path| {
-        path == "src/app/providers.tsx"
-            || path.starts_with("src/providers/")
-            || path.contains("/providers/")
-            || path.starts_with("src/contexts/")
-            || path.contains("/contexts/")
-    });
-    let has_state_layer = file_paths.iter().any(|path| {
-        path.starts_with("src/store/")
-            || path.contains("/store/")
-            || path.ends_with(".store.ts")
-            || path.ends_with(".store.tsx")
-    });
-    let has_query_layer = file_paths.iter().any(|path| {
-        path.starts_with("src/hooks/queries/")
-            || path.contains("/hooks/queries/")
-            || path.contains("/controllers/use-")
-            || path.contains("/hooks/use-")
-    });
-    let has_persistence_layer = file_paths.iter().any(|path| {
-        path.starts_with("src/repositories/")
-            || path.starts_with("src/db/")
-            || path.starts_with("src/persistence/")
-            || path.contains("/repositories/")
-            || path.contains("/persistence/")
-    });
-    let has_middleware_stack = file_paths.iter().any(|path| {
-        path.starts_with("src/middleware/")
-            || path.contains("/middleware/")
-            || path.ends_with("/middleware.ts")
-            || path.ends_with("/middleware.tsx")
-    });
-    let has_localized_routing = file_paths
-        .iter()
-        .any(|path| path.starts_with("src/app/[locale]/"));
+    let has_localized_routing =
+        any_matching_path(file_paths, |path| path.starts_with("src/app/[locale]/"));
 
-    if package_signals.has_next
-        || workspace_files
-            .iter()
-            .any(|path| path.starts_with("next.config"))
-    {
-        capabilities.push("nextjs".to_string());
-    }
-    if package_signals.has_react {
-        capabilities.push("react".to_string());
-    }
-    if has_src_app && has_app_router_entries {
-        capabilities.push("app_router".to_string());
-    }
-    if has_api_routes {
-        capabilities.push("api_routes".to_string());
-    }
-    if has_http_handlers {
-        capabilities.push("http_handlers".to_string());
-    }
-    if has_modules_root && feature_module_count >= 1 {
-        capabilities.push("feature_modules".to_string());
-    }
-    if has_service_layer {
-        capabilities.push("service_layer".to_string());
-    }
-    if has_provider_stack {
-        capabilities.push("provider_stack".to_string());
-    }
-    if has_state_layer || package_signals.has_zustand {
-        capabilities.push("client_state".to_string());
-    }
-    if has_query_layer || package_signals.has_react_query {
-        capabilities.push("query_layer".to_string());
-    }
-    if has_persistence_layer {
-        capabilities.push("persistence_layer".to_string());
-    }
-    if has_middleware_stack {
-        capabilities.push("middleware_stack".to_string());
-    }
-    if has_localized_routing {
-        capabilities.push("localized_routing".to_string());
-    }
+    push_capability_if(
+        &mut capabilities,
+        package_signals.has_next
+            || workspace_files
+                .iter()
+                .any(|path| path.starts_with("next.config")),
+        "nextjs",
+    );
+    push_capability_if(&mut capabilities, package_signals.has_react, "react");
+    push_capability_if(
+        &mut capabilities,
+        has_src_app && has_app_router_entries,
+        "app_router",
+    );
+    push_capability_if(&mut capabilities, has_api_routes, "api_routes");
+    push_capability_if(
+        &mut capabilities,
+        has_http_handlers(file_paths),
+        "http_handlers",
+    );
+    push_capability_if(
+        &mut capabilities,
+        has_modules_root && feature_module_count >= 1,
+        "feature_modules",
+    );
+    push_capability_if(
+        &mut capabilities,
+        has_service_layer(file_paths),
+        "service_layer",
+    );
+    push_capability_if(
+        &mut capabilities,
+        has_provider_stack(file_paths),
+        "provider_stack",
+    );
+    push_capability_if(
+        &mut capabilities,
+        has_state_layer(file_paths) || package_signals.has_zustand,
+        "client_state",
+    );
+    push_capability_if(
+        &mut capabilities,
+        has_query_layer(file_paths) || package_signals.has_react_query,
+        "query_layer",
+    );
+    push_capability_if(
+        &mut capabilities,
+        has_persistence_layer(file_paths),
+        "persistence_layer",
+    );
+    push_capability_if(
+        &mut capabilities,
+        has_middleware_stack(file_paths),
+        "middleware_stack",
+    );
+    push_capability_if(
+        &mut capabilities,
+        has_localized_routing,
+        "localized_routing",
+    );
 
     dedupe_strings(capabilities)
 }

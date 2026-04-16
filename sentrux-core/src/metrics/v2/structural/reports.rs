@@ -689,6 +689,9 @@ pub(super) fn build_dead_island_reports(
             if is_app_reachable {
                 return None;
             }
+            if component.iter().all(|path| is_dead_island_support_path(path)) {
+                return None;
+            }
 
             let public_surface_count = component
                 .iter()
@@ -813,6 +816,24 @@ pub(super) fn build_dead_island_reports(
             }))
         })
         .collect()
+}
+
+fn is_dead_island_support_path(path: &str) -> bool {
+    let normalized = path.to_ascii_lowercase();
+    normalized.starts_with(".github/")
+        || normalized.starts_with("docs/")
+        || normalized.starts_with("examples/")
+        || normalized.starts_with("samples/")
+        || normalized.starts_with("fixtures/")
+        || normalized.starts_with("test/")
+        || normalized.starts_with("tests/")
+        || normalized.starts_with("testdata/")
+        || normalized.contains("/examples/")
+        || normalized.contains("/samples/")
+        || normalized.contains("/fixtures/")
+        || normalized.contains("/test/")
+        || normalized.contains("/tests/")
+        || normalized.contains("/testdata/")
 }
 
 fn dependency_category_summaries(paths: Option<&BTreeSet<String>>, limit: usize) -> Vec<String> {
