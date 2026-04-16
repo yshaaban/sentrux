@@ -17,6 +17,18 @@ async function writeJson(targetPath, value) {
   await writeFile(targetPath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
 }
 
+function buildRepoHeadCheckPacket(actions) {
+  return buildPacketFromRepoHeadPayload(
+    {
+      tool: 'check',
+      limit: 1,
+      repoRoot: '/tmp/sentrux',
+      kinds: [],
+    },
+    { actions },
+  );
+}
+
 test('loadArtifactInput reads a single bundle artifact', async function () {
   const tempRoot = await mkdtemp(path.join(tmpdir(), 'sentrux-review-packet-bundle-'));
   try {
@@ -543,4 +555,41 @@ test('buildPacketFromRepoHeadPayload reuses scan metadata and clone scope when t
 
   assert.match(markdown, /Findings Review Packet/);
   assert.match(markdown, /src\/a\.ts \\\| src\/b\.ts/);
+});
+
+test('buildPacketFromRepoHeadPayload keeps repair packets incomplete when only a fix hint is present', function () {
+  const packet = buildRepoHeadCheckPacket([
+    {
+      kind: 'cycle_cluster',
+      scope: 'cycle:src/a.ts|src/b.ts',
+      summary: 'Two files still depend on each other.',
+      evidence: ['src/a.ts imports src/b.ts', 'src/b.ts imports src/a.ts'],
+      fix_hint: 'Break the cycle before merging.',
+    },
+  ]);
+
+  assert.equal(packet.samples[0].repair_packet.complete, false);
+  assert.deepEqual(packet.samples[0].repair_packet.likely_fix_sites, []);
+  assert.equal(packet.samples[0].repair_packet.required_fields.repair_surface, false);
+  assert.match(packet.samples[0].repair_packet.missing_fields.join(', '), /repair_surface/);
+});
+
+test('buildPacketFromRepoHeadPayload marks repair packets complete when likely fix sites are concrete', function () {
+  const packet = buildRepoHeadCheckPacket([
+    {
+      kind: 'dependency_sprawl',
+      scope: 'src/app.ts',
+      summary: 'Entry surface fans out across too many modules.',
+      evidence: ['imports 18 modules directly'],
+      likely_fix_sites: ['src/app.ts', 'src/app-shell.ts'],
+      fix_hint: 'Pull wiring into a smaller composition root.',
+    },
+  ]);
+
+  assert.equal(packet.samples[0].repair_packet.complete, true);
+  assert.equal(packet.samples[0].repair_packet.required_fields.repair_surface, true);
+  assert.deepEqual(packet.samples[0].repair_packet.likely_fix_sites, [
+    'src/app.ts',
+    'src/app-shell.ts',
+  ]);
 });

@@ -116,7 +116,7 @@ function buildRepairPacket(sample, scope, summary, evidence, expectedFixSurface)
     scope: hasText(scope),
     summary: hasText(summary),
     evidence: evidence.length > 0,
-    repair_surface: hasText(repairSurface) || hasText(fixHint),
+    repair_surface: hasText(repairSurface),
   };
   const preferredFieldState = {
     fix_hint: hasText(fixHint),

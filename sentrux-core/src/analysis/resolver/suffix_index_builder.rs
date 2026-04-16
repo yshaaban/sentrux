@@ -201,3 +201,40 @@ pub(super) fn build_module_suffix_index<'a>(
         module_prefixes,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::build_module_suffix_index;
+    use crate::test_support::temp_root;
+    use std::collections::{HashMap, HashSet};
+
+    #[test]
+    fn build_module_suffix_index_collects_go_module_prefixes() {
+        let root = temp_root(
+            "sentrux",
+            "suffix-index-builder",
+            &["server", "server/internal/config"],
+        );
+        std::fs::write(
+            root.join("server/go.mod"),
+            "module github.com/acme/service\n\ngo 1.22\n",
+        )
+        .expect("write go.mod");
+
+        let known_files = HashSet::from(["server/internal/config/config.go"]);
+        let project_map = HashMap::from([(
+            "server/internal/config/config.go".to_string(),
+            "server".to_string(),
+        )]);
+
+        let index = build_module_suffix_index(&known_files, &root, &project_map);
+
+        assert!(index
+            .module_prefixes
+            .iter()
+            .any(
+                |(module_path, project_dir)| module_path == "github.com/acme/service"
+                    && project_dir == "server"
+            ));
+    }
+}

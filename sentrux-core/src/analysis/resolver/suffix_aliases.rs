@@ -367,3 +367,57 @@ fn navigate_json<'a>(value: &'a serde_json::Value, path: &str) -> Option<&'a ser
     }
     Some(current)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{apply_path_alias, collect_manifest_path_aliases, load_path_aliases};
+    use crate::test_support::temp_root;
+    use std::collections::HashMap;
+
+    #[test]
+    fn load_path_aliases_reads_project_tsconfig_paths() {
+        let root = temp_root("sentrux", "suffix-aliases", &["web"]);
+        std::fs::write(
+            root.join("web/tsconfig.json"),
+            r#"{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@app/*": ["src/*"]
+    }
+  }
+}
+"#,
+        )
+        .expect("write tsconfig");
+
+        let project_map = HashMap::from([("web/src/main.ts".to_string(), "web".to_string())]);
+        let aliases = load_path_aliases(&project_map, &root);
+        let web_aliases = aliases.get("web").expect("web aliases");
+
+        assert!(web_aliases
+            .iter()
+            .any(|alias| alias.prefix == "@app/" && alias.replacements == vec!["src/"]));
+    }
+
+    #[test]
+    fn collect_manifest_path_aliases_maps_package_name_to_source_root() {
+        let root = temp_root("sentrux", "manifest-aliases", &["web"]);
+        std::fs::write(
+            root.join("web/package.json"),
+            r#"{
+  "name": "web-app"
+}
+"#,
+        )
+        .expect("write package.json");
+
+        let project_map = HashMap::from([("web/src/main.ts".to_string(), "web".to_string())]);
+        let aliases = collect_manifest_path_aliases(&project_map, &root);
+
+        assert_eq!(
+            apply_path_alias("web-app/components/button", &aliases).as_deref(),
+            Some("web/src/components/button")
+        );
+    }
+}

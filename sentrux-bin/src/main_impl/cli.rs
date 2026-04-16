@@ -178,3 +178,74 @@ impl BriefModeArg {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{BriefModeArg, Cli, Command, PluginAction};
+    use clap::Parser;
+
+    fn parse_cli(args: &[&str]) -> Cli {
+        Cli::try_parse_from(args.iter().copied()).expect("parse cli args")
+    }
+
+    #[test]
+    fn hidden_mcp_flag_sets_compatibility_switch_without_command() {
+        let cli = parse_cli(&["sentrux", "--mcp"]);
+
+        assert!(cli.mcp_flag);
+        assert!(cli.command.is_none());
+        assert!(cli.path.is_none());
+    }
+
+    #[test]
+    fn brief_args_preserve_mode_limit_and_path() {
+        let cli = parse_cli(&[
+            "sentrux",
+            "brief",
+            "--mode",
+            "repo-onboarding",
+            "--limit",
+            "5",
+            "fixtures/repo",
+        ]);
+
+        match cli.command {
+            Some(Command::Brief {
+                mode,
+                strict,
+                limit,
+                path,
+            }) => {
+                assert_eq!(mode, BriefModeArg::RepoOnboarding);
+                assert!(!strict);
+                assert_eq!(limit, 5);
+                assert_eq!(path, "fixtures/repo");
+            }
+            _ => panic!("expected brief command"),
+        }
+    }
+
+    #[test]
+    fn scan_command_keeps_optional_gui_path() {
+        let cli = parse_cli(&["sentrux", "scan", "fixtures/repo"]);
+
+        match cli.command {
+            Some(Command::Scan { path }) => {
+                assert_eq!(path.as_deref(), Some("fixtures/repo"));
+            }
+            _ => panic!("expected scan command"),
+        }
+    }
+
+    #[test]
+    fn plugin_subcommand_parses_nested_action() {
+        let cli = parse_cli(&["sentrux", "plugin", "add", "typescript"]);
+
+        match cli.command {
+            Some(Command::Plugin {
+                action: PluginAction::Add { name },
+            }) => assert_eq!(name, "typescript"),
+            _ => panic!("expected plugin add command"),
+        }
+    }
+}
