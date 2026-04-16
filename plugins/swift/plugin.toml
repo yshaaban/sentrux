@@ -12,7 +12,7 @@ license = "MIT"
 
 [grammar]
 source = "https://github.com/alex-pinkus/tree-sitter-swift"
-ref = "main"
+ref = "64f26c3a6e9e6cf4f77165c8283e35a26b7825a7"
 abi_version = 14
 
 [queries]

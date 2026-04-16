@@ -51,18 +51,26 @@ function configure_platform() {
       CC_BIN="cc"
       CXX_BIN="c++"
       CC_FLAGS=(-arch arm64)
+      LINK_FLAGS=(-dynamiclib -undefined dynamic_lookup)
       ;;
     linux-x86_64)
       GRAMMAR_EXT="so"
       CC_BIN="cc"
       CXX_BIN="c++"
       CC_FLAGS=()
+      LINK_FLAGS=(-shared)
       ;;
     linux-aarch64)
       GRAMMAR_EXT="so"
-      CC_BIN="aarch64-linux-gnu-gcc"
-      CXX_BIN="aarch64-linux-gnu-g++"
+      if [[ "$(uname -m)" == "aarch64" || "$(uname -m)" == "arm64" ]]; then
+        CC_BIN="cc"
+        CXX_BIN="c++"
+      else
+        CC_BIN="aarch64-linux-gnu-gcc"
+        CXX_BIN="aarch64-linux-gnu-g++"
+      fi
       CC_FLAGS=()
+      LINK_FLAGS=(-shared)
       ;;
     *)
       echo "Unsupported platform: $PLATFORM" >&2
@@ -76,8 +84,18 @@ function clone_grammar_source() {
   local ref="$2"
   local dest="$3"
 
-  if [[ -n "$ref" ]] && git clone --depth 1 --branch "$ref" "$source" "$dest" >/dev/null 2>&1; then
-    return 0
+  if [[ -n "$ref" ]]; then
+    mkdir -p "$dest"
+    if git -C "$dest" init -q >/dev/null 2>&1 &&
+      git -C "$dest" remote add origin "$source" >/dev/null 2>&1 &&
+      git -C "$dest" fetch --depth 1 origin "$ref" >/dev/null 2>&1 &&
+      git -C "$dest" checkout --detach FETCH_HEAD >/dev/null 2>&1; then
+      return 0
+    fi
+
+    rm -rf "$dest"
+    echo "Failed to fetch pinned grammar ref ${ref} from ${source}" >&2
+    return 1
   fi
 
   git clone --depth 1 "$source" "$dest" >/dev/null 2>&1
@@ -116,8 +134,55 @@ function install_node_dependencies() {
   fi
 
   pushd "$install_dir" >/dev/null
-  npm install --ignore-scripts >/dev/null
+  if [[ -f package-lock.json || -f npm-shrinkwrap.json ]]; then
+    npm ci --ignore-scripts >/dev/null
+    popd >/dev/null
+    return 0
+  fi
+
+  echo "Refusing to install floating npm dependencies in ${install_dir} without a lockfile" >&2
   popd >/dev/null
+  return 1
+}
+
+function find_locked_package_root() {
+  local current_dir="$1"
+  local repo_root="$2"
+
+  while true; do
+    if [[ -f "$current_dir/package.json" ]] &&
+      [[ -f "$current_dir/package-lock.json" || -f "$current_dir/npm-shrinkwrap.json" ]]; then
+      printf '%s\n' "$current_dir"
+      return 0
+    fi
+
+    if [[ "$current_dir" == "$repo_root" || "$current_dir" == "/" ]]; then
+      return 1
+    fi
+
+    current_dir="$(dirname "$current_dir")"
+  done
+}
+
+function generate_parser_sources() {
+  local repo_root="$1"
+
+  if tree-sitter generate >/dev/null 2>&1; then
+    return 0
+  fi
+
+  local install_dir
+  install_dir="$(find_locked_package_root "$PWD" "$repo_root" || true)"
+  if [[ -z "$install_dir" ]]; then
+    echo "Refusing to install floating npm dependencies in $PWD without a lockfile" >&2
+    return 1
+  fi
+
+  if ! install_node_dependencies "$install_dir"; then
+    return 1
+  fi
+
+  tree-sitter generate >/dev/null || return 1
 }
 
 function build_grammar() {
@@ -137,10 +202,9 @@ function build_grammar() {
   fi
 
   local clone_dir="$work_dir/grammar-src-$plugin_name"
-  clone_grammar_source "$source" "$ref" "$clone_dir"
+  clone_grammar_source "$source" "$ref" "$clone_dir" || return 1
 
-  pushd "$clone_dir" >/dev/null
-  install_node_dependencies "."
+  pushd "$clone_dir" >/dev/null || return 1
   local grammar_dir
   grammar_dir="$(find_grammar_dir "$plugin_name")"
   if [[ -z "$grammar_dir" ]]; then
@@ -149,11 +213,8 @@ function build_grammar() {
     return 1
   fi
 
-  pushd "$grammar_dir" >/dev/null
-  if [[ "$grammar_dir" != "." ]]; then
-    install_node_dependencies "."
-  fi
-  tree-sitter generate >/dev/null
+  pushd "$grammar_dir" >/dev/null || return 1
+  generate_parser_sources "$clone_dir" || return 1
 
   local src_dir="src"
   if [[ ! -f "$src_dir/parser.c" ]]; then
@@ -181,20 +242,20 @@ function build_grammar() {
   local objects=("parser.o")
 
   if [[ -f "$src_dir/scanner.c" ]]; then
-    "$CC_BIN" -c -fPIC -O2 -Wall "${CC_FLAGS[@]}" -I "$src_dir" "$src_dir/scanner.c" -o scanner.o
+    "$CC_BIN" -c -fPIC -O2 -Wall "${CC_FLAGS[@]}" -I "$src_dir" "$src_dir/scanner.c" -o scanner.o || return 1
     objects+=("scanner.o")
   fi
 
   if [[ -f "$src_dir/scanner.cc" ]]; then
-    "$CXX_BIN" -c -fPIC -O2 -Wall "${CC_FLAGS[@]}" -I "$src_dir" "$src_dir/scanner.cc" -o scanner_cc.o
+    "$CXX_BIN" -c -fPIC -O2 -Wall "${CC_FLAGS[@]}" -I "$src_dir" "$src_dir/scanner.cc" -o scanner_cc.o || return 1
     objects+=("scanner_cc.o")
-    "$CXX_BIN" -shared "${CC_FLAGS[@]}" "${objects[@]}" -o "$out_dir/$plugin_name.$GRAMMAR_EXT"
+    "$CXX_BIN" "${LINK_FLAGS[@]}" "${CC_FLAGS[@]}" "${objects[@]}" -o "$out_dir/$plugin_name.$GRAMMAR_EXT" || return 1
   else
-    "$CC_BIN" -shared "${CC_FLAGS[@]}" "${objects[@]}" -o "$out_dir/$plugin_name.$GRAMMAR_EXT"
+    "$CC_BIN" "${LINK_FLAGS[@]}" "${CC_FLAGS[@]}" "${objects[@]}" -o "$out_dir/$plugin_name.$GRAMMAR_EXT" || return 1
   fi
 
-  popd >/dev/null
-  popd >/dev/null
+  popd >/dev/null || return 1
+  popd >/dev/null || return 1
 }
 
 function package_bundle() {

@@ -12,7 +12,7 @@ license = "MIT"
 
 [grammar]
 source = "https://github.com/90-008/tree-sitter-protobuf"
-ref = "main"
+ref = "5aef38d655f76a6b0d172340eed3766c93b3124c"
 abi_version = 14
 
 [queries]

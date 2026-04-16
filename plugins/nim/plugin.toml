@@ -12,7 +12,7 @@ license = "MIT"
 
 [grammar]
 source = "https://github.com/aMOPel/tree-sitter-nim"
-ref = "main"
+ref = "4900b68ead86049b67c4f7dfc4a805f170a7970e"
 abi_version = 14
 
 [queries]

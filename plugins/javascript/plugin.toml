@@ -12,7 +12,7 @@ license = "MIT"
 
 [grammar]
 source = "https://github.com/tree-sitter/tree-sitter-javascript"
-ref = "master"
+ref = "58404d8cf191d69f2674a8fd507bd5776f46cb11"
 abi_version = 14
 
 [queries]

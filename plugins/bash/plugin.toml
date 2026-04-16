@@ -13,7 +13,7 @@ license = "MIT"
 
 [grammar]
 source = "https://github.com/tree-sitter/tree-sitter-bash"
-ref = "master"
+ref = "a06c2e4415e9bc0346c6b86d401879ffb44058f7"
 abi_version = 14
 
 [queries]

@@ -12,7 +12,7 @@ license = "MIT"
 
 [grammar]
 source = "https://github.com/tree-sitter-perl/tree-sitter-perl"
-ref = "master"
+ref = "21fd668a42b620617c9a0a97b2ca6a9a3ef8ef43"
 abi_version = 14
 
 [queries]

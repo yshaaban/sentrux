@@ -7,7 +7,7 @@ color_rgb = [130, 75, 50]
 
 [grammar]
 source = "https://github.com/tree-sitter-grammars/tree-sitter-toml"
-ref = "master"
+ref = "64b56832c2cffe41758f28e05c756a3a98d16f41"
 abi_version = 14
 
 [queries]

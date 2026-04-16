@@ -12,7 +12,7 @@ license = "MIT"
 
 [grammar]
 source = "https://github.com/crystal-lang-tools/tree-sitter-crystal"
-ref = "main"
+ref = "50ca9e6fcfb16a2cbcad59203cfd8ad650e25c49"
 abi_version = 14
 
 [queries]

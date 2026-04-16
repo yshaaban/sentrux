@@ -12,7 +12,7 @@ license = "MIT"
 
 [grammar]
 source = "https://github.com/Isopod/tree-sitter-pascal"
-ref = "master"
+ref = "042119eca2e18a60e56317fb06ee3ba5c32cb447"
 abi_version = 14
 
 [queries]

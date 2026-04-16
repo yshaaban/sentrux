@@ -12,7 +12,7 @@ license = "MIT"
 
 [grammar]
 source = "https://github.com/tree-sitter/tree-sitter-cpp"
-ref = "master"
+ref = "8b5b49eb196bec7040441bee33b2c9a4838d6967"
 abi_version = 14
 
 [queries]

@@ -12,7 +12,7 @@ license = "MIT"
 
 [grammar]
 source = "https://github.com/fwcd/tree-sitter-kotlin"
-ref = "main"
+ref = "55622a49bd59ca42cec5c01ba5251bb4da9b8930"
 abi_version = 14
 
 [queries]

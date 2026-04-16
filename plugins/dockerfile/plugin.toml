@@ -13,7 +13,7 @@ license = "MIT"
 
 [grammar]
 source = "https://github.com/camdencheek/tree-sitter-dockerfile"
-ref = "main"
+ref = "971acdd908568b4531b0ba28a445bf0bb720aba5"
 abi_version = 14
 
 [queries]

@@ -72,9 +72,11 @@ fn main() {
         // Find safe raw string delimiter
         let td = find_safe_delim(toml);
         let sd = find_safe_delim(scm);
-        code.push_str(&format!("    (\"{name}\",\n"));
-        code.push_str(&format!("r{td}\"{toml}\"{td},\n"));
-        code.push_str(&format!("r{sd}\"{scm}\"{sd}),\n"));
+        code.push_str("    (\n");
+        code.push_str(&format!("        \"{name}\",\n"));
+        code.push_str(&format!("        r{td}\"{toml}\"{td},\n"));
+        code.push_str(&format!("        r{sd}\"{scm}\"{sd},\n"));
+        code.push_str("    ),\n");
     }
 
     code.push_str("];\n");

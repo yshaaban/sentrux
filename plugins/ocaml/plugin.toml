@@ -12,7 +12,7 @@ license = "MIT"
 
 [grammar]
 source = "https://github.com/tree-sitter/tree-sitter-ocaml"
-ref = "master"
+ref = "be8d9493f39f2425d625aabb7259452085be91df"
 abi_version = 14
 
 [queries]

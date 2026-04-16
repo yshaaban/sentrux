@@ -12,7 +12,7 @@ license = "MIT"
 
 [grammar]
 source = "https://github.com/yutaro-sakamoto/tree-sitter-cobol"
-ref = "main"
+ref = "e99dbdc3d800d5fa2796476efd60af91f6b43d93"
 abi_version = 14
 symbol_name = "COBOL"
 

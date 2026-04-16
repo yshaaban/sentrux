@@ -12,7 +12,7 @@ license = "MIT"
 
 [grammar]
 source = "https://github.com/tree-sitter-grammars/tree-sitter-svelte"
-ref = "master"
+ref = "ae5199db47757f785e43a14b332118a5474de1a2"
 abi_version = 14
 
 [queries]

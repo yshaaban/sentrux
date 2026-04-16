@@ -11,7 +11,7 @@ license = "MIT"
 
 [grammar]
 source = "https://github.com/tree-sitter/tree-sitter-html"
-ref = "master"
+ref = "73a3947324f6efddf9e17c0ea58d454843590cc0"
 abi_version = 14
 
 [queries]

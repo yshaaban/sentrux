@@ -12,7 +12,7 @@ license = "MIT"
 
 [grammar]
 source = "https://github.com/JoranHonig/tree-sitter-solidity"
-ref = "master"
+ref = "048fe686cb1fde267243739b8bdbec8fc3a55272"
 abi_version = 14
 
 [queries]

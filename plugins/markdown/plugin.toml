@@ -12,7 +12,7 @@ license = "MIT"
 
 [grammar]
 source = "https://github.com/tree-sitter-grammars/tree-sitter-markdown"
-ref = "split_parser"
+ref = "f969cd3ae3f9fbd4e43205431d0ae286014c05b5"
 abi_version = 14
 symbol_name = "markdown_inline"
 

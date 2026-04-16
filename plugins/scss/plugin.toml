@@ -12,7 +12,7 @@ license = "MIT"
 
 [grammar]
 source = "https://github.com/serenadeai/tree-sitter-scss"
-ref = "master"
+ref = "c478c6868648eff49eb04a4df90d703dc45b312a"
 abi_version = 14
 
 [queries]

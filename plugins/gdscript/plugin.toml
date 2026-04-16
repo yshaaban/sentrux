@@ -14,7 +14,7 @@ description = "GDScript support for Godot game engine projects"
 
 [grammar]
 source = "https://github.com/PrestonKnopp/tree-sitter-gdscript"
-ref = "master"
+ref = "89e66b6bdc002ab976283f277cbb48b780c5d0e9"
 abi_version = 14
 
 [queries]

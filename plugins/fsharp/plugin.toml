@@ -12,7 +12,7 @@ license = "MIT"
 
 [grammar]
 source = "https://github.com/ionide/tree-sitter-fsharp"
-ref = "main"
+ref = "b576ecf7ced09c0cd74a39618694512dcfc6c110"
 abi_version = 14
 
 [queries]

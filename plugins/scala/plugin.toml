@@ -12,7 +12,7 @@ license = "MIT"
 
 [grammar]
 source = "https://github.com/tree-sitter/tree-sitter-scala"
-ref = "master"
+ref = "a06047ee441bd02ca6ebcc0f913737b7c6e178e1"
 abi_version = 14
 
 [queries]
