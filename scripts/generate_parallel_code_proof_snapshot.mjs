@@ -184,13 +184,7 @@ function selectDuplicationTarget(snapshot) {
   };
 }
 
-function buildMarkdown(snapshot) {
-  const lines = [];
-  lines.push('# Parallel-Code Proof Snapshot');
-  lines.push('');
-  lines.push(`Generated from: \`${snapshot.generated_from.golden_dir}\``);
-  lines.push(`Benchmark: \`${snapshot.generated_from.benchmark_path}\``);
-  lines.push('');
+function appendFreshnessSection(lines, snapshot) {
   lines.push('## Freshness');
   lines.push('');
   lines.push(
@@ -225,15 +219,20 @@ function buildMarkdown(snapshot) {
   lines.push(
     `- binary sha256: \`${snapshot.generated_from.metadata.binary_identity?.sha256 ?? 'unknown'}\``,
   );
-  if ((snapshot.generated_from.metadata.source_tree_identity?.dirty_paths ?? []).length > 0) {
+
+  const dirtyPaths = snapshot.generated_from.metadata.source_tree_identity?.dirty_paths ?? [];
+  if (dirtyPaths.length > 0) {
     lines.push('- dirty path list:');
-    for (const dirtyPath of snapshot.generated_from.metadata.source_tree_identity.dirty_paths) {
+    for (const dirtyPath of dirtyPaths) {
       lines.push(`  - \`${dirtyPath}\``);
     }
   } else {
     lines.push('- dirty path list: none');
   }
   lines.push('');
+}
+
+function appendTopFindingsSection(lines, snapshot) {
   lines.push('## Top Findings');
   lines.push('');
   for (const finding of snapshot.top_findings) {
@@ -245,69 +244,47 @@ function buildMarkdown(snapshot) {
     }
   }
   lines.push('');
-  lines.push('## Experimental Findings');
+}
+
+function appendOptionalFindingSection(lines, title, findings) {
+  lines.push(`## ${title}`);
   lines.push('');
-  for (const finding of snapshot.experimental_findings) {
+  for (const finding of findings) {
     lines.push(
       `- \`${finding.severity}\` \`${finding.kind}\` ${finding.summary}`,
     );
   }
-  if (snapshot.experimental_findings.length === 0) {
+  if (findings.length === 0) {
     lines.push('- none');
   }
   lines.push('');
-  lines.push('## Concept Summaries');
+}
+
+function appendSimpleSummarySection(lines, title, items, formatItem) {
+  lines.push(`## ${title}`);
   lines.push('');
-  for (const summary of snapshot.concept_summaries) {
-    lines.push(
-      `- \`${summary.concept_id}\` \`${summary.score_band ?? 'supporting_signal'}\`: ${summary.summary}`,
-    );
+  for (const item of items) {
+    lines.push(formatItem(item));
+  }
+  if (items.length === 0) {
+    lines.push('- none');
   }
   lines.push('');
+}
+
+function appendFindingDetailsSection(lines, details) {
   lines.push('## Finding Details');
   lines.push('');
-  for (const detail of snapshot.finding_details) {
+  for (const detail of details) {
     lines.push(
       `- \`${detail.trust_tier ?? 'trusted'}\` \`${detail.severity}\` \`${detail.kind}\` \`${detail.scope}\`: ${detail.summary}`,
     );
     lines.push(`  - impact: ${detail.impact}`);
   }
   lines.push('');
-  lines.push('## Debt Signals');
-  lines.push('');
-  for (const signal of snapshot.debt_signals) {
-    lines.push(
-      `- \`${signal.trust_tier}\` \`${signal.kind}\` \`${signal.scope}\` \`${signal.score_band ?? 'supporting_signal'}\`: ${signal.summary}`,
-    );
-  }
-  lines.push('');
-  lines.push('## Experimental Debt Signals');
-  lines.push('');
-  for (const signal of snapshot.experimental_debt_signals) {
-    lines.push(
-      `- \`${signal.kind}\` \`${signal.scope}\` \`${signal.score_band ?? 'supporting_signal'}\`: ${signal.summary}`,
-    );
-  }
-  if (snapshot.experimental_debt_signals.length === 0) {
-    lines.push('- none');
-  }
-  lines.push('');
-  lines.push('## Debt Clusters');
-  lines.push('');
-  for (const cluster of snapshot.debt_clusters) {
-    lines.push(
-      `- \`${cluster.trust_tier}\` \`${cluster.scope}\` \`${cluster.score_band ?? 'supporting_signal'}\`: ${cluster.summary}`,
-    );
-  }
-  lines.push('');
-  lines.push('## Watchpoints');
-  lines.push('');
-  for (const watchpoint of snapshot.watchpoints) {
-    lines.push(
-      `- \`${watchpoint.trust_tier ?? 'watchpoint'}\` \`${watchpoint.scope}\` \`${watchpoint.score_band ?? 'supporting_signal'}\`: ${watchpoint.summary}`,
-    );
-  }
-  lines.push('');
+}
+
+function appendProofTargetsSection(lines, snapshot) {
   lines.push('## Proof Targets');
   lines.push('');
   lines.push(
@@ -328,6 +305,9 @@ function buildMarkdown(snapshot) {
     }`,
   );
   lines.push('');
+}
+
+function appendBenchmarkSection(lines, snapshot) {
   lines.push('## Benchmark Baseline');
   lines.push('');
   lines.push(
@@ -339,6 +319,41 @@ function buildMarkdown(snapshot) {
   lines.push(
     `- warm patch-safety total: ${snapshot.benchmark.warm_patch_safety_total_ms ?? 'n/a'} ms`,
   );
+}
+
+function buildMarkdown(snapshot) {
+  const lines = [];
+  lines.push('# Parallel-Code Proof Snapshot');
+  lines.push('');
+  lines.push(`Generated from: \`${snapshot.generated_from.golden_dir}\``);
+  lines.push(`Benchmark: \`${snapshot.generated_from.benchmark_path}\``);
+  lines.push('');
+  appendFreshnessSection(lines, snapshot);
+  appendTopFindingsSection(lines, snapshot);
+  appendOptionalFindingSection(lines, 'Experimental Findings', snapshot.experimental_findings);
+  appendSimpleSummarySection(lines, 'Concept Summaries', snapshot.concept_summaries, function formatConcept(summary) {
+    return `- \`${summary.concept_id}\` \`${summary.score_band ?? 'supporting_signal'}\`: ${summary.summary}`;
+  });
+  appendFindingDetailsSection(lines, snapshot.finding_details);
+  appendSimpleSummarySection(lines, 'Debt Signals', snapshot.debt_signals, function formatSignal(signal) {
+    return `- \`${signal.trust_tier}\` \`${signal.kind}\` \`${signal.scope}\` \`${signal.score_band ?? 'supporting_signal'}\`: ${signal.summary}`;
+  });
+  appendSimpleSummarySection(
+    lines,
+    'Experimental Debt Signals',
+    snapshot.experimental_debt_signals,
+    function formatExperimentalSignal(signal) {
+      return `- \`${signal.kind}\` \`${signal.scope}\` \`${signal.score_band ?? 'supporting_signal'}\`: ${signal.summary}`;
+    },
+  );
+  appendSimpleSummarySection(lines, 'Debt Clusters', snapshot.debt_clusters, function formatCluster(cluster) {
+    return `- \`${cluster.trust_tier}\` \`${cluster.scope}\` \`${cluster.score_band ?? 'supporting_signal'}\`: ${cluster.summary}`;
+  });
+  appendSimpleSummarySection(lines, 'Watchpoints', snapshot.watchpoints, function formatWatchpoint(watchpoint) {
+    return `- \`${watchpoint.trust_tier ?? 'watchpoint'}\` \`${watchpoint.scope}\` \`${watchpoint.score_band ?? 'supporting_signal'}\`: ${watchpoint.summary}`;
+  });
+  appendProofTargetsSection(lines, snapshot);
+  appendBenchmarkSection(lines, snapshot);
 
   return `${lines.join('\n')}\n`;
 }

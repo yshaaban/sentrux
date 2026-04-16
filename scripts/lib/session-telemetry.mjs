@@ -1,12 +1,5 @@
-import { readFile } from 'node:fs/promises';
-
-function safeRatio(numerator, denominator) {
-  if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator <= 0) {
-    return null;
-  }
-
-  return Number((numerator / denominator).toFixed(3));
-}
+import { readFile, writeFile } from 'node:fs/promises';
+import { ensureMapEntry, safeRatio } from './signal-summary-utils.mjs';
 
 function parseJsonLine(line) {
   if (!line.trim()) {
@@ -136,11 +129,7 @@ function cloneSignalEntry(signal) {
 }
 
 function ensureSignalEntry(signalMap, signalKind) {
-  if (!signalMap.has(signalKind)) {
-    signalMap.set(signalKind, createSignalEntry(signalKind));
-  }
-
-  return signalMap.get(signalKind);
+  return ensureMapEntry(signalMap, signalKind, createSignalEntry);
 }
 
 function summarizeSession(sessionRunId, events, signalMap) {
@@ -249,6 +238,38 @@ export async function loadSessionTelemetrySummary(sessionEventsPath, overrides =
     repoRoot: overrides.repoRoot ?? events[0]?.repo_root ?? null,
     sourcePath: sessionEventsPath,
   });
+}
+
+export function createEmptySessionTelemetrySummary(repoRoot = null) {
+  return {
+    schema_version: 1,
+    generated_at: new Date().toISOString(),
+    repo_root: repoRoot,
+    source_path: null,
+    summary: {
+      event_count: 0,
+      session_count: 0,
+      explicit_session_count: 0,
+      implicit_session_count: 0,
+      check_run_count: 0,
+    },
+    sessions: [],
+    signals: [],
+  };
+}
+
+export async function loadSessionTelemetrySummaryOrEmpty(
+  sessionEventsPath,
+  overrides = {},
+) {
+  try {
+    return await loadSessionTelemetrySummary(sessionEventsPath, overrides);
+  } catch (error) {
+    if (error && typeof error === 'object' && error.code === 'ENOENT') {
+      return createEmptySessionTelemetrySummary(overrides.repoRoot ?? null);
+    }
+    throw error;
+  }
 }
 
 export function buildSessionTelemetrySummary(events, overrides = {}) {
@@ -379,4 +400,17 @@ export function formatSessionTelemetrySummaryMarkdown(summary) {
 
   lines.push('');
   return `${lines.join('\n')}\n`;
+}
+
+export async function writeSessionTelemetryArtifacts({
+  telemetryJsonPath,
+  telemetryMarkdownPath,
+  summary,
+}) {
+  await writeFile(telemetryJsonPath, `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
+  await writeFile(
+    telemetryMarkdownPath,
+    formatSessionTelemetrySummaryMarkdown(summary),
+    'utf8',
+  );
 }

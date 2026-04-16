@@ -1,16 +1,5 @@
 import { SIGNAL_BACKLOG_PRIORITY_WEIGHTS } from './signal-calibration-policy.mjs';
-
-function safeRatio(numerator, denominator) {
-  if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator <= 0) {
-    return null;
-  }
-
-  return Number((numerator / denominator).toFixed(3));
-}
-
-function asArray(value) {
-  return Array.isArray(value) ? value : [];
-}
+import { asArray, ensureMapEntry, safeRatio } from './signal-summary-utils.mjs';
 
 function isKeepRecommendation(value) {
   return typeof value === 'string' && value.startsWith('keep_');
@@ -64,11 +53,7 @@ function createCandidateEntry(signalKind) {
 }
 
 function ensureCandidateEntry(candidateMap, signalKind) {
-  if (!candidateMap.has(signalKind)) {
-    candidateMap.set(signalKind, createCandidateEntry(signalKind));
-  }
-
-  return candidateMap.get(signalKind);
+  return ensureMapEntry(candidateMap, signalKind, createCandidateEntry);
 }
 
 function recordCandidate(candidateMap, signalKind, bucket, activeSignalKinds) {

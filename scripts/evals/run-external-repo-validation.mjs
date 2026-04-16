@@ -609,6 +609,36 @@ export function buildValidationReport({
   const mixedRepoContext = scanSummary.mixed_repo_context ?? scanCoverageBreakdown?.mixed_repo_context ?? {};
   const lines = [];
 
+  appendValidationScope(lines, { repoRootPath, repoLabel, branch, commit, workingTreeClean });
+  appendValidationStrengths(lines, {
+    rawToolSummary,
+    findingsSummary,
+    largeFiles,
+    cycles,
+    packetValidation,
+    scanCoverageBreakdown,
+  });
+  appendValidationImprovements(lines, {
+    repoLabel,
+    packetValidation,
+    scanSummary,
+    findingsSummary,
+    clones,
+    deadPrivateFalsePositives,
+    mixedRepoContext,
+  });
+  appendValidationNextSteps(lines, {
+    packetValidation,
+    clones,
+    findingsSummary,
+    scanCoverageBreakdown,
+  });
+  appendValidationBottomLine(lines, { repoLabel, packetValidation });
+
+  return `${lines.join('\n')}\n`;
+}
+
+function appendValidationScope(lines, { repoRootPath, repoLabel, branch, commit, workingTreeClean }) {
   lines.push(`# ${repoLabel} Metrics Validation Report`);
   lines.push('');
   lines.push('## Scope');
@@ -619,6 +649,12 @@ export function buildValidationReport({
   appendCodeBullet(lines, 'working tree', workingTreeClean ? 'clean' : 'dirty');
   lines.push('- goal: validate Sentrux metrics and reviewer-facing outputs against an external repo');
   lines.push('');
+}
+
+function appendValidationStrengths(
+  lines,
+  { rawToolSummary, findingsSummary, largeFiles, cycles, packetValidation, scanCoverageBreakdown },
+) {
   lines.push('## What Validated Well');
   lines.push('');
   lines.push(
@@ -662,6 +698,20 @@ export function buildValidationReport({
     );
   }
   lines.push('');
+}
+
+function appendValidationImprovements(
+  lines,
+  {
+    repoLabel,
+    packetValidation,
+    scanSummary,
+    findingsSummary,
+    clones,
+    deadPrivateFalsePositives,
+    mixedRepoContext,
+  },
+) {
   lines.push('## What Needs Improvement');
   lines.push('');
   if (deadPrivateFalsePositives.length > 0) {
@@ -702,6 +752,12 @@ export function buildValidationReport({
     );
   }
   lines.push('');
+}
+
+function appendValidationNextSteps(
+  lines,
+  { packetValidation, clones, findingsSummary, scanCoverageBreakdown },
+) {
   lines.push('## Highest-ROI Next Steps');
   lines.push('');
   lines.push(
@@ -724,6 +780,9 @@ export function buildValidationReport({
     lines.push('- unify or retire the legacy dead-private watchlist so reviewer routing and remediation queues match');
   }
   lines.push('');
+}
+
+function appendValidationBottomLine(lines, { repoLabel, packetValidation }) {
   lines.push('## Bottom Line');
   lines.push('');
   if (packetValidation?.rich_clone_sample_count) {
@@ -736,8 +795,6 @@ export function buildValidationReport({
     );
   }
   lines.push('');
-
-  return `${lines.join('\n')}\n`;
 }
 
 function appendPrioritySection(lines, title, bullets) {
@@ -764,6 +821,21 @@ export function buildEngineeringReport({
   const skepticalDeadPrivate = deadPrivateFalsePositiveCandidates(rawToolAnalysis).slice(0, 5);
   const lines = [];
 
+  appendEngineeringScope(lines, { repoRootPath, repoLabel, branch, commit });
+  appendEngineeringCycles(lines, cycles);
+  appendEngineeringCloneDrift(lines, clones);
+  appendEngineeringLargeFiles(lines, largeFiles);
+  appendEngineeringDeadPrivate(lines, {
+    deadPrivateCandidateSets,
+    plausibleDeadPrivate,
+    skepticalDeadPrivate,
+  });
+  appendEngineeringBottomLine(lines);
+
+  return `${lines.join('\n')}\n`;
+}
+
+function appendEngineeringScope(lines, { repoRootPath, repoLabel, branch, commit }) {
   lines.push(`# ${repoLabel} Engineering Report`);
   lines.push('');
   lines.push('## Scope');
@@ -778,7 +850,9 @@ export function buildEngineeringReport({
     'High-confidence work: break dependency cycles, reduce template/example duplication drift, and split the largest responsibility-heavy files.',
     'Lower-confidence work: audit dead-private candidates manually instead of applying automated cleanup blindly.',
   ]);
+}
 
+function appendEngineeringCycles(lines, cycles) {
   lines.push('## Priority 1: Break The Dependency Cycles');
   lines.push('');
   for (const finding of cycles) {
@@ -798,7 +872,9 @@ export function buildEngineeringReport({
     lines.push('- none');
     lines.push('');
   }
+}
 
+function appendEngineeringCloneDrift(lines, clones) {
   lines.push('## Priority 1: Reduce Template And Example Duplication Drift');
   lines.push('');
   for (const finding of clones.slice(0, 5)) {
@@ -812,7 +888,9 @@ export function buildEngineeringReport({
   lines.push('');
   lines.push('- recommendation: pick one canonical source for shared example logic and enforce sync mechanically');
   lines.push('');
+}
 
+function appendEngineeringLargeFiles(lines, largeFiles) {
   lines.push('## Priority 1: Split The Largest Responsibility-Heavy Files');
   lines.push('');
   for (const finding of largeFiles) {
@@ -826,7 +904,12 @@ export function buildEngineeringReport({
     lines.push('- none');
   }
   lines.push('');
+}
 
+function appendEngineeringDeadPrivate(
+  lines,
+  { deadPrivateCandidateSets, plausibleDeadPrivate, skepticalDeadPrivate },
+) {
   lines.push('## Priority 2: Review Experimental Dead-Private Candidates');
   lines.push('');
   lines.push(
@@ -861,14 +944,15 @@ export function buildEngineeringReport({
     'Only convert dead-private suggestions into actual work after a local code read confirms they are truly stale.',
   );
   lines.push('');
+}
+
+function appendEngineeringBottomLine(lines) {
   lines.push('## Bottom Line');
   lines.push('');
   lines.push(
     'The highest-value work is not a broad cleanup pass. It is breaking the cycles, fixing the example/template duplication model, and splitting the largest responsibility-heavy files before touching lower-confidence stale-code suggestions.',
   );
   lines.push('');
-
-  return `${lines.join('\n')}\n`;
 }
 
 async function pathExists(targetPath) {
@@ -969,6 +1053,81 @@ async function maybeBuildSessionTelemetrySummary(repoRootPath, outputDir) {
   };
 }
 
+async function buildReviewPackets(args, repoRootPath, outputDir) {
+  const basePacketArgs = [
+    '--repo-root',
+    repoRootPath,
+    '--limit',
+    String(args.findingsLimit),
+  ];
+  const packetSpecs = [
+    {
+      tool: 'check',
+      jsonPath: path.join(outputDir, 'check-review-packet.json'),
+      markdownPath: path.join(outputDir, 'check-review-packet.md'),
+    },
+    {
+      tool: 'findings',
+      jsonPath: path.join(outputDir, 'findings-review-packet.json'),
+      markdownPath: path.join(outputDir, 'findings-review-packet.md'),
+    },
+    {
+      tool: 'session_end',
+      jsonPath: path.join(outputDir, 'session-end-review-packet.json'),
+      markdownPath: path.join(outputDir, 'session-end-review-packet.md'),
+    },
+  ];
+
+  for (const packet of packetSpecs) {
+    await runNodeScript(path.join(repoRoot, 'scripts/evals/build-check-review-packet.mjs'), [
+      ...basePacketArgs,
+      '--tool',
+      packet.tool,
+      '--output-json',
+      packet.jsonPath,
+      '--output-md',
+      packet.markdownPath,
+    ]);
+  }
+
+  return {
+    checkJsonPath: packetSpecs[0].jsonPath,
+    findingsJsonPath: packetSpecs[1].jsonPath,
+    sessionEndJsonPath: packetSpecs[2].jsonPath,
+  };
+}
+
+async function writeExternalValidationArtifacts({
+  rawToolAnalysis,
+  rawToolSummary,
+  scanCoverageBreakdown,
+  reportPath,
+  validationReport,
+  engineeringReport,
+  engineeringReportPath,
+  repoEngineeringReportPath,
+  rawToolAnalysisPath,
+  rawToolSummaryPath,
+  scanCoverageBreakdownJsonPath,
+  scanCoverageBreakdownMarkdownPath,
+}) {
+  await writeFile(rawToolAnalysisPath, `${JSON.stringify(rawToolAnalysis, null, 2)}\n`, 'utf8');
+  await writeFile(rawToolSummaryPath, `${JSON.stringify(rawToolSummary, null, 2)}\n`, 'utf8');
+  await writeFile(
+    scanCoverageBreakdownJsonPath,
+    `${JSON.stringify(scanCoverageBreakdown, null, 2)}\n`,
+    'utf8',
+  );
+  await writeFile(
+    scanCoverageBreakdownMarkdownPath,
+    formatScanCoverageBreakdownMarkdown(scanCoverageBreakdown),
+    'utf8',
+  );
+  await writeFile(reportPath, validationReport, 'utf8');
+  await writeFile(engineeringReportPath, engineeringReport, 'utf8');
+  await writeFile(repoEngineeringReportPath, engineeringReport, 'utf8');
+}
+
 async function main() {
   const args = parseArgs(process.argv);
   const repoRootPath = path.resolve(args.repoRoot);
@@ -980,12 +1139,6 @@ async function main() {
 
   await mkdir(outputDir, { recursive: true });
 
-  const checkJsonPath = path.join(outputDir, 'check-review-packet.json');
-  const checkMarkdownPath = path.join(outputDir, 'check-review-packet.md');
-  const findingsJsonPath = path.join(outputDir, 'findings-review-packet.json');
-  const findingsMarkdownPath = path.join(outputDir, 'findings-review-packet.md');
-  const sessionEndJsonPath = path.join(outputDir, 'session-end-review-packet.json');
-  const sessionEndMarkdownPath = path.join(outputDir, 'session-end-review-packet.md');
   const deadPrivatePath = path.join(outputDir, 'dead-private-dry-run.json');
   const rawToolAnalysisPath = path.join(outputDir, 'raw-tool-analysis.json');
   const rawToolSummaryPath = path.join(outputDir, 'raw-tool-summary.json');
@@ -998,42 +1151,7 @@ async function main() {
     `${sanitizeRepoArtifactLabel(args.repoLabel)}_ENGINEERING_REPORT.md`,
   );
 
-  await runNodeScript(path.join(repoRoot, 'scripts/evals/build-check-review-packet.mjs'), [
-    '--repo-root',
-    repoRootPath,
-    '--tool',
-    'check',
-    '--limit',
-    String(args.findingsLimit),
-    '--output-json',
-    checkJsonPath,
-    '--output-md',
-    checkMarkdownPath,
-  ]);
-  await runNodeScript(path.join(repoRoot, 'scripts/evals/build-check-review-packet.mjs'), [
-    '--repo-root',
-    repoRootPath,
-    '--tool',
-    'findings',
-    '--limit',
-    String(args.findingsLimit),
-    '--output-json',
-    findingsJsonPath,
-    '--output-md',
-    findingsMarkdownPath,
-  ]);
-  await runNodeScript(path.join(repoRoot, 'scripts/evals/build-check-review-packet.mjs'), [
-    '--repo-root',
-    repoRootPath,
-    '--tool',
-    'session_end',
-    '--limit',
-    String(args.findingsLimit),
-    '--output-json',
-    sessionEndJsonPath,
-    '--output-md',
-    sessionEndMarkdownPath,
-  ]);
+  const reviewPackets = await buildReviewPackets(args, repoRootPath, outputDir);
   await runNodeScript(path.join(repoRoot, 'scripts/evals/review_dead_private.mjs'), [
     '--repo-root',
     repoRootPath,
@@ -1048,7 +1166,7 @@ async function main() {
     deadPrivatePath,
   ]);
 
-  const findingsReviewPacket = await readJson(findingsJsonPath);
+  const findingsReviewPacket = await readJson(reviewPackets.findingsJsonPath);
   const packetValidation = buildPacketValidation(findingsReviewPacket);
   const rawToolAnalysis = await captureRawToolAnalysis(repoRootPath, Math.max(args.findingsLimit, 50));
   const rawToolSummary = buildRawToolSummary(rawToolAnalysis);
@@ -1060,37 +1178,33 @@ async function main() {
     commit: metadata.commit,
     rawToolAnalysis,
   });
+  const validationReport = buildValidationReport({
+    repoRootPath,
+    repoLabel: args.repoLabel,
+    branch: metadata.branch,
+    commit: metadata.commit,
+    workingTreeClean: metadata.workingTreeClean,
+    rawToolAnalysis,
+    rawToolSummary,
+    packetValidation,
+    scanCoverageBreakdown,
+  });
 
-  await writeFile(rawToolAnalysisPath, `${JSON.stringify(rawToolAnalysis, null, 2)}\n`, 'utf8');
-  await writeFile(rawToolSummaryPath, `${JSON.stringify(rawToolSummary, null, 2)}\n`, 'utf8');
-  await writeFile(
-    scanCoverageBreakdownJsonPath,
-    `${JSON.stringify(scanCoverageBreakdown, null, 2)}\n`,
-    'utf8',
-  );
-  await writeFile(
-    scanCoverageBreakdownMarkdownPath,
-    formatScanCoverageBreakdownMarkdown(scanCoverageBreakdown),
-    'utf8',
-  );
   await maybeBuildSessionTelemetrySummary(repoRootPath, outputDir);
-  await writeFile(
+  await writeExternalValidationArtifacts({
+    rawToolAnalysis,
+    rawToolSummary,
+    scanCoverageBreakdown,
     reportPath,
-    buildValidationReport({
-      repoRootPath,
-      repoLabel: args.repoLabel,
-      branch: metadata.branch,
-      commit: metadata.commit,
-      workingTreeClean: metadata.workingTreeClean,
-      rawToolAnalysis,
-      rawToolSummary,
-      packetValidation,
-      scanCoverageBreakdown,
-    }),
-    'utf8',
-  );
-  await writeFile(engineeringReportPath, engineeringReport, 'utf8');
-  await writeFile(repoEngineeringReportPath, engineeringReport, 'utf8');
+    validationReport,
+    engineeringReport,
+    engineeringReportPath,
+    repoEngineeringReportPath,
+    rawToolAnalysisPath,
+    rawToolSummaryPath,
+    scanCoverageBreakdownJsonPath,
+    scanCoverageBreakdownMarkdownPath,
+  });
 
   console.log(JSON.stringify({
     output_dir: outputDir,

@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 import { readFile, writeFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createDisposableRepoClone } from '../lib/disposable-repo.mjs';
@@ -16,9 +15,9 @@ import {
   parseCliArgs,
 } from '../lib/eval-support.mjs';
 import {
-  formatSessionTelemetrySummaryMarkdown,
-  loadSessionTelemetrySummary,
+  loadSessionTelemetrySummaryOrEmpty,
   summarizeOutcome,
+  writeSessionTelemetryArtifacts,
 } from '../lib/session-telemetry.mjs';
 import { startCodexExec } from './providers/codex-cli.mjs';
 
@@ -288,24 +287,24 @@ function buildCompletedProviderStatus(providerRun) {
   };
 }
 
-export async function runCodexSession(options) {
-  const args = {
-    ...options,
-    tags: [...(options.tags ?? [])],
-    expectedSignalKinds: [...(options.expectedSignalKinds ?? [])],
+function buildCodexOutputPaths(outputDir) {
+  return {
+    promptPath: path.join(outputDir, 'task-prompt.txt'),
+    statusPath: path.join(outputDir, 'run-status.json'),
+    bundlePath: path.join(outputDir, 'codex-session.json'),
+    telemetryJsonPath: path.join(outputDir, 'session-telemetry-summary.json'),
+    telemetryMarkdownPath: path.join(outputDir, 'session-telemetry-summary.md'),
+    copiedTelemetryLogPath: path.join(outputDir, 'agent-session-events.jsonl'),
   };
-  const sourceRoot = path.resolve(args.sourceRoot);
-  const repoLabel = args.repoLabel ?? path.basename(sourceRoot);
-  const prompt = await loadPrompt(args);
-  const taskLabel = args.taskLabel ?? prompt.split(/\r?\n/, 1)[0] ?? 'codex-session';
-  const taskId = args.taskId ?? slugify(taskLabel);
-  const outputDir = path.resolve(args.outputDir ?? defaultOutputDir(sourceRoot, taskLabel));
-  const promptPath = path.join(outputDir, 'task-prompt.txt');
-  const statusPath = path.join(outputDir, 'run-status.json');
-  const bundlePath = path.join(outputDir, 'codex-session.json');
-  const telemetryJsonPath = path.join(outputDir, 'session-telemetry-summary.json');
-  const telemetryMarkdownPath = path.join(outputDir, 'session-telemetry-summary.md');
-  const copiedTelemetryLogPath = path.join(outputDir, 'agent-session-events.jsonl');
+}
+
+async function createCodexRunResources({
+  args,
+  sourceRoot,
+  repoLabel,
+  taskLabel,
+  outputDir,
+}) {
   const rulesSource =
     args.rulesSource == null ? defaultRulesSource(sourceRoot) : path.resolve(args.rulesSource);
   const clone = await createDisposableRepoClone({
@@ -320,15 +319,201 @@ export async function runCodexSession(options) {
     binPath: sentruxBin,
     homeOverride: pluginHome,
   });
+
+  return { clone, session };
+}
+
+async function monitorCodexProvider({
+  args,
+  clone,
+  session,
+  prompt,
+  updateStatus,
+}) {
+  const snapshots = [await recordSnapshot(session, clone.workRoot, 'initial')];
+  let latestSnapshot = snapshots[0];
+  const running = await startCodexExec({
+    cwd: clone.workRoot,
+    prompt,
+    model: args.model,
+    timeoutMs: args.timeoutMs,
+    codexBin: args.codexBin,
+  });
+  let idleTimeoutTriggered = false;
+  let lastProgressAtMs = nowMs();
+  let lastStdoutLength = running.stdoutLength;
+  let lastStderrLength = running.stderrLength;
+
+  await updateStatus('provider_running', {
+    analyzed_root: clone.workRoot,
+    snapshot_count: snapshots.length,
+    ...buildRunningProviderStatus(running),
+  });
+
+  while (!running.finished) {
+    await sleep(args.pollMs);
+    const providerOutputChanged =
+      running.stdoutLength !== lastStdoutLength || running.stderrLength !== lastStderrLength;
+    if (providerOutputChanged) {
+      lastStdoutLength = running.stdoutLength;
+      lastStderrLength = running.stderrLength;
+      lastProgressAtMs = nowMs();
+      await updateStatus('provider_running', {
+        analyzed_root: clone.workRoot,
+        snapshot_count: snapshots.length,
+        ...buildSnapshotStatusFields(latestSnapshot),
+        ...buildRunningProviderStatus(running),
+      });
+    }
+
+    const identity = collectRepoIdentity(clone.workRoot);
+    if (shouldCaptureSnapshot(latestSnapshot, identity)) {
+      const snapshot = await recordSnapshot(
+        session,
+        clone.workRoot,
+        `poll-${snapshots.length}`,
+      );
+      snapshots.push(snapshot);
+      latestSnapshot = snapshot;
+      lastProgressAtMs = nowMs();
+      await updateStatus('provider_running', {
+        analyzed_root: clone.workRoot,
+        snapshot_count: snapshots.length,
+        ...buildSnapshotStatusFields(snapshot),
+        ...buildRunningProviderStatus(running),
+      });
+    }
+
+    if (
+      args.idleTimeoutMs > 0 &&
+      nowMs() - Math.max(lastProgressAtMs, running.lastOutputAtMs ?? 0) > args.idleTimeoutMs
+    ) {
+      idleTimeoutTriggered = true;
+      await updateStatus('provider_idle_timeout', {
+        analyzed_root: clone.workRoot,
+        snapshot_count: snapshots.length,
+        idle_timeout_ms: args.idleTimeoutMs,
+        provider_timeout_phase: 'idle',
+        ...buildRunningProviderStatus(running),
+      });
+      running.kill('SIGKILL');
+    }
+  }
+
+  const providerRun = await running.wait();
+  providerRun.idle_timed_out = idleTimeoutTriggered;
+  providerRun.timeout_phase = summarizeTimeoutPhase(providerRun, idleTimeoutTriggered);
+
+  return { snapshots, providerRun, idleTimeoutTriggered };
+}
+
+async function loadCodexSessionTelemetry(
+  sourceRoot,
+  clone,
+  copiedTelemetryLogPath,
+) {
+  const telemetryLogPath = path.join(clone.workRoot, '.sentrux', 'agent-session-events.jsonl');
+  await maybeCopyFile(telemetryLogPath, copiedTelemetryLogPath);
+  return loadSessionTelemetrySummaryOrEmpty(telemetryLogPath, {
+    repoRoot: sourceRoot,
+  });
+}
+
+async function writeCodexRunArtifacts(paths, bundle, sessionTelemetry) {
+  await writeFile(paths.bundlePath, `${JSON.stringify(bundle, null, 2)}\n`, 'utf8');
+  await writeSessionTelemetryArtifacts({
+    telemetryJsonPath: paths.telemetryJsonPath,
+    telemetryMarkdownPath: paths.telemetryMarkdownPath,
+    summary: sessionTelemetry,
+  });
+}
+
+function buildCodexBundle({
+  args,
+  repoLabel,
+  taskId,
+  sourceRoot,
+  clone,
+  taskLabel,
+  paths,
+  startedAt,
+  providerRun,
+  executionStatus,
+  snapshots,
+  finalSnapshot,
+  finalGate,
+  sessionEnd,
+  sessionTelemetry,
+}) {
+  return {
+    schema_version: 1,
+    generated_at: nowIso(),
+    repo_label: repoLabel,
+    task_id: taskId,
+    source_root: sourceRoot,
+    analyzed_root: clone.workRoot,
+    analysis_mode: args.analysisMode,
+    task_label: taskLabel,
+    tags: args.tags,
+    expected_signal_kinds: args.expectedSignalKinds,
+    expected_fix_surface: args.expectedFixSurface ?? null,
+    prompt_path: paths.promptPath,
+    started_at: startedAt,
+    finished_at: nowIso(),
+    provider_run: providerRun,
+    status: executionStatus,
+    provider_timeout_phase: providerRun.timeout_phase,
+    initial_check: snapshots[0].check,
+    snapshots,
+    final_check: finalSnapshot.check,
+    final_gate: finalGate.payload,
+    session_end: sessionEnd.payload,
+    telemetry_summary: sessionTelemetry,
+    outcome: summarizeOutcome(sessionTelemetry),
+  };
+}
+
+function buildCompletedCodexStatus(bundle, executionStatus, snapshots, providerRun, clone) {
+  return {
+    analyzed_root: clone.workRoot,
+    finished_at: bundle.finished_at,
+    status: executionStatus,
+    snapshot_count: snapshots.length,
+    final_gate: bundle.outcome.final_gate ?? null,
+    final_session_clean: bundle.outcome.final_session_clean ?? false,
+    ...buildCompletedProviderStatus(providerRun),
+  };
+}
+
+export async function runCodexSession(options) {
+  const args = {
+    ...options,
+    tags: [...(options.tags ?? [])],
+    expectedSignalKinds: [...(options.expectedSignalKinds ?? [])],
+  };
+  const sourceRoot = path.resolve(args.sourceRoot);
+  const repoLabel = args.repoLabel ?? path.basename(sourceRoot);
+  const prompt = await loadPrompt(args);
+  const taskLabel = args.taskLabel ?? prompt.split(/\r?\n/, 1)[0] ?? 'codex-session';
+  const taskId = args.taskId ?? slugify(taskLabel);
+  const outputDir = path.resolve(args.outputDir ?? defaultOutputDir(sourceRoot, taskLabel));
+  const paths = buildCodexOutputPaths(outputDir);
+  const { clone, session } = await createCodexRunResources({
+    args,
+    sourceRoot,
+    repoLabel,
+    taskLabel,
+    outputDir,
+  });
   const startedAt = nowIso();
   const statusBase = buildRunStatusBase(taskId, taskLabel, repoLabel, startedAt, outputDir);
 
   async function updateStatus(phase, extra = {}) {
-    await writeRunStatus(statusPath, buildRunStatusPayload(statusBase, phase, extra));
+    await writeRunStatus(paths.statusPath, buildRunStatusPayload(statusBase, phase, extra));
   }
 
   await mkdir(outputDir, { recursive: true });
-  await writeFile(promptPath, prompt, 'utf8');
+  await writeFile(paths.promptPath, prompt, 'utf8');
   await updateStatus('initializing');
 
   try {
@@ -339,145 +524,51 @@ export async function runCodexSession(options) {
       analyzed_root: clone.workRoot,
     });
 
-    const snapshots = [await recordSnapshot(session, clone.workRoot, 'initial')];
-    let latestSnapshot = snapshots[0];
-    const running = await startCodexExec({
-      cwd: clone.workRoot,
+    const { snapshots, providerRun, idleTimeoutTriggered } = await monitorCodexProvider({
+      args,
+      clone,
+      session,
       prompt,
-      model: args.model,
-      timeoutMs: args.timeoutMs,
-      codexBin: args.codexBin,
+      updateStatus,
     });
-    let idleTimeoutTriggered = false;
-    let lastProgressAtMs = nowMs();
-    let lastStdoutLength = running.stdoutLength;
-    let lastStderrLength = running.stderrLength;
-    await updateStatus('provider_running', {
-      analyzed_root: clone.workRoot,
-      snapshot_count: snapshots.length,
-      ...buildRunningProviderStatus(running),
-    });
-
-    while (!running.finished) {
-      await sleep(args.pollMs);
-      const providerOutputChanged =
-        running.stdoutLength !== lastStdoutLength || running.stderrLength !== lastStderrLength;
-      if (providerOutputChanged) {
-        lastStdoutLength = running.stdoutLength;
-        lastStderrLength = running.stderrLength;
-        lastProgressAtMs = nowMs();
-        await updateStatus('provider_running', {
-          analyzed_root: clone.workRoot,
-          snapshot_count: snapshots.length,
-          ...buildSnapshotStatusFields(latestSnapshot),
-          ...buildRunningProviderStatus(running),
-        });
-      }
-      const identity = collectRepoIdentity(clone.workRoot);
-      if (shouldCaptureSnapshot(latestSnapshot, identity)) {
-        const snapshot = await recordSnapshot(
-          session,
-          clone.workRoot,
-          `poll-${snapshots.length}`,
-        );
-        snapshots.push(snapshot);
-        latestSnapshot = snapshot;
-        lastProgressAtMs = nowMs();
-        await updateStatus('provider_running', {
-          analyzed_root: clone.workRoot,
-          snapshot_count: snapshots.length,
-          ...buildSnapshotStatusFields(snapshot),
-          ...buildRunningProviderStatus(running),
-        });
-      }
-      if (
-        args.idleTimeoutMs > 0 &&
-        nowMs() - Math.max(lastProgressAtMs, running.lastOutputAtMs ?? 0) > args.idleTimeoutMs
-      ) {
-        idleTimeoutTriggered = true;
-        await updateStatus('provider_idle_timeout', {
-          analyzed_root: clone.workRoot,
-          snapshot_count: snapshots.length,
-          idle_timeout_ms: args.idleTimeoutMs,
-          provider_timeout_phase: 'idle',
-          ...buildRunningProviderStatus(running),
-        });
-        running.kill('SIGKILL');
-      }
-    }
-
-    const providerRun = await running.wait();
-    providerRun.idle_timed_out = idleTimeoutTriggered;
-    providerRun.timeout_phase = summarizeTimeoutPhase(providerRun, idleTimeoutTriggered);
     const finalSnapshot = await recordSnapshot(session, clone.workRoot, 'final');
     const finalGate = await runTool(session, 'gate', {});
     const sessionEnd = await runTool(session, 'session_end', {});
-    const telemetryLogPath = path.join(clone.workRoot, '.sentrux', 'agent-session-events.jsonl');
-
-    await maybeCopyFile(telemetryLogPath, copiedTelemetryLogPath);
-    const sessionTelemetry = existsSync(telemetryLogPath)
-      ? await loadSessionTelemetrySummary(telemetryLogPath, {
-          repoRoot: sourceRoot,
-        })
-      : {
-          schema_version: 1,
-          generated_at: nowIso(),
-          repo_root: sourceRoot,
-          source_path: null,
-          summary: {
-            event_count: 0,
-            session_count: 0,
-            explicit_session_count: 0,
-            implicit_session_count: 0,
-            check_run_count: 0,
-          },
-          sessions: [],
-          signals: [],
-        };
-    const executionStatus = summarizeProviderStatus(providerRun, idleTimeoutTriggered);
-    const bundle = {
-      schema_version: 1,
-      generated_at: nowIso(),
-      repo_label: repoLabel,
-      task_id: taskId,
-      source_root: sourceRoot,
-      analyzed_root: clone.workRoot,
-      analysis_mode: args.analysisMode,
-      task_label: taskLabel,
-      tags: args.tags,
-      expected_signal_kinds: args.expectedSignalKinds,
-      expected_fix_surface: args.expectedFixSurface ?? null,
-      prompt_path: promptPath,
-      started_at: startedAt,
-      finished_at: nowIso(),
-      provider_run: providerRun,
-      status: executionStatus,
-      provider_timeout_phase: providerRun.timeout_phase,
-      initial_check: snapshots[0].check,
-      snapshots,
-      final_check: finalSnapshot.check,
-      final_gate: finalGate.payload,
-      session_end: sessionEnd.payload,
-      telemetry_summary: sessionTelemetry,
-      outcome: summarizeOutcome(sessionTelemetry),
-    };
-
-    await writeFile(bundlePath, `${JSON.stringify(bundle, null, 2)}\n`, 'utf8');
-    await writeFile(telemetryJsonPath, `${JSON.stringify(sessionTelemetry, null, 2)}\n`, 'utf8');
-    await writeFile(
-      telemetryMarkdownPath,
-      formatSessionTelemetrySummaryMarkdown(sessionTelemetry),
-      'utf8',
+    const sessionTelemetry = await loadCodexSessionTelemetry(
+      sourceRoot,
+      clone,
+      paths.copiedTelemetryLogPath,
     );
-    await updateStatus('completed', {
-      analyzed_root: clone.workRoot,
-      finished_at: bundle.finished_at,
-      status: executionStatus,
-      snapshot_count: snapshots.length,
-      final_gate: bundle.outcome.final_gate ?? null,
-      final_session_clean: bundle.outcome.final_session_clean ?? false,
-      ...buildCompletedProviderStatus(providerRun),
+    const executionStatus = summarizeProviderStatus(providerRun, idleTimeoutTriggered);
+    const bundle = buildCodexBundle({
+      args,
+      repoLabel,
+      taskId,
+      sourceRoot,
+      clone,
+      taskLabel,
+      paths,
+      startedAt,
+      providerRun,
+      executionStatus,
+      snapshots,
+      finalSnapshot,
+      finalGate,
+      sessionEnd,
+      sessionTelemetry,
     });
+
+    await writeCodexRunArtifacts(paths, bundle, sessionTelemetry);
+    await updateStatus(
+      'completed',
+      buildCompletedCodexStatus(
+        bundle,
+        executionStatus,
+        snapshots,
+        providerRun,
+        clone,
+      ),
+    );
 
     console.log(
       `Captured Codex session for ${repoLabel} with ${snapshots.length} check snapshot(s); status=${executionStatus}; final gate=${bundle.outcome.final_gate ?? 'unknown'}.`,

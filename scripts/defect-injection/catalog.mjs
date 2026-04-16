@@ -379,7 +379,7 @@ function createDefect({
   };
 }
 
-function buildParallelCodeCatalog() {
+function buildParallelCodeStructuralDefects() {
   return [
     createDefect({
       id: 'large_file_growth',
@@ -428,6 +428,36 @@ function buildParallelCodeCatalog() {
         );
       },
     }),
+    createDefect({
+      id: 'missing_test',
+      title: 'Add a new production helper without a sibling test',
+      repoLabel: 'parallel-code',
+      targetPath: 'src/app/task-health-monitor.ts',
+      signalKind: 'missing_test_coverage',
+      signalFamily: 'structural',
+      promotionStatus: 'watchpoint',
+      blockingIntent: 'watchpoint',
+      checkSupport: {
+        supported: true,
+        gate: 'pass',
+        kinds: ['missing_test_coverage'],
+      },
+      gateKinds: [],
+      findingKinds: ['missing_test_coverage'],
+      sessionEndKinds: [],
+      expectedGateDecision: 'pass',
+      async inject(workRoot) {
+        const targetPath = path.join(workRoot, 'src/app/task-health-monitor.ts');
+        await mkdir(path.dirname(targetPath), { recursive: true });
+        await writeFile(targetPath, buildMissingTestSource(), 'utf8');
+        return targetPath;
+      },
+    }),
+  ];
+}
+
+function buildParallelCodeCloneDefects() {
+  return [
     createDefect({
       id: 'clone_injection',
       title: 'Duplicate the network access helper into the remote HTTP handler',
@@ -504,6 +534,11 @@ function buildParallelCodeCatalog() {
         );
       },
     }),
+  ];
+}
+
+function buildParallelCodeObligationDefects() {
+  return [
     createDefect({
       id: 'missing_exhaustiveness',
       title: 'Add a TaskDotStatus variant without updating consumers',
@@ -552,6 +587,34 @@ function buildParallelCodeCatalog() {
         );
       },
     }),
+  ];
+}
+
+function buildParallelCodeRuleDefects() {
+  return [
+    createDefect({
+      id: 'forbidden_raw_read',
+      title: 'Read task status directly from SidebarTaskRow.tsx',
+      repoLabel: 'parallel-code',
+      targetPath: 'src/components/SidebarTaskRow.tsx',
+      signalKind: 'forbidden_raw_read',
+      signalFamily: 'rules',
+      checkSupport: {
+        supported: true,
+        gate: 'fail',
+        kinds: ['forbidden_raw_read'],
+      },
+      gateKinds: ['forbidden_raw_read'],
+      findingKinds: ['forbidden_raw_read'],
+      sessionEndKinds: ['forbidden_raw_read'],
+      async inject(workRoot) {
+        return appendToFile(
+          workRoot,
+          'src/components/SidebarTaskRow.tsx',
+          buildForbiddenRawReadSnippet(),
+        );
+      },
+    }),
     createDefect({
       id: 'multi_writer_concept',
       title: 'Write task git status from task-presentation-status.ts',
@@ -594,31 +657,15 @@ function buildParallelCodeCatalog() {
         return injectTaskGitStatusOwnershipRegression(workRoot);
       },
     }),
-    createDefect({
-      id: 'missing_test',
-      title: 'Add a new production helper without a sibling test',
-      repoLabel: 'parallel-code',
-      targetPath: 'src/app/task-health-monitor.ts',
-      signalKind: 'missing_test_coverage',
-      signalFamily: 'structural',
-      promotionStatus: 'watchpoint',
-      blockingIntent: 'watchpoint',
-      checkSupport: {
-        supported: true,
-        gate: 'pass',
-        kinds: ['missing_test_coverage'],
-      },
-      gateKinds: [],
-      findingKinds: ['missing_test_coverage'],
-      sessionEndKinds: [],
-      expectedGateDecision: 'pass',
-      async inject(workRoot) {
-        const targetPath = path.join(workRoot, 'src/app/task-health-monitor.ts');
-        await mkdir(path.dirname(targetPath), { recursive: true });
-        await writeFile(targetPath, buildMissingTestSource(), 'utf8');
-        return targetPath;
-      },
-    }),
+  ];
+}
+
+function buildParallelCodeCatalog() {
+  return [
+    ...buildParallelCodeStructuralDefects(),
+    ...buildParallelCodeCloneDefects(),
+    ...buildParallelCodeObligationDefects(),
+    ...buildParallelCodeRuleDefects(),
   ];
 }
 
@@ -650,7 +697,7 @@ function createDogfoodLargeFileDefect({
   });
 }
 
-function buildDogfoodCatalog() {
+function buildDogfoodFixtureRulesDefects() {
   return [
     createDogfoodLargeFileDefect({
       id: 'self_large_file',
@@ -731,6 +778,11 @@ function buildDogfoodCatalog() {
         return [rulesPath, injectedPath];
       },
     }),
+  ];
+}
+
+function buildDogfoodCloneDefects() {
+  return [
     createDefect({
       id: 'self_session_introduced_clone',
       title: 'Introduce a fresh duplicate helper after the session baseline',
@@ -821,6 +873,11 @@ function buildDogfoodCatalog() {
         return writeTextFile(workRoot, 'src/source.ts', buildSelfClonePropagationDriftSource());
       },
     }),
+  ];
+}
+
+function buildDogfoodBoundaryDefects() {
+  return [
     createDefect({
       id: 'self_zero_config_boundary_violation',
       title: 'Deep import a task-status helper without a module-contract rule',
@@ -864,6 +921,14 @@ function buildDogfoodCatalog() {
         ]);
       },
     }),
+  ];
+}
+
+function buildDogfoodCatalog() {
+  return [
+    ...buildDogfoodFixtureRulesDefects(),
+    ...buildDogfoodCloneDefects(),
+    ...buildDogfoodBoundaryDefects(),
   ];
 }
 

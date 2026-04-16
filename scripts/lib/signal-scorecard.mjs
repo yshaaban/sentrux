@@ -1,8 +1,5 @@
 import { SIGNAL_PROMOTION_POLICY } from './signal-calibration-policy.mjs';
-
-function asArray(value) {
-  return Array.isArray(value) ? value : [];
-}
+import { asArray, ensureMapEntry, safeRatio } from './signal-summary-utils.mjs';
 
 function normalizeReviewCategory(category) {
   switch (category) {
@@ -22,14 +19,6 @@ function normalizeReviewCategory(category) {
     default:
       return 'inconclusive';
   }
-}
-
-function safeRatio(numerator, denominator) {
-  if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator <= 0) {
-    return null;
-  }
-
-  return Number((numerator / denominator).toFixed(3));
 }
 
 function createEmptySignalEntry(signalKind, overrides = {}) {
@@ -70,11 +59,7 @@ function createEmptySignalEntry(signalKind, overrides = {}) {
 }
 
 function ensureSignalEntry(signalMap, signalKind) {
-  if (!signalMap.has(signalKind)) {
-    signalMap.set(signalKind, createEmptySignalEntry(signalKind));
-  }
-
-  return signalMap.get(signalKind);
+  return ensureMapEntry(signalMap, signalKind, createEmptySignalEntry);
 }
 
 function buildReviewMetrics(reviewedTotal, truePositive, acceptableWarning, falsePositive, inconclusive) {
@@ -399,7 +384,7 @@ function buildPromotionRecommendation(entry) {
   return `keep_${entry.promotion_status ?? 'unspecified'}`;
 }
 
-export function buildSignalScorecard({
+function buildScorecardContext({
   repoLabel = null,
   defectReport = null,
   reviewVerdicts = null,
@@ -415,6 +400,7 @@ export function buildSignalScorecard({
   applySessionTelemetry(signalMap, sessionTelemetry);
   applyBatchSessionTrials(signalMap, codexBatch?.results, 'live');
   applyBatchSessionTrials(signalMap, replayBatch?.results, 'replay');
+
   const latencyMs = inferLatencyMs(benchmark);
   const repoLabelValue = inferScorecardRepoLabel({
     repoLabel,
@@ -428,205 +414,310 @@ export function buildSignalScorecard({
   const liveSessionTrialCount = countExpectedSignalTrials(codexBatch?.results);
   const replaySessionTrialCount = countExpectedSignalTrials(replayBatch?.results);
   const totalSessionTrialCount = liveSessionTrialCount + replaySessionTrialCount;
-  const sessionCount = sessionTelemetry?.summary?.session_count ?? sessionTelemetry?.sessions?.length ?? 0;
+  const sessionCount =
+    sessionTelemetry?.summary?.session_count ?? sessionTelemetry?.sessions?.length ?? 0;
 
-  const signals = [...signalMap.values()]
-    .map((entry) => {
-      const reviewedTotal = entry.reviewed_total ?? 0;
-      const truePositive = entry.true_positive ?? 0;
-      const acceptableWarning = entry.acceptable_warning ?? 0;
-      const falsePositive = entry.false_positive ?? 0;
-      const inconclusive = entry.inconclusive ?? 0;
-      const provisionalReviewedTotal = entry.provisional_reviewed_total ?? 0;
-      const provisionalTruePositive = entry.provisional_true_positive ?? 0;
-      const provisionalAcceptableWarning = entry.provisional_acceptable_warning ?? 0;
-      const provisionalFalsePositive = entry.provisional_false_positive ?? 0;
-      const provisionalInconclusive = entry.provisional_inconclusive ?? 0;
-      const remediationTotal = entry.remediation_total ?? 0;
-      const remediationSuccess = entry.remediation_success ?? 0;
-      const remediationRegressions = entry.remediation_regressions ?? 0;
-      const sessionTopActions = entry.session_top_actions ?? 0;
-      const sessionFollowups = entry.session_followups ?? 0;
-      const sessionCleared = entry.session_cleared ?? 0;
-      const sessionRegressions = entry.session_regressions ?? 0;
-      const sessionsCleared = entry.sessions_cleared ?? 0;
-      const sessionClean = entry.session_clean ?? 0;
-      const sessionTotalChecksToClear = entry.session_total_checks_to_clear ?? 0;
-      const sessionTrialCount = entry.session_trial_count ?? 0;
-      const liveSessionTrialCount = entry.live_session_trial_count ?? 0;
-      const replaySessionTrialCount = entry.replay_session_trial_count ?? 0;
-      const sessionExpectedPresentations = entry.session_expected_presentations ?? 0;
-      const sessionExpectedTopActions = entry.session_expected_top_actions ?? 0;
-      const sessionExpectationMisses = entry.session_expectation_misses ?? 0;
-      const latencyEligible = entry.seeded_check_supported > 0;
-      const reviewMetrics = buildReviewMetrics(
-        reviewedTotal,
-        truePositive,
-        acceptableWarning,
-        falsePositive,
-        inconclusive,
-      );
-      const provisionalReviewMetrics = buildReviewMetrics(
-        provisionalReviewedTotal,
-        provisionalTruePositive,
-        provisionalAcceptableWarning,
-        provisionalFalsePositive,
-        provisionalInconclusive,
-      );
-      const sessionMetrics = buildSessionMetrics(
-        sessionTopActions,
-        sessionFollowups,
-        sessionCleared,
-        sessionRegressions,
-        sessionsCleared,
-        sessionClean,
-        sessionTotalChecksToClear,
-      );
-      const coverageFlags = buildCoverageFlags(
-        entry,
-        reviewedTotal,
-        remediationTotal,
-        sessionTopActions,
-      );
+  return {
+    signalMap,
+    latencyMs,
+    repoLabelValue,
+    totalSessionTrialCount,
+    sessionCount,
+  };
+}
 
-      return {
-        signal_kind: entry.signal_kind,
-        signal_family: entry.signal_family,
-        promotion_status: entry.promotion_status,
-        blocking_intent: entry.blocking_intent,
-        primary_lane: entry.primary_lane,
-        seeded_total: entry.seeded_total,
-        seeded_detected: entry.seeded_detected,
-        seeded_recall: safeRatio(entry.seeded_detected, entry.seeded_total),
-        seeded_primary_supported: entry.seeded_primary_supported,
-        seeded_primary_detected: entry.seeded_primary_detected,
-        primary_recall: safeRatio(
-          entry.seeded_primary_detected,
-          entry.seeded_primary_supported,
-        ),
-        seeded_check_supported: entry.seeded_check_supported,
-        seeded_check_detected: entry.seeded_check_detected,
-        check_recall: safeRatio(entry.seeded_check_detected, entry.seeded_check_supported),
-        seeded_check_rules_supported: entry.seeded_check_rules_supported,
-        seeded_check_rules_detected: entry.seeded_check_rules_detected,
-        check_rules_recall: safeRatio(
-          entry.seeded_check_rules_detected,
-          entry.seeded_check_rules_supported,
-        ),
-        reviewed_total: reviewedTotal,
-        has_seeded_evidence: coverageFlags.has_seeded_evidence,
-        has_review_evidence: coverageFlags.has_review_evidence,
-        has_provisional_review_evidence: coverageFlags.has_provisional_review_evidence,
-        has_remediation_evidence: coverageFlags.has_remediation_evidence,
-        has_session_evidence: coverageFlags.has_session_evidence,
-        has_session_action_evidence: coverageFlags.has_session_action_evidence,
-        has_session_trial_evidence: coverageFlags.has_session_trial_evidence,
-        promotion_evidence_complete: coverageFlags.promotion_evidence_complete,
-        true_positive: truePositive,
-        acceptable_warning: acceptableWarning,
-        false_positive: falsePositive,
-        inconclusive,
-        reviewed_helpful_count: reviewMetrics.reviewed_helpful_count,
-        reviewed_precision: reviewMetrics.reviewed_precision,
-        useful_precision: reviewMetrics.true_positive_precision,
-        true_positive_precision: reviewMetrics.true_positive_precision,
-        review_noise_count: reviewMetrics.review_noise_count,
-        review_noise_rate: reviewMetrics.review_noise_rate,
-        false_positive_rate: reviewMetrics.false_positive_rate,
-        inconclusive_rate: reviewMetrics.inconclusive_rate,
-        provisional_reviewed_total: provisionalReviewedTotal,
-        provisional_reviewed_helpful_count: provisionalReviewMetrics.reviewed_helpful_count,
-        provisional_reviewed_precision: provisionalReviewMetrics.reviewed_precision,
-        provisional_review_noise_count: provisionalReviewMetrics.review_noise_count,
-        provisional_review_noise_rate: provisionalReviewMetrics.review_noise_rate,
-        remediation_total: remediationTotal,
-        remediation_success: remediationSuccess,
-        remediation_regressions: remediationRegressions,
-        remediation_success_rate: safeRatio(remediationSuccess, remediationTotal),
-        session_trial_count: sessionTrialCount,
-        live_session_trial_count: liveSessionTrialCount,
-        replay_session_trial_count: replaySessionTrialCount,
-        session_expected_presentations: sessionExpectedPresentations,
-        session_expected_top_actions: sessionExpectedTopActions,
-        session_expectation_misses: sessionExpectationMisses,
-        session_expectation_hit_rate: safeRatio(
-          sessionExpectedPresentations,
-          sessionTrialCount,
-        ),
-        session_expectation_top_action_rate: safeRatio(
-          sessionExpectedTopActions,
-          sessionTrialCount,
-        ),
-        session_trial_miss_rate: safeRatio(
-          sessionExpectationMisses,
-          sessionTrialCount,
-        ),
-        session_top_actions: sessionTopActions,
-        session_followups: sessionFollowups,
-        session_cleared: sessionCleared,
-        session_regressions: sessionRegressions,
-        sessions_cleared: sessionsCleared,
-        session_resolution_rate: sessionMetrics.session_resolution_rate,
-        session_clear_rate: sessionMetrics.session_clear_rate,
-        top_action_clear_rate: sessionMetrics.top_action_clear_rate,
-        followup_regression_rate: sessionMetrics.followup_regression_rate,
-        session_clean: sessionClean,
-        session_clean_rate: sessionMetrics.session_clean_rate,
-        average_checks_to_clear: sessionMetrics.average_checks_to_clear,
-        latency_ms: latencyEligible ? latencyMs : null,
-        promotion_recommendation: buildPromotionRecommendation({
-          ...entry,
-          true_positive: truePositive,
-          acceptable_warning: acceptableWarning,
-          false_positive: falsePositive,
-          inconclusive,
-          remediation_total: remediationTotal,
-          remediation_success: remediationSuccess,
-        }),
-      };
-    })
+function buildSignalCounts(entry) {
+  return {
+    review: {
+      reviewedTotal: entry.reviewed_total ?? 0,
+      truePositive: entry.true_positive ?? 0,
+      acceptableWarning: entry.acceptable_warning ?? 0,
+      falsePositive: entry.false_positive ?? 0,
+      inconclusive: entry.inconclusive ?? 0,
+    },
+    provisionalReview: {
+      reviewedTotal: entry.provisional_reviewed_total ?? 0,
+      truePositive: entry.provisional_true_positive ?? 0,
+      acceptableWarning: entry.provisional_acceptable_warning ?? 0,
+      falsePositive: entry.provisional_false_positive ?? 0,
+      inconclusive: entry.provisional_inconclusive ?? 0,
+    },
+    remediation: {
+      remediationTotal: entry.remediation_total ?? 0,
+      remediationSuccess: entry.remediation_success ?? 0,
+      remediationRegressions: entry.remediation_regressions ?? 0,
+    },
+    session: {
+      sessionTopActions: entry.session_top_actions ?? 0,
+      sessionFollowups: entry.session_followups ?? 0,
+      sessionCleared: entry.session_cleared ?? 0,
+      sessionRegressions: entry.session_regressions ?? 0,
+      sessionsCleared: entry.sessions_cleared ?? 0,
+      sessionClean: entry.session_clean ?? 0,
+      sessionTotalChecksToClear: entry.session_total_checks_to_clear ?? 0,
+      sessionTrialCount: entry.session_trial_count ?? 0,
+      liveSessionTrialCount: entry.live_session_trial_count ?? 0,
+      replaySessionTrialCount: entry.replay_session_trial_count ?? 0,
+      sessionExpectedPresentations: entry.session_expected_presentations ?? 0,
+      sessionExpectedTopActions: entry.session_expected_top_actions ?? 0,
+      sessionExpectationMisses: entry.session_expectation_misses ?? 0,
+    },
+  };
+}
+
+function buildSignalRecallFields(entry) {
+  return {
+    seeded_total: entry.seeded_total,
+    seeded_detected: entry.seeded_detected,
+    seeded_recall: safeRatio(entry.seeded_detected, entry.seeded_total),
+    seeded_primary_supported: entry.seeded_primary_supported,
+    seeded_primary_detected: entry.seeded_primary_detected,
+    primary_recall: safeRatio(entry.seeded_primary_detected, entry.seeded_primary_supported),
+    seeded_check_supported: entry.seeded_check_supported,
+    seeded_check_detected: entry.seeded_check_detected,
+    check_recall: safeRatio(entry.seeded_check_detected, entry.seeded_check_supported),
+    seeded_check_rules_supported: entry.seeded_check_rules_supported,
+    seeded_check_rules_detected: entry.seeded_check_rules_detected,
+    check_rules_recall: safeRatio(
+      entry.seeded_check_rules_detected,
+      entry.seeded_check_rules_supported,
+    ),
+  };
+}
+
+function buildSignalCoverageFields(coverageFlags) {
+  return {
+    has_seeded_evidence: coverageFlags.has_seeded_evidence,
+    has_review_evidence: coverageFlags.has_review_evidence,
+    has_provisional_review_evidence: coverageFlags.has_provisional_review_evidence,
+    has_remediation_evidence: coverageFlags.has_remediation_evidence,
+    has_session_evidence: coverageFlags.has_session_evidence,
+    has_session_action_evidence: coverageFlags.has_session_action_evidence,
+    has_session_trial_evidence: coverageFlags.has_session_trial_evidence,
+    promotion_evidence_complete: coverageFlags.promotion_evidence_complete,
+  };
+}
+
+function buildSignalReviewFields(
+  review,
+  reviewMetrics,
+  provisionalReview,
+  provisionalReviewMetrics,
+) {
+  return {
+    reviewed_total: review.reviewedTotal,
+    true_positive: review.truePositive,
+    acceptable_warning: review.acceptableWarning,
+    false_positive: review.falsePositive,
+    inconclusive: review.inconclusive,
+    reviewed_helpful_count: reviewMetrics.reviewed_helpful_count,
+    reviewed_precision: reviewMetrics.reviewed_precision,
+    useful_precision: reviewMetrics.true_positive_precision,
+    true_positive_precision: reviewMetrics.true_positive_precision,
+    review_noise_count: reviewMetrics.review_noise_count,
+    review_noise_rate: reviewMetrics.review_noise_rate,
+    false_positive_rate: reviewMetrics.false_positive_rate,
+    inconclusive_rate: reviewMetrics.inconclusive_rate,
+    provisional_reviewed_total: provisionalReview.reviewedTotal,
+    provisional_reviewed_helpful_count: provisionalReviewMetrics.reviewed_helpful_count,
+    provisional_reviewed_precision: provisionalReviewMetrics.reviewed_precision,
+    provisional_review_noise_count: provisionalReviewMetrics.review_noise_count,
+    provisional_review_noise_rate: provisionalReviewMetrics.review_noise_rate,
+  };
+}
+
+function buildSignalRemediationFields(remediation) {
+  return {
+    remediation_total: remediation.remediationTotal,
+    remediation_success: remediation.remediationSuccess,
+    remediation_regressions: remediation.remediationRegressions,
+    remediation_success_rate: safeRatio(
+      remediation.remediationSuccess,
+      remediation.remediationTotal,
+    ),
+  };
+}
+
+function buildSignalSessionFields(session, sessionMetrics) {
+  return {
+    session_trial_count: session.sessionTrialCount,
+    live_session_trial_count: session.liveSessionTrialCount,
+    replay_session_trial_count: session.replaySessionTrialCount,
+    session_expected_presentations: session.sessionExpectedPresentations,
+    session_expected_top_actions: session.sessionExpectedTopActions,
+    session_expectation_misses: session.sessionExpectationMisses,
+    session_expectation_hit_rate: safeRatio(
+      session.sessionExpectedPresentations,
+      session.sessionTrialCount,
+    ),
+    session_expectation_top_action_rate: safeRatio(
+      session.sessionExpectedTopActions,
+      session.sessionTrialCount,
+    ),
+    session_trial_miss_rate: safeRatio(
+      session.sessionExpectationMisses,
+      session.sessionTrialCount,
+    ),
+    session_top_actions: session.sessionTopActions,
+    session_followups: session.sessionFollowups,
+    session_cleared: session.sessionCleared,
+    session_regressions: session.sessionRegressions,
+    sessions_cleared: session.sessionsCleared,
+    session_resolution_rate: sessionMetrics.session_resolution_rate,
+    session_clear_rate: sessionMetrics.session_clear_rate,
+    top_action_clear_rate: sessionMetrics.top_action_clear_rate,
+    followup_regression_rate: sessionMetrics.followup_regression_rate,
+    session_clean: session.sessionClean,
+    session_clean_rate: sessionMetrics.session_clean_rate,
+    average_checks_to_clear: sessionMetrics.average_checks_to_clear,
+  };
+}
+
+function buildSignalRecord(entry, latencyMs) {
+  const counts = buildSignalCounts(entry);
+  const reviewMetrics = buildReviewMetrics(
+    counts.review.reviewedTotal,
+    counts.review.truePositive,
+    counts.review.acceptableWarning,
+    counts.review.falsePositive,
+    counts.review.inconclusive,
+  );
+  const provisionalReviewMetrics = buildReviewMetrics(
+    counts.provisionalReview.reviewedTotal,
+    counts.provisionalReview.truePositive,
+    counts.provisionalReview.acceptableWarning,
+    counts.provisionalReview.falsePositive,
+    counts.provisionalReview.inconclusive,
+  );
+  const sessionMetrics = buildSessionMetrics(
+    counts.session.sessionTopActions,
+    counts.session.sessionFollowups,
+    counts.session.sessionCleared,
+    counts.session.sessionRegressions,
+    counts.session.sessionsCleared,
+    counts.session.sessionClean,
+    counts.session.sessionTotalChecksToClear,
+  );
+  const coverageFlags = buildCoverageFlags(
+    entry,
+    counts.review.reviewedTotal,
+    counts.remediation.remediationTotal,
+    counts.session.sessionTopActions,
+  );
+  const promotionEntry = {
+    ...entry,
+    true_positive: counts.review.truePositive,
+    acceptable_warning: counts.review.acceptableWarning,
+    false_positive: counts.review.falsePositive,
+    inconclusive: counts.review.inconclusive,
+    remediation_total: counts.remediation.remediationTotal,
+    remediation_success: counts.remediation.remediationSuccess,
+  };
+
+  return {
+    signal_kind: entry.signal_kind,
+    signal_family: entry.signal_family,
+    promotion_status: entry.promotion_status,
+    blocking_intent: entry.blocking_intent,
+    primary_lane: entry.primary_lane,
+    ...buildSignalRecallFields(entry),
+    ...buildSignalCoverageFields(coverageFlags),
+    ...buildSignalReviewFields(
+      counts.review,
+      reviewMetrics,
+      counts.provisionalReview,
+      provisionalReviewMetrics,
+    ),
+    ...buildSignalRemediationFields(counts.remediation),
+    ...buildSignalSessionFields(counts.session, sessionMetrics),
+    latency_ms: entry.seeded_check_supported > 0 ? latencyMs : null,
+    promotion_recommendation: buildPromotionRecommendation(promotionEntry),
+  };
+}
+
+function buildScorecardSummary({
+  signals,
+  defectReport,
+  reviewVerdicts,
+  remediationReport,
+  sessionCount,
+  totalSessionTrialCount,
+  latencyMs,
+}) {
+  return {
+    total_signals: signals.length,
+    trusted_count: signals.filter((signal) => signal.promotion_status === 'trusted').length,
+    watchpoint_count: signals.filter((signal) => signal.promotion_status === 'watchpoint').length,
+    needs_review_count: signals.filter(
+      (signal) => signal.promotion_recommendation === 'needs_review',
+    ).length,
+    degrade_count: signals.filter(
+      (signal) => signal.promotion_recommendation === 'degrade_or_quarantine',
+    ).length,
+    promotion_evidence_complete_count: signals.filter(
+      (signal) => signal.promotion_evidence_complete,
+    ).length,
+    kpis: {
+      defect_sample_count: defectReport?.results?.length ?? 0,
+      review_sample_count: reviewVerdicts?.provisional ? 0 : reviewVerdicts?.verdicts?.length ?? 0,
+      provisional_review_sample_count: reviewVerdicts?.provisional
+        ? reviewVerdicts?.verdicts?.length ?? 0
+        : 0,
+      remediation_sample_count: remediationReport?.results?.length ?? 0,
+      session_trial_count: totalSessionTrialCount,
+      session_count: sessionCount,
+    },
+    coverage: {
+      has_seeded_defects: (defectReport?.results?.length ?? 0) > 0,
+      has_review_verdicts: !reviewVerdicts?.provisional && (reviewVerdicts?.verdicts?.length ?? 0) > 0,
+      has_provisional_review_verdicts:
+        Boolean(reviewVerdicts?.provisional) && (reviewVerdicts?.verdicts?.length ?? 0) > 0,
+      has_remediation_results: (remediationReport?.results?.length ?? 0) > 0,
+      has_session_telemetry: sessionCount > 0,
+      has_session_trials: totalSessionTrialCount > 0,
+      has_benchmark: latencyMs !== null,
+    },
+  };
+}
+
+export function buildSignalScorecard({
+  repoLabel = null,
+  defectReport = null,
+  reviewVerdicts = null,
+  remediationReport = null,
+  benchmark = null,
+  sessionTelemetry = null,
+  codexBatch = null,
+  replayBatch = null,
+}) {
+  const context = buildScorecardContext({
+    repoLabel,
+    defectReport,
+    reviewVerdicts,
+    remediationReport,
+    benchmark,
+    sessionTelemetry,
+    codexBatch,
+    replayBatch,
+  });
+  const signals = [...context.signalMap.values()]
+    .map((entry) => buildSignalRecord(entry, context.latencyMs))
     .sort((left, right) => left.signal_kind.localeCompare(right.signal_kind));
 
   return {
     schema_version: 1,
     generated_at: new Date().toISOString(),
-    repo_label: repoLabelValue,
+    repo_label: context.repoLabelValue,
     signals,
-    summary: {
-      total_signals: signals.length,
-      trusted_count: signals.filter((signal) => signal.promotion_status === 'trusted').length,
-      watchpoint_count: signals.filter((signal) => signal.promotion_status === 'watchpoint').length,
-      needs_review_count: signals.filter(
-        (signal) => signal.promotion_recommendation === 'needs_review',
-      ).length,
-      degrade_count: signals.filter(
-        (signal) => signal.promotion_recommendation === 'degrade_or_quarantine',
-      ).length,
-      promotion_evidence_complete_count: signals.filter(
-        (signal) => signal.promotion_evidence_complete,
-      ).length,
-      kpis: {
-        defect_sample_count: defectReport?.results?.length ?? 0,
-        review_sample_count: reviewVerdicts?.provisional ? 0 : reviewVerdicts?.verdicts?.length ?? 0,
-        provisional_review_sample_count: reviewVerdicts?.provisional
-          ? reviewVerdicts?.verdicts?.length ?? 0
-          : 0,
-        remediation_sample_count: remediationReport?.results?.length ?? 0,
-        session_trial_count: totalSessionTrialCount,
-        session_count: sessionCount,
-      },
-      coverage: {
-        has_seeded_defects: (defectReport?.results?.length ?? 0) > 0,
-        has_review_verdicts:
-          !reviewVerdicts?.provisional && (reviewVerdicts?.verdicts?.length ?? 0) > 0,
-        has_provisional_review_verdicts:
-          Boolean(reviewVerdicts?.provisional) && (reviewVerdicts?.verdicts?.length ?? 0) > 0,
-        has_remediation_results: (remediationReport?.results?.length ?? 0) > 0,
-        has_session_telemetry: sessionCount > 0,
-        has_session_trials: totalSessionTrialCount > 0,
-        has_benchmark: latencyMs !== null,
-      },
-    },
+    summary: buildScorecardSummary({
+      signals,
+      defectReport,
+      reviewVerdicts,
+      remediationReport,
+      sessionCount: context.sessionCount,
+      totalSessionTrialCount: context.totalSessionTrialCount,
+      latencyMs: context.latencyMs,
+    }),
   };
 }
 

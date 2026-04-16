@@ -567,30 +567,16 @@ export function parseToolPayload(response) {
   return JSON.parse(text);
 }
 
-export function createMcpSession({
-  binPath,
-  repoRoot,
-  homeOverride,
-  skipGrammarDownload,
-  requestTimeoutMs,
-  extraEnv = {},
-}) {
-  const child = spawn(binPath, ['mcp'], {
-    cwd: repoRoot,
-    env: {
-      ...process.env,
-      ...extraEnv,
-      HOME: homeOverride,
-      SENTRUX_SKIP_GRAMMAR_DOWNLOAD: skipGrammarDownload,
-    },
-    stdio: ['pipe', 'pipe', 'pipe'],
-  });
-  const pending = new Map();
-  const stdoutLog = [];
-  const stderrLog = [];
-  let nextId = 1;
-  let closed = false;
+function buildMcpSessionEnv({ extraEnv, homeOverride, skipGrammarDownload }) {
+  return {
+    ...process.env,
+    ...extraEnv,
+    HOME: homeOverride,
+    SENTRUX_SKIP_GRAMMAR_DOWNLOAD: skipGrammarDownload,
+  };
+}
 
+function attachMcpStdoutReader({ child, pending, stdoutLog, stderrLog }) {
   const stdoutReader = readline.createInterface({ input: child.stdout });
   stdoutReader.on('line', (line) => {
     const trimmed = line.trim();
@@ -605,7 +591,7 @@ export function createMcpSession({
     let payload;
     try {
       payload = JSON.parse(trimmed);
-    } catch (error) {
+    } catch {
       stderrLog.push(`Failed to parse MCP JSON: ${trimmed}`);
       return;
     }
@@ -620,7 +606,9 @@ export function createMcpSession({
     pending.delete(payload.id);
     handler.resolve(payload);
   });
+}
 
+function attachMcpStderrReader({ child, stderrLog }) {
   const stderrReader = readline.createInterface({ input: child.stderr });
   stderrReader.on('line', (line) => {
     const trimmed = line.trim();
@@ -628,9 +616,11 @@ export function createMcpSession({
       stderrLog.push(trimmed);
     }
   });
+}
 
+function attachMcpExitHandler({ child, pending, markClosed }) {
   child.once('exit', (code, signal) => {
-    closed = true;
+    markClosed();
     for (const { reject, timer } of pending.values()) {
       clearTimeout(timer);
       reject(
@@ -641,9 +631,13 @@ export function createMcpSession({
     }
     pending.clear();
   });
+}
 
-  function callTool(name, argumentsObject) {
-    if (closed) {
+function createMcpToolCaller({ child, pending, requestTimeoutMs, isClosed }) {
+  let nextId = 1;
+
+  return function callTool(name, argumentsObject) {
+    if (isClosed()) {
       throw new Error('MCP session already closed');
     }
 
@@ -674,7 +668,44 @@ export function createMcpSession({
         reject(error);
       });
     });
-  }
+  };
+}
+
+export function createMcpSession({
+  binPath,
+  repoRoot,
+  homeOverride,
+  skipGrammarDownload,
+  requestTimeoutMs,
+  extraEnv = {},
+}) {
+  const child = spawn(binPath, ['mcp'], {
+    cwd: repoRoot,
+    env: buildMcpSessionEnv({ extraEnv, homeOverride, skipGrammarDownload }),
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+  const pending = new Map();
+  const stdoutLog = [];
+  const stderrLog = [];
+  let closed = false;
+
+  attachMcpStdoutReader({ child, pending, stdoutLog, stderrLog });
+  attachMcpStderrReader({ child, stderrLog });
+  attachMcpExitHandler({
+    child,
+    pending,
+    markClosed() {
+      closed = true;
+    },
+  });
+  const callTool = createMcpToolCaller({
+    child,
+    pending,
+    requestTimeoutMs,
+    isClosed() {
+      return closed;
+    },
+  });
 
   async function close() {
     if (closed) {

@@ -53,9 +53,8 @@ function summarizeCommandItem(item) {
   };
 }
 
-function createStdoutEventTracker() {
-  let remainder = '';
-  const summary = {
+function createStdoutEventSummary() {
+  return {
     event_count: 0,
     parsed_event_count: 0,
     unparsed_line_count: 0,
@@ -79,108 +78,106 @@ function createStdoutEventTracker() {
     last_agent_message: null,
     last_agent_message_elapsed_ms: null,
   };
+}
+
+function elapsedSince(startedMs) {
+  return Number((nowMs() - startedMs).toFixed(1));
+}
+
+function updateStartedCommand(summary, item, eventElapsedMs) {
+  const command = summarizeCommandItem(item);
+
+  summary.command_started_count += 1;
+  summary.last_started_command = command;
+  summary.last_started_command_elapsed_ms = eventElapsedMs;
+  summary.in_progress_command = command;
+  summary.in_progress_command_elapsed_ms = eventElapsedMs;
+}
+
+function updateCompletedCommand(summary, item, eventElapsedMs) {
+  const command = summarizeCommandItem(item);
+
+  summary.command_completed_count += 1;
+  summary.last_completed_command = command;
+  summary.last_completed_command_elapsed_ms = eventElapsedMs;
+  summary.last_completed_command_exit_code = command?.exit_code ?? null;
+  summary.last_completed_command_status = command?.status ?? null;
+  summary.in_progress_command = null;
+  summary.in_progress_command_elapsed_ms = null;
+}
+
+function updateAgentMessage(summary, item, eventElapsedMs) {
+  summary.agent_message_count += 1;
+  summary.last_agent_message = typeof item.text === 'string' ? item.text : null;
+  summary.last_agent_message_elapsed_ms = eventElapsedMs;
+}
+
+function consumeStdoutEventLine(summary, line, startedMs) {
+  if (!line.trim()) {
+    return;
+  }
+
+  summary.event_count += 1;
+  const parsed = parseJsonLine(line);
+  if (!parsed) {
+    summary.unparsed_line_count += 1;
+    return;
+  }
+
+  const eventElapsedMs = elapsedSince(startedMs);
+  summary.parsed_event_count += 1;
+  summary.last_event_type = typeof parsed.type === 'string' ? parsed.type : null;
+  summary.last_event_elapsed_ms = eventElapsedMs;
+
+  if (parsed.type === 'turn.started') {
+    summary.turn_count += 1;
+    return;
+  }
+
+  const item = parsed.item ?? null;
+  const itemType = item?.type;
+  if (typeof itemType !== 'string') {
+    return;
+  }
+
+  if (parsed.type === 'item.started' && itemType === 'command_execution') {
+    updateStartedCommand(summary, item, eventElapsedMs);
+    return;
+  }
+  if (parsed.type !== 'item.completed') {
+    return;
+  }
+
+  summary.completed_item_count += 1;
+  summary.last_completed_item_type = itemType;
+  summary.last_completed_item_elapsed_ms = eventElapsedMs;
+
+  if (itemType === 'command_execution') {
+    updateCompletedCommand(summary, item, eventElapsedMs);
+    return;
+  }
+  if (itemType === 'agent_message') {
+    updateAgentMessage(summary, item, eventElapsedMs);
+  }
+}
+
+function createStdoutEventTracker() {
+  let remainder = '';
+  const summary = createStdoutEventSummary();
   const startedMs = nowMs();
-
-  function elapsedMs() {
-    return Number((nowMs() - startedMs).toFixed(1));
-  }
-
-  function updateParsedEvent(parsed, eventElapsedMs) {
-    summary.parsed_event_count += 1;
-    summary.last_event_type = typeof parsed.type === 'string' ? parsed.type : null;
-    summary.last_event_elapsed_ms = eventElapsedMs;
-  }
-
-  function handleStartedCommand(item, eventElapsedMs) {
-    const command = summarizeCommandItem(item);
-
-    summary.command_started_count += 1;
-    summary.last_started_command = command;
-    summary.last_started_command_elapsed_ms = eventElapsedMs;
-    summary.in_progress_command = command;
-    summary.in_progress_command_elapsed_ms = eventElapsedMs;
-  }
-
-  function handleCompletedCommand(item, eventElapsedMs) {
-    const command = summarizeCommandItem(item);
-
-    summary.command_completed_count += 1;
-    summary.last_completed_command = command;
-    summary.last_completed_command_elapsed_ms = eventElapsedMs;
-    summary.last_completed_command_exit_code = command?.exit_code ?? null;
-    summary.last_completed_command_status = command?.status ?? null;
-    summary.in_progress_command = null;
-    summary.in_progress_command_elapsed_ms = null;
-  }
-
-  function handleAgentMessage(item, eventElapsedMs) {
-    summary.agent_message_count += 1;
-    summary.last_agent_message = typeof item.text === 'string' ? item.text : null;
-    summary.last_agent_message_elapsed_ms = eventElapsedMs;
-  }
-
-  function consumeLine(line) {
-    if (!line.trim()) {
-      return;
-    }
-
-    summary.event_count += 1;
-    const parsed = parseJsonLine(line);
-    if (!parsed) {
-      summary.unparsed_line_count += 1;
-      return;
-    }
-
-    const eventElapsedMs = elapsedMs();
-    updateParsedEvent(parsed, eventElapsedMs);
-
-    if (parsed.type === 'turn.started') {
-      summary.turn_count += 1;
-      return;
-    }
-
-    const item = parsed.item ?? null;
-    const itemType = item?.type;
-    if (typeof itemType !== 'string') {
-      return;
-    }
-
-    switch (parsed.type) {
-      case 'item.started':
-        if (itemType === 'command_execution') {
-          handleStartedCommand(item, eventElapsedMs);
-        }
-        return;
-      case 'item.completed':
-        summary.completed_item_count += 1;
-        summary.last_completed_item_type = itemType;
-        summary.last_completed_item_elapsed_ms = eventElapsedMs;
-
-        if (itemType === 'command_execution') {
-          handleCompletedCommand(item, eventElapsedMs);
-          return;
-        }
-        if (itemType === 'agent_message') {
-          handleAgentMessage(item, eventElapsedMs);
-        }
-        return;
-      default:
-        return;
-    }
-  }
 
   function consume(text) {
     remainder += text;
     const lines = remainder.split(/\r?\n/);
     remainder = lines.pop() ?? '';
     for (const line of lines) {
-      consumeLine(line);
+      consumeStdoutEventLine(summary, line, startedMs);
     }
   }
 
   function finish() {
     if (remainder) {
-      consumeLine(remainder);
+      consumeStdoutEventLine(summary, remainder, startedMs);
       remainder = '';
     }
   }

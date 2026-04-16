@@ -834,52 +834,79 @@ async function main() {
 
   const runId = `eval-${new Date().toISOString().replace(/[:.]/g, '-')}`;
   options.runId = runId;
+  const scenarios = await loadScenarioEntries(options);
+  await mkdir(options.outputDir, { recursive: true });
 
-  const scenarioPaths =
-    options.scenarioPaths.length > 0
-      ? options.scenarioPaths.map((scenarioPath) => path.resolve(scenarioPath))
-      : await loadScenarioPathsFromManifest(path.resolve(options.manifestPath));
+  if (options.dryRun) {
+    await writeDryRunIndex(options, runId, scenarios);
+    return;
+  }
 
+  const startedAt = nowIso();
+  const startedMs = nowMs();
+  const taskResults = await runScenarioTasks(scenarios, options);
+  const index = buildRunIndex(runId, options, scenarios, taskResults, startedAt, startedMs);
+  await writeJson(path.join(options.outputDir, 'index.json'), index);
+  console.log(
+    `Completed ${index.summary.task_count} task(s): ${index.summary.pass_count} pass, ${index.summary.warn_count} warn, ${index.summary.fail_count} fail.`,
+  );
+}
+
+async function loadScenarioEntries(options) {
+  const scenarioPaths = await resolveScenarioPaths(options);
   const scenarios = [];
   for (const scenarioPath of scenarioPaths) {
     const scenario = await readJson(scenarioPath);
     ensureScenarioShape(scenario, scenarioPath);
     scenarios.push({ scenario, scenarioPath });
   }
+  return scenarios;
+}
 
-  await mkdir(options.outputDir, { recursive: true });
-
-  if (options.dryRun) {
-    const dryRunIndex = {
-      schema_version: 1,
-      generated_at: nowIso(),
-      run_id: runId,
-      provider: options.provider,
-      dry_run: true,
-      output_dir: options.outputDir,
-      scenarios: scenarios.map(({ scenario, scenarioPath }) => ({
-        scenario_id: scenario.scenario_id,
-        source_path: scenarioPath,
-        repo: scenario.repo,
-        task_count: scenario.tasks.length,
-        tasks: scenario.tasks.map((task) => ({
-          task_id: task.task_id,
-          kind: task.kind,
-          mode: task.mode ?? null,
-        })),
-      })),
-    };
-
-    await writeJson(path.join(options.outputDir, 'index.json'), dryRunIndex);
-    console.log(
-      `Dry run loaded ${scenarios.length} scenario(s) and ${dryRunIndex.scenarios.reduce(
-        (count, scenario) => count + scenario.task_count,
-        0,
-      )} task(s).`,
-    );
-    return;
+async function resolveScenarioPaths(options) {
+  if (options.scenarioPaths.length > 0) {
+    return options.scenarioPaths.map((scenarioPath) => path.resolve(scenarioPath));
   }
 
+  return loadScenarioPathsFromManifest(path.resolve(options.manifestPath));
+}
+
+async function writeDryRunIndex(options, runId, scenarios) {
+  const dryRunIndex = {
+    schema_version: 1,
+    generated_at: nowIso(),
+    run_id: runId,
+    provider: options.provider,
+    dry_run: true,
+    output_dir: options.outputDir,
+    scenarios: scenarios.map(buildDryRunScenarioEntry),
+  };
+
+  await writeJson(path.join(options.outputDir, 'index.json'), dryRunIndex);
+  console.log(
+    `Dry run loaded ${scenarios.length} scenario(s) and ${countScenarioTasks(dryRunIndex.scenarios)} task(s).`,
+  );
+}
+
+function buildDryRunScenarioEntry({ scenario, scenarioPath }) {
+  return {
+    scenario_id: scenario.scenario_id,
+    source_path: scenarioPath,
+    repo: scenario.repo,
+    task_count: scenario.tasks.length,
+    tasks: scenario.tasks.map((task) => ({
+      task_id: task.task_id,
+      kind: task.kind,
+      mode: task.mode ?? null,
+    })),
+  };
+}
+
+function countScenarioTasks(scenarios) {
+  return scenarios.reduce((count, scenario) => count + scenario.task_count, 0);
+}
+
+function buildScenarioTaskQueue(scenarios) {
   const allTasks = [];
   for (const entry of scenarios) {
     for (const task of entry.scenario.tasks) {
@@ -890,10 +917,12 @@ async function main() {
       });
     }
   }
+  return allTasks;
+}
 
-  const startedAt = nowIso();
-  const startedMs = nowMs();
-  const taskResults = await runWithConcurrency(allTasks, options.concurrency, async (item) => {
+async function runScenarioTasks(scenarios, options) {
+  const allTasks = buildScenarioTaskQueue(scenarios);
+  return runWithConcurrency(allTasks, options.concurrency, async (item) => {
     const result = await runTask({
       scenario: item.scenario,
       scenarioPath: item.scenarioPath,
@@ -914,9 +943,11 @@ async function main() {
       score_0_100: result.evaluation.score_0_100,
     };
   });
+}
 
+function buildRunIndex(runId, options, scenarios, taskResults, startedAt, startedMs) {
   const finishedAt = nowIso();
-  const index = {
+  return {
     schema_version: 1,
     generated_at: finishedAt,
     run_id: runId,
@@ -927,25 +958,28 @@ async function main() {
     started_at: startedAt,
     finished_at: finishedAt,
     duration_ms: Number((nowMs() - startedMs).toFixed(1)),
-    scenarios: scenarios.map(({ scenario, scenarioPath }) => ({
-      scenario_id: scenario.scenario_id,
-      source_path: scenarioPath,
-      repo: scenario.repo,
-      task_count: scenario.tasks.length,
-    })),
+    scenarios: scenarios.map(buildRunScenarioEntry),
     tasks: taskResults,
-    summary: {
-      task_count: taskResults.length,
-      pass_count: taskResults.filter((task) => task.status === 'pass').length,
-      warn_count: taskResults.filter((task) => task.status === 'warn').length,
-      fail_count: taskResults.filter((task) => task.status === 'fail').length,
-    },
+    summary: summarizeTaskResults(taskResults),
   };
+}
 
-  await writeJson(path.join(options.outputDir, 'index.json'), index);
-  console.log(
-    `Completed ${index.summary.task_count} task(s): ${index.summary.pass_count} pass, ${index.summary.warn_count} warn, ${index.summary.fail_count} fail.`,
-  );
+function buildRunScenarioEntry({ scenario, scenarioPath }) {
+  return {
+    scenario_id: scenario.scenario_id,
+    source_path: scenarioPath,
+    repo: scenario.repo,
+    task_count: scenario.tasks.length,
+  };
+}
+
+function summarizeTaskResults(taskResults) {
+  return {
+    task_count: taskResults.length,
+    pass_count: taskResults.filter((task) => task.status === 'pass').length,
+    warn_count: taskResults.filter((task) => task.status === 'warn').length,
+    fail_count: taskResults.filter((task) => task.status === 'fail').length,
+  };
 }
 
 main().catch((error) => {
