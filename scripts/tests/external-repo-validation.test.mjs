@@ -30,16 +30,16 @@ test('parseArgs requires repo root and infers repo label', function () {
     /Missing required --repo-root/,
   );
 
-  const args = parseArgs(['node', 'script', '--repo-root', '/tmp/public-repo']);
-  assert.equal(args.repoRoot, '/tmp/public-repo');
-  assert.equal(args.repoLabel, 'public-repo');
+  const args = parseArgs(['node', 'script', '--repo-root', '/tmp/one-tool']);
+  assert.equal(args.repoRoot, '/tmp/one-tool');
+  assert.equal(args.repoLabel, 'one-tool');
 });
 
 test('buildRawToolSummary preserves external-repo confidence and finding counts', async function () {
   const analysis = await readFixture('analysis.json');
   const summary = buildRawToolSummary(analysis);
 
-  assert.equal(summary.repo_root, '/workspace/public-repo');
+  assert.equal(summary.repo_root, '/workspace/one-tool');
   assert.equal(summary.scan_summary.mode, 'git');
   assert.equal(summary.scan_summary.kept_files, 958);
   assert.equal(summary.scan_summary.candidate_files, 6964);
@@ -67,7 +67,7 @@ test('buildScanCoverageBreakdown preserves exclusions and resolution detail', as
   const breakdown = buildScanCoverageBreakdown(analysis);
   const markdown = formatScanCoverageBreakdownMarkdown(breakdown);
 
-  assert.equal(breakdown.repo_root, '/workspace/public-repo');
+  assert.equal(breakdown.repo_root, '/workspace/one-tool');
   assert.equal(breakdown.candidate_file_coverage.mode, 'git');
   assert.equal(breakdown.candidate_file_coverage.tracked_candidates, 6960);
   assert.equal(breakdown.candidate_file_coverage.untracked_candidates, 4);
@@ -133,8 +133,8 @@ test('buildValidationReport calls out dead-private precision and scan trust gaps
     },
   });
   const report = buildValidationReport({
-    repoRootPath: '/workspace/public-repo',
-    repoLabel: 'public-repo',
+    repoRootPath: '/workspace/one-tool',
+    repoLabel: 'one-tool',
     branch: 'main',
     commit: '0724ba9a',
     workingTreeClean: true,
@@ -153,7 +153,7 @@ test('buildValidationReport calls out dead-private precision and scan trust gaps
     report,
     /dead-private precision (is not good enough yet|still needs broader external validation)/,
   );
-  assert.match(report, /public-repo still scans with low confidence/);
+  assert.match(report, /one-tool still scans with low confidence/);
   assert.match(report, /5993 files, 9978 \/ 10000 of measured exclusions/);
   assert.match(report, /legacy-only candidate\(s\) remain outside the canonical reviewer queue/);
   assert.doesNotMatch(report, /clone packet output is too lossy/);
@@ -162,8 +162,8 @@ test('buildValidationReport calls out dead-private precision and scan trust gaps
 test('buildEngineeringReport separates high-confidence work from skeptical dead-private cases', async function () {
   const analysis = await readFixture('analysis.json');
   const report = buildEngineeringReport({
-    repoRootPath: '/workspace/public-repo',
-    repoLabel: 'public-repo',
+    repoRootPath: '/workspace/one-tool',
+    repoLabel: 'one-tool',
     branch: 'main',
     commit: '0724ba9a',
     rawToolAnalysis: analysis,
@@ -183,8 +183,8 @@ test('buildEngineeringReport says when no dead-private candidates surfaced', asy
   analysis.findings.experimental_debt_signals = [];
 
   const report = buildEngineeringReport({
-    repoRootPath: '/workspace/public-repo',
-    repoLabel: 'public-repo',
+    repoRootPath: '/workspace/one-tool',
+    repoLabel: 'one-tool',
     branch: 'main',
     commit: '0724ba9a',
     rawToolAnalysis: analysis,

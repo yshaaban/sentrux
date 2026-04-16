@@ -251,7 +251,7 @@ test('buildSignalScorecard tracks check_rules-only seeded defects through the pr
 
 test('buildSignalScorecard respects an explicit repo label override', function () {
   const scorecard = buildSignalScorecard({
-    repoLabel: 'telemetry-fixture',
+    repoLabel: 'one-tool',
     defectReport: {
       repo_label: 'parallel-code',
       defects: [],
@@ -259,7 +259,7 @@ test('buildSignalScorecard respects an explicit repo label override', function (
     },
   });
 
-  assert.equal(scorecard.repo_label, 'telemetry-fixture');
+  assert.equal(scorecard.repo_label, 'one-tool');
 });
 
 test('buildSignalScorecard derives a repo label without a defect report', function () {
@@ -342,7 +342,7 @@ test('buildSignalScorecard builds a review-and-session-only scorecard without se
 
 test('buildSignalScorecard keeps provisional review verdicts out of curated coverage', function () {
   const scorecard = buildSignalScorecard({
-    repoLabel: 'public-repo',
+    repoLabel: 'one-tool',
     reviewVerdicts: {
       provisional: true,
       verdicts: [

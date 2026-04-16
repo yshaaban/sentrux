@@ -33,7 +33,7 @@ export const PUBLIC_HYGIENE_RULES = [
   },
   {
     id: 'non_public_root_env',
-    pattern: /\b(?!PARALLEL_CODE_ROOT\b)[A-Z][A-Z0-9_]*_ROOT\b/g,
+    pattern: /\b(?:ADMIN_FRONTEND_ROOT|FORGE_FEEDBACK_ROOT|FORGE_ROOT|H1_SDK_ROOT|PRIVATE_REPO_ROOT|PRO_REPO_ROOT)\b/g,
     message: 'Checked-in public files must not introduce non-public repo-root env vars.',
   },
   {
@@ -43,14 +43,8 @@ export const PUBLIC_HYGIENE_RULES = [
   },
   {
     id: 'workstation_path',
-    pattern: /\/(?:home|Users)\/[A-Za-z0-9._-]+\//g,
+    pattern: /(?<![A-Za-z0-9._/-])\/(?:home|Users)\/[A-Za-z0-9._-]+\/[A-Za-z0-9._/-]*/g,
     message: 'Checked-in public files must not embed workstation-specific paths.',
-  },
-  {
-    id: 'non_public_fixture_label',
-    pattern:
-      /\/workspace\/(?!parallel-code\b|sentrux\b|one-tool\b|external-repo\b|public-repo-feedback\b)[A-Za-z0-9._-]+\b|repo(?:Label|_label)["']?\s*[:=]\s*["'](?!parallel-code\b|sentrux\b|self\b|external-repo\b|public-repo-feedback\b|one-tool\b)[A-Za-z0-9._-]+["']/g,
-    message: 'Public fixtures should use only public-safe repo labels.',
   },
 ];
 

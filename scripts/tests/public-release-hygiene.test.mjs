@@ -18,7 +18,7 @@ import {
 test('scanText catches abandoned repo links, non-public root vars, and workstation paths', function () {
   const text = [
     'See https://github.com/sentrux/sentrux/releases for the old release page.',
-    'Do not publish SECRET_PROJECT_ROOT or /home/tester/private in checked-in artifacts.',
+    'Do not publish ADMIN_FRONTEND_ROOT or /home/tester/private in checked-in artifacts.',
   ].join('\n');
 
   const matches = scanText(text, 'README.md');
@@ -29,6 +29,19 @@ test('scanText catches abandoned repo links, non-public root vars, and workstati
   assert.ok(ruleIds.includes('abandoned_public_repo'));
   assert.ok(ruleIds.includes('non_public_root_env'));
   assert.ok(ruleIds.includes('workstation_path'));
+});
+
+test('scanText keeps generic fixture labels and repo-relative home paths clean', function () {
+  const text = [
+    'repoLabel: "sample-project"',
+    'repoLabel: "public-repo"',
+    'repoLabel: "telemetry-fixture"',
+    'src/modules/home/components/index.ts',
+    'REPO_ROOT="$PWD"',
+    'WORK_ROOT="$tmpdir/parallel-code"',
+  ].join('\n');
+
+  assert.deepEqual(scanText(text, 'README.md'), []);
 });
 
 test('scanText catches hashed private-token rules without storing literals in the repo', function () {
@@ -72,6 +85,7 @@ test('rules cover the key public-release leak classes', function () {
   assert.ok(ruleIds.includes('abandoned_public_repo'));
   assert.ok(ruleIds.includes('private_release_dependency'));
   assert.ok(ruleIds.includes('private_repo_token'));
+  assert.ok(ruleIds.includes('non_public_root_env'));
   assert.ok(ruleIds.includes('self_hosted_gitlab'));
   assert.ok(ruleIds.includes('workstation_path'));
 });

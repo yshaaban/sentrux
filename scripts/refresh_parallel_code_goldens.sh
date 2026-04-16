@@ -2,13 +2,13 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-source "$REPO_ROOT/scripts/lib/benchmark-plugin-home.sh"
-DEFAULT_PARALLEL_CODE_ROOT="$(cd "$REPO_ROOT/.." && pwd)/parallel-code"
-PARALLEL_CODE_ROOT="${PARALLEL_CODE_ROOT:-$DEFAULT_PARALLEL_CODE_ROOT}"
-RULES_SOURCE="$REPO_ROOT/docs/v2/examples/parallel-code.rules.toml"
-OUTPUT_DIR="${OUTPUT_DIR:-$REPO_ROOT/docs/v2/examples/parallel-code-golden}"
-SENTRUX_BIN="${SENTRUX_BIN:-$REPO_ROOT/target/debug/sentrux}"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+source "$REPO_DIR/scripts/lib/benchmark-plugin-home.sh"
+DEFAULT_PARALLEL_CODE_DIR="$(cd "$REPO_DIR/.." && pwd)/parallel-code"
+PARALLEL_CODE_DIR="${PARALLEL_CODE_DIR:-$DEFAULT_PARALLEL_CODE_DIR}"
+RULES_SOURCE="$REPO_DIR/docs/v2/examples/parallel-code.rules.toml"
+OUTPUT_DIR="${OUTPUT_DIR:-$REPO_DIR/docs/v2/examples/parallel-code-golden}"
+SENTRUX_BIN="${SENTRUX_BIN:-$REPO_DIR/target/debug/sentrux}"
 ANALYSIS_MODE="${ANALYSIS_MODE:-head_clone}"
 SENTRUX_SKIP_GRAMMAR_DOWNLOAD="${SENTRUX_SKIP_GRAMMAR_DOWNLOAD:-1}"
 
@@ -24,8 +24,8 @@ if [[ ! -f "$RULES_SOURCE" ]]; then
   exit 1
 fi
 
-if [[ ! -d "$PARALLEL_CODE_ROOT" ]]; then
-  echo "Missing parallel-code repo at $PARALLEL_CODE_ROOT" >&2
+if [[ ! -d "$PARALLEL_CODE_DIR" ]]; then
+  echo "Missing parallel-code repo at $PARALLEL_CODE_DIR" >&2
   exit 1
 fi
 
@@ -40,8 +40,8 @@ if ! command -v git >/dev/null 2>&1; then
 fi
 
 tmpdir="$(mktemp -d)"
-WORK_ROOT="$tmpdir/parallel-code"
-WORK_SENTRUX_DIR="$WORK_ROOT/.sentrux"
+WORK_DIR="$tmpdir/parallel-code"
+WORK_SENTRUX_DIR="$WORK_DIR/.sentrux"
 WORK_RULES_PATH="$WORK_SENTRUX_DIR/rules.toml"
 PLUGIN_HOME="$(prepare_typescript_benchmark_home "$tmpdir")"
 FIXED_NOW_EPOCH=""
@@ -53,16 +53,14 @@ cleanup() {
 trap cleanup EXIT
 
 mkdir -p "$OUTPUT_DIR"
-git clone --quiet --local --no-hardlinks "$PARALLEL_CODE_ROOT" "$WORK_ROOT"
+git clone --quiet --local --no-hardlinks "$PARALLEL_CODE_DIR" "$WORK_DIR"
 if [[ "$ANALYSIS_MODE" == "working_tree" ]]; then
-  node - "$PARALLEL_CODE_ROOT" "$WORK_ROOT" "$REPO_ROOT" <<'EOF'
+  node - "$PARALLEL_CODE_DIR" "$WORK_DIR" "$REPO_DIR" <<'EOF'
 const path = require('node:path');
 
 async function main() {
   const [, , sourceRoot, targetRoot, repoRoot] = process.argv;
-  const { overlayWorkingTreeChanges } = await import(
-    path.resolve(repoRoot, 'scripts/lib/repo-identity.mjs')
-  );
+  const { overlayWorkingTreeChanges } = await import(path.resolve(repoRoot, 'scripts/lib/repo-identity.mjs'));
   await overlayWorkingTreeChanges({ sourceRoot, targetRoot });
 }
 
@@ -78,10 +76,10 @@ fi
 
 mkdir -p "$WORK_SENTRUX_DIR"
 cp "$RULES_SOURCE" "$WORK_RULES_PATH"
-FIXED_NOW_EPOCH="$(git -C "$WORK_ROOT" log -1 --format=%ct)"
+FIXED_NOW_EPOCH="$(git -C "$WORK_DIR" log -1 --format=%ct)"
 
 cat > "$tmpdir/requests.jsonl" <<EOF
-{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"scan","arguments":{"path":"$WORK_ROOT"}}}
+{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"scan","arguments":{"path":"$WORK_DIR"}}}
 {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"concepts","arguments":{}}}
 {"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"findings","arguments":{"limit":12}}}
 {"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"explain_concept","arguments":{"id":"task_git_status"}}}
@@ -100,12 +98,12 @@ EOF
 
 HOME="$PLUGIN_HOME" SENTRUX_FIXED_NOW_EPOCH="$FIXED_NOW_EPOCH" "$SENTRUX_BIN" mcp < "$tmpdir/requests.jsonl" | grep '^[{]' > "$tmpdir/responses.jsonl"
 
-node - "$tmpdir/responses.jsonl" "$OUTPUT_DIR" "$WORK_ROOT" "$PARALLEL_CODE_ROOT" <<'EOF'
+node - "$tmpdir/responses.jsonl" "$OUTPUT_DIR" "$WORK_DIR" "$PARALLEL_CODE_DIR" <<'EOF'
 const fs = require('node:fs');
 const path = require('node:path');
 
 const [, , responsesPath, outputDir, workRoot, sourceRoot] = process.argv;
-const publicRepoRoot = '<parallel-code-root>';
+const publicRepoRoot = '<parallel-code-dir>';
 const responseLines = fs
   .readFileSync(responsesPath, 'utf8')
   .split('\n')
@@ -207,7 +205,7 @@ for (const [id, filename] of outputs) {
 }
 EOF
 
-node - "$OUTPUT_DIR/metadata.json" "$PARALLEL_CODE_ROOT" "$WORK_ROOT" "$REPO_ROOT" "$RULES_SOURCE" "$SENTRUX_BIN" "$ANALYSIS_MODE" <<'EOF'
+node - "$OUTPUT_DIR/metadata.json" "$PARALLEL_CODE_DIR" "$WORK_DIR" "$REPO_DIR" "$RULES_SOURCE" "$SENTRUX_BIN" "$ANALYSIS_MODE" <<'EOF'
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -240,9 +238,9 @@ async function main() {
   });
   const publicPathReplacements = [
     [sentruxBinary, '<sentrux-root>/target/debug/sentrux'],
-    [rulesSource, '<sentrux-root>/docs/v2/examples/parallel-code.rules.toml'],
-    [analyzedRoot, '<parallel-code-root>'],
-    [parallelCodeRoot, '<parallel-code-root>'],
+    [rulesSource, '<sentrux-dir>/docs/v2/examples/parallel-code.rules.toml'],
+    [analyzedRoot, '<parallel-code-dir>'],
+    [parallelCodeRoot, '<parallel-code-dir>'],
     [repoRoot, '<sentrux-root>'],
   ];
   function sanitizeValue(value) {
@@ -293,7 +291,7 @@ main().catch((error) => {
 });
 EOF
 
-node - "$WORK_ROOT/src/components/SidebarTaskRow.tsx" <<'EOF'
+node - "$WORK_DIR/src/components/SidebarTaskRow.tsx" <<'EOF'
 const fs = require('node:fs');
 
 const [, , targetPath] = process.argv;
@@ -312,14 +310,14 @@ fs.writeFileSync(targetPath, source.replace(needle, injection));
 EOF
 
 cat > "$tmpdir/regression-requests.jsonl" <<EOF
-{"jsonrpc":"2.0","id":20,"method":"tools/call","params":{"name":"scan","arguments":{"path":"$WORK_ROOT"}}}
+{"jsonrpc":"2.0","id":20,"method":"tools/call","params":{"name":"scan","arguments":{"path":"$WORK_DIR"}}}
 {"jsonrpc":"2.0","id":21,"method":"tools/call","params":{"name":"gate","arguments":{}}}
 {"jsonrpc":"2.0","id":22,"method":"tools/call","params":{"name":"session_end","arguments":{}}}
 EOF
 
 HOME="$PLUGIN_HOME" "$SENTRUX_BIN" mcp < "$tmpdir/regression-requests.jsonl" | grep '^[{]' > "$tmpdir/regression-responses.jsonl"
 
-node - "$tmpdir/regression-responses.jsonl" "$OUTPUT_DIR" "$WORK_ROOT" "$PARALLEL_CODE_ROOT" <<'EOF'
+node - "$tmpdir/regression-responses.jsonl" "$OUTPUT_DIR" "$WORK_DIR" "$PARALLEL_CODE_DIR" <<'EOF'
 const fs = require('node:fs');
 const path = require('node:path');
 

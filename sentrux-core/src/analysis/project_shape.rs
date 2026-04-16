@@ -781,7 +781,7 @@ mod tests {
         let file_paths = vec![
             "src/app/[locale]/layout.tsx".to_string(),
             "src/app/api/rag/jobs/route.ts".to_string(),
-            "src/modules/home/index.ts".to_string(),
+            "src/modules/dashboard/index.ts".to_string(),
             "src/modules/file-manager/index.ts".to_string(),
             "src/services/users.ts".to_string(),
             "src/providers/query-provider.tsx".to_string(),
@@ -818,7 +818,7 @@ mod tests {
     fn renders_starter_rules_with_module_contracts() {
         let file_paths = vec![
             "src/app/layout.tsx".to_string(),
-            "src/modules/home/index.ts".to_string(),
+            "src/modules/dashboard/index.ts".to_string(),
             "src/modules/file-manager/index.ts".to_string(),
         ];
         let shape = detect_project_shape(
@@ -841,7 +841,7 @@ mod tests {
     fn renders_working_rules_without_commentary() {
         let file_paths = vec![
             "src/app/layout.tsx".to_string(),
-            "src/modules/home/index.ts".to_string(),
+            "src/modules/dashboard/index.ts".to_string(),
             "src/modules/file-manager/index.ts".to_string(),
         ];
         let shape = detect_project_shape(
@@ -870,7 +870,7 @@ mod tests {
     fn detects_nextjs_from_config_and_single_feature_module() {
         let file_paths = vec![
             "src/app/layout.tsx".to_string(),
-            "src/modules/home/index.ts".to_string(),
+            "src/modules/dashboard/index.ts".to_string(),
         ];
 
         let shape = detect_project_shape(None, &file_paths, &["next.config.ts".to_string()], &[]);
@@ -952,9 +952,9 @@ mod tests {
     fn infers_nested_feature_module_public_api_patterns() {
         let file_paths = vec![
             "src/app/layout.tsx".to_string(),
-            "src/modules/home/index.ts".to_string(),
-            "src/modules/home/components/index.ts".to_string(),
-            "src/modules/home/hooks/index.ts".to_string(),
+            "src/modules/dashboard/index.ts".to_string(),
+            "src/modules/dashboard/components/index.ts".to_string(),
+            "src/modules/dashboard/hooks/index.ts".to_string(),
             "src/modules/users/index.ts".to_string(),
             "src/modules/users/components/index.ts".to_string(),
             "src/modules/users/hooks/index.ts".to_string(),

@@ -75,8 +75,8 @@ async function createValidationFixture({ benchmarkFormatVersion = 3 } = {}) {
 
 function runFixtureValidation(fixture, overrides = {}) {
   return runValidationSuite({
-    repoLabel: 'sample-project',
-    repoEnvVar: 'SAMPLE_PROJECT_ROOT',
+    repoLabel: 'one-tool',
+    repoEnvVar: 'ONE_TOOL_DIR',
     repoRoot: fixture.repoRoot,
     sentruxBin: '/tmp/sentrux',
     refreshScript: fixture.refreshScript,
@@ -285,8 +285,8 @@ test('runValidationSuite accepts repeated benchmark artifacts with additive fiel
 
   try {
     await runValidationSuite({
-      repoLabel: 'sample-project',
-      repoEnvVar: 'SAMPLE_PROJECT_ROOT',
+      repoLabel: 'one-tool',
+      repoEnvVar: 'ONE_TOOL_DIR',
       repoRoot: fixture.repoRoot,
       sentruxBin: '/tmp/sentrux',
       refreshScript: fixture.refreshScript,

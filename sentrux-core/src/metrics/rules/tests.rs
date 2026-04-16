@@ -277,13 +277,13 @@ forbid_cross_module_deep_imports = true
         .unwrap();
 
         let edges = vec![edge(
-            "src/modules/home/components/panel.tsx",
+            "src/modules/dashboard/components/panel.tsx",
             "src/modules/file-manager/components/internal.tsx",
         )];
         let snap = make_snapshot(
             edges.clone(),
             vec![
-                file("src/modules/home/components/panel.tsx"),
+                file("src/modules/dashboard/components/panel.tsx"),
                 file("src/modules/file-manager/components/internal.tsx"),
             ],
         );
@@ -313,13 +313,13 @@ forbid_cross_module_deep_imports = true
         .unwrap();
 
         let edges = vec![edge(
-            "src/modules/home/components/panel.tsx",
+            "src/modules/dashboard/components/panel.tsx",
             "src/modules/file-manager/index.ts",
         )];
         let snap = make_snapshot(
             edges.clone(),
             vec![
-                file("src/modules/home/components/panel.tsx"),
+                file("src/modules/dashboard/components/panel.tsx"),
                 file("src/modules/file-manager/index.ts"),
             ],
         );
