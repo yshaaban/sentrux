@@ -8,10 +8,13 @@
 //! Plugins are loaded at startup and registered alongside built-in languages.
 //! Plugin languages take priority over built-in (allows user overrides).
 
-pub mod embedded;
 pub mod loader;
 pub mod manifest;
 pub mod profile;
+
+pub mod embedded {
+    include!(concat!(env!("OUT_DIR"), "/embedded.rs"));
+}
 
 pub use loader::{load_all_plugins, plugins_dir, LoadedPlugin, PluginLoadError};
 pub use manifest::PluginManifest;
