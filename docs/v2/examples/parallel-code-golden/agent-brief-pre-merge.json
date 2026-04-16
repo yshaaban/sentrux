@@ -7,7 +7,7 @@
   "changed_files": [],
   "confidence": {
     "rule_coverage_0_10000": 10000,
-    "scan_confidence_0_10000": 8571,
+    "scan_confidence_0_10000": 8573,
     "semantic_rules_loaded": true,
     "session_baseline": {
       "compatible": true,
@@ -35,7 +35,7 @@
   "expired_suppressions": [],
   "freshness": {
     "baseline_loaded": true,
-    "git_head": "e9a7ca8fb114c0e1e4ecf06cfab149a9bdbc325d",
+    "git_head": "29da61ecff550d395a5d0e6d5c0d81d23dd1a4ab",
     "session_baseline_compatible": true,
     "working_tree_path_count": 0
   },
@@ -61,7 +61,7 @@
   "resolved_finding_count": 0,
   "resolved_findings": [],
   "scan_trust": {
-    "candidate_files": 980,
+    "candidate_files": 981,
     "exclusions": {
       "bucketed": {
         "build": 12,
@@ -76,27 +76,27 @@
       "total": 140
     },
     "fallback_reason": null,
-    "kept_files": 840,
+    "kept_files": 841,
     "mode": "git",
-    "overall_confidence_0_10000": 8571,
+    "overall_confidence_0_10000": 8573,
     "partial": false,
     "resolution": {
       "internal_confidence_0_10000": 9996,
-      "resolved": 2726,
+      "resolved": 2729,
       "unresolved_external": 776,
       "unresolved_internal": 1,
       "unresolved_unknown": 112
     },
-    "scope_coverage_0_10000": 8571,
-    "tracked_candidates": 980,
+    "scope_coverage_0_10000": 8573,
+    "tracked_candidates": 981,
     "truncated": false,
     "untracked_candidates": 0
   },
   "semantic_cache": {
-    "analyzed_files": 713,
+    "analyzed_files": 714,
     "available": true,
     "bridge_protocol_version": "0.1.0",
-    "git_head": "e9a7ca8fb114c0e1e4ecf06cfab149a9bdbc325d",
+    "git_head": "29da61ecff550d395a5d0e6d5c0d81d23dd1a4ab",
     "project_fingerprint": "bd376b35c69fd0f7",
     "source": "memory",
     "working_tree_path_count": 0

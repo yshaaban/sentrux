@@ -2049,10 +2049,10 @@
     "suppressions_expiring": 0
   },
   "semantic_cache": {
-    "analyzed_files": 713,
+    "analyzed_files": 714,
     "available": true,
     "bridge_protocol_version": "0.1.0",
-    "git_head": "e9a7ca8fb114c0e1e4ecf06cfab149a9bdbc325d",
+    "git_head": "29da61ecff550d395a5d0e6d5c0d81d23dd1a4ab",
     "project_fingerprint": "bd376b35c69fd0f7",
     "source": "bridge",
     "working_tree_path_count": 0

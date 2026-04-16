@@ -855,7 +855,7 @@
   "concept_summary_count": 3,
   "confidence": {
     "rule_coverage_0_10000": 10000,
-    "scan_confidence_0_10000": 8571,
+    "scan_confidence_0_10000": 8573,
     "semantic_rules_loaded": true,
     "session_baseline": {
       "compatible": false,
@@ -1437,10 +1437,10 @@
         "private helper surface split"
       ],
       "evidence": [
-        "line count: 1637",
+        "line count: 1653",
         "large-file threshold: 500",
-        "function count: 75",
-        "peak function complexity: 271",
+        "function count: 76",
+        "peak function complexity: 272",
         "outbound dependencies: 14",
         "suggested split axes: lib dependency boundary, app dependency boundary, components dependency boundary, high-complexity helper extraction, private helper surface split",
         "related surfaces to peel out first: electron/ipc/channels.ts, src/app/runtime-diagnostics.ts, src/app/terminal-startup-task-scheduler.ts, src/app/terminal-switch-window.ts, src/components/terminal-view/terminal-input-pipeline.ts",
@@ -1463,10 +1463,10 @@
       "metrics": {
         "fan_out": 14,
         "file_count": 1,
-        "function_count": 75,
+        "function_count": 76,
         "guardrail_test_count": 0,
-        "line_count": 1637,
-        "max_complexity": 271,
+        "line_count": 1653,
+        "max_complexity": 272,
         "role_count": 0
       },
       "presentation_class": "structural_debt",
@@ -1486,7 +1486,7 @@
         "size",
         "coordination"
       ],
-      "summary": "File 'src/components/terminal-view/terminal-recovery-runtime.ts' is 1637 lines, above the typescript threshold of 500",
+      "summary": "File 'src/components/terminal-view/terminal-recovery-runtime.ts' is 1653 lines, above the typescript threshold of 500",
       "trust_tier": "trusted"
     }
   ],
@@ -1507,7 +1507,7 @@
         "dead private functions: 4",
         "dead private lines: 4",
         "sample dead functions: getRetryPreviewLabel, handleAvailablePortExpose, onHide",
-        "total file lines: 898"
+        "total file lines: 904"
       ],
       "files": [
         "src/components/PreviewPanel.tsx"
@@ -1527,7 +1527,7 @@
         "dead_symbol_count": 4,
         "file_count": 1,
         "function_count": 41,
-        "line_count": 898,
+        "line_count": 904,
         "max_complexity": 11,
         "role_count": 0
       },
