@@ -1,4 +1,7 @@
-use super::classification::{dedupe_strings_preserve_order, FindingLeverageClass};
+use super::classification::{
+    dedupe_strings_preserve_order, FindingLeverageClass,
+    FindingPresentationClass as PresentationClass, FindingTrustTier as DebtTrustTier,
+};
 use super::*;
 use crate::metrics::v2::FindingSeverity;
 use serde_json::{json, Value};
@@ -29,78 +32,6 @@ const CONCEPT_DEBT_MISSING_SITE_UNIT: u32 = 700;
 const CONCEPT_DEBT_MISSING_SITE_MAX: u32 = 2800;
 const CONCEPT_DEBT_CONTEXT_UNIT: u32 = 80;
 const CONCEPT_DEBT_CONTEXT_MAX: u32 = 1600;
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq, serde::Serialize)]
-#[serde(rename_all = "snake_case")]
-pub(crate) enum DebtTrustTier {
-    Trusted,
-    Watchpoint,
-    Experimental,
-}
-
-impl DebtTrustTier {
-    const fn as_str(self) -> &'static str {
-        match self {
-            Self::Trusted => "trusted",
-            Self::Watchpoint => "watchpoint",
-            Self::Experimental => "experimental",
-        }
-    }
-
-    fn from_str(value: &str) -> Self {
-        match value {
-            "watchpoint" => Self::Watchpoint,
-            "experimental" => Self::Experimental,
-            _ => Self::Trusted,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq, serde::Serialize)]
-#[serde(rename_all = "snake_case")]
-pub(crate) enum PresentationClass {
-    StructuralDebt,
-    GuardedFacade,
-    ToolingDebt,
-    HardeningNote,
-    Watchpoint,
-    Experimental,
-}
-
-impl PresentationClass {
-    const fn as_str(self) -> &'static str {
-        match self {
-            Self::StructuralDebt => "structural_debt",
-            Self::GuardedFacade => "guarded_facade",
-            Self::ToolingDebt => "tooling_debt",
-            Self::HardeningNote => "hardening_note",
-            Self::Watchpoint => "watchpoint",
-            Self::Experimental => "experimental",
-        }
-    }
-
-    fn from_str(value: &str) -> Self {
-        match value {
-            "guarded_facade" => Self::GuardedFacade,
-            "tooling_debt" => Self::ToolingDebt,
-            "hardening_note" => Self::HardeningNote,
-            "watchpoint" => Self::Watchpoint,
-            "experimental" => Self::Experimental,
-            _ => Self::StructuralDebt,
-        }
-    }
-
-    const fn rank(self) -> usize {
-        match self {
-            Self::StructuralDebt => 0,
-            Self::GuardedFacade => 1,
-            Self::ToolingDebt => 2,
-            Self::HardeningNote => 3,
-            Self::Watchpoint => 4,
-            Self::Experimental => 5,
-        }
-    }
-}
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, serde::Serialize)]
 #[serde(rename_all = "snake_case")]

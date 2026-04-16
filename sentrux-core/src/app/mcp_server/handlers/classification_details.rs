@@ -145,13 +145,6 @@ fn finding_detail_related_surfaces(finding: &Value) -> Vec<String> {
     finding_files(finding).into_iter().take(5).collect()
 }
 
-fn is_contract_surface_propagation_kind(kind: &str) -> bool {
-    matches!(
-        kind,
-        "contract_surface_completeness" | "incomplete_propagation"
-    )
-}
-
 fn clone_followthrough_inspection_focus() -> Vec<String> {
     vec![
         "inspect whether the changed path and the sibling clone should collapse behind one shared helper"
@@ -166,7 +159,7 @@ fn finding_detail_impact(finding: &Value) -> String {
     }
 
     let kind = finding_kind(finding);
-    if is_contract_surface_propagation_kind(kind) {
+    if super::is_contract_surface_propagation_kind(kind) {
         return "Related contract surfaces are no longer aligned, so runtime paths can diverge or partially break.".to_string();
     }
 
@@ -216,7 +209,7 @@ fn finding_detail_inspection_focus(finding: &Value) -> Vec<String> {
 
     let kind = finding_kind(finding);
     let focus = if kind == "closed_domain_exhaustiveness"
-        || is_contract_surface_propagation_kind(kind)
+        || super::is_contract_surface_propagation_kind(kind)
     {
         vec![
             "inspect which required surfaces should change together and add explicit coverage there"

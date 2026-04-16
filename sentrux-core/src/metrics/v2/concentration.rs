@@ -285,134 +285,153 @@ fn capped_pattern_hits(contents: &str, patterns: &[&str], cap_per_pattern: usize
         .sum()
 }
 
-fn scrub_non_code_regions(contents: &str) -> String {
-    #[derive(Clone, Copy, PartialEq, Eq)]
-    enum State {
-        Code,
-        LineComment,
-        BlockComment,
-        SingleQuote,
-        DoubleQuote,
-        Template,
-    }
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ScrubState {
+    Code,
+    LineComment,
+    BlockComment,
+    SingleQuote,
+    DoubleQuote,
+    Template,
+}
 
+fn push_scrubbed_character(scrubbed: &mut String, character: char) {
+    if character == '\n' {
+        scrubbed.push('\n');
+    } else {
+        scrubbed.push(' ');
+    }
+}
+
+fn enter_comment_state(
+    scrubbed: &mut String,
+    chars: &mut std::iter::Peekable<std::str::Chars<'_>>,
+    state: &mut ScrubState,
+    next_state: ScrubState,
+) {
+    scrubbed.push(' ');
+    scrubbed.push(' ');
+    chars.next();
+    *state = next_state;
+}
+
+fn handle_code_scrub_state(
+    character: char,
+    chars: &mut std::iter::Peekable<std::str::Chars<'_>>,
+    scrubbed: &mut String,
+    state: &mut ScrubState,
+    escaping: &mut bool,
+) {
+    let next = chars.peek().copied();
+    match (character, next) {
+        ('/', Some('/')) => enter_comment_state(scrubbed, chars, state, ScrubState::LineComment),
+        ('/', Some('*')) => enter_comment_state(scrubbed, chars, state, ScrubState::BlockComment),
+        ('\'', _) => {
+            scrubbed.push(' ');
+            *state = ScrubState::SingleQuote;
+            *escaping = false;
+        }
+        ('"', _) => {
+            scrubbed.push(' ');
+            *state = ScrubState::DoubleQuote;
+            *escaping = false;
+        }
+        ('`', _) => {
+            scrubbed.push(' ');
+            *state = ScrubState::Template;
+            *escaping = false;
+        }
+        _ => scrubbed.push(character),
+    }
+}
+
+fn handle_quoted_scrub_state(
+    character: char,
+    closing_delimiter: char,
+    scrubbed: &mut String,
+    state: &mut ScrubState,
+    escaping: &mut bool,
+    preserve_newline: bool,
+) {
+    match character {
+        '\n' => {
+            scrubbed.push('\n');
+            if !preserve_newline {
+                *state = ScrubState::Code;
+            }
+            *escaping = false;
+        }
+        '\\' if !*escaping => {
+            scrubbed.push(' ');
+            *escaping = true;
+        }
+        current if current == closing_delimiter && !*escaping => {
+            scrubbed.push(' ');
+            *state = ScrubState::Code;
+        }
+        _ => {
+            scrubbed.push(' ');
+            *escaping = false;
+        }
+    }
+}
+
+fn scrub_non_code_regions(contents: &str) -> String {
     let mut scrubbed = String::with_capacity(contents.len());
     let mut chars = contents.chars().peekable();
-    let mut state = State::Code;
+    let mut state = ScrubState::Code;
     let mut escaping = false;
 
     while let Some(character) = chars.next() {
         match state {
-            State::Code => {
-                let next = chars.peek().copied();
-                match (character, next) {
-                    ('/', Some('/')) => {
-                        scrubbed.push(' ');
-                        scrubbed.push(' ');
-                        chars.next();
-                        state = State::LineComment;
-                    }
-                    ('/', Some('*')) => {
-                        scrubbed.push(' ');
-                        scrubbed.push(' ');
-                        chars.next();
-                        state = State::BlockComment;
-                    }
-                    ('\'', _) => {
-                        scrubbed.push(' ');
-                        state = State::SingleQuote;
-                        escaping = false;
-                    }
-                    ('"', _) => {
-                        scrubbed.push(' ');
-                        state = State::DoubleQuote;
-                        escaping = false;
-                    }
-                    ('`', _) => {
-                        scrubbed.push(' ');
-                        state = State::Template;
-                        escaping = false;
-                    }
-                    _ => scrubbed.push(character),
-                }
-            }
-            State::LineComment => {
+            ScrubState::Code => handle_code_scrub_state(
+                character,
+                &mut chars,
+                &mut scrubbed,
+                &mut state,
+                &mut escaping,
+            ),
+            ScrubState::LineComment => {
+                push_scrubbed_character(&mut scrubbed, character);
                 if character == '\n' {
-                    scrubbed.push('\n');
-                    state = State::Code;
-                } else {
-                    scrubbed.push(' ');
+                    state = ScrubState::Code;
                 }
             }
-            State::BlockComment => {
+            ScrubState::BlockComment => {
                 let next = chars.peek().copied();
                 if character == '*' && next == Some('/') {
                     scrubbed.push(' ');
                     scrubbed.push(' ');
                     chars.next();
-                    state = State::Code;
-                } else if character == '\n' {
-                    scrubbed.push('\n');
+                    state = ScrubState::Code;
                 } else {
-                    scrubbed.push(' ');
+                    push_scrubbed_character(&mut scrubbed, character);
                 }
             }
-            State::SingleQuote => match character {
-                '\n' => {
-                    scrubbed.push('\n');
-                    state = State::Code;
-                    escaping = false;
-                }
-                '\\' if !escaping => {
-                    scrubbed.push(' ');
-                    escaping = true;
-                }
-                '\'' if !escaping => {
-                    scrubbed.push(' ');
-                    state = State::Code;
-                }
-                _ => {
-                    scrubbed.push(' ');
-                    escaping = false;
-                }
-            },
-            State::DoubleQuote => match character {
-                '\n' => {
-                    scrubbed.push('\n');
-                    state = State::Code;
-                    escaping = false;
-                }
-                '\\' if !escaping => {
-                    scrubbed.push(' ');
-                    escaping = true;
-                }
-                '"' if !escaping => {
-                    scrubbed.push(' ');
-                    state = State::Code;
-                }
-                _ => {
-                    scrubbed.push(' ');
-                    escaping = false;
-                }
-            },
-            State::Template => match character {
-                '\n' => {
-                    scrubbed.push('\n');
-                    escaping = false;
-                }
-                '\\' if !escaping => {
-                    scrubbed.push(' ');
-                    escaping = true;
-                }
-                '`' if !escaping => {
-                    scrubbed.push(' ');
-                    state = State::Code;
-                }
-                _ => {
-                    scrubbed.push(' ');
-                    escaping = false;
-                }
-            },
+            ScrubState::SingleQuote => handle_quoted_scrub_state(
+                character,
+                '\'',
+                &mut scrubbed,
+                &mut state,
+                &mut escaping,
+                false,
+            ),
+            ScrubState::DoubleQuote => handle_quoted_scrub_state(
+                character,
+                '"',
+                &mut scrubbed,
+                &mut state,
+                &mut escaping,
+                false,
+            ),
+            ScrubState::Template => handle_quoted_scrub_state(
+                character,
+                '`',
+                &mut scrubbed,
+                &mut state,
+                &mut escaping,
+                true,
+            ),
         }
     }
 

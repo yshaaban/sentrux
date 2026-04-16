@@ -1,47 +1,17 @@
 use super::*;
-use crate::core::settings::Settings;
 use crate::core::snapshot::Snapshot;
 use crate::core::types::FileNode;
-use crate::layout::test_helpers::{
-    default_focus, empty_entry_points, make_dir, make_file, no_hidden, simple_snapshot,
-};
+use crate::layout::test_helpers::{make_dir, make_file, run_layout, simple_snapshot};
 use std::collections::HashMap;
 use std::sync::Arc;
 use types::{LayoutMode, RectKind, ScaleMode, SizeMode};
-
-/// Helper: call compute_layout_from_snapshot with common defaults, constructing LayoutConfig.
-fn layout(
-    snap: &Snapshot,
-    size_mode: SizeMode,
-    scale_mode: ScaleMode,
-    layout_mode: LayoutMode,
-    vw: f64,
-    vh: f64,
-) -> types::RenderData {
-    let settings = Settings::default();
-    let focus = default_focus();
-    let entry = empty_entry_points();
-    let hidden = no_hidden();
-    let cfg = LayoutConfig {
-        size_mode,
-        scale_mode,
-        layout_mode,
-        heat_map: None,
-        settings: &settings,
-        focus_mode: &focus,
-        entry_point_files: &entry,
-        hidden_paths: &hidden,
-        impact_files: None,
-    };
-    compute_layout_from_snapshot(snap, vw, vh, None, &cfg)
-}
 
 // ─── Invariance: color mode change doesn't change layout ──────
 
 #[test]
 fn test_invariance_layout_ignores_color_mode() {
     let snap = simple_snapshot();
-    let r1 = layout(
+    let r1 = run_layout(
         &snap,
         SizeMode::Lines,
         ScaleMode::Linear,
@@ -49,7 +19,7 @@ fn test_invariance_layout_ignores_color_mode() {
         800.0,
         600.0,
     );
-    let r2 = layout(
+    let r2 = run_layout(
         &snap,
         SizeMode::Lines,
         ScaleMode::Linear,
@@ -78,7 +48,7 @@ fn test_invariance_layout_ignores_color_mode() {
 #[test]
 fn test_conservation_child_area_le_parent() {
     let snap = simple_snapshot();
-    let rd = layout(
+    let rd = run_layout(
         &snap,
         SizeMode::Lines,
         ScaleMode::Linear,
@@ -141,7 +111,7 @@ fn test_boundary_empty_tree() {
         exec_depth: HashMap::new(),
     };
 
-    let rd = layout(
+    let rd = run_layout(
         &snap,
         SizeMode::Lines,
         ScaleMode::Linear,
@@ -174,7 +144,7 @@ fn test_boundary_single_file() {
         exec_depth: HashMap::new(),
     };
 
-    let rd = layout(
+    let rd = run_layout(
         &snap,
         SizeMode::Lines,
         ScaleMode::Linear,
@@ -215,7 +185,7 @@ fn test_oracle_three_files() {
         exec_depth: HashMap::new(),
     };
 
-    let rd = layout(
+    let rd = run_layout(
         &snap,
         SizeMode::Lines,
         ScaleMode::Linear,
@@ -250,7 +220,7 @@ fn test_oracle_three_files() {
 #[test]
 fn test_idempotency() {
     let snap = simple_snapshot();
-    let r1 = layout(
+    let r1 = run_layout(
         &snap,
         SizeMode::Logic,
         ScaleMode::Sqrt,
@@ -258,7 +228,7 @@ fn test_idempotency() {
         0.0,
         0.0,
     );
-    let r2 = layout(
+    let r2 = run_layout(
         &snap,
         SizeMode::Logic,
         ScaleMode::Sqrt,

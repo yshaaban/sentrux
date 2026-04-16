@@ -253,83 +253,119 @@ fn structural_leverage_reasons(report: &StructuralDebtReport) -> Vec<String> {
             reasons.push("narrow_completeness_gap".to_string())
         }
         StructuralLeverageClass::BoundaryDiscipline => {
-            reasons.push("guarded_or_transport_facade".to_string());
-            if report.metrics.fan_in.unwrap_or(0) > 0 {
-                reasons.push("heavy_inbound_seam_pressure".to_string());
-            }
+            reasons.extend(boundary_discipline_reasons(report));
         }
         StructuralLeverageClass::ArchitectureSignal => {
-            if has_role_tag(&report.role_tags, "component_barrel") {
-                reasons.push("shared_barrel_boundary_hub".to_string());
-            }
-            if has_role_tag(&report.role_tags, "guarded_boundary") {
-                reasons.push("guardrail_backed_boundary_pressure".to_string());
-            }
-            if has_role_tag(&report.role_tags, "state_container") {
-                reasons.push("client_state_hub_pressure".to_string());
-            }
-            if has_role_tag(&report.role_tags, "feature_module_barrel") {
-                reasons.push("feature_module_public_api_pressure".to_string());
-            }
-            if report.kind == "cycle_cluster" {
-                reasons.push("mixed_cycle_pressure".to_string());
-                if report.metrics.cut_candidate_count.unwrap_or(0) > 0 {
-                    reasons.push("high_leverage_cycle_cut".to_string());
-                }
-            }
-            if report.metrics.fan_in.unwrap_or(0) > 0 {
-                reasons.push("high_inbound_dependency_pressure".to_string());
-            }
+            reasons.extend(architecture_signal_reasons(report));
         }
         StructuralLeverageClass::RegrowthWatchpoint => {
-            reasons.push("intentionally_central_surface".to_string());
-            reasons.push("fan_out_regrowth_pressure".to_string());
-            if has_role_tag(&report.role_tags, "route_surface")
-                || has_role_tag(&report.role_tags, "api_route_surface")
-            {
-                reasons.push("framework_entry_surface".to_string());
-            }
+            reasons.extend(regrowth_watchpoint_reasons(report));
         }
         StructuralLeverageClass::LocalRefactorTarget => {
-            if has_role_tag(&report.role_tags, "facade_with_extracted_owners") {
-                reasons.push("extracted_owner_shell_pressure".to_string());
-            }
-            if report.metrics.guardrail_test_count.unwrap_or(0) > 0 {
-                reasons.push("guardrail_backed_refactor_surface".to_string());
-            }
-            if is_contained_refactor_surface(
-                &report.role_tags,
-                report
-                    .metrics
-                    .fan_in
-                    .or(report.metrics.inbound_reference_count),
-                report.metrics.fan_out,
-                report.metrics.cycle_size,
-                report.metrics.guardrail_test_count,
-            ) {
-                reasons.push("contained_refactor_surface".to_string());
-            }
-            if report.metrics.fan_out.unwrap_or(0) > 0 {
-                reasons.push("contained_dependency_pressure".to_string());
-            }
+            reasons.extend(local_refactor_target_reasons(report));
         }
         StructuralLeverageClass::SecondaryCleanup => {
-            if report.kind == "dead_island" {
-                reasons.push("disconnected_internal_component".to_string());
-            } else if report.kind == "cycle_cluster" {
-                reasons.push("smaller_cycle_watchpoint".to_string());
-            } else if has_role_tag(&report.role_tags, "query_hook_surface") {
-                reasons.push("query_surface_cleanup".to_string());
-            } else if has_role_tag(&report.role_tags, "facade_with_extracted_owners") {
-                reasons.push("secondary_facade_cleanup".to_string());
-            } else if report.kind == "large_file" {
-                reasons.push("supporting_size_pressure".to_string());
-            } else {
-                reasons.push("real_but_lower_leverage_cleanup".to_string());
-            }
+            reasons.extend(secondary_cleanup_reasons(report));
         }
     }
     dedupe_strings_preserve_order(reasons)
+}
+
+fn boundary_discipline_reasons(report: &StructuralDebtReport) -> Vec<String> {
+    let mut reasons = vec!["guarded_or_transport_facade".to_string()];
+    if report.metrics.fan_in.unwrap_or(0) > 0 {
+        reasons.push("heavy_inbound_seam_pressure".to_string());
+    }
+    reasons
+}
+
+fn architecture_signal_reasons(report: &StructuralDebtReport) -> Vec<String> {
+    let mut reasons = Vec::new();
+
+    if has_role_tag(&report.role_tags, "component_barrel") {
+        reasons.push("shared_barrel_boundary_hub".to_string());
+    }
+    if has_role_tag(&report.role_tags, "guarded_boundary") {
+        reasons.push("guardrail_backed_boundary_pressure".to_string());
+    }
+    if has_role_tag(&report.role_tags, "state_container") {
+        reasons.push("client_state_hub_pressure".to_string());
+    }
+    if has_role_tag(&report.role_tags, "feature_module_barrel") {
+        reasons.push("feature_module_public_api_pressure".to_string());
+    }
+    if report.kind == "cycle_cluster" {
+        reasons.push("mixed_cycle_pressure".to_string());
+        if report.metrics.cut_candidate_count.unwrap_or(0) > 0 {
+            reasons.push("high_leverage_cycle_cut".to_string());
+        }
+    }
+    if report.metrics.fan_in.unwrap_or(0) > 0 {
+        reasons.push("high_inbound_dependency_pressure".to_string());
+    }
+
+    reasons
+}
+
+fn regrowth_watchpoint_reasons(report: &StructuralDebtReport) -> Vec<String> {
+    let mut reasons = vec![
+        "intentionally_central_surface".to_string(),
+        "fan_out_regrowth_pressure".to_string(),
+    ];
+    if has_role_tag(&report.role_tags, "route_surface")
+        || has_role_tag(&report.role_tags, "api_route_surface")
+    {
+        reasons.push("framework_entry_surface".to_string());
+    }
+    reasons
+}
+
+fn local_refactor_target_reasons(report: &StructuralDebtReport) -> Vec<String> {
+    let mut reasons = Vec::new();
+
+    if has_role_tag(&report.role_tags, "facade_with_extracted_owners") {
+        reasons.push("extracted_owner_shell_pressure".to_string());
+    }
+    if report.metrics.guardrail_test_count.unwrap_or(0) > 0 {
+        reasons.push("guardrail_backed_refactor_surface".to_string());
+    }
+    if is_contained_refactor_surface(
+        &report.role_tags,
+        report
+            .metrics
+            .fan_in
+            .or(report.metrics.inbound_reference_count),
+        report.metrics.fan_out,
+        report.metrics.cycle_size,
+        report.metrics.guardrail_test_count,
+    ) {
+        reasons.push("contained_refactor_surface".to_string());
+    }
+    if report.metrics.fan_out.unwrap_or(0) > 0 {
+        reasons.push("contained_dependency_pressure".to_string());
+    }
+
+    reasons
+}
+
+fn secondary_cleanup_reasons(report: &StructuralDebtReport) -> Vec<String> {
+    if report.kind == "dead_island" {
+        return vec!["disconnected_internal_component".to_string()];
+    }
+    if report.kind == "cycle_cluster" {
+        return vec!["smaller_cycle_watchpoint".to_string()];
+    }
+    if has_role_tag(&report.role_tags, "query_hook_surface") {
+        return vec!["query_surface_cleanup".to_string()];
+    }
+    if has_role_tag(&report.role_tags, "facade_with_extracted_owners") {
+        return vec!["secondary_facade_cleanup".to_string()];
+    }
+    if report.kind == "large_file" {
+        return vec!["supporting_size_pressure".to_string()];
+    }
+
+    vec!["real_but_lower_leverage_cleanup".to_string()]
 }
 
 fn extracted_owner_facade_needs_secondary_cleanup(

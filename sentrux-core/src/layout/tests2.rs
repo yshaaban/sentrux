@@ -1,40 +1,10 @@
 use super::*;
-use crate::core::settings::Settings;
 use crate::core::snapshot::Snapshot;
 use crate::core::types::{CallEdge, ImportEdge};
-use crate::layout::test_helpers::{
-    default_focus, empty_entry_points, make_dir, make_file, no_hidden, simple_snapshot,
-};
+use crate::layout::test_helpers::{make_dir, make_file, run_layout, simple_snapshot};
 use std::collections::HashMap;
 use std::sync::Arc;
 use types::{LayoutMode, RectKind, ScaleMode, SizeMode};
-
-/// Helper: call compute_layout_from_snapshot with common defaults, constructing LayoutConfig.
-fn layout(
-    snap: &Snapshot,
-    size_mode: SizeMode,
-    scale_mode: ScaleMode,
-    layout_mode: LayoutMode,
-    vw: f64,
-    vh: f64,
-) -> types::RenderData {
-    let settings = Settings::default();
-    let focus = default_focus();
-    let entry = empty_entry_points();
-    let hidden = no_hidden();
-    let cfg = LayoutConfig {
-        size_mode,
-        scale_mode,
-        layout_mode,
-        heat_map: None,
-        settings: &settings,
-        focus_mode: &focus,
-        entry_point_files: &entry,
-        hidden_paths: &hidden,
-        impact_files: None,
-    };
-    compute_layout_from_snapshot(snap, vw, vh, None, &cfg)
-}
 
 // ─── Monotonicity: more lines → larger rect (linear scale) ────
 
@@ -62,7 +32,7 @@ fn test_monotonicity_lines_to_area() {
         exec_depth: HashMap::new(),
     };
 
-    let rd = layout(
+    let rd = run_layout(
         &snap,
         SizeMode::Lines,
         ScaleMode::Linear,
@@ -124,7 +94,7 @@ fn test_injection_10x_weight_is_largest() {
         exec_depth: HashMap::new(),
     };
 
-    let rd = layout(
+    let rd = run_layout(
         &snap,
         SizeMode::Lines,
         ScaleMode::Linear,
@@ -160,7 +130,7 @@ fn test_injection_10x_weight_is_largest() {
 #[test]
 fn test_blueprint_produces_rects() {
     let snap = simple_snapshot();
-    let rd = layout(
+    let rd = run_layout(
         &snap,
         SizeMode::Lines,
         ScaleMode::Smooth,
@@ -191,7 +161,7 @@ fn test_blueprint_produces_rects() {
 #[test]
 fn test_edge_paths_routed() {
     let snap = simple_snapshot();
-    let rd = layout(
+    let rd = run_layout(
         &snap,
         SizeMode::Lines,
         ScaleMode::Linear,
@@ -295,7 +265,7 @@ fn test_cross_type_lane_separation() {
         exec_depth: HashMap::new(),
     };
 
-    let rd = layout(
+    let rd = run_layout(
         &snap,
         SizeMode::Lines,
         ScaleMode::Linear,
@@ -357,7 +327,7 @@ fn test_boundary_deep_nesting() {
     };
 
     // Should not panic
-    let rd = layout(
+    let rd = run_layout(
         &snap,
         SizeMode::Lines,
         ScaleMode::Linear,

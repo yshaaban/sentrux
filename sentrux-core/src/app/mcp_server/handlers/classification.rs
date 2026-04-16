@@ -1,14 +1,10 @@
 use super::*;
-#[cfg(test)]
-use crate::metrics::v2::FindingSeverity;
 
 #[path = "classification_details.rs"]
 mod classification_details;
 #[path = "classification_readers.rs"]
 mod classification_readers;
 
-#[cfg(test)]
-use classification_details::{annotate_finding_detail, FindingDetail, FindingDetailMetrics};
 pub(crate) use classification_details::{
     build_finding_details, decorate_finding_with_classification, is_experimental_finding,
     merge_findings, partition_experimental_findings,
@@ -38,7 +34,7 @@ impl FindingTrustTier {
         }
     }
 
-    fn from_str(value: &str) -> Self {
+    pub(crate) fn from_str(value: &str) -> Self {
         match value {
             "watchpoint" => Self::Watchpoint,
             "experimental" => Self::Experimental,
@@ -82,7 +78,7 @@ impl FindingPresentationClass {
         }
     }
 
-    fn from_str(value: &str) -> Self {
+    pub(crate) fn from_str(value: &str) -> Self {
         match value {
             "guarded_facade" => Self::GuardedFacade,
             "tooling_debt" => Self::ToolingDebt,
@@ -90,6 +86,17 @@ impl FindingPresentationClass {
             "watchpoint" => Self::Watchpoint,
             "experimental" => Self::Experimental,
             _ => Self::StructuralDebt,
+        }
+    }
+
+    pub(crate) const fn rank(self) -> usize {
+        match self {
+            Self::StructuralDebt => 0,
+            Self::GuardedFacade => 1,
+            Self::ToolingDebt => 2,
+            Self::HardeningNote => 3,
+            Self::Watchpoint => 4,
+            Self::Experimental => 5,
         }
     }
 }
@@ -360,77 +367,136 @@ fn classify_leverage_class_internal(
     boundary_pressure_count: usize,
     missing_site_count: usize,
 ) -> FindingLeverageClass {
-    if trust_tier == FindingTrustTier::Experimental
-        || presentation_class == FindingPresentationClass::Experimental
+    if let Some(classification) =
+        classify_non_structural_leverage_class(kind, trust_tier, presentation_class)
     {
-        return FindingLeverageClass::Experimental;
-    }
-    if presentation_class == FindingPresentationClass::ToolingDebt {
-        return FindingLeverageClass::ToolingDebt;
-    }
-    if matches!(kind, "session_introduced_clone" | "clone_propagation_drift") {
-        return FindingLeverageClass::LocalRefactorTarget;
-    }
-    if presentation_class == FindingPresentationClass::HardeningNote {
-        return FindingLeverageClass::HardeningNote;
-    }
-    if presentation_class == FindingPresentationClass::GuardedFacade {
-        return FindingLeverageClass::BoundaryDiscipline;
+        return classification;
     }
     if kind == "cycle_cluster" {
-        if role_tags_include(role_tags, "component_barrel")
-            || role_tags_include(role_tags, "guarded_boundary")
-            || cycle_size.unwrap_or(0) >= 10
-            || cut_candidate_count.unwrap_or(0) > 0
-        {
-            return FindingLeverageClass::ArchitectureSignal;
-        }
-        return FindingLeverageClass::SecondaryCleanup;
+        return classify_cycle_cluster_leverage_class(role_tags, cycle_size, cut_candidate_count);
     }
     if kind == "dead_island" {
         return FindingLeverageClass::SecondaryCleanup;
     }
-    if boundary_pressure_count > 0 && missing_site_count > 0 {
+    if is_architecture_signal_surface(role_tags, boundary_pressure_count, missing_site_count) {
         return FindingLeverageClass::ArchitectureSignal;
     }
-    if role_tags_include(role_tags, "component_barrel")
-        || role_tags_include(role_tags, "guarded_boundary")
-    {
-        return FindingLeverageClass::ArchitectureSignal;
-    }
-    if role_tags_include(role_tags, "composition_root")
-        || role_tags_include(role_tags, "entry_surface")
-    {
+    if is_regrowth_watchpoint_surface(role_tags) {
         return FindingLeverageClass::RegrowthWatchpoint;
     }
-    if role_tags_include(role_tags, "facade_with_extracted_owners") {
-        if extracted_owner_facade_needs_secondary_cleanup(
-            kind,
-            role_tags,
-            line_count,
-            max_complexity,
-            fan_in,
-        ) {
-            return FindingLeverageClass::SecondaryCleanup;
-        }
-        return FindingLeverageClass::LocalRefactorTarget;
+    if let Some(classification) =
+        classify_extracted_owner_leverage_class(kind, role_tags, line_count, max_complexity, fan_in)
+    {
+        return classification;
     }
     if boundary_pressure_count > 0 || missing_site_count > 0 {
         return FindingLeverageClass::LocalRefactorTarget;
     }
-    if matches!(
-        kind,
-        "clone_family" | "clone_group" | "exact_clone_group" | "touched_clone_family"
-    ) {
+    if is_secondary_clone_cleanup(kind) {
         return FindingLeverageClass::SecondaryCleanup;
     }
-    if matches!(kind, "dependency_sprawl" | "unstable_hotspot" | "hotspot")
-        || guardrail_test_count.unwrap_or(0) > 0
-        || fan_out.unwrap_or(0) > 0
-    {
+    if is_local_refactor_target_surface(kind, guardrail_test_count, fan_out) {
         return FindingLeverageClass::LocalRefactorTarget;
     }
     FindingLeverageClass::SecondaryCleanup
+}
+
+fn classify_non_structural_leverage_class(
+    kind: &str,
+    trust_tier: FindingTrustTier,
+    presentation_class: FindingPresentationClass,
+) -> Option<FindingLeverageClass> {
+    if trust_tier == FindingTrustTier::Experimental
+        || presentation_class == FindingPresentationClass::Experimental
+    {
+        return Some(FindingLeverageClass::Experimental);
+    }
+    if presentation_class == FindingPresentationClass::ToolingDebt {
+        return Some(FindingLeverageClass::ToolingDebt);
+    }
+    if matches!(kind, "session_introduced_clone" | "clone_propagation_drift") {
+        return Some(FindingLeverageClass::LocalRefactorTarget);
+    }
+    if presentation_class == FindingPresentationClass::HardeningNote {
+        return Some(FindingLeverageClass::HardeningNote);
+    }
+    if presentation_class == FindingPresentationClass::GuardedFacade {
+        return Some(FindingLeverageClass::BoundaryDiscipline);
+    }
+
+    None
+}
+
+fn classify_cycle_cluster_leverage_class(
+    role_tags: &[String],
+    cycle_size: Option<usize>,
+    cut_candidate_count: Option<usize>,
+) -> FindingLeverageClass {
+    if role_tags_include(role_tags, "component_barrel")
+        || role_tags_include(role_tags, "guarded_boundary")
+        || cycle_size.unwrap_or(0) >= 10
+        || cut_candidate_count.unwrap_or(0) > 0
+    {
+        return FindingLeverageClass::ArchitectureSignal;
+    }
+
+    FindingLeverageClass::SecondaryCleanup
+}
+
+fn is_architecture_signal_surface(
+    role_tags: &[String],
+    boundary_pressure_count: usize,
+    missing_site_count: usize,
+) -> bool {
+    (boundary_pressure_count > 0 && missing_site_count > 0)
+        || role_tags_include(role_tags, "component_barrel")
+        || role_tags_include(role_tags, "guarded_boundary")
+}
+
+fn is_regrowth_watchpoint_surface(role_tags: &[String]) -> bool {
+    role_tags_include(role_tags, "composition_root")
+        || role_tags_include(role_tags, "entry_surface")
+}
+
+fn classify_extracted_owner_leverage_class(
+    kind: &str,
+    role_tags: &[String],
+    line_count: Option<usize>,
+    max_complexity: Option<usize>,
+    fan_in: Option<usize>,
+) -> Option<FindingLeverageClass> {
+    if !role_tags_include(role_tags, "facade_with_extracted_owners") {
+        return None;
+    }
+
+    if extracted_owner_facade_needs_secondary_cleanup(
+        kind,
+        role_tags,
+        line_count,
+        max_complexity,
+        fan_in,
+    ) {
+        return Some(FindingLeverageClass::SecondaryCleanup);
+    }
+
+    Some(FindingLeverageClass::LocalRefactorTarget)
+}
+
+fn is_secondary_clone_cleanup(kind: &str) -> bool {
+    matches!(
+        kind,
+        "clone_family" | "clone_group" | "exact_clone_group" | "touched_clone_family"
+    )
+}
+
+fn is_local_refactor_target_surface(
+    kind: &str,
+    guardrail_test_count: Option<usize>,
+    fan_out: Option<usize>,
+) -> bool {
+    matches!(kind, "dependency_sprawl" | "unstable_hotspot" | "hotspot")
+        || guardrail_test_count.unwrap_or(0) > 0
+        || fan_out.unwrap_or(0) > 0
 }
 
 fn extracted_owner_facade_needs_secondary_cleanup(
@@ -525,85 +591,157 @@ fn classify_leverage_reasons_internal(
     {
         reasons.push("detector_under_evaluation".to_string());
     }
-    match leverage_class {
-        FindingLeverageClass::ToolingDebt => {
-            reasons.push("tooling_surface_maintenance_burden".to_string())
-        }
-        FindingLeverageClass::HardeningNote => reasons.push("narrow_completeness_gap".to_string()),
-        FindingLeverageClass::BoundaryDiscipline => {
-            reasons.push("boundary_or_facade_seam_pressure".to_string());
-            if fan_in.unwrap_or(0) > 0 {
-                reasons.push("heavy_inbound_seam_pressure".to_string());
-            }
-        }
-        FindingLeverageClass::ArchitectureSignal => {
-            if role_tags_include(role_tags, "component_barrel") {
-                reasons.push("shared_barrel_boundary_hub".to_string());
-            }
-            if role_tags_include(role_tags, "guarded_boundary") {
-                reasons.push("guardrail_backed_boundary_pressure".to_string());
-            }
-            if kind == "cycle_cluster" {
-                reasons.push("mixed_cycle_pressure".to_string());
-            }
-            if cut_candidate_count.unwrap_or(0) > 0 {
-                reasons.push("high_leverage_cut_candidate".to_string());
-            }
-            if boundary_pressure_count > 0 {
-                reasons.push("ownership_boundary_erosion".to_string());
-            }
-            if missing_site_count > 0 {
-                reasons.push("propagation_burden".to_string());
-            }
-        }
-        FindingLeverageClass::LocalRefactorTarget => {
-            if role_tags_include(role_tags, "facade_with_extracted_owners") {
-                reasons.push("extracted_owner_shell_pressure".to_string());
-            }
-            if guardrail_test_count.unwrap_or(0) > 0 {
-                reasons.push("guardrail_backed_refactor_surface".to_string());
-            }
-            if is_contained_refactor_surface(
-                role_tags,
-                fan_in,
-                fan_out,
-                cycle_size,
-                guardrail_test_count,
-            ) {
-                reasons.push("contained_refactor_surface".to_string());
-            }
-            if fan_out.unwrap_or(0) > 0 {
-                reasons.push("contained_dependency_pressure".to_string());
-            }
-            if boundary_pressure_count > 0 {
-                reasons.push("narrower_ownership_split_available".to_string());
-            }
-            if missing_site_count > 0 {
-                reasons.push("explicit_update_surface".to_string());
-            }
-        }
-        FindingLeverageClass::RegrowthWatchpoint => {
-            reasons.push("intentionally_central_surface".to_string());
-            if fan_out.unwrap_or(0) > 0 {
-                reasons.push("fan_out_regrowth_pressure".to_string());
-            }
-        }
-        FindingLeverageClass::SecondaryCleanup => {
-            if kind == "dead_island" {
-                reasons.push("disconnected_internal_component".to_string());
-            } else if matches!(kind, "clone_family" | "clone_group" | "exact_clone_group") {
-                reasons.push("duplicate_maintenance_pressure".to_string());
-            } else if role_tags_include(role_tags, "facade_with_extracted_owners") {
-                reasons.push("secondary_facade_cleanup".to_string());
-            } else if cycle_size.unwrap_or(0) > 0 {
-                reasons.push("smaller_cycle_watchpoint".to_string());
-            } else {
-                reasons.push("real_but_lower_leverage_cleanup".to_string());
-            }
-        }
-        FindingLeverageClass::Experimental => {}
-    }
+    reasons.extend(leverage_class_reasons(
+        leverage_class,
+        kind,
+        role_tags,
+        fan_in,
+        fan_out,
+        cycle_size,
+        cut_candidate_count,
+        guardrail_test_count,
+        boundary_pressure_count,
+        missing_site_count,
+    ));
     dedupe_strings_preserve_order(reasons)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn leverage_class_reasons(
+    leverage_class: FindingLeverageClass,
+    kind: &str,
+    role_tags: &[String],
+    fan_in: Option<usize>,
+    fan_out: Option<usize>,
+    cycle_size: Option<usize>,
+    cut_candidate_count: Option<usize>,
+    guardrail_test_count: Option<usize>,
+    boundary_pressure_count: usize,
+    missing_site_count: usize,
+) -> Vec<String> {
+    match leverage_class {
+        FindingLeverageClass::ToolingDebt => vec!["tooling_surface_maintenance_burden".to_string()],
+        FindingLeverageClass::HardeningNote => vec!["narrow_completeness_gap".to_string()],
+        FindingLeverageClass::BoundaryDiscipline => boundary_discipline_reasons(fan_in),
+        FindingLeverageClass::ArchitectureSignal => architecture_signal_reasons(
+            kind,
+            role_tags,
+            cut_candidate_count,
+            boundary_pressure_count,
+            missing_site_count,
+        ),
+        FindingLeverageClass::LocalRefactorTarget => local_refactor_target_reasons(
+            role_tags,
+            fan_in,
+            fan_out,
+            cycle_size,
+            guardrail_test_count,
+            boundary_pressure_count,
+            missing_site_count,
+        ),
+        FindingLeverageClass::RegrowthWatchpoint => regrowth_watchpoint_reasons(fan_out),
+        FindingLeverageClass::SecondaryCleanup => {
+            secondary_cleanup_reasons(kind, role_tags, cycle_size)
+        }
+        FindingLeverageClass::Experimental => Vec::new(),
+    }
+}
+
+fn boundary_discipline_reasons(fan_in: Option<usize>) -> Vec<String> {
+    let mut reasons = vec!["boundary_or_facade_seam_pressure".to_string()];
+    if fan_in.unwrap_or(0) > 0 {
+        reasons.push("heavy_inbound_seam_pressure".to_string());
+    }
+    reasons
+}
+
+fn architecture_signal_reasons(
+    kind: &str,
+    role_tags: &[String],
+    cut_candidate_count: Option<usize>,
+    boundary_pressure_count: usize,
+    missing_site_count: usize,
+) -> Vec<String> {
+    let mut reasons = Vec::new();
+    if role_tags_include(role_tags, "component_barrel") {
+        reasons.push("shared_barrel_boundary_hub".to_string());
+    }
+    if role_tags_include(role_tags, "guarded_boundary") {
+        reasons.push("guardrail_backed_boundary_pressure".to_string());
+    }
+    if kind == "cycle_cluster" {
+        reasons.push("mixed_cycle_pressure".to_string());
+    }
+    if cut_candidate_count.unwrap_or(0) > 0 {
+        reasons.push("high_leverage_cut_candidate".to_string());
+    }
+    if boundary_pressure_count > 0 {
+        reasons.push("ownership_boundary_erosion".to_string());
+    }
+    if missing_site_count > 0 {
+        reasons.push("propagation_burden".to_string());
+    }
+    reasons
+}
+
+fn local_refactor_target_reasons(
+    role_tags: &[String],
+    fan_in: Option<usize>,
+    fan_out: Option<usize>,
+    cycle_size: Option<usize>,
+    guardrail_test_count: Option<usize>,
+    boundary_pressure_count: usize,
+    missing_site_count: usize,
+) -> Vec<String> {
+    let mut reasons = Vec::new();
+    if role_tags_include(role_tags, "facade_with_extracted_owners") {
+        reasons.push("extracted_owner_shell_pressure".to_string());
+    }
+    if guardrail_test_count.unwrap_or(0) > 0 {
+        reasons.push("guardrail_backed_refactor_surface".to_string());
+    }
+    if is_contained_refactor_surface(role_tags, fan_in, fan_out, cycle_size, guardrail_test_count) {
+        reasons.push("contained_refactor_surface".to_string());
+    }
+    if fan_out.unwrap_or(0) > 0 {
+        reasons.push("contained_dependency_pressure".to_string());
+    }
+    if boundary_pressure_count > 0 {
+        reasons.push("narrower_ownership_split_available".to_string());
+    }
+    if missing_site_count > 0 {
+        reasons.push("explicit_update_surface".to_string());
+    }
+    reasons
+}
+
+fn regrowth_watchpoint_reasons(fan_out: Option<usize>) -> Vec<String> {
+    let mut reasons = vec!["intentionally_central_surface".to_string()];
+    if fan_out.unwrap_or(0) > 0 {
+        reasons.push("fan_out_regrowth_pressure".to_string());
+    }
+    reasons
+}
+
+fn secondary_cleanup_reasons(
+    kind: &str,
+    role_tags: &[String],
+    cycle_size: Option<usize>,
+) -> Vec<String> {
+    if kind == "dead_island" {
+        return vec!["disconnected_internal_component".to_string()];
+    }
+    if matches!(kind, "clone_family" | "clone_group" | "exact_clone_group") {
+        return vec!["duplicate_maintenance_pressure".to_string()];
+    }
+    if role_tags_include(role_tags, "facade_with_extracted_owners") {
+        return vec!["secondary_facade_cleanup".to_string()];
+    }
+    if cycle_size.unwrap_or(0) > 0 {
+        return vec!["smaller_cycle_watchpoint".to_string()];
+    }
+
+    vec!["real_but_lower_leverage_cleanup".to_string()]
 }
 
 fn finding_numeric_metric(finding: &Value, key: &str) -> Option<usize> {
@@ -954,22 +1092,6 @@ mod tests {
     }
 
     #[test]
-    fn merge_findings_orders_by_typed_severity_priority() {
-        let merged = merge_findings(
-            vec![json!({"kind": "clone_family", "severity": "low"})],
-            vec![
-                json!({"kind": "multi_writer_concept", "severity": "high"}),
-                json!({"kind": "contract_surface_completeness", "severity": "medium"}),
-            ],
-            3,
-        );
-
-        assert_eq!(merged[0]["severity"], "high");
-        assert_eq!(merged[1]["severity"], "medium");
-        assert_eq!(merged[2]["severity"], "low");
-    }
-
-    #[test]
     fn merge_findings_keeps_clone_findings_first_on_equal_severity() {
         let merged = merge_findings(
             vec![json!({"kind": "clone_propagation_drift", "severity": "medium"})],
@@ -979,49 +1101,5 @@ mod tests {
 
         assert_eq!(merged[0]["kind"], "clone_propagation_drift");
         assert_eq!(merged[1]["kind"], "multi_writer_concept");
-    }
-
-    #[test]
-    fn annotate_finding_detail_preserves_explicit_leverage_metadata() {
-        let detail = annotate_finding_detail(FindingDetail {
-            kind: "unstable_hotspot".to_string(),
-            trust_tier: FindingTrustTier::Trusted,
-            presentation_class: FindingPresentationClass::GuardedFacade,
-            leverage_class: FindingLeverageClass::BoundaryDiscipline,
-            leverage_class_explicit: true,
-            scope: "src/lib/ipc.ts".to_string(),
-            severity: FindingSeverity::Medium,
-            summary: "Transport facade is under pressure".to_string(),
-            impact: "Glue can absorb domain logic.".to_string(),
-            files: vec!["src/lib/ipc.ts".to_string()],
-            role_tags: vec!["transport_facade".to_string()],
-            leverage_reasons: vec!["boundary_or_facade_seam_pressure".to_string()],
-            evidence: vec!["fan-in: 42".to_string()],
-            inspection_focus: vec!["inspect policy leakage".to_string()],
-            candidate_split_axes: vec!["transport boundary".to_string()],
-            related_surfaces: vec!["src/lib/ipc.ts".to_string()],
-            metrics: FindingDetailMetrics::default(),
-        });
-
-        assert_eq!(detail.trust_tier, FindingTrustTier::Trusted);
-        assert_eq!(
-            detail.presentation_class,
-            FindingPresentationClass::GuardedFacade
-        );
-        assert_eq!(
-            detail.leverage_class,
-            FindingLeverageClass::BoundaryDiscipline
-        );
-        assert_eq!(detail.severity, FindingSeverity::Medium);
-        assert_eq!(
-            detail.leverage_reasons,
-            vec!["boundary_or_facade_seam_pressure".to_string()]
-        );
-
-        let serialized = serde_json::to_value(&detail).expect("serialize detail");
-        assert_eq!(serialized["trust_tier"], "trusted");
-        assert_eq!(serialized["presentation_class"], "guarded_facade");
-        assert_eq!(serialized["leverage_class"], "boundary_discipline");
-        assert_eq!(serialized["severity"], "medium");
     }
 }
