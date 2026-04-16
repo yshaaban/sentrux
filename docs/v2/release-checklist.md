@@ -84,6 +84,12 @@ Benchmark policy:
 
 - refresh or verify the checked-in review packets, verdicts, scorecards, defect-injection artifacts, and remediation artifacts that are meant to ship as reference evidence
 - confirm the repo-local or checked-in calibration artifacts still describe the current detector mix
+- verify the current scorecard still meets the actionable-ranking policy for the lead surface:
+  - top-1 actionable precision
+  - top-3 actionable precision
+  - top-10 actionable precision when enough curated samples exist
+  - ranking-preference satisfaction when verdicts include `preferred_over`
+- verify review packets still show adequate repair-packet completeness for the top-ranked samples; this is packet-local evidence today, so do not silently treat missing fix guidance as scorecard-grade pass
 - if a detector was promoted or demoted, update the documented trust-tier expectations
 
 ## 6. Baselines, Migration, And CLI/MCP Consistency

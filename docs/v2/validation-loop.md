@@ -351,6 +351,7 @@ Use the seeded defect harness, review packets, and remediation evals together.
 6. aggregate the result into a per-signal scorecard with `node scripts/evals/build-signal-scorecard.mjs`
 
 Signals should only be promoted when seeded recall, reviewed precision, and remediation success all support the promotion.
+Signals should only lead the primary surface when ranked review evidence also says the first few findings were worth acting on.
 
 To refresh the session summary and scorecard together, use:
 
@@ -434,13 +435,21 @@ The backlog output is not a substitute for human judgment, but it makes the weak
 Current metric contract to keep in mind when reading the scorecard:
 
 - `review_noise_rate` means reviewed false positives plus inconclusive cases over reviewed samples
+- `top_1_actionable_precision`, `top_3_actionable_precision`, and `top_10_actionable_precision` mean the share of reviewed findings in those ranked slots that were still actionable (`useful` or `useful_watchpoint`) after human review
+- `ranking_preference_satisfaction_rate` means the share of explicit `preferred_over` comparisons that the reviewed order actually satisfied
 - `top_action_clear_rate` means sessions where the initial top action cleared over sessions where that signal surfaced as the top action
 - `followup_regression_rate` means follow-up checks that introduced new signal kinds over all follow-up checks for that signal
 - `promotion_evidence_complete` only flips true when the signal has seeded, reviewed, remediation, and session evidence in the current scorecard
 
+Current support boundary:
+
+- top-k actionable precision and ranking-preference satisfaction are only governance-grade when the curated review verdict file preserves the reviewed ranking order
+- repair-packet completeness is packet-local only for now; the review-verdict schema does not persist structured repair-packet fields yet, so promotion should use remediation and session outcomes for fixability evidence rather than pretending scorecard-grade packet coverage exists
+
 Current promotion note:
 
 - `dead_private_code_cluster` remains intentionally `experimental` until broader TS/TSX reference precision is validated beyond the current same-file callback/JSX suppression fix, exported-symbol visibility fix, and external review-loop evidence
+- reviewed precision alone is not a promotion pass; weak top-1/top-3 actionable precision or repeated ranking-preference violations should keep a detector out of the primary surface even when the underlying finding class is real
 
 ## Relationship To Migration
 

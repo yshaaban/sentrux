@@ -1,5 +1,14 @@
-import { SIGNAL_PROMOTION_POLICY } from './signal-calibration-policy.mjs';
+import {
+  SIGNAL_PRIMARY_TARGET_POLICY,
+  SIGNAL_PROMOTION_POLICY,
+} from './signal-calibration-policy.mjs';
 import { asArray, ensureMapEntry, safeRatio } from './signal-summary-utils.mjs';
+
+const TOP_K_REVIEW_BUCKETS = Object.freeze([
+  { fieldPrefix: 'top_1', limit: 1 },
+  { fieldPrefix: 'top_3', limit: 3 },
+  { fieldPrefix: 'top_10', limit: 10 },
+]);
 
 function normalizeReviewCategory(category) {
   switch (category) {
@@ -19,6 +28,10 @@ function normalizeReviewCategory(category) {
     default:
       return 'inconclusive';
   }
+}
+
+function isHelpfulReviewCategory(normalizedCategory) {
+  return normalizedCategory === 'true_positive' || normalizedCategory === 'acceptable_warning';
 }
 
 function createEmptySignalEntry(signalKind, overrides = {}) {
@@ -54,6 +67,26 @@ function createEmptySignalEntry(signalKind, overrides = {}) {
     provisional_acceptable_warning: 0,
     provisional_false_positive: 0,
     provisional_inconclusive: 0,
+    review_top_1_total: 0,
+    review_top_1_actionable: 0,
+    review_top_3_total: 0,
+    review_top_3_actionable: 0,
+    review_top_10_total: 0,
+    review_top_10_actionable: 0,
+    ranking_preference_total: 0,
+    ranking_preference_satisfied: 0,
+    ranking_preference_violated: 0,
+    ranking_preference_unresolved: 0,
+    provisional_review_top_1_total: 0,
+    provisional_review_top_1_actionable: 0,
+    provisional_review_top_3_total: 0,
+    provisional_review_top_3_actionable: 0,
+    provisional_review_top_10_total: 0,
+    provisional_review_top_10_actionable: 0,
+    provisional_ranking_preference_total: 0,
+    provisional_ranking_preference_satisfied: 0,
+    provisional_ranking_preference_violated: 0,
+    provisional_ranking_preference_unresolved: 0,
     ...overrides,
   };
 }
@@ -75,6 +108,35 @@ function buildReviewMetrics(reviewedTotal, truePositive, acceptableWarning, fals
     false_positive_rate: safeRatio(falsePositive, reviewedTotal),
     inconclusive_rate: safeRatio(inconclusive, reviewedTotal),
   };
+}
+
+function recordTopKReviewCounts(entry, normalizedCategory, reviewIndex, prefix) {
+  const actionable = isHelpfulReviewCategory(normalizedCategory);
+
+  for (const bucket of TOP_K_REVIEW_BUCKETS) {
+    if (reviewIndex >= bucket.limit) {
+      continue;
+    }
+
+    entry[`${prefix}review_${bucket.fieldPrefix}_total`] += 1;
+    if (actionable) {
+      entry[`${prefix}review_${bucket.fieldPrefix}_actionable`] += 1;
+    }
+  }
+}
+
+function recordRankingPreference(entry, preferredIndex, verdictIndex, prefix) {
+  entry[`${prefix}ranking_preference_total`] += 1;
+  if (preferredIndex === null) {
+    entry[`${prefix}ranking_preference_unresolved`] += 1;
+    return;
+  }
+  if (verdictIndex < preferredIndex) {
+    entry[`${prefix}ranking_preference_satisfied`] += 1;
+    return;
+  }
+
+  entry[`${prefix}ranking_preference_violated`] += 1;
 }
 
 function buildSessionMetrics(
@@ -187,11 +249,20 @@ function buildSeededEntries(defectReport) {
 
 function applyReviewVerdicts(signalMap, reviewVerdicts) {
   const provisionalPrefix = reviewVerdicts?.provisional ? 'provisional_' : '';
+  const verdicts = asArray(reviewVerdicts?.verdicts);
+  const scopeToFirstIndex = new Map();
 
-  for (const verdict of reviewVerdicts?.verdicts ?? []) {
+  verdicts.forEach(function recordScope(verdict, index) {
+    if (typeof verdict.scope !== 'string' || scopeToFirstIndex.has(verdict.scope)) {
+      return;
+    }
+    scopeToFirstIndex.set(verdict.scope, index);
+  });
+
+  verdicts.forEach(function applyVerdict(verdict, index) {
     const signalKind = verdict.kind;
     if (!signalKind) {
-      continue;
+      return;
     }
 
     const entry = ensureSignalEntry(signalMap, signalKind);
@@ -200,7 +271,18 @@ function applyReviewVerdicts(signalMap, reviewVerdicts) {
     const normalizedCategory = normalizeReviewCategory(verdict.category);
     entry[`${provisionalPrefix}${normalizedCategory}`] =
       (entry[`${provisionalPrefix}${normalizedCategory}`] ?? 0) + 1;
-  }
+    recordTopKReviewCounts(entry, normalizedCategory, index, provisionalPrefix);
+
+    for (const preferredScope of asArray(verdict.preferred_over)) {
+      if (typeof preferredScope !== 'string' || preferredScope.length === 0) {
+        continue;
+      }
+      const preferredIndex = scopeToFirstIndex.has(preferredScope)
+        ? scopeToFirstIndex.get(preferredScope)
+        : null;
+      recordRankingPreference(entry, preferredIndex, index, provisionalPrefix);
+    }
+  });
 }
 
 function applyRemediationResults(signalMap, remediationReport) {
@@ -325,6 +407,21 @@ function buildPromotionRecommendation(entry) {
     entry.remediation_success ?? 0,
     entry.remediation_total ?? 0,
   );
+  const top1ReviewedTotal = entry.review_top_1_total ?? 0;
+  const top1ActionablePrecision = safeRatio(
+    entry.review_top_1_actionable ?? 0,
+    top1ReviewedTotal,
+  );
+  const top3ReviewedTotal = entry.review_top_3_total ?? 0;
+  const top3ActionablePrecision = safeRatio(
+    entry.review_top_3_actionable ?? 0,
+    top3ReviewedTotal,
+  );
+  const rankingPreferenceTotal = entry.ranking_preference_total ?? 0;
+  const rankingPreferenceSatisfactionRate = safeRatio(
+    entry.ranking_preference_satisfied ?? 0,
+    rankingPreferenceTotal,
+  );
   const topActionClearRate = safeRatio(
     entry.sessions_cleared ?? 0,
     entry.session_top_actions ?? 0,
@@ -354,6 +451,29 @@ function buildPromotionRecommendation(entry) {
   if (
     reviewedPrecision !== null &&
     reviewedPrecision < SIGNAL_PROMOTION_POLICY.reviewedPrecisionMin
+  ) {
+    return 'reduce_noise';
+  }
+  if (
+    top1ReviewedTotal >= SIGNAL_PRIMARY_TARGET_POLICY.top1MinReviewedSamples &&
+    top1ActionablePrecision !== null &&
+    top1ActionablePrecision < SIGNAL_PRIMARY_TARGET_POLICY.top1ActionablePrecisionMin
+  ) {
+    return 'reduce_noise';
+  }
+  if (
+    top3ReviewedTotal >= SIGNAL_PRIMARY_TARGET_POLICY.top3MinReviewedSamples &&
+    top3ActionablePrecision !== null &&
+    top3ActionablePrecision < SIGNAL_PRIMARY_TARGET_POLICY.top3ActionablePrecisionMin
+  ) {
+    return 'reduce_noise';
+  }
+  if (
+    rankingPreferenceTotal >=
+      SIGNAL_PRIMARY_TARGET_POLICY.rankingPreferenceMinComparisons &&
+    rankingPreferenceSatisfactionRate !== null &&
+    rankingPreferenceSatisfactionRate <
+      SIGNAL_PRIMARY_TARGET_POLICY.rankingPreferenceSatisfactionMin
   ) {
     return 'reduce_noise';
   }
@@ -503,6 +623,7 @@ function buildSignalReviewFields(
   reviewMetrics,
   provisionalReview,
   provisionalReviewMetrics,
+  entry,
 ) {
   return {
     reviewed_total: review.reviewedTotal,
@@ -523,6 +644,60 @@ function buildSignalReviewFields(
     provisional_reviewed_precision: provisionalReviewMetrics.reviewed_precision,
     provisional_review_noise_count: provisionalReviewMetrics.review_noise_count,
     provisional_review_noise_rate: provisionalReviewMetrics.review_noise_rate,
+    review_top_1_total: entry.review_top_1_total ?? 0,
+    review_top_1_actionable: entry.review_top_1_actionable ?? 0,
+    top_1_actionable_precision: safeRatio(
+      entry.review_top_1_actionable ?? 0,
+      entry.review_top_1_total ?? 0,
+    ),
+    review_top_3_total: entry.review_top_3_total ?? 0,
+    review_top_3_actionable: entry.review_top_3_actionable ?? 0,
+    top_3_actionable_precision: safeRatio(
+      entry.review_top_3_actionable ?? 0,
+      entry.review_top_3_total ?? 0,
+    ),
+    review_top_10_total: entry.review_top_10_total ?? 0,
+    review_top_10_actionable: entry.review_top_10_actionable ?? 0,
+    top_10_actionable_precision: safeRatio(
+      entry.review_top_10_actionable ?? 0,
+      entry.review_top_10_total ?? 0,
+    ),
+    ranking_preference_total: entry.ranking_preference_total ?? 0,
+    ranking_preference_satisfied: entry.ranking_preference_satisfied ?? 0,
+    ranking_preference_violated: entry.ranking_preference_violated ?? 0,
+    ranking_preference_unresolved: entry.ranking_preference_unresolved ?? 0,
+    ranking_preference_satisfaction_rate: safeRatio(
+      entry.ranking_preference_satisfied ?? 0,
+      entry.ranking_preference_total ?? 0,
+    ),
+    provisional_review_top_1_total: entry.provisional_review_top_1_total ?? 0,
+    provisional_review_top_1_actionable: entry.provisional_review_top_1_actionable ?? 0,
+    provisional_top_1_actionable_precision: safeRatio(
+      entry.provisional_review_top_1_actionable ?? 0,
+      entry.provisional_review_top_1_total ?? 0,
+    ),
+    provisional_review_top_3_total: entry.provisional_review_top_3_total ?? 0,
+    provisional_review_top_3_actionable: entry.provisional_review_top_3_actionable ?? 0,
+    provisional_top_3_actionable_precision: safeRatio(
+      entry.provisional_review_top_3_actionable ?? 0,
+      entry.provisional_review_top_3_total ?? 0,
+    ),
+    provisional_review_top_10_total: entry.provisional_review_top_10_total ?? 0,
+    provisional_review_top_10_actionable: entry.provisional_review_top_10_actionable ?? 0,
+    provisional_top_10_actionable_precision: safeRatio(
+      entry.provisional_review_top_10_actionable ?? 0,
+      entry.provisional_review_top_10_total ?? 0,
+    ),
+    provisional_ranking_preference_total: entry.provisional_ranking_preference_total ?? 0,
+    provisional_ranking_preference_satisfied:
+      entry.provisional_ranking_preference_satisfied ?? 0,
+    provisional_ranking_preference_violated: entry.provisional_ranking_preference_violated ?? 0,
+    provisional_ranking_preference_unresolved:
+      entry.provisional_ranking_preference_unresolved ?? 0,
+    provisional_ranking_preference_satisfaction_rate: safeRatio(
+      entry.provisional_ranking_preference_satisfied ?? 0,
+      entry.provisional_ranking_preference_total ?? 0,
+    ),
   };
 }
 
@@ -627,11 +802,122 @@ function buildSignalRecord(entry, latencyMs) {
       reviewMetrics,
       counts.provisionalReview,
       provisionalReviewMetrics,
+      entry,
     ),
     ...buildSignalRemediationFields(counts.remediation),
     ...buildSignalSessionFields(counts.session, sessionMetrics),
     latency_ms: entry.seeded_check_supported > 0 ? latencyMs : null,
     promotion_recommendation: buildPromotionRecommendation(promotionEntry),
+  };
+}
+
+function sumSignalField(signals, fieldName) {
+  return signals.reduce((total, signal) => total + (signal[fieldName] ?? 0), 0);
+}
+
+function evaluatePrimaryTargetPolicy({
+  top1ReviewedCount,
+  top1ActionablePrecision,
+  top3ReviewedCount,
+  top3ActionablePrecision,
+  top10ReviewedCount,
+  top10ActionablePrecision,
+  rankingPreferenceTotal,
+  rankingPreferenceSatisfactionRate,
+}) {
+  const checks = [];
+
+  if (top1ReviewedCount >= SIGNAL_PRIMARY_TARGET_POLICY.top1MinReviewedSamples) {
+    checks.push(
+      top1ActionablePrecision !== null &&
+        top1ActionablePrecision >= SIGNAL_PRIMARY_TARGET_POLICY.top1ActionablePrecisionMin,
+    );
+  }
+  if (top3ReviewedCount >= SIGNAL_PRIMARY_TARGET_POLICY.top3MinReviewedSamples) {
+    checks.push(
+      top3ActionablePrecision !== null &&
+        top3ActionablePrecision >= SIGNAL_PRIMARY_TARGET_POLICY.top3ActionablePrecisionMin,
+    );
+  }
+  if (top10ReviewedCount >= SIGNAL_PRIMARY_TARGET_POLICY.top10MinReviewedSamples) {
+    checks.push(
+      top10ActionablePrecision !== null &&
+        top10ActionablePrecision >= SIGNAL_PRIMARY_TARGET_POLICY.top10ActionablePrecisionMin,
+    );
+  }
+  if (
+    rankingPreferenceTotal >=
+    SIGNAL_PRIMARY_TARGET_POLICY.rankingPreferenceMinComparisons
+  ) {
+    checks.push(
+      rankingPreferenceSatisfactionRate !== null &&
+        rankingPreferenceSatisfactionRate >=
+          SIGNAL_PRIMARY_TARGET_POLICY.rankingPreferenceSatisfactionMin,
+    );
+  }
+
+  if (checks.length === 0) {
+    return null;
+  }
+
+  return checks.every(Boolean);
+}
+
+function buildRankingQualitySummary(signals, prefix = '') {
+  const top1ReviewedCount = sumSignalField(signals, `${prefix}review_top_1_total`);
+  const top1ActionableCount = sumSignalField(signals, `${prefix}review_top_1_actionable`);
+  const top3ReviewedCount = sumSignalField(signals, `${prefix}review_top_3_total`);
+  const top3ActionableCount = sumSignalField(signals, `${prefix}review_top_3_actionable`);
+  const top10ReviewedCount = sumSignalField(signals, `${prefix}review_top_10_total`);
+  const top10ActionableCount = sumSignalField(signals, `${prefix}review_top_10_actionable`);
+  const rankingPreferenceTotal = sumSignalField(signals, `${prefix}ranking_preference_total`);
+  const rankingPreferenceSatisfied = sumSignalField(
+    signals,
+    `${prefix}ranking_preference_satisfied`,
+  );
+  const rankingPreferenceViolated = sumSignalField(
+    signals,
+    `${prefix}ranking_preference_violated`,
+  );
+  const rankingPreferenceUnresolved = sumSignalField(
+    signals,
+    `${prefix}ranking_preference_unresolved`,
+  );
+  const top1ActionablePrecision = safeRatio(top1ActionableCount, top1ReviewedCount);
+  const top3ActionablePrecision = safeRatio(top3ActionableCount, top3ReviewedCount);
+  const top10ActionablePrecision = safeRatio(top10ActionableCount, top10ReviewedCount);
+  const rankingPreferenceSatisfactionRate = safeRatio(
+    rankingPreferenceSatisfied,
+    rankingPreferenceTotal,
+  );
+
+  return {
+    ranking_supported: top1ReviewedCount > 0,
+    actionable_review_sample_count: sumSignalField(signals, `${prefix}reviewed_helpful_count`),
+    top_1_reviewed_count: top1ReviewedCount,
+    top_1_actionable_count: top1ActionableCount,
+    top_1_actionable_precision: top1ActionablePrecision,
+    top_3_reviewed_count: top3ReviewedCount,
+    top_3_actionable_count: top3ActionableCount,
+    top_3_actionable_precision: top3ActionablePrecision,
+    top_10_reviewed_count: top10ReviewedCount,
+    top_10_actionable_count: top10ActionableCount,
+    top_10_actionable_precision: top10ActionablePrecision,
+    ranking_preference_total: rankingPreferenceTotal,
+    ranking_preference_satisfied: rankingPreferenceSatisfied,
+    ranking_preference_violated: rankingPreferenceViolated,
+    ranking_preference_unresolved: rankingPreferenceUnresolved,
+    ranking_preference_satisfaction_rate: rankingPreferenceSatisfactionRate,
+    meets_primary_target_policy: evaluatePrimaryTargetPolicy({
+      top1ReviewedCount,
+      top1ActionablePrecision,
+      top3ReviewedCount,
+      top3ActionablePrecision,
+      top10ReviewedCount,
+      top10ActionablePrecision,
+      rankingPreferenceTotal,
+      rankingPreferenceSatisfactionRate,
+    }),
   };
 }
 
@@ -644,6 +930,9 @@ function buildScorecardSummary({
   totalSessionTrialCount,
   latencyMs,
 }) {
+  const rankingQuality = buildRankingQualitySummary(signals);
+  const provisionalRankingQuality = buildRankingQualitySummary(signals, 'provisional_');
+
   return {
     total_signals: signals.length,
     trusted_count: signals.filter((signal) => signal.promotion_status === 'trusted').length,
@@ -666,6 +955,7 @@ function buildScorecardSummary({
       remediation_sample_count: remediationReport?.results?.length ?? 0,
       session_trial_count: totalSessionTrialCount,
       session_count: sessionCount,
+      actionable_review_sample_count: rankingQuality.actionable_review_sample_count,
     },
     coverage: {
       has_seeded_defects: (defectReport?.results?.length ?? 0) > 0,
@@ -677,6 +967,8 @@ function buildScorecardSummary({
       has_session_trials: totalSessionTrialCount > 0,
       has_benchmark: latencyMs !== null,
     },
+    ranking_quality: rankingQuality,
+    provisional_ranking_quality: provisionalRankingQuality,
   };
 }
 
@@ -741,6 +1033,32 @@ export function formatSignalScorecardMarkdown(scorecard) {
     );
     lines.push(`- remediation samples: ${scorecard.summary.kpis.remediation_sample_count ?? 0}`);
     lines.push(`- sessions: ${scorecard.summary.kpis.session_count ?? 0}`);
+    lines.push(
+      `- actionable reviewed samples: ${scorecard.summary.kpis.actionable_review_sample_count ?? 0}`,
+    );
+  }
+  if (scorecard.summary.ranking_quality) {
+    lines.push(
+      `- top-1 actionable precision: ${scorecard.summary.ranking_quality.top_1_actionable_precision ?? 'n/a'}`,
+    );
+    lines.push(
+      `- top-3 actionable precision: ${scorecard.summary.ranking_quality.top_3_actionable_precision ?? 'n/a'}`,
+    );
+    lines.push(
+      `- top-10 actionable precision: ${scorecard.summary.ranking_quality.top_10_actionable_precision ?? 'n/a'}`,
+    );
+    lines.push(
+      `- ranking preference satisfaction: ${scorecard.summary.ranking_quality.ranking_preference_satisfaction_rate ?? 'n/a'}`,
+    );
+    lines.push(
+      `- primary-target policy: ${
+        scorecard.summary.ranking_quality.meets_primary_target_policy === null
+          ? 'insufficient evidence'
+          : scorecard.summary.ranking_quality.meets_primary_target_policy
+            ? 'pass'
+            : 'fail'
+      }`,
+    );
   }
   lines.push('');
   lines.push('| Signal | Family | Status | Primary Lane | Seeded Recall | Primary Recall | Reviewed Precision | Noise Rate | Remediation Success | Trials | Trial Miss Rate | Top Action Clear | Regression Rate | Session Clean Rate | Avg Checks To Clear | Latency | Recommendation |');

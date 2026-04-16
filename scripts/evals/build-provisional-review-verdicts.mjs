@@ -152,11 +152,22 @@ function getKindPolicy(kind) {
 
 function buildEngineerNote(sample) {
   const summary = sample.summary ?? 'Review this finding against the changed scope.';
+  const repairPacket = sample.repair_packet ?? null;
+  if (repairPacket?.complete === false) {
+    return `${summary} Provisional verdict derived from packet metadata; confirm usefulness, relative rank, and whether missing repair guidance (${repairPacket.missing_fields.join(', ')}) keeps this out of the primary surface.`;
+  }
+
   return `${summary} Provisional verdict derived from packet metadata; confirm usefulness and relative rank manually.`;
 }
 
 function buildExpectedBehavior(sample) {
-  return `Keep ${sample.kind ?? 'this finding'} visible with the recorded trust/presentation defaults unless manual review shows it is too noisy or misranked.`;
+  const leadSurface = sample.rank <= 3 ? 'lead surface' : 'supporting surface';
+  const repairPacket = sample.repair_packet ?? null;
+  if (repairPacket?.complete === false) {
+    return `Keep ${sample.kind ?? 'this finding'} on the ${leadSurface} only if manual review confirms the rank and the missing repair guidance is filled in before promotion-grade use.`;
+  }
+
+  return `Keep ${sample.kind ?? 'this finding'} visible on the ${leadSurface} with the recorded trust/presentation defaults unless manual review shows it is too noisy or misranked.`;
 }
 
 function shouldIncludeSample(sample, allowedKinds) {
@@ -197,7 +208,7 @@ export function buildProvisionalReviewVerdictReport(packet, args) {
     source_report: args.sourceReport ?? args.packetPath,
     source_feedback:
       args.sourceFeedback ??
-      'Provisional AI-curated review verdicts generated from packet metadata. Replace or confirm manually before treating this as promotion-grade evidence.',
+      'Provisional AI-curated review verdicts generated from packet metadata. Keep verdict order rank-preserving because top-1/top-3/top-10 actionable precision uses this order. Replace or confirm manually before treating this as promotion-grade evidence.',
     provisional: true,
     verdicts: buildVerdicts(packet, args),
   };

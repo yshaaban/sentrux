@@ -8,6 +8,24 @@ export const SIGNAL_PROMOTION_POLICY = Object.freeze({
   followupRegressionRateMax: 0.4,
 });
 
+export const SIGNAL_PRIMARY_TARGET_POLICY = Object.freeze({
+  top1ActionablePrecisionMin: 1,
+  top3ActionablePrecisionMin: 0.67,
+  top10ActionablePrecisionMin: 0.6,
+  rankingPreferenceSatisfactionMin: 0.8,
+  top1MinReviewedSamples: 1,
+  top3MinReviewedSamples: 3,
+  top10MinReviewedSamples: 10,
+  rankingPreferenceMinComparisons: 1,
+});
+
+export const REVIEW_PACKET_COMPLETENESS_POLICY = Object.freeze({
+  requiredFields: Object.freeze(['scope', 'summary', 'evidence', 'repair_surface']),
+  preferredFields: Object.freeze(['fix_hint', 'likely_fix_sites']),
+  top3CompleteRateMin: 0.8,
+  top10CompleteRateMin: 0.7,
+});
+
 export const SIGNAL_BACKLOG_PRIORITY_WEIGHTS = Object.freeze({
   liveMiss: 3,
   replayMiss: 2,

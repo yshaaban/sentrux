@@ -194,6 +194,18 @@ The goal is not perfect recall.
 
 The goal is high trust on the findings we choose to surface and gate on.
 
+For the lead surface, the quality bar is stricter than generic reviewed precision. The scorecard should now answer:
+
+- are the first 1, 3, and 10 reviewed findings still actionable enough to deserve their rank
+- do reviewer ranking preferences agree with the presented order
+- does remediation and session telemetry show that the surfaced findings were actually fixable
+
+Current support boundary:
+
+- top-1 / top-3 / top-10 actionable precision is scorecard-grade when the curated review verdict file preserves the reviewed order
+- ranking-preference satisfaction is scorecard-grade when verdicts use `preferred_over`
+- repair-packet completeness is currently packet-local evidence, not scorecard-grade governance, because the review-verdict schema does not yet persist repair-packet fields
+
 ## Recommended Loop
 
 For the current checked-in public proof loop:
@@ -261,12 +273,18 @@ Current promotion policy thresholds:
 - seeded recall at least `0.95`
 - reviewed precision at least `0.8`
 - review noise rate at most `0.2`
+- top-1 actionable precision at least `1.0` when at least one curated reviewed sample exists
+- top-3 actionable precision at least `0.67` when at least three curated reviewed samples exist
+- top-10 actionable precision at least `0.6` when at least ten curated reviewed samples exist
+- ranking-preference satisfaction at least `0.8` when ranked comparison verdicts exist
 - remediation success rate at least `0.6`
 - top-action clear rate at least `0.6`
 - session clean rate at least `0.6`
 - follow-up regression rate at most `0.4`
 
 Signals that fail those thresholds should stay `watchpoint` or `experimental` until the scorecard evidence improves.
+
+Do not treat high reviewed precision alone as promotion-grade evidence. A signal that is often "technically true" but still weak in the first few ranked slots is still failing the primary-target bar.
 
 ## Implementation Tasks
 

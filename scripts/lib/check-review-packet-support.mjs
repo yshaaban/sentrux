@@ -2,6 +2,8 @@ import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
+import { REVIEW_PACKET_COMPLETENESS_POLICY } from './signal-calibration-policy.mjs';
+
 function loadJson(targetPath) {
   return readFile(targetPath, 'utf8').then((source) => JSON.parse(source));
 }
@@ -13,6 +15,14 @@ function sourceLabelFromPath(targetPath) {
 
 function isPlainObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function hasText(value) {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function uniqueStrings(values) {
+  return [...new Set(values.filter(hasText))];
 }
 
 function selectRawSamples(tool, payload) {
@@ -83,6 +93,79 @@ function buildCloneEvidence(sample) {
   }
 
   return Object.keys(cloneEvidence).length > 0 ? cloneEvidence : null;
+}
+
+function buildLikelyFixSites(sample, scope) {
+  const likelyFixSites = [];
+
+  for (const candidate of sample.likely_fix_sites ?? []) {
+    if (hasText(candidate)) {
+      likelyFixSites.push(candidate);
+    }
+  }
+  if (hasText(sample.file)) {
+    likelyFixSites.push(sample.file);
+  }
+  if (likelyFixSites.length === 0 && hasText(scope) && !scope.startsWith('cycle:')) {
+    likelyFixSites.push(scope);
+  }
+
+  return uniqueStrings(likelyFixSites);
+}
+
+function buildRepairPacket(sample, scope, summary, evidence, expectedFixSurface) {
+  const likelyFixSites = buildLikelyFixSites(sample, scope);
+  const fixHint = hasText(sample.fix_hint) ? sample.fix_hint : null;
+  const inspectionFocus = uniqueStrings(sample.inspection_focus ?? []);
+  const repairSurface = hasText(expectedFixSurface)
+    ? expectedFixSurface
+    : likelyFixSites.length > 0
+      ? 'concrete_fix_site'
+      : null;
+  const requiredFieldState = {
+    scope: hasText(scope),
+    summary: hasText(summary),
+    evidence: evidence.length > 0,
+    repair_surface: hasText(repairSurface) || hasText(fixHint),
+  };
+  const preferredFieldState = {
+    fix_hint: hasText(fixHint),
+    likely_fix_sites: likelyFixSites.length > 0,
+  };
+  const complete = REVIEW_PACKET_COMPLETENESS_POLICY.requiredFields.every(
+    (field) => requiredFieldState[field],
+  );
+  const satisfiedFieldCount = [
+    ...REVIEW_PACKET_COMPLETENESS_POLICY.requiredFields.map(
+      (field) => requiredFieldState[field],
+    ),
+    ...REVIEW_PACKET_COMPLETENESS_POLICY.preferredFields.map(
+      (field) => preferredFieldState[field],
+    ),
+  ].filter(Boolean).length;
+  const totalTrackedFieldCount =
+    REVIEW_PACKET_COMPLETENESS_POLICY.requiredFields.length +
+    REVIEW_PACKET_COMPLETENESS_POLICY.preferredFields.length;
+  const missingFields = [
+    ...REVIEW_PACKET_COMPLETENESS_POLICY.requiredFields.filter(
+      (field) => !requiredFieldState[field],
+    ),
+    ...REVIEW_PACKET_COMPLETENESS_POLICY.preferredFields.filter(
+      (field) => !preferredFieldState[field],
+    ),
+  ];
+
+  return {
+    complete,
+    completeness_0_10000: Math.round((satisfiedFieldCount / totalTrackedFieldCount) * 10000),
+    missing_fields: missingFields,
+    required_fields: requiredFieldState,
+    preferred_fields: preferredFieldState,
+    fix_hint: fixHint,
+    likely_fix_sites: likelyFixSites,
+    inspection_focus: inspectionFocus,
+    expected_fix_surface: repairSurface,
+  };
 }
 
 function buildScanMetadata(payload, sourceKind, sourceLabel, snapshotLabel, scanPayload = null) {
@@ -207,12 +290,21 @@ function extractSamples(tool, payloadEntry, sourceEntry) {
 
   return rawSamples.map(function toSample(sample, index) {
     const cloneEvidence = buildCloneEvidence(sample);
+    const summary = sample.summary ?? sample.message ?? null;
+    const evidence = Array.isArray(sample.evidence) ? sample.evidence : [];
     const scope =
       sample.scope ??
       sample.file ??
       cloneEvidence?.files?.slice(0, 2).join(' | ') ??
       cloneEvidence?.instances?.[0]?.file ??
       null;
+    const repairPacket = buildRepairPacket(
+      sample,
+      scope,
+      summary,
+      evidence,
+      sourceEntry.expected_fix_surface,
+    );
 
     return {
       review_id: `${tool}-${index + 1}`,
@@ -221,8 +313,12 @@ function extractSamples(tool, payloadEntry, sourceEntry) {
       report_bucket: tool === 'check' ? 'actions' : tool,
       scope,
       severity: sample.severity ?? null,
-      summary: sample.summary ?? sample.message ?? null,
-      evidence: sample.evidence ?? [],
+      summary,
+      evidence,
+      fix_hint: repairPacket.fix_hint,
+      likely_fix_sites: repairPacket.likely_fix_sites,
+      inspection_focus: repairPacket.inspection_focus,
+      repair_packet: repairPacket,
       source_kind: sourceEntry.source_kind,
       source_label: sourceEntry.source_label,
       snapshot_label: payloadEntry.snapshot_label,
@@ -298,6 +394,8 @@ function renumberSamples(tool, samples) {
 
 function buildPacketSummary(samples) {
   const kindCounts = new Map();
+  const top3Samples = samples.slice(0, 3);
+  const top10Samples = samples.slice(0, 10);
 
   for (const sample of samples) {
     const key = sample.kind ?? 'unknown';
@@ -306,6 +404,16 @@ function buildPacketSummary(samples) {
 
   return {
     sample_count: samples.length,
+    repair_packet_complete_count: samples.filter((sample) => sample.repair_packet?.complete).length,
+    repair_packet_complete_rate: samples.length
+      ? samples.filter((sample) => sample.repair_packet?.complete).length / samples.length
+      : null,
+    top_3_repair_packet_complete_rate: top3Samples.length
+      ? top3Samples.filter((sample) => sample.repair_packet?.complete).length / top3Samples.length
+      : null,
+    top_10_repair_packet_complete_rate: top10Samples.length
+      ? top10Samples.filter((sample) => sample.repair_packet?.complete).length / top10Samples.length
+      : null,
     kind_counts: [...kindCounts.entries()]
       .map(([kind, count]) => ({ kind, count }))
       .sort((left, right) => right.count - left.count || left.kind.localeCompare(right.kind)),
@@ -354,7 +462,7 @@ function buildVerdictTemplateData(packet, sourceReport) {
     captured_at: packet.generated_at,
     source_report: sourceReport,
     source_feedback:
-      'Replace the placeholder verdict values below after reviewing the packet. Do not use this template as scored evidence until it has been curated by a reviewer.',
+      'Replace the placeholder verdict values below after reviewing the packet. Keep verdict order rank-preserving because top-1/top-3/top-10 actionable precision is computed from this order. Do not use this template as scored evidence until it has been curated by a reviewer.',
     verdicts: packet.samples.map((sample) => ({
       scope: sample.scope ?? sample.source_label ?? 'unknown-scope',
       kind: sample.kind ?? 'unknown-kind',
@@ -363,10 +471,16 @@ function buildVerdictTemplateData(packet, sourceReport) {
       expected_trust_tier: sample.severity === 'high' ? 'trusted' : 'watchpoint',
       expected_presentation_class: 'review_required',
       expected_leverage_class: sample.expected_fix_surface ?? 'local_refactor_target',
-      expected_summary_presence: 'section_present',
+      expected_summary_presence: sample.rank <= 3 ? 'headline' : 'section_present',
       preferred_over: [],
-      engineer_note: sample.summary ?? 'Replace with reviewer rationale.',
-      expected_v2_behavior: `Confirm the ranking and presentation for ${sample.kind ?? 'this finding'}.`,
+      engineer_note:
+        sample.repair_packet?.complete === false
+          ? `${sample.summary ?? 'Replace with reviewer rationale.'} Confirm usefulness, rank, and whether missing repair guidance (${sample.repair_packet.missing_fields.join(', ')}) keeps this out of the primary surface.`
+          : sample.summary ?? 'Replace with reviewer rationale.',
+      expected_v2_behavior:
+        sample.repair_packet?.complete === false
+          ? `Confirm the ranking and presentation for ${sample.kind ?? 'this finding'}, and add explicit repair guidance before treating it as promotion-grade lead evidence.`
+          : `Confirm the ranking and presentation for ${sample.kind ?? 'this finding'}.`,
     })),
   };
 }
@@ -703,6 +817,17 @@ export function formatPacketMarkdown(packet) {
   lines.push(...formatScanMetadataLines(packet));
   lines.push(`- generated at: \`${packet.generated_at}\``);
   lines.push(`- sample count: ${packet.samples.length}`);
+  if (packet.summary?.repair_packet_complete_rate !== undefined) {
+    lines.push(
+      `- repair-packet completeness: \`${packet.summary.repair_packet_complete_count ?? 0}/${packet.summary.sample_count ?? packet.samples.length}\` (${packet.summary.repair_packet_complete_rate ?? 'n/a'})`,
+    );
+    lines.push(
+      `- top-3 repair-packet completeness: \`${packet.summary.top_3_repair_packet_complete_rate ?? 'n/a'}\``,
+    );
+    lines.push(
+      `- top-10 repair-packet completeness: \`${packet.summary.top_10_repair_packet_complete_rate ?? 'n/a'}\``,
+    );
+  }
   if (Array.isArray(packet.summary?.kind_counts) && packet.summary.kind_counts.length > 0) {
     lines.push(`- kind counts: ${packet.summary.kind_counts.map((entry) => `${entry.kind}=${entry.count}`).join(', ')}`);
   }
