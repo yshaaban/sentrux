@@ -415,6 +415,54 @@
       "candidate_split_axes": [
         "app dependency boundary",
         "components dependency boundary",
+        "lib dependency boundary"
+      ],
+      "evidence": [
+        "fan-out: 16",
+        "fan-out threshold: 15",
+        "instability: 0.89",
+        "dominant dependency categories: app(5), components(3), lib(3)",
+        "sample dependencies: src/app/task-activity-clock.ts, src/app/task-convergence.ts, src/app/task-presentation-status.ts",
+        "guardrail tests: src/components/SidebarTaskRow.architecture.test.ts"
+      ],
+      "files": [
+        "src/components/SidebarTaskRow.tsx"
+      ],
+      "impact": "Broad dependency fan-out expands change surface and makes orchestration drift harder to localize.",
+      "inspection_focus": [
+        "inspect whether orchestration and policy code can move behind narrower helpers",
+        "inspect whether unrelated adapter dependencies are accumulating in one module"
+      ],
+      "kind": "dependency_sprawl",
+      "leverage_class": "local_refactor_target",
+      "leverage_reasons": [
+        "guardrail_backed_refactor_surface",
+        "contained_refactor_surface",
+        "contained_dependency_pressure"
+      ],
+      "metrics": {
+        "evidence_count": 6,
+        "file_count": 1
+      },
+      "presentation_class": "structural_debt",
+      "related_surfaces": [
+        "src/app/task-activity-clock.ts",
+        "src/app/task-convergence.ts",
+        "src/app/task-presentation-status.ts",
+        "src/components/SidebarTaskRow.architecture.test.ts"
+      ],
+      "role_tags": [
+        "guarded_seam"
+      ],
+      "scope": "src/components/SidebarTaskRow.tsx",
+      "severity": "medium",
+      "summary": "File 'src/components/SidebarTaskRow.tsx' depends on 16 real surfaces, above the typescript threshold of 15",
+      "trust_tier": "trusted"
+    },
+    {
+      "candidate_split_axes": [
+        "app dependency boundary",
+        "components dependency boundary",
         "lib dependency boundary",
         "private helper surface split"
       ],
@@ -464,54 +512,6 @@
       "trust_tier": "trusted"
     },
     {
-      "candidate_split_axes": [
-        "app dependency boundary",
-        "components dependency boundary",
-        "lib dependency boundary"
-      ],
-      "evidence": [
-        "fan-out: 16",
-        "fan-out threshold: 15",
-        "instability: 0.89",
-        "dominant dependency categories: app(5), components(3), lib(3)",
-        "sample dependencies: src/app/task-activity-clock.ts, src/app/task-convergence.ts, src/app/task-presentation-status.ts",
-        "guardrail tests: src/components/SidebarTaskRow.architecture.test.ts"
-      ],
-      "files": [
-        "src/components/SidebarTaskRow.tsx"
-      ],
-      "impact": "Broad dependency fan-out expands change surface and makes orchestration drift harder to localize.",
-      "inspection_focus": [
-        "inspect whether orchestration and policy code can move behind narrower helpers",
-        "inspect whether unrelated adapter dependencies are accumulating in one module"
-      ],
-      "kind": "dependency_sprawl",
-      "leverage_class": "local_refactor_target",
-      "leverage_reasons": [
-        "guardrail_backed_refactor_surface",
-        "contained_refactor_surface",
-        "contained_dependency_pressure"
-      ],
-      "metrics": {
-        "evidence_count": 6,
-        "file_count": 1
-      },
-      "presentation_class": "structural_debt",
-      "related_surfaces": [
-        "src/app/task-activity-clock.ts",
-        "src/app/task-convergence.ts",
-        "src/app/task-presentation-status.ts",
-        "src/components/SidebarTaskRow.architecture.test.ts"
-      ],
-      "role_tags": [
-        "guarded_seam"
-      ],
-      "scope": "src/components/SidebarTaskRow.tsx",
-      "severity": "medium",
-      "summary": "File 'src/components/SidebarTaskRow.tsx' depends on 16 real surfaces, above the typescript threshold of 15",
-      "trust_tier": "trusted"
-    },
-    {
       "candidate_split_axes": [],
       "evidence": [
         "src/components/SidebarTaskRow.tsx::store.taskGitStatus",
@@ -552,6 +552,67 @@
   "introduced_clone_finding_count": 0,
   "introduced_clone_findings": [],
   "introduced_findings": [
+    {
+      "candidate_split_axes": [
+        "app dependency boundary",
+        "components dependency boundary",
+        "lib dependency boundary"
+      ],
+      "evidence": [
+        "fan-out: 16",
+        "fan-out threshold: 15",
+        "instability: 0.89",
+        "dominant dependency categories: app(5), components(3), lib(3)",
+        "sample dependencies: src/app/task-activity-clock.ts, src/app/task-convergence.ts, src/app/task-presentation-status.ts",
+        "guardrail tests: src/components/SidebarTaskRow.architecture.test.ts"
+      ],
+      "files": [
+        "src/components/SidebarTaskRow.tsx"
+      ],
+      "impact": "Broad dependency fan-out expands change surface and makes orchestration drift harder to localize.",
+      "inspection_focus": [
+        "inspect whether orchestration and policy code can move behind narrower helpers",
+        "inspect whether unrelated adapter dependencies are accumulating in one module"
+      ],
+      "kind": "dependency_sprawl",
+      "leverage_class": "local_refactor_target",
+      "leverage_reasons": [
+        "guardrail_backed_refactor_surface",
+        "contained_refactor_surface",
+        "contained_dependency_pressure"
+      ],
+      "metrics": {
+        "fan_in": 2,
+        "fan_out": 16,
+        "file_count": 1,
+        "function_count": 43,
+        "guardrail_test_count": 1,
+        "instability_0_10000": 8889,
+        "line_count": 586,
+        "max_complexity": 4,
+        "role_count": 1
+      },
+      "presentation_class": "structural_debt",
+      "related_surfaces": [
+        "src/app/task-activity-clock.ts",
+        "src/app/task-convergence.ts",
+        "src/app/task-presentation-status.ts",
+        "src/components/SidebarTaskRow.architecture.test.ts"
+      ],
+      "role_tags": [
+        "guarded_seam"
+      ],
+      "scope": "src/components/SidebarTaskRow.tsx",
+      "score_0_10000": 5235,
+      "severity": "medium",
+      "signal_class": "debt",
+      "signal_families": [
+        "coupling",
+        "coordination"
+      ],
+      "summary": "File 'src/components/SidebarTaskRow.tsx' depends on 16 real surfaces, above the typescript threshold of 15",
+      "trust_tier": "trusted"
+    },
     {
       "candidate_split_axes": [
         "app dependency boundary",
@@ -613,67 +674,6 @@
         "coordination"
       ],
       "summary": "File 'src/components/SidebarTaskRow.tsx' is 586 lines, above the typescript threshold of 500",
-      "trust_tier": "trusted"
-    },
-    {
-      "candidate_split_axes": [
-        "app dependency boundary",
-        "components dependency boundary",
-        "lib dependency boundary"
-      ],
-      "evidence": [
-        "fan-out: 16",
-        "fan-out threshold: 15",
-        "instability: 0.89",
-        "dominant dependency categories: app(5), components(3), lib(3)",
-        "sample dependencies: src/app/task-activity-clock.ts, src/app/task-convergence.ts, src/app/task-presentation-status.ts",
-        "guardrail tests: src/components/SidebarTaskRow.architecture.test.ts"
-      ],
-      "files": [
-        "src/components/SidebarTaskRow.tsx"
-      ],
-      "impact": "Broad dependency fan-out expands change surface and makes orchestration drift harder to localize.",
-      "inspection_focus": [
-        "inspect whether orchestration and policy code can move behind narrower helpers",
-        "inspect whether unrelated adapter dependencies are accumulating in one module"
-      ],
-      "kind": "dependency_sprawl",
-      "leverage_class": "local_refactor_target",
-      "leverage_reasons": [
-        "guardrail_backed_refactor_surface",
-        "contained_refactor_surface",
-        "contained_dependency_pressure"
-      ],
-      "metrics": {
-        "fan_in": 2,
-        "fan_out": 16,
-        "file_count": 1,
-        "function_count": 43,
-        "guardrail_test_count": 1,
-        "instability_0_10000": 8889,
-        "line_count": 586,
-        "max_complexity": 4,
-        "role_count": 1
-      },
-      "presentation_class": "structural_debt",
-      "related_surfaces": [
-        "src/app/task-activity-clock.ts",
-        "src/app/task-convergence.ts",
-        "src/app/task-presentation-status.ts",
-        "src/components/SidebarTaskRow.architecture.test.ts"
-      ],
-      "role_tags": [
-        "guarded_seam"
-      ],
-      "scope": "src/components/SidebarTaskRow.tsx",
-      "score_0_10000": 5235,
-      "severity": "medium",
-      "signal_class": "debt",
-      "signal_families": [
-        "coupling",
-        "coordination"
-      ],
-      "summary": "File 'src/components/SidebarTaskRow.tsx' depends on 16 real surfaces, above the typescript threshold of 15",
       "trust_tier": "trusted"
     },
     {

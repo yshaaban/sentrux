@@ -1732,278 +1732,103 @@
   "finding_detail_count": 12,
   "finding_details": [
     {
-      "candidate_split_axes": [],
-      "evidence": [],
-      "files": [
-        "electron/remote/ws-server.ts",
-        "server/browser-websocket.ts"
+      "candidate_split_axes": [
+        "store dependency boundary",
+        "lib dependency boundary",
+        "app dependency boundary"
       ],
-      "impact": "Duplicate logic increases the chance that fixes land in one copy but not the others.",
-      "inspection_focus": [],
-      "kind": "exact_clone_group",
-      "leverage_class": "secondary_cleanup",
-      "leverage_reasons": [
-        "duplicate_maintenance_pressure"
-      ],
-      "metrics": {
-        "evidence_count": 0,
-        "file_count": 2
-      },
-      "presentation_class": "watchpoint",
-      "related_surfaces": [
-        "electron/remote/ws-server.ts",
-        "server/browser-websocket.ts"
-      ],
-      "role_tags": [],
-      "scope": "electron/remote/ws-server.ts|server/browser-websocket.ts",
-      "severity": "high",
-      "summary": "2 functions share an identical normalized body across recently changed files",
-      "trust_tier": "trusted"
-    },
-    {
-      "candidate_split_axes": [],
-      "evidence": [],
-      "files": [
-        "src/components/AgentGlyph.tsx",
-        "src/remote/RemoteAgentGlyph.tsx"
-      ],
-      "impact": "Duplicate logic increases the chance that fixes land in one copy but not the others.",
-      "inspection_focus": [],
-      "kind": "exact_clone_group",
-      "leverage_class": "secondary_cleanup",
-      "leverage_reasons": [
-        "duplicate_maintenance_pressure"
-      ],
-      "metrics": {
-        "evidence_count": 0,
-        "file_count": 2
-      },
-      "presentation_class": "watchpoint",
-      "related_surfaces": [
-        "src/components/AgentGlyph.tsx",
-        "src/remote/RemoteAgentGlyph.tsx"
-      ],
-      "role_tags": [],
-      "scope": "src/components/AgentGlyph.tsx|src/remote/RemoteAgentGlyph.tsx",
-      "severity": "high",
-      "summary": "2 functions share an identical normalized body across recently changed files",
-      "trust_tier": "trusted"
-    },
-    {
-      "candidate_split_axes": [],
-      "evidence": [],
-      "files": [
-        "scripts/profile-terminal-input-latency.mjs",
-        "scripts/profile-terminal-ui-fluidity.mjs"
-      ],
-      "impact": "Duplicate logic increases the chance that fixes land in one copy but not the others.",
-      "inspection_focus": [],
-      "kind": "exact_clone_group",
-      "leverage_class": "secondary_cleanup",
-      "leverage_reasons": [
-        "duplicate_maintenance_pressure"
-      ],
-      "metrics": {
-        "evidence_count": 0,
-        "file_count": 2
-      },
-      "presentation_class": "watchpoint",
-      "related_surfaces": [
-        "scripts/profile-terminal-input-latency.mjs",
-        "scripts/profile-terminal-ui-fluidity.mjs"
-      ],
-      "role_tags": [],
-      "scope": "scripts/profile-terminal-input-latency.mjs|scripts/profile-terminal-ui-fluidity.mjs",
-      "severity": "high",
-      "summary": "2 functions share an identical normalized body across recently changed files",
-      "trust_tier": "trusted"
-    },
-    {
-      "candidate_split_axes": [],
-      "evidence": [],
-      "files": [
-        "src/components/AgentGlyph.tsx",
-        "src/remote/RemoteAgentGlyph.tsx"
-      ],
-      "impact": "Duplicate logic increases the chance that fixes land in one copy but not the others.",
-      "inspection_focus": [],
-      "kind": "exact_clone_group",
-      "leverage_class": "secondary_cleanup",
-      "leverage_reasons": [
-        "duplicate_maintenance_pressure"
-      ],
-      "metrics": {
-        "evidence_count": 0,
-        "file_count": 2
-      },
-      "presentation_class": "watchpoint",
-      "related_surfaces": [
-        "src/components/AgentGlyph.tsx",
-        "src/remote/RemoteAgentGlyph.tsx"
-      ],
-      "role_tags": [],
-      "scope": "src/components/AgentGlyph.tsx|src/remote/RemoteAgentGlyph.tsx",
-      "severity": "high",
-      "summary": "2 functions share an identical normalized body across recently changed files",
-      "trust_tier": "trusted"
-    },
-    {
-      "candidate_split_axes": [],
-      "evidence": [],
-      "files": [
-        "electron/remote/ws-server.ts",
-        "server/browser-websocket.ts"
-      ],
-      "impact": "Duplicate logic increases the chance that fixes land in one copy but not the others.",
-      "inspection_focus": [],
-      "kind": "exact_clone_group",
-      "leverage_class": "secondary_cleanup",
-      "leverage_reasons": [
-        "duplicate_maintenance_pressure"
-      ],
-      "metrics": {
-        "evidence_count": 0,
-        "file_count": 2
-      },
-      "presentation_class": "watchpoint",
-      "related_surfaces": [
-        "electron/remote/ws-server.ts",
-        "server/browser-websocket.ts"
-      ],
-      "role_tags": [],
-      "scope": "electron/remote/ws-server.ts|server/browser-websocket.ts",
-      "severity": "high",
-      "summary": "2 functions share an identical normalized body across recently changed files",
-      "trust_tier": "trusted"
-    },
-    {
-      "candidate_split_axes": [],
-      "evidence": [],
-      "files": [
-        "electron/remote/ws-server.ts",
-        "server/browser-websocket.ts"
-      ],
-      "impact": "Duplicate logic increases the chance that fixes land in one copy but not the others.",
-      "inspection_focus": [],
-      "kind": "exact_clone_group",
-      "leverage_class": "secondary_cleanup",
-      "leverage_reasons": [
-        "duplicate_maintenance_pressure"
-      ],
-      "metrics": {
-        "evidence_count": 0,
-        "file_count": 2
-      },
-      "presentation_class": "watchpoint",
-      "related_surfaces": [
-        "electron/remote/ws-server.ts",
-        "server/browser-websocket.ts"
-      ],
-      "role_tags": [],
-      "scope": "electron/remote/ws-server.ts|server/browser-websocket.ts",
-      "severity": "high",
-      "summary": "2 functions share an identical normalized body across recently changed files",
-      "trust_tier": "trusted"
-    },
-    {
-      "candidate_split_axes": [],
-      "evidence": [],
-      "files": [
-        "scripts/profile-terminal-input-latency.mjs",
-        "scripts/profile-terminal-ui-fluidity.mjs"
-      ],
-      "impact": "Duplicate logic increases the chance that fixes land in one copy but not the others.",
-      "inspection_focus": [],
-      "kind": "exact_clone_group",
-      "leverage_class": "secondary_cleanup",
-      "leverage_reasons": [
-        "duplicate_maintenance_pressure"
-      ],
-      "metrics": {
-        "evidence_count": 0,
-        "file_count": 2
-      },
-      "presentation_class": "watchpoint",
-      "related_surfaces": [
-        "scripts/profile-terminal-input-latency.mjs",
-        "scripts/profile-terminal-ui-fluidity.mjs"
-      ],
-      "role_tags": [],
-      "scope": "scripts/profile-terminal-input-latency.mjs|scripts/profile-terminal-ui-fluidity.mjs",
-      "severity": "high",
-      "summary": "2 functions share an identical normalized body across recently changed files",
-      "trust_tier": "trusted"
-    },
-    {
-      "candidate_split_axes": [],
       "evidence": [
-        "src/app/task-presentation-status.ts [domain 'TaskDotStatus' in src/app/task-presentation-status.ts has variants [busy, waiting, ready, paused, flow-controlled, restoring, failed], but no exhaustive mapping or switch site was found]"
+        "fan-out: 29",
+        "fan-out threshold: 15",
+        "instability: 0.91",
+        "dominant dependency categories: store(17), lib(5), app(4)",
+        "sample dependencies: electron/ipc/channels.ts, src/app/task-command-lease.ts, src/app/task-prompt-dispatch.ts"
       ],
       "files": [
-        "src/app/task-presentation-status.ts"
+        "src/store/persistence-load.ts"
       ],
-      "impact": "Finite-domain changes can silently miss one surface unless all required cases stay in sync.",
+      "impact": "Broad dependency fan-out expands change surface and makes orchestration drift harder to localize.",
       "inspection_focus": [
-        "inspect which required surfaces should change together and add explicit coverage there"
+        "inspect whether orchestration and policy code can move behind narrower helpers",
+        "inspect whether unrelated adapter dependencies are accumulating in one module"
       ],
-      "kind": "closed_domain_exhaustiveness",
-      "leverage_class": "hardening_note",
+      "kind": "dependency_sprawl",
+      "leverage_class": "architecture_signal",
       "leverage_reasons": [
-        "narrow_completeness_gap"
+        "client_state_hub_pressure",
+        "high_inbound_dependency_pressure"
       ],
       "metrics": {
-        "evidence_count": 1,
-        "file_count": 1
-      },
-      "presentation_class": "hardening_note",
-      "related_surfaces": [
-        "src/app/task-presentation-status.ts"
-      ],
-      "role_tags": [],
-      "scope": "task_presentation_status",
-      "severity": "high",
-      "summary": "Domain 'task_presentation_status' in src/app/task-presentation-status.ts has variants [busy, waiting, ready, paused, flow-controlled, restoring, failed] but is missing required update sites",
-      "trust_tier": "trusted"
-    },
-    {
-      "candidate_split_axes": [],
-      "evidence": [
-        "src/runtime/browser-state-sync-controller.ts:266 [disposed]",
-        "src/runtime/browser-state-sync-controller.ts:276 [scheduled]",
-        "src/runtime/browser-state-sync-controller.ts:281 [idle]",
-        "src/runtime/browser-state-sync-controller.ts:47 [idle]",
-        "src/runtime/browser-state-sync-controller.ts:48 [scheduled]",
-        "src/runtime/browser-state-sync-controller.ts:49 [disposed]",
-        "src/runtime/browser-state-sync-controller.ts:92 [disposed]",
-        "src/runtime/browser-state-sync-controller.ts:107 [idle]",
-        "missing transition source 'disposed'",
-        "missing transition source 'idle'",
-        "missing transition source 'scheduled'"
-      ],
-      "files": [
-        "src/runtime/browser-state-sync-controller.ts"
-      ],
-      "impact": "If ignored, this structural inconsistency will keep adding change friction and make future regressions harder to isolate.",
-      "inspection_focus": [
-        "inspect the files and evidence behind this finding before choosing a design fix"
-      ],
-      "kind": "state_model_transition_coverage_gap",
-      "leverage_class": "secondary_cleanup",
-      "leverage_reasons": [
-        "real_but_lower_leverage_cleanup"
-      ],
-      "metrics": {
-        "evidence_count": 11,
+        "evidence_count": 5,
         "file_count": 1
       },
       "presentation_class": "structural_debt",
       "related_surfaces": [
-        "src/runtime/browser-state-sync-controller.ts"
+        "electron/ipc/channels.ts",
+        "src/app/task-command-lease.ts",
+        "src/app/task-prompt-dispatch.ts"
       ],
-      "role_tags": [],
-      "scope": "browser_state_sync",
+      "role_tags": [
+        "state_container"
+      ],
+      "scope": "src/store/persistence-load.ts",
       "severity": "high",
-      "summary": "State model 'browser_state_sync' has 8 transition branch(es) without an explicit next-state mapping and 3 uncovered source variant(s)",
+      "summary": "File 'src/store/persistence-load.ts' depends on 29 real surfaces, above the typescript threshold of 15",
+      "trust_tier": "trusted"
+    },
+    {
+      "candidate_split_axes": [
+        "components caller boundary",
+        "store caller boundary",
+        "store dependency boundary"
+      ],
+      "evidence": [
+        "fan-in: 47",
+        "hotspot threshold: 20",
+        "fan-out: 19",
+        "instability: 0.29",
+        "dominant dependent categories: components(31), store(13), arena(2)",
+        "sample dependents: src/App.tsx, src/arena/ConfigScreen.tsx, src/arena/ResultsScreen.tsx",
+        "guardrail tests: src/app/store-boundary.architecture.test.ts, src/components/TaskPanel.architecture.test.ts",
+        "guarded boundary literals: store/core, store/store, store.taskCommandControllers, store.focusedPanel[, ../app/task-workflows, ../app/agent-catalog, runWithAgentTaskCommandLease, IPC.WriteToAgent, loadAgents(, pickAndAddProject, closeTask(, handlePermissionResponse, permissionRequests[, setTaskFocusedPanel"
+      ],
+      "files": [
+        "src/store/store.ts"
+      ],
+      "impact": "A volatile component-facing barrel makes it harder to keep presentation access broad while keeping deeper orchestration changes contained.",
+      "inspection_focus": [
+        "inspect which component-facing reads really need the shared barrel and which can move behind narrower selectors",
+        "inspect whether broad inbound traffic is hiding a smaller set of volatility-heavy owner modules"
+      ],
+      "kind": "unstable_hotspot",
+      "leverage_class": "architecture_signal",
+      "leverage_reasons": [
+        "shared_barrel_boundary_hub",
+        "guardrail_backed_boundary_pressure",
+        "client_state_hub_pressure",
+        "high_inbound_dependency_pressure"
+      ],
+      "metrics": {
+        "evidence_count": 8,
+        "file_count": 1
+      },
+      "presentation_class": "structural_debt",
+      "related_surfaces": [
+        "src/App.tsx",
+        "src/arena/ConfigScreen.tsx",
+        "src/arena/ResultsScreen.tsx",
+        "src/app/store-boundary.architecture.test.ts",
+        "src/components/TaskPanel.architecture.test.ts"
+      ],
+      "role_tags": [
+        "guarded_seam",
+        "guarded_boundary",
+        "component_barrel",
+        "state_container"
+      ],
+      "scope": "src/store/store.ts",
+      "severity": "high",
+      "summary": "Component-facing barrel 'src/store/store.ts' has 47 inbound references and remains unstable",
       "trust_tier": "trusted"
     },
     {
@@ -2097,50 +1922,326 @@
     },
     {
       "candidate_split_axes": [
-        "scripts dependency boundary",
-        "entry surface split",
-        "high-complexity helper extraction",
-        "private helper surface split"
+        "local module split"
       ],
       "evidence": [
-        "line count: 1120",
-        "large-file threshold: 500",
-        "function count: 23",
-        "peak function complexity: 49",
-        "outbound dependencies: 2",
-        "suggested split axes: scripts dependency boundary, entry surface split, high-complexity helper extraction, private helper surface split",
-        "related surfaces to peel out first: scripts/terminal-ui-fluidity-gate.mjs, scripts/terminal-ui-fluidity-variants.mjs",
-        "recommended first cut: move the behavior that couples to scripts/terminal-ui-fluidity-gate.mjs behind the scripts dependency boundary"
+        "cycle size: 2",
+        "total lines in cycle: 170",
+        "peak function complexity inside cycle: 5",
+        "candidate cuts: 2",
+        "best cut candidate: electron/ipc/handlers.ts -> electron/ipc/notification-handlers.ts (removes 2 cyclic files)",
+        "role tags: none"
       ],
       "files": [
-        "scripts/terminal-ui-fluidity-matrix.mjs"
+        "electron/ipc/handlers.ts",
+        "electron/ipc/notification-handlers.ts"
       ],
-      "impact": "Responsibility concentration increases review friction and makes later splits harder to isolate.",
+      "impact": "The cycle prevents clean layering and makes initialization order and refactors harder to isolate.",
       "inspection_focus": [
-        "inspect whether the scripts dependency boundary can become the owner for behavior that currently couples to scripts/terminal-ui-fluidity-gate.mjs",
-        "inspect whether orchestration, adapters, and data shaping are accumulating in one file",
-        "inspect whether the file can be split along responsibility boundaries instead of line-count slices"
+        "inspect whether one back-edge can be removed by splitting contracts from implementations",
+        "inspect whether shared types can move to a lower-dependency seam"
       ],
-      "kind": "large_file",
-      "leverage_class": "tooling_debt",
+      "kind": "cycle_cluster",
+      "leverage_class": "architecture_signal",
       "leverage_reasons": [
-        "tooling_surface_maintenance_burden"
+        "mixed_cycle_pressure",
+        "high_leverage_cycle_cut"
       ],
       "metrics": {
-        "evidence_count": 8,
+        "evidence_count": 6,
+        "file_count": 2
+      },
+      "presentation_class": "watchpoint",
+      "related_surfaces": [
+        "electron/ipc/handlers.ts",
+        "electron/ipc/notification-handlers.ts"
+      ],
+      "role_tags": [],
+      "scope": "cycle:electron/ipc/handlers.ts|electron/ipc/notification-handlers.ts",
+      "severity": "high",
+      "summary": "Files electron/ipc/handlers.ts, electron/ipc/notification-handlers.ts form a dependency cycle",
+      "trust_tier": "watchpoint"
+    },
+    {
+      "candidate_split_axes": [
+        "components dependency boundary",
+        "app dependency boundary",
+        "lib dependency boundary"
+      ],
+      "evidence": [
+        "fan-out: 35",
+        "fan-out threshold: 15",
+        "instability: 0.95",
+        "dominant dependency categories: components(19), app(7), lib(5)",
+        "sample dependencies: src/app/task-activity-clock.ts, src/app/task-containers.ts, src/app/task-ports.ts",
+        "guardrail tests: src/components/TaskPanel.architecture.test.ts",
+        "extracted owner factories: createTaskPanelFocusRuntime, createTaskPanelPreviewController, createTaskPanelDialogState, createTaskPanelPermissionController"
+      ],
+      "files": [
+        "src/components/TaskPanel.tsx"
+      ],
+      "impact": "Broad dependency fan-out expands change surface and makes orchestration drift harder to localize.",
+      "inspection_focus": [
+        "inspect whether orchestration and policy code can move behind narrower helpers",
+        "inspect whether unrelated adapter dependencies are accumulating in one module"
+      ],
+      "kind": "dependency_sprawl",
+      "leverage_class": "local_refactor_target",
+      "leverage_reasons": [
+        "extracted_owner_shell_pressure",
+        "guardrail_backed_refactor_surface",
+        "contained_refactor_surface",
+        "contained_dependency_pressure"
+      ],
+      "metrics": {
+        "evidence_count": 7,
         "file_count": 1
       },
-      "presentation_class": "tooling_debt",
+      "presentation_class": "structural_debt",
       "related_surfaces": [
-        "scripts/terminal-ui-fluidity-gate.mjs",
-        "scripts/terminal-ui-fluidity-variants.mjs"
+        "src/app/task-activity-clock.ts",
+        "src/app/task-containers.ts",
+        "src/app/task-ports.ts",
+        "src/components/TaskPanel.architecture.test.ts"
       ],
       "role_tags": [
-        "entry_surface"
+        "guarded_seam",
+        "facade_with_extracted_owners"
       ],
-      "scope": "scripts/terminal-ui-fluidity-matrix.mjs",
+      "scope": "src/components/TaskPanel.tsx",
       "severity": "high",
-      "summary": "File 'scripts/terminal-ui-fluidity-matrix.mjs' is 1120 lines, above the javascript threshold of 500",
+      "summary": "File 'src/components/TaskPanel.tsx' depends on 35 real surfaces, above the typescript threshold of 15",
+      "trust_tier": "trusted"
+    },
+    {
+      "candidate_split_axes": [
+        "app dependency boundary",
+        "lib dependency boundary",
+        "components dependency boundary"
+      ],
+      "evidence": [
+        "fan-out: 29",
+        "fan-out threshold: 15",
+        "instability: 0.85",
+        "dominant dependency categories: app(15), lib(6), components(5)",
+        "sample dependencies: src/app/browser-startup.ts, src/app/panel-resize-drag.ts, src/app/runtime-diagnostics.ts"
+      ],
+      "files": [
+        "src/components/TerminalView.tsx"
+      ],
+      "impact": "Broad dependency fan-out expands change surface and makes orchestration drift harder to localize.",
+      "inspection_focus": [
+        "inspect whether orchestration and policy code can move behind narrower helpers",
+        "inspect whether unrelated adapter dependencies are accumulating in one module"
+      ],
+      "kind": "dependency_sprawl",
+      "leverage_class": "local_refactor_target",
+      "leverage_reasons": [
+        "contained_dependency_pressure"
+      ],
+      "metrics": {
+        "evidence_count": 5,
+        "file_count": 1
+      },
+      "presentation_class": "structural_debt",
+      "related_surfaces": [
+        "src/app/browser-startup.ts",
+        "src/app/panel-resize-drag.ts",
+        "src/app/runtime-diagnostics.ts"
+      ],
+      "role_tags": [],
+      "scope": "src/components/TerminalView.tsx",
+      "severity": "high",
+      "summary": "File 'src/components/TerminalView.tsx' depends on 29 real surfaces, above the typescript threshold of 15",
+      "trust_tier": "trusted"
+    },
+    {
+      "candidate_split_axes": [
+        "app dependency boundary",
+        "store dependency boundary",
+        "domain dependency boundary"
+      ],
+      "evidence": [
+        "fan-out: 25",
+        "fan-out threshold: 15",
+        "instability: 0.96",
+        "dominant dependency categories: app(9), store(7), domain(4)",
+        "sample dependencies: electron/ipc/channels.ts, src/app/agent-catalog.ts, src/app/app-startup-status.ts",
+        "guardrail tests: src/app/desktop-session.architecture.test.ts",
+        "extracted owner factories: createSessionBootstrapController"
+      ],
+      "files": [
+        "src/app/desktop-session-startup.ts"
+      ],
+      "impact": "Broad dependency fan-out expands change surface and makes orchestration drift harder to localize.",
+      "inspection_focus": [
+        "inspect whether orchestration and policy code can move behind narrower helpers",
+        "inspect whether unrelated adapter dependencies are accumulating in one module"
+      ],
+      "kind": "dependency_sprawl",
+      "leverage_class": "local_refactor_target",
+      "leverage_reasons": [
+        "guardrail_backed_refactor_surface",
+        "contained_refactor_surface",
+        "contained_dependency_pressure"
+      ],
+      "metrics": {
+        "evidence_count": 7,
+        "file_count": 1
+      },
+      "presentation_class": "structural_debt",
+      "related_surfaces": [
+        "electron/ipc/channels.ts",
+        "src/app/agent-catalog.ts",
+        "src/app/app-startup-status.ts",
+        "src/app/desktop-session.architecture.test.ts"
+      ],
+      "role_tags": [
+        "guarded_seam"
+      ],
+      "scope": "src/app/desktop-session-startup.ts",
+      "severity": "high",
+      "summary": "File 'src/app/desktop-session-startup.ts' depends on 25 real surfaces, above the typescript threshold of 15",
+      "trust_tier": "trusted"
+    },
+    {
+      "candidate_split_axes": [
+        "app dependency boundary",
+        "lib dependency boundary",
+        "store dependency boundary"
+      ],
+      "evidence": [
+        "fan-out: 24",
+        "fan-out threshold: 15",
+        "instability: 0.92",
+        "dominant dependency categories: app(12), lib(5), store(5)",
+        "sample dependencies: src/app/app-startup-status.ts, src/app/browser-startup.ts, src/app/desktop-browser-runtime.ts",
+        "guardrail tests: src/app/desktop-session.architecture.test.ts",
+        "extracted owner factories: createSessionBootstrapController"
+      ],
+      "files": [
+        "src/app/desktop-session.ts"
+      ],
+      "impact": "Broad dependency fan-out expands change surface and makes orchestration drift harder to localize.",
+      "inspection_focus": [
+        "inspect whether orchestration and policy code can move behind narrower helpers",
+        "inspect whether unrelated adapter dependencies are accumulating in one module"
+      ],
+      "kind": "dependency_sprawl",
+      "leverage_class": "local_refactor_target",
+      "leverage_reasons": [
+        "guardrail_backed_refactor_surface",
+        "contained_refactor_surface",
+        "contained_dependency_pressure"
+      ],
+      "metrics": {
+        "evidence_count": 7,
+        "file_count": 1
+      },
+      "presentation_class": "structural_debt",
+      "related_surfaces": [
+        "src/app/app-startup-status.ts",
+        "src/app/browser-startup.ts",
+        "src/app/desktop-browser-runtime.ts",
+        "src/app/desktop-session.architecture.test.ts"
+      ],
+      "role_tags": [
+        "guarded_seam"
+      ],
+      "scope": "src/app/desktop-session.ts",
+      "severity": "high",
+      "summary": "File 'src/app/desktop-session.ts' depends on 24 real surfaces, above the typescript threshold of 15",
+      "trust_tier": "trusted"
+    },
+    {
+      "candidate_split_axes": [
+        "components caller boundary",
+        "store caller boundary",
+        "app dependency boundary"
+      ],
+      "evidence": [
+        "fan-in: 44",
+        "hotspot threshold: 20",
+        "fan-out: 12",
+        "instability: 0.21",
+        "dominant dependent categories: components(22), store(14), app(6)",
+        "sample dependents: src/app/task-attention.test.ts, src/app/task-convergence.test.ts, src/app/task-notification-capabilities.test.tsx"
+      ],
+      "files": [
+        "src/test/store-test-helpers.ts"
+      ],
+      "impact": "High fan-in plus instability increases blast radius and makes small edits harder to contain.",
+      "inspection_focus": [
+        "inspect whether a stable contract can be split from the volatile implementation",
+        "inspect whether too many callers depend directly on an orchestration-heavy file"
+      ],
+      "kind": "unstable_hotspot",
+      "leverage_class": "local_refactor_target",
+      "leverage_reasons": [
+        "contained_dependency_pressure"
+      ],
+      "metrics": {
+        "evidence_count": 6,
+        "file_count": 1
+      },
+      "presentation_class": "structural_debt",
+      "related_surfaces": [
+        "src/app/task-attention.test.ts",
+        "src/app/task-convergence.test.ts",
+        "src/app/task-notification-capabilities.test.tsx"
+      ],
+      "role_tags": [],
+      "scope": "src/test/store-test-helpers.ts",
+      "severity": "high",
+      "summary": "File 'src/test/store-test-helpers.ts' has 44 inbound references and remains unstable",
+      "trust_tier": "trusted"
+    },
+    {
+      "candidate_split_axes": [
+        "components dependency boundary",
+        "app dependency boundary",
+        "lib dependency boundary"
+      ],
+      "evidence": [
+        "fan-out: 37",
+        "fan-out threshold: 15",
+        "instability: 0.95",
+        "dominant dependency categories: components(17), app(7), lib(5)",
+        "sample dependencies: src/app/app-action-keys.ts, src/app/app-startup-status.ts, src/app/desktop-session.ts",
+        "guardrail tests: src/app/store-boundary.architecture.test.ts"
+      ],
+      "files": [
+        "src/App.tsx"
+      ],
+      "impact": "Broad dependency fan-out in a composition root makes shell wiring and runtime ownership harder to keep separate.",
+      "inspection_focus": [
+        "inspect whether view composition can stay separate from runtime or session wiring",
+        "inspect whether shell responsibilities are spreading across too many direct imports"
+      ],
+      "kind": "dependency_sprawl",
+      "leverage_class": "regrowth_watchpoint",
+      "leverage_reasons": [
+        "intentionally_central_surface",
+        "fan_out_regrowth_pressure"
+      ],
+      "metrics": {
+        "evidence_count": 6,
+        "file_count": 1
+      },
+      "presentation_class": "structural_debt",
+      "related_surfaces": [
+        "src/app/app-action-keys.ts",
+        "src/app/app-startup-status.ts",
+        "src/app/desktop-session.ts",
+        "src/app/store-boundary.architecture.test.ts"
+      ],
+      "role_tags": [
+        "guarded_seam",
+        "composition_root"
+      ],
+      "scope": "src/App.tsx",
+      "severity": "high",
+      "summary": "Composition root 'src/App.tsx' depends on 37 real surfaces, above the typescript threshold of 15",
       "trust_tier": "trusted"
     },
     {
@@ -2192,346 +2293,187 @@
       "severity": "high",
       "summary": "File 'src/components/TerminalView.tsx' is 1673 lines, above the typescript threshold of 500",
       "trust_tier": "trusted"
+    },
+    {
+      "candidate_split_axes": [
+        "app dependency boundary",
+        "lib dependency boundary",
+        "components dependency boundary",
+        "high-complexity helper extraction",
+        "private helper surface split"
+      ],
+      "evidence": [
+        "line count: 1228",
+        "large-file threshold: 500",
+        "function count: 83",
+        "peak function complexity: 193",
+        "outbound dependencies: 12",
+        "suggested split axes: app dependency boundary, lib dependency boundary, components dependency boundary, high-complexity helper extraction, private helper surface split",
+        "related surfaces to peel out first: electron/ipc/channels.ts, src/app/runtime-diagnostics.ts, src/app/task-command-lease.ts, src/app/terminal-focused-input.ts, src/app/terminal-switch-echo-grace.ts",
+        "recommended first cut: move the behavior that couples to electron/ipc/channels.ts behind the app dependency boundary",
+        "guardrail tests: src/app/store-boundary.architecture.test.ts"
+      ],
+      "files": [
+        "src/components/terminal-view/terminal-input-pipeline.ts"
+      ],
+      "impact": "Responsibility concentration increases review friction and makes later splits harder to isolate.",
+      "inspection_focus": [
+        "inspect whether the app dependency boundary can become the owner for behavior that currently couples to electron/ipc/channels.ts",
+        "inspect whether orchestration, adapters, and data shaping are accumulating in one file",
+        "inspect whether the file can be split along responsibility boundaries instead of line-count slices"
+      ],
+      "kind": "large_file",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "supporting_size_pressure"
+      ],
+      "metrics": {
+        "evidence_count": 9,
+        "file_count": 1
+      },
+      "presentation_class": "structural_debt",
+      "related_surfaces": [
+        "electron/ipc/channels.ts",
+        "src/app/runtime-diagnostics.ts",
+        "src/app/task-command-lease.ts",
+        "src/app/terminal-focused-input.ts",
+        "src/app/terminal-switch-echo-grace.ts"
+      ],
+      "role_tags": [
+        "guarded_seam"
+      ],
+      "scope": "src/components/terminal-view/terminal-input-pipeline.ts",
+      "severity": "high",
+      "summary": "File 'src/components/terminal-view/terminal-input-pipeline.ts' is 1228 lines, above the typescript threshold of 500",
+      "trust_tier": "trusted"
     }
   ],
   "findings": [
     {
-      "asymmetric_recent_change": false,
-      "clone_id": "clone-0x1cb44275b908d532",
-      "files": [
-        "electron/remote/ws-server.ts",
-        "server/browser-websocket.ts"
+      "candidate_split_axes": [
+        "store dependency boundary",
+        "lib dependency boundary",
+        "app dependency boundary"
       ],
-      "instance_count": 2,
-      "instances": [
-        {
-          "commit_count": 5,
-          "file": "electron/remote/ws-server.ts",
-          "func": "resume",
-          "lines": 11
-        },
-        {
-          "commit_count": 9,
-          "file": "server/browser-websocket.ts",
-          "func": "resume",
-          "lines": 11
-        }
-      ],
-      "kind": "exact_clone_group",
-      "leverage_class": "secondary_cleanup",
-      "leverage_reasons": [
-        "duplicate_maintenance_pressure"
-      ],
-      "max_commit_count": 9,
-      "max_lines": 11,
-      "presentation_class": "watchpoint",
-      "production_instance_count": 2,
-      "reasons": [
-        "identical logic spans 2 files",
-        "largest clone instance is 11 lines",
-        "at least one clone file changed in 9 recent commit(s)",
-        "clone files changed recently",
-        "youngest clone file was touched recently"
-      ],
-      "severity": "high",
-      "summary": "2 functions share an identical normalized body across recently changed files",
-      "total_lines": 22
-    },
-    {
-      "asymmetric_recent_change": false,
-      "clone_id": "clone-0xfc51cb7428314a19",
-      "files": [
-        "src/components/AgentGlyph.tsx",
-        "src/remote/RemoteAgentGlyph.tsx"
-      ],
-      "instance_count": 2,
-      "instances": [
-        {
-          "commit_count": 1,
-          "file": "src/components/AgentGlyph.tsx",
-          "func": "CodexGlyph",
-          "lines": 30
-        },
-        {
-          "commit_count": 2,
-          "file": "src/remote/RemoteAgentGlyph.tsx",
-          "func": "CodexGlyph",
-          "lines": 30
-        }
-      ],
-      "kind": "exact_clone_group",
-      "leverage_class": "secondary_cleanup",
-      "leverage_reasons": [
-        "duplicate_maintenance_pressure"
-      ],
-      "max_commit_count": 2,
-      "max_lines": 30,
-      "presentation_class": "watchpoint",
-      "production_instance_count": 2,
-      "reasons": [
-        "identical logic spans 2 files",
-        "largest clone instance is 30 lines",
-        "at least one clone file changed in 2 recent commit(s)",
-        "clone files changed recently",
-        "youngest clone file was touched recently"
-      ],
-      "severity": "high",
-      "summary": "2 functions share an identical normalized body across recently changed files",
-      "total_lines": 60
-    },
-    {
-      "asymmetric_recent_change": false,
-      "clone_id": "clone-0x6067ca066346a3c2",
-      "files": [
-        "scripts/profile-terminal-input-latency.mjs",
-        "scripts/profile-terminal-ui-fluidity.mjs"
-      ],
-      "instance_count": 2,
-      "instances": [
-        {
-          "commit_count": 3,
-          "file": "scripts/profile-terminal-input-latency.mjs",
-          "func": "reservePort",
-          "lines": 25
-        },
-        {
-          "commit_count": 2,
-          "file": "scripts/profile-terminal-ui-fluidity.mjs",
-          "func": "reservePort",
-          "lines": 23
-        }
-      ],
-      "kind": "exact_clone_group",
-      "leverage_class": "secondary_cleanup",
-      "leverage_reasons": [
-        "duplicate_maintenance_pressure"
-      ],
-      "max_commit_count": 3,
-      "max_lines": 25,
-      "presentation_class": "watchpoint",
-      "production_instance_count": 2,
-      "reasons": [
-        "identical logic spans 2 files",
-        "largest clone instance is 25 lines",
-        "at least one clone file changed in 3 recent commit(s)",
-        "clone files changed recently",
-        "youngest clone file was touched recently"
-      ],
-      "severity": "high",
-      "summary": "2 functions share an identical normalized body across recently changed files",
-      "total_lines": 48
-    },
-    {
-      "asymmetric_recent_change": false,
-      "clone_id": "clone-0x220ca1c043f3d29c",
-      "files": [
-        "src/components/AgentGlyph.tsx",
-        "src/remote/RemoteAgentGlyph.tsx"
-      ],
-      "instance_count": 2,
-      "instances": [
-        {
-          "commit_count": 1,
-          "file": "src/components/AgentGlyph.tsx",
-          "func": "ClaudeGlyph",
-          "lines": 25
-        },
-        {
-          "commit_count": 2,
-          "file": "src/remote/RemoteAgentGlyph.tsx",
-          "func": "ClaudeGlyph",
-          "lines": 25
-        }
-      ],
-      "kind": "exact_clone_group",
-      "leverage_class": "secondary_cleanup",
-      "leverage_reasons": [
-        "duplicate_maintenance_pressure"
-      ],
-      "max_commit_count": 2,
-      "max_lines": 25,
-      "presentation_class": "watchpoint",
-      "production_instance_count": 2,
-      "reasons": [
-        "identical logic spans 2 files",
-        "largest clone instance is 25 lines",
-        "at least one clone file changed in 2 recent commit(s)",
-        "clone files changed recently",
-        "youngest clone file was touched recently"
-      ],
-      "severity": "high",
-      "summary": "2 functions share an identical normalized body across recently changed files",
-      "total_lines": 50
-    },
-    {
-      "asymmetric_recent_change": false,
-      "clone_id": "clone-0x6de9a148bb69f645",
-      "files": [
-        "electron/remote/ws-server.ts",
-        "server/browser-websocket.ts"
-      ],
-      "instance_count": 2,
-      "instances": [
-        {
-          "commit_count": 5,
-          "file": "electron/remote/ws-server.ts",
-          "func": "pause",
-          "lines": 11
-        },
-        {
-          "commit_count": 9,
-          "file": "server/browser-websocket.ts",
-          "func": "pause",
-          "lines": 11
-        }
-      ],
-      "kind": "exact_clone_group",
-      "leverage_class": "secondary_cleanup",
-      "leverage_reasons": [
-        "duplicate_maintenance_pressure"
-      ],
-      "max_commit_count": 9,
-      "max_lines": 11,
-      "presentation_class": "watchpoint",
-      "production_instance_count": 2,
-      "reasons": [
-        "identical logic spans 2 files",
-        "largest clone instance is 11 lines",
-        "at least one clone file changed in 9 recent commit(s)",
-        "clone files changed recently",
-        "youngest clone file was touched recently"
-      ],
-      "severity": "high",
-      "summary": "2 functions share an identical normalized body across recently changed files",
-      "total_lines": 22
-    },
-    {
-      "asymmetric_recent_change": false,
-      "clone_id": "clone-0xb92964eda937ae02",
-      "files": [
-        "electron/remote/ws-server.ts",
-        "server/browser-websocket.ts"
-      ],
-      "instance_count": 2,
-      "instances": [
-        {
-          "commit_count": 5,
-          "file": "electron/remote/ws-server.ts",
-          "func": "enableSocketNoDelay",
-          "lines": 10
-        },
-        {
-          "commit_count": 9,
-          "file": "server/browser-websocket.ts",
-          "func": "enableSocketNoDelay",
-          "lines": 10
-        }
-      ],
-      "kind": "exact_clone_group",
-      "leverage_class": "secondary_cleanup",
-      "leverage_reasons": [
-        "duplicate_maintenance_pressure"
-      ],
-      "max_commit_count": 9,
-      "max_lines": 10,
-      "presentation_class": "watchpoint",
-      "production_instance_count": 2,
-      "reasons": [
-        "identical logic spans 2 files",
-        "largest clone instance is 10 lines",
-        "at least one clone file changed in 9 recent commit(s)",
-        "clone files changed recently",
-        "youngest clone file was touched recently"
-      ],
-      "severity": "high",
-      "summary": "2 functions share an identical normalized body across recently changed files",
-      "total_lines": 20
-    },
-    {
-      "asymmetric_recent_change": false,
-      "clone_id": "clone-0x46b14f13f2993a14",
-      "files": [
-        "scripts/profile-terminal-input-latency.mjs",
-        "scripts/profile-terminal-ui-fluidity.mjs"
-      ],
-      "instance_count": 2,
-      "instances": [
-        {
-          "commit_count": 3,
-          "file": "scripts/profile-terminal-input-latency.mjs",
-          "func": "stopServerProcess",
-          "lines": 19
-        },
-        {
-          "commit_count": 2,
-          "file": "scripts/profile-terminal-ui-fluidity.mjs",
-          "func": "stopServerProcess",
-          "lines": 19
-        }
-      ],
-      "kind": "exact_clone_group",
-      "leverage_class": "secondary_cleanup",
-      "leverage_reasons": [
-        "duplicate_maintenance_pressure"
-      ],
-      "max_commit_count": 3,
-      "max_lines": 19,
-      "presentation_class": "watchpoint",
-      "production_instance_count": 2,
-      "reasons": [
-        "identical logic spans 2 files",
-        "largest clone instance is 19 lines",
-        "at least one clone file changed in 3 recent commit(s)",
-        "clone files changed recently",
-        "youngest clone file was touched recently"
-      ],
-      "severity": "high",
-      "summary": "2 functions share an identical normalized body across recently changed files",
-      "total_lines": 38
-    },
-    {
-      "concept_id": "task_presentation_status",
       "evidence": [
-        "src/app/task-presentation-status.ts [domain 'TaskDotStatus' in src/app/task-presentation-status.ts has variants [busy, waiting, ready, paused, flow-controlled, restoring, failed], but no exhaustive mapping or switch site was found]"
+        "fan-out: 29",
+        "fan-out threshold: 15",
+        "instability: 0.91",
+        "dominant dependency categories: store(17), lib(5), app(4)",
+        "sample dependencies: electron/ipc/channels.ts, src/app/task-command-lease.ts, src/app/task-prompt-dispatch.ts"
       ],
       "files": [
-        "src/app/task-presentation-status.ts"
+        "src/store/persistence-load.ts"
       ],
-      "kind": "closed_domain_exhaustiveness",
-      "leverage_class": "hardening_note",
+      "impact": "Broad dependency fan-out expands change surface and makes orchestration drift harder to localize.",
+      "inspection_focus": [
+        "inspect whether orchestration and policy code can move behind narrower helpers",
+        "inspect whether unrelated adapter dependencies are accumulating in one module"
+      ],
+      "kind": "dependency_sprawl",
+      "leverage_class": "architecture_signal",
       "leverage_reasons": [
-        "narrow_completeness_gap"
+        "client_state_hub_pressure",
+        "high_inbound_dependency_pressure"
       ],
-      "presentation_class": "hardening_note",
-      "severity": "high",
-      "summary": "Domain 'task_presentation_status' in src/app/task-presentation-status.ts has variants [busy, waiting, ready, paused, flow-controlled, restoring, failed] but is missing required update sites"
-    },
-    {
-      "concept_id": "browser_state_sync",
-      "evidence": [
-        "src/runtime/browser-state-sync-controller.ts:266 [disposed]",
-        "src/runtime/browser-state-sync-controller.ts:276 [scheduled]",
-        "src/runtime/browser-state-sync-controller.ts:281 [idle]",
-        "src/runtime/browser-state-sync-controller.ts:47 [idle]",
-        "src/runtime/browser-state-sync-controller.ts:48 [scheduled]",
-        "src/runtime/browser-state-sync-controller.ts:49 [disposed]",
-        "src/runtime/browser-state-sync-controller.ts:92 [disposed]",
-        "src/runtime/browser-state-sync-controller.ts:107 [idle]",
-        "missing transition source 'disposed'",
-        "missing transition source 'idle'",
-        "missing transition source 'scheduled'"
-      ],
-      "files": [
-        "src/runtime/browser-state-sync-controller.ts"
-      ],
-      "kind": "state_model_transition_coverage_gap",
-      "leverage_class": "secondary_cleanup",
-      "leverage_reasons": [
-        "real_but_lower_leverage_cleanup"
-      ],
+      "metrics": {
+        "fan_in": 3,
+        "fan_out": 29,
+        "file_count": 1,
+        "function_count": 14,
+        "guardrail_test_count": 0,
+        "instability_0_10000": 9063,
+        "line_count": 458,
+        "max_complexity": 19,
+        "role_count": 1
+      },
       "presentation_class": "structural_debt",
+      "related_surfaces": [
+        "electron/ipc/channels.ts",
+        "src/app/task-command-lease.ts",
+        "src/app/task-prompt-dispatch.ts"
+      ],
+      "role_tags": [
+        "state_container"
+      ],
+      "scope": "src/store/persistence-load.ts",
+      "score_0_10000": 8052,
       "severity": "high",
-      "summary": "State model 'browser_state_sync' has 8 transition branch(es) without an explicit next-state mapping and 3 uncovered source variant(s)"
+      "signal_class": "debt",
+      "signal_families": [
+        "coupling",
+        "coordination"
+      ],
+      "summary": "File 'src/store/persistence-load.ts' depends on 29 real surfaces, above the typescript threshold of 15",
+      "trust_tier": "trusted"
+    },
+    {
+      "candidate_split_axes": [
+        "components caller boundary",
+        "store caller boundary",
+        "store dependency boundary"
+      ],
+      "evidence": [
+        "fan-in: 47",
+        "hotspot threshold: 20",
+        "fan-out: 19",
+        "instability: 0.29",
+        "dominant dependent categories: components(31), store(13), arena(2)",
+        "sample dependents: src/App.tsx, src/arena/ConfigScreen.tsx, src/arena/ResultsScreen.tsx",
+        "guardrail tests: src/app/store-boundary.architecture.test.ts, src/components/TaskPanel.architecture.test.ts",
+        "guarded boundary literals: store/core, store/store, store.taskCommandControllers, store.focusedPanel[, ../app/task-workflows, ../app/agent-catalog, runWithAgentTaskCommandLease, IPC.WriteToAgent, loadAgents(, pickAndAddProject, closeTask(, handlePermissionResponse, permissionRequests[, setTaskFocusedPanel"
+      ],
+      "files": [
+        "src/store/store.ts"
+      ],
+      "impact": "A volatile component-facing barrel makes it harder to keep presentation access broad while keeping deeper orchestration changes contained.",
+      "inspection_focus": [
+        "inspect which component-facing reads really need the shared barrel and which can move behind narrower selectors",
+        "inspect whether broad inbound traffic is hiding a smaller set of volatility-heavy owner modules"
+      ],
+      "kind": "unstable_hotspot",
+      "leverage_class": "architecture_signal",
+      "leverage_reasons": [
+        "shared_barrel_boundary_hub",
+        "guardrail_backed_boundary_pressure",
+        "client_state_hub_pressure",
+        "high_inbound_dependency_pressure"
+      ],
+      "metrics": {
+        "fan_in": 47,
+        "fan_out": 19,
+        "file_count": 1,
+        "function_count": 0,
+        "guardrail_test_count": 2,
+        "instability_0_10000": 2879,
+        "line_count": 183,
+        "max_complexity": 0,
+        "role_count": 4
+      },
+      "presentation_class": "structural_debt",
+      "related_surfaces": [
+        "src/App.tsx",
+        "src/arena/ConfigScreen.tsx",
+        "src/arena/ResultsScreen.tsx",
+        "src/app/store-boundary.architecture.test.ts",
+        "src/components/TaskPanel.architecture.test.ts"
+      ],
+      "role_tags": [
+        "guarded_seam",
+        "guarded_boundary",
+        "component_barrel",
+        "state_container"
+      ],
+      "scope": "src/store/store.ts",
+      "score_0_10000": 7159,
+      "severity": "high",
+      "signal_class": "debt",
+      "signal_families": [
+        "coupling",
+        "blast_radius"
+      ],
+      "summary": "Component-facing barrel 'src/store/store.ts' has 47 inbound references and remains unstable",
+      "trust_tier": "trusted"
     },
     {
       "candidate_split_axes": [
@@ -2685,61 +2627,446 @@
     },
     {
       "candidate_split_axes": [
-        "scripts dependency boundary",
-        "entry surface split",
-        "high-complexity helper extraction",
-        "private helper surface split"
+        "local module split"
+      ],
+      "cut_candidates": [
+        {
+          "evidence": [
+            "seam kind: local_module_split",
+            "remaining largest cycle after cut: 0",
+            "cyclic files removed by cut: 2",
+            "source lines: 58",
+            "target lines: 112"
+          ],
+          "reduction_file_count": 2,
+          "remaining_cycle_size": 0,
+          "score_0_10000": 9240,
+          "seam_kind": "local_module_split",
+          "source": "electron/ipc/handlers.ts",
+          "summary": "Inspect import edge 'electron/ipc/handlers.ts' -> 'electron/ipc/notification-handlers.ts' to reduce the cyclic footprint by 2 file(s)",
+          "target": "electron/ipc/notification-handlers.ts"
+        },
+        {
+          "evidence": [
+            "seam kind: local_module_split",
+            "remaining largest cycle after cut: 0",
+            "cyclic files removed by cut: 2",
+            "source lines: 112",
+            "target lines: 58"
+          ],
+          "reduction_file_count": 2,
+          "remaining_cycle_size": 0,
+          "score_0_10000": 9240,
+          "seam_kind": "local_module_split",
+          "source": "electron/ipc/notification-handlers.ts",
+          "summary": "Inspect import edge 'electron/ipc/notification-handlers.ts' -> 'electron/ipc/handlers.ts' to reduce the cyclic footprint by 2 file(s)",
+          "target": "electron/ipc/handlers.ts"
+        }
       ],
       "evidence": [
-        "line count: 1120",
-        "large-file threshold: 500",
-        "function count: 23",
-        "peak function complexity: 49",
-        "outbound dependencies: 2",
-        "suggested split axes: scripts dependency boundary, entry surface split, high-complexity helper extraction, private helper surface split",
-        "related surfaces to peel out first: scripts/terminal-ui-fluidity-gate.mjs, scripts/terminal-ui-fluidity-variants.mjs",
-        "recommended first cut: move the behavior that couples to scripts/terminal-ui-fluidity-gate.mjs behind the scripts dependency boundary"
+        "cycle size: 2",
+        "total lines in cycle: 170",
+        "peak function complexity inside cycle: 5",
+        "candidate cuts: 2",
+        "best cut candidate: electron/ipc/handlers.ts -> electron/ipc/notification-handlers.ts (removes 2 cyclic files)",
+        "role tags: none"
       ],
       "files": [
-        "scripts/terminal-ui-fluidity-matrix.mjs"
+        "electron/ipc/handlers.ts",
+        "electron/ipc/notification-handlers.ts"
       ],
-      "impact": "Responsibility concentration increases review friction and makes later splits harder to isolate.",
+      "impact": "The cycle prevents clean layering and makes initialization order and refactors harder to isolate.",
       "inspection_focus": [
-        "inspect whether the scripts dependency boundary can become the owner for behavior that currently couples to scripts/terminal-ui-fluidity-gate.mjs",
-        "inspect whether orchestration, adapters, and data shaping are accumulating in one file",
-        "inspect whether the file can be split along responsibility boundaries instead of line-count slices"
+        "inspect whether one back-edge can be removed by splitting contracts from implementations",
+        "inspect whether shared types can move to a lower-dependency seam"
       ],
-      "kind": "large_file",
-      "leverage_class": "tooling_debt",
+      "kind": "cycle_cluster",
+      "leverage_class": "architecture_signal",
       "leverage_reasons": [
-        "tooling_surface_maintenance_burden"
+        "mixed_cycle_pressure",
+        "high_leverage_cycle_cut"
       ],
       "metrics": {
-        "fan_out": 2,
-        "file_count": 1,
-        "function_count": 23,
-        "guardrail_test_count": 0,
-        "line_count": 1120,
-        "max_complexity": 49,
-        "role_count": 1
+        "cut_candidate_count": 2,
+        "cycle_size": 2,
+        "file_count": 2,
+        "largest_cycle_after_best_cut": 0,
+        "line_count": 170,
+        "max_complexity": 5,
+        "role_count": 0
       },
-      "presentation_class": "tooling_debt",
+      "presentation_class": "watchpoint",
       "related_surfaces": [
-        "scripts/terminal-ui-fluidity-gate.mjs",
-        "scripts/terminal-ui-fluidity-variants.mjs"
+        "electron/ipc/handlers.ts",
+        "electron/ipc/notification-handlers.ts"
+      ],
+      "scope": "cycle:electron/ipc/handlers.ts|electron/ipc/notification-handlers.ts",
+      "score_0_10000": 6832,
+      "severity": "high",
+      "signal_class": "watchpoint",
+      "signal_families": [
+        "dependency",
+        "layering"
+      ],
+      "summary": "Files electron/ipc/handlers.ts, electron/ipc/notification-handlers.ts form a dependency cycle",
+      "trust_tier": "watchpoint"
+    },
+    {
+      "candidate_split_axes": [
+        "components dependency boundary",
+        "app dependency boundary",
+        "lib dependency boundary"
+      ],
+      "evidence": [
+        "fan-out: 35",
+        "fan-out threshold: 15",
+        "instability: 0.95",
+        "dominant dependency categories: components(19), app(7), lib(5)",
+        "sample dependencies: src/app/task-activity-clock.ts, src/app/task-containers.ts, src/app/task-ports.ts",
+        "guardrail tests: src/components/TaskPanel.architecture.test.ts",
+        "extracted owner factories: createTaskPanelFocusRuntime, createTaskPanelPreviewController, createTaskPanelDialogState, createTaskPanelPermissionController"
+      ],
+      "files": [
+        "src/components/TaskPanel.tsx"
+      ],
+      "impact": "Broad dependency fan-out expands change surface and makes orchestration drift harder to localize.",
+      "inspection_focus": [
+        "inspect whether orchestration and policy code can move behind narrower helpers",
+        "inspect whether unrelated adapter dependencies are accumulating in one module"
+      ],
+      "kind": "dependency_sprawl",
+      "leverage_class": "local_refactor_target",
+      "leverage_reasons": [
+        "extracted_owner_shell_pressure",
+        "guardrail_backed_refactor_surface",
+        "contained_refactor_surface",
+        "contained_dependency_pressure"
+      ],
+      "metrics": {
+        "fan_in": 2,
+        "fan_out": 35,
+        "file_count": 1,
+        "function_count": 62,
+        "guardrail_test_count": 1,
+        "instability_0_10000": 9459,
+        "line_count": 478,
+        "max_complexity": 13,
+        "role_count": 2
+      },
+      "presentation_class": "structural_debt",
+      "related_surfaces": [
+        "src/app/task-activity-clock.ts",
+        "src/app/task-containers.ts",
+        "src/app/task-ports.ts",
+        "src/components/TaskPanel.architecture.test.ts"
       ],
       "role_tags": [
-        "entry_surface"
+        "guarded_seam",
+        "facade_with_extracted_owners"
       ],
-      "scope": "scripts/terminal-ui-fluidity-matrix.mjs",
-      "score_0_10000": 8400,
+      "scope": "src/components/TaskPanel.tsx",
+      "score_0_10000": 8364,
       "severity": "high",
       "signal_class": "debt",
       "signal_families": [
-        "size",
+        "coupling",
         "coordination"
       ],
-      "summary": "File 'scripts/terminal-ui-fluidity-matrix.mjs' is 1120 lines, above the javascript threshold of 500",
+      "summary": "File 'src/components/TaskPanel.tsx' depends on 35 real surfaces, above the typescript threshold of 15",
+      "trust_tier": "trusted"
+    },
+    {
+      "candidate_split_axes": [
+        "app dependency boundary",
+        "lib dependency boundary",
+        "components dependency boundary"
+      ],
+      "evidence": [
+        "fan-out: 29",
+        "fan-out threshold: 15",
+        "instability: 0.85",
+        "dominant dependency categories: app(15), lib(6), components(5)",
+        "sample dependencies: src/app/browser-startup.ts, src/app/panel-resize-drag.ts, src/app/runtime-diagnostics.ts"
+      ],
+      "files": [
+        "src/components/TerminalView.tsx"
+      ],
+      "impact": "Broad dependency fan-out expands change surface and makes orchestration drift harder to localize.",
+      "inspection_focus": [
+        "inspect whether orchestration and policy code can move behind narrower helpers",
+        "inspect whether unrelated adapter dependencies are accumulating in one module"
+      ],
+      "kind": "dependency_sprawl",
+      "leverage_class": "local_refactor_target",
+      "leverage_reasons": [
+        "contained_dependency_pressure"
+      ],
+      "metrics": {
+        "fan_in": 5,
+        "fan_out": 29,
+        "file_count": 1,
+        "function_count": 84,
+        "guardrail_test_count": 0,
+        "instability_0_10000": 8529,
+        "line_count": 1673,
+        "max_complexity": 174,
+        "role_count": 0
+      },
+      "presentation_class": "structural_debt",
+      "related_surfaces": [
+        "src/app/browser-startup.ts",
+        "src/app/panel-resize-drag.ts",
+        "src/app/runtime-diagnostics.ts"
+      ],
+      "scope": "src/components/TerminalView.tsx",
+      "score_0_10000": 7919,
+      "severity": "high",
+      "signal_class": "debt",
+      "signal_families": [
+        "coupling",
+        "coordination"
+      ],
+      "summary": "File 'src/components/TerminalView.tsx' depends on 29 real surfaces, above the typescript threshold of 15",
+      "trust_tier": "trusted"
+    },
+    {
+      "candidate_split_axes": [
+        "app dependency boundary",
+        "store dependency boundary",
+        "domain dependency boundary"
+      ],
+      "evidence": [
+        "fan-out: 25",
+        "fan-out threshold: 15",
+        "instability: 0.96",
+        "dominant dependency categories: app(9), store(7), domain(4)",
+        "sample dependencies: electron/ipc/channels.ts, src/app/agent-catalog.ts, src/app/app-startup-status.ts",
+        "guardrail tests: src/app/desktop-session.architecture.test.ts",
+        "extracted owner factories: createSessionBootstrapController"
+      ],
+      "files": [
+        "src/app/desktop-session-startup.ts"
+      ],
+      "impact": "Broad dependency fan-out expands change surface and makes orchestration drift harder to localize.",
+      "inspection_focus": [
+        "inspect whether orchestration and policy code can move behind narrower helpers",
+        "inspect whether unrelated adapter dependencies are accumulating in one module"
+      ],
+      "kind": "dependency_sprawl",
+      "leverage_class": "local_refactor_target",
+      "leverage_reasons": [
+        "guardrail_backed_refactor_surface",
+        "contained_refactor_surface",
+        "contained_dependency_pressure"
+      ],
+      "metrics": {
+        "fan_in": 1,
+        "fan_out": 25,
+        "file_count": 1,
+        "function_count": 21,
+        "guardrail_test_count": 1,
+        "instability_0_10000": 9615,
+        "line_count": 577,
+        "max_complexity": 61,
+        "role_count": 1
+      },
+      "presentation_class": "structural_debt",
+      "related_surfaces": [
+        "electron/ipc/channels.ts",
+        "src/app/agent-catalog.ts",
+        "src/app/app-startup-status.ts",
+        "src/app/desktop-session.architecture.test.ts"
+      ],
+      "role_tags": [
+        "guarded_seam"
+      ],
+      "scope": "src/app/desktop-session-startup.ts",
+      "score_0_10000": 7336,
+      "severity": "high",
+      "signal_class": "debt",
+      "signal_families": [
+        "coupling",
+        "coordination"
+      ],
+      "summary": "File 'src/app/desktop-session-startup.ts' depends on 25 real surfaces, above the typescript threshold of 15",
+      "trust_tier": "trusted"
+    },
+    {
+      "candidate_split_axes": [
+        "app dependency boundary",
+        "lib dependency boundary",
+        "store dependency boundary"
+      ],
+      "evidence": [
+        "fan-out: 24",
+        "fan-out threshold: 15",
+        "instability: 0.92",
+        "dominant dependency categories: app(12), lib(5), store(5)",
+        "sample dependencies: src/app/app-startup-status.ts, src/app/browser-startup.ts, src/app/desktop-browser-runtime.ts",
+        "guardrail tests: src/app/desktop-session.architecture.test.ts",
+        "extracted owner factories: createSessionBootstrapController"
+      ],
+      "files": [
+        "src/app/desktop-session.ts"
+      ],
+      "impact": "Broad dependency fan-out expands change surface and makes orchestration drift harder to localize.",
+      "inspection_focus": [
+        "inspect whether orchestration and policy code can move behind narrower helpers",
+        "inspect whether unrelated adapter dependencies are accumulating in one module"
+      ],
+      "kind": "dependency_sprawl",
+      "leverage_class": "local_refactor_target",
+      "leverage_reasons": [
+        "guardrail_backed_refactor_surface",
+        "contained_refactor_surface",
+        "contained_dependency_pressure"
+      ],
+      "metrics": {
+        "fan_in": 2,
+        "fan_out": 24,
+        "file_count": 1,
+        "function_count": 9,
+        "guardrail_test_count": 1,
+        "instability_0_10000": 9231,
+        "line_count": 230,
+        "max_complexity": 15,
+        "role_count": 1
+      },
+      "presentation_class": "structural_debt",
+      "related_surfaces": [
+        "src/app/app-startup-status.ts",
+        "src/app/browser-startup.ts",
+        "src/app/desktop-browser-runtime.ts",
+        "src/app/desktop-session.architecture.test.ts"
+      ],
+      "role_tags": [
+        "guarded_seam"
+      ],
+      "scope": "src/app/desktop-session.ts",
+      "score_0_10000": 7027,
+      "severity": "high",
+      "signal_class": "debt",
+      "signal_families": [
+        "coupling",
+        "coordination"
+      ],
+      "summary": "File 'src/app/desktop-session.ts' depends on 24 real surfaces, above the typescript threshold of 15",
+      "trust_tier": "trusted"
+    },
+    {
+      "candidate_split_axes": [
+        "components caller boundary",
+        "store caller boundary",
+        "app dependency boundary"
+      ],
+      "evidence": [
+        "fan-in: 44",
+        "hotspot threshold: 20",
+        "fan-out: 12",
+        "instability: 0.21",
+        "dominant dependent categories: components(22), store(14), app(6)",
+        "sample dependents: src/app/task-attention.test.ts, src/app/task-convergence.test.ts, src/app/task-notification-capabilities.test.tsx"
+      ],
+      "files": [
+        "src/test/store-test-helpers.ts"
+      ],
+      "impact": "High fan-in plus instability increases blast radius and makes small edits harder to contain.",
+      "inspection_focus": [
+        "inspect whether a stable contract can be split from the volatile implementation",
+        "inspect whether too many callers depend directly on an orchestration-heavy file"
+      ],
+      "kind": "unstable_hotspot",
+      "leverage_class": "local_refactor_target",
+      "leverage_reasons": [
+        "contained_dependency_pressure"
+      ],
+      "metrics": {
+        "fan_in": 44,
+        "fan_out": 12,
+        "file_count": 1,
+        "function_count": 6,
+        "guardrail_test_count": 0,
+        "instability_0_10000": 2143,
+        "line_count": 88,
+        "max_complexity": 1,
+        "role_count": 0
+      },
+      "presentation_class": "structural_debt",
+      "related_surfaces": [
+        "src/app/task-attention.test.ts",
+        "src/app/task-convergence.test.ts",
+        "src/app/task-notification-capabilities.test.tsx"
+      ],
+      "scope": "src/test/store-test-helpers.ts",
+      "score_0_10000": 6914,
+      "severity": "high",
+      "signal_class": "debt",
+      "signal_families": [
+        "coupling",
+        "blast_radius"
+      ],
+      "summary": "File 'src/test/store-test-helpers.ts' has 44 inbound references and remains unstable",
+      "trust_tier": "trusted"
+    },
+    {
+      "candidate_split_axes": [
+        "components dependency boundary",
+        "app dependency boundary",
+        "lib dependency boundary"
+      ],
+      "evidence": [
+        "fan-out: 37",
+        "fan-out threshold: 15",
+        "instability: 0.95",
+        "dominant dependency categories: components(17), app(7), lib(5)",
+        "sample dependencies: src/app/app-action-keys.ts, src/app/app-startup-status.ts, src/app/desktop-session.ts",
+        "guardrail tests: src/app/store-boundary.architecture.test.ts"
+      ],
+      "files": [
+        "src/App.tsx"
+      ],
+      "impact": "Broad dependency fan-out in a composition root makes shell wiring and runtime ownership harder to keep separate.",
+      "inspection_focus": [
+        "inspect whether view composition can stay separate from runtime or session wiring",
+        "inspect whether shell responsibilities are spreading across too many direct imports"
+      ],
+      "kind": "dependency_sprawl",
+      "leverage_class": "regrowth_watchpoint",
+      "leverage_reasons": [
+        "intentionally_central_surface",
+        "fan_out_regrowth_pressure"
+      ],
+      "metrics": {
+        "fan_in": 2,
+        "fan_out": 37,
+        "file_count": 1,
+        "function_count": 29,
+        "guardrail_test_count": 1,
+        "instability_0_10000": 9487,
+        "line_count": 449,
+        "max_complexity": 2,
+        "role_count": 2
+      },
+      "presentation_class": "structural_debt",
+      "related_surfaces": [
+        "src/app/app-action-keys.ts",
+        "src/app/app-startup-status.ts",
+        "src/app/desktop-session.ts",
+        "src/app/store-boundary.architecture.test.ts"
+      ],
+      "role_tags": [
+        "guarded_seam",
+        "composition_root"
+      ],
+      "scope": "src/App.tsx",
+      "score_0_10000": 8371,
+      "severity": "high",
+      "signal_class": "debt",
+      "signal_families": [
+        "coupling",
+        "coordination"
+      ],
+      "summary": "Composition root 'src/App.tsx' depends on 37 real surfaces, above the typescript threshold of 15",
       "trust_tier": "trusted"
     },
     {
@@ -2800,6 +3127,70 @@
         "coordination"
       ],
       "summary": "File 'src/components/TerminalView.tsx' is 1673 lines, above the typescript threshold of 500",
+      "trust_tier": "trusted"
+    },
+    {
+      "candidate_split_axes": [
+        "app dependency boundary",
+        "lib dependency boundary",
+        "components dependency boundary",
+        "high-complexity helper extraction",
+        "private helper surface split"
+      ],
+      "evidence": [
+        "line count: 1228",
+        "large-file threshold: 500",
+        "function count: 83",
+        "peak function complexity: 193",
+        "outbound dependencies: 12",
+        "suggested split axes: app dependency boundary, lib dependency boundary, components dependency boundary, high-complexity helper extraction, private helper surface split",
+        "related surfaces to peel out first: electron/ipc/channels.ts, src/app/runtime-diagnostics.ts, src/app/task-command-lease.ts, src/app/terminal-focused-input.ts, src/app/terminal-switch-echo-grace.ts",
+        "recommended first cut: move the behavior that couples to electron/ipc/channels.ts behind the app dependency boundary",
+        "guardrail tests: src/app/store-boundary.architecture.test.ts"
+      ],
+      "files": [
+        "src/components/terminal-view/terminal-input-pipeline.ts"
+      ],
+      "impact": "Responsibility concentration increases review friction and makes later splits harder to isolate.",
+      "inspection_focus": [
+        "inspect whether the app dependency boundary can become the owner for behavior that currently couples to electron/ipc/channels.ts",
+        "inspect whether orchestration, adapters, and data shaping are accumulating in one file",
+        "inspect whether the file can be split along responsibility boundaries instead of line-count slices"
+      ],
+      "kind": "large_file",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "supporting_size_pressure"
+      ],
+      "metrics": {
+        "fan_out": 12,
+        "file_count": 1,
+        "function_count": 83,
+        "guardrail_test_count": 1,
+        "line_count": 1228,
+        "max_complexity": 193,
+        "role_count": 1
+      },
+      "presentation_class": "structural_debt",
+      "related_surfaces": [
+        "electron/ipc/channels.ts",
+        "src/app/runtime-diagnostics.ts",
+        "src/app/task-command-lease.ts",
+        "src/app/terminal-focused-input.ts",
+        "src/app/terminal-switch-echo-grace.ts"
+      ],
+      "role_tags": [
+        "guarded_seam"
+      ],
+      "scope": "src/components/terminal-view/terminal-input-pipeline.ts",
+      "score_0_10000": 8400,
+      "severity": "high",
+      "signal_class": "debt",
+      "signal_families": [
+        "size",
+        "coordination"
+      ],
+      "summary": "File 'src/components/terminal-view/terminal-input-pipeline.ts' is 1228 lines, above the typescript threshold of 500",
       "trust_tier": "trusted"
     }
   ],

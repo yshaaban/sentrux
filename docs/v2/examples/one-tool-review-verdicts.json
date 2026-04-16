@@ -1,0 +1,47 @@
+{
+  "repo": "one-tool",
+  "captured_at": "2026-04-16T00:00:00Z",
+  "source_report": "docs/v2/examples/one-tool-onboarding.json",
+  "source_feedback": "Maintainer-style review of the public one-tool onboarding brief after inferred runtime rules were enabled. This corpus is for evaluating whether onboarding targets surface the real mixed-language architecture pressure before lower-value cleanup.",
+  "verdicts": [
+    {
+      "scope": "cycle:src/mcp/index.ts|src/mcp/server.ts",
+      "kind": "cycle_cluster",
+      "report_bucket": "Architecture Signals",
+      "category": "useful_watchpoint",
+      "expected_trust_tier": "watchpoint",
+      "expected_presentation_class": "watchpoint",
+      "expected_leverage_class": "architecture_signal",
+      "expected_summary_presence": "headline",
+      "engineer_note": "The MCP entry/server back-edge is small but high-leverage because it is a real layering cut, not generic cleanup.",
+      "expected_v2_behavior": "Keep the cycle visible as a leading architecture signal, but frame it as a watchpoint with a concrete cut candidate rather than a generic refactor demand."
+    },
+    {
+      "scope": "src/commands/groups/text.ts",
+      "kind": "large_file",
+      "report_bucket": "Regrowth Watchpoints",
+      "category": "useful",
+      "expected_trust_tier": "trusted",
+      "expected_presentation_class": "structural_debt",
+      "expected_leverage_class": "regrowth_watchpoint",
+      "expected_summary_presence": "headline",
+      "preferred_over": [
+        "src/commands/groups/fs.ts"
+      ],
+      "engineer_note": "This command-group composition root is broad enough to matter, but the value is keeping shell ownership from regrowing rather than forcing a large redesign.",
+      "expected_v2_behavior": "Surface this as a contained regrowth watchpoint ahead of adjacent command surfaces with weaker breadth or urgency."
+    },
+    {
+      "scope": "src/commands/groups/fs.ts",
+      "kind": "large_file",
+      "report_bucket": "Regrowth Watchpoints",
+      "category": "useful",
+      "expected_trust_tier": "trusted",
+      "expected_presentation_class": "structural_debt",
+      "expected_leverage_class": "regrowth_watchpoint",
+      "expected_summary_presence": "section_present",
+      "engineer_note": "This is a real follow-on command-surface cleanup target, but it should trail the text command and the MCP cycle.",
+      "expected_v2_behavior": "Keep this visible as secondary command-surface pressure without letting it outrank the smaller, higher-leverage MCP seam."
+    }
+  ]
+}

@@ -8,10 +8,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, '..');
 const nodeBin = process.execPath;
+const goldensOnly = process.argv.includes('--goldens-only');
 
-const validators = [
-  path.join(repoRoot, 'scripts/validate_parallel_code_v2.mjs'),
-];
+const validators = [path.join(repoRoot, 'scripts/validate_parallel_code_v2.mjs')];
+
+if (!goldensOnly) {
+  validators.push(path.join(repoRoot, 'scripts/validate_one_tool_v2.mjs'));
+}
 
 function runValidator(validatorPath) {
   const label = path.basename(validatorPath);

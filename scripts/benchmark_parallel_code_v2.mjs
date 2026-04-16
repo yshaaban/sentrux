@@ -56,6 +56,13 @@ const failOnNonComparable = process.env.FAIL_ON_NONCOMPARABLE === '1';
 const benchmarkRepeatCount = readPositiveInteger(process.env.BENCHMARK_REPEATS ?? '3', 3);
 const benchmarkFormatVersion = 3;
 const skipGrammarDownload = process.env.SENTRUX_SKIP_GRAMMAR_DOWNLOAD ?? '1';
+const findingsArgs = { limit: 12 };
+const onboardingBriefArgs = { mode: 'repo_onboarding', limit: 3 };
+const patchBriefArgs = { mode: 'patch', limit: 3 };
+const preMergeBriefArgs = { mode: 'pre_merge', limit: 3 };
+const taskGitStatusArgs = { id: 'task_git_status' };
+const taskPresentationStatusArgs = { id: 'task_presentation_status' };
+const serverStateBootstrapParityArgs = { contract: 'server_state_bootstrap' };
 const comparisonMetrics = [
   ['cold_process_total_ms', 'cold process total'],
   ['cold.scan.elapsed_ms', 'cold scan'],
@@ -96,35 +103,35 @@ async function runBenchmarkSession(parallelCodeWorkRoot, homeOverride, fixedNowE
     coldOperations: [
       { key: 'scan', tool: 'scan', args: { path: parallelCodeWorkRoot }, summarize: summarizeScan },
       { key: 'concepts', tool: 'concepts', summarize: summarizeConcepts },
-      { key: 'findings', label: 'findings_top12', tool: 'findings', args: { limit: 12 }, summarize: summarizeFindings },
-      { key: 'explain_task_git_status', tool: 'explain_concept', args: { id: 'task_git_status' }, summarize: summarizeExplainConcept },
-      { key: 'explain_task_presentation_status', tool: 'explain_concept', args: { id: 'task_presentation_status' }, summarize: summarizeExplainConcept },
-      { key: 'parity_server_state_bootstrap', tool: 'parity', args: { contract: 'server_state_bootstrap' }, summarize: summarizeParity },
+      { key: 'findings', label: 'findings_top12', tool: 'findings', args: findingsArgs, summarize: summarizeFindings },
+      { key: 'explain_task_git_status', tool: 'explain_concept', args: taskGitStatusArgs, summarize: summarizeExplainConcept },
+      { key: 'explain_task_presentation_status', tool: 'explain_concept', args: taskPresentationStatusArgs, summarize: summarizeExplainConcept },
+      { key: 'parity_server_state_bootstrap', tool: 'parity', args: serverStateBootstrapParityArgs, summarize: summarizeParity },
       { key: 'state', tool: 'state', summarize: summarizeState },
-      { key: 'agent_brief_onboarding', tool: 'agent_brief', args: { mode: 'repo_onboarding', limit: 3 }, summarize: summarizeAgentBrief },
+      { key: 'agent_brief_onboarding', tool: 'agent_brief', args: onboardingBriefArgs, summarize: summarizeAgentBrief },
     ],
     warmCachedOperations: [
       { key: 'concepts', tool: 'concepts', summarize: summarizeConcepts },
-      { key: 'findings', label: 'findings_top12', tool: 'findings', args: { limit: 12 }, summarize: summarizeFindings },
-      { key: 'explain_task_git_status', tool: 'explain_concept', args: { id: 'task_git_status' }, summarize: summarizeExplainConcept },
-      { key: 'explain_task_presentation_status', tool: 'explain_concept', args: { id: 'task_presentation_status' }, summarize: summarizeExplainConcept },
-      { key: 'parity_server_state_bootstrap', tool: 'parity', args: { contract: 'server_state_bootstrap' }, summarize: summarizeParity },
+      { key: 'findings', label: 'findings_top12', tool: 'findings', args: findingsArgs, summarize: summarizeFindings },
+      { key: 'explain_task_git_status', tool: 'explain_concept', args: taskGitStatusArgs, summarize: summarizeExplainConcept },
+      { key: 'explain_task_presentation_status', tool: 'explain_concept', args: taskPresentationStatusArgs, summarize: summarizeExplainConcept },
+      { key: 'parity_server_state_bootstrap', tool: 'parity', args: serverStateBootstrapParityArgs, summarize: summarizeParity },
       { key: 'state', tool: 'state', summarize: summarizeState },
-      { key: 'agent_brief_onboarding', tool: 'agent_brief', args: { mode: 'repo_onboarding', limit: 3 }, summarize: summarizeAgentBrief },
+      { key: 'agent_brief_onboarding', tool: 'agent_brief', args: onboardingBriefArgs, summarize: summarizeAgentBrief },
     ],
     warmPatchSafetyOperations: [
       { key: 'session_start', tool: 'session_start', summarize: summarizeSessionSave },
-      { key: 'agent_brief_patch', tool: 'agent_brief', args: { mode: 'patch', limit: 3 }, summarize: summarizeAgentBrief },
+      { key: 'agent_brief_patch', tool: 'agent_brief', args: patchBriefArgs, summarize: summarizeAgentBrief },
       { key: 'gate', tool: 'gate', summarize: summarizeGate },
       { key: 'check', tool: 'check', summarize: summarizeCheck },
-      { key: 'agent_brief_pre_merge', tool: 'agent_brief', args: { mode: 'pre_merge', limit: 3 }, summarize: summarizeAgentBrief },
+      { key: 'agent_brief_pre_merge', tool: 'agent_brief', args: preMergeBriefArgs, summarize: summarizeAgentBrief },
       { key: 'session_end', tool: 'session_end', summarize: summarizeSessionEnd },
     ],
     warmPersistedOperations: [
       { key: 'scan', label: 'persisted_scan', tool: 'scan', args: { path: parallelCodeWorkRoot }, summarize: summarizeScan },
       { key: 'concepts', label: 'persisted_concepts', tool: 'concepts', summarize: summarizeConcepts },
-      { key: 'findings', label: 'persisted_findings_top12', tool: 'findings', args: { limit: 12 }, summarize: summarizeFindings },
-      { key: 'agent_brief_onboarding', label: 'persisted_agent_brief_onboarding', tool: 'agent_brief', args: { mode: 'repo_onboarding', limit: 3 }, summarize: summarizeAgentBrief },
+      { key: 'findings', label: 'persisted_findings_top12', tool: 'findings', args: findingsArgs, summarize: summarizeFindings },
+      { key: 'agent_brief_onboarding', label: 'persisted_agent_brief_onboarding', tool: 'agent_brief', args: onboardingBriefArgs, summarize: summarizeAgentBrief },
     ],
   });
 }
@@ -164,7 +171,6 @@ async function main() {
   const result = {
     benchmark_format_version: benchmarkFormatVersion,
     generated_at: new Date().toISOString(),
-    parallel_code_root: parallelCodeRoot,
     benchmark_repeat_count: aggregate.sample_count,
     benchmark_aggregate_basis: 'median',
     benchmark_representative_sample_index: aggregate.representative_sample_index,
@@ -172,6 +178,8 @@ async function main() {
     benchmark_metric_statistics: aggregate.metric_statistics,
     benchmark_samples: samples,
     ...freshnessMetadata,
+    repo_root: parallelCodeRoot,
+    parallel_code_root: parallelCodeRoot,
     sentrux_binary: sentruxBin,
     benchmark: aggregate.aggregate_benchmark,
   };

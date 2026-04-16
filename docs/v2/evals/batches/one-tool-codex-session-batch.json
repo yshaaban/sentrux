@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "batch_id": "one-tool-codex-session-batch",
+  "cohort_id": "agent-loop-core",
+  "repo_root": "../../../../../one-tool",
+  "repo_label": "one-tool",
+  "analysis_mode": "working_tree",
+  "timeout_ms": 420000,
+  "idle_timeout_ms": 90000,
+  "poll_ms": 4000,
+  "codex_bin": "codex",
+  "tasks": [
+    {
+      "task_id": "one-tool-mcp-cycle-cut",
+      "task_label": "Cut the small MCP cycle cleanly",
+      "prompt_file": "../prompts/one-tool/mcp-cycle-cut.md",
+      "tags": ["calibration", "structure", "mcp"],
+      "expected_signal_kinds": ["cycle_cluster"],
+      "expected_fix_surface": "narrow MCP boundary cut"
+    },
+    {
+      "task_id": "one-tool-command-surface-split",
+      "task_label": "Split one high-pressure command surface",
+      "prompt_file": "../prompts/one-tool/command-surface-split.md",
+      "tags": ["calibration", "structure", "commands"],
+      "expected_signal_kinds": ["large_file", "hotspot"],
+      "expected_fix_surface": "contained command-group refactor"
+    }
+  ]
+}

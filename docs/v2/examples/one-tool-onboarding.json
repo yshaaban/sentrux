@@ -1,0 +1,363 @@
+{
+  "action_count": 3,
+  "actions": [
+    {
+      "blocking": false,
+      "confidence": "medium",
+      "evidence": [
+        "cycle size: 2",
+        "total lines in cycle: 119",
+        "peak function complexity inside cycle: 4",
+        "candidate cuts: 2",
+        "best cut candidate: src/mcp/server.ts -> src/mcp/index.ts (removes 2 cyclic files)",
+        "role tags in cycle: composition_root, entry_surface"
+      ],
+      "file": "src/mcp/index.ts",
+      "fix_hint": "Cut the highest-leverage cycle seam first and re-run check.",
+      "kind": "cycle_cluster",
+      "line": null,
+      "message": "Files src/mcp/index.ts, src/mcp/server.ts form a dependency cycle",
+      "origin": "explicit",
+      "priority": 1,
+      "scope": "cycle:src/mcp/index.ts|src/mcp/server.ts",
+      "source": "structural"
+    },
+    {
+      "blocking": false,
+      "confidence": "high",
+      "evidence": [
+        "line count: 889",
+        "large-file threshold: 500",
+        "function count: 34",
+        "peak function complexity: 38",
+        "outbound dependencies: 0",
+        "suggested split axes: private helper surface split"
+      ],
+      "file": "python/src/onetool/commands/groups/fs.py",
+      "fix_hint": "Split the file along the private helper surface split and keep the public surface thin.",
+      "kind": "large_file",
+      "line": null,
+      "message": "File 'python/src/onetool/commands/groups/fs.py' is 889 lines, above the python threshold of 500",
+      "origin": "explicit",
+      "priority": 2,
+      "scope": "python/src/onetool/commands/groups/fs.py",
+      "source": "structural"
+    },
+    {
+      "blocking": false,
+      "confidence": "high",
+      "evidence": [
+        "line count: 1139",
+        "large-file threshold: 500",
+        "function count: 58",
+        "peak function complexity: 50",
+        "outbound dependencies: 0",
+        "suggested split axes: high-complexity helper extraction, private helper surface split"
+      ],
+      "file": "python/src/onetool/commands/groups/text.py",
+      "fix_hint": "Split the file along the high-complexity helper extraction and the private helper surface split and keep the public surface thin.",
+      "kind": "large_file",
+      "line": null,
+      "message": "File 'python/src/onetool/commands/groups/text.py' is 1139 lines, above the python threshold of 500",
+      "origin": "explicit",
+      "priority": 3,
+      "scope": "python/src/onetool/commands/groups/text.py",
+      "source": "structural"
+    }
+  ],
+  "confidence": {
+    "rule_coverage_0_10000": 10000,
+    "scan_confidence_0_10000": 5439,
+    "semantic_rules_loaded": true,
+    "session_baseline": {
+      "compatible": false,
+      "error": null,
+      "loaded": false,
+      "schema_version": null
+    }
+  },
+  "decision": "fix_now",
+  "diagnostics": {
+    "availability": {
+      "evolution": true
+    },
+    "errors": {
+      "context": null,
+      "rules": null,
+      "semantic": null
+    },
+    "partial_results": false,
+    "warnings": []
+  },
+  "do_not_chase": [],
+  "do_not_chase_count": 0,
+  "expired_suppression_match_count": 0,
+  "expired_suppressions": [],
+  "freshness": {
+    "baseline_loaded": false,
+    "git_head": "e280d46fb46b9e948c096c87ee738cca669737d7",
+    "session_baseline_compatible": false,
+    "working_tree_path_count": 28
+  },
+  "inferred_rules": {
+    "concepts": 10,
+    "module_contracts": 0,
+    "state_models": 0
+  },
+  "kind": "agent_brief",
+  "missing_obligation_count": 0,
+  "missing_obligations": [],
+  "mode": "repo_onboarding",
+  "primary_target_count": 3,
+  "primary_targets": [
+    {
+      "inspection_focus": [
+        "inspect whether one back-edge can be removed by splitting contracts from implementations",
+        "inspect whether shared types can move to a lower-dependency seam"
+      ],
+      "kind": "cycle_cluster",
+      "leverage_class": "architecture_signal",
+      "likely_fix_sites": [
+        "src/mcp/index.ts",
+        "src/mcp/server.ts"
+      ],
+      "next_tools": [],
+      "scope": "cycle:src/mcp/index.ts|src/mcp/server.ts",
+      "severity": "high",
+      "summary": "Files src/mcp/index.ts, src/mcp/server.ts form a dependency cycle (high_signal)",
+      "trust_tier": "watchpoint",
+      "why_now": [
+        "high_leverage",
+        "clear_fix_surface"
+      ]
+    },
+    {
+      "inspection_focus": [
+        "inspect whether the commands dependency boundary can become the owner for behavior that currently couples to src/c-locale.ts",
+        "inspect whether shell composition and runtime wiring are staying separate",
+        "inspect whether the entry surface is acting as a coordinator rather than an implementation sink"
+      ],
+      "kind": "large_file",
+      "leverage_class": "regrowth_watchpoint",
+      "likely_fix_sites": [
+        "src/commands/groups/text.ts"
+      ],
+      "next_tools": [],
+      "scope": "src/commands/groups/text.ts",
+      "severity": "high",
+      "summary": "Composition root 'src/commands/groups/text.ts' is 1220 lines, above the typescript threshold of 500 (very_high_signal)",
+      "trust_tier": "trusted",
+      "why_now": [
+        "high_trust",
+        "clear_fix_surface"
+      ]
+    },
+    {
+      "inspection_focus": [
+        "inspect whether the commands dependency boundary can become the owner for behavior that currently couples to src/c-locale.ts",
+        "inspect whether shell composition and runtime wiring are staying separate",
+        "inspect whether the entry surface is acting as a coordinator rather than an implementation sink"
+      ],
+      "kind": "large_file",
+      "leverage_class": "regrowth_watchpoint",
+      "likely_fix_sites": [
+        "src/commands/groups/fs.ts"
+      ],
+      "next_tools": [],
+      "scope": "src/commands/groups/fs.ts",
+      "severity": "high",
+      "summary": "Composition root 'src/commands/groups/fs.ts' is 1022 lines, above the typescript threshold of 500 (high_signal)",
+      "trust_tier": "trusted",
+      "why_now": [
+        "high_trust",
+        "clear_fix_surface"
+      ]
+    }
+  ],
+  "repo_shape": {
+    "boundary_roots": [],
+    "effective_archetypes": [],
+    "primary_archetype": null,
+    "starter_rules_toml": "[project]\nexclude = [\"node_modules/**\", \"coverage/**\"]\n",
+    "working_rules_toml": "[project]\nexclude = [\"node_modules/**\", \"coverage/**\"]\n"
+  },
+  "resolved_finding_count": 0,
+  "resolved_findings": [],
+  "scan_trust": {
+    "candidate_files": 535,
+    "exclusions": {
+      "bucketed": {
+        "build": 0,
+        "cache": 2,
+        "fixture": 238,
+        "generated": 0,
+        "vendor": 0
+      },
+      "ignored_extension": 4,
+      "metadata_error": 0,
+      "too_large": 0,
+      "total": 244
+    },
+    "fallback_reason": null,
+    "kept_files": 291,
+    "mode": "git",
+    "overall_confidence_0_10000": 5439,
+    "partial": false,
+    "resolution": {
+      "internal_confidence_0_10000": 9718,
+      "resolved": 621,
+      "unresolved_external": 362,
+      "unresolved_internal": 18,
+      "unresolved_unknown": 38
+    },
+    "scope_coverage_0_10000": 5439,
+    "tracked_candidates": 507,
+    "truncated": false,
+    "untracked_candidates": 28
+  },
+  "semantic_cache": {
+    "analyzed_files": 166,
+    "available": true,
+    "bridge_protocol_version": "0.1.0",
+    "git_head": "e280d46fb46b9e948c096c87ee738cca669737d7",
+    "project_fingerprint": "639ee7a11fd96aa6",
+    "source": "memory",
+    "working_tree_path_count": 28
+  },
+  "summary": "repo onboarding brief with 3 primary target(s) and 3 watchpoint(s)",
+  "suppressed_finding_count": 0,
+  "suppression_hits": [],
+  "watchpoint_count": 3,
+  "watchpoints": [
+    {
+      "boundary_pressure_count": 0,
+      "candidate_split_axes": [
+        "local module split"
+      ],
+      "clone_family_count": 0,
+      "evidence": [
+        "cycle size: 2",
+        "total lines in cycle: 119",
+        "peak function complexity inside cycle: 4",
+        "candidate cuts: 2",
+        "best cut candidate: src/mcp/server.ts -> src/mcp/index.ts (removes 2 cyclic files)",
+        "role tags in cycle: composition_root, entry_surface"
+      ],
+      "files": [
+        "src/mcp/index.ts",
+        "src/mcp/server.ts"
+      ],
+      "hotspot_count": 0,
+      "impact": "The cycle prevents clean layering and makes initialization order and refactors harder to isolate.",
+      "inspection_focus": [
+        "inspect whether one back-edge can be removed by splitting contracts from implementations",
+        "inspect whether shared types can move to a lower-dependency seam"
+      ],
+      "kind": "cycle_cluster",
+      "leverage_class": "architecture_signal",
+      "leverage_reasons": [
+        "mixed_cycle_pressure",
+        "high_leverage_cycle_cut"
+      ],
+      "missing_site_count": 0,
+      "presentation_class": "watchpoint",
+      "related_surfaces": [
+        "src/mcp/server.ts",
+        "src/mcp/index.ts"
+      ],
+      "role_tags": [
+        "composition_root",
+        "entry_surface"
+      ],
+      "scope": "cycle:src/mcp/index.ts|src/mcp/server.ts",
+      "score_0_10000": 7728,
+      "severity": "high",
+      "signal_families": [
+        "dependency",
+        "layering"
+      ],
+      "summary": "Files src/mcp/index.ts, src/mcp/server.ts form a dependency cycle",
+      "trust_tier": "watchpoint"
+    },
+    {
+      "boundary_pressure_count": 0,
+      "candidate_split_axes": [
+        "orchestration boundary",
+        "side-effect boundary",
+        "adapter boundary"
+      ],
+      "clone_family_count": 0,
+      "evidence": [
+        "touches 12 side-effect target(s)",
+        "contains 15 async/branching control signal(s)",
+        "max cyclomatic complexity 20"
+      ],
+      "files": [
+        "src/commands/groups/fs.ts"
+      ],
+      "hotspot_count": 1,
+      "impact": "Side effects, async branches, and retry logic concentrated in one file increase coordination debt and regression risk.",
+      "inspection_focus": [
+        "inspect whether orchestration, side effects, and adapters are accumulating in one file",
+        "inspect whether complexity is local to one seam or repeated across nearby files"
+      ],
+      "kind": "hotspot",
+      "leverage_class": "local_refactor_target",
+      "leverage_reasons": [],
+      "missing_site_count": 0,
+      "presentation_class": "watchpoint",
+      "related_surfaces": [
+        "src/commands/groups/fs.ts"
+      ],
+      "role_tags": [],
+      "scope": "src/commands/groups/fs.ts",
+      "score_0_10000": 5920,
+      "severity": "medium",
+      "signal_families": [
+        "coordination"
+      ],
+      "summary": "File 'src/commands/groups/fs.ts' is carrying coordination hotspot pressure",
+      "trust_tier": "watchpoint"
+    },
+    {
+      "boundary_pressure_count": 0,
+      "candidate_split_axes": [
+        "orchestration boundary",
+        "side-effect boundary",
+        "adapter boundary"
+      ],
+      "clone_family_count": 0,
+      "evidence": [
+        "touches 34 side-effect target(s)",
+        "contains 16 async/branching control signal(s)",
+        "max cyclomatic complexity 22"
+      ],
+      "files": [
+        "src/commands/shared/sed.ts"
+      ],
+      "hotspot_count": 1,
+      "impact": "Side effects, async branches, and retry logic concentrated in one file increase coordination debt and regression risk.",
+      "inspection_focus": [
+        "inspect whether orchestration, side effects, and adapters are accumulating in one file",
+        "inspect whether complexity is local to one seam or repeated across nearby files"
+      ],
+      "kind": "hotspot",
+      "leverage_class": "local_refactor_target",
+      "leverage_reasons": [],
+      "missing_site_count": 0,
+      "presentation_class": "watchpoint",
+      "related_surfaces": [
+        "src/commands/shared/sed.ts"
+      ],
+      "role_tags": [],
+      "scope": "src/commands/shared/sed.ts",
+      "score_0_10000": 5618,
+      "severity": "medium",
+      "signal_families": [
+        "coordination"
+      ],
+      "summary": "File 'src/commands/shared/sed.ts' is carrying coordination hotspot pressure",
+      "trust_tier": "watchpoint"
+    }
+  ]
+}

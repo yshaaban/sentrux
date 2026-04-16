@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "batch_id": "one-tool-diff-replay-batch",
+  "cohort_id": "agent-loop-core",
+  "repo_root": "../../../../../one-tool",
+  "repo_label": "one-tool",
+  "default_tags": ["calibration", "replay"],
+  "replays": [
+    {
+      "replay_id": "shared-c-locale-helper-extraction",
+      "commit": "5bc4304",
+      "tags": ["calibration", "replay", "code", "refactor", "shared-helper"]
+    },
+    {
+      "replay_id": "typed-sed-narrowing",
+      "commit": "d3cfeb9",
+      "tags": ["calibration", "replay", "code", "typing", "commands"]
+    },
+    {
+      "replay_id": "browser-vfs-boundary-casts",
+      "commit": "d82955a",
+      "tags": ["calibration", "replay", "code", "boundary", "storage"]
+    },
+    {
+      "replay_id": "typed-snapshot-parity-contracts",
+      "commit": "4b661c2",
+      "tags": ["calibration", "replay", "code", "parity", "contracts"]
+    }
+  ]
+}

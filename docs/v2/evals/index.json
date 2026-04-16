@@ -24,6 +24,10 @@
       "path": "./repos/parallel-code.json"
     },
     {
+      "repo_id": "one-tool",
+      "path": "./repos/one-tool.json"
+    },
+    {
       "repo_id": "sentrux",
       "path": "./repos/sentrux.json"
     }
@@ -36,6 +40,14 @@
     {
       "batch_id": "parallel-code-diff-replay-batch",
       "path": "./batches/parallel-code-diff-replay-batch.json"
+    },
+    {
+      "batch_id": "one-tool-codex-session-batch",
+      "path": "./batches/one-tool-codex-session-batch.json"
+    },
+    {
+      "batch_id": "one-tool-diff-replay-batch",
+      "path": "./batches/one-tool-diff-replay-batch.json"
     },
     {
       "batch_id": "sentrux-codex-session-batch",
@@ -56,6 +68,10 @@
       "path": "./prompts/parallel-code"
     },
     {
+      "repo_id": "one-tool",
+      "path": "./prompts/one-tool"
+    },
+    {
       "repo_id": "sentrux",
       "path": "./prompts/sentrux"
     }
@@ -64,6 +80,10 @@
     {
       "scenario_id": "parallel-code",
       "path": "./scenarios/parallel-code.json"
+    },
+    {
+      "scenario_id": "one-tool",
+      "path": "./scenarios/one-tool.json"
     }
   ]
 }

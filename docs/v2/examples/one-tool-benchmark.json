@@ -1,349 +1,321 @@
 {
   "benchmark_format_version": 3,
-  "generated_at": "2026-04-16T20:59:16.235Z",
-  "repo": "sentrux",
+  "generated_at": "2026-04-16T20:58:55.762Z",
+  "repo": "one-tool",
   "benchmark_repeat_count": 3,
   "benchmark_aggregate_basis": "median",
-  "benchmark_representative_sample_index": 0,
-  "benchmark_representative_sample_id": "sample_1",
+  "benchmark_representative_sample_index": 1,
+  "benchmark_representative_sample_id": "sample_2",
   "benchmark_metric_statistics": {
     "cold.agent_brief_onboarding.elapsed_ms": {
       "sample_count": 3,
       "values_ms": [
-        568,
-        2015.9,
-        587.5
+        312.7,
+        381.6,
+        611.2
       ],
-      "min_ms": 568,
-      "max_ms": 2015.9,
-      "median_ms": 587.5,
-      "mean_ms": 1057.1,
-      "stddev_ms": 678,
-      "spread_ms": 1447.9
-    },
-    "cold.check_rules.elapsed_ms": {
-      "sample_count": 3,
-      "values_ms": [
-        1.5,
-        2.4,
-        1.9
-      ],
-      "min_ms": 1.5,
-      "max_ms": 2.4,
-      "median_ms": 1.9,
-      "mean_ms": 1.9,
-      "stddev_ms": 0.4,
-      "spread_ms": 0.9
+      "min_ms": 312.7,
+      "max_ms": 611.2,
+      "median_ms": 381.6,
+      "mean_ms": 435.2,
+      "stddev_ms": 127.6,
+      "spread_ms": 298.5
     },
     "cold.concepts.elapsed_ms": {
       "sample_count": 3,
       "values_ms": [
-        975.6,
-        1586.5,
-        838
+        2316,
+        2316.2,
+        3663.7
       ],
-      "min_ms": 838,
-      "max_ms": 1586.5,
-      "median_ms": 975.6,
-      "mean_ms": 1133.4,
-      "stddev_ms": 325.3,
-      "spread_ms": 748.5
+      "min_ms": 2316,
+      "max_ms": 3663.7,
+      "median_ms": 2316.2,
+      "mean_ms": 2765.3,
+      "stddev_ms": 635.3,
+      "spread_ms": 1347.7
     },
     "cold.findings.elapsed_ms": {
       "sample_count": 3,
       "values_ms": [
-        5621,
-        10310.6,
-        5261.3
+        974.4,
+        1051.2,
+        1686.4
       ],
-      "min_ms": 5261.3,
-      "max_ms": 10310.6,
-      "median_ms": 5621,
-      "mean_ms": 7064.3,
-      "stddev_ms": 2300.2,
-      "spread_ms": 5049.3
+      "min_ms": 974.4,
+      "max_ms": 1686.4,
+      "median_ms": 1051.2,
+      "mean_ms": 1237.3,
+      "stddev_ms": 319.1,
+      "spread_ms": 712
     },
     "cold.project_shape.elapsed_ms": {
       "sample_count": 3,
       "values_ms": [
-        77.2,
-        125.9,
-        71.7
+        52.5,
+        54,
+        224.7
       ],
-      "min_ms": 71.7,
-      "max_ms": 125.9,
-      "median_ms": 77.2,
-      "mean_ms": 91.6,
-      "stddev_ms": 24.4,
-      "spread_ms": 54.2
+      "min_ms": 52.5,
+      "max_ms": 224.7,
+      "median_ms": 54,
+      "mean_ms": 110.4,
+      "stddev_ms": 80.8,
+      "spread_ms": 172.2
     },
     "cold.scan.elapsed_ms": {
       "sample_count": 3,
       "values_ms": [
-        1181.9,
-        2404.6,
-        1027.1
+        1288.7,
+        1163.1,
+        2606.5
       ],
-      "min_ms": 1027.1,
-      "max_ms": 2404.6,
-      "median_ms": 1181.9,
-      "mean_ms": 1537.9,
-      "stddev_ms": 616.1,
-      "spread_ms": 1377.5
+      "min_ms": 1163.1,
+      "max_ms": 2606.5,
+      "median_ms": 1288.7,
+      "mean_ms": 1686.1,
+      "stddev_ms": 652.8,
+      "spread_ms": 1443.4
     },
     "cold_process_total_ms": {
       "sample_count": 3,
       "values_ms": [
-        8426.1,
-        16446.7,
-        7787.8
+        4945.4,
+        4966.6,
+        8793.2
       ],
-      "min_ms": 7787.8,
-      "max_ms": 16446.7,
-      "median_ms": 8426.1,
-      "mean_ms": 10886.9,
-      "stddev_ms": 3940,
-      "spread_ms": 8658.9
+      "min_ms": 4945.4,
+      "max_ms": 8793.2,
+      "median_ms": 4966.6,
+      "mean_ms": 6235.1,
+      "stddev_ms": 1808.9,
+      "spread_ms": 3847.8
     },
     "warm_cached.agent_brief_onboarding.elapsed_ms": {
       "sample_count": 3,
       "values_ms": [
-        597,
-        1043.1,
-        565.4
+        329.3,
+        414.1,
+        616.8
       ],
-      "min_ms": 565.4,
-      "max_ms": 1043.1,
-      "median_ms": 597,
-      "mean_ms": 735.2,
-      "stddev_ms": 218.1,
-      "spread_ms": 477.7
-    },
-    "warm_cached.check_rules.elapsed_ms": {
-      "sample_count": 3,
-      "values_ms": [
-        2.2,
-        6.5,
-        3.9
-      ],
-      "min_ms": 2.2,
-      "max_ms": 6.5,
-      "median_ms": 3.9,
-      "mean_ms": 4.2,
-      "stddev_ms": 1.8,
-      "spread_ms": 4.3
+      "min_ms": 329.3,
+      "max_ms": 616.8,
+      "median_ms": 414.1,
+      "mean_ms": 453.4,
+      "stddev_ms": 120.6,
+      "spread_ms": 287.5
     },
     "warm_cached.findings.elapsed_ms": {
       "sample_count": 3,
       "values_ms": [
-        495.1,
-        1646.1,
-        496
+        269.8,
+        316.9,
+        499.2
       ],
-      "min_ms": 495.1,
-      "max_ms": 1646.1,
-      "median_ms": 496,
-      "mean_ms": 879.1,
-      "stddev_ms": 542.4,
-      "spread_ms": 1151
+      "min_ms": 269.8,
+      "max_ms": 499.2,
+      "median_ms": 316.9,
+      "mean_ms": 362,
+      "stddev_ms": 98.9,
+      "spread_ms": 229.4
     },
     "warm_cached.project_shape.elapsed_ms": {
       "sample_count": 3,
       "values_ms": [
-        11.2,
-        13.3,
-        1
+        0.8,
+        0.5,
+        0.9
       ],
-      "min_ms": 1,
-      "max_ms": 13.3,
-      "median_ms": 11.2,
-      "mean_ms": 8.5,
-      "stddev_ms": 5.4,
-      "spread_ms": 12.3
+      "min_ms": 0.5,
+      "max_ms": 0.9,
+      "median_ms": 0.8,
+      "mean_ms": 0.7,
+      "stddev_ms": 0.2,
+      "spread_ms": 0.4
     },
     "warm_cached_total_ms": {
       "sample_count": 3,
       "values_ms": [
-        1105.9,
-        2709.3,
-        1066.5
+        600.2,
+        732.1,
+        1117.3
       ],
-      "min_ms": 1066.5,
-      "max_ms": 2709.3,
-      "median_ms": 1105.9,
-      "mean_ms": 1627.2,
-      "stddev_ms": 765.3,
-      "spread_ms": 1642.8
+      "min_ms": 600.2,
+      "max_ms": 1117.3,
+      "median_ms": 732.1,
+      "mean_ms": 816.5,
+      "stddev_ms": 219.4,
+      "spread_ms": 517.1
     },
     "warm_patch_safety.check.elapsed_ms": {
       "sample_count": 3,
       "values_ms": [
-        39.1,
-        57.3,
-        38.5
+        20.5,
+        23.5,
+        35.9
       ],
-      "min_ms": 38.5,
-      "max_ms": 57.3,
-      "median_ms": 39.1,
-      "mean_ms": 45,
-      "stddev_ms": 8.7,
-      "spread_ms": 18.8
+      "min_ms": 20.5,
+      "max_ms": 35.9,
+      "median_ms": 23.5,
+      "mean_ms": 26.6,
+      "stddev_ms": 6.7,
+      "spread_ms": 15.4
     },
     "warm_patch_safety.gate.elapsed_ms": {
       "sample_count": 3,
       "values_ms": [
-        39,
-        56.9,
-        40.2
+        20,
+        22.2,
+        36.7
       ],
-      "min_ms": 39,
-      "max_ms": 56.9,
-      "median_ms": 40.2,
-      "mean_ms": 45.4,
-      "stddev_ms": 8.2,
-      "spread_ms": 17.9
+      "min_ms": 20,
+      "max_ms": 36.7,
+      "median_ms": 22.2,
+      "mean_ms": 26.3,
+      "stddev_ms": 7.4,
+      "spread_ms": 16.7
     },
     "warm_patch_safety.session_end.elapsed_ms": {
       "sample_count": 3,
       "values_ms": [
-        67.6,
-        96.4,
-        63.5
+        42.8,
+        49.1,
+        73.9
       ],
-      "min_ms": 63.5,
-      "max_ms": 96.4,
-      "median_ms": 67.6,
-      "mean_ms": 75.8,
-      "stddev_ms": 14.6,
-      "spread_ms": 32.9
+      "min_ms": 42.8,
+      "max_ms": 73.9,
+      "median_ms": 49.1,
+      "mean_ms": 55.3,
+      "stddev_ms": 13.4,
+      "spread_ms": 31.1
     },
     "warm_patch_safety.session_start.elapsed_ms": {
       "sample_count": 3,
       "values_ms": [
-        185.7,
-        257.2,
-        159.6
+        113.6,
+        142.2,
+        204.6
       ],
-      "min_ms": 159.6,
-      "max_ms": 257.2,
-      "median_ms": 185.7,
-      "mean_ms": 200.8,
-      "stddev_ms": 41.3,
-      "spread_ms": 97.6
+      "min_ms": 113.6,
+      "max_ms": 204.6,
+      "median_ms": 142.2,
+      "mean_ms": 153.5,
+      "stddev_ms": 38,
+      "spread_ms": 91
     },
     "warm_patch_safety_total_ms": {
       "sample_count": 3,
       "values_ms": [
-        331.9,
-        468.4,
-        302
+        197.6,
+        237.4,
+        351.5
       ],
-      "min_ms": 302,
-      "max_ms": 468.4,
-      "median_ms": 331.9,
-      "mean_ms": 367.4,
-      "stddev_ms": 72.4,
-      "spread_ms": 166.4
+      "min_ms": 197.6,
+      "max_ms": 351.5,
+      "median_ms": 237.4,
+      "mean_ms": 262.2,
+      "stddev_ms": 65.2,
+      "spread_ms": 153.9
     },
     "warm_persisted.agent_brief_onboarding.elapsed_ms": {
       "sample_count": 3,
       "values_ms": [
-        910,
-        666.1,
-        588.1
+        322,
+        415.9,
+        1420.9
       ],
-      "min_ms": 588.1,
-      "max_ms": 910,
-      "median_ms": 666.1,
-      "mean_ms": 721.4,
-      "stddev_ms": 137.1,
-      "spread_ms": 321.9
+      "min_ms": 322,
+      "max_ms": 1420.9,
+      "median_ms": 415.9,
+      "mean_ms": 719.6,
+      "stddev_ms": 497.4,
+      "spread_ms": 1098.9
     },
     "warm_persisted.concepts.elapsed_ms": {
       "sample_count": 3,
       "values_ms": [
-        192.2,
-        224.4,
-        155.9
+        154.3,
+        193.9,
+        302.8
       ],
-      "min_ms": 155.9,
-      "max_ms": 224.4,
-      "median_ms": 192.2,
-      "mean_ms": 190.8,
-      "stddev_ms": 28,
-      "spread_ms": 68.5
+      "min_ms": 154.3,
+      "max_ms": 302.8,
+      "median_ms": 193.9,
+      "mean_ms": 217,
+      "stddev_ms": 62.8,
+      "spread_ms": 148.5
     },
     "warm_persisted.findings.elapsed_ms": {
       "sample_count": 3,
       "values_ms": [
-        6640.3,
-        6511.2,
-        5059.1
+        879.6,
+        1141.8,
+        1865.2
       ],
-      "min_ms": 5059.1,
-      "max_ms": 6640.3,
-      "median_ms": 6511.2,
-      "mean_ms": 6070.2,
-      "stddev_ms": 716.9,
-      "spread_ms": 1581.2
+      "min_ms": 879.6,
+      "max_ms": 1865.2,
+      "median_ms": 1141.8,
+      "mean_ms": 1295.5,
+      "stddev_ms": 416.8,
+      "spread_ms": 985.6
     },
     "warm_persisted.scan.elapsed_ms": {
       "sample_count": 3,
       "values_ms": [
-        1235.6,
-        2023.8,
-        947
+        1200.1,
+        1877.5,
+        2917.9
       ],
-      "min_ms": 947,
-      "max_ms": 2023.8,
-      "median_ms": 1235.6,
-      "mean_ms": 1402.1,
-      "stddev_ms": 455.1,
-      "spread_ms": 1076.8
+      "min_ms": 1200.1,
+      "max_ms": 2917.9,
+      "median_ms": 1877.5,
+      "mean_ms": 1998.5,
+      "stddev_ms": 706.5,
+      "spread_ms": 1717.8
     },
     "warm_persisted_total_ms": {
       "sample_count": 3,
       "values_ms": [
-        8978.7,
-        9426,
-        6750.4
+        2556.5,
+        3629.8,
+        6507.4
       ],
-      "min_ms": 6750.4,
-      "max_ms": 9426,
-      "median_ms": 8978.7,
-      "mean_ms": 8385,
-      "stddev_ms": 1170.2,
-      "spread_ms": 2675.6
+      "min_ms": 2556.5,
+      "max_ms": 6507.4,
+      "median_ms": 3629.8,
+      "mean_ms": 4231.2,
+      "stddev_ms": 1668.1,
+      "spread_ms": 3950.9
     }
   },
   "benchmark_samples": [
     {
       "sample_id": "sample_1",
-      "generated_at": "2026-04-16T20:58:24.709Z",
+      "generated_at": "2026-04-16T20:58:13.079Z",
       "benchmark": {
-        "cold_process_total_ms": 8426.1,
+        "cold_process_total_ms": 4945.4,
         "cold": {
           "scan": {
             "label": "scan",
             "tool": "scan",
-            "elapsed_ms": 1181.9,
+            "elapsed_ms": 1288.7,
             "summary": {
-              "files": 596,
-              "import_edges": 159,
-              "quality_signal": 6572,
-              "overall_confidence_0_10000": 9597,
-              "resolved": 159,
-              "unresolved_internal": 4
+              "files": 265,
+              "import_edges": 517,
+              "quality_signal": 4879,
+              "overall_confidence_0_10000": 5227,
+              "resolved": 517,
+              "unresolved_internal": 18
             }
           },
           "project_shape": {
             "label": "project_shape",
             "tool": "project_shape",
-            "elapsed_ms": 77.2,
+            "elapsed_ms": 52.5,
             "summary": {
               "primary_archetype": null,
               "effective_archetype_count": 0,
-              "capability_count": 1,
+              "capability_count": 0,
               "boundary_root_count": 0,
               "module_contract_count": 0
             }
@@ -351,12 +323,12 @@
           "concepts": {
             "label": "concepts",
             "tool": "concepts",
-            "elapsed_ms": 975.6,
+            "elapsed_ms": 2316,
             "summary": {
-              "configured_concept_count": 1,
-              "contract_count": 1,
+              "configured_concept_count": 0,
+              "contract_count": 0,
               "matched_guardrail_test_count": 0,
-              "inferred_concept_count": 0,
+              "inferred_concept_count": 10,
               "state_model_count": 0,
               "semantic_cache_source": "bridge"
             }
@@ -364,52 +336,40 @@
           "findings": {
             "label": "findings_top12",
             "tool": "findings",
-            "elapsed_ms": 5621,
+            "elapsed_ms": 974.4,
             "summary": {
-              "clone_group_count": 29,
-              "clone_family_count": 1,
+              "clone_group_count": 10,
+              "clone_family_count": 2,
               "finding_count": 12,
               "semantic_finding_count": 0,
               "debt_signal_count": 5,
-              "watchpoint_count": 1
-            }
-          },
-          "check_rules": {
-            "label": "check_rules",
-            "tool": "check_rules",
-            "elapsed_ms": 1.5,
-            "summary": {
-              "pass": true,
-              "rules_checked": 4,
-              "violation_count": 0,
-              "coverage_0_10000": 10000,
-              "truncated": 4
+              "watchpoint_count": 5
             }
           },
           "agent_brief_onboarding": {
             "label": "agent_brief_onboarding",
             "tool": "agent_brief",
-            "elapsed_ms": 568,
+            "elapsed_ms": 312.7,
             "summary": {
               "mode": "repo_onboarding",
               "decision": "fix_now",
               "primary_target_count": 3,
               "missing_obligation_count": 0,
-              "watchpoint_count": 1,
+              "watchpoint_count": 3,
               "semantic_cache_source": "memory"
             }
           }
         },
-        "warm_cached_total_ms": 1105.9,
+        "warm_cached_total_ms": 600.2,
         "warm_cached": {
           "project_shape": {
             "label": "project_shape",
             "tool": "project_shape",
-            "elapsed_ms": 11.2,
+            "elapsed_ms": 0.8,
             "summary": {
               "primary_archetype": null,
               "effective_archetype_count": 0,
-              "capability_count": 1,
+              "capability_count": 0,
               "boundary_root_count": 0,
               "module_contract_count": 0
             }
@@ -417,66 +377,54 @@
           "findings": {
             "label": "findings_top12",
             "tool": "findings",
-            "elapsed_ms": 495.1,
+            "elapsed_ms": 269.8,
             "summary": {
-              "clone_group_count": 29,
-              "clone_family_count": 1,
+              "clone_group_count": 10,
+              "clone_family_count": 2,
               "finding_count": 12,
               "semantic_finding_count": 0,
               "debt_signal_count": 5,
-              "watchpoint_count": 1
-            }
-          },
-          "check_rules": {
-            "label": "check_rules",
-            "tool": "check_rules",
-            "elapsed_ms": 2.2,
-            "summary": {
-              "pass": true,
-              "rules_checked": 4,
-              "violation_count": 0,
-              "coverage_0_10000": 10000,
-              "truncated": 4
+              "watchpoint_count": 5
             }
           },
           "agent_brief_onboarding": {
             "label": "agent_brief_onboarding",
             "tool": "agent_brief",
-            "elapsed_ms": 597,
+            "elapsed_ms": 329.3,
             "summary": {
               "mode": "repo_onboarding",
               "decision": "fix_now",
               "primary_target_count": 3,
               "missing_obligation_count": 0,
-              "watchpoint_count": 1,
+              "watchpoint_count": 3,
               "semantic_cache_source": "memory"
             }
           }
         },
-        "warm_persisted_total_ms": 8978.7,
+        "warm_persisted_total_ms": 2556.5,
         "warm_persisted": {
           "scan": {
             "label": "persisted_scan",
             "tool": "scan",
-            "elapsed_ms": 1235.6,
+            "elapsed_ms": 1200.1,
             "summary": {
-              "files": 596,
-              "import_edges": 159,
-              "quality_signal": 6572,
-              "overall_confidence_0_10000": 9582,
-              "resolved": 159,
-              "unresolved_internal": 4
+              "files": 265,
+              "import_edges": 517,
+              "quality_signal": 4879,
+              "overall_confidence_0_10000": 5186,
+              "resolved": 517,
+              "unresolved_internal": 18
             }
           },
           "concepts": {
             "label": "persisted_concepts",
             "tool": "concepts",
-            "elapsed_ms": 192.2,
+            "elapsed_ms": 154.3,
             "summary": {
-              "configured_concept_count": 1,
-              "contract_count": 1,
+              "configured_concept_count": 0,
+              "contract_count": 0,
               "matched_guardrail_test_count": 0,
-              "inferred_concept_count": 0,
+              "inferred_concept_count": 10,
               "state_model_count": 0,
               "semantic_cache_source": "disk"
             }
@@ -484,45 +432,45 @@
           "findings": {
             "label": "persisted_findings_top12",
             "tool": "findings",
-            "elapsed_ms": 6640.3,
+            "elapsed_ms": 879.6,
             "summary": {
-              "clone_group_count": 29,
-              "clone_family_count": 1,
+              "clone_group_count": 10,
+              "clone_family_count": 2,
               "finding_count": 12,
               "semantic_finding_count": 0,
               "debt_signal_count": 5,
-              "watchpoint_count": 1
+              "watchpoint_count": 5
             }
           },
           "agent_brief_onboarding": {
             "label": "persisted_agent_brief_onboarding",
             "tool": "agent_brief",
-            "elapsed_ms": 910,
+            "elapsed_ms": 322,
             "summary": {
               "mode": "repo_onboarding",
               "decision": "fix_now",
               "primary_target_count": 3,
               "missing_obligation_count": 0,
-              "watchpoint_count": 1,
+              "watchpoint_count": 3,
               "semantic_cache_source": "memory"
             }
           }
         },
-        "warm_patch_safety_total_ms": 331.9,
+        "warm_patch_safety_total_ms": 197.6,
         "warm_patch_safety": {
           "session_start": {
             "label": "session_start",
             "tool": "session_start",
-            "elapsed_ms": 185.7,
+            "elapsed_ms": 113.6,
             "summary": {
-              "session_finding_count": 117,
+              "session_finding_count": 40,
               "suppressed_finding_count": 0
             }
           },
           "check": {
             "label": "check",
             "tool": "check",
-            "elapsed_ms": 39.1,
+            "elapsed_ms": 20.5,
             "summary": {
               "gate": "pass",
               "issue_count": 0,
@@ -534,7 +482,7 @@
           "gate": {
             "label": "gate",
             "tool": "gate",
-            "elapsed_ms": 39,
+            "elapsed_ms": 20,
             "summary": {
               "decision": "pass",
               "changed_file_count": 0,
@@ -546,7 +494,7 @@
           "session_end": {
             "label": "session_end",
             "tool": "session_end",
-            "elapsed_ms": 67.6,
+            "elapsed_ms": 42.8,
             "summary": {
               "pass": true,
               "changed_file_count": 0,
@@ -558,41 +506,41 @@
         },
         "stdout_log": [],
         "stderr_log": [
-          "[build_project_map] 596 files, 201 unique dirs, 197 cache misses, 12.3ms",
-          "[resolve] 159 resolved, 4 unresolved_internal, 223 unresolved_external, 0 unresolved_unknown (of 386 total specs)",
-          "[resolve_imports] project_map 13.0ms, suffix_idx 6.0ms, suffix_resolve 5.7ms, total 24.7ms",
-          "[build_graphs] 596 files | maps 1.7ms, imports 25.0ms, calls+inherit 8.9ms, total 35.7ms | 159 import, 535 call, 0 inherit edges",
-          "[evolution] walked 473 commits, skipped 8 (oid_err=0, commit_err=0, unparseable=8)"
+          "[build_project_map] 265 files, 42 unique dirs, 40 cache misses, 3.4ms",
+          "[resolve] 517 resolved, 18 unresolved_internal, 177 unresolved_external, 17 unresolved_unknown (of 729 total specs)",
+          "[resolve_imports] project_map 3.8ms, suffix_idx 4.3ms, suffix_resolve 36.1ms, total 44.2ms",
+          "[build_graphs] 265 files | maps 1.7ms, imports 44.4ms, calls+inherit 9.5ms, total 55.6ms | 517 import, 1303 call, 5 inherit edges",
+          "[evolution] walked 86 commits, skipped 4 (oid_err=0, commit_err=0, unparseable=4)"
         ]
       }
     },
     {
       "sample_id": "sample_2",
-      "generated_at": "2026-04-16T20:58:58.707Z",
+      "generated_at": "2026-04-16T20:58:23.941Z",
       "benchmark": {
-        "cold_process_total_ms": 16446.7,
+        "cold_process_total_ms": 4966.6,
         "cold": {
           "scan": {
             "label": "scan",
             "tool": "scan",
-            "elapsed_ms": 2404.6,
+            "elapsed_ms": 1163.1,
             "summary": {
-              "files": 596,
-              "import_edges": 159,
-              "quality_signal": 6572,
-              "overall_confidence_0_10000": 9597,
-              "resolved": 159,
-              "unresolved_internal": 4
+              "files": 265,
+              "import_edges": 517,
+              "quality_signal": 4879,
+              "overall_confidence_0_10000": 5227,
+              "resolved": 517,
+              "unresolved_internal": 18
             }
           },
           "project_shape": {
             "label": "project_shape",
             "tool": "project_shape",
-            "elapsed_ms": 125.9,
+            "elapsed_ms": 54,
             "summary": {
               "primary_archetype": null,
               "effective_archetype_count": 0,
-              "capability_count": 1,
+              "capability_count": 0,
               "boundary_root_count": 0,
               "module_contract_count": 0
             }
@@ -600,12 +548,12 @@
           "concepts": {
             "label": "concepts",
             "tool": "concepts",
-            "elapsed_ms": 1586.5,
+            "elapsed_ms": 2316.2,
             "summary": {
-              "configured_concept_count": 1,
-              "contract_count": 1,
+              "configured_concept_count": 0,
+              "contract_count": 0,
               "matched_guardrail_test_count": 0,
-              "inferred_concept_count": 0,
+              "inferred_concept_count": 10,
               "state_model_count": 0,
               "semantic_cache_source": "bridge"
             }
@@ -613,52 +561,40 @@
           "findings": {
             "label": "findings_top12",
             "tool": "findings",
-            "elapsed_ms": 10310.6,
+            "elapsed_ms": 1051.2,
             "summary": {
-              "clone_group_count": 29,
-              "clone_family_count": 1,
+              "clone_group_count": 10,
+              "clone_family_count": 2,
               "finding_count": 12,
               "semantic_finding_count": 0,
               "debt_signal_count": 5,
-              "watchpoint_count": 1
-            }
-          },
-          "check_rules": {
-            "label": "check_rules",
-            "tool": "check_rules",
-            "elapsed_ms": 2.4,
-            "summary": {
-              "pass": true,
-              "rules_checked": 4,
-              "violation_count": 0,
-              "coverage_0_10000": 10000,
-              "truncated": 4
+              "watchpoint_count": 5
             }
           },
           "agent_brief_onboarding": {
             "label": "agent_brief_onboarding",
             "tool": "agent_brief",
-            "elapsed_ms": 2015.9,
+            "elapsed_ms": 381.6,
             "summary": {
               "mode": "repo_onboarding",
               "decision": "fix_now",
               "primary_target_count": 3,
               "missing_obligation_count": 0,
-              "watchpoint_count": 1,
+              "watchpoint_count": 3,
               "semantic_cache_source": "memory"
             }
           }
         },
-        "warm_cached_total_ms": 2709.3,
+        "warm_cached_total_ms": 732.1,
         "warm_cached": {
           "project_shape": {
             "label": "project_shape",
             "tool": "project_shape",
-            "elapsed_ms": 13.3,
+            "elapsed_ms": 0.5,
             "summary": {
               "primary_archetype": null,
               "effective_archetype_count": 0,
-              "capability_count": 1,
+              "capability_count": 0,
               "boundary_root_count": 0,
               "module_contract_count": 0
             }
@@ -666,66 +602,54 @@
           "findings": {
             "label": "findings_top12",
             "tool": "findings",
-            "elapsed_ms": 1646.1,
+            "elapsed_ms": 316.9,
             "summary": {
-              "clone_group_count": 29,
-              "clone_family_count": 1,
+              "clone_group_count": 10,
+              "clone_family_count": 2,
               "finding_count": 12,
               "semantic_finding_count": 0,
               "debt_signal_count": 5,
-              "watchpoint_count": 1
-            }
-          },
-          "check_rules": {
-            "label": "check_rules",
-            "tool": "check_rules",
-            "elapsed_ms": 6.5,
-            "summary": {
-              "pass": true,
-              "rules_checked": 4,
-              "violation_count": 0,
-              "coverage_0_10000": 10000,
-              "truncated": 4
+              "watchpoint_count": 5
             }
           },
           "agent_brief_onboarding": {
             "label": "agent_brief_onboarding",
             "tool": "agent_brief",
-            "elapsed_ms": 1043.1,
+            "elapsed_ms": 414.1,
             "summary": {
               "mode": "repo_onboarding",
               "decision": "fix_now",
               "primary_target_count": 3,
               "missing_obligation_count": 0,
-              "watchpoint_count": 1,
+              "watchpoint_count": 3,
               "semantic_cache_source": "memory"
             }
           }
         },
-        "warm_persisted_total_ms": 9426,
+        "warm_persisted_total_ms": 3629.8,
         "warm_persisted": {
           "scan": {
             "label": "persisted_scan",
             "tool": "scan",
-            "elapsed_ms": 2023.8,
+            "elapsed_ms": 1877.5,
             "summary": {
-              "files": 596,
-              "import_edges": 159,
-              "quality_signal": 6572,
-              "overall_confidence_0_10000": 9582,
-              "resolved": 159,
-              "unresolved_internal": 4
+              "files": 265,
+              "import_edges": 517,
+              "quality_signal": 4879,
+              "overall_confidence_0_10000": 5186,
+              "resolved": 517,
+              "unresolved_internal": 18
             }
           },
           "concepts": {
             "label": "persisted_concepts",
             "tool": "concepts",
-            "elapsed_ms": 224.4,
+            "elapsed_ms": 193.9,
             "summary": {
-              "configured_concept_count": 1,
-              "contract_count": 1,
+              "configured_concept_count": 0,
+              "contract_count": 0,
               "matched_guardrail_test_count": 0,
-              "inferred_concept_count": 0,
+              "inferred_concept_count": 10,
               "state_model_count": 0,
               "semantic_cache_source": "disk"
             }
@@ -733,45 +657,45 @@
           "findings": {
             "label": "persisted_findings_top12",
             "tool": "findings",
-            "elapsed_ms": 6511.2,
+            "elapsed_ms": 1141.8,
             "summary": {
-              "clone_group_count": 29,
-              "clone_family_count": 1,
+              "clone_group_count": 10,
+              "clone_family_count": 2,
               "finding_count": 12,
               "semantic_finding_count": 0,
               "debt_signal_count": 5,
-              "watchpoint_count": 1
+              "watchpoint_count": 5
             }
           },
           "agent_brief_onboarding": {
             "label": "persisted_agent_brief_onboarding",
             "tool": "agent_brief",
-            "elapsed_ms": 666.1,
+            "elapsed_ms": 415.9,
             "summary": {
               "mode": "repo_onboarding",
               "decision": "fix_now",
               "primary_target_count": 3,
               "missing_obligation_count": 0,
-              "watchpoint_count": 1,
+              "watchpoint_count": 3,
               "semantic_cache_source": "memory"
             }
           }
         },
-        "warm_patch_safety_total_ms": 468.4,
+        "warm_patch_safety_total_ms": 237.4,
         "warm_patch_safety": {
           "session_start": {
             "label": "session_start",
             "tool": "session_start",
-            "elapsed_ms": 257.2,
+            "elapsed_ms": 142.2,
             "summary": {
-              "session_finding_count": 117,
+              "session_finding_count": 40,
               "suppressed_finding_count": 0
             }
           },
           "check": {
             "label": "check",
             "tool": "check",
-            "elapsed_ms": 57.3,
+            "elapsed_ms": 23.5,
             "summary": {
               "gate": "pass",
               "issue_count": 0,
@@ -783,7 +707,7 @@
           "gate": {
             "label": "gate",
             "tool": "gate",
-            "elapsed_ms": 56.9,
+            "elapsed_ms": 22.2,
             "summary": {
               "decision": "pass",
               "changed_file_count": 0,
@@ -795,7 +719,7 @@
           "session_end": {
             "label": "session_end",
             "tool": "session_end",
-            "elapsed_ms": 96.4,
+            "elapsed_ms": 49.1,
             "summary": {
               "pass": true,
               "changed_file_count": 0,
@@ -807,41 +731,41 @@
         },
         "stdout_log": [],
         "stderr_log": [
-          "[build_project_map] 596 files, 201 unique dirs, 197 cache misses, 26.3ms",
-          "[resolve] 159 resolved, 4 unresolved_internal, 223 unresolved_external, 0 unresolved_unknown (of 386 total specs)",
-          "[resolve_imports] project_map 27.5ms, suffix_idx 14.2ms, suffix_resolve 17.2ms, total 59.0ms",
-          "[build_graphs] 596 files | maps 3.1ms, imports 59.6ms, calls+inherit 23.2ms, total 85.8ms | 159 import, 535 call, 0 inherit edges",
-          "[evolution] walked 473 commits, skipped 8 (oid_err=0, commit_err=0, unparseable=8)"
+          "[build_project_map] 265 files, 42 unique dirs, 40 cache misses, 3.5ms",
+          "[resolve] 517 resolved, 18 unresolved_internal, 177 unresolved_external, 17 unresolved_unknown (of 729 total specs)",
+          "[resolve_imports] project_map 3.9ms, suffix_idx 3.2ms, suffix_resolve 20.4ms, total 27.5ms",
+          "[build_graphs] 265 files | maps 1.5ms, imports 27.7ms, calls+inherit 7.3ms, total 36.5ms | 517 import, 1303 call, 5 inherit edges",
+          "[evolution] walked 86 commits, skipped 4 (oid_err=0, commit_err=0, unparseable=4)"
         ]
       }
     },
     {
       "sample_id": "sample_3",
-      "generated_at": "2026-04-16T20:59:16.199Z",
+      "generated_at": "2026-04-16T20:58:42.615Z",
       "benchmark": {
-        "cold_process_total_ms": 7787.8,
+        "cold_process_total_ms": 8793.2,
         "cold": {
           "scan": {
             "label": "scan",
             "tool": "scan",
-            "elapsed_ms": 1027.1,
+            "elapsed_ms": 2606.5,
             "summary": {
-              "files": 596,
-              "import_edges": 159,
-              "quality_signal": 6572,
-              "overall_confidence_0_10000": 9597,
-              "resolved": 159,
-              "unresolved_internal": 4
+              "files": 265,
+              "import_edges": 517,
+              "quality_signal": 4879,
+              "overall_confidence_0_10000": 5227,
+              "resolved": 517,
+              "unresolved_internal": 18
             }
           },
           "project_shape": {
             "label": "project_shape",
             "tool": "project_shape",
-            "elapsed_ms": 71.7,
+            "elapsed_ms": 224.7,
             "summary": {
               "primary_archetype": null,
               "effective_archetype_count": 0,
-              "capability_count": 1,
+              "capability_count": 0,
               "boundary_root_count": 0,
               "module_contract_count": 0
             }
@@ -849,12 +773,12 @@
           "concepts": {
             "label": "concepts",
             "tool": "concepts",
-            "elapsed_ms": 838,
+            "elapsed_ms": 3663.7,
             "summary": {
-              "configured_concept_count": 1,
-              "contract_count": 1,
+              "configured_concept_count": 0,
+              "contract_count": 0,
               "matched_guardrail_test_count": 0,
-              "inferred_concept_count": 0,
+              "inferred_concept_count": 10,
               "state_model_count": 0,
               "semantic_cache_source": "bridge"
             }
@@ -862,52 +786,40 @@
           "findings": {
             "label": "findings_top12",
             "tool": "findings",
-            "elapsed_ms": 5261.3,
+            "elapsed_ms": 1686.4,
             "summary": {
-              "clone_group_count": 29,
-              "clone_family_count": 1,
+              "clone_group_count": 10,
+              "clone_family_count": 2,
               "finding_count": 12,
               "semantic_finding_count": 0,
               "debt_signal_count": 5,
-              "watchpoint_count": 1
-            }
-          },
-          "check_rules": {
-            "label": "check_rules",
-            "tool": "check_rules",
-            "elapsed_ms": 1.9,
-            "summary": {
-              "pass": true,
-              "rules_checked": 4,
-              "violation_count": 0,
-              "coverage_0_10000": 10000,
-              "truncated": 4
+              "watchpoint_count": 5
             }
           },
           "agent_brief_onboarding": {
             "label": "agent_brief_onboarding",
             "tool": "agent_brief",
-            "elapsed_ms": 587.5,
+            "elapsed_ms": 611.2,
             "summary": {
               "mode": "repo_onboarding",
               "decision": "fix_now",
               "primary_target_count": 3,
               "missing_obligation_count": 0,
-              "watchpoint_count": 1,
+              "watchpoint_count": 3,
               "semantic_cache_source": "memory"
             }
           }
         },
-        "warm_cached_total_ms": 1066.5,
+        "warm_cached_total_ms": 1117.3,
         "warm_cached": {
           "project_shape": {
             "label": "project_shape",
             "tool": "project_shape",
-            "elapsed_ms": 1,
+            "elapsed_ms": 0.9,
             "summary": {
               "primary_archetype": null,
               "effective_archetype_count": 0,
-              "capability_count": 1,
+              "capability_count": 0,
               "boundary_root_count": 0,
               "module_contract_count": 0
             }
@@ -915,66 +827,54 @@
           "findings": {
             "label": "findings_top12",
             "tool": "findings",
-            "elapsed_ms": 496,
+            "elapsed_ms": 499.2,
             "summary": {
-              "clone_group_count": 29,
-              "clone_family_count": 1,
+              "clone_group_count": 10,
+              "clone_family_count": 2,
               "finding_count": 12,
               "semantic_finding_count": 0,
               "debt_signal_count": 5,
-              "watchpoint_count": 1
-            }
-          },
-          "check_rules": {
-            "label": "check_rules",
-            "tool": "check_rules",
-            "elapsed_ms": 3.9,
-            "summary": {
-              "pass": true,
-              "rules_checked": 4,
-              "violation_count": 0,
-              "coverage_0_10000": 10000,
-              "truncated": 4
+              "watchpoint_count": 5
             }
           },
           "agent_brief_onboarding": {
             "label": "agent_brief_onboarding",
             "tool": "agent_brief",
-            "elapsed_ms": 565.4,
+            "elapsed_ms": 616.8,
             "summary": {
               "mode": "repo_onboarding",
               "decision": "fix_now",
               "primary_target_count": 3,
               "missing_obligation_count": 0,
-              "watchpoint_count": 1,
+              "watchpoint_count": 3,
               "semantic_cache_source": "memory"
             }
           }
         },
-        "warm_persisted_total_ms": 6750.4,
+        "warm_persisted_total_ms": 6507.4,
         "warm_persisted": {
           "scan": {
             "label": "persisted_scan",
             "tool": "scan",
-            "elapsed_ms": 947,
+            "elapsed_ms": 2917.9,
             "summary": {
-              "files": 596,
-              "import_edges": 159,
-              "quality_signal": 6572,
-              "overall_confidence_0_10000": 9582,
-              "resolved": 159,
-              "unresolved_internal": 4
+              "files": 265,
+              "import_edges": 517,
+              "quality_signal": 4879,
+              "overall_confidence_0_10000": 5186,
+              "resolved": 517,
+              "unresolved_internal": 18
             }
           },
           "concepts": {
             "label": "persisted_concepts",
             "tool": "concepts",
-            "elapsed_ms": 155.9,
+            "elapsed_ms": 302.8,
             "summary": {
-              "configured_concept_count": 1,
-              "contract_count": 1,
+              "configured_concept_count": 0,
+              "contract_count": 0,
               "matched_guardrail_test_count": 0,
-              "inferred_concept_count": 0,
+              "inferred_concept_count": 10,
               "state_model_count": 0,
               "semantic_cache_source": "disk"
             }
@@ -982,45 +882,45 @@
           "findings": {
             "label": "persisted_findings_top12",
             "tool": "findings",
-            "elapsed_ms": 5059.1,
+            "elapsed_ms": 1865.2,
             "summary": {
-              "clone_group_count": 29,
-              "clone_family_count": 1,
+              "clone_group_count": 10,
+              "clone_family_count": 2,
               "finding_count": 12,
               "semantic_finding_count": 0,
               "debt_signal_count": 5,
-              "watchpoint_count": 1
+              "watchpoint_count": 5
             }
           },
           "agent_brief_onboarding": {
             "label": "persisted_agent_brief_onboarding",
             "tool": "agent_brief",
-            "elapsed_ms": 588.1,
+            "elapsed_ms": 1420.9,
             "summary": {
               "mode": "repo_onboarding",
               "decision": "fix_now",
               "primary_target_count": 3,
               "missing_obligation_count": 0,
-              "watchpoint_count": 1,
+              "watchpoint_count": 3,
               "semantic_cache_source": "memory"
             }
           }
         },
-        "warm_patch_safety_total_ms": 302,
+        "warm_patch_safety_total_ms": 351.5,
         "warm_patch_safety": {
           "session_start": {
             "label": "session_start",
             "tool": "session_start",
-            "elapsed_ms": 159.6,
+            "elapsed_ms": 204.6,
             "summary": {
-              "session_finding_count": 117,
+              "session_finding_count": 40,
               "suppressed_finding_count": 0
             }
           },
           "check": {
             "label": "check",
             "tool": "check",
-            "elapsed_ms": 38.5,
+            "elapsed_ms": 35.9,
             "summary": {
               "gate": "pass",
               "issue_count": 0,
@@ -1032,7 +932,7 @@
           "gate": {
             "label": "gate",
             "tool": "gate",
-            "elapsed_ms": 40.2,
+            "elapsed_ms": 36.7,
             "summary": {
               "decision": "pass",
               "changed_file_count": 0,
@@ -1044,7 +944,7 @@
           "session_end": {
             "label": "session_end",
             "tool": "session_end",
-            "elapsed_ms": 63.5,
+            "elapsed_ms": 73.9,
             "summary": {
               "pass": true,
               "changed_file_count": 0,
@@ -1056,68 +956,64 @@
         },
         "stdout_log": [],
         "stderr_log": [
-          "[build_project_map] 596 files, 201 unique dirs, 197 cache misses, 18.9ms",
-          "[resolve] 159 resolved, 4 unresolved_internal, 223 unresolved_external, 0 unresolved_unknown (of 386 total specs)",
-          "[resolve_imports] project_map 19.8ms, suffix_idx 8.4ms, suffix_resolve 9.6ms, total 37.8ms",
-          "[build_graphs] 596 files | maps 3.2ms, imports 38.2ms, calls+inherit 9.5ms, total 50.9ms | 159 import, 535 call, 0 inherit edges",
-          "[evolution] walked 473 commits, skipped 8 (oid_err=0, commit_err=0, unparseable=8)"
+          "[build_project_map] 265 files, 42 unique dirs, 40 cache misses, 4.6ms",
+          "[resolve] 517 resolved, 18 unresolved_internal, 177 unresolved_external, 17 unresolved_unknown (of 729 total specs)",
+          "[resolve_imports] project_map 7.9ms, suffix_idx 11.0ms, suffix_resolve 57.8ms, total 76.8ms",
+          "[build_graphs] 265 files | maps 8.4ms, imports 76.9ms, calls+inherit 38.4ms, total 123.7ms | 517 import, 1303 call, 5 inherit edges",
+          "[evolution] walked 86 commits, skipped 4 (oid_err=0, commit_err=0, unparseable=4)"
         ]
       }
     }
   ],
   "analysis_mode": "head_clone",
   "source_tree_identity": {
-    "commit": "66f8fd338db83b781ce24c09d017bc8d9875d03f",
+    "commit": "e280d46fb46b9e948c096c87ee738cca669737d7",
     "dirty_paths": [],
     "dirty_paths_count": 0,
     "dirty_paths_fingerprint": "53c1562521679823f3ee3c10c2585dec4c3ecd862d145f868947047fd32725ac",
-    "tree_fingerprint": "604ac3b877d7c1092e2e3e2d83e90e109b5dcac4b82667b25defb6a1f5fb6125",
+    "tree_fingerprint": "6ed7ac1e69b5c5ffa1f20d58ff46d9ae18899ee74c27f48b5e71b264878f0926",
     "analysis_mode": "head_clone"
   },
   "analyzed_tree_identity": {
-    "commit": "66f8fd338db83b781ce24c09d017bc8d9875d03f",
+    "commit": "e280d46fb46b9e948c096c87ee738cca669737d7",
     "dirty_paths": [],
     "dirty_paths_count": 0,
     "dirty_paths_fingerprint": "53c1562521679823f3ee3c10c2585dec4c3ecd862d145f868947047fd32725ac",
-    "tree_fingerprint": "604ac3b877d7c1092e2e3e2d83e90e109b5dcac4b82667b25defb6a1f5fb6125",
+    "tree_fingerprint": "6ed7ac1e69b5c5ffa1f20d58ff46d9ae18899ee74c27f48b5e71b264878f0926",
     "analysis_mode": "head_clone"
   },
-  "rules_identity": {
-    "path": "<sentrux-root>/.sentrux/rules.toml",
-    "exists": true,
-    "sha256": "a0189b2651a81f96cf260db35e12cbe3b57cf060be805d5ba0850de8a4e1170f"
-  },
+  "rules_identity": null,
   "binary_identity": {
     "path": "<sentrux-root>/target/debug/sentrux",
     "exists": true,
     "sha256": "ee29dbea1ef59129b3bae4ce3052854c8ea5df71e9e5fb4b22de716b22ded002"
   },
-  "repo_root": "<sentrux-root>",
+  "repo_root": "<one-tool-root>",
   "sentrux_binary": "<sentrux-root>/target/debug/sentrux",
   "benchmark": {
-    "cold_process_total_ms": 8426.1,
+    "cold_process_total_ms": 4966.6,
     "cold": {
       "scan": {
         "label": "scan",
         "tool": "scan",
-        "elapsed_ms": 1181.9,
+        "elapsed_ms": 1288.7,
         "summary": {
-          "files": 596,
-          "import_edges": 159,
-          "quality_signal": 6572,
-          "overall_confidence_0_10000": 9597,
-          "resolved": 159,
-          "unresolved_internal": 4
+          "files": 265,
+          "import_edges": 517,
+          "quality_signal": 4879,
+          "overall_confidence_0_10000": 5227,
+          "resolved": 517,
+          "unresolved_internal": 18
         }
       },
       "project_shape": {
         "label": "project_shape",
         "tool": "project_shape",
-        "elapsed_ms": 77.2,
+        "elapsed_ms": 54,
         "summary": {
           "primary_archetype": null,
           "effective_archetype_count": 0,
-          "capability_count": 1,
+          "capability_count": 0,
           "boundary_root_count": 0,
           "module_contract_count": 0
         }
@@ -1125,12 +1021,12 @@
       "concepts": {
         "label": "concepts",
         "tool": "concepts",
-        "elapsed_ms": 975.6,
+        "elapsed_ms": 2316.2,
         "summary": {
-          "configured_concept_count": 1,
-          "contract_count": 1,
+          "configured_concept_count": 0,
+          "contract_count": 0,
           "matched_guardrail_test_count": 0,
-          "inferred_concept_count": 0,
+          "inferred_concept_count": 10,
           "state_model_count": 0,
           "semantic_cache_source": "bridge"
         }
@@ -1138,52 +1034,40 @@
       "findings": {
         "label": "findings_top12",
         "tool": "findings",
-        "elapsed_ms": 5621,
+        "elapsed_ms": 1051.2,
         "summary": {
-          "clone_group_count": 29,
-          "clone_family_count": 1,
+          "clone_group_count": 10,
+          "clone_family_count": 2,
           "finding_count": 12,
           "semantic_finding_count": 0,
           "debt_signal_count": 5,
-          "watchpoint_count": 1
-        }
-      },
-      "check_rules": {
-        "label": "check_rules",
-        "tool": "check_rules",
-        "elapsed_ms": 1.9,
-        "summary": {
-          "pass": true,
-          "rules_checked": 4,
-          "violation_count": 0,
-          "coverage_0_10000": 10000,
-          "truncated": 4
+          "watchpoint_count": 5
         }
       },
       "agent_brief_onboarding": {
         "label": "agent_brief_onboarding",
         "tool": "agent_brief",
-        "elapsed_ms": 587.5,
+        "elapsed_ms": 381.6,
         "summary": {
           "mode": "repo_onboarding",
           "decision": "fix_now",
           "primary_target_count": 3,
           "missing_obligation_count": 0,
-          "watchpoint_count": 1,
+          "watchpoint_count": 3,
           "semantic_cache_source": "memory"
         }
       }
     },
-    "warm_cached_total_ms": 1105.9,
+    "warm_cached_total_ms": 732.1,
     "warm_cached": {
       "project_shape": {
         "label": "project_shape",
         "tool": "project_shape",
-        "elapsed_ms": 11.2,
+        "elapsed_ms": 0.8,
         "summary": {
           "primary_archetype": null,
           "effective_archetype_count": 0,
-          "capability_count": 1,
+          "capability_count": 0,
           "boundary_root_count": 0,
           "module_contract_count": 0
         }
@@ -1191,66 +1075,54 @@
       "findings": {
         "label": "findings_top12",
         "tool": "findings",
-        "elapsed_ms": 496,
+        "elapsed_ms": 316.9,
         "summary": {
-          "clone_group_count": 29,
-          "clone_family_count": 1,
+          "clone_group_count": 10,
+          "clone_family_count": 2,
           "finding_count": 12,
           "semantic_finding_count": 0,
           "debt_signal_count": 5,
-          "watchpoint_count": 1
-        }
-      },
-      "check_rules": {
-        "label": "check_rules",
-        "tool": "check_rules",
-        "elapsed_ms": 3.9,
-        "summary": {
-          "pass": true,
-          "rules_checked": 4,
-          "violation_count": 0,
-          "coverage_0_10000": 10000,
-          "truncated": 4
+          "watchpoint_count": 5
         }
       },
       "agent_brief_onboarding": {
         "label": "agent_brief_onboarding",
         "tool": "agent_brief",
-        "elapsed_ms": 597,
+        "elapsed_ms": 414.1,
         "summary": {
           "mode": "repo_onboarding",
           "decision": "fix_now",
           "primary_target_count": 3,
           "missing_obligation_count": 0,
-          "watchpoint_count": 1,
+          "watchpoint_count": 3,
           "semantic_cache_source": "memory"
         }
       }
     },
-    "warm_persisted_total_ms": 8978.7,
+    "warm_persisted_total_ms": 3629.8,
     "warm_persisted": {
       "scan": {
         "label": "persisted_scan",
         "tool": "scan",
-        "elapsed_ms": 1235.6,
+        "elapsed_ms": 1877.5,
         "summary": {
-          "files": 596,
-          "import_edges": 159,
-          "quality_signal": 6572,
-          "overall_confidence_0_10000": 9582,
-          "resolved": 159,
-          "unresolved_internal": 4
+          "files": 265,
+          "import_edges": 517,
+          "quality_signal": 4879,
+          "overall_confidence_0_10000": 5186,
+          "resolved": 517,
+          "unresolved_internal": 18
         }
       },
       "concepts": {
         "label": "persisted_concepts",
         "tool": "concepts",
-        "elapsed_ms": 192.2,
+        "elapsed_ms": 193.9,
         "summary": {
-          "configured_concept_count": 1,
-          "contract_count": 1,
+          "configured_concept_count": 0,
+          "contract_count": 0,
           "matched_guardrail_test_count": 0,
-          "inferred_concept_count": 0,
+          "inferred_concept_count": 10,
           "state_model_count": 0,
           "semantic_cache_source": "disk"
         }
@@ -1258,45 +1130,45 @@
       "findings": {
         "label": "persisted_findings_top12",
         "tool": "findings",
-        "elapsed_ms": 6511.2,
+        "elapsed_ms": 1141.8,
         "summary": {
-          "clone_group_count": 29,
-          "clone_family_count": 1,
+          "clone_group_count": 10,
+          "clone_family_count": 2,
           "finding_count": 12,
           "semantic_finding_count": 0,
           "debt_signal_count": 5,
-          "watchpoint_count": 1
+          "watchpoint_count": 5
         }
       },
       "agent_brief_onboarding": {
         "label": "persisted_agent_brief_onboarding",
         "tool": "agent_brief",
-        "elapsed_ms": 666.1,
+        "elapsed_ms": 415.9,
         "summary": {
           "mode": "repo_onboarding",
           "decision": "fix_now",
           "primary_target_count": 3,
           "missing_obligation_count": 0,
-          "watchpoint_count": 1,
+          "watchpoint_count": 3,
           "semantic_cache_source": "memory"
         }
       }
     },
-    "warm_patch_safety_total_ms": 331.9,
+    "warm_patch_safety_total_ms": 237.4,
     "warm_patch_safety": {
       "session_start": {
         "label": "session_start",
         "tool": "session_start",
-        "elapsed_ms": 185.7,
+        "elapsed_ms": 142.2,
         "summary": {
-          "session_finding_count": 117,
+          "session_finding_count": 40,
           "suppressed_finding_count": 0
         }
       },
       "check": {
         "label": "check",
         "tool": "check",
-        "elapsed_ms": 39.1,
+        "elapsed_ms": 23.5,
         "summary": {
           "gate": "pass",
           "issue_count": 0,
@@ -1308,7 +1180,7 @@
       "gate": {
         "label": "gate",
         "tool": "gate",
-        "elapsed_ms": 40.2,
+        "elapsed_ms": 22.2,
         "summary": {
           "decision": "pass",
           "changed_file_count": 0,
@@ -1320,7 +1192,7 @@
       "session_end": {
         "label": "session_end",
         "tool": "session_end",
-        "elapsed_ms": 67.6,
+        "elapsed_ms": 49.1,
         "summary": {
           "pass": true,
           "changed_file_count": 0,
@@ -1332,8 +1204,8 @@
     }
   },
   "comparison": {
-    "compared_to": "<sentrux-root>/docs/v2/examples/sentrux-benchmark.json",
-    "previous_generated_at": "2026-04-16T20:50:28.495Z",
+    "compared_to": "<sentrux-root>/docs/v2/examples/one-tool-benchmark.json",
+    "previous_generated_at": "2026-04-16T20:34:31.895Z",
     "comparable": true,
     "comparability": {
       "comparable": true,
@@ -1360,208 +1232,199 @@
       {
         "metric": "cold process total",
         "path": "cold_process_total_ms",
-        "previous_ms": 7594.1,
-        "current_ms": 8426.1,
-        "delta_ms": 832,
-        "delta_percent": 11,
+        "previous_ms": 4403.4,
+        "current_ms": 4966.6,
+        "delta_ms": 563.2,
+        "delta_percent": 12.8,
         "classification": "warn"
       },
       {
         "metric": "cold scan",
         "path": "cold.scan.elapsed_ms",
-        "previous_ms": 1036.5,
-        "current_ms": 1181.9,
-        "delta_ms": 145.4,
-        "delta_percent": 14,
+        "previous_ms": 1212.1,
+        "current_ms": 1288.7,
+        "delta_ms": 76.6,
+        "delta_percent": 6.3,
         "classification": "info"
       },
       {
         "metric": "cold project_shape",
         "path": "cold.project_shape.elapsed_ms",
-        "previous_ms": 72.4,
-        "current_ms": 77.2,
-        "delta_ms": 4.8,
-        "delta_percent": 6.6,
+        "previous_ms": 50.8,
+        "current_ms": 54,
+        "delta_ms": 3.2,
+        "delta_percent": 6.3,
         "classification": "info"
       },
       {
         "metric": "cold concepts",
         "path": "cold.concepts.elapsed_ms",
-        "previous_ms": 836.9,
-        "current_ms": 975.6,
-        "delta_ms": 138.7,
-        "delta_percent": 16.6,
-        "classification": "info"
+        "previous_ms": 1900.4,
+        "current_ms": 2316.2,
+        "delta_ms": 415.8,
+        "delta_percent": 21.9,
+        "classification": "fail"
       },
       {
         "metric": "cold findings",
         "path": "cold.findings.elapsed_ms",
-        "previous_ms": 5135.9,
-        "current_ms": 5621,
-        "delta_ms": 485.1,
-        "delta_percent": 9.4,
-        "classification": "info"
-      },
-      {
-        "metric": "cold check_rules",
-        "path": "cold.check_rules.elapsed_ms",
-        "previous_ms": 1.5,
-        "current_ms": 1.9,
-        "delta_ms": 0.4,
-        "delta_percent": 26.7,
-        "classification": "info"
+        "previous_ms": 878.1,
+        "current_ms": 1051.2,
+        "delta_ms": 173.1,
+        "delta_percent": 19.7,
+        "classification": "warn"
       },
       {
         "metric": "cold agent_brief onboarding",
         "path": "cold.agent_brief_onboarding.elapsed_ms",
-        "previous_ms": 565.5,
-        "current_ms": 587.5,
-        "delta_ms": 22,
-        "delta_percent": 3.9,
+        "previous_ms": 336.3,
+        "current_ms": 381.6,
+        "delta_ms": 45.3,
+        "delta_percent": 13.5,
         "classification": "info"
       },
       {
         "metric": "warm cached total",
         "path": "warm_cached_total_ms",
-        "previous_ms": 1095.1,
-        "current_ms": 1105.9,
-        "delta_ms": 10.8,
-        "delta_percent": 1,
-        "classification": "info"
+        "previous_ms": 564.5,
+        "current_ms": 732.1,
+        "delta_ms": 167.6,
+        "delta_percent": 29.7,
+        "classification": "warn"
       },
       {
         "metric": "warm findings",
         "path": "warm_cached.findings.elapsed_ms",
-        "previous_ms": 530.6,
-        "current_ms": 496,
-        "delta_ms": -34.6,
-        "delta_percent": -6.5,
-        "classification": "info"
-      },
-      {
-        "metric": "warm check_rules",
-        "path": "warm_cached.check_rules.elapsed_ms",
-        "previous_ms": 1.5,
-        "current_ms": 3.9,
-        "delta_ms": 2.4,
-        "delta_percent": 160,
+        "previous_ms": 247.2,
+        "current_ms": 316.9,
+        "delta_ms": 69.7,
+        "delta_percent": 28.2,
         "classification": "info"
       },
       {
         "metric": "warm agent_brief onboarding",
         "path": "warm_cached.agent_brief_onboarding.elapsed_ms",
-        "previous_ms": 562,
-        "current_ms": 597,
-        "delta_ms": 35,
-        "delta_percent": 6.2,
+        "previous_ms": 315.9,
+        "current_ms": 414.1,
+        "delta_ms": 98.2,
+        "delta_percent": 31.1,
         "classification": "info"
       },
       {
         "metric": "warm persisted total",
         "path": "warm_persisted_total_ms",
-        "previous_ms": 6693.6,
-        "current_ms": 8978.7,
-        "delta_ms": 2285.1,
-        "delta_percent": 34.1,
+        "previous_ms": 2487.1,
+        "current_ms": 3629.8,
+        "delta_ms": 1142.7,
+        "delta_percent": 45.9,
         "classification": "fail"
       },
       {
         "metric": "warm persisted concepts",
         "path": "warm_persisted.concepts.elapsed_ms",
-        "previous_ms": 163.7,
-        "current_ms": 192.2,
-        "delta_ms": 28.5,
-        "delta_percent": 17.4,
+        "previous_ms": 167.2,
+        "current_ms": 193.9,
+        "delta_ms": 26.7,
+        "delta_percent": 16,
         "classification": "info"
       },
       {
         "metric": "warm persisted findings",
         "path": "warm_persisted.findings.elapsed_ms",
-        "previous_ms": 4995.4,
-        "current_ms": 6511.2,
-        "delta_ms": 1515.8,
-        "delta_percent": 30.3,
+        "previous_ms": 890.2,
+        "current_ms": 1141.8,
+        "delta_ms": 251.6,
+        "delta_percent": 28.3,
         "classification": "fail"
       },
       {
         "metric": "warm persisted agent_brief onboarding",
         "path": "warm_persisted.agent_brief_onboarding.elapsed_ms",
-        "previous_ms": 542.3,
-        "current_ms": 666.1,
-        "delta_ms": 123.8,
-        "delta_percent": 22.8,
+        "previous_ms": 315.2,
+        "current_ms": 415.9,
+        "delta_ms": 100.7,
+        "delta_percent": 31.9,
         "classification": "info"
       },
       {
         "metric": "warm patch-safety total",
         "path": "warm_patch_safety_total_ms",
-        "previous_ms": 311,
-        "current_ms": 331.9,
-        "delta_ms": 20.9,
-        "delta_percent": 6.7,
+        "previous_ms": 179.5,
+        "current_ms": 237.4,
+        "delta_ms": 57.9,
+        "delta_percent": 32.3,
         "classification": "info"
       },
       {
         "metric": "warm session_start",
         "path": "warm_patch_safety.session_start.elapsed_ms",
-        "previous_ms": 168.1,
-        "current_ms": 185.7,
-        "delta_ms": 17.6,
-        "delta_percent": 10.5,
+        "previous_ms": 102.8,
+        "current_ms": 142.2,
+        "delta_ms": 39.4,
+        "delta_percent": 38.3,
         "classification": "info"
       },
       {
         "metric": "warm check",
         "path": "warm_patch_safety.check.elapsed_ms",
-        "previous_ms": 38,
-        "current_ms": 39.1,
-        "delta_ms": 1.1,
-        "delta_percent": 2.9,
+        "previous_ms": 19.7,
+        "current_ms": 23.5,
+        "delta_ms": 3.8,
+        "delta_percent": 19.3,
         "classification": "info"
       },
       {
         "metric": "warm gate",
         "path": "warm_patch_safety.gate.elapsed_ms",
-        "previous_ms": 38.6,
-        "current_ms": 40.2,
-        "delta_ms": 1.6,
-        "delta_percent": 4.1,
+        "previous_ms": 21.1,
+        "current_ms": 22.2,
+        "delta_ms": 1.1,
+        "delta_percent": 5.2,
         "classification": "info"
       },
       {
         "metric": "warm session_end",
         "path": "warm_patch_safety.session_end.elapsed_ms",
-        "previous_ms": 64.6,
-        "current_ms": 67.6,
-        "delta_ms": 3,
-        "delta_percent": 4.6,
+        "previous_ms": 35.1,
+        "current_ms": 49.1,
+        "delta_ms": 14,
+        "delta_percent": 39.9,
         "classification": "info"
       }
     ],
     "summary": {
-      "total": 20,
-      "fail_count": 2,
-      "warn_count": 1,
-      "info_count": 17,
+      "total": 18,
+      "fail_count": 3,
+      "warn_count": 3,
+      "info_count": 12,
       "blocked_count": 0
     },
     "regressions": [
       {
+        "metric": "cold concepts",
+        "path": "cold.concepts.elapsed_ms",
+        "previous_ms": 1900.4,
+        "current_ms": 2316.2,
+        "delta_ms": 415.8,
+        "delta_percent": 21.9,
+        "classification": "fail"
+      },
+      {
         "metric": "warm persisted total",
         "path": "warm_persisted_total_ms",
-        "previous_ms": 6693.6,
-        "current_ms": 8978.7,
-        "delta_ms": 2285.1,
-        "delta_percent": 34.1,
+        "previous_ms": 2487.1,
+        "current_ms": 3629.8,
+        "delta_ms": 1142.7,
+        "delta_percent": 45.9,
         "classification": "fail"
       },
       {
         "metric": "warm persisted findings",
         "path": "warm_persisted.findings.elapsed_ms",
-        "previous_ms": 4995.4,
-        "current_ms": 6511.2,
-        "delta_ms": 1515.8,
-        "delta_percent": 30.3,
+        "previous_ms": 890.2,
+        "current_ms": 1141.8,
+        "delta_ms": 251.6,
+        "delta_percent": 28.3,
         "classification": "fail"
       }
     ],
@@ -1569,10 +1432,28 @@
       {
         "metric": "cold process total",
         "path": "cold_process_total_ms",
-        "previous_ms": 7594.1,
-        "current_ms": 8426.1,
-        "delta_ms": 832,
-        "delta_percent": 11,
+        "previous_ms": 4403.4,
+        "current_ms": 4966.6,
+        "delta_ms": 563.2,
+        "delta_percent": 12.8,
+        "classification": "warn"
+      },
+      {
+        "metric": "cold findings",
+        "path": "cold.findings.elapsed_ms",
+        "previous_ms": 878.1,
+        "current_ms": 1051.2,
+        "delta_ms": 173.1,
+        "delta_percent": 19.7,
+        "classification": "warn"
+      },
+      {
+        "metric": "warm cached total",
+        "path": "warm_cached_total_ms",
+        "previous_ms": 564.5,
+        "current_ms": 732.1,
+        "delta_ms": 167.6,
+        "delta_percent": 29.7,
         "classification": "warn"
       }
     ],

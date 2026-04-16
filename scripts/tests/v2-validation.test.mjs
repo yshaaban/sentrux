@@ -207,7 +207,7 @@ test('compareJsonFiles ignores metadata timestamps and binary hashes', async fun
 
   try {
     const basePayload = {
-      parallel_code_root: '<parallel-code-dir>',
+      repo_root: '<public-repo-root>',
       analysis_mode: 'head_clone',
       binary_identity: {
         path: '<sentrux-root>/target/debug/sentrux',

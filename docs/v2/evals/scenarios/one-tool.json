@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "scenario_id": "one-tool",
+  "title": "One-Tool external eval coverage",
+  "description": "Benchmark the mixed TypeScript and Python public CLI repo with structured agent_brief and dead_private tasks.",
+  "repo": {
+    "name": "one-tool",
+    "root_env": "ONE_TOOL_ROOT",
+    "default_root": "../../../../../one-tool",
+    "description": "Mixed TypeScript and Python CLI repo with MCP layering, command-group composition roots, and cross-runtime parity pressure."
+  },
+  "tasks": [
+    {
+      "task_id": "agent-brief-repo-onboarding",
+      "kind": "agent_brief",
+      "mode": "repo_onboarding",
+      "prompt": "Inspect the repository at the current working directory and return a repo onboarding brief for a new engineer. Focus on repo shape, authoritative surfaces, the most important boundaries, likely risk pockets, and where to start reading first. Keep the answer evidence-backed and concise.",
+      "checks": [
+        { "kind": "has", "path": "task_kind", "severity": "required" },
+        { "kind": "enum", "path": "mode", "allowed": ["repo_onboarding"], "severity": "required" },
+        { "kind": "has", "path": "summary", "severity": "required" },
+        { "kind": "min_items", "path": "top_signals", "min": 3, "severity": "required" },
+        { "kind": "min_items", "path": "next_steps", "min": 2, "severity": "required" },
+        { "kind": "has", "path": "confidence_0_1", "severity": "required" }
+      ]
+    },
+    {
+      "task_id": "agent-brief-patch",
+      "kind": "agent_brief",
+      "mode": "patch",
+      "prompt": "Inspect the repository as if a patch is in flight. Return a patch brief that names the most important surfaces to review, any likely contract or propagation risks, and the next verification steps before merge. If there is no live patch context, say so explicitly instead of inventing one.",
+      "checks": [
+        { "kind": "has", "path": "task_kind", "severity": "required" },
+        { "kind": "enum", "path": "mode", "allowed": ["patch"], "severity": "required" },
+        { "kind": "has", "path": "summary", "severity": "required" },
+        { "kind": "min_items", "path": "top_signals", "min": 2, "severity": "required" },
+        { "kind": "min_items", "path": "next_steps", "min": 2, "severity": "required" },
+        { "kind": "has", "path": "confidence_0_1", "severity": "required" }
+      ]
+    },
+    {
+      "task_id": "agent-brief-pre-merge",
+      "kind": "agent_brief",
+      "mode": "pre_merge",
+      "prompt": "Inspect the repository as if a branch is about to merge. Return a pre-merge brief that highlights remaining blockers, unresolved obligations, and any evidence that the patch-safety surface is not ready yet. Keep the answer concrete and avoid generic advice.",
+      "checks": [
+        { "kind": "has", "path": "task_kind", "severity": "required" },
+        { "kind": "enum", "path": "mode", "allowed": ["pre_merge"], "severity": "required" },
+        { "kind": "has", "path": "summary", "severity": "required" },
+        { "kind": "min_items", "path": "next_steps", "min": 2, "severity": "required" },
+        { "kind": "has", "path": "confidence_0_1", "severity": "required" }
+      ]
+    },
+    {
+      "task_id": "dead-private-clusters",
+      "kind": "dead_private",
+      "prompt": "Inspect the repository for likely dead private code. Return the highest-confidence private functions, methods, or helpers that appear uncalled or structurally orphaned, with file path, optional symbol name, evidence, and a concise rationale. Prefer a small number of strong candidates over broad speculation.",
+      "checks": [
+        { "kind": "has", "path": "task_kind", "severity": "required" },
+        { "kind": "has", "path": "summary", "severity": "required" },
+        { "kind": "min_items", "path": "candidate_clusters", "min": 1, "severity": "required" },
+        { "kind": "has", "path": "confidence_0_1", "severity": "required" }
+      ]
+    }
+  ]
+}

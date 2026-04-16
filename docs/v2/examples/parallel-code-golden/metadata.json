@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-16T11:40:41Z",
+  "generated_at": "2026-04-16T20:36:15Z",
   "parallel_code_root": "<parallel-code-dir>",
   "analysis_mode": "head_clone",
   "source_tree_identity": {
@@ -32,6 +32,6 @@
   "binary_identity": {
     "path": "<sentrux-root>/target/debug/sentrux",
     "exists": true,
-    "sha256": "a0e091a75dc9cb5fc52b5bc3427a4290f3887e53ec7d52145200550a9cf2336b"
+    "sha256": "ee29dbea1ef59129b3bae4ce3052854c8ea5df71e9e5fb4b22de716b22ded002"
   }
 }

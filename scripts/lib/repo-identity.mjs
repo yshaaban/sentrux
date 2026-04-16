@@ -242,7 +242,7 @@ export function buildRepoFreshnessMetadata({
     },
     rules_identity: collectFileIdentity(rulesSource),
     binary_identity: collectFileIdentity(binaryPath),
-    parallel_code_root: repoRoot,
+    repo_root: repoRoot,
   };
 }
 
