@@ -12,6 +12,7 @@ import {
   writeJson,
   writeText,
 } from '../lib/eval-batch.mjs';
+import { pathExists } from '../lib/repo-calibration-artifacts.mjs';
 import {
   formatSessionTelemetrySummaryMarkdown,
   mergeSessionTelemetrySummaries,
@@ -78,19 +79,6 @@ export function parseArgs(argv) {
 
 function nowIso() {
   return new Date().toISOString();
-}
-
-async function pathExists(targetPath) {
-  if (!targetPath) {
-    return false;
-  }
-
-  try {
-    await access(targetPath);
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 async function pushExistingPathArg(args, flag, targetPath) {

@@ -219,6 +219,21 @@ function summarizeSession(sessionRunId, events, signalMap) {
   };
 }
 
+export function summarizeOutcome(sessionTelemetry) {
+  const lastSession = sessionTelemetry.sessions.at(-1) ?? null;
+
+  return {
+    session_count: sessionTelemetry.summary.session_count,
+    initial_action_kinds: lastSession?.initial_action_kinds ?? [],
+    initial_top_action_kind: lastSession?.initial_top_action_kind ?? null,
+    top_action_cleared: lastSession?.top_action_cleared ?? false,
+    checks_to_clear_top_action: lastSession?.checks_to_clear_top_action ?? null,
+    followup_regression_introduced: lastSession?.followup_regression_introduced ?? false,
+    final_gate: lastSession?.final_gate ?? null,
+    final_session_clean: lastSession?.final_session_clean ?? false,
+  };
+}
+
 export async function readSessionTelemetryLog(targetPath) {
   const source = await readFile(targetPath, 'utf8');
   return source

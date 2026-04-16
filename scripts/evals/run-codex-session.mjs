@@ -1,16 +1,24 @@
 #!/usr/bin/env node
 
-import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createDisposableRepoClone } from '../lib/disposable-repo.mjs';
-import { createMcpSession, runTool } from '../lib/benchmark-harness.mjs';
+import { runTool } from '../lib/benchmark-harness.mjs';
 import { prepareTypeScriptBenchmarkHome } from '../lib/benchmark-plugin-home.mjs';
 import { collectRepoIdentity } from '../lib/repo-identity.mjs';
 import {
+  createEvalMcpSession,
+  defaultOutputDir as buildDefaultOutputDir,
+  defaultRulesSource,
+  maybeCopyFile,
+  parseCliArgs,
+} from '../lib/eval-support.mjs';
+import {
   formatSessionTelemetrySummaryMarkdown,
   loadSessionTelemetrySummary,
+  summarizeOutcome,
 } from '../lib/session-telemetry.mjs';
 import { startCodexExec } from './providers/codex-cli.mjs';
 
@@ -41,99 +49,66 @@ function parseArgs(argv) {
     codexBin: process.env.CODEX_BIN ?? 'codex',
   };
 
-  for (let index = 2; index < argv.length; index += 1) {
-    const value = argv[index];
-    if (value === '--source-root') {
-      index += 1;
-      result.sourceRoot = argv[index];
-      continue;
-    }
-    if (value === '--repo-label') {
-      index += 1;
-      result.repoLabel = argv[index];
-      continue;
-    }
-    if (value === '--task') {
-      index += 1;
-      result.task = argv[index];
-      continue;
-    }
-    if (value === '--task-id') {
-      index += 1;
-      result.taskId = argv[index];
-      continue;
-    }
-    if (value === '--task-file') {
-      index += 1;
-      result.taskFile = argv[index];
-      continue;
-    }
-    if (value === '--task-label') {
-      index += 1;
-      result.taskLabel = argv[index];
-      continue;
-    }
-    if (value === '--tag') {
-      index += 1;
-      result.tags.push(argv[index]);
-      continue;
-    }
-    if (value === '--expected-signal-kind') {
-      index += 1;
-      result.expectedSignalKinds.push(argv[index]);
-      continue;
-    }
-    if (value === '--expected-fix-surface') {
-      index += 1;
-      result.expectedFixSurface = argv[index];
-      continue;
-    }
-    if (value === '--rules-source') {
-      index += 1;
-      result.rulesSource = argv[index];
-      continue;
-    }
-    if (value === '--analysis-mode') {
-      index += 1;
-      result.analysisMode = argv[index];
-      continue;
-    }
-    if (value === '--model') {
-      index += 1;
-      result.model = argv[index];
-      continue;
-    }
-    if (value === '--timeout-ms') {
-      index += 1;
-      result.timeoutMs = Number(argv[index]);
-      continue;
-    }
-    if (value === '--idle-timeout-ms') {
-      index += 1;
-      result.idleTimeoutMs = Number(argv[index]);
-      continue;
-    }
-    if (value === '--poll-ms') {
-      index += 1;
-      result.pollMs = Number(argv[index]);
-      continue;
-    }
-    if (value === '--output-dir') {
-      index += 1;
-      result.outputDir = argv[index];
-      continue;
-    }
-    if (value === '--keep-clone') {
-      result.keepClone = true;
-      continue;
-    }
-    if (value === '--codex-bin') {
-      index += 1;
-      result.codexBin = argv[index];
-      continue;
-    }
-    throw new Error(`Unknown argument: ${value}`);
-  }
+  parseCliArgs(argv, result, {
+    flags: {
+      '--keep-clone': function enableKeepClone(target) {
+        target.keepClone = true;
+      },
+    },
+    values: {
+      '--source-root': function setSourceRoot(target, value) {
+        target.sourceRoot = value;
+      },
+      '--repo-label': function setRepoLabel(target, value) {
+        target.repoLabel = value;
+      },
+      '--task': function setTask(target, value) {
+        target.task = value;
+      },
+      '--task-id': function setTaskId(target, value) {
+        target.taskId = value;
+      },
+      '--task-file': function setTaskFile(target, value) {
+        target.taskFile = value;
+      },
+      '--task-label': function setTaskLabel(target, value) {
+        target.taskLabel = value;
+      },
+      '--tag': function appendTag(target, value) {
+        target.tags.push(value);
+      },
+      '--expected-signal-kind': function appendExpectedSignalKind(target, value) {
+        target.expectedSignalKinds.push(value);
+      },
+      '--expected-fix-surface': function setExpectedFixSurface(target, value) {
+        target.expectedFixSurface = value;
+      },
+      '--rules-source': function setRulesSource(target, value) {
+        target.rulesSource = value;
+      },
+      '--analysis-mode': function setAnalysisMode(target, value) {
+        target.analysisMode = value;
+      },
+      '--model': function setModel(target, value) {
+        target.model = value;
+      },
+      '--timeout-ms': function setTimeoutMs(target, value) {
+        target.timeoutMs = Number(value);
+      },
+      '--idle-timeout-ms': function setIdleTimeoutMs(target, value) {
+        target.idleTimeoutMs = Number(value);
+      },
+      '--poll-ms': function setPollMs(target, value) {
+        target.pollMs = Number(value);
+      },
+      '--output-dir': function setOutputDir(target, value) {
+        target.outputDir = value;
+      },
+      '--codex-bin': function setCodexBin(target, value) {
+        target.codexBin = value;
+      },
+    },
+  });
 
   if (!result.task && !result.taskFile) {
     throw new Error('Provide either --task or --task-file');
@@ -159,22 +134,8 @@ function nowMs() {
   return Date.now();
 }
 
-function slugify(value) {
-  return String(value ?? '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 48) || 'task';
-}
-
-function defaultRulesSource(sourceRoot) {
-  const candidate = path.join(sourceRoot, '.sentrux', 'rules.toml');
-  return existsSync(candidate) ? candidate : null;
-}
-
 function defaultOutputDir(sourceRoot, taskLabel) {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  return path.join(sourceRoot, '.sentrux', 'evals', `${timestamp}-${slugify(taskLabel)}`);
+  return buildDefaultOutputDir(sourceRoot, 'task', taskLabel);
 }
 
 function sleep(ms) {
@@ -220,26 +181,6 @@ async function loadPrompt(args) {
   return readFile(args.taskFile, 'utf8');
 }
 
-function createSession(homeOverride) {
-  return createMcpSession({
-    binPath: sentruxBin,
-    repoRoot,
-    homeOverride,
-    skipGrammarDownload: process.env.SENTRUX_SKIP_GRAMMAR_DOWNLOAD ?? '1',
-    requestTimeoutMs: Number(process.env.REQUEST_TIMEOUT_MS ?? '120000'),
-  });
-}
-
-async function maybeCopyFile(sourcePath, targetPath) {
-  if (!sourcePath || !existsSync(sourcePath)) {
-    return false;
-  }
-
-  await mkdir(path.dirname(targetPath), { recursive: true });
-  await cp(sourcePath, targetPath);
-  return true;
-}
-
 function buildSnapshot(label, scanResult, checkResult, repoIdentity) {
   return {
     label,
@@ -278,21 +219,6 @@ function shouldCaptureSnapshot(previousSnapshot, nextIdentity) {
     previousIdentity.dirty_paths_count !== nextIdentity.dirty_paths_count ||
     previousIdentity.tree_fingerprint !== nextIdentity.tree_fingerprint
   );
-}
-
-function summarizeOutcome(sessionTelemetry) {
-  const lastSession = sessionTelemetry.sessions.at(-1) ?? null;
-
-  return {
-    session_count: sessionTelemetry.summary.session_count,
-    initial_action_kinds: lastSession?.initial_action_kinds ?? [],
-    initial_top_action_kind: lastSession?.initial_top_action_kind ?? null,
-    top_action_cleared: lastSession?.top_action_cleared ?? false,
-    checks_to_clear_top_action: lastSession?.checks_to_clear_top_action ?? null,
-    followup_regression_introduced: lastSession?.followup_regression_introduced ?? false,
-    final_gate: lastSession?.final_gate ?? null,
-    final_session_clean: lastSession?.final_session_clean ?? false,
-  };
 }
 
 function summarizeProviderStatus(providerRun, idleTimeoutTriggered) {
@@ -389,7 +315,11 @@ export async function runCodexSession(options) {
     analysisMode: args.analysisMode,
   });
   const pluginHome = await prepareTypeScriptBenchmarkHome({ tempRoot: clone.tempRoot });
-  const session = createSession(pluginHome);
+  const session = createEvalMcpSession({
+    repoRoot,
+    binPath: sentruxBin,
+    homeOverride: pluginHome,
+  });
   const startedAt = nowIso();
   const statusBase = buildRunStatusBase(taskId, taskLabel, repoLabel, startedAt, outputDir);
 

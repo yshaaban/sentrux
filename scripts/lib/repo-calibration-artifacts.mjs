@@ -1,7 +1,7 @@
 import { access, readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-async function pathExists(targetPath) {
+export async function pathExists(targetPath) {
   if (!targetPath) {
     return false;
   }
@@ -14,7 +14,7 @@ async function pathExists(targetPath) {
   }
 }
 
-async function readJson(targetPath) {
+export async function readJson(targetPath) {
   const source = await readFile(targetPath, 'utf8');
   return JSON.parse(source);
 }

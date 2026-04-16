@@ -4,12 +4,17 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createDisposableRepoClone } from '../lib/disposable-repo.mjs';
-import { createMcpSession, runTool } from '../lib/benchmark-harness.mjs';
+import { runTool } from '../lib/benchmark-harness.mjs';
 import { resolveWorkspaceRepoRoot } from '../lib/path-roots.mjs';
 import { prepareTypeScriptBenchmarkHome } from '../lib/benchmark-plugin-home.mjs';
+import { createEvalMcpSession, parseCliArgs } from '../lib/eval-support.mjs';
 import { runClaudeCode } from './providers/claude-code.mjs';
 import { runCodexExec } from './providers/codex-cli.mjs';
-import { createDogfoodCatalog, createParallelCodeCatalog, selectDefects } from '../defect-injection/catalog.mjs';
+import {
+  createDogfoodCatalog,
+  createParallelCodeCatalog,
+  selectDefects,
+} from '../defect-injection/catalog.mjs';
 import { prepareDefectFixture } from '../defect-injection/fixture-setup.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -29,39 +34,30 @@ function parseArgs(argv) {
     outputJsonPath: null,
   };
 
-  for (let index = 2; index < argv.length; index += 1) {
-    const value = argv[index];
-    if (value === '--repo') {
-      index += 1;
-      result.repo = argv[index];
-      continue;
-    }
-    if (value === '--defect') {
-      index += 1;
-      result.defects.push(argv[index]);
-      continue;
-    }
-    if (value === '--analysis-mode') {
-      index += 1;
-      result.analysisMode = argv[index];
-      continue;
-    }
-    if (value === '--dry-run') {
-      result.dryRun = true;
-      continue;
-    }
-    if (value === '--provider') {
-      index += 1;
-      result.provider = argv[index];
-      continue;
-    }
-    if (value === '--output-json') {
-      index += 1;
-      result.outputJsonPath = argv[index];
-      continue;
-    }
-    throw new Error(`Unknown argument: ${value}`);
-  }
+  parseCliArgs(argv, result, {
+    flags: {
+      '--dry-run': function enableDryRun(target) {
+        target.dryRun = true;
+      },
+    },
+    values: {
+      '--repo': function setRepo(target, value) {
+        target.repo = value;
+      },
+      '--defect': function appendDefect(target, value) {
+        target.defects.push(value);
+      },
+      '--analysis-mode': function setAnalysisMode(target, value) {
+        target.analysisMode = value;
+      },
+      '--provider': function setProvider(target, value) {
+        target.provider = value;
+      },
+      '--output-json': function setOutputJson(target, value) {
+        target.outputJsonPath = value;
+      },
+    },
+  });
 
   return result;
 }
@@ -125,16 +121,6 @@ function buildRemediationPrompt(defect, initialCheck) {
     'Targeted check context:',
     JSON.stringify(relevantIssues, null, 2),
   ].join('\n');
-}
-
-function createSession(homeOverride) {
-  return createMcpSession({
-    binPath: sentruxBin,
-    repoRoot,
-    homeOverride,
-    skipGrammarDownload: process.env.SENTRUX_SKIP_GRAMMAR_DOWNLOAD ?? '1',
-    requestTimeoutMs: Number(process.env.REQUEST_TIMEOUT_MS ?? '120000'),
-  });
 }
 
 function summarizeResultKinds(payload) {
@@ -204,8 +190,16 @@ async function runRemediation(defect, repoConfig, options) {
     analysisMode: options.analysisMode,
   });
   const pluginHome = await prepareTypeScriptBenchmarkHome({ tempRoot: clone.tempRoot });
-  const baselineSession = createSession(pluginHome);
-  const repairSession = createSession(pluginHome);
+  const baselineSession = createEvalMcpSession({
+    repoRoot,
+    binPath: sentruxBin,
+    homeOverride: pluginHome,
+  });
+  const repairSession = createEvalMcpSession({
+    repoRoot,
+    binPath: sentruxBin,
+    homeOverride: pluginHome,
+  });
 
   try {
     await prepareDefectFixture(defect, clone.workRoot, repoRoot);

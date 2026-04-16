@@ -4,17 +4,12 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  buildAggregatedBenchmark,
   buildBenchmarkComparison,
   buildBenchmarkPolicy,
-  createMcpSession,
+  buildAggregatedBenchmark,
   loadPreviousBenchmark,
-  nowMs,
   printBenchmarkComparison,
   readPositiveInteger,
-  runRepeatedBenchmarkSamples,
-  roundMs,
-  runBenchmarkTool,
 } from './lib/benchmark-harness.mjs';
 import {
   summarizeAgentBrief,
@@ -29,9 +24,15 @@ import {
   summarizeSessionSave,
   summarizeState,
 } from './lib/benchmark-summaries.mjs';
-import { prepareTypeScriptBenchmarkHome } from './lib/benchmark-plugin-home.mjs';
+import {
+  collectFrozenBenchmarkSamples,
+  createBenchmarkSession,
+  resolveFreshnessRepoRoot,
+  runBenchmarkSessionPhases,
+  sanitizePublicArtifactValue,
+} from './lib/benchmark-script-support.mjs';
 import { assertPathExists, createDisposableRepoClone } from './lib/disposable-repo.mjs';
-import { buildRepoFreshnessMetadata, resolveHeadCommitEpoch } from './lib/repo-identity.mjs';
+import { buildRepoFreshnessMetadata } from './lib/repo-identity.mjs';
 import { resolveWorkspaceRepoRoot } from './lib/path-roots.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -83,299 +84,49 @@ const publicPathReplacements = [
   [repoRoot, '<sentrux-root>'],
 ];
 
-function sanitizePublicArtifactValue(value) {
-  if (typeof value === 'string') {
-    return publicPathReplacements.reduce(function replacePath(current, [target, replacement]) {
-      return current.split(target).join(replacement);
-    }, value);
-  }
-
-  if (Array.isArray(value)) {
-    return value.map(sanitizePublicArtifactValue);
-  }
-
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(
-      Object.entries(value).map(function sanitizeEntry([key, entry]) {
-        return [key, sanitizePublicArtifactValue(entry)];
-      }),
-    );
-  }
-
-  return value;
-}
-
-function buildSessionEnv(fixedNowEpoch) {
-  if (fixedNowEpoch == null) {
-    return {};
-  }
-
-  return {
-    SENTRUX_FIXED_NOW_EPOCH: String(fixedNowEpoch),
-  };
-}
-
-function resolveFreshnessRepoRoot(frozenSourceRoot) {
-  if (analysisMode === 'head_clone') {
-    return frozenSourceRoot;
-  }
-
-  return parallelCodeRoot;
-}
-
-function createSession(homeOverride, fixedNowEpoch) {
-  return createMcpSession({
+async function runBenchmarkSession(parallelCodeWorkRoot, homeOverride, fixedNowEpoch) {
+  return runBenchmarkSessionPhases({
     binPath: sentruxBin,
     repoRoot,
+    workRoot: parallelCodeWorkRoot,
     homeOverride,
     skipGrammarDownload,
     requestTimeoutMs,
-    extraEnv: buildSessionEnv(fixedNowEpoch),
+    fixedNowEpoch,
+    coldOperations: [
+      { key: 'scan', tool: 'scan', args: { path: parallelCodeWorkRoot }, summarize: summarizeScan },
+      { key: 'concepts', tool: 'concepts', summarize: summarizeConcepts },
+      { key: 'findings', label: 'findings_top12', tool: 'findings', args: { limit: 12 }, summarize: summarizeFindings },
+      { key: 'explain_task_git_status', tool: 'explain_concept', args: { id: 'task_git_status' }, summarize: summarizeExplainConcept },
+      { key: 'explain_task_presentation_status', tool: 'explain_concept', args: { id: 'task_presentation_status' }, summarize: summarizeExplainConcept },
+      { key: 'parity_server_state_bootstrap', tool: 'parity', args: { contract: 'server_state_bootstrap' }, summarize: summarizeParity },
+      { key: 'state', tool: 'state', summarize: summarizeState },
+      { key: 'agent_brief_onboarding', tool: 'agent_brief', args: { mode: 'repo_onboarding', limit: 3 }, summarize: summarizeAgentBrief },
+    ],
+    warmCachedOperations: [
+      { key: 'concepts', tool: 'concepts', summarize: summarizeConcepts },
+      { key: 'findings', label: 'findings_top12', tool: 'findings', args: { limit: 12 }, summarize: summarizeFindings },
+      { key: 'explain_task_git_status', tool: 'explain_concept', args: { id: 'task_git_status' }, summarize: summarizeExplainConcept },
+      { key: 'explain_task_presentation_status', tool: 'explain_concept', args: { id: 'task_presentation_status' }, summarize: summarizeExplainConcept },
+      { key: 'parity_server_state_bootstrap', tool: 'parity', args: { contract: 'server_state_bootstrap' }, summarize: summarizeParity },
+      { key: 'state', tool: 'state', summarize: summarizeState },
+      { key: 'agent_brief_onboarding', tool: 'agent_brief', args: { mode: 'repo_onboarding', limit: 3 }, summarize: summarizeAgentBrief },
+    ],
+    warmPatchSafetyOperations: [
+      { key: 'session_start', tool: 'session_start', summarize: summarizeSessionSave },
+      { key: 'agent_brief_patch', tool: 'agent_brief', args: { mode: 'patch', limit: 3 }, summarize: summarizeAgentBrief },
+      { key: 'gate', tool: 'gate', summarize: summarizeGate },
+      { key: 'check', tool: 'check', summarize: summarizeCheck },
+      { key: 'agent_brief_pre_merge', tool: 'agent_brief', args: { mode: 'pre_merge', limit: 3 }, summarize: summarizeAgentBrief },
+      { key: 'session_end', tool: 'session_end', summarize: summarizeSessionEnd },
+    ],
+    warmPersistedOperations: [
+      { key: 'scan', label: 'persisted_scan', tool: 'scan', args: { path: parallelCodeWorkRoot }, summarize: summarizeScan },
+      { key: 'concepts', label: 'persisted_concepts', tool: 'concepts', summarize: summarizeConcepts },
+      { key: 'findings', label: 'persisted_findings_top12', tool: 'findings', args: { limit: 12 }, summarize: summarizeFindings },
+      { key: 'agent_brief_onboarding', label: 'persisted_agent_brief_onboarding', tool: 'agent_brief', args: { mode: 'repo_onboarding', limit: 3 }, summarize: summarizeAgentBrief },
+    ],
   });
-}
-
-async function runBenchmarkSession(parallelCodeWorkRoot, homeOverride, fixedNowEpoch) {
-  const session = createSession(homeOverride, fixedNowEpoch);
-  let persistedSession = null;
-  const cold = {};
-  const warmCached = {};
-  const warmPersisted = {};
-  const warmPatchSafety = {};
-  const coldStartedAt = nowMs();
-
-  try {
-    cold.scan = await runBenchmarkTool(
-      session,
-      'scan',
-      'scan',
-      { path: parallelCodeWorkRoot },
-      summarizeScan,
-    );
-    cold.concepts = await runBenchmarkTool(
-      session,
-      'concepts',
-      'concepts',
-      {},
-      summarizeConcepts,
-    );
-    cold.findings = await runBenchmarkTool(
-      session,
-      'findings_top12',
-      'findings',
-      { limit: 12 },
-      summarizeFindings,
-    );
-    cold.explain_task_git_status = await runBenchmarkTool(
-      session,
-      'explain_task_git_status',
-      'explain_concept',
-      { id: 'task_git_status' },
-      summarizeExplainConcept,
-    );
-    cold.explain_task_presentation_status = await runBenchmarkTool(
-      session,
-      'explain_task_presentation_status',
-      'explain_concept',
-      { id: 'task_presentation_status' },
-      summarizeExplainConcept,
-    );
-    cold.parity_server_state_bootstrap = await runBenchmarkTool(
-      session,
-      'parity_server_state_bootstrap',
-      'parity',
-      { contract: 'server_state_bootstrap' },
-      summarizeParity,
-    );
-    cold.state = await runBenchmarkTool(
-      session,
-      'state',
-      'state',
-      {},
-      summarizeState,
-    );
-    cold.agent_brief_onboarding = await runBenchmarkTool(
-      session,
-      'agent_brief_onboarding',
-      'agent_brief',
-      { mode: 'repo_onboarding', limit: 3 },
-      summarizeAgentBrief,
-    );
-    const coldProcessTotalMs = roundMs(nowMs() - coldStartedAt);
-
-    const warmStartedAt = nowMs();
-    warmCached.concepts = await runBenchmarkTool(
-      session,
-      'concepts',
-      'concepts',
-      {},
-      summarizeConcepts,
-    );
-    warmCached.findings = await runBenchmarkTool(
-      session,
-      'findings_top12',
-      'findings',
-      { limit: 12 },
-      summarizeFindings,
-    );
-    warmCached.explain_task_git_status = await runBenchmarkTool(
-      session,
-      'explain_task_git_status',
-      'explain_concept',
-      { id: 'task_git_status' },
-      summarizeExplainConcept,
-    );
-    warmCached.explain_task_presentation_status = await runBenchmarkTool(
-      session,
-      'explain_task_presentation_status',
-      'explain_concept',
-      { id: 'task_presentation_status' },
-      summarizeExplainConcept,
-    );
-    warmCached.parity_server_state_bootstrap = await runBenchmarkTool(
-      session,
-      'parity_server_state_bootstrap',
-      'parity',
-      { contract: 'server_state_bootstrap' },
-      summarizeParity,
-    );
-    warmCached.state = await runBenchmarkTool(
-      session,
-      'state',
-      'state',
-      {},
-      summarizeState,
-    );
-    warmCached.agent_brief_onboarding = await runBenchmarkTool(
-      session,
-      'agent_brief_onboarding',
-      'agent_brief',
-      { mode: 'repo_onboarding', limit: 3 },
-      summarizeAgentBrief,
-    );
-    const warmCachedTotalMs = roundMs(nowMs() - warmStartedAt);
-
-    const patchSafetyStartedAt = nowMs();
-    warmPatchSafety.session_start = await runBenchmarkTool(
-      session,
-      'session_start',
-      'session_start',
-      {},
-      summarizeSessionSave,
-    );
-    warmPatchSafety.agent_brief_patch = await runBenchmarkTool(
-      session,
-      'agent_brief_patch',
-      'agent_brief',
-      { mode: 'patch', limit: 3 },
-      summarizeAgentBrief,
-    );
-    warmPatchSafety.gate = await runBenchmarkTool(
-      session,
-      'gate',
-      'gate',
-      {},
-      summarizeGate,
-    );
-    warmPatchSafety.check = await runBenchmarkTool(
-      session,
-      'check',
-      'check',
-      {},
-      summarizeCheck,
-    );
-    warmPatchSafety.agent_brief_pre_merge = await runBenchmarkTool(
-      session,
-      'agent_brief_pre_merge',
-      'agent_brief',
-      { mode: 'pre_merge', limit: 3 },
-      summarizeAgentBrief,
-    );
-    warmPatchSafety.session_end = await runBenchmarkTool(
-      session,
-      'session_end',
-      'session_end',
-      {},
-      summarizeSessionEnd,
-    );
-    const warmPatchSafetyTotalMs = roundMs(nowMs() - patchSafetyStartedAt);
-
-    const warmPersistedStartedAt = nowMs();
-    persistedSession = createSession(homeOverride, fixedNowEpoch);
-    warmPersisted.scan = await runBenchmarkTool(
-      persistedSession,
-      'persisted_scan',
-      'scan',
-      { path: parallelCodeWorkRoot },
-      summarizeScan,
-    );
-    warmPersisted.concepts = await runBenchmarkTool(
-      persistedSession,
-      'persisted_concepts',
-      'concepts',
-      {},
-      summarizeConcepts,
-    );
-    warmPersisted.findings = await runBenchmarkTool(
-      persistedSession,
-      'persisted_findings_top12',
-      'findings',
-      { limit: 12 },
-      summarizeFindings,
-    );
-    warmPersisted.agent_brief_onboarding = await runBenchmarkTool(
-      persistedSession,
-      'persisted_agent_brief_onboarding',
-      'agent_brief',
-      { mode: 'repo_onboarding', limit: 3 },
-      summarizeAgentBrief,
-    );
-    const warmPersistedTotalMs = roundMs(nowMs() - warmPersistedStartedAt);
-    await persistedSession.close();
-    persistedSession = null;
-
-    return {
-      cold_process_total_ms: coldProcessTotalMs,
-      cold,
-      warm_cached_total_ms: warmCachedTotalMs,
-      warm_cached: warmCached,
-      warm_persisted_total_ms: warmPersistedTotalMs,
-      warm_persisted: warmPersisted,
-      warm_patch_safety_total_ms: warmPatchSafetyTotalMs,
-      warm_patch_safety: warmPatchSafety,
-      stdout_log: session.stdoutLog,
-      stderr_log: session.stderrLog,
-    };
-  } finally {
-    if (persistedSession) {
-      await persistedSession.close();
-    }
-    await session.close();
-  }
-}
-
-async function runBenchmarkSample(sampleIndex, frozenSourceRoot, freshnessMetadata) {
-  const clone = await createDisposableRepoClone({
-    sourceRoot: frozenSourceRoot,
-    label: 'parallel-code-benchmark-sample',
-    rulesSource,
-    analysisMode: 'working_tree',
-  });
-
-  let benchmark;
-  try {
-    const fixedNowEpoch = resolveHeadCommitEpoch(clone.workRoot);
-    const pluginHome = await prepareTypeScriptBenchmarkHome({ tempRoot: clone.tempRoot });
-    benchmark = await runBenchmarkSession(clone.workRoot, pluginHome, fixedNowEpoch);
-  } finally {
-    await clone.cleanup();
-  }
-
-  return {
-    sample_id: `sample_${sampleIndex + 1}`,
-    generated_at: new Date().toISOString(),
-    benchmark,
-    freshnessMetadata,
-  };
 }
 
 async function main() {
@@ -384,32 +135,27 @@ async function main() {
   assertPathExists(parallelCodeRoot, 'parallel-code repo');
 
   const previousResult = await loadPreviousBenchmark(compareToPath);
-  const frozenSource = await createDisposableRepoClone({
+  const { freshnessMetadata, samples } = await collectFrozenBenchmarkSamples({
     sourceRoot: parallelCodeRoot,
-    label: 'parallel-code-benchmark-source',
+    cloneLabel: 'parallel-code-benchmark-source',
     rulesSource,
     analysisMode,
+    repeatCount: benchmarkRepeatCount,
+    buildFreshnessMetadata: function buildFreshness(frozenSourceRoot) {
+      return {
+        ...buildRepoFreshnessMetadata({
+          repoRoot: resolveFreshnessRepoRoot(analysisMode, frozenSourceRoot, parallelCodeRoot),
+          analyzedRoot: frozenSourceRoot,
+          analysisMode,
+          rulesSource,
+          binaryPath: sentruxBin,
+        }),
+        parallel_code_root: parallelCodeRoot,
+      };
+    },
+    runBenchmarkSession,
+    sampleLabel: 'parallel-code-benchmark-sample',
   });
-  let samples;
-  let freshnessMetadata;
-  try {
-    freshnessMetadata = buildRepoFreshnessMetadata({
-      repoRoot: resolveFreshnessRepoRoot(frozenSource.workRoot),
-      analyzedRoot: frozenSource.workRoot,
-      analysisMode,
-      rulesSource,
-      binaryPath: sentruxBin,
-    });
-    freshnessMetadata.parallel_code_root = parallelCodeRoot;
-    ({ samples } = await runRepeatedBenchmarkSamples({
-      repeatCount: benchmarkRepeatCount,
-      runSample: function runFrozenSample(sampleIndex) {
-        return runBenchmarkSample(sampleIndex, frozenSource.workRoot, freshnessMetadata);
-      },
-    }));
-  } finally {
-    await frozenSource.cleanup();
-  }
   const aggregate = buildAggregatedBenchmark({ samples });
   if (!aggregate) {
     throw new Error('Failed to build aggregated benchmark samples');
@@ -443,7 +189,7 @@ async function main() {
   await mkdir(path.dirname(outputPath), { recursive: true });
   await writeFile(
     outputPath,
-    `${JSON.stringify(sanitizePublicArtifactValue(result), null, 2)}\n`,
+    `${JSON.stringify(sanitizePublicArtifactValue(result, publicPathReplacements), null, 2)}\n`,
     'utf8',
   );
   console.log(

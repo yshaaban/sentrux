@@ -4,11 +4,10 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import readline from 'node:readline';
-import { spawn } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { closeChildProcess } from '../lib/child-process.mjs';
 import { prepareTypeScriptBenchmarkHome } from '../lib/benchmark-plugin-home.mjs';
+import { runTool } from '../lib/benchmark-harness.mjs';
+import { createEvalMcpSession, parseCliArgs } from '../lib/eval-support.mjs';
 import { runClaudeCode } from './providers/claude-code.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -85,52 +84,45 @@ function parseArgs(argv) {
     help: false,
   };
 
-  for (let index = 2; index < argv.length; index += 1) {
-    const value = argv[index];
-    if (value === '--help' || value === '-h') {
-      result.help = true;
-      continue;
-    }
-    if (value === '--dry-run') {
-      result.dryRun = true;
-      continue;
-    }
-    if (value === '--repo-root') {
-      index += 1;
-      result.repoRoot = argv[index];
-      continue;
-    }
-    if (value === '--repo-name') {
-      index += 1;
-      result.repoName = argv[index];
-      continue;
-    }
-    if (value === '--output') {
-      index += 1;
-      result.outputPath = argv[index];
-      continue;
-    }
-    if (value === '--limit') {
-      index += 1;
-      result.limit = Number(argv[index]);
-      continue;
-    }
-    if (value === '--findings-limit') {
-      index += 1;
-      result.findingsLimit = Number(argv[index]);
-      continue;
-    }
-    if (value === '--claude-bin') {
-      index += 1;
-      result.claudeBin = argv[index];
-      continue;
-    }
-    if (value === '--model') {
-      index += 1;
-      result.model = argv[index];
-      continue;
-    }
-    throw new Error(`Unknown argument: ${value}`);
+  parseCliArgs(argv, result, {
+    flags: {
+      '--help': function enableHelp(target) {
+        target.help = true;
+      },
+      '-h': function enableShortHelp(target) {
+        target.help = true;
+      },
+      '--dry-run': function enableDryRun(target) {
+        target.dryRun = true;
+      },
+    },
+    values: {
+      '--repo-root': function setRepoRoot(target, value) {
+        target.repoRoot = value;
+      },
+      '--repo-name': function setRepoName(target, value) {
+        target.repoName = value;
+      },
+      '--output': function setOutputPath(target, value) {
+        target.outputPath = value;
+      },
+      '--limit': function setLimit(target, value) {
+        target.limit = Number(value);
+      },
+      '--findings-limit': function setFindingsLimit(target, value) {
+        target.findingsLimit = Number(value);
+      },
+      '--claude-bin': function setClaudeBin(target, value) {
+        target.claudeBin = value;
+      },
+      '--model': function setModel(target, value) {
+        target.model = value;
+      },
+    },
+  });
+
+  if (result.help) {
+    return result;
   }
 
   if (!result.repoRoot) {
@@ -176,24 +168,6 @@ function usage() {
 
 function nowIso() {
   return new Date().toISOString();
-}
-
-function nowMs() {
-  return Number(process.hrtime.bigint()) / 1_000_000;
-}
-
-function parseToolPayload(response) {
-  if (response.result?.isError) {
-    const message = response.result.content?.[0]?.text ?? 'Unknown MCP tool error';
-    throw new Error(message);
-  }
-
-  const text = response.result?.content?.[0]?.text;
-  if (typeof text !== 'string') {
-    throw new Error('Missing MCP text payload');
-  }
-
-  return JSON.parse(text);
 }
 
 export function deadPrivateCandidateScope(candidate) {
@@ -256,9 +230,12 @@ export function selectDeadPrivateCandidatesFromPayload(payload) {
   const legacyCandidates = legacyLane.filter(function isDeadPrivate(value) {
     return value?.kind === 'dead_private_code_cluster';
   });
-  const selectedLane = canonicalCandidates.length > 0 ? canonicalCandidates : legacyCandidates;
-  const selectedLaneName =
-    canonicalCandidates.length > 0 ? 'experimental_debt_signals' : 'experimental_findings';
+  let selectedLane = legacyCandidates;
+  let selectedLaneName = 'experimental_findings';
+  if (canonicalCandidates.length > 0) {
+    selectedLane = canonicalCandidates;
+    selectedLaneName = 'experimental_debt_signals';
+  }
 
   const deduped = new Map();
   for (const candidate of selectedLane) {
@@ -287,8 +264,10 @@ export function selectDeadPrivateCandidatesFromPayload(payload) {
   let reviewerLaneStatus = 'no_candidates';
   let reviewerLaneReason = 'no dead-private candidates surfaced in either experimental lane';
   if (canonicalCandidates.length > 0) {
-    reviewerLaneStatus =
-      legacyOnlyCandidates.length > 0 ? 'canonical_with_legacy_watchlist' : 'canonical_only';
+    reviewerLaneStatus = 'canonical_only';
+    if (legacyOnlyCandidates.length > 0) {
+      reviewerLaneStatus = 'canonical_with_legacy_watchlist';
+    }
     reviewerLaneReason =
       'the canonical experimental_debt_signals lane is the reviewer queue; legacy-only experimental_findings stay watchlist-only context until the taxonomy is unified';
   } else if (legacyCandidates.length > 0) {
@@ -322,118 +301,6 @@ export function selectDeadPrivateCandidatesFromPayload(payload) {
     legacy_only_candidates: legacyOnlyCandidates,
     reviewer_lane_status: reviewerLaneStatus,
     reviewer_lane_reason: reviewerLaneReason,
-  };
-}
-
-function createSession(binPath, homeOverride) {
-  const child = spawn(binPath, ['mcp'], {
-    cwd: repoRoot,
-    env: {
-      ...process.env,
-      HOME: homeOverride,
-      SENTRUX_SKIP_GRAMMAR_DOWNLOAD: '1',
-    },
-    stdio: ['pipe', 'pipe', 'pipe'],
-  });
-  const pending = new Map();
-  let nextId = 1;
-  let closed = false;
-
-  const stdoutReader = readline.createInterface({ input: child.stdout });
-  stdoutReader.on('line', function handleStdout(line) {
-    const trimmed = line.trim();
-    if (!trimmed || !trimmed.startsWith('{')) {
-      return;
-    }
-
-    let payload;
-    try {
-      payload = JSON.parse(trimmed);
-    } catch {
-      return;
-    }
-
-    const handler = pending.get(payload.id);
-    if (!handler) {
-      return;
-    }
-    clearTimeout(handler.timer);
-    pending.delete(payload.id);
-    handler.resolve(payload);
-  });
-
-  const stderrReader = readline.createInterface({ input: child.stderr });
-  stderrReader.on('line', function handleStderr() {
-    // Drain stderr so the child process cannot block on a full pipe.
-  });
-
-  child.once('exit', function handleExit(code, signal) {
-    closed = true;
-    for (const { reject, timer } of pending.values()) {
-      clearTimeout(timer);
-      reject(
-        new Error(
-          `MCP session exited before response (code=${code ?? 'null'}, signal=${signal ?? 'null'})`,
-        ),
-      );
-    }
-    pending.clear();
-  });
-
-  function callTool(name, argumentsObject) {
-    if (closed) {
-      throw new Error('MCP session already closed');
-    }
-
-    const id = nextId++;
-    const message = JSON.stringify({
-      jsonrpc: '2.0',
-      id,
-      method: 'tools/call',
-      params: {
-        name,
-        arguments: argumentsObject,
-      },
-    });
-
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        pending.delete(id);
-        reject(new Error(`Timed out waiting for MCP response for tool '${name}'`));
-      }, requestTimeoutMs);
-
-      pending.set(id, { resolve, reject, timer });
-      child.stdin.write(`${message}\n`, function handleWrite(error) {
-        if (!error) {
-          return;
-        }
-        clearTimeout(timer);
-        pending.delete(id);
-        reject(error);
-      });
-    });
-  }
-
-  async function close() {
-    if (closed) {
-      return;
-    }
-
-    await closeChildProcess(child);
-  }
-
-  return {
-    callTool,
-    close,
-  };
-}
-
-async function runTool(session, name, argumentsObject) {
-  const startedMs = nowMs();
-  const response = await session.callTool(name, argumentsObject);
-  return {
-    elapsed_ms: Number((nowMs() - startedMs).toFixed(1)),
-    payload: parseToolPayload(response),
   };
 }
 
@@ -516,7 +383,12 @@ async function collectDeadPrivateCandidates(repoPath, findingsLimit) {
 
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'sentrux-dead-private-'));
   const homeOverride = await prepareTypeScriptBenchmarkHome({ tempRoot });
-  const session = createSession(sentruxBin, homeOverride);
+  const session = createEvalMcpSession({
+    repoRoot,
+    binPath: sentruxBin,
+    homeOverride,
+    requestTimeoutMs,
+  });
 
   try {
     await runTool(session, 'scan', { path: repoPath });

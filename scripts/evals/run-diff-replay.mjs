@@ -1,13 +1,20 @@
 #!/usr/bin/env node
 
-import { cp, mkdir, writeFile } from 'node:fs/promises';
+import { writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createDisposableRepoClone } from '../lib/disposable-repo.mjs';
-import { createMcpSession, runCommand, runTool } from '../lib/benchmark-harness.mjs';
+import { runCommand, runTool } from '../lib/benchmark-harness.mjs';
 import { prepareTypeScriptBenchmarkHome } from '../lib/benchmark-plugin-home.mjs';
 import { resolveWorkspaceRepoRoot } from '../lib/path-roots.mjs';
+import {
+  createEvalMcpSession,
+  defaultOutputDir as buildDefaultOutputDir,
+  defaultRulesSource,
+  maybeCopyFile,
+  parseCliArgs,
+} from '../lib/eval-support.mjs';
 import {
   createDogfoodCatalog,
   createParallelCodeCatalog,
@@ -20,6 +27,7 @@ import {
 import {
   formatSessionTelemetrySummaryMarkdown,
   loadSessionTelemetrySummary,
+  summarizeOutcome,
 } from '../lib/session-telemetry.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -49,74 +57,51 @@ function parseArgs(argv) {
     keepClone: false,
   };
 
-  for (let index = 2; index < argv.length; index += 1) {
-    const value = argv[index];
-    if (value === '--source-root') {
-      index += 1;
-      result.sourceRoot = argv[index];
-      continue;
-    }
-    if (value === '--repo-label') {
-      index += 1;
-      result.repoLabel = argv[index];
-      continue;
-    }
-    if (value === '--commit') {
-      index += 1;
-      result.commit = argv[index];
-      continue;
-    }
-    if (value === '--replay-id') {
-      index += 1;
-      result.replayId = argv[index];
-      continue;
-    }
-    if (value === '--base') {
-      index += 1;
-      result.baseCommit = argv[index];
-      continue;
-    }
-    if (value === '--defect-id') {
-      index += 1;
-      result.defectId = argv[index];
-      continue;
-    }
-    if (value === '--fixture-repo') {
-      index += 1;
-      result.fixtureRepo = argv[index];
-      continue;
-    }
-    if (value === '--tag') {
-      index += 1;
-      result.tags.push(argv[index]);
-      continue;
-    }
-    if (value === '--expected-signal-kind') {
-      index += 1;
-      result.expectedSignalKinds.push(argv[index]);
-      continue;
-    }
-    if (value === '--expected-fix-surface') {
-      index += 1;
-      result.expectedFixSurface = argv[index];
-      continue;
-    }
-    if (value === '--rules-source') {
-      index += 1;
-      result.rulesSource = argv[index];
-      continue;
-    }
-    if (value === '--output-dir') {
-      index += 1;
-      result.outputDir = argv[index];
-      continue;
-    }
-    if (value === '--keep-clone') {
-      result.keepClone = true;
-      continue;
-    }
-    throw new Error(`Unknown argument: ${value}`);
-  }
+  parseCliArgs(argv, result, {
+    flags: {
+      '--keep-clone': function enableKeepClone(target) {
+        target.keepClone = true;
+      },
+    },
+    values: {
+      '--source-root': function setSourceRoot(target, value) {
+        target.sourceRoot = value;
+      },
+      '--repo-label': function setRepoLabel(target, value) {
+        target.repoLabel = value;
+      },
+      '--commit': function setCommit(target, value) {
+        target.commit = value;
+      },
+      '--replay-id': function setReplayId(target, value) {
+        target.replayId = value;
+      },
+      '--base': function setBaseCommit(target, value) {
+        target.baseCommit = value;
+      },
+      '--defect-id': function setDefectId(target, value) {
+        target.defectId = value;
+      },
+      '--fixture-repo': function setFixtureRepo(target, value) {
+        target.fixtureRepo = value;
+      },
+      '--tag': function appendTag(target, value) {
+        target.tags.push(value);
+      },
+      '--expected-signal-kind': function appendExpectedSignalKind(target, value) {
+        target.expectedSignalKinds.push(value);
+      },
+      '--expected-fix-surface': function setExpectedFixSurface(target, value) {
+        target.expectedFixSurface = value;
+      },
+      '--rules-source': function setRulesSource(target, value) {
+        target.rulesSource = value;
+      },
+      '--output-dir': function setOutputDir(target, value) {
+        target.outputDir = value;
+      },
+    },
+  });
 
   if (!result.commit && !result.defectId) {
     throw new Error('Missing required --commit or --defect-id');
@@ -129,47 +114,8 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-function slugify(value) {
-  return String(value ?? '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 48) || 'replay';
-}
-
-function defaultRulesSource(sourceRoot) {
-  const candidate = path.join(sourceRoot, '.sentrux', 'rules.toml');
-  return existsSync(candidate) ? candidate : null;
-}
-
 function defaultOutputDir(sourceRoot, replayTarget) {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  return path.join(
-    sourceRoot,
-    '.sentrux',
-    'evals',
-    `${timestamp}-replay-${slugify(replayTarget)}`,
-  );
-}
-
-function createSession(homeOverride) {
-  return createMcpSession({
-    binPath: sentruxBin,
-    repoRoot,
-    homeOverride,
-    skipGrammarDownload: process.env.SENTRUX_SKIP_GRAMMAR_DOWNLOAD ?? '1',
-    requestTimeoutMs: Number(process.env.REQUEST_TIMEOUT_MS ?? '120000'),
-  });
-}
-
-async function maybeCopyFile(sourcePath, targetPath) {
-  if (!sourcePath || !existsSync(sourcePath)) {
-    return false;
-  }
-
-  await mkdir(path.dirname(targetPath), { recursive: true });
-  await cp(sourcePath, targetPath);
-  return true;
+  return buildDefaultOutputDir(sourceRoot, 'replay', replayTarget);
 }
 
 async function gitRead(sourceRoot, args) {
@@ -268,21 +214,6 @@ async function recordSnapshot(session, workRoot, label) {
   };
 }
 
-function summarizeOutcome(sessionTelemetry) {
-  const lastSession = sessionTelemetry.sessions.at(-1) ?? null;
-
-  return {
-    session_count: sessionTelemetry.summary.session_count,
-    initial_action_kinds: lastSession?.initial_action_kinds ?? [],
-    initial_top_action_kind: lastSession?.initial_top_action_kind ?? null,
-    top_action_cleared: lastSession?.top_action_cleared ?? false,
-    checks_to_clear_top_action: lastSession?.checks_to_clear_top_action ?? null,
-    followup_regression_introduced: lastSession?.followup_regression_introduced ?? false,
-    final_gate: lastSession?.final_gate ?? null,
-    final_session_clean: lastSession?.final_session_clean ?? false,
-  };
-}
-
 export async function runDiffReplay(options) {
   const args = {
     ...options,
@@ -308,7 +239,11 @@ export async function runDiffReplay(options) {
     analysisMode: 'head_clone',
   });
   const pluginHome = await prepareTypeScriptBenchmarkHome({ tempRoot: clone.tempRoot });
-  const session = createSession(pluginHome);
+  const session = createEvalMcpSession({
+    repoRoot,
+    binPath: sentruxBin,
+    homeOverride: pluginHome,
+  });
 
   await mkdir(outputDir, { recursive: true });
 

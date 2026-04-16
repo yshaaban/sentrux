@@ -5,6 +5,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolveManifestPath } from '../lib/eval-batch.mjs';
+import { parseCliArgs } from '../lib/eval-support.mjs';
 import { runClaudeCode } from './providers/claude-code.mjs';
 import { runCodexExec } from './providers/codex-cli.mjs';
 
@@ -160,63 +161,48 @@ function parseArgs(argv) {
     help: false,
   };
 
-  for (let i = 2; i < argv.length; i += 1) {
-    const value = argv[i];
-    if (value === '--help' || value === '-h') {
-      result.help = true;
-      continue;
-    }
-    if (value === '--dry-run') {
-      result.dryRun = true;
-      continue;
-    }
-    if (value === '--manifest') {
-      i += 1;
-      result.manifestPath = argv[i];
-      continue;
-    }
-    if (value === '--scenario') {
-      i += 1;
-      result.scenarioPaths.push(argv[i]);
-      continue;
-    }
-    if (value === '--output-dir') {
-      i += 1;
-      result.outputDir = argv[i];
-      continue;
-    }
-    if (value === '--provider') {
-      i += 1;
-      result.provider = argv[i];
-      continue;
-    }
-    if (value === '--model') {
-      i += 1;
-      result.model = argv[i];
-      continue;
-    }
-    if (value === '--timeout-ms') {
-      i += 1;
-      result.timeoutMs = Number(argv[i]);
-      continue;
-    }
-    if (value === '--concurrency') {
-      i += 1;
-      result.concurrency = Number(argv[i]);
-      continue;
-    }
-    if (value === '--claude-bin') {
-      i += 1;
-      result.claudeBin = argv[i];
-      continue;
-    }
-    if (value === '--codex-bin') {
-      i += 1;
-      result.codexBin = argv[i];
-      continue;
-    }
-    fail(`Unknown argument: ${value}`);
-  }
+  parseCliArgs(argv, result, {
+    flags: {
+      '--help': function enableHelp(target) {
+        target.help = true;
+      },
+      '-h': function enableShortHelp(target) {
+        target.help = true;
+      },
+      '--dry-run': function enableDryRun(target) {
+        target.dryRun = true;
+      },
+    },
+    values: {
+      '--manifest': function setManifestPath(target, value) {
+        target.manifestPath = value;
+      },
+      '--scenario': function appendScenarioPath(target, value) {
+        target.scenarioPaths.push(value);
+      },
+      '--output-dir': function setOutputDir(target, value) {
+        target.outputDir = value;
+      },
+      '--provider': function setProvider(target, value) {
+        target.provider = value;
+      },
+      '--model': function setModel(target, value) {
+        target.model = value;
+      },
+      '--timeout-ms': function setTimeoutMs(target, value) {
+        target.timeoutMs = Number(value);
+      },
+      '--concurrency': function setConcurrency(target, value) {
+        target.concurrency = Number(value);
+      },
+      '--claude-bin': function setClaudeBin(target, value) {
+        target.claudeBin = value;
+      },
+      '--codex-bin': function setCodexBin(target, value) {
+        target.codexBin = value;
+      },
+    },
+  });
 
   if (!Number.isFinite(result.timeoutMs) || result.timeoutMs <= 0) {
     fail(`Invalid --timeout-ms value: ${result.timeoutMs}`);
@@ -229,14 +215,14 @@ function parseArgs(argv) {
   return result;
 }
 
-function readJson(filePath) {
-  return readFile(filePath, 'utf8').then((text) => JSON.parse(text));
+async function readJson(filePath) {
+  const text = await readFile(filePath, 'utf8');
+  return JSON.parse(text);
 }
 
-function writeJson(filePath, value) {
-  return mkdir(path.dirname(filePath), { recursive: true }).then(() =>
-    writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8'),
-  );
+async function writeJson(filePath, value) {
+  await mkdir(path.dirname(filePath), { recursive: true });
+  await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
 }
 
 function resolvePath(basePath, candidatePath) {
@@ -247,62 +233,78 @@ function resolvePath(basePath, candidatePath) {
   return path.resolve(basePath, candidatePath);
 }
 
-function ensureScenarioShape(scenario, scenarioPath) {
-  if (!scenario || typeof scenario !== 'object') {
-    fail(`Scenario is not an object: ${scenarioPath}`);
+function requireScenarioObject(value, message) {
+  if (!value || typeof value !== 'object') {
+    fail(message);
+  }
+}
+
+function requireNonEmptyString(value, message) {
+  if (typeof value !== 'string' || !value) {
+    fail(message);
+  }
+}
+
+function validateScenarioRepo(repo, scenarioPath) {
+  requireScenarioObject(repo, `Scenario missing repo block: ${scenarioPath}`);
+  requireNonEmptyString(repo.name, `Scenario missing repo.name: ${scenarioPath}`);
+  requireNonEmptyString(repo.root_env, `Scenario missing repo.root_env: ${scenarioPath}`);
+  requireNonEmptyString(
+    repo.default_root,
+    `Scenario missing repo.default_root: ${scenarioPath}`,
+  );
+}
+
+function validateAgentBriefTask(task, scenarioPath) {
+  const supportedModes = new Set(['repo_onboarding', 'patch', 'pre_merge']);
+  if (!supportedModes.has(task.mode)) {
+    fail(`agent_brief task has unsupported mode in ${scenarioPath}:${task.task_id}`);
+  }
+}
+
+function validateDeadPrivateTask(task, scenarioPath) {
+  if ('mode' in task) {
+    fail(`dead_private task must not define mode in ${scenarioPath}:${task.task_id}`);
+  }
+}
+
+function validateScenarioTask(task, scenarioPath) {
+  requireScenarioObject(task, `Scenario task is not an object in ${scenarioPath}`);
+  requireNonEmptyString(task.task_id, `Scenario task missing task_id in ${scenarioPath}`);
+  requireNonEmptyString(
+    task.prompt?.trim() ? task.prompt : '',
+    `Scenario task missing prompt in ${scenarioPath}:${task.task_id}`,
+  );
+  if (task.checks !== undefined && !Array.isArray(task.checks)) {
+    fail(`Scenario task checks must be an array in ${scenarioPath}:${task.task_id}`);
   }
 
+  switch (task.kind) {
+    case 'agent_brief':
+      validateAgentBriefTask(task, scenarioPath);
+      return;
+    case 'dead_private':
+      validateDeadPrivateTask(task, scenarioPath);
+      return;
+    default:
+      fail(`Scenario task has unsupported kind "${task.kind}" in ${scenarioPath}`);
+  }
+}
+
+function ensureScenarioShape(scenario, scenarioPath) {
+  requireScenarioObject(scenario, `Scenario is not an object: ${scenarioPath}`);
   if (scenario.schema_version !== 1) {
     fail(`Unsupported scenario schema version in ${scenarioPath}: ${scenario.schema_version}`);
   }
-
-  if (typeof scenario.scenario_id !== 'string' || !scenario.scenario_id) {
-    fail(`Scenario missing scenario_id: ${scenarioPath}`);
-  }
-
-  if (!scenario.repo || typeof scenario.repo !== 'object') {
-    fail(`Scenario missing repo block: ${scenarioPath}`);
-  }
-
-  if (typeof scenario.repo.name !== 'string' || !scenario.repo.name) {
-    fail(`Scenario missing repo.name: ${scenarioPath}`);
-  }
-
-  if (typeof scenario.repo.root_env !== 'string' || !scenario.repo.root_env) {
-    fail(`Scenario missing repo.root_env: ${scenarioPath}`);
-  }
-
-  if (typeof scenario.repo.default_root !== 'string' || !scenario.repo.default_root) {
-    fail(`Scenario missing repo.default_root: ${scenarioPath}`);
-  }
+  requireNonEmptyString(scenario.scenario_id, `Scenario missing scenario_id: ${scenarioPath}`);
+  validateScenarioRepo(scenario.repo, scenarioPath);
 
   if (!Array.isArray(scenario.tasks) || scenario.tasks.length === 0) {
     fail(`Scenario has no tasks: ${scenarioPath}`);
   }
 
   for (const task of scenario.tasks) {
-    if (!task || typeof task !== 'object') {
-      fail(`Scenario task is not an object in ${scenarioPath}`);
-    }
-    if (typeof task.task_id !== 'string' || !task.task_id) {
-      fail(`Scenario task missing task_id in ${scenarioPath}`);
-    }
-    if (task.kind !== 'agent_brief' && task.kind !== 'dead_private') {
-      fail(`Scenario task has unsupported kind "${task.kind}" in ${scenarioPath}`);
-    }
-    if (typeof task.prompt !== 'string' || !task.prompt.trim()) {
-      fail(`Scenario task missing prompt in ${scenarioPath}:${task.task_id}`);
-    }
-    if (task.kind === 'agent_brief') {
-      if (task.mode !== 'repo_onboarding' && task.mode !== 'patch' && task.mode !== 'pre_merge') {
-        fail(`agent_brief task has unsupported mode in ${scenarioPath}:${task.task_id}`);
-      }
-    } else if ('mode' in task) {
-      fail(`dead_private task must not define mode in ${scenarioPath}:${task.task_id}`);
-    }
-    if (task.checks !== undefined && !Array.isArray(task.checks)) {
-      fail(`Scenario task checks must be an array in ${scenarioPath}:${task.task_id}`);
-    }
+    validateScenarioTask(task, scenarioPath);
   }
 }
 
