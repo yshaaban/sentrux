@@ -29,12 +29,34 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: build-grammars-${{ runner.os }}-cargo
+
       - name: Install cross-compiler (ARM64)
         if: matrix.platform == 'linux-aarch64'
         run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
 
+      - name: Cache tree-sitter CLI
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/tree-sitter-cli
+          key: ${{ runner.os }}-tree-sitter-cli-0.25.10
+
       - name: Install tree-sitter CLI
-        run: npm install -g tree-sitter-cli
+        shell: bash
+        env:
+          TREE_SITTER_CLI_VERSION: '0.25.10'
+        run: |
+          chmod +x scripts/install_tree_sitter_cli.sh
+          ./scripts/install_tree_sitter_cli.sh
 
       - name: Build grammar bundle
         shell: bash

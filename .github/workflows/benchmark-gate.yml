@@ -43,8 +43,19 @@ jobs:
             target
           key: benchmark-gate-${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
 
+      - name: Cache tree-sitter CLI
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/tree-sitter-cli
+          key: ${{ runner.os }}-tree-sitter-cli-0.25.10
+
       - name: Install tree-sitter CLI
-        run: npm install -g tree-sitter-cli
+        shell: bash
+        env:
+          TREE_SITTER_CLI_VERSION: '0.25.10'
+        run: |
+          chmod +x scripts/install_tree_sitter_cli.sh
+          ./scripts/install_tree_sitter_cli.sh
 
       - name: Build and install current-commit language grammars
         shell: bash

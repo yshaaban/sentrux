@@ -108,6 +108,18 @@ function find_grammar_dir() {
   fi
 }
 
+function install_node_dependencies() {
+  local install_dir="$1"
+
+  if [[ ! -f "$install_dir/package.json" ]]; then
+    return 0
+  fi
+
+  pushd "$install_dir" >/dev/null
+  npm install --ignore-scripts >/dev/null
+  popd >/dev/null
+}
+
 function build_grammar() {
   local plugin_name="$1"
   local toml_path="$2"
@@ -128,6 +140,7 @@ function build_grammar() {
   clone_grammar_source "$source" "$ref" "$clone_dir"
 
   pushd "$clone_dir" >/dev/null
+  install_node_dependencies "."
   local grammar_dir
   grammar_dir="$(find_grammar_dir "$plugin_name")"
   if [[ -z "$grammar_dir" ]]; then
@@ -137,8 +150,8 @@ function build_grammar() {
   fi
 
   pushd "$grammar_dir" >/dev/null
-  if [[ -f package.json ]]; then
-    npm install --ignore-scripts >/dev/null 2>&1 || true
+  if [[ "$grammar_dir" != "." ]]; then
+    install_node_dependencies "."
   fi
   tree-sitter generate >/dev/null
 
@@ -146,7 +159,7 @@ function build_grammar() {
   if [[ ! -f "$src_dir/parser.c" ]]; then
     local detected_src_dir
     local detected_src_path
-    detected_src_path="$(find . -path '*/src/parser.c' -print | head -1)"
+    detected_src_path="$(find . -path '*/src/parser.c' -not -path '*/node_modules/*' -print | head -1)"
     if [[ -n "$detected_src_path" ]]; then
       detected_src_dir="$(dirname "$detected_src_path")"
     else
@@ -206,7 +219,7 @@ parse_args "$@"
 configure_platform
 
 if ! command -v tree-sitter >/dev/null 2>&1; then
-  echo "tree-sitter CLI is required. Install it with: npm install -g tree-sitter-cli" >&2
+  echo "tree-sitter CLI is required. Install it with scripts/install_tree_sitter_cli.sh or otherwise add it to PATH." >&2
   exit 1
 fi
 
