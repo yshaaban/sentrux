@@ -511,7 +511,10 @@ pub(crate) fn obligation_origin(obligation: &Value) -> IssueOrigin {
     if matches!(
         obligation.get("origin").and_then(Value::as_str),
         Some("zero_config")
-    ) || obligation.get("concept_id").is_none()
+    ) || obligation
+        .get("concept_id")
+        .or_else(|| obligation.get("concept"))
+        .is_none()
     {
         IssueOrigin::ZeroConfig
     } else {

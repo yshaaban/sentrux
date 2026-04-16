@@ -305,6 +305,7 @@ fn issue_confidence_for_value(finding: &Value, kind: &str) -> IssueConfidence {
 #[cfg(test)]
 mod tests {
     use super::{obligation_value_to_agent_issue, to_agent_issue};
+    use crate::metrics::v2::FindingSeverity;
     use serde_json::json;
 
     #[test]
@@ -418,5 +419,29 @@ mod tests {
                 "Split the file along the facade owner boundary and keep the public surface thin."
             )
         );
+    }
+
+    #[test]
+    fn concept_only_obligation_stays_explicit_and_trusted() {
+        let issue = obligation_value_to_agent_issue(&json!({
+            "kind": "incomplete_propagation",
+            "concept": "task_status",
+            "summary": "Task status updates are still incomplete.",
+            "files": ["src/task-status.ts"],
+            "missing_sites": [
+                {
+                    "path": "src/task-status.ts",
+                    "kind": "concept_followthrough",
+                    "line": 42,
+                    "detail": "missing propagation"
+                }
+            ]
+        }));
+
+        assert_eq!(issue.concept_id.as_deref(), Some("task_status"));
+        assert_eq!(issue.origin, super::IssueOrigin::Explicit);
+        assert_eq!(issue.confidence, super::IssueConfidence::High);
+        assert_eq!(issue.trust_tier, "trusted");
+        assert_eq!(issue.severity, FindingSeverity::High);
     }
 }
