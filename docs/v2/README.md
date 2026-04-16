@@ -6,6 +6,15 @@ V2 is the patch-safety and structured-guidance lane for Sentrux. It sits beside 
 
 This folder is maintainer and evaluation documentation for the current v2 shape. New public testers should start with the root [README](../../README.md), the [public beta guide](../public-beta.md), and the [privacy and telemetry note](../privacy-and-telemetry.md) before diving into this material.
 
+Current strategic focus:
+
+- make the top findings more trustworthy
+- make primary findings more fixable
+- promote detectors through public-proof discipline instead of intuition
+- keep release trust aligned with the product story
+
+This is a quality-compression phase, not an analyzer-expansion phase.
+
 Current surface reality:
 
 - MCP `check` is the fast-path v2 patch surface
@@ -14,6 +23,8 @@ Current surface reality:
 - CLI `sentrux check` is still the legacy structural rules check
 
 This folder is the maintained source of truth for the current v2 implementation details, validation loops, and design intent.
+
+If you are reading these docs as a maintainer, the core question is no longer "what else can the engine detect?" It is "does the lead surface help an agent or reviewer take the right next repair step?"
 
 ## Start Here
 
@@ -41,6 +52,13 @@ This folder is the maintained source of truth for the current v2 implementation 
 - [False-Positive Review](./false-positive-review.md)
 - [Parallel-Code Case Study](./parallel-code-case-study.md)
 - [Eval Harness](./evals/README.md)
+
+Evidence should be read in this order:
+
+1. does the surfaced issue match a real code-quality problem
+2. was it ranked high enough to matter
+3. was the repair path clear enough to shorten the next edit
+4. did the rerun improve the patch or repo without creating new regressions
 
 ## Checked-In Reference Artifacts
 

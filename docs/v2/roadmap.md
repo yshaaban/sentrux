@@ -20,6 +20,13 @@ Current public-release framing:
 - CLI `brief` and `gate` are the current v2 CLI entry points
 - CLI `check` is still the legacy structural rules check
 
+Current strategic emphasis:
+
+- improve top-finding quality before expanding analyzer breadth
+- make primary findings more fixable
+- govern promotion through public-safe proof, remediation evidence, and session telemetry
+- finish release credibility on the public path
+
 ## Strategy
 
 Build order for v2:
@@ -27,11 +34,44 @@ Build order for v2:
 1. trust and output framing
 2. patch-safety wedge
 3. debt signals, debt clusters, and watchpoints
-4. advanced static analysis
+4. product-quality compression: ranking, repair guidance, proof discipline, and release trust
+5. advanced static analysis
 
-If work does not improve one of the first two tiers, it is not on the critical path. Engineers own final prioritization; v2 should keep the evidence objective.
+If work does not improve one of the first four tiers, it is not on the critical path. Engineers own final prioritization; v2 should keep the evidence objective.
 
 The trust-and-output tier should include a mode-aware `agent_brief` for `repo_onboarding`, `patch`, and `pre_merge` guidance before raw findings.
+
+The current roadmap risk is no longer "can the engine detect enough?" The risk is "does the lead surface give developers and agents the right few things to fix first?"
+
+That means analyzer expansion is now secondary to:
+
+- primary-target quality
+- repair guidance
+- public-proof governance
+- release credibility
+
+## Current Program: Quality Compression
+
+Status: in progress
+
+Goal:
+
+- turn the existing wedge into a stricter product surface that is more selective, more fixable, and more evidence-backed
+
+Deliverables:
+
+- stronger primary-target ranking
+- fewer but higher-value lead findings
+- repair-oriented finding packets
+- promotion and demotion rules backed by public proof repos
+- release validation that matches the public product promise
+
+Exit criteria:
+
+- the first few findings are usually worth fixing first
+- primary findings include enough guidance to shorten the next edit
+- promoted detectors are supported by public-safe proof and remediation evidence
+- public release confidence is backed by remote CI and RC artifact validation
 
 ## Tier 0: Trust And Output Foundation
 

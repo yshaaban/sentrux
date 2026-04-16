@@ -58,6 +58,40 @@ The product surface must be ordered like this:
 
 The scorecard is useful, but it is not the core wedge. Any optimization-like output is a sorting aid, not a roadmap decision. `check`, `agent_brief`, and `session_end` should all lead with the same ranked action model.
 
+## Primary-Target Contract
+
+The user experiences Sentrux through the first few findings, not through detector coverage totals.
+
+That means the product should optimize for:
+
+- fewer, stronger primary targets
+- trustworthy ordering
+- fixability
+- explicit confidence and trust-tier separation
+
+A finding should not become a primary target just because it is technically true. It should usually meet all of these bars:
+
+- high enough trust for the current surface
+- worth fixing now
+- local enough that the next repair step is clear
+- supported by enough evidence that the user does not have to reverse-engineer the claim
+
+If only one or two findings meet that bar, the product should show one or two. A thin but trustworthy lead surface is better than a long, noisy one.
+
+## Repair Guidance Contract
+
+The product should prefer fixable findings over merely accurate findings.
+
+Primary findings should increasingly behave like repair packets:
+
+- what is risky or incomplete
+- why now
+- likely fix sites
+- smallest safe first cut
+- what to verify after the fix
+
+If a finding cannot support that level of guidance, it should usually be demoted to a watchpoint unless it is severe enough to justify a broad blocker.
+
 ## Agent Brief Modes
 
 `agent_brief` should support exactly three mode families:
@@ -165,6 +199,25 @@ Engineer-facing defaults should:
 - separate trust from leverage: reliability is not the same as improvement leverage
 - preserve fixability metadata such as impact, inspection focus, and candidate split axes
 
+Trust is not only about whether a detector is correct. It is also about whether the lead surface is disciplined. A top-ranked finding that is true but not worth acting on still damages product trust.
+
+## Public-Proof Discipline
+
+Signals should be promoted by evidence, not by engineering intuition alone.
+
+The promotion loop should be grounded in public-safe proof through:
+
+- seeded defects
+- false-positive review
+- remediation evals
+- public proof repos
+- real session telemetry
+
+Promotion standard:
+
+- detectors that consistently produce actionable, fixable, high-value findings can graduate into primary surfaces
+- detectors that are informative but not reliably worth acting on should remain watchpoints or supporting context
+
 ## Anti-Goals
 
 Do not optimize v2 around:
@@ -174,6 +227,7 @@ Do not optimize v2 around:
 - runtime tracing as a dependency
 - full semantic clone detection in the initial wedge
 - broad implicit-FSM inference before obligation and ownership work is strong
+- broad analyzer expansion before primary-target quality and repair guidance are strong
 
 ## Success Definition
 
@@ -186,3 +240,10 @@ V2 is succeeding when:
 5. the score is no longer the primary product narrative
 6. seeded defects, false-positive review, and remediation evals all support the signals we promote
 7. real session telemetry shows the top-ranked `check` actions are actually getting cleared without creating new regressions
+
+The next chapter after the core wedge is not "more analyzers first." It is quality compression:
+
+- better top-finding selection
+- stronger repair guidance
+- stricter promotion discipline
+- release trust that matches the local product story

@@ -8,7 +8,7 @@
 
 <br>
 
-**Structural feedback for AI-assisted code changes.**
+**Fixable patch-safety and structural review for AI-assisted code changes.**
 
 [![CI](https://github.com/yshaaban/sentrux/actions/workflows/ci.yml/badge.svg)](https://github.com/yshaaban/sentrux/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/yshaaban/sentrux)](https://github.com/yshaaban/sentrux/releases)
@@ -28,7 +28,13 @@
 
 </div>
 
-Sentrux gives coding agents a structural feedback loop. The current public beta has three practical surfaces:
+Sentrux gives coding agents and reviewers a structural feedback loop that is meant to be acted on, not just inspected. The current public beta is strongest when you point it at an active patch and ask:
+
+- what changed
+- what did this change obligate me to update
+- what is the next thing I should fix before I merge
+
+The current public beta has three practical surfaces:
 
 - the desktop GUI for live structural visualization
 - MCP tools for patch-safety and reviewer-facing evidence
@@ -39,6 +45,12 @@ The active public v2 surfaces are:
 - MCP `check` for fast patch-safety guidance
 - CLI `sentrux brief` and `sentrux gate` for structured v2 CLI workflows
 - CLI `sentrux check` as the older structural-rules lane
+
+Sentrux is not trying to be a universal static-analysis oracle yet. The current product promise is narrower:
+
+- catch high-leverage patch-safety regressions early
+- surface structural issues that are worth fixing now, not just technically true
+- give enough evidence and repair guidance that an agent or reviewer can take the next step quickly
 
 The maintained public repository is `yshaaban/sentrux`.
 
@@ -122,6 +134,20 @@ What ships today:
 - CLI legacy lane: `check`
 - TypeScript-first semantic analysis through the Node bridge in [`ts-bridge/`](ts-bridge/README.md)
 
+What this beta is trying to do well:
+
+- show a small number of high-trust issues that are worth fixing first
+- explain whether a patch is incomplete, risky, or structurally regressive
+- point you at likely fix sites and follow-through obligations
+- stay honest about confidence, exclusions, and watchpoints when the evidence is thin
+
+What this beta is not claiming yet:
+
+- broad universal correctness review across arbitrary repos
+- deep semantic certainty in every language or framework
+- that every detector family is mature enough for top-line ratchets
+- that repo-level score summaries matter more than patch-level findings
+
 What is still intentionally beta-quality:
 
 - some detector families stay quarantined as `experimental` until validation evidence is stronger
@@ -132,13 +158,20 @@ Known limitations, feedback expectations, and public-test guidance live in [docs
 
 ## Metrics And Signals
 
-Most users do not need the full internal metric catalog. They need to know what the tool is telling them when it blocks a patch or highlights follow-through risk.
+Most users do not need the full internal metric catalog. They need to know whether the run is trustworthy, whether the top findings are worth acting on, and how to verify the fix.
 
 If you only remember one rule, use the signals in this order:
 
 1. Can I trust this run?
 2. What is risky or incomplete?
 3. Did my patch make the repo structurally worse?
+
+The best current Sentrux experience is not "here are 20 interesting metrics." It is:
+
+1. a small set of trustworthy findings
+2. clear follow-through obligations
+3. enough fix guidance to shorten the next editing step
+4. a rerun that shows whether the patch actually improved
 
 Fields ending in `_0_10000` use a `0-10000` scale where `10000` is best, most complete, or most trustworthy.
 
@@ -168,6 +201,13 @@ If you want repo-level context beyond the patch, the main legacy structural metr
 | `hotspots` and `churn` | Frequently changing, complex parts of the repo. | Useful for prioritizing hardening and refactoring. |
 
 The full reference, including lower-level structural fields and maintainer-only benchmark metrics, lives in [docs/metrics-and-signals.md](docs/metrics-and-signals.md).
+
+When you are deciding what to fix first, treat the surfaces like this:
+
+- `findings` and `obligations`: primary repair queue
+- `debt_signals`: trusted follow-on cleanup with evidence
+- `watchpoints`: inspect next, but do not treat as hard blockers by default
+- repo-level scores and deltas: supporting context, not the main product promise
 
 ## Privacy And Telemetry
 

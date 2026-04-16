@@ -4,7 +4,7 @@ Last audited: 2026-04-17
 
 ## Overall Verdict
 
-The implementation is in a good place relative to the **core v2 wedge**, but it is not done relative to the **full roadmap**.
+The implementation is in a good place relative to the **core v2 wedge**, but it is not done relative to the **full roadmap** or the stricter product bar of "developers consistently get the right few things to fix first."
 
 Current assessment:
 
@@ -13,12 +13,26 @@ Current assessment:
 - full roadmap: partially implemented
 - cross-cutting proof and validation: materially improved, with fast-path MCP `check`, defect injection, and signal-quality scorecard foundations now landed
 - public release readiness: materially improved, with public-safe docs, hygiene enforcement, and deterministic local release preflight now in place
+- current product risk: no longer missing engine capability first; now mostly top-finding quality, repair guidance, proof governance, and release credibility
 
 Working estimate:
 
 - core wedge completion: about 90-92%
 - full roadmap completion: about 80-85%
 - validation and proof completion: about 78-82%
+
+## Strategic Read
+
+The project has moved out of the "build the engine" phase.
+
+The next critical phase is product-quality compression:
+
+- improve the quality of the first few findings a user sees
+- make primary findings more repairable
+- promote or demote detectors through public-proof discipline
+- keep release credibility aligned with the local product story
+
+This is the right next phase because the core wedge is already real. The biggest remaining risk is not detector count. It is whether the lead surface is selective, fixable, and trustworthy enough for repeated use.
 
 ## What Is True Today
 
@@ -86,6 +100,11 @@ The strongest completed work is:
 - desktop structural panels and export flow now frame structural output as supporting context
 - `findings` now includes a top-level confidence summary
 
+The strongest product truth today is narrower than the full roadmap:
+
+- Sentrux is already useful as a patch-safety and structural review assistant
+- Sentrux is not yet broadly proven as a universal code-quality reviewer across arbitrary repos
+
 ## Overall Status By Tier
 
 | Tier | Status | Assessment | Main Gap |
@@ -102,6 +121,15 @@ The strongest completed work is:
 | Tier 2C | Mostly complete | inspection tools, adoption helpers, trust-tiered debt signals, structural debt findings, debt clusters, and `project_shape` now exist with a public benchmark corpus and Sentrux dogfood artifacts | broader onboarding proof and evidence-quality validation are still incomplete |
 | Tier 3 | Partial | conservative state-integrity slice now includes explicit transition-site modeling and transition-coverage findings for rule-declared state domains | implicit lifecycle heuristics and broader invalid-state-risk inference are still not built |
 | Validation | Mostly complete | unit tests, synthetic gate/session regression scenarios, public benchmark goldens, versioned benchmark comparison, explicit benchmark policy, confidence/migration checks, defect injection, review packets, remediation eval scaffolding, signal scorecards, public hygiene checks, and local release preflight now exist | dedicated quiet-runner benchmark gating, no full migration suite, and broader public benchmark-repo unhappy-path coverage are still incomplete |
+
+## Current Product Gaps
+
+These are the main user-facing gaps that still matter even though the wedge is largely built:
+
+- top findings are not yet proven strongly enough across the public proof set
+- some structurally true findings are still stronger diagnostically than they are repair-oriented
+- detector promotion is improving, but still needs more measured proof from public repos and remediation loops
+- local validation is strong, but remote release confidence is still the deciding trust bar for broad public use
 
 ## Tier-By-Tier Status
 

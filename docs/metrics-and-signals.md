@@ -19,6 +19,17 @@ If you are using Sentrux during code review or while iterating on a patch, read 
 5. Use `debt_signals` and `watchpoints` to decide what to fix now versus inspect next.
 6. Use `signal_delta` and `quality_signal` for whole-repo context.
 
+The product goal is not to maximize how many metrics you look at. It is to help you identify a small number of trustworthy, fixable actions.
+
+In practice:
+
+- `findings` and `obligations` should drive the next edit
+- `debt_signals` should help you choose intentional cleanup
+- `watchpoints` should stay lower-pressure unless later evidence strengthens them
+- repo-level scores should stay supporting context
+
+If the top of the output does not help you answer "what should I fix first and where should I start?", treat the run as incomplete even if the raw metrics are technically rich.
+
 The rest of this page is the deeper field-by-field reference.
 
 ## How To Read The Numbers
@@ -39,6 +50,22 @@ The rest of this page is the deeper field-by-field reference.
 | MCP `parity` | Contract parity across related surfaces |
 | MCP state-integrity output | Conservative state-model validation |
 | benchmark artifacts in `docs/v2/examples/` | Release-readiness and latency regression tracking |
+
+## Reading The Lead Surface
+
+When Sentrux is working well, the lead surface should feel like:
+
+1. trust check
+2. decision or ranked actions
+3. concrete findings and obligations
+4. fix guidance
+5. supporting context
+
+That means:
+
+- a primary finding should usually be worth fixing now
+- a watchpoint should usually be inspect-next guidance, not a hidden blocker
+- a repo-level score should almost never outrank a fixable patch-level issue
 
 ## Legacy Structural Health
 
