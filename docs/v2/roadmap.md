@@ -65,6 +65,7 @@ Deliverables:
 - repair-oriented finding packets
 - promotion and demotion rules backed by public proof repos
 - release validation that matches the public product promise
+- parity fixtures that keep shared Rust/JS policy behavior from drifting
 
 Exit criteria:
 
@@ -72,6 +73,7 @@ Exit criteria:
 - primary findings include enough guidance to shorten the next edit
 - promoted detectors are supported by public-safe proof and remediation evidence
 - public release confidence is backed by remote CI and RC artifact validation
+- shared policy changes fail tests when Rust and JS interpretation diverge
 
 ## Tier 0: Trust And Output Foundation
 

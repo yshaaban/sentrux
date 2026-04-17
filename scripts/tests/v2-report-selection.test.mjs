@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   compactSelectedCandidate,
   selectLeverageBuckets,
+  selectPresentationBuckets,
   scoreBandLabel,
 } from '../lib/v2-report-selection.mjs';
 
@@ -138,6 +139,27 @@ test('selectLeverageBuckets returns empty buckets for empty payloads', function 
   assert.deepEqual(buckets.trusted_watchpoints, []);
   assert.deepEqual(buckets.lead_candidates, []);
   assert.deepEqual(buckets.secondary_hotspots, []);
+});
+
+test('selectPresentationBuckets mirrors leverage bucket selection', function () {
+  const findingsPayload = {
+    finding_details: [
+      candidate({
+        scope: 'src/store/store.ts',
+        kind: 'dependency_sprawl',
+        leverageClass: 'architecture_signal',
+        severity: 'high',
+      }),
+    ],
+    watchpoints: [],
+    debt_signals: [],
+    debt_clusters: [],
+  };
+
+  assert.deepEqual(
+    selectPresentationBuckets(findingsPayload),
+    selectLeverageBuckets(findingsPayload),
+  );
 });
 
 test('selectLeverageBuckets deduplicates summary scopes and keeps compatibility aliases', function () {

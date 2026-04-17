@@ -94,40 +94,81 @@ fn order_rank(order: &[String], class_name: &str) -> usize {
 
 #[cfg(test)]
 mod tests {
+    use serde::Deserialize;
     use super::{
         action_kind_weight, action_leverage_weight, action_presentation_weight,
         report_leverage_rank, report_presentation_rank, score_band_label,
     };
 
+    #[derive(Debug, Deserialize)]
+    struct SharedPolicyFixture {
+        score_bands: Vec<ScoreBandCase>,
+        action_kind_weights: Vec<WeightCase>,
+        action_leverage_weights: Vec<WeightCase>,
+        action_presentation_weights: Vec<WeightCase>,
+        report_leverage_priority: Vec<PriorityCase>,
+        report_presentation_priority: Vec<PriorityCase>,
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct ScoreBandCase {
+        score: u32,
+        label: String,
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct WeightCase {
+        name: String,
+        weight: u8,
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct PriorityCase {
+        name: String,
+        priority: usize,
+    }
+
+    fn shared_policy_fixture() -> SharedPolicyFixture {
+        serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../scripts/tests/fixtures/policy-parity/shared-policy.json"
+        )))
+        .expect("shared policy parity fixture should parse")
+    }
+
     #[test]
     fn action_policy_matches_expected_weights() {
-        assert!(action_kind_weight("forbidden_raw_read") > action_kind_weight("large_file"));
-        assert!(
-            action_leverage_weight("boundary_discipline")
-                > action_leverage_weight("secondary_cleanup")
-        );
-        assert!(
-            action_presentation_weight("guarded_facade")
-                > action_presentation_weight("tooling_debt")
-        );
+        let fixture = shared_policy_fixture();
+
+        for case in fixture.action_kind_weights {
+            assert_eq!(action_kind_weight(case.name.as_str()), case.weight);
+        }
+        for case in fixture.action_leverage_weights {
+            assert_eq!(action_leverage_weight(case.name.as_str()), case.weight);
+        }
+        for case in fixture.action_presentation_weights {
+            assert_eq!(action_presentation_weight(case.name.as_str()), case.weight);
+        }
     }
 
     #[test]
     fn report_policy_matches_expected_order() {
-        assert!(report_leverage_rank("architecture_signal") < report_leverage_rank("tooling_debt"));
-        assert!(
-            report_presentation_rank("structural_debt") < report_presentation_rank("experimental")
-        );
+        let fixture = shared_policy_fixture();
+
+        for case in fixture.report_leverage_priority {
+            assert_eq!(report_leverage_rank(case.name.as_str()), case.priority);
+        }
+        for case in fixture.report_presentation_priority {
+            assert_eq!(report_presentation_rank(case.name.as_str()), case.priority);
+        }
     }
 
     #[test]
     fn score_bands_match_shared_policy_thresholds() {
-        assert_eq!(score_band_label(0), "supporting_signal");
-        assert_eq!(score_band_label(3999), "supporting_signal");
-        assert_eq!(score_band_label(4000), "moderate_signal");
-        assert_eq!(score_band_label(6499), "moderate_signal");
-        assert_eq!(score_band_label(6500), "high_signal");
-        assert_eq!(score_band_label(8499), "high_signal");
-        assert_eq!(score_band_label(8500), "very_high_signal");
+        let fixture = shared_policy_fixture();
+
+        for case in fixture.score_bands {
+            assert_eq!(score_band_label(case.score), case.label);
+        }
     }
 }

@@ -31,6 +31,7 @@ If you are reading these docs as a maintainer, the core question is no longer "w
 - [Implementation Status](./implementation-status.md)
 - [MCP And CLI](./mcp-and-cli.md)
 - [Testing And Validation](./testing-and-validation.md)
+- [Policy And Eval Architecture](./policy-and-eval-architecture.md)
 - [Release Checklist](./release-checklist.md)
 - public release preflight: `node scripts/release_preflight_public.mjs`
 - public release hygiene scan: `node scripts/check_public_release_hygiene.mjs`

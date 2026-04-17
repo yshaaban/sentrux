@@ -1,0 +1,35 @@
+{
+  "score_bands": [
+    { "score": 0, "label": "supporting_signal" },
+    { "score": 3999, "label": "supporting_signal" },
+    { "score": 4000, "label": "moderate_signal" },
+    { "score": 6499, "label": "moderate_signal" },
+    { "score": 6500, "label": "high_signal" },
+    { "score": 8499, "label": "high_signal" },
+    { "score": 8500, "label": "very_high_signal" }
+  ],
+  "action_kind_weights": [
+    { "name": "forbidden_raw_read", "weight": 7 },
+    { "name": "large_file", "weight": 0 },
+    { "name": "unknown_kind", "weight": 4 }
+  ],
+  "action_leverage_weights": [
+    { "name": "boundary_discipline", "weight": 6 },
+    { "name": "secondary_cleanup", "weight": 0 }
+  ],
+  "action_presentation_weights": [
+    { "name": "guarded_facade", "weight": 4 },
+    { "name": "tooling_debt", "weight": 1 },
+    { "name": "unknown_presentation", "weight": 0 }
+  ],
+  "report_leverage_priority": [
+    { "name": "architecture_signal", "priority": 0 },
+    { "name": "tooling_debt", "priority": 6 },
+    { "name": "unknown_leverage", "priority": 8 }
+  ],
+  "report_presentation_priority": [
+    { "name": "structural_debt", "priority": 0 },
+    { "name": "experimental", "priority": 5 },
+    { "name": "unknown_presentation", "priority": 6 }
+  ]
+}

@@ -24,6 +24,7 @@ The test strategy must prove:
 3. patch-scoped obligations are accurate enough to trust
 4. false positives stay controlled
 5. upgrades do not silently regress case-study findings
+6. shared Rust and JS policy consumers do not drift on score bands or ordering
 
 ## Test Layers
 
@@ -193,6 +194,11 @@ V2 should track at least these validation metrics:
 The goal is not perfect recall.
 
 The goal is high trust on the findings we choose to surface and gate on.
+
+Shared-policy parity is now part of that trust bar:
+
+- [.sentrux/signal-policy.json](../../.sentrux/signal-policy.json) is the shared static source
+- [signal-policy.test.mjs](../../scripts/tests/signal-policy.test.mjs) and [signal_policy.rs](/home/yrsh/sentrux/sentrux-core/src/app/mcp_server/handlers/signal_policy.rs) consume the same fixture in `scripts/tests/fixtures/policy-parity/`
 
 For the lead surface, the quality bar is stricter than generic reviewed precision. The scorecard should now answer:
 

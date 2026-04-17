@@ -96,6 +96,8 @@ The strongest completed work is:
 - cohort-driven batch Codex capture, batch diff replay, and signal-backlog synthesis now exist for continuous calibration
 - checked-in repo calibration manifests, batch manifests, prompt files, and review-verdict schema/template now exist for `parallel-code`, `one-tool`, and `sentrux`
 - one-command repo calibration orchestration now exists through `run-repo-calibration-loop.mjs`
+- shared static ranking and score-band policy now lives in `.sentrux/signal-policy.json` with Rust and JS parity tests consuming the same fixture contract
+- maintainer architecture boundaries for policy ownership and eval runtime composition are now documented in [policy-and-eval-architecture.md](./policy-and-eval-architecture.md)
 - legacy MCP and CLI surfaces now frame structural output as context rather than the main v2 story
 - desktop structural panels and export flow now frame structural output as supporting context
 - `findings` now includes a top-level confidence summary
