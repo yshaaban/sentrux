@@ -58,6 +58,7 @@ mod health;
 mod scan;
 mod semantic_batch;
 mod session;
+mod signal_policy;
 #[cfg(test)]
 pub(crate) mod test_support;
 mod view_support;
@@ -112,6 +113,7 @@ pub(crate) use self::semantic_batch::{
 pub(crate) use self::session::prepare_patch_check_context;
 pub use self::session::{cli_evaluate_v2_gate, cli_save_v2_session};
 pub(crate) use self::session::{gate_def, session_end_def, session_start_def};
+pub(crate) use self::signal_policy::score_band_label;
 pub(crate) use self::view_support::{
     legacy_baseline_delta_json, optional_project_shape_json, project_shape_json_cached,
     project_shape_report_cached, scan_trust_json,

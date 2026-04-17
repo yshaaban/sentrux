@@ -10,6 +10,162 @@ const PREFERRED_OWNER_PREFIX: &str = "preferred owner: ";
 const CHANGED_CLONE_MEMBER_PREFIX: &str = "changed clone member: ";
 const UNCHANGED_CLONE_SIBLING_PREFIX: &str = "unchanged clone sibling: ";
 const BEST_CUT_CANDIDATE_PREFIX: &str = "best cut candidate: ";
+const LARGE_FILE_DO_NOT_TOUCH: &[&str] =
+    &["Do not slice the file by line count alone; split along the cited boundary instead."];
+const DEPENDENCY_SPRAWL_DO_NOT_TOUCH: &[&str] = &[
+    "Do not add another direct entry-surface import while fixing this; move behavior behind a narrower owner.",
+];
+const CYCLE_CLUSTER_DO_NOT_TOUCH: &[&str] =
+    &["Do not try to untangle the whole cluster at once; cut the highest-leverage seam first."];
+const CLONE_FAMILY_DO_NOT_TOUCH: &[&str] =
+    &["Do not create a third sibling path while fixing the duplicate behavior."];
+const CLOSED_DOMAIN_DO_NOT_TOUCH: &[&str] =
+    &["Do not rely on a production fallback or default branch to hide missing variants."];
+const INCOMPLETE_PROPAGATION_DO_NOT_TOUCH: &[&str] = &[
+    "Do not treat the source-side change as complete until every required sibling surface is updated.",
+];
+const VERIFY_AFTER_GATE_MESSAGE: &str =
+    "Re-run `sentrux gate` and confirm no missing follow-through or exhaustiveness blocker remains.";
+const DEFAULT_FINDING_RISK_STATEMENT: &str =
+    "If ignored, this finding will keep adding change friction and make future regressions harder to isolate.";
+const DEFAULT_OBLIGATION_RISK_STATEMENT: &str =
+    "Changed concept follow-through is still incomplete, so the patch can look finished while one required surface still drifts.";
+const INCOMPLETE_PROPAGATION_RISK_STATEMENT: &str =
+    "Related contract surfaces are no longer aligned, so runtime paths can diverge or partially break.";
+const CLOSED_DOMAIN_EXHAUSTIVENESS_RISK_STATEMENT: &str =
+    "Finite-domain changes can silently miss one surface unless every required branch stays in sync.";
+const FORBIDDEN_RAW_READ_HINT: &str =
+    "Route the read through the concept's canonical accessor instead of reading raw state.";
+const FORBIDDEN_WRITER_HINT: &str =
+    "Move the write behind an allowed writer or update the rule if the new writer is intentional.";
+const MULTI_WRITER_HINT: &str =
+    "Reduce the concept to one authoritative writer or document the additional writer explicitly.";
+const CLOSED_DOMAIN_HINT: &str =
+    "Handle the missing variants with an explicit exhaustive switch or mapping, and keep the fallback/default branch out of the production path.";
+const STATE_MODEL_EXHAUSTIVE_HINT: &str =
+    "Restore the exhaustive switch and assert-never guard for the state model.";
+const LARGE_FILE_HINT: &str =
+    "Split the file along the boundary suggested by the evidence and keep the public surface thin.";
+const DEPENDENCY_SPRAWL_HINT: &str =
+    "Extract a narrower facade or move behavior behind an existing module boundary.";
+const AUTHORITATIVE_IMPORT_BYPASS_HINT: &str =
+    "Route the caller back through the concept's canonical import surface instead of deep-importing the owner.";
+const CONCEPT_BOUNDARY_PRESSURE_HINT: &str =
+    "Move the shared concept access behind one owner before another sibling bypasses the same boundary.";
+const UNSTABLE_HOTSPOT_HINT: &str = "Stabilize the hotspot before adding more change pressure.";
+const HOTSPOT_HINT: &str =
+    "Pull orchestration or side effects behind a narrower owner before adding more behavior here.";
+const CYCLE_CLUSTER_HINT: &str = "Cut the highest-leverage cycle seam first and re-run check.";
+const CLONE_FAMILY_HINT: &str = "Extract shared behavior or collapse the duplicated flow.";
+const INCOMPLETE_PROPAGATION_HINT: &str =
+    "Update the remaining sibling surfaces listed in the evidence before considering the change complete.";
+const MISSING_TEST_COVERAGE_HINT: &str = "Add a sibling test covering the new production surface.";
+const ZERO_CONFIG_BOUNDARY_VIOLATION_HINT: &str =
+    "Replace the deep import with the module's public API.";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum GuidanceFamily {
+    Boundary,
+    Clone,
+    Cycle,
+    Dependency,
+    Exhaustiveness,
+    FileScale,
+    Generic,
+    Hotspot,
+    TestCoverage,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct GuidanceKindProfile {
+    family: GuidanceFamily,
+    do_not_touch_yet: &'static [&'static str],
+    verify_after_gate: bool,
+}
+
+fn guidance_kind_profile(kind: &str) -> GuidanceKindProfile {
+    match kind {
+        "large_file" => GuidanceKindProfile {
+            family: GuidanceFamily::FileScale,
+            do_not_touch_yet: LARGE_FILE_DO_NOT_TOUCH,
+            verify_after_gate: false,
+        },
+        "dependency_sprawl" => GuidanceKindProfile {
+            family: GuidanceFamily::Dependency,
+            do_not_touch_yet: DEPENDENCY_SPRAWL_DO_NOT_TOUCH,
+            verify_after_gate: false,
+        },
+        "cycle_cluster" => GuidanceKindProfile {
+            family: GuidanceFamily::Cycle,
+            do_not_touch_yet: CYCLE_CLUSTER_DO_NOT_TOUCH,
+            verify_after_gate: false,
+        },
+        "session_introduced_clone" | "clone_propagation_drift" | "touched_clone_family" => {
+            GuidanceKindProfile {
+                family: GuidanceFamily::Clone,
+                do_not_touch_yet: CLONE_FAMILY_DO_NOT_TOUCH,
+                verify_after_gate: false,
+            }
+        }
+        "closed_domain_exhaustiveness" => GuidanceKindProfile {
+            family: GuidanceFamily::Exhaustiveness,
+            do_not_touch_yet: CLOSED_DOMAIN_DO_NOT_TOUCH,
+            verify_after_gate: true,
+        },
+        "incomplete_propagation" => GuidanceKindProfile {
+            family: GuidanceFamily::Exhaustiveness,
+            do_not_touch_yet: INCOMPLETE_PROPAGATION_DO_NOT_TOUCH,
+            verify_after_gate: true,
+        },
+        "state_model_missing_exhaustive_switch" | "state_model_missing_assert_never" => {
+            GuidanceKindProfile {
+                family: GuidanceFamily::Exhaustiveness,
+                do_not_touch_yet: &[],
+                verify_after_gate: true,
+            }
+        }
+        "forbidden_raw_read"
+        | "forbidden_writer"
+        | "writer_outside_allowlist"
+        | "authoritative_import_bypass"
+        | "concept_boundary_pressure"
+        | "zero_config_boundary_violation" => GuidanceKindProfile {
+            family: GuidanceFamily::Boundary,
+            do_not_touch_yet: &[],
+            verify_after_gate: false,
+        },
+        "unstable_hotspot" | "hotspot" => GuidanceKindProfile {
+            family: GuidanceFamily::Hotspot,
+            do_not_touch_yet: &[],
+            verify_after_gate: false,
+        },
+        "missing_test_coverage" => GuidanceKindProfile {
+            family: GuidanceFamily::TestCoverage,
+            do_not_touch_yet: &[],
+            verify_after_gate: false,
+        },
+        _ => GuidanceKindProfile {
+            family: GuidanceFamily::Generic,
+            do_not_touch_yet: &[],
+            verify_after_gate: false,
+        },
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ObligationFamily {
+    Propagation,
+    Exhaustiveness,
+    Generic,
+}
+
+fn obligation_family(kind: &str) -> ObligationFamily {
+    match kind {
+        "incomplete_propagation" => ObligationFamily::Propagation,
+        "closed_domain_exhaustiveness" => ObligationFamily::Exhaustiveness,
+        _ => ObligationFamily::Generic,
+    }
+}
 
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct RepairPacketRequiredFields {
@@ -34,40 +190,32 @@ pub(crate) struct RepairPacket {
 }
 
 pub(crate) fn repair_packet_for_finding(finding: &Value, kind: &str) -> RepairPacket {
-    let likely_fix_sites = likely_fix_sites_for_value(finding, kind);
-    let inspection_context = inspection_context_for_finding(finding);
-    let smallest_safe_first_cut = fix_hint_for_value(finding, kind);
-    let risk_statement = finding_risk_statement(finding);
-    let verify_after = verify_after_for_kind(kind, &likely_fix_sites, &inspection_context);
-    let do_not_touch_yet = do_not_touch_yet_for_kind(kind);
-    let required_fields = repair_packet_required_fields(
-        !risk_statement.trim().is_empty(),
-        !likely_fix_sites.is_empty(),
-        smallest_safe_first_cut.is_some(),
-        !verify_after.is_empty(),
-    );
-    let missing_fields = repair_packet_missing_fields(&required_fields);
-    let completeness_0_10000 =
-        repair_packet_completeness_0_10000(&required_fields, !do_not_touch_yet.is_empty());
-    RepairPacket {
-        risk_statement,
-        likely_fix_sites,
-        inspection_context,
-        smallest_safe_first_cut,
-        verify_after,
-        do_not_touch_yet,
-        completeness_0_10000,
-        complete: missing_fields.is_empty(),
-        required_fields,
-        missing_fields,
-    }
+    build_repair_packet(
+        kind,
+        likely_fix_sites_for_value(finding, kind),
+        inspection_context_for_finding(finding),
+        fix_hint_for_value(finding, kind),
+        finding_risk_statement(finding),
+    )
 }
 
 pub(crate) fn repair_packet_for_obligation(obligation: &Value, kind: &str) -> RepairPacket {
-    let likely_fix_sites = obligation_likely_fix_sites(obligation);
-    let inspection_context = inspection_context_for_obligation(obligation);
-    let smallest_safe_first_cut = obligation_fix_hint(obligation, kind);
-    let risk_statement = obligation_risk_statement(obligation, kind);
+    build_repair_packet(
+        kind,
+        obligation_likely_fix_sites(obligation),
+        inspection_context_for_obligation(obligation),
+        obligation_fix_hint(obligation, kind),
+        obligation_risk_statement(obligation, kind),
+    )
+}
+
+fn build_repair_packet(
+    kind: &str,
+    likely_fix_sites: Vec<String>,
+    inspection_context: Vec<String>,
+    smallest_safe_first_cut: Option<String>,
+    risk_statement: String,
+) -> RepairPacket {
     let verify_after = verify_after_for_kind(kind, &likely_fix_sites, &inspection_context);
     let do_not_touch_yet = do_not_touch_yet_for_kind(kind);
     let required_fields = repair_packet_required_fields(
@@ -152,23 +300,15 @@ fn finding_risk_statement(finding: &Value) -> String {
         .into_iter()
         .next()
         .map(|detail| detail.impact)
-        .unwrap_or_else(|| {
-            "If ignored, this finding will keep adding change friction and make future regressions harder to isolate."
-                .to_string()
-        })
+        .unwrap_or_else(|| DEFAULT_FINDING_RISK_STATEMENT.to_string())
 }
 
 fn obligation_risk_statement(_obligation: &Value, kind: &str) -> String {
-    if kind == "incomplete_propagation" {
-        return "Related contract surfaces are no longer aligned, so runtime paths can diverge or partially break."
-            .to_string();
+    match obligation_family(kind) {
+        ObligationFamily::Propagation => INCOMPLETE_PROPAGATION_RISK_STATEMENT.to_string(),
+        ObligationFamily::Exhaustiveness => CLOSED_DOMAIN_EXHAUSTIVENESS_RISK_STATEMENT.to_string(),
+        ObligationFamily::Generic => DEFAULT_OBLIGATION_RISK_STATEMENT.to_string(),
     }
-    if kind == "closed_domain_exhaustiveness" {
-        return "Finite-domain changes can silently miss one surface unless every required branch stays in sync."
-            .to_string();
-    }
-    "Changed concept follow-through is still incomplete, so the patch can look finished while one required surface still drifts."
-        .to_string()
 }
 
 fn verify_after_for_kind(
@@ -194,49 +334,23 @@ fn verify_after_for_kind(
         );
     }
 
-    if matches!(
-        kind,
-        "incomplete_propagation"
-            | "closed_domain_exhaustiveness"
-            | "state_model_missing_exhaustive_switch"
-            | "state_model_missing_assert_never"
-    ) {
-        steps.push(
-            "Re-run `sentrux gate` and confirm no missing follow-through or exhaustiveness blocker remains."
-                .to_string(),
-        );
+    if guidance_kind_profile(kind).verify_after_gate {
+        steps.push(VERIFY_AFTER_GATE_MESSAGE.to_string());
     }
 
     steps
 }
 
 fn do_not_touch_yet_for_kind(kind: &str) -> Vec<String> {
-    match kind {
-        "large_file" => vec![
-            "Do not slice the file by line count alone; split along the cited boundary instead."
-                .to_string(),
-        ],
-        "dependency_sprawl" => vec![
-            "Do not add another direct entry-surface import while fixing this; move behavior behind a narrower owner."
-                .to_string(),
-        ],
-        "cycle_cluster" => vec![
-            "Do not try to untangle the whole cluster at once; cut the highest-leverage seam first."
-                .to_string(),
-        ],
-        "session_introduced_clone" | "clone_propagation_drift" | "touched_clone_family" => vec![
-            "Do not create a third sibling path while fixing the duplicate behavior.".to_string(),
-        ],
-        "closed_domain_exhaustiveness" => vec![
-            "Do not rely on a production fallback or default branch to hide missing variants."
-                .to_string(),
-        ],
-        "incomplete_propagation" => vec![
-            "Do not treat the source-side change as complete until every required sibling surface is updated."
-                .to_string(),
-        ],
-        _ => Vec::new(),
-    }
+    guidance_kind_profile(kind)
+        .do_not_touch_yet
+        .iter()
+        .map(|value| (*value).to_string())
+        .collect::<Vec<_>>()
+}
+
+fn guidance_family(kind: &str) -> GuidanceFamily {
+    guidance_kind_profile(kind).family
 }
 
 pub(crate) fn fix_hint_for_value(finding: &Value, kind: &str) -> Option<String> {
@@ -244,59 +358,17 @@ pub(crate) fn fix_hint_for_value(finding: &Value, kind: &str) -> Option<String> 
         return forbidden_raw_read_fix_hint(finding);
     }
 
-    if kind == "session_introduced_clone" {
-        return session_introduced_clone_fix_hint(finding);
+    match guidance_family(kind) {
+        GuidanceFamily::Boundary => boundary_fix_hint_for_kind(kind),
+        GuidanceFamily::Clone => clone_fix_hint_for_kind(finding, kind),
+        GuidanceFamily::Cycle => Some(CYCLE_CLUSTER_HINT.to_string()),
+        GuidanceFamily::Dependency => Some(DEPENDENCY_SPRAWL_HINT.to_string()),
+        GuidanceFamily::Exhaustiveness => exhaustiveness_fix_hint_for_kind(kind),
+        GuidanceFamily::FileScale => file_scale_fix_hint_for_kind(finding),
+        GuidanceFamily::Generic => None,
+        GuidanceFamily::Hotspot => hotspot_fix_hint_for_kind(kind),
+        GuidanceFamily::TestCoverage => Some(MISSING_TEST_COVERAGE_HINT.to_string()),
     }
-
-    if kind == "clone_propagation_drift" {
-        return clone_propagation_drift_fix_hint(finding);
-    }
-
-    if kind == "touched_clone_family" {
-        if let Some(unchanged_sibling) =
-            evidence_value_for_prefix(finding, UNCHANGED_CLONE_SIBLING_PREFIX)
-        {
-            return Some(format!(
-                "Inspect sibling clone {unchanged_sibling} before finishing the patch, or collapse the duplicate paths behind one shared helper."
-            ));
-        }
-    }
-
-    if kind == "large_file" {
-        let split_axes = string_array_values(finding, "candidate_split_axes", 2);
-        let related_surfaces = string_array_values(finding, "related_surfaces", 2)
-            .into_iter()
-            .filter(|surface| !looks_like_test_surface(surface))
-            .collect::<Vec<_>>();
-        if split_axes.len() == 1 && related_surfaces.len() == 1 {
-            let split_axis = &split_axes[0];
-            let related_surface = &related_surfaces[0];
-            return Some(format!(
-                "Split the file along the {split_axis} and move the behavior that couples to {related_surface} behind a smaller owner before adding more code here."
-            ));
-        }
-        if !split_axes.is_empty() && !related_surfaces.is_empty() {
-            return Some(format!(
-                "Split the file along {} and move the behavior that couples to {} behind smaller owners before adding more code here.",
-                describe_split_axes(&split_axes),
-                describe_list(&related_surfaces),
-            ));
-        }
-        if !split_axes.is_empty() {
-            return Some(format!(
-                "Split the file along {} and keep the public surface thin.",
-                describe_split_axes(&split_axes),
-            ));
-        }
-        if !related_surfaces.is_empty() {
-            return Some(format!(
-                "Extract the behavior that couples to {} behind smaller owners and keep the public surface thin.",
-                describe_list(&related_surfaces),
-            ));
-        }
-    }
-
-    fix_hint_for_kind(kind)
 }
 
 fn forbidden_raw_read_fix_hint(finding: &Value) -> Option<String> {
@@ -349,6 +421,91 @@ fn clone_propagation_drift_fix_hint(finding: &Value) -> Option<String> {
             "Update {unchanged_sibling} to match the changed clone path, or remove the duplicate split."
         )
     })
+}
+
+fn boundary_fix_hint_for_kind(kind: &str) -> Option<String> {
+    match kind {
+        "forbidden_raw_read" => Some(FORBIDDEN_RAW_READ_HINT.to_string()),
+        "forbidden_writer" | "writer_outside_allowlist" => Some(FORBIDDEN_WRITER_HINT.to_string()),
+        "multi_writer_concept" => Some(MULTI_WRITER_HINT.to_string()),
+        "authoritative_import_bypass" => Some(AUTHORITATIVE_IMPORT_BYPASS_HINT.to_string()),
+        "concept_boundary_pressure" => Some(CONCEPT_BOUNDARY_PRESSURE_HINT.to_string()),
+        "zero_config_boundary_violation" => Some(ZERO_CONFIG_BOUNDARY_VIOLATION_HINT.to_string()),
+        _ => None,
+    }
+}
+
+fn clone_fix_hint_for_kind(finding: &Value, kind: &str) -> Option<String> {
+    match kind {
+        "session_introduced_clone" => session_introduced_clone_fix_hint(finding),
+        "clone_propagation_drift" => clone_propagation_drift_fix_hint(finding),
+        "touched_clone_family" => {
+            if let Some(unchanged_sibling) =
+                evidence_value_for_prefix(finding, UNCHANGED_CLONE_SIBLING_PREFIX)
+            {
+                return Some(format!(
+                    "Inspect sibling clone {unchanged_sibling} before finishing the patch, or collapse the duplicate paths behind one shared helper."
+                ));
+            }
+            Some(CLONE_FAMILY_HINT.to_string())
+        }
+        "exact_clone_group" | "clone_group" | "clone_family" => Some(CLONE_FAMILY_HINT.to_string()),
+        _ => None,
+    }
+}
+
+fn file_scale_fix_hint_for_kind(finding: &Value) -> Option<String> {
+    let split_axes = string_array_values(finding, "candidate_split_axes", 2);
+    let related_surfaces = string_array_values(finding, "related_surfaces", 2)
+        .into_iter()
+        .filter(|surface| !looks_like_test_surface(surface))
+        .collect::<Vec<_>>();
+    if split_axes.len() == 1 && related_surfaces.len() == 1 {
+        let split_axis = &split_axes[0];
+        let related_surface = &related_surfaces[0];
+        return Some(format!(
+            "Split the file along the {split_axis} and move the behavior that couples to {related_surface} behind a smaller owner before adding more code here."
+        ));
+    }
+    if !split_axes.is_empty() && !related_surfaces.is_empty() {
+        return Some(format!(
+            "Split the file along {} and move the behavior that couples to {} behind smaller owners before adding more code here.",
+            describe_split_axes(&split_axes),
+            describe_list(&related_surfaces),
+        ));
+    }
+    if !split_axes.is_empty() {
+        return Some(format!(
+            "Split the file along {} and keep the public surface thin.",
+            describe_split_axes(&split_axes),
+        ));
+    }
+    if !related_surfaces.is_empty() {
+        return Some(format!(
+            "Extract the behavior that couples to {} behind smaller owners and keep the public surface thin.",
+            describe_list(&related_surfaces),
+        ));
+    }
+    Some(LARGE_FILE_HINT.to_string())
+}
+
+fn hotspot_fix_hint_for_kind(kind: &str) -> Option<String> {
+    match kind {
+        "unstable_hotspot" => Some(UNSTABLE_HOTSPOT_HINT.to_string()),
+        "hotspot" => Some(HOTSPOT_HINT.to_string()),
+        _ => None,
+    }
+}
+
+fn exhaustiveness_fix_hint_for_kind(kind: &str) -> Option<String> {
+    match kind {
+        "closed_domain_exhaustiveness" => Some(CLOSED_DOMAIN_HINT.to_string()),
+        "state_model_missing_exhaustive_switch" | "state_model_missing_assert_never" => {
+            Some(STATE_MODEL_EXHAUSTIVE_HINT.to_string())
+        }
+        "incomplete_propagation" => Some(INCOMPLETE_PROPAGATION_HINT.to_string()),
+        _ => None,
+    }
 }
 
 fn evidence_value_for_prefix(finding: &Value, prefix: &str) -> Option<String> {
@@ -542,51 +699,49 @@ fn looks_like_test_surface(path: &str) -> bool {
 }
 
 pub(crate) fn obligation_message(obligation: &Value, kind: &str) -> String {
-    if kind == "incomplete_propagation" {
-        let scope = obligation
-            .get("concept_id")
-            .or_else(|| obligation.get("concept"))
-            .and_then(Value::as_str)
-            .unwrap_or("changed contract");
-        return format!(
-            "Propagation is incomplete for '{}': update the remaining sibling surfaces listed in the evidence.",
-            scope
-        );
-    }
-
-    if kind == "closed_domain_exhaustiveness" {
-        let domain = obligation_domain_label(obligation);
-        let missing_variants = obligation_missing_variants(obligation);
-        let site_suffix = obligation_site_suffix(obligation);
-
-        if !missing_variants.is_empty() {
-            return format!(
-                "Domain '{}' still needs explicit handling for variants [{}]{}.",
-                domain,
-                missing_variants.join(", "),
-                site_suffix
-            );
+    match obligation_family(kind) {
+        ObligationFamily::Propagation => {
+            let scope = obligation
+                .get("concept_id")
+                .or_else(|| obligation.get("concept"))
+                .and_then(Value::as_str)
+                .unwrap_or("changed contract");
+            format!(
+                "Propagation is incomplete for '{}': update the remaining sibling surfaces listed in the evidence.",
+                scope
+            )
         }
+        ObligationFamily::Exhaustiveness => {
+            let domain = obligation_domain_label(obligation);
+            let missing_variants = obligation_missing_variants(obligation);
+            let site_suffix = obligation_site_suffix(obligation);
 
-        return format!(
-            "Domain '{}' still needs an explicit exhaustive branch{}.",
-            domain, site_suffix
-        );
+            if !missing_variants.is_empty() {
+                format!(
+                    "Domain '{}' still needs explicit handling for variants [{}]{}.",
+                    domain,
+                    missing_variants.join(", "),
+                    site_suffix
+                )
+            } else {
+                format!(
+                    "Domain '{}' still needs an explicit exhaustive branch{}.",
+                    domain, site_suffix
+                )
+            }
+        }
+        ObligationFamily::Generic => obligation
+            .get("summary")
+            .and_then(Value::as_str)
+            .unwrap_or("Changed concept still has missing update sites")
+            .to_string(),
     }
-
-    obligation
-        .get("summary")
-        .and_then(Value::as_str)
-        .unwrap_or("Changed concept still has missing update sites")
-        .to_string()
 }
 
 pub(crate) fn obligation_fix_hint(obligation: &Value, kind: &str) -> Option<String> {
-    let hint = match kind {
-        "incomplete_propagation" => {
-            "Update the remaining sibling surfaces listed in the evidence before considering the change complete."
-        }
-        "closed_domain_exhaustiveness" => {
+    match obligation_family(kind) {
+        ObligationFamily::Propagation => Some(INCOMPLETE_PROPAGATION_HINT.to_string()),
+        ObligationFamily::Exhaustiveness => {
             let site_suffix = obligation_site_suffix(obligation);
             let missing_variants = obligation_missing_variants(obligation);
             if !missing_variants.is_empty() {
@@ -596,13 +751,14 @@ pub(crate) fn obligation_fix_hint(obligation: &Value, kind: &str) -> Option<Stri
                 ));
             }
 
-            return Some(format!(
+            Some(format!(
                 "Add an explicit exhaustive switch or mapping{site_suffix}, and keep the fallback/default path out of the production branch."
-            ));
+            ))
         }
-        _ => "Update the missing sites tied to the changed concept before continuing.",
-    };
-    Some(hint.to_string())
+        ObligationFamily::Generic => Some(
+            "Update the missing sites tied to the changed concept before continuing.".to_string(),
+        ),
+    }
 }
 
 fn obligation_domain_label(obligation: &Value) -> String {
@@ -678,14 +834,13 @@ pub(crate) fn obligation_trust_tier(obligation: &Value) -> &'static str {
 }
 
 pub(crate) fn obligation_severity(obligation: &Value) -> FindingSeverity {
-    if obligation
-        .get("kind")
-        .and_then(Value::as_str)
-        .is_some_and(|kind| kind == "closed_domain_exhaustiveness")
-        || obligation
-            .get("missing_variants")
-            .and_then(Value::as_array)
-            .is_some_and(|variants| !variants.is_empty())
+    if matches!(
+        obligation_family(obligation_kind(obligation)),
+        ObligationFamily::Exhaustiveness
+    ) || obligation
+        .get("missing_variants")
+        .and_then(Value::as_array)
+        .is_some_and(|variants| !variants.is_empty())
     {
         FindingSeverity::High
     } else if obligation_origin(obligation) == IssueOrigin::Explicit {
@@ -693,6 +848,10 @@ pub(crate) fn obligation_severity(obligation: &Value) -> FindingSeverity {
     } else {
         FindingSeverity::Medium
     }
+}
+
+fn obligation_kind(obligation: &Value) -> &str {
+    obligation.get("kind").and_then(Value::as_str).unwrap_or("")
 }
 
 pub(crate) fn obligation_score_0_10000(obligation: &Value) -> u32 {
@@ -779,58 +938,120 @@ pub(crate) fn obligation_evidence(obligation: &Value) -> Vec<String> {
         .unwrap_or_default()
 }
 
-fn fix_hint_for_kind(kind: &str) -> Option<String> {
-    let hint = match kind {
-        "forbidden_raw_read" => {
-            "Route the read through the concept's canonical accessor instead of reading raw state."
-        }
-        "forbidden_writer" | "writer_outside_allowlist" => {
-            "Move the write behind an allowed writer or update the rule if the new writer is intentional."
-        }
-        "multi_writer_concept" => {
-            "Reduce the concept to one authoritative writer or document the additional writer explicitly."
-        }
-        "closed_domain_exhaustiveness" => {
-            "Handle the missing variants with an explicit exhaustive switch or mapping, and keep the fallback/default branch out of the production path."
-        }
-        "state_model_missing_exhaustive_switch" | "state_model_missing_assert_never" => {
-            "Restore the exhaustive switch and assert-never guard for the state model."
-        }
-        "large_file" => "Split the file along the boundary suggested by the evidence and keep the public surface thin.",
-        "dependency_sprawl" => {
-            "Extract a narrower facade or move behavior behind an existing module boundary."
-        }
-        "authoritative_import_bypass" => {
-            "Route the caller back through the concept's canonical import surface instead of deep-importing the owner."
-        }
-        "concept_boundary_pressure" => {
-            "Move the shared concept access behind one owner before another sibling bypasses the same boundary."
-        }
-        "unstable_hotspot" => "Stabilize the hotspot before adding more change pressure.",
-        "hotspot" => {
-            "Pull orchestration or side effects behind a narrower owner before adding more behavior here."
-        }
-        "cycle_cluster" => "Cut the highest-leverage cycle seam first and re-run check.",
-        "exact_clone_group" | "clone_group" | "clone_family" => {
-            "Extract shared behavior or collapse the duplicated flow."
-        }
-        "session_introduced_clone" => {
-            "Collapse the new duplicate now: extract the shared behavior or route both call sites through the same owner before they drift."
-        }
-        "clone_propagation_drift" => {
-            "Sync the unchanged sibling clone with the changed path, or collapse both behind one shared owner before behavior drifts."
-        }
-        "touched_clone_family" => {
-            "Inspect the sibling clone surfaces before finishing the patch, even if you keep the duplicate for now."
-        }
-        "incomplete_propagation" => {
-            "Update the remaining sibling surfaces listed in the evidence before considering the change complete."
-        }
-        "missing_test_coverage" => "Add a sibling test covering the new production surface.",
-        "zero_config_boundary_violation" => {
-            "Replace the deep import with the module's public API."
-        }
-        _ => return None,
-    };
-    Some(hint.to_string())
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn repair_packet_for_large_file_uses_shared_family_guidance() {
+        let finding = json!({
+            "files": ["src/app/mcp_server/handlers/agent_guidance.rs"],
+            "candidate_split_axes": ["packet assembly"],
+            "related_surfaces": ["src/app/mcp_server/handlers/agent_format.rs"],
+            "kind": "large_file",
+            "evidence": ["file scale signal"],
+        });
+
+        let packet = repair_packet_for_finding(&finding, "large_file");
+
+        assert!(packet.risk_statement.contains("change friction"));
+        assert!(packet
+            .risk_statement
+            .contains("future regressions harder to isolate"));
+        assert_eq!(
+            packet.smallest_safe_first_cut.as_deref(),
+            Some("Split the file along the packet assembly and move the behavior that couples to src/app/mcp_server/handlers/agent_format.rs behind a smaller owner before adding more code here.")
+        );
+        assert_eq!(
+            packet.do_not_touch_yet,
+            vec!["Do not slice the file by line count alone; split along the cited boundary instead."]
+        );
+        assert_eq!(packet.verify_after.len(), 1);
+        assert!(
+            packet.verify_after[0].contains("agent_guidance.rs")
+                || packet.verify_after[0].contains("src/app/mcp_server/handlers/agent_format.rs")
+        );
+    }
+
+    #[test]
+    fn repair_packet_for_clone_propagation_drift_uses_family_specific_hint() {
+        let finding = json!({
+            "files": ["src/app/mcp_server/handlers/agent_guidance.rs", "src/app/mcp_server/handlers/agent_format.rs"],
+            "evidence": [
+                "changed clone member: src/app/mcp_server/handlers/agent_guidance.rs",
+                "unchanged clone sibling: src/app/mcp_server/handlers/agent_format.rs"
+            ],
+            "kind": "clone_propagation_drift"
+        });
+
+        let packet = repair_packet_for_finding(&finding, "clone_propagation_drift");
+
+        assert_eq!(
+            packet.smallest_safe_first_cut.as_deref(),
+            Some("Sync src/app/mcp_server/handlers/agent_format.rs with the behavior change in src/app/mcp_server/handlers/agent_guidance.rs, or collapse both paths behind one shared owner.")
+        );
+        assert_eq!(
+            packet.do_not_touch_yet,
+            vec!["Do not create a third sibling path while fixing the duplicate behavior."]
+        );
+    }
+
+    #[test]
+    fn repair_packet_for_closed_domain_obligation_keeps_gate_verification() {
+        let obligation = json!({
+            "kind": "closed_domain_exhaustiveness",
+            "concept_id": "signal_kind",
+            "domain_symbol_name": "signal kind",
+            "missing_variants": ["alpha", "beta"],
+            "missing_sites": [
+                {"path": "src/app/mcp_server/handlers/agent_guidance.rs", "line": 42, "detail": "missing exhaustive branch"}
+            ]
+        });
+
+        let packet = repair_packet_for_obligation(&obligation, "closed_domain_exhaustiveness");
+
+        assert_eq!(
+            packet.risk_statement,
+            "Finite-domain changes can silently miss one surface unless every required branch stays in sync."
+        );
+        assert!(packet
+            .smallest_safe_first_cut
+            .as_deref()
+            .unwrap_or_default()
+            .contains("Handle the missing variants [alpha, beta]"));
+        assert!(packet
+            .verify_after
+            .iter()
+            .any(|step| step.contains("Re-run `sentrux gate`")));
+        assert_eq!(
+            packet.do_not_touch_yet,
+            vec![
+                "Do not rely on a production fallback or default branch to hide missing variants."
+            ]
+        );
+    }
+
+    #[test]
+    fn repair_packet_for_raw_read_keeps_accessor_based_hint() {
+        let finding = json!({
+            "files": ["src/app/mcp_server/handlers/agent_guidance.rs"],
+            "evidence": [
+                "preferred accessor: use_signal_summary",
+                "canonical owner: SignalSummary"
+            ],
+            "kind": "forbidden_raw_read"
+        });
+
+        let packet = repair_packet_for_finding(&finding, "forbidden_raw_read");
+
+        assert_eq!(
+            packet.smallest_safe_first_cut.as_deref(),
+            Some("Replace the raw read with use_signal_summary from SignalSummary instead of recreating the projection in the caller.")
+        );
+        assert!(packet
+            .verify_after
+            .iter()
+            .any(|step| step.contains("agent_guidance.rs")));
+    }
 }

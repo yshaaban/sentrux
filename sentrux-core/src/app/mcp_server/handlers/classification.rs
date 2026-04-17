@@ -1,3 +1,4 @@
+use super::signal_policy::{report_leverage_rank, report_presentation_rank};
 use super::*;
 
 #[path = "classification_details.rs"]
@@ -89,15 +90,8 @@ impl FindingPresentationClass {
         }
     }
 
-    pub(crate) const fn rank(self) -> usize {
-        match self {
-            Self::StructuralDebt => 0,
-            Self::GuardedFacade => 1,
-            Self::ToolingDebt => 2,
-            Self::HardeningNote => 3,
-            Self::Watchpoint => 4,
-            Self::Experimental => 5,
-        }
+    pub(crate) fn rank(self) -> usize {
+        report_presentation_rank(self.as_str())
     }
 }
 
@@ -159,17 +153,8 @@ impl FindingLeverageClass {
         }
     }
 
-    pub(crate) const fn rank(self) -> usize {
-        match self {
-            Self::ArchitectureSignal => 0,
-            Self::BoundaryDiscipline => 1,
-            Self::LocalRefactorTarget => 2,
-            Self::RegrowthWatchpoint => 3,
-            Self::SecondaryCleanup => 4,
-            Self::HardeningNote => 5,
-            Self::ToolingDebt => 6,
-            Self::Experimental => 7,
-        }
+    pub(crate) fn rank(self) -> usize {
+        report_leverage_rank(self.as_str())
     }
 }
 

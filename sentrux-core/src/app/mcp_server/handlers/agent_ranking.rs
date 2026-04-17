@@ -2,6 +2,9 @@ use super::agent_format::{
     obligation_value_to_agent_issue, to_agent_issue, AgentAction, AgentIssue, IssueOrigin,
     IssueSource,
 };
+use super::signal_policy::{
+    action_kind_weight, action_leverage_weight, action_presentation_weight,
+};
 use serde_json::Value;
 
 pub(crate) fn issue_blocks_gate(issue: &AgentIssue) -> bool {
@@ -103,16 +106,7 @@ fn issue_confidence_weight(issue: &AgentIssue) -> u8 {
 }
 
 fn issue_kind_weight(issue: &AgentIssue) -> u8 {
-    match issue.kind.as_str() {
-        "incomplete_propagation" | "closed_domain_exhaustiveness" => 8,
-        "forbidden_raw_read" | "forbidden_writer" | "writer_outside_allowlist" => 7,
-        "dependency_sprawl" | "cycle_cluster" => 6,
-        "unstable_hotspot" | "session_introduced_clone" | "clone_propagation_drift" => 5,
-        "touched_clone_family" => 3,
-        "exact_clone_group" | "clone_group" | "clone_family" => 1,
-        "large_file" => 0,
-        _ => 4,
-    }
+    action_kind_weight(issue.kind.as_str())
 }
 
 fn issue_trust_tier_weight(issue: &AgentIssue) -> u8 {
@@ -125,27 +119,11 @@ fn issue_trust_tier_weight(issue: &AgentIssue) -> u8 {
 }
 
 fn issue_leverage_weight(issue: &AgentIssue) -> u8 {
-    match issue.leverage_class.as_str() {
-        "boundary_discipline" => 6,
-        "architecture_signal" => 5,
-        "local_refactor_target" => 4,
-        "hardening_note" => 3,
-        "regrowth_watchpoint" => 2,
-        "tooling_debt" => 1,
-        "secondary_cleanup" | "experimental" => 0,
-        _ => 0,
-    }
+    action_leverage_weight(issue.leverage_class.as_str())
 }
 
 fn issue_presentation_weight(issue: &AgentIssue) -> u8 {
-    match issue.presentation_class.as_str() {
-        "guarded_facade" => 4,
-        "hardening_note" => 3,
-        "structural_debt" => 2,
-        "tooling_debt" | "watchpoint" => 1,
-        "experimental" => 0,
-        _ => 0,
-    }
+    action_presentation_weight(issue.presentation_class.as_str())
 }
 
 fn issue_repairability_weight(issue: &AgentIssue) -> u8 {

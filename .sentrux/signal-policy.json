@@ -1,0 +1,73 @@
+{
+  "action_ranking": {
+    "kind_weights": {
+      "incomplete_propagation": 8,
+      "closed_domain_exhaustiveness": 8,
+      "forbidden_raw_read": 7,
+      "forbidden_writer": 7,
+      "writer_outside_allowlist": 7,
+      "dependency_sprawl": 6,
+      "cycle_cluster": 6,
+      "unstable_hotspot": 5,
+      "session_introduced_clone": 5,
+      "clone_propagation_drift": 5,
+      "touched_clone_family": 3,
+      "exact_clone_group": 1,
+      "clone_group": 1,
+      "clone_family": 1,
+      "large_file": 0
+    },
+    "leverage_weights": {
+      "boundary_discipline": 6,
+      "architecture_signal": 5,
+      "local_refactor_target": 4,
+      "hardening_note": 3,
+      "regrowth_watchpoint": 2,
+      "tooling_debt": 1,
+      "secondary_cleanup": 0,
+      "experimental": 0
+    },
+    "presentation_weights": {
+      "guarded_facade": 4,
+      "hardening_note": 3,
+      "structural_debt": 2,
+      "tooling_debt": 1,
+      "watchpoint": 1,
+      "experimental": 0
+    }
+  },
+  "report_selection": {
+    "leverage_order": [
+      "architecture_signal",
+      "local_refactor_target",
+      "boundary_discipline",
+      "regrowth_watchpoint",
+      "secondary_cleanup",
+      "hardening_note",
+      "tooling_debt",
+      "experimental"
+    ],
+    "presentation_order": [
+      "structural_debt",
+      "guarded_facade",
+      "watchpoint",
+      "hardening_note",
+      "tooling_debt",
+      "experimental"
+    ]
+  },
+  "score_bands": [
+    {
+      "minimum_score": 8500,
+      "label": "very_high_signal"
+    },
+    {
+      "minimum_score": 6500,
+      "label": "high_signal"
+    },
+    {
+      "minimum_score": 4000,
+      "label": "moderate_signal"
+    }
+  ]
+}
