@@ -1,10 +1,21 @@
 import { readFile } from 'node:fs/promises';
-import path from 'node:path';
 
 import {
-  defaultOutputDir as buildDefaultOutputDir,
   parseCliArgs,
 } from '../../lib/eval-support.mjs';
+import {
+  appendStringOption,
+  assertNonNegativeNumberOption,
+  assertPositiveNumberOption,
+  defaultEvalIdleTimeoutMs,
+  defaultEvalOutputDir as buildDefaultEvalOutputDir,
+  defaultEvalPollMs,
+  defaultEvalTimeoutMs,
+  resolveRepoLabel as buildRepoLabel,
+  setFlag,
+  setNumberOption,
+  setStringOption,
+} from '../../lib/eval-cli-shared.mjs';
 
 export function parseArgs(argv) {
   const result = {
@@ -20,9 +31,9 @@ export function parseArgs(argv) {
     rulesSource: null,
     analysisMode: 'working_tree',
     model: process.env.EVAL_MODEL ?? null,
-    timeoutMs: Number(process.env.EVAL_TIMEOUT_MS ?? '1800000'),
-    idleTimeoutMs: Number(process.env.EVAL_IDLE_TIMEOUT_MS ?? '600000'),
-    pollMs: Number(process.env.EVAL_POLL_MS ?? '4000'),
+    timeoutMs: defaultEvalTimeoutMs(),
+    idleTimeoutMs: defaultEvalIdleTimeoutMs(),
+    pollMs: defaultEvalPollMs(),
     outputDir: null,
     keepClone: false,
     codexBin: process.env.CODEX_BIN ?? 'codex',
@@ -30,77 +41,35 @@ export function parseArgs(argv) {
 
   parseCliArgs(argv, result, {
     flags: {
-      '--keep-clone': function enableKeepClone(target) {
-        target.keepClone = true;
-      },
+      '--keep-clone': setFlag('keepClone'),
     },
     values: {
-      '--source-root': function setSourceRoot(target, value) {
-        target.sourceRoot = value;
-      },
-      '--repo-label': function setRepoLabel(target, value) {
-        target.repoLabel = value;
-      },
-      '--task': function setTask(target, value) {
-        target.task = value;
-      },
-      '--task-id': function setTaskId(target, value) {
-        target.taskId = value;
-      },
-      '--task-file': function setTaskFile(target, value) {
-        target.taskFile = value;
-      },
-      '--task-label': function setTaskLabel(target, value) {
-        target.taskLabel = value;
-      },
-      '--tag': function appendTag(target, value) {
-        target.tags.push(value);
-      },
-      '--expected-signal-kind': function appendExpectedSignalKind(target, value) {
-        target.expectedSignalKinds.push(value);
-      },
-      '--expected-fix-surface': function setExpectedFixSurface(target, value) {
-        target.expectedFixSurface = value;
-      },
-      '--rules-source': function setRulesSource(target, value) {
-        target.rulesSource = value;
-      },
-      '--analysis-mode': function setAnalysisMode(target, value) {
-        target.analysisMode = value;
-      },
-      '--model': function setModel(target, value) {
-        target.model = value;
-      },
-      '--timeout-ms': function setTimeoutMs(target, value) {
-        target.timeoutMs = Number(value);
-      },
-      '--idle-timeout-ms': function setIdleTimeoutMs(target, value) {
-        target.idleTimeoutMs = Number(value);
-      },
-      '--poll-ms': function setPollMs(target, value) {
-        target.pollMs = Number(value);
-      },
-      '--output-dir': function setOutputDir(target, value) {
-        target.outputDir = value;
-      },
-      '--codex-bin': function setCodexBin(target, value) {
-        target.codexBin = value;
-      },
+      '--source-root': setStringOption('sourceRoot'),
+      '--repo-label': setStringOption('repoLabel'),
+      '--task': setStringOption('task'),
+      '--task-id': setStringOption('taskId'),
+      '--task-file': setStringOption('taskFile'),
+      '--task-label': setStringOption('taskLabel'),
+      '--tag': appendStringOption('tags'),
+      '--expected-signal-kind': appendStringOption('expectedSignalKinds'),
+      '--expected-fix-surface': setStringOption('expectedFixSurface'),
+      '--rules-source': setStringOption('rulesSource'),
+      '--analysis-mode': setStringOption('analysisMode'),
+      '--model': setStringOption('model'),
+      '--timeout-ms': setNumberOption('timeoutMs'),
+      '--idle-timeout-ms': setNumberOption('idleTimeoutMs'),
+      '--poll-ms': setNumberOption('pollMs'),
+      '--output-dir': setStringOption('outputDir'),
+      '--codex-bin': setStringOption('codexBin'),
     },
   });
 
   if (!result.task && !result.taskFile) {
     throw new Error('Provide either --task or --task-file');
   }
-  if (!Number.isFinite(result.timeoutMs) || result.timeoutMs <= 0) {
-    throw new Error(`Invalid --timeout-ms value: ${result.timeoutMs}`);
-  }
-  if (!Number.isFinite(result.idleTimeoutMs) || result.idleTimeoutMs < 0) {
-    throw new Error(`Invalid --idle-timeout-ms value: ${result.idleTimeoutMs}`);
-  }
-  if (!Number.isFinite(result.pollMs) || result.pollMs <= 0) {
-    throw new Error(`Invalid --poll-ms value: ${result.pollMs}`);
-  }
+  assertPositiveNumberOption('--timeout-ms', result.timeoutMs);
+  assertNonNegativeNumberOption('--idle-timeout-ms', result.idleTimeoutMs);
+  assertPositiveNumberOption('--poll-ms', result.pollMs);
 
   return result;
 }
@@ -114,9 +83,9 @@ export async function loadPrompt(args) {
 }
 
 export function defaultOutputDir(sourceRoot, taskLabel) {
-  return buildDefaultOutputDir(sourceRoot, 'task', taskLabel);
+  return buildDefaultEvalOutputDir(sourceRoot, 'task', taskLabel);
 }
 
 export function resolveRepoLabel(sourceRoot, repoLabel) {
-  return repoLabel ?? path.basename(sourceRoot);
+  return buildRepoLabel(sourceRoot, repoLabel);
 }

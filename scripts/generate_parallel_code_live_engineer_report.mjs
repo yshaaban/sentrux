@@ -1,9 +1,6 @@
 #!/usr/bin/env node
 
-import { readFileSync } from 'node:fs';
-import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import {
   assertFileIdentityFresh,
   assertRepoIdentityFresh,
@@ -12,6 +9,7 @@ import {
 } from './lib/repo-identity.mjs';
 import { assertPathExists } from './lib/disposable-repo.mjs';
 import { resolveWorkspaceRepoRoot } from './lib/path-roots.mjs';
+import { readJsonSync, repoRootFromImportMeta } from './lib/script-artifacts.mjs';
 import {
   assertHeadCommitFresh,
   buildLiveEngineerAppendix,
@@ -20,9 +18,7 @@ import {
   snapshotMatchesMetadata,
 } from './lib/parallel-code-live-engineer-report-format.mjs';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const repoRoot = path.resolve(__dirname, '..');
+const repoRoot = repoRootFromImportMeta(import.meta.url, 1);
 const parallelCodeRoot = resolveWorkspaceRepoRoot(
   process.env.PARALLEL_CODE_ROOT,
   'parallel-code',
@@ -47,10 +43,6 @@ const snapshotMarkdownPath =
 const allowStaleGoldens =
   process.env.ALLOW_STALE_GOLDENS === '1' || process.argv.includes('--allow-stale-goldens');
 
-function readJson(targetPath) {
-  return JSON.parse(readFileSync(targetPath, 'utf8'));
-}
-
 async function main() {
   const metadataPath = path.join(goldenDir, 'metadata.json');
   const scanPath = path.join(goldenDir, 'scan.json');
@@ -65,11 +57,11 @@ async function main() {
   assertPathExists(findingsPath, 'parallel-code findings snapshot');
   assertPathExists(obligationsPath, 'parallel-code obligations snapshot');
 
-  const snapshot = readJson(snapshotJsonPath);
-  const findings = readJson(findingsPath);
-  const metadata = readJson(metadataPath);
-  const scan = readJson(scanPath);
-  const benchmark = readJson(benchmarkPath);
+  const snapshot = readJsonSync(snapshotJsonPath);
+  const findings = readJsonSync(findingsPath);
+  const metadata = readJsonSync(metadataPath);
+  const scan = readJsonSync(scanPath);
+  const benchmark = readJsonSync(benchmarkPath);
   const liveIdentity = collectRepoIdentity(parallelCodeRoot);
   const liveRulesIdentity = collectFileIdentity(metadata.rules_source);
   const liveBinaryIdentity = collectFileIdentity(metadata.sentrux_binary);

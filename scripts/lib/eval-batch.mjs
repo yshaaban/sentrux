@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { nowIso } from './eval-runtime/common.mjs';
+import { writeJson as writeJsonArtifact } from './script-artifacts.mjs';
 
 export { nowIso } from './eval-runtime/common.mjs';
 
@@ -17,10 +18,7 @@ export async function readJson(targetPath) {
   return JSON.parse(source);
 }
 
-export async function writeJson(targetPath, value) {
-  await mkdir(path.dirname(targetPath), { recursive: true });
-  await writeFile(targetPath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
-}
+export { writeJsonArtifact as writeJson };
 
 export async function writeText(targetPath, value) {
   await mkdir(path.dirname(targetPath), { recursive: true });
@@ -28,7 +26,7 @@ export async function writeText(targetPath, value) {
 }
 
 export function defaultBatchOutputDir(sourceRoot, prefix, label) {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const timestamp = nowIso().replace(/[:.]/g, '-');
   return path.join(sourceRoot, '.sentrux', 'evals', `${timestamp}-${prefix}-${slugify(label)}`);
 }
 

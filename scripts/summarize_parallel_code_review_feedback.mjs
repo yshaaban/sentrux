@@ -1,13 +1,10 @@
 #!/usr/bin/env node
 
-import { readFileSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { readJsonSync, repoRootFromImportMeta } from './lib/script-artifacts.mjs';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const repoRoot = path.resolve(__dirname, '..');
+const repoRoot = repoRootFromImportMeta(import.meta.url, 1);
 
 const inputPath =
   process.env.INPUT_PATH ??
@@ -16,51 +13,17 @@ const outputPath =
   process.env.OUTPUT_PATH ??
   path.join(repoRoot, 'docs/v2/examples/parallel-code-review-verdicts.md');
 
-function readJson(targetPath) {
-  return JSON.parse(readFileSync(targetPath, 'utf8'));
-}
-
 function summarizeCounts(verdicts) {
-  const counts = new Map();
-  for (const verdict of verdicts) {
-    const category = verdict.category ?? 'uncategorized';
-    counts.set(category, (counts.get(category) ?? 0) + 1);
-  }
-  return [...counts.entries()].sort(([left], [right]) => left.localeCompare(right));
+  return summarizeFieldCounts(verdicts, function readCategory(verdict) {
+    return verdict.category ?? 'uncategorized';
+  });
 }
 
-function summarizeTrustTierCounts(verdicts) {
+function summarizeFieldCounts(verdicts, fieldValue) {
   const counts = new Map();
   for (const verdict of verdicts) {
-    const tier = verdict.expected_trust_tier ?? 'unspecified';
-    counts.set(tier, (counts.get(tier) ?? 0) + 1);
-  }
-  return [...counts.entries()].sort(([left], [right]) => left.localeCompare(right));
-}
-
-function summarizePresentationClassCounts(verdicts) {
-  const counts = new Map();
-  for (const verdict of verdicts) {
-    const presentationClass = verdict.expected_presentation_class ?? 'unspecified';
-    counts.set(presentationClass, (counts.get(presentationClass) ?? 0) + 1);
-  }
-  return [...counts.entries()].sort(([left], [right]) => left.localeCompare(right));
-}
-
-function summarizeLeverageClassCounts(verdicts) {
-  const counts = new Map();
-  for (const verdict of verdicts) {
-    const leverageClass = verdict.expected_leverage_class ?? 'unspecified';
-    counts.set(leverageClass, (counts.get(leverageClass) ?? 0) + 1);
-  }
-  return [...counts.entries()].sort(([left], [right]) => left.localeCompare(right));
-}
-
-function summarizeSummaryPresenceCounts(verdicts) {
-  const counts = new Map();
-  for (const verdict of verdicts) {
-    const presence = verdict.expected_summary_presence ?? 'unspecified';
-    counts.set(presence, (counts.get(presence) ?? 0) + 1);
+    const value = fieldValue(verdict);
+    counts.set(value, (counts.get(value) ?? 0) + 1);
   }
   return [...counts.entries()].sort(([left], [right]) => left.localeCompare(right));
 }
@@ -77,45 +40,54 @@ function summarizePreferredPairs(verdicts) {
   });
 }
 
+function appendCountSection(lines, title, counts) {
+  lines.push(title);
+  lines.push('');
+  for (const [value, count] of counts) {
+    lines.push(`- \`${value}\`: ${count}`);
+  }
+  lines.push('');
+}
+
 function buildMarkdown(payload) {
   const lines = [];
-  const preferredPairs = summarizePreferredPairs(payload.verdicts ?? []);
+  const verdicts = payload.verdicts ?? [];
+  const preferredPairs = summarizePreferredPairs(verdicts);
   lines.push('# Parallel-Code Review Verdicts');
   lines.push('');
   lines.push(`Repo: \`${payload.repo}\``);
   lines.push(`Captured at: \`${payload.captured_at}\``);
   lines.push(`Source report: \`${payload.source_report}\``);
   lines.push('');
-  lines.push('## Category Counts');
-  lines.push('');
-  for (const [category, count] of summarizeCounts(payload.verdicts ?? [])) {
-    lines.push(`- \`${category}\`: ${count}`);
-  }
-  lines.push('');
-  lines.push('## Expected Trust Tiers');
-  lines.push('');
-  for (const [tier, count] of summarizeTrustTierCounts(payload.verdicts ?? [])) {
-    lines.push(`- \`${tier}\`: ${count}`);
-  }
-  lines.push('');
-  lines.push('## Expected Presentation Classes');
-  lines.push('');
-  for (const [presentationClass, count] of summarizePresentationClassCounts(payload.verdicts ?? [])) {
-    lines.push(`- \`${presentationClass}\`: ${count}`);
-  }
-  lines.push('');
-  lines.push('## Expected Leverage Classes');
-  lines.push('');
-  for (const [leverageClass, count] of summarizeLeverageClassCounts(payload.verdicts ?? [])) {
-    lines.push(`- \`${leverageClass}\`: ${count}`);
-  }
-  lines.push('');
-  lines.push('## Expected Summary Presence');
-  lines.push('');
-  for (const [presence, count] of summarizeSummaryPresenceCounts(payload.verdicts ?? [])) {
-    lines.push(`- \`${presence}\`: ${count}`);
-  }
-  lines.push('');
+  appendCountSection(lines, '## Category Counts', summarizeCounts(verdicts));
+  appendCountSection(
+    lines,
+    '## Expected Trust Tiers',
+    summarizeFieldCounts(verdicts, function readTrustTier(verdict) {
+      return verdict.expected_trust_tier ?? 'unspecified';
+    }),
+  );
+  appendCountSection(
+    lines,
+    '## Expected Presentation Classes',
+    summarizeFieldCounts(verdicts, function readPresentationClass(verdict) {
+      return verdict.expected_presentation_class ?? 'unspecified';
+    }),
+  );
+  appendCountSection(
+    lines,
+    '## Expected Leverage Classes',
+    summarizeFieldCounts(verdicts, function readLeverageClass(verdict) {
+      return verdict.expected_leverage_class ?? 'unspecified';
+    }),
+  );
+  appendCountSection(
+    lines,
+    '## Expected Summary Presence',
+    summarizeFieldCounts(verdicts, function readSummaryPresence(verdict) {
+      return verdict.expected_summary_presence ?? 'unspecified';
+    }),
+  );
   lines.push('## Ranking Preferences');
   lines.push('');
   for (const [scope, preferredScope] of preferredPairs) {
@@ -127,7 +99,7 @@ function buildMarkdown(payload) {
   lines.push('');
   lines.push('## Detailed Verdicts');
   lines.push('');
-  for (const verdict of payload.verdicts ?? []) {
+  for (const verdict of verdicts) {
     lines.push(`### ${verdict.scope}`);
     lines.push('');
     lines.push(`- kind: \`${verdict.kind}\``);
@@ -150,7 +122,7 @@ function buildMarkdown(payload) {
 }
 
 async function main() {
-  const payload = readJson(inputPath);
+  const payload = readJsonSync(inputPath);
   const markdown = buildMarkdown(payload);
   await mkdir(path.dirname(outputPath), { recursive: true });
   await writeFile(outputPath, markdown, 'utf8');

@@ -2,18 +2,15 @@
 
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
-import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import {
   assertPathExists,
   createDisposableRepoClone,
 } from './lib/disposable-repo.mjs';
 import { resolveWorkspaceRepoRoot } from './lib/path-roots.mjs';
+import { repoRootFromImportMeta, writeJson } from './lib/script-artifacts.mjs';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const repoRoot = path.resolve(__dirname, '..');
+const repoRoot = repoRootFromImportMeta(import.meta.url, 1);
 
 const sentruxBin = process.env.SENTRUX_BIN ?? path.join(repoRoot, 'target/debug/sentrux');
 const parallelCodeRoot = resolveWorkspaceRepoRoot(
@@ -129,11 +126,6 @@ async function createProofClone(label) {
 
 function readFile(targetPath) {
   return readFileSync(targetPath, 'utf8');
-}
-
-async function writeJson(targetPath, value) {
-  await mkdir(path.dirname(targetPath), { recursive: true });
-  await writeFile(targetPath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
 }
 
 async function writeMarkdown(targetPath, value) {

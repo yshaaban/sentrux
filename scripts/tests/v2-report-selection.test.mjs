@@ -1,11 +1,27 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   compactSelectedCandidate,
   selectLeverageBuckets,
   selectPresentationBuckets,
   scoreBandLabel,
 } from '../lib/v2-report-selection.mjs';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const behaviorFixturePath = path.join(
+  __dirname,
+  'fixtures',
+  'policy-parity',
+  'behavior-parity.json',
+);
+
+async function readBehaviorParityFixture() {
+  return JSON.parse(await readFile(behaviorFixturePath, 'utf8'));
+}
 
 function candidate({
   scope,
@@ -236,6 +252,19 @@ test('scoreBandLabel respects the documented score bands', function () {
   assert.equal(scoreBandLabel(6500), 'high_signal');
   assert.equal(scoreBandLabel(8499), 'high_signal');
   assert.equal(scoreBandLabel(8500), 'very_high_signal');
+});
+
+test('shared behavior fixtures keep representative summary ordering stable', async function () {
+  const fixture = await readBehaviorParityFixture();
+
+  for (const testCase of fixture.js_report_cases) {
+    const buckets = selectLeverageBuckets(testCase.payload);
+    assert.deepEqual(
+      buckets.summary_candidates.map((entry) => entry.scope),
+      testCase.expected_summary_scopes,
+      testCase.name,
+    );
+  }
 });
 
 test('selectLeverageBuckets prefers contained local refactor targets over broader peers', function () {

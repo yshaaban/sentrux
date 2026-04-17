@@ -3,7 +3,7 @@
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { pathToFileURL } from 'node:url';
 
 import { createMcpSession, runTool } from '../lib/benchmark-harness.mjs';
 import { prepareTypeScriptBenchmarkHome } from '../lib/benchmark-plugin-home.mjs';
@@ -25,10 +25,9 @@ import {
   buildScanCoverageBreakdown,
   formatScanCoverageBreakdownMarkdown,
 } from '../lib/external-validation/scan-coverage.mjs';
+import { repoRootFromImportMeta } from '../lib/script-artifacts.mjs';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const repoRoot = path.resolve(__dirname, '../..');
+const repoRoot = repoRootFromImportMeta(import.meta.url, 2);
 const sentruxBin = process.env.SENTRUX_BIN ?? path.join(repoRoot, 'target/debug/sentrux');
 
 export {

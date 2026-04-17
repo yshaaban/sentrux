@@ -1,4 +1,5 @@
 import { parseCliArgs } from '../eval-support.mjs';
+import { setFlag, setStringOption } from '../eval-cli-shared.mjs';
 import { nowIso } from '../eval-runtime/common.mjs';
 
 export function parseArgs(argv) {
@@ -14,29 +15,15 @@ export function parseArgs(argv) {
 
   parseCliArgs(argv, result, {
     flags: {
-      '--skip-live': function setSkipLive(target) {
-        target.skipLive = true;
-      },
-      '--skip-replay': function setSkipReplay(target) {
-        target.skipReplay = true;
-      },
-      '--skip-review': function setSkipReview(target) {
-        target.skipReview = true;
-      },
-      '--skip-scorecard': function setSkipScorecard(target) {
-        target.skipScorecard = true;
-      },
-      '--skip-backlog': function setSkipBacklog(target) {
-        target.skipBacklog = true;
-      },
+      '--skip-live': setFlag('skipLive'),
+      '--skip-replay': setFlag('skipReplay'),
+      '--skip-review': setFlag('skipReview'),
+      '--skip-scorecard': setFlag('skipScorecard'),
+      '--skip-backlog': setFlag('skipBacklog'),
     },
     values: {
-      '--manifest': function setManifestPath(target, value) {
-        target.manifestPath = value;
-      },
-      '--output-dir': function setOutputDir(target, value) {
-        target.outputDir = value;
-      },
+      '--manifest': setStringOption('manifestPath'),
+      '--output-dir': setStringOption('outputDir'),
     },
   });
 

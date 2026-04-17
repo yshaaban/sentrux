@@ -6,6 +6,16 @@ import { fileURLToPath } from 'node:url';
 
 import { parseCliArgs } from '../lib/eval-support.mjs';
 import {
+  appendStringOption,
+  assertAtLeastOneNumberOption,
+  assertPositiveNumberOption,
+  defaultDocsEvalRunOutputDir,
+  defaultEvalTimeoutMs,
+  setFlag,
+  setNumberOption,
+  setStringOption,
+} from '../lib/eval-cli-shared.mjs';
+import {
   fail,
   nowIso,
   nowMs,
@@ -30,11 +40,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, '../..');
 const defaultManifestPath = path.join(repoRoot, 'docs/v2/evals/index.json');
-const defaultOutputDir = path.join(
-  repoRoot,
-  'docs/v2/evals/runs',
-  new Date().toISOString().replace(/[:.]/g, '-'),
-);
+const defaultOutputDir = defaultDocsEvalRunOutputDir(repoRoot);
 
 function parseArgs(argv) {
   const result = {
@@ -43,7 +49,7 @@ function parseArgs(argv) {
     outputDir: defaultOutputDir,
     provider: process.env.EVAL_PROVIDER ?? 'claude-code',
     model: process.env.EVAL_MODEL ?? null,
-    timeoutMs: Number(process.env.EVAL_TIMEOUT_MS ?? '1800000'),
+    timeoutMs: defaultEvalTimeoutMs(),
     concurrency: Number(process.env.EVAL_CONCURRENCY ?? '1'),
     claudeBin: process.env.CLAUDE_BIN ?? 'claude',
     codexBin: process.env.CODEX_BIN ?? 'codex',
@@ -53,53 +59,28 @@ function parseArgs(argv) {
 
   parseCliArgs(argv, result, {
     flags: {
-      '--help': function enableHelp(target) {
-        target.help = true;
-      },
-      '-h': function enableShortHelp(target) {
-        target.help = true;
-      },
-      '--dry-run': function enableDryRun(target) {
-        target.dryRun = true;
-      },
+      '--help': setFlag('help'),
+      '-h': setFlag('help'),
+      '--dry-run': setFlag('dryRun'),
     },
     values: {
-      '--manifest': function setManifestPath(target, value) {
-        target.manifestPath = value;
-      },
-      '--scenario': function appendScenarioPath(target, value) {
-        target.scenarioPaths.push(value);
-      },
-      '--output-dir': function setOutputDir(target, value) {
-        target.outputDir = value;
-      },
-      '--provider': function setProvider(target, value) {
-        target.provider = value;
-      },
-      '--model': function setModel(target, value) {
-        target.model = value;
-      },
-      '--timeout-ms': function setTimeoutMs(target, value) {
-        target.timeoutMs = Number(value);
-      },
-      '--concurrency': function setConcurrency(target, value) {
-        target.concurrency = Number(value);
-      },
-      '--claude-bin': function setClaudeBin(target, value) {
-        target.claudeBin = value;
-      },
-      '--codex-bin': function setCodexBin(target, value) {
-        target.codexBin = value;
-      },
+      '--manifest': setStringOption('manifestPath'),
+      '--scenario': appendStringOption('scenarioPaths'),
+      '--output-dir': setStringOption('outputDir'),
+      '--provider': setStringOption('provider'),
+      '--model': setStringOption('model'),
+      '--timeout-ms': setNumberOption('timeoutMs'),
+      '--concurrency': setNumberOption('concurrency'),
+      '--claude-bin': setStringOption('claudeBin'),
+      '--codex-bin': setStringOption('codexBin'),
     },
   });
 
-  if (!Number.isFinite(result.timeoutMs) || result.timeoutMs <= 0) {
-    fail(`Invalid --timeout-ms value: ${result.timeoutMs}`);
-  }
-
-  if (!Number.isFinite(result.concurrency) || result.concurrency < 1) {
-    fail(`Invalid --concurrency value: ${result.concurrency}`);
+  try {
+    assertPositiveNumberOption('--timeout-ms', result.timeoutMs);
+    assertAtLeastOneNumberOption('--concurrency', result.concurrency);
+  } catch (error) {
+    fail(error instanceof Error ? error.message : String(error));
   }
 
   return result;

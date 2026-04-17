@@ -8,6 +8,12 @@ import { runTool } from '../lib/benchmark-harness.mjs';
 import { resolveWorkspaceRepoRoot } from '../lib/path-roots.mjs';
 import { prepareTypeScriptBenchmarkHome } from '../lib/benchmark-plugin-home.mjs';
 import { createEvalMcpSession, parseCliArgs } from '../lib/eval-support.mjs';
+import {
+  appendStringOption,
+  defaultEvalTimeoutMs,
+  setFlag,
+  setStringOption,
+} from '../lib/eval-cli-shared.mjs';
 import { runClaudeCode } from './providers/claude-code.mjs';
 import { runCodexExec } from './providers/codex-cli.mjs';
 import {
@@ -30,32 +36,20 @@ function parseArgs(argv) {
     dryRun: false,
     provider: process.env.EVAL_PROVIDER ?? 'claude-code',
     model: process.env.EVAL_MODEL ?? null,
-    timeoutMs: Number(process.env.EVAL_TIMEOUT_MS ?? '1800000'),
+    timeoutMs: defaultEvalTimeoutMs(),
     outputJsonPath: null,
   };
 
   parseCliArgs(argv, result, {
     flags: {
-      '--dry-run': function enableDryRun(target) {
-        target.dryRun = true;
-      },
+      '--dry-run': setFlag('dryRun'),
     },
     values: {
-      '--repo': function setRepo(target, value) {
-        target.repo = value;
-      },
-      '--defect': function appendDefect(target, value) {
-        target.defects.push(value);
-      },
-      '--analysis-mode': function setAnalysisMode(target, value) {
-        target.analysisMode = value;
-      },
-      '--provider': function setProvider(target, value) {
-        target.provider = value;
-      },
-      '--output-json': function setOutputJson(target, value) {
-        target.outputJsonPath = value;
-      },
+      '--repo': setStringOption('repo'),
+      '--defect': appendStringOption('defects'),
+      '--analysis-mode': setStringOption('analysisMode'),
+      '--provider': setStringOption('provider'),
+      '--output-json': setStringOption('outputJsonPath'),
     },
   });
 

@@ -9,11 +9,17 @@ import { prepareTypeScriptBenchmarkHome } from '../lib/benchmark-plugin-home.mjs
 import { resolveWorkspaceRepoRoot } from '../lib/path-roots.mjs';
 import {
   createEvalMcpSession,
-  defaultOutputDir as buildDefaultOutputDir,
   defaultRulesSource,
   maybeCopyFile,
   parseCliArgs,
 } from '../lib/eval-support.mjs';
+import {
+  appendStringOption,
+  defaultEvalOutputDir,
+  resolveRepoLabel,
+  setFlag,
+  setStringOption,
+} from '../lib/eval-cli-shared.mjs';
 import { recordSessionSnapshot } from '../lib/eval-runtime/session-snapshot.mjs';
 import { nowIso } from '../lib/eval-runtime/common.mjs';
 import {
@@ -60,47 +66,21 @@ function parseArgs(argv) {
 
   parseCliArgs(argv, result, {
     flags: {
-      '--keep-clone': function enableKeepClone(target) {
-        target.keepClone = true;
-      },
+      '--keep-clone': setFlag('keepClone'),
     },
     values: {
-      '--source-root': function setSourceRoot(target, value) {
-        target.sourceRoot = value;
-      },
-      '--repo-label': function setRepoLabel(target, value) {
-        target.repoLabel = value;
-      },
-      '--commit': function setCommit(target, value) {
-        target.commit = value;
-      },
-      '--replay-id': function setReplayId(target, value) {
-        target.replayId = value;
-      },
-      '--base': function setBaseCommit(target, value) {
-        target.baseCommit = value;
-      },
-      '--defect-id': function setDefectId(target, value) {
-        target.defectId = value;
-      },
-      '--fixture-repo': function setFixtureRepo(target, value) {
-        target.fixtureRepo = value;
-      },
-      '--tag': function appendTag(target, value) {
-        target.tags.push(value);
-      },
-      '--expected-signal-kind': function appendExpectedSignalKind(target, value) {
-        target.expectedSignalKinds.push(value);
-      },
-      '--expected-fix-surface': function setExpectedFixSurface(target, value) {
-        target.expectedFixSurface = value;
-      },
-      '--rules-source': function setRulesSource(target, value) {
-        target.rulesSource = value;
-      },
-      '--output-dir': function setOutputDir(target, value) {
-        target.outputDir = value;
-      },
+      '--source-root': setStringOption('sourceRoot'),
+      '--repo-label': setStringOption('repoLabel'),
+      '--commit': setStringOption('commit'),
+      '--replay-id': setStringOption('replayId'),
+      '--base': setStringOption('baseCommit'),
+      '--defect-id': setStringOption('defectId'),
+      '--fixture-repo': setStringOption('fixtureRepo'),
+      '--tag': appendStringOption('tags'),
+      '--expected-signal-kind': appendStringOption('expectedSignalKinds'),
+      '--expected-fix-surface': setStringOption('expectedFixSurface'),
+      '--rules-source': setStringOption('rulesSource'),
+      '--output-dir': setStringOption('outputDir'),
     },
   });
 
@@ -112,7 +92,7 @@ function parseArgs(argv) {
 }
 
 function defaultOutputDir(sourceRoot, replayTarget) {
-  return buildDefaultOutputDir(sourceRoot, 'replay', replayTarget);
+  return defaultEvalOutputDir(sourceRoot, 'replay', replayTarget);
 }
 
 async function gitRead(sourceRoot, args) {
@@ -361,7 +341,7 @@ export async function runDiffReplay(options) {
   };
   const replayTarget = args.commit ?? args.defectId;
   const sourceRoot = resolveReplaySourceRoot(args);
-  const repoLabel = args.repoLabel ?? path.basename(sourceRoot);
+  const repoLabel = resolveRepoLabel(sourceRoot, args.repoLabel);
   const outputDir = path.resolve(
     args.outputDir ?? defaultOutputDir(sourceRoot, replayTarget),
   );

@@ -1,22 +1,15 @@
 import assert from 'node:assert/strict';
 import { execFile as execFileCallback } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
+import { repoRootFromImportMeta, writeJson } from '../lib/script-artifacts.mjs';
 
 const execFile = promisify(execFileCallback);
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const repoRoot = path.resolve(__dirname, '../..');
-
-async function writeJson(targetPath, value) {
-  await mkdir(path.dirname(targetPath), { recursive: true });
-  await writeFile(targetPath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
-}
+const repoRoot = repoRootFromImportMeta(import.meta.url, 2);
 
 async function runNodeScript(scriptRelativePath, args) {
   await execFile(process.execPath, [path.join(repoRoot, scriptRelativePath), ...args], {

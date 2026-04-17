@@ -1,19 +1,16 @@
 #!/usr/bin/env node
 
-import { readFileSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { assertPathExists } from './lib/disposable-repo.mjs';
+import { readJsonSync, repoRootFromImportMeta } from './lib/script-artifacts.mjs';
 import {
   compactSelectedCandidate,
   scoreBandLabel,
   selectLeverageBuckets,
 } from './lib/v2-report-selection.mjs';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const repoRoot = path.resolve(__dirname, '..');
+const repoRoot = repoRootFromImportMeta(import.meta.url, 1);
 
 const goldenDir =
   process.env.GOLDEN_DIR ?? path.join(repoRoot, 'docs/v2/examples/parallel-code-golden');
@@ -25,10 +22,6 @@ const outputJsonPath =
 const outputMarkdownPath =
   process.env.OUTPUT_MD_PATH ??
   path.join(repoRoot, 'docs/v2/examples/parallel-code-proof-snapshot.md');
-
-function readJson(targetPath) {
-  return JSON.parse(readFileSync(targetPath, 'utf8'));
-}
 
 function compactList(values, limit, mapper) {
   return (values ?? []).slice(0, limit).map(mapper);
@@ -369,10 +362,10 @@ async function main() {
   assertPathExists(obligationsPath, 'parallel-code obligations snapshot');
   assertPathExists(metadataPath, 'parallel-code metadata snapshot');
 
-  const findings = readJson(findingsPath);
-  const obligations = readJson(obligationsPath);
-  const metadata = readJson(metadataPath);
-  const benchmark = readJson(benchmarkPath);
+  const findings = readJsonSync(findingsPath);
+  const obligations = readJsonSync(obligationsPath);
+  const metadata = readJsonSync(metadataPath);
+  const benchmark = readJsonSync(benchmarkPath);
   const leverageBuckets = selectLeverageBuckets(findings);
   const topFindings = [
     ...leverageBuckets.summary_candidates,

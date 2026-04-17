@@ -1,17 +1,18 @@
 #!/usr/bin/env node
 
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import {
   buildSignalScorecard,
   formatSignalScorecardMarkdown,
 } from '../lib/signal-scorecard.mjs';
 import { resolveLatestRepoCalibrationArtifacts } from '../lib/repo-calibration-artifacts.mjs';
+import {
+  readJsonFile,
+  repoRootFromImportMeta,
+  writeMaybe,
+} from './build-artifact-support.mjs';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const repoRoot = path.resolve(__dirname, '../..');
+const repoRoot = repoRootFromImportMeta(import.meta.url);
 
 function parseArgs(argv) {
   const result = {
@@ -115,19 +116,6 @@ function hasAnyScorecardInput(args) {
   );
 }
 
-async function readJson(targetPath) {
-  const source = await readFile(targetPath, 'utf8');
-  return JSON.parse(source);
-}
-
-async function writeMaybe(targetPath, text) {
-  if (!targetPath) {
-    return;
-  }
-  await mkdir(path.dirname(targetPath), { recursive: true });
-  await writeFile(targetPath, text, 'utf8');
-}
-
 function resolveRepoLabel(args, inputs = {}) {
   return (
     args.repoLabel ??
@@ -145,16 +133,16 @@ function resolveRepoLabel(args, inputs = {}) {
 
 async function main() {
   const args = parseArgs(process.argv);
-  const defectReport = args.defectReportPath ? await readJson(args.defectReportPath) : null;
+  const defectReport = args.defectReportPath ? await readJsonFile(args.defectReportPath) : null;
   const reviewVerdicts = args.reviewVerdictsPath
-    ? await readJson(args.reviewVerdictsPath)
+    ? await readJsonFile(args.reviewVerdictsPath)
     : null;
   const remediationReport = args.remediationReportPath
-    ? await readJson(args.remediationReportPath)
+    ? await readJsonFile(args.remediationReportPath)
     : null;
-  const benchmark = args.benchmarkPath ? await readJson(args.benchmarkPath) : null;
+  const benchmark = args.benchmarkPath ? await readJsonFile(args.benchmarkPath) : null;
   const sessionTelemetry = args.sessionTelemetryPath
-    ? await readJson(args.sessionTelemetryPath)
+    ? await readJsonFile(args.sessionTelemetryPath)
     : null;
   const resolvedRepoLabel = resolveRepoLabel(args, {
     defectReport,
@@ -174,8 +162,8 @@ async function main() {
   const codexBatchPath = args.codexBatchPath ?? latestCalibration?.artifacts?.codex_batch_json ?? null;
   const replayBatchPath =
     args.replayBatchPath ?? latestCalibration?.artifacts?.replay_batch_json ?? null;
-  const codexBatch = codexBatchPath ? await readJson(codexBatchPath) : null;
-  const replayBatch = replayBatchPath ? await readJson(replayBatchPath) : null;
+  const codexBatch = codexBatchPath ? await readJsonFile(codexBatchPath) : null;
+  const replayBatch = replayBatchPath ? await readJsonFile(replayBatchPath) : null;
 
   const scorecard = buildSignalScorecard({
     repoLabel: resolvedRepoLabel,

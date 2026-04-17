@@ -1,16 +1,13 @@
 #!/usr/bin/env node
 
-import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import {
   formatSessionTelemetrySummaryMarkdown,
   loadSessionTelemetrySummary,
 } from '../lib/session-telemetry.mjs';
+import { repoRootFromImportMeta, writeMaybe } from './build-artifact-support.mjs';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const repoRoot = path.resolve(__dirname, '../..');
+const repoRoot = repoRootFromImportMeta(import.meta.url);
 
 function parseArgs(argv) {
   const result = {
@@ -54,15 +51,6 @@ function parseArgs(argv) {
 
 function defaultSessionEventsPath(repoRootPath) {
   return path.join(repoRootPath, '.sentrux', 'agent-session-events.jsonl');
-}
-
-async function writeMaybe(targetPath, text) {
-  if (!targetPath) {
-    return;
-  }
-
-  await mkdir(path.dirname(targetPath), { recursive: true });
-  await writeFile(targetPath, text, 'utf8');
 }
 
 async function main() {

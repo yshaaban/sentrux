@@ -1,21 +1,28 @@
 #!/usr/bin/env node
 
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { pathToFileURL } from 'node:url';
 import { prepareTypeScriptBenchmarkHome } from '../lib/benchmark-plugin-home.mjs';
 import { runTool } from '../lib/benchmark-harness.mjs';
+import {
+  assertAtLeastOneNumberOption,
+  defaultEvalTimeoutMs,
+  resolveRepoLabel,
+  setFlag,
+  setNumberOption,
+  setStringOption,
+} from '../lib/eval-cli-shared.mjs';
 import { nowIso } from '../lib/eval-runtime/common.mjs';
 import { createEvalMcpSession, parseCliArgs } from '../lib/eval-support.mjs';
+import { repoRootFromImportMeta, writeJson } from '../lib/script-artifacts.mjs';
 import { runClaudeCode } from './providers/claude-code.mjs';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const repoRoot = path.resolve(__dirname, '../..');
+const repoRoot = repoRootFromImportMeta(import.meta.url, 2);
 const sentruxBin = path.join(repoRoot, 'target', 'debug', 'sentrux');
-const requestTimeoutMs = Number(process.env.EVAL_TIMEOUT_MS ?? '1800000');
+const requestTimeoutMs = defaultEvalTimeoutMs();
 
 const DEAD_PRIVATE_REVIEW_SCHEMA = {
   type: 'object',
@@ -87,38 +94,18 @@ function parseArgs(argv) {
 
   parseCliArgs(argv, result, {
     flags: {
-      '--help': function enableHelp(target) {
-        target.help = true;
-      },
-      '-h': function enableShortHelp(target) {
-        target.help = true;
-      },
-      '--dry-run': function enableDryRun(target) {
-        target.dryRun = true;
-      },
+      '--help': setFlag('help'),
+      '-h': setFlag('help'),
+      '--dry-run': setFlag('dryRun'),
     },
     values: {
-      '--repo-root': function setRepoRoot(target, value) {
-        target.repoRoot = value;
-      },
-      '--repo-name': function setRepoName(target, value) {
-        target.repoName = value;
-      },
-      '--output': function setOutputPath(target, value) {
-        target.outputPath = value;
-      },
-      '--limit': function setLimit(target, value) {
-        target.limit = Number(value);
-      },
-      '--findings-limit': function setFindingsLimit(target, value) {
-        target.findingsLimit = Number(value);
-      },
-      '--claude-bin': function setClaudeBin(target, value) {
-        target.claudeBin = value;
-      },
-      '--model': function setModel(target, value) {
-        target.model = value;
-      },
+      '--repo-root': setStringOption('repoRoot'),
+      '--repo-name': setStringOption('repoName'),
+      '--output': setStringOption('outputPath'),
+      '--limit': setNumberOption('limit'),
+      '--findings-limit': setNumberOption('findingsLimit'),
+      '--claude-bin': setStringOption('claudeBin'),
+      '--model': setStringOption('model'),
     },
   });
 
@@ -130,7 +117,7 @@ function parseArgs(argv) {
     throw new Error('--repo-root is required');
   }
   if (!result.repoName) {
-    result.repoName = path.basename(result.repoRoot);
+    result.repoName = resolveRepoLabel(result.repoRoot, result.repoName);
   }
   if (!result.outputPath) {
     result.outputPath = path.join(
@@ -139,12 +126,8 @@ function parseArgs(argv) {
       `${result.repoName}-dead-private-review.json`,
     );
   }
-  if (!Number.isFinite(result.limit) || result.limit < 1) {
-    throw new Error(`Invalid --limit value: ${result.limit}`);
-  }
-  if (!Number.isFinite(result.findingsLimit) || result.findingsLimit < 1) {
-    throw new Error(`Invalid --findings-limit value: ${result.findingsLimit}`);
-  }
+  assertAtLeastOneNumberOption('--limit', result.limit);
+  assertAtLeastOneNumberOption('--findings-limit', result.findingsLimit);
 
   result.repoRoot = path.resolve(result.repoRoot);
   result.outputPath = path.resolve(result.outputPath);
@@ -477,11 +460,6 @@ function buildReviewPrompt(options, reviewedCandidates) {
   ];
 
   return lines.join('\n');
-}
-
-async function writeJson(filePath, value) {
-  await mkdir(path.dirname(filePath), { recursive: true });
-  await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
 }
 
 async function main() {
