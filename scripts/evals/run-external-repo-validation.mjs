@@ -1,15 +1,19 @@
 #!/usr/bin/env node
 
-import { execFile as execFileCallback } from 'node:child_process';
-import { access, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { promisify } from 'node:util';
 
 import { createMcpSession, runTool } from '../lib/benchmark-harness.mjs';
 import { prepareTypeScriptBenchmarkHome } from '../lib/benchmark-plugin-home.mjs';
 import { defaultBatchOutputDir } from '../lib/eval-batch.mjs';
+import {
+  collectRepoMetadata,
+  pathExists,
+  readJson,
+  runNodeScript,
+} from '../lib/eval-runtime/common.mjs';
 import {
   formatSessionTelemetrySummaryMarkdown,
   loadSessionTelemetrySummary,
@@ -18,8 +22,6 @@ import {
   deadPrivateCandidateKey,
   selectDeadPrivateCandidatesFromPayload,
 } from './review_dead_private.mjs';
-
-const execFile = promisify(execFileCallback);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -955,56 +957,6 @@ function appendEngineeringBottomLine(lines) {
   lines.push('');
 }
 
-async function pathExists(targetPath) {
-  try {
-    await access(targetPath);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function readJson(targetPath) {
-  return JSON.parse(await readFile(targetPath, 'utf8'));
-}
-
-async function runNodeScript(scriptPath, args) {
-  const { stdout, stderr } = await execFile(process.execPath, [scriptPath, ...args], {
-    cwd: repoRoot,
-    maxBuffer: 1024 * 1024 * 20,
-  });
-
-  return {
-    stdout: stdout.trim(),
-    stderr: stderr.trim(),
-  };
-}
-
-async function runGit(repoRootPath, gitArgs) {
-  try {
-    const { stdout } = await execFile('git', gitArgs, {
-      cwd: repoRootPath,
-      maxBuffer: 1024 * 1024,
-    });
-
-    return stdout.trim();
-  } catch {
-    return null;
-  }
-}
-
-async function collectRepoMetadata(repoRootPath) {
-  const branch = await runGit(repoRootPath, ['rev-parse', '--abbrev-ref', 'HEAD']);
-  const commit = await runGit(repoRootPath, ['rev-parse', '--short', 'HEAD']);
-  const status = await runGit(repoRootPath, ['status', '--short']);
-
-  return {
-    branch,
-    commit,
-    workingTreeClean: status === '',
-  };
-}
-
 async function captureRawToolAnalysis(repoRootPath, findingsLimit) {
   const tempRoot = await mkdtemp(path.join(tmpdir(), 'sentrux-external-repo-validation-'));
   const pluginHome = await prepareTypeScriptBenchmarkHome({ tempRoot });
@@ -1087,7 +1039,7 @@ async function buildReviewPackets(args, repoRootPath, outputDir) {
       packet.jsonPath,
       '--output-md',
       packet.markdownPath,
-    ]);
+    ], { cwd: repoRoot });
   }
 
   return {
@@ -1164,7 +1116,7 @@ async function main() {
     '--dry-run',
     '--output',
     deadPrivatePath,
-  ]);
+  ], { cwd: repoRoot });
 
   const findingsReviewPacket = await readJson(reviewPackets.findingsJsonPath);
   const packetValidation = buildPacketValidation(findingsReviewPacket);

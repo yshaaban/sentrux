@@ -1,5 +1,15 @@
 import { readFile, writeFile } from 'node:fs/promises';
-import { ensureMapEntry, safeRatio } from './signal-summary-utils.mjs';
+import {
+  buildSessionHealthSummary,
+  buildSessionSignalMetrics,
+  cloneSessionSignalEntry,
+  createSessionHealthAccumulator,
+  ensureSessionSignalEntry,
+  finalizeSessionHealthAccumulator,
+  mergeSessionHealthSummaryCounts,
+  mergeSessionSignalEntry,
+} from './session-health-schema.mjs';
+import { safeRatio } from './signal-summary-utils.mjs';
 
 function parseJsonLine(line) {
   if (!line.trim()) {
@@ -174,48 +184,8 @@ function checksUntilActionClears(topAction, checkRuns) {
   return null;
 }
 
-function createSignalEntry(signalKind) {
-  return {
-    signal_kind: signalKind,
-    top_action_presented: 0,
-    top_action_sessions: 0,
-    followup_checks: 0,
-    target_cleared: 0,
-    followup_regressions: 0,
-    sessions_cleared: 0,
-    sessions_clean: 0,
-    total_checks_to_clear: 0,
-    sessions_thrashing: 0,
-    sessions_stalled: 0,
-    reopened_top_actions: 0,
-    repeated_top_action_carries: 0,
-    total_entropy_delta: 0,
-    sessions_with_entropy_increase: 0,
-  };
-}
-
-function cloneSignalEntry(signal) {
-  return {
-    signal_kind: signal.signal_kind,
-    top_action_presented: signal.top_action_presented ?? 0,
-    top_action_sessions: signal.top_action_sessions ?? 0,
-    followup_checks: signal.followup_checks ?? 0,
-    target_cleared: signal.target_cleared ?? 0,
-    followup_regressions: signal.followup_regressions ?? 0,
-    sessions_cleared: signal.sessions_cleared ?? 0,
-    sessions_clean: signal.sessions_clean ?? 0,
-    total_checks_to_clear: signal.total_checks_to_clear ?? 0,
-    sessions_thrashing: signal.sessions_thrashing ?? 0,
-    sessions_stalled: signal.sessions_stalled ?? 0,
-    reopened_top_actions: signal.reopened_top_actions ?? 0,
-    repeated_top_action_carries: signal.repeated_top_action_carries ?? 0,
-    total_entropy_delta: signal.total_entropy_delta ?? 0,
-    sessions_with_entropy_increase: signal.sessions_with_entropy_increase ?? 0,
-  };
-}
-
 function ensureSignalEntry(signalMap, signalKind) {
-  return ensureMapEntry(signalMap, signalKind, createSignalEntry);
+  return ensureSessionSignalEntry(signalMap, signalKind);
 }
 
 function buildSessionRunSummary(events) {
@@ -437,38 +407,24 @@ export function buildSessionTelemetrySummary(events, overrides = {}) {
   const signals = [...signalMap.values()]
     .map((entry) => ({
       ...entry,
-      resolution_rate: safeRatio(entry.target_cleared, entry.followup_checks),
-      regression_rate: safeRatio(entry.followup_regressions, entry.followup_checks),
-      session_clear_rate: safeRatio(entry.sessions_cleared, entry.top_action_sessions),
-      session_clean_rate: safeRatio(entry.sessions_clean, entry.top_action_sessions),
-      session_thrash_rate: safeRatio(entry.sessions_thrashing, entry.top_action_sessions),
-      session_stall_rate: safeRatio(entry.sessions_stalled, entry.top_action_sessions),
-      reopened_top_action_rate: safeRatio(entry.reopened_top_actions, entry.top_action_sessions),
-      average_entropy_delta: safeRatio(entry.total_entropy_delta, entry.top_action_sessions),
-      entropy_increase_rate: safeRatio(
-        entry.sessions_with_entropy_increase,
-        entry.top_action_sessions,
-      ),
-      average_checks_to_clear: safeRatio(entry.total_checks_to_clear, entry.sessions_cleared),
+      ...buildSessionSignalMetrics({
+        followupChecks: entry.followup_checks,
+        targetCleared: entry.target_cleared,
+        followupRegressions: entry.followup_regressions,
+        topActionSessions: entry.top_action_sessions,
+        sessionsCleared: entry.sessions_cleared,
+        sessionsClean: entry.sessions_clean,
+        sessionsThrashing: entry.sessions_thrashing,
+        sessionsStalled: entry.sessions_stalled,
+        reopenedTopActions: entry.reopened_top_actions,
+        repeatedTopActionCarries: entry.repeated_top_action_carries,
+        totalEntropyDelta: entry.total_entropy_delta,
+        sessionsWithEntropyIncrease: entry.sessions_with_entropy_increase,
+        totalChecksToClear: entry.total_checks_to_clear,
+      }),
     }))
     .sort((left, right) => left.signal_kind.localeCompare(right.signal_kind));
-
-  const convergedSessionCount = summarizedSessions.filter(
-    (session) => session.convergence_status === 'converged',
-  ).length;
-  const convergingSessionCount = summarizedSessions.filter(
-    (session) => session.convergence_status === 'converging',
-  ).length;
-  const stalledSessionCount = summarizedSessions.filter(
-    (session) => session.convergence_status === 'stalled',
-  ).length;
-  const thrashingSessionCount = summarizedSessions.filter(
-    (session) => session.convergence_status === 'thrashing',
-  ).length;
-  const totalEntropyDelta = summarizedSessions.reduce(
-    (total, session) => total + (session.entropy_delta ?? 0),
-    0,
-  );
+  const sessionHealth = buildSessionHealthSummary(summarizedSessions);
 
   return {
     schema_version: 1,
@@ -481,11 +437,7 @@ export function buildSessionTelemetrySummary(events, overrides = {}) {
       explicit_session_count: summarizedSessions.filter((session) => session.session_mode === 'explicit').length,
       implicit_session_count: summarizedSessions.filter((session) => session.session_mode !== 'explicit').length,
       check_run_count: countEventsByType(events, 'check_run'),
-      converged_session_count: convergedSessionCount,
-      converging_session_count: convergingSessionCount,
-      stalled_session_count: stalledSessionCount,
-      thrashing_session_count: thrashingSessionCount,
-      average_entropy_delta: safeRatio(totalEntropyDelta, summarizedSessions.length),
+      ...sessionHealth,
     },
     sessions: summarizedSessions,
     signals,
@@ -499,11 +451,7 @@ export function mergeSessionTelemetrySummaries(summaries, overrides = {}) {
   let explicitSessionCount = 0;
   let implicitSessionCount = 0;
   let checkRunCount = 0;
-  let convergedSessionCount = 0;
-  let convergingSessionCount = 0;
-  let stalledSessionCount = 0;
-  let thrashingSessionCount = 0;
-  let totalEntropyDelta = 0;
+  const sessionHealth = createSessionHealthAccumulator();
 
   for (const summary of summaries ?? []) {
     if (!summary) {
@@ -514,11 +462,11 @@ export function mergeSessionTelemetrySummaries(summaries, overrides = {}) {
     explicitSessionCount += summary.summary?.explicit_session_count ?? 0;
     implicitSessionCount += summary.summary?.implicit_session_count ?? 0;
     checkRunCount += summary.summary?.check_run_count ?? 0;
-    convergedSessionCount += summary.summary?.converged_session_count ?? 0;
-    convergingSessionCount += summary.summary?.converging_session_count ?? 0;
-    stalledSessionCount += summary.summary?.stalled_session_count ?? 0;
-    thrashingSessionCount += summary.summary?.thrashing_session_count ?? 0;
-    totalEntropyDelta += (summary.summary?.average_entropy_delta ?? 0) * (summary.summary?.session_count ?? 0);
+    mergeSessionHealthSummaryCounts(
+      sessionHealth,
+      summary.summary ?? {},
+      summary.summary?.session_count ?? 0,
+    );
     sessions.push(...(summary.sessions ?? []));
 
     for (const signal of summary.signals ?? []) {
@@ -528,44 +476,33 @@ export function mergeSessionTelemetrySummaries(summaries, overrides = {}) {
       }
 
       if (!mergedSignals.has(signalKind)) {
-        mergedSignals.set(signalKind, cloneSignalEntry(signal));
+        mergedSignals.set(signalKind, cloneSessionSignalEntry(signal));
         continue;
       }
 
       const entry = mergedSignals.get(signalKind);
-      entry.top_action_presented += signal.top_action_presented ?? 0;
-      entry.top_action_sessions += signal.top_action_sessions ?? 0;
-      entry.followup_checks += signal.followup_checks ?? 0;
-      entry.target_cleared += signal.target_cleared ?? 0;
-      entry.followup_regressions += signal.followup_regressions ?? 0;
-      entry.sessions_cleared += signal.sessions_cleared ?? 0;
-      entry.sessions_clean += signal.sessions_clean ?? 0;
-      entry.total_checks_to_clear += signal.total_checks_to_clear ?? 0;
-      entry.sessions_thrashing += signal.sessions_thrashing ?? 0;
-      entry.sessions_stalled += signal.sessions_stalled ?? 0;
-      entry.reopened_top_actions += signal.reopened_top_actions ?? 0;
-      entry.repeated_top_action_carries += signal.repeated_top_action_carries ?? 0;
-      entry.total_entropy_delta += signal.total_entropy_delta ?? 0;
-      entry.sessions_with_entropy_increase += signal.sessions_with_entropy_increase ?? 0;
+      mergeSessionSignalEntry(entry, signal);
     }
   }
 
   const signals = [...mergedSignals.values()]
     .map((entry) => ({
       ...entry,
-      resolution_rate: safeRatio(entry.target_cleared, entry.followup_checks),
-      regression_rate: safeRatio(entry.followup_regressions, entry.followup_checks),
-      session_clear_rate: safeRatio(entry.sessions_cleared, entry.top_action_sessions),
-      session_clean_rate: safeRatio(entry.sessions_clean, entry.top_action_sessions),
-      session_thrash_rate: safeRatio(entry.sessions_thrashing, entry.top_action_sessions),
-      session_stall_rate: safeRatio(entry.sessions_stalled, entry.top_action_sessions),
-      reopened_top_action_rate: safeRatio(entry.reopened_top_actions, entry.top_action_sessions),
-      average_entropy_delta: safeRatio(entry.total_entropy_delta, entry.top_action_sessions),
-      entropy_increase_rate: safeRatio(
-        entry.sessions_with_entropy_increase,
-        entry.top_action_sessions,
-      ),
-      average_checks_to_clear: safeRatio(entry.total_checks_to_clear, entry.sessions_cleared),
+      ...buildSessionSignalMetrics({
+        followupChecks: entry.followup_checks,
+        targetCleared: entry.target_cleared,
+        followupRegressions: entry.followup_regressions,
+        topActionSessions: entry.top_action_sessions,
+        sessionsCleared: entry.sessions_cleared,
+        sessionsClean: entry.sessions_clean,
+        sessionsThrashing: entry.sessions_thrashing,
+        sessionsStalled: entry.sessions_stalled,
+        reopenedTopActions: entry.reopened_top_actions,
+        repeatedTopActionCarries: entry.repeated_top_action_carries,
+        totalEntropyDelta: entry.total_entropy_delta,
+        sessionsWithEntropyIncrease: entry.sessions_with_entropy_increase,
+        totalChecksToClear: entry.total_checks_to_clear,
+      }),
     }))
     .sort((left, right) => left.signal_kind.localeCompare(right.signal_kind));
 
@@ -581,11 +518,7 @@ export function mergeSessionTelemetrySummaries(summaries, overrides = {}) {
       explicit_session_count: explicitSessionCount,
       implicit_session_count: implicitSessionCount,
       check_run_count: checkRunCount,
-      converged_session_count: convergedSessionCount,
-      converging_session_count: convergingSessionCount,
-      stalled_session_count: stalledSessionCount,
-      thrashing_session_count: thrashingSessionCount,
-      average_entropy_delta: safeRatio(totalEntropyDelta, sessions.length),
+      ...finalizeSessionHealthAccumulator(sessionHealth, sessions.length),
     },
     sessions,
     signals,

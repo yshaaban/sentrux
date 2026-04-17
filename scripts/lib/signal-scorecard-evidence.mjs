@@ -1,4 +1,5 @@
 import { asArray, safeRatio } from './signal-summary-utils.mjs';
+import { buildSessionSignalMetrics } from './session-health-schema.mjs';
 import { createEmptySignalEntry } from './signal-scorecard-review.mjs';
 
 export function buildSessionMetrics(
@@ -17,22 +18,21 @@ export function buildSessionMetrics(
   totalEntropyDelta,
   sessionsWithEntropyIncrease,
 ) {
-  const topActionClearRate = safeRatio(sessionsCleared, topActionSessions);
-
-  return {
-    session_resolution_rate: safeRatio(sessionCleared, sessionFollowups),
-    session_clear_rate: topActionClearRate,
-    top_action_clear_rate: topActionClearRate,
-    followup_regression_rate: safeRatio(sessionRegressions, sessionFollowups),
-    session_clean_rate: safeRatio(sessionClean, topActionSessions),
-    session_thrash_rate: safeRatio(sessionsThrashing, topActionSessions),
-    session_stall_rate: safeRatio(sessionsStalled, topActionSessions),
-    reopened_top_action_rate: safeRatio(reopenedTopActions, topActionSessions),
-    repeated_top_action_carry_rate: safeRatio(repeatedTopActionCarries, topActionSessions),
-    average_entropy_delta: safeRatio(totalEntropyDelta, topActionSessions),
-    entropy_increase_rate: safeRatio(sessionsWithEntropyIncrease, topActionSessions),
-    average_checks_to_clear: safeRatio(sessionTotalChecksToClear, sessionsCleared),
-  };
+  return buildSessionSignalMetrics({
+    followupChecks: sessionFollowups,
+    targetCleared: sessionCleared,
+    followupRegressions: sessionRegressions,
+    topActionSessions,
+    sessionsCleared,
+    sessionsClean: sessionClean,
+    sessionsThrashing,
+    sessionsStalled,
+    reopenedTopActions,
+    repeatedTopActionCarries,
+    totalEntropyDelta,
+    sessionsWithEntropyIncrease,
+    totalChecksToClear: sessionTotalChecksToClear,
+  });
 }
 
 export function buildCoverageFlags(entry, reviewedTotal, remediationTotal, topActionSessions) {

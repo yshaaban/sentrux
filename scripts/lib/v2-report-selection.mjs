@@ -1,17 +1,17 @@
+import {
+  reportLeveragePriority,
+  reportPresentationPriority,
+  scoreBandLabel,
+} from './signal-policy.mjs';
+
+export { scoreBandLabel };
+
 const FALLBACK_SEVERITY_SCORES = {
   high: 7000,
   medium: 5000,
   low: 3000,
   unknown: 1000,
 };
-
-// Score bands intentionally use coarse thresholds so summary candidates remain stable
-// even when the underlying ranking model shifts slightly.
-const SCORE_BAND_DEFINITIONS = [
-  { minimumScore: 8500, label: 'very_high_signal' },
-  { minimumScore: 6500, label: 'high_signal' },
-  { minimumScore: 4000, label: 'moderate_signal' },
-];
 
 const ARCHITECTURE_SIGNAL_RANKING = {
   base: 2200,
@@ -95,48 +95,6 @@ const NEUTRAL_RANKING = {
   clusterSignalBonus: 300,
 };
 
-function presentationClassPriority(presentationClass) {
-  switch (presentationClass) {
-    case 'structural_debt':
-      return 0;
-    case 'guarded_facade':
-      return 1;
-    case 'watchpoint':
-      return 2;
-    case 'hardening_note':
-      return 3;
-    case 'tooling_debt':
-      return 4;
-    case 'experimental':
-      return 5;
-    default:
-      return 6;
-  }
-}
-
-function leverageClassPriority(leverageClass) {
-  switch (leverageClass) {
-    case 'architecture_signal':
-      return 0;
-    case 'local_refactor_target':
-      return 1;
-    case 'boundary_discipline':
-      return 2;
-    case 'regrowth_watchpoint':
-      return 3;
-    case 'secondary_cleanup':
-      return 4;
-    case 'hardening_note':
-      return 5;
-    case 'tooling_debt':
-      return 6;
-    case 'experimental':
-      return 7;
-    default:
-      return 8;
-  }
-}
-
 function severityPriority(severity) {
   switch (severity) {
     case 'high':
@@ -161,16 +119,6 @@ function fallbackScore(severity) {
     default:
       return FALLBACK_SEVERITY_SCORES.unknown;
   }
-}
-
-export function scoreBandLabel(score) {
-  for (const band of SCORE_BAND_DEFINITIONS) {
-    if (score >= band.minimumScore) {
-      return band.label;
-    }
-  }
-
-  return 'supporting_signal';
 }
 
 function defaultLeverageClass(presentationClass) {
@@ -627,11 +575,11 @@ function normalizeCandidate(candidate, sourceType, debtSignals, debtClusters) {
 
 function compareCandidates(left, right) {
   return (
-    leverageClassPriority(left.leverage_class) - leverageClassPriority(right.leverage_class) ||
+    reportLeveragePriority(left.leverage_class) - reportLeveragePriority(right.leverage_class) ||
     right.within_bucket_strength_0_10000 - left.within_bucket_strength_0_10000 ||
     severityPriority(left.severity) - severityPriority(right.severity) ||
-    presentationClassPriority(left.presentation_class) -
-      presentationClassPriority(right.presentation_class) ||
+    reportPresentationPriority(left.presentation_class) -
+      reportPresentationPriority(right.presentation_class) ||
     right.cluster_signal_count - left.cluster_signal_count ||
     Number(right.hotspot_overlap) - Number(left.hotspot_overlap) ||
     right.score_0_10000 - left.score_0_10000 ||
