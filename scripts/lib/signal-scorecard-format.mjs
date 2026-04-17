@@ -1,3 +1,14 @@
+function formatPrimaryTargetPolicy(policyState) {
+  if (policyState === null) {
+    return 'insufficient evidence';
+  }
+  if (policyState) {
+    return 'pass';
+  }
+
+  return 'fail';
+}
+
 export function formatSignalScorecardMarkdown(scorecard) {
   const lines = [];
   lines.push('# Signal Quality Scorecard');
@@ -38,22 +49,26 @@ export function formatSignalScorecardMarkdown(scorecard) {
       `- ranking preference satisfaction: ${scorecard.summary.ranking_quality.ranking_preference_satisfaction_rate ?? 'n/a'}`,
     );
     lines.push(
-      `- primary-target policy: ${
-        scorecard.summary.ranking_quality.meets_primary_target_policy === null
-          ? 'insufficient evidence'
-          : scorecard.summary.ranking_quality.meets_primary_target_policy
-            ? 'pass'
-            : 'fail'
-      }`,
+      `- primary-target policy: ${formatPrimaryTargetPolicy(
+        scorecard.summary.ranking_quality.meets_primary_target_policy,
+      )}`,
+    );
+  }
+  if (scorecard.summary.session_health) {
+    lines.push(
+      `- thrashing sessions: ${scorecard.summary.session_health.thrashing_session_count ?? 0}`,
+    );
+    lines.push(
+      `- average entropy delta: ${scorecard.summary.session_health.average_entropy_delta ?? 'n/a'}`,
     );
   }
   lines.push('');
-  lines.push('| Signal | Family | Status | Primary Lane | Seeded Recall | Primary Recall | Reviewed Precision | Noise Rate | Remediation Success | Trials | Trial Miss Rate | Top Action Clear | Regression Rate | Session Clean Rate | Avg Checks To Clear | Latency | Recommendation |');
-  lines.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
+  lines.push('| Signal | Family | Status | Primary Lane | Seeded Recall | Primary Recall | Reviewed Precision | Noise Rate | Remediation Success | Trials | Top Action Sessions | Trial Miss Rate | Top Action Clear | Regression Rate | Session Clean Rate | Thrash Rate | Avg Entropy Delta | Avg Checks To Clear | Latency | Recommendation |');
+  lines.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
 
   for (const signal of scorecard.signals) {
     lines.push(
-      `| \`${signal.signal_kind}\` | \`${signal.signal_family}\` | \`${signal.promotion_status}\` | \`${signal.primary_lane ?? 'n/a'}\` | ${signal.seeded_recall ?? 'n/a'} | ${signal.primary_recall ?? 'n/a'} | ${signal.reviewed_precision ?? 'n/a'} | ${signal.review_noise_rate ?? 'n/a'} | ${signal.remediation_success_rate ?? 'n/a'} | ${signal.session_trial_count ?? 0} | ${signal.session_trial_miss_rate ?? 'n/a'} | ${signal.top_action_clear_rate ?? 'n/a'} | ${signal.followup_regression_rate ?? 'n/a'} | ${signal.session_clean_rate ?? 'n/a'} | ${signal.average_checks_to_clear ?? 'n/a'} | ${signal.latency_ms ?? 'n/a'} | \`${signal.promotion_recommendation}\` |`,
+      `| \`${signal.signal_kind}\` | \`${signal.signal_family}\` | \`${signal.promotion_status}\` | \`${signal.primary_lane ?? 'n/a'}\` | ${signal.seeded_recall ?? 'n/a'} | ${signal.primary_recall ?? 'n/a'} | ${signal.reviewed_precision ?? 'n/a'} | ${signal.review_noise_rate ?? 'n/a'} | ${signal.remediation_success_rate ?? 'n/a'} | ${signal.session_trial_count ?? 0} | ${signal.top_action_sessions ?? 0} | ${signal.session_trial_miss_rate ?? 'n/a'} | ${signal.top_action_clear_rate ?? 'n/a'} | ${signal.followup_regression_rate ?? 'n/a'} | ${signal.session_clean_rate ?? 'n/a'} | ${signal.session_thrash_rate ?? 'n/a'} | ${signal.average_entropy_delta ?? 'n/a'} | ${signal.average_checks_to_clear ?? 'n/a'} | ${signal.latency_ms ?? 'n/a'} | \`${signal.promotion_recommendation}\` |`,
     );
   }
 

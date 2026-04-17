@@ -18,6 +18,11 @@ function buildTelemetrySummary(sessionRunId, signalKind) {
       explicit_session_count: 1,
       implicit_session_count: 0,
       check_run_count: 2,
+      converged_session_count: 0,
+      converging_session_count: 0,
+      stalled_session_count: 1,
+      thrashing_session_count: 0,
+      average_entropy_delta: 0,
     },
     sessions: [
       {
@@ -30,6 +35,8 @@ function buildTelemetrySummary(sessionRunId, signalKind) {
         top_action_cleared: false,
         checks_to_clear_top_action: null,
         followup_regression_introduced: false,
+        convergence_status: 'stalled',
+        entropy_delta: 0,
         final_decision: 'warn',
         final_gate: 'warn',
         final_session_clean: false,
@@ -41,6 +48,7 @@ function buildTelemetrySummary(sessionRunId, signalKind) {
       {
         signal_kind: signalKind,
         top_action_presented: 1,
+        top_action_sessions: 1,
         followup_checks: 1,
         target_cleared: 0,
         followup_regressions: 0,
@@ -51,6 +59,8 @@ function buildTelemetrySummary(sessionRunId, signalKind) {
         regression_rate: 0,
         session_clear_rate: 0,
         session_clean_rate: 0,
+        session_thrash_rate: 0,
+        average_entropy_delta: 0,
         average_checks_to_clear: null,
       },
     ],

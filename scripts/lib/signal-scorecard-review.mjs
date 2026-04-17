@@ -50,6 +50,7 @@ export function createEmptySignalEntry(signalKind, overrides = {}) {
     seeded_check_rules_supported: 0,
     seeded_check_rules_detected: 0,
     session_top_actions: 0,
+    top_action_sessions: 0,
     session_followups: 0,
     session_cleared: 0,
     session_regressions: 0,
@@ -62,6 +63,12 @@ export function createEmptySignalEntry(signalKind, overrides = {}) {
     session_expected_presentations: 0,
     session_expected_top_actions: 0,
     session_expectation_misses: 0,
+    sessions_thrashing: 0,
+    sessions_stalled: 0,
+    reopened_top_actions: 0,
+    repeated_top_action_carries: 0,
+    total_entropy_delta: 0,
+    sessions_with_entropy_increase: 0,
     provisional_reviewed_total: 0,
     provisional_true_positive: 0,
     provisional_acceptable_warning: 0,
@@ -277,6 +284,10 @@ function buildPromotionInputs(entry) {
 
   return {
     falsePositives,
+    entropyIncreaseRate: safeRatio(
+      entry.sessions_with_entropy_increase ?? 0,
+      entry.top_action_sessions ?? 0,
+    ),
     followupRegressionRate: safeRatio(
       entry.session_regressions ?? 0,
       entry.session_followups ?? 0,
@@ -298,7 +309,8 @@ function buildPromotionInputs(entry) {
     ),
     reviewedTotal,
     seededRecall: safeRatio(entry.seeded_detected, entry.seeded_total),
-    sessionCleanRate: safeRatio(entry.session_clean ?? 0, entry.session_top_actions ?? 0),
+    sessionCleanRate: safeRatio(entry.session_clean ?? 0, entry.top_action_sessions ?? 0),
+    sessionThrashRate: safeRatio(entry.sessions_thrashing ?? 0, entry.top_action_sessions ?? 0),
     top1ActionablePrecision: safeRatio(
       entry.review_top_1_actionable ?? 0,
       top1ReviewedTotal,
@@ -311,7 +323,7 @@ function buildPromotionInputs(entry) {
     top3ReviewedTotal,
     topActionClearRate: safeRatio(
       entry.sessions_cleared ?? 0,
-      entry.session_top_actions ?? 0,
+      entry.top_action_sessions ?? 0,
     ),
   };
 }
@@ -393,6 +405,18 @@ function promotionFixGuidanceDecision(metrics) {
   if (
     metrics.followupRegressionRate !== null &&
     metrics.followupRegressionRate > SIGNAL_PROMOTION_POLICY.followupRegressionRateMax
+  ) {
+    return 'improve_fix_guidance';
+  }
+  if (
+    metrics.sessionThrashRate !== null &&
+    metrics.sessionThrashRate > SIGNAL_PROMOTION_POLICY.sessionThrashRateMax
+  ) {
+    return 'improve_fix_guidance';
+  }
+  if (
+    metrics.entropyIncreaseRate !== null &&
+    metrics.entropyIncreaseRate > SIGNAL_PROMOTION_POLICY.entropyIncreaseRateMax
   ) {
     return 'improve_fix_guidance';
   }

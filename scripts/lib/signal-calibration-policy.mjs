@@ -6,6 +6,8 @@ export const SIGNAL_PROMOTION_POLICY = Object.freeze({
   topActionClearRateMin: 0.6,
   sessionCleanRateMin: 0.6,
   followupRegressionRateMax: 0.4,
+  sessionThrashRateMax: 0.3,
+  entropyIncreaseRateMax: 0.3,
 });
 
 export const SIGNAL_PRIMARY_TARGET_POLICY = Object.freeze({

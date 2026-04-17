@@ -58,16 +58,28 @@ test('buildSignalScorecard aggregates seeded, review, and remediation metrics', 
         {
           signal_kind: 'closed_domain_exhaustiveness',
           top_action_presented: 2,
+          top_action_sessions: 2,
           followup_checks: 1,
           target_cleared: 1,
           followup_regressions: 0,
           sessions_cleared: 1,
           sessions_clean: 2,
           total_checks_to_clear: 3,
+          sessions_thrashing: 0,
+          sessions_stalled: 0,
+          reopened_top_actions: 0,
+          repeated_top_action_carries: 0,
+          total_entropy_delta: -1,
+          sessions_with_entropy_increase: 0,
         },
       ],
       summary: {
         session_count: 2,
+        converged_session_count: 1,
+        converging_session_count: 1,
+        stalled_session_count: 0,
+        thrashing_session_count: 0,
+        average_entropy_delta: -0.5,
       },
     },
     codexBatch: {
@@ -114,12 +126,17 @@ test('buildSignalScorecard aggregates seeded, review, and remediation metrics', 
   assert.equal(scorecard.signals[0].session_resolution_rate, 1);
   assert.equal(scorecard.signals[0].top_action_clear_rate, 0.5);
   assert.equal(scorecard.signals[0].session_clean_rate, 1);
+  assert.equal(scorecard.signals[0].session_thrash_rate, 0);
+  assert.equal(scorecard.signals[0].average_entropy_delta, -0.5);
+  assert.equal(scorecard.signals[0].entropy_increase_rate, 0);
   assert.equal(scorecard.signals[0].average_checks_to_clear, 3);
   assert.equal(scorecard.signals[0].promotion_evidence_complete, true);
   assert.equal(scorecard.signals[0].latency_ms, 134.2);
   assert.equal(scorecard.summary.kpis.session_trial_count, 2);
   assert.equal(scorecard.summary.coverage.has_session_trials, true);
   assert.equal(scorecard.summary.kpis.session_count, 2);
+  assert.equal(scorecard.summary.session_health.converged_session_count, 1);
+  assert.equal(scorecard.summary.session_health.average_entropy_delta, -0.5);
 });
 
 test('buildSignalScorecard treats missed expected trials as valid session evidence', function () {
@@ -184,6 +201,73 @@ test('buildSignalScorecard treats missed expected trials as valid session eviden
   assert.equal(scorecard.signals[0].session_trial_count, 1);
   assert.equal(scorecard.signals[0].session_expectation_misses, 1);
   assert.equal(scorecard.signals[0].session_trial_miss_rate, 1);
+});
+
+test('buildSignalScorecard requires top-action sessions before marking session action evidence complete', function () {
+  const scorecard = buildSignalScorecard({
+    repoLabel: 'session-evidence-gap',
+    defectReport: {
+      repo_label: 'session-evidence-gap',
+      defects: [
+        {
+          id: 'raw-read',
+          signal_kind: 'forbidden_raw_read',
+          signal_family: 'rules',
+          promotion_status: 'trusted',
+          blocking_intent: 'blocking',
+        },
+      ],
+      results: [
+        {
+          defect_id: 'raw-read',
+          detected: true,
+          check: { supported: true, matched: true },
+        },
+      ],
+    },
+    reviewVerdicts: {
+      verdicts: [
+        {
+          kind: 'forbidden_raw_read',
+          category: 'useful',
+        },
+      ],
+    },
+    remediationReport: {
+      results: [
+        {
+          signal_kind: 'forbidden_raw_read',
+          fixed: true,
+          regression_free: true,
+        },
+      ],
+    },
+    sessionTelemetry: {
+      signals: [
+        {
+          signal_kind: 'forbidden_raw_read',
+          top_action_presented: 1,
+          top_action_sessions: 0,
+          followup_checks: 0,
+          target_cleared: 0,
+          followup_regressions: 0,
+          sessions_cleared: 0,
+          sessions_clean: 0,
+          total_checks_to_clear: 0,
+        },
+      ],
+      summary: {
+        session_count: 1,
+      },
+    },
+  });
+
+  assert.equal(scorecard.signals.length, 1);
+  assert.equal(scorecard.signals[0].has_session_action_evidence, false);
+  assert.equal(scorecard.signals[0].has_session_evidence, false);
+  assert.equal(scorecard.signals[0].promotion_evidence_complete, false);
+  assert.equal(scorecard.signals[0].top_action_clear_rate, null);
+  assert.equal(scorecard.summary.coverage.has_session_telemetry, true);
 });
 
 test('buildSignalScorecard only assigns check latency to fast-path signals', function () {
@@ -320,6 +404,7 @@ test('buildSignalScorecard builds a review-and-session-only scorecard without se
         {
           signal_kind: 'missing_test_coverage',
           top_action_presented: 1,
+          top_action_sessions: 1,
           followup_checks: 1,
           target_cleared: 1,
           followup_regressions: 0,
@@ -377,6 +462,10 @@ test('formatSignalScorecardMarkdown renders the score table', function () {
       watchpoint_count: 0,
       needs_review_count: 0,
       degrade_count: 0,
+      session_health: {
+        thrashing_session_count: 0,
+        average_entropy_delta: -0.5,
+      },
     },
     signals: [
       {
@@ -390,10 +479,13 @@ test('formatSignalScorecardMarkdown renders the score table', function () {
         review_noise_rate: null,
         remediation_success_rate: null,
         session_trial_count: 2,
+        top_action_sessions: 1,
         session_trial_miss_rate: 0.5,
         top_action_clear_rate: 0.5,
         followup_regression_rate: 0,
         session_clean_rate: 0.5,
+        session_thrash_rate: 0,
+        average_entropy_delta: -0.5,
         average_checks_to_clear: 2,
         latency_ms: 134.2,
         promotion_recommendation: 'keep_watchpoint',
@@ -405,5 +497,7 @@ test('formatSignalScorecardMarkdown renders the score table', function () {
   assert.match(markdown, /missing_test_coverage/);
   assert.match(markdown, /keep_watchpoint/);
   assert.match(markdown, /Trials/);
+  assert.match(markdown, /Top Action Sessions/);
+  assert.match(markdown, /Thrash Rate/);
   assert.match(markdown, /0.5/);
 });

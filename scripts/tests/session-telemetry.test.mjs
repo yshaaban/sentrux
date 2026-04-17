@@ -60,8 +60,12 @@ test('buildSessionTelemetrySummary tracks top-action follow-up resolution', func
   assert.equal(summary.sessions[0].top_action_cleared, true);
   assert.equal(summary.sessions[0].checks_to_clear_top_action, 1);
   assert.equal(summary.sessions[0].followup_regression_introduced, false);
+  assert.equal(summary.sessions[0].entropy_delta, -2);
+  assert.equal(summary.sessions[0].convergence_status, 'converged');
   assert.equal(summary.sessions[0].final_gate, 'pass');
   assert.equal(summary.sessions[0].final_session_clean, true);
+  assert.equal(summary.summary.converged_session_count, 1);
+  assert.equal(summary.summary.thrashing_session_count, 0);
   assert.equal(summary.signals.length, 2);
   assert.equal(summary.signals[0].signal_kind, 'forbidden_raw_read');
   assert.equal(summary.signals[0].top_action_presented, 1);
@@ -70,6 +74,8 @@ test('buildSessionTelemetrySummary tracks top-action follow-up resolution', func
   assert.equal(summary.signals[0].followup_regressions, 0);
   assert.equal(summary.signals[0].resolution_rate, 1);
   assert.equal(summary.signals[0].session_clean_rate, 1);
+  assert.equal(summary.signals[0].session_thrash_rate, 0);
+  assert.equal(summary.signals[0].average_entropy_delta, -2);
   assert.equal(summary.signals[0].average_checks_to_clear, 1);
 });
 
@@ -133,9 +139,121 @@ test('buildSessionTelemetrySummary tracks the first surfaced action when a sessi
   assert.equal(summary.sessions[0].initial_top_action_kind, 'closed_domain_exhaustiveness');
   assert.equal(summary.sessions[0].top_action_cleared, true);
   assert.equal(summary.sessions[0].checks_to_clear_top_action, 1);
+  assert.equal(summary.sessions[0].convergence_status, 'converged');
   assert.equal(summary.signals[0].signal_kind, 'closed_domain_exhaustiveness');
   assert.equal(summary.signals[0].sessions_cleared, 1);
   assert.equal(summary.signals[0].sessions_clean, 1);
+});
+
+test('buildSessionTelemetrySummary marks thrashing sessions when entropy grows and the top action reopens', function () {
+  const summary = buildSessionTelemetrySummary([
+    {
+      event_type: 'session_started',
+      session_run_id: 'session-3',
+      server_run_id: 'mcp-3',
+      session_mode: 'explicit',
+      event_index: 1,
+      repo_root: '/tmp/parallel-code',
+    },
+    {
+      event_type: 'check_run',
+      session_run_id: 'session-3',
+      server_run_id: 'mcp-3',
+      session_mode: 'explicit',
+      event_index: 2,
+      repo_root: '/tmp/parallel-code',
+      gate: 'fail',
+      top_action_kind: 'dependency_sprawl',
+      action_kinds: ['dependency_sprawl'],
+    },
+    {
+      event_type: 'check_run',
+      session_run_id: 'session-3',
+      server_run_id: 'mcp-3',
+      session_mode: 'explicit',
+      event_index: 3,
+      repo_root: '/tmp/parallel-code',
+      gate: 'fail',
+      top_action_kind: 'missing_test_coverage',
+      action_kinds: ['missing_test_coverage', 'cycle_cluster'],
+    },
+    {
+      event_type: 'check_run',
+      session_run_id: 'session-3',
+      server_run_id: 'mcp-3',
+      session_mode: 'explicit',
+      event_index: 4,
+      repo_root: '/tmp/parallel-code',
+      gate: 'fail',
+      top_action_kind: 'dependency_sprawl',
+      action_kinds: ['dependency_sprawl', 'missing_test_coverage', 'cycle_cluster'],
+    },
+  ]);
+
+  assert.equal(summary.sessions[0].reopened_top_action, true);
+  assert.equal(summary.sessions[0].entropy_delta, 2);
+  assert.equal(summary.sessions[0].convergence_status, 'thrashing');
+  assert.equal(summary.summary.thrashing_session_count, 1);
+  assert.equal(summary.signals[0].signal_kind, 'dependency_sprawl');
+  assert.equal(summary.signals[0].sessions_thrashing, 1);
+  assert.equal(summary.signals[0].reopened_top_actions, 1);
+  assert.equal(summary.signals[0].session_thrash_rate, 1);
+  assert.equal(summary.signals[0].average_entropy_delta, 2);
+  assert.equal(summary.signals[0].entropy_increase_rate, 1);
+});
+
+test('buildSessionTelemetrySummary treats shrinking repeated top-action sessions as converging', function () {
+  const summary = buildSessionTelemetrySummary([
+    {
+      event_type: 'session_started',
+      session_run_id: 'session-4',
+      server_run_id: 'mcp-4',
+      session_mode: 'explicit',
+      event_index: 1,
+      repo_root: '/tmp/parallel-code',
+    },
+    {
+      event_type: 'check_run',
+      session_run_id: 'session-4',
+      server_run_id: 'mcp-4',
+      session_mode: 'explicit',
+      event_index: 2,
+      repo_root: '/tmp/parallel-code',
+      gate: 'fail',
+      top_action_kind: 'dependency_sprawl',
+      action_kinds: ['dependency_sprawl', 'cycle_cluster', 'large_file'],
+    },
+    {
+      event_type: 'check_run',
+      session_run_id: 'session-4',
+      server_run_id: 'mcp-4',
+      session_mode: 'explicit',
+      event_index: 3,
+      repo_root: '/tmp/parallel-code',
+      gate: 'fail',
+      top_action_kind: 'dependency_sprawl',
+      action_kinds: ['dependency_sprawl', 'cycle_cluster'],
+    },
+    {
+      event_type: 'check_run',
+      session_run_id: 'session-4',
+      server_run_id: 'mcp-4',
+      session_mode: 'explicit',
+      event_index: 4,
+      repo_root: '/tmp/parallel-code',
+      gate: 'fail',
+      top_action_kind: 'dependency_sprawl',
+      action_kinds: ['dependency_sprawl'],
+    },
+  ]);
+
+  assert.equal(summary.sessions[0].repeated_top_action_carries, 2);
+  assert.equal(summary.sessions[0].entropy_delta, -2);
+  assert.equal(summary.sessions[0].convergence_status, 'converging');
+  assert.equal(summary.summary.thrashing_session_count, 0);
+  assert.equal(summary.summary.converging_session_count, 1);
+  assert.equal(summary.signals[0].sessions_thrashing, 0);
+  assert.equal(summary.signals[0].average_entropy_delta, -2);
 });
 
 test('formatSessionTelemetrySummaryMarkdown renders the telemetry table', function () {
@@ -153,6 +271,7 @@ test('formatSessionTelemetrySummaryMarkdown renders the telemetry table', functi
       {
         signal_kind: 'missing_test_coverage',
         top_action_presented: 1,
+        top_action_sessions: 1,
         followup_checks: 1,
         target_cleared: 0,
         followup_regressions: 1,
@@ -167,7 +286,9 @@ test('formatSessionTelemetrySummaryMarkdown renders the telemetry table', functi
   assert.match(markdown, /Session Telemetry Summary/);
   assert.match(markdown, /missing_test_coverage/);
   assert.match(markdown, /Regression Rate/);
+  assert.match(markdown, /Top Action Sessions/);
   assert.match(markdown, /Session Clean Rate/);
+  assert.match(markdown, /Thrash Rate/);
 });
 
 test('mergeSessionTelemetrySummaries combines per-signal counts across summaries', function () {
@@ -186,6 +307,7 @@ test('mergeSessionTelemetrySummaries combines per-signal counts across summaries
         {
           signal_kind: 'missing_test_coverage',
           top_action_presented: 1,
+          top_action_sessions: 1,
           followup_checks: 1,
           target_cleared: 1,
           followup_regressions: 0,
@@ -209,6 +331,7 @@ test('mergeSessionTelemetrySummaries combines per-signal counts across summaries
         {
           signal_kind: 'missing_test_coverage',
           top_action_presented: 1,
+          top_action_sessions: 1,
           followup_checks: 0,
           target_cleared: 0,
           followup_regressions: 0,
@@ -224,6 +347,7 @@ test('mergeSessionTelemetrySummaries combines per-signal counts across summaries
   assert.equal(merged.summary.session_count, 2);
   assert.equal(merged.summary.explicit_session_count, 1);
   assert.equal(merged.summary.implicit_session_count, 1);
+  assert.equal(merged.summary.average_entropy_delta, 0);
   assert.equal(merged.signals[0].signal_kind, 'missing_test_coverage');
   assert.equal(merged.signals[0].top_action_presented, 2);
   assert.equal(merged.signals[0].session_clean_rate, 0.5);

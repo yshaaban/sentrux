@@ -3,31 +3,44 @@ import { createEmptySignalEntry } from './signal-scorecard-review.mjs';
 
 export function buildSessionMetrics(
   sessionTopActions,
+  topActionSessions,
   sessionFollowups,
   sessionCleared,
   sessionRegressions,
   sessionsCleared,
   sessionClean,
   sessionTotalChecksToClear,
+  sessionsThrashing,
+  sessionsStalled,
+  reopenedTopActions,
+  repeatedTopActionCarries,
+  totalEntropyDelta,
+  sessionsWithEntropyIncrease,
 ) {
-  const topActionClearRate = safeRatio(sessionsCleared, sessionTopActions);
+  const topActionClearRate = safeRatio(sessionsCleared, topActionSessions);
 
   return {
     session_resolution_rate: safeRatio(sessionCleared, sessionFollowups),
     session_clear_rate: topActionClearRate,
     top_action_clear_rate: topActionClearRate,
     followup_regression_rate: safeRatio(sessionRegressions, sessionFollowups),
-    session_clean_rate: safeRatio(sessionClean, sessionTopActions),
+    session_clean_rate: safeRatio(sessionClean, topActionSessions),
+    session_thrash_rate: safeRatio(sessionsThrashing, topActionSessions),
+    session_stall_rate: safeRatio(sessionsStalled, topActionSessions),
+    reopened_top_action_rate: safeRatio(reopenedTopActions, topActionSessions),
+    repeated_top_action_carry_rate: safeRatio(repeatedTopActionCarries, topActionSessions),
+    average_entropy_delta: safeRatio(totalEntropyDelta, topActionSessions),
+    entropy_increase_rate: safeRatio(sessionsWithEntropyIncrease, topActionSessions),
     average_checks_to_clear: safeRatio(sessionTotalChecksToClear, sessionsCleared),
   };
 }
 
-export function buildCoverageFlags(entry, reviewedTotal, remediationTotal, sessionTopActions) {
+export function buildCoverageFlags(entry, reviewedTotal, remediationTotal, topActionSessions) {
   const hasSeededEvidence = entry.seeded_total > 0;
   const hasReviewEvidence = reviewedTotal > 0;
   const hasProvisionalReviewEvidence = (entry.provisional_reviewed_total ?? 0) > 0;
   const hasRemediationEvidence = remediationTotal > 0;
-  const hasSessionActionEvidence = sessionTopActions > 0;
+  const hasSessionActionEvidence = topActionSessions > 0;
   const hasSessionTrialEvidence = (entry.session_trial_count ?? 0) > 0;
   const hasSessionEvidence = hasSessionActionEvidence || hasSessionTrialEvidence;
 
@@ -137,12 +150,19 @@ export function applySessionTelemetry(signalMap, sessionTelemetry, ensureSignalE
 
     const entry = ensureSignalEntry(signalMap, signalKind);
     entry.session_top_actions += signal.top_action_presented ?? 0;
+    entry.top_action_sessions += signal.top_action_sessions ?? 0;
     entry.session_followups += signal.followup_checks ?? 0;
     entry.session_cleared += signal.target_cleared ?? 0;
     entry.session_regressions += signal.followup_regressions ?? 0;
     entry.sessions_cleared += signal.sessions_cleared ?? 0;
     entry.session_clean += signal.sessions_clean ?? 0;
     entry.session_total_checks_to_clear += signal.total_checks_to_clear ?? 0;
+    entry.sessions_thrashing += signal.sessions_thrashing ?? 0;
+    entry.sessions_stalled += signal.sessions_stalled ?? 0;
+    entry.reopened_top_actions += signal.reopened_top_actions ?? 0;
+    entry.repeated_top_action_carries += signal.repeated_top_action_carries ?? 0;
+    entry.total_entropy_delta += signal.total_entropy_delta ?? 0;
+    entry.sessions_with_entropy_increase += signal.sessions_with_entropy_increase ?? 0;
   }
 }
 
@@ -241,12 +261,19 @@ export function buildSignalCounts(entry) {
     },
     session: {
       sessionTopActions: entry.session_top_actions ?? 0,
+      topActionSessions: entry.top_action_sessions ?? 0,
       sessionFollowups: entry.session_followups ?? 0,
       sessionCleared: entry.session_cleared ?? 0,
       sessionRegressions: entry.session_regressions ?? 0,
       sessionsCleared: entry.sessions_cleared ?? 0,
       sessionClean: entry.session_clean ?? 0,
       sessionTotalChecksToClear: entry.session_total_checks_to_clear ?? 0,
+      sessionsThrashing: entry.sessions_thrashing ?? 0,
+      sessionsStalled: entry.sessions_stalled ?? 0,
+      reopenedTopActions: entry.reopened_top_actions ?? 0,
+      repeatedTopActionCarries: entry.repeated_top_action_carries ?? 0,
+      totalEntropyDelta: entry.total_entropy_delta ?? 0,
+      sessionsWithEntropyIncrease: entry.sessions_with_entropy_increase ?? 0,
       sessionTrialCount: entry.session_trial_count ?? 0,
       liveSessionTrialCount: entry.live_session_trial_count ?? 0,
       replaySessionTrialCount: entry.replay_session_trial_count ?? 0,
@@ -310,16 +337,29 @@ export function buildSignalSessionFields(session, sessionMetrics) {
       session.sessionTrialCount,
     ),
     session_top_actions: session.sessionTopActions,
+    top_action_sessions: session.topActionSessions,
     session_followups: session.sessionFollowups,
     session_cleared: session.sessionCleared,
     session_regressions: session.sessionRegressions,
     sessions_cleared: session.sessionsCleared,
+    sessions_thrashing: session.sessionsThrashing,
+    sessions_stalled: session.sessionsStalled,
+    reopened_top_actions: session.reopenedTopActions,
+    repeated_top_action_carries: session.repeatedTopActionCarries,
+    total_entropy_delta: session.totalEntropyDelta,
+    sessions_with_entropy_increase: session.sessionsWithEntropyIncrease,
     session_resolution_rate: sessionMetrics.session_resolution_rate,
     session_clear_rate: sessionMetrics.session_clear_rate,
     top_action_clear_rate: sessionMetrics.top_action_clear_rate,
     followup_regression_rate: sessionMetrics.followup_regression_rate,
     session_clean: session.sessionClean,
     session_clean_rate: sessionMetrics.session_clean_rate,
+    session_thrash_rate: sessionMetrics.session_thrash_rate,
+    session_stall_rate: sessionMetrics.session_stall_rate,
+    reopened_top_action_rate: sessionMetrics.reopened_top_action_rate,
+    repeated_top_action_carry_rate: sessionMetrics.repeated_top_action_carry_rate,
+    average_entropy_delta: sessionMetrics.average_entropy_delta,
+    entropy_increase_rate: sessionMetrics.entropy_increase_rate,
     average_checks_to_clear: sessionMetrics.average_checks_to_clear,
   };
 }

@@ -96,18 +96,25 @@ function buildSignalRecord(entry, latencyMs) {
   );
   const sessionMetrics = buildSessionMetrics(
     counts.session.sessionTopActions,
+    counts.session.topActionSessions,
     counts.session.sessionFollowups,
     counts.session.sessionCleared,
     counts.session.sessionRegressions,
     counts.session.sessionsCleared,
     counts.session.sessionClean,
     counts.session.sessionTotalChecksToClear,
+    counts.session.sessionsThrashing,
+    counts.session.sessionsStalled,
+    counts.session.reopenedTopActions,
+    counts.session.repeatedTopActionCarries,
+    counts.session.totalEntropyDelta,
+    counts.session.sessionsWithEntropyIncrease,
   );
   const coverageFlags = buildCoverageFlags(
     entry,
     counts.review.reviewedTotal,
     counts.remediation.remediationTotal,
-    counts.session.sessionTopActions,
+    counts.session.topActionSessions,
   );
   const promotionEntry = {
     ...entry,
@@ -149,6 +156,7 @@ function buildScorecardSummary({
   sessionCount,
   totalSessionTrialCount,
   latencyMs,
+  sessionTelemetry = null,
 }) {
   const rankingQuality = buildRankingQualitySummary(signals);
   const provisionalRankingQuality = buildRankingQualitySummary(signals, 'provisional_');
@@ -190,6 +198,13 @@ function buildScorecardSummary({
     },
     ranking_quality: rankingQuality,
     provisional_ranking_quality: provisionalRankingQuality,
+    session_health: {
+      converged_session_count: sessionTelemetry?.summary?.converged_session_count ?? 0,
+      converging_session_count: sessionTelemetry?.summary?.converging_session_count ?? 0,
+      stalled_session_count: sessionTelemetry?.summary?.stalled_session_count ?? 0,
+      thrashing_session_count: sessionTelemetry?.summary?.thrashing_session_count ?? 0,
+      average_entropy_delta: sessionTelemetry?.summary?.average_entropy_delta ?? null,
+    },
   };
 }
 
@@ -230,6 +245,7 @@ export function buildSignalScorecard({
       sessionCount: context.sessionCount,
       totalSessionTrialCount: context.totalSessionTrialCount,
       latencyMs: context.latencyMs,
+      sessionTelemetry,
     }),
   };
 }
