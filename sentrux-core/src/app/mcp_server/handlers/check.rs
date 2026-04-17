@@ -63,6 +63,7 @@ pub(crate) fn handle_check(
     };
     let gate = compute_agent_gate(&issues);
     let actions = actions_from_issues(&issues, issues.len());
+    let signal_summary = build_check_signal_summary(&issues, &actions);
     let summary = build_check_summary(
         &issues,
         context.changed_scope_available,
@@ -72,6 +73,7 @@ pub(crate) fn handle_check(
     let response = AgentCheckResponse {
         issues,
         actions,
+        signal_summary: signal_summary.clone(),
         gate,
         summary,
         changed_files: changed_files.iter().cloned().collect(),
@@ -84,8 +86,9 @@ pub(crate) fn handle_check(
             changed_files: &changed_files,
             gate: response.gate,
             actions: &response.actions,
-            issue_count: response.issues.len(),
+            issues: &response.issues,
             diagnostics: &response.diagnostics,
+            signal_summary: response.signal_summary.clone(),
             session_baseline_available: session_v2.is_some(),
             reused_cached_scan: context.reused_cached_scan,
             elapsed_ms: started_at.elapsed().as_millis() as u64,

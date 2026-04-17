@@ -172,6 +172,7 @@ pub(crate) fn handle_session_end(
             introduced_finding_kinds: result_data.introduced_finding_kinds,
             missing_obligation_count: result_data.missing_obligations.len(),
             introduced_clone_finding_count: result_data.introduced_clone_findings.len(),
+            signal_summary: result_data.signal_summary.clone(),
             reused_cached_scan: run.context.reused_cached_scan,
         },
     );
@@ -194,6 +195,7 @@ pub(crate) fn handle_session_end(
         result_data.gate_decision,
         result_data.summary,
         result_data.blocking_findings,
+        result_data.signal_summary,
         legacy.baseline_error.clone(),
         result_data.semantic_error,
     );

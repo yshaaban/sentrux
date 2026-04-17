@@ -1,5 +1,6 @@
 use super::checkpoint::SessionBaselineStatus;
 use super::debt::DebtReportOutputs;
+use super::evaluation_signals::build_session_signal_summary;
 use super::*;
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -144,6 +145,13 @@ fn insert_finding_fields(
 fn insert_action_fields(result: &mut SessionEndResultMap, action_payloads: Vec<AgentAction>) {
     result.insert("action_count".to_string(), json!(action_payloads.len()));
     result.insert("actions".to_string(), json!(action_payloads));
+}
+
+fn insert_signal_summary_field(
+    result: &mut SessionEndResultMap,
+    signal_summary: SessionSignalSummary,
+) {
+    result.insert("signal_summary".to_string(), json!(signal_summary));
 }
 
 fn insert_empty_obligation_fields(result: &mut SessionEndResultMap, gate_decision: &str) {
@@ -324,11 +332,14 @@ pub(crate) fn build_empty_session_end_result(
         "Quality stable or improved"
     };
     let action_payloads: Vec<AgentAction> = Vec::new();
+    let signal_summary =
+        build_session_signal_summary(&[], &[], &[], &action_payloads, gate_decision);
     let mut result = build_session_result_map(gate_decision, summary, &legacy_summary);
     insert_empty_change_fields(&mut result);
     insert_empty_finding_fields(&mut result);
     insert_action_fields(&mut result, action_payloads);
     insert_empty_obligation_fields(&mut result, gate_decision);
+    insert_signal_summary_field(&mut result, signal_summary.clone());
     insert_empty_suppression_fields(&mut result);
     insert_session_context_fields(
         &mut result,
@@ -355,6 +366,7 @@ pub(crate) fn build_empty_session_end_result(
             introduced_finding_kinds: Vec::new(),
             missing_obligation_count: 0,
             introduced_clone_finding_count: 0,
+            signal_summary,
             reused_cached_scan,
         },
     );
@@ -382,6 +394,7 @@ pub(crate) fn build_session_end_result(
     gate_decision: &str,
     summary: &str,
     blocking_findings: Vec<Value>,
+    signal_summary: SessionSignalSummary,
     baseline_error: Option<String>,
     semantic_error: Option<String>,
 ) -> Value {
@@ -404,6 +417,7 @@ pub(crate) fn build_session_end_result(
         gate_decision,
         blocking_findings,
     );
+    insert_signal_summary_field(&mut result, signal_summary);
     let debt_context_error = insert_debt_report_fields(&mut result, debt_outputs);
     insert_suppression_fields(&mut result, analysis);
     insert_session_context_fields(

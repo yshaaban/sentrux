@@ -12,6 +12,7 @@ use super::{
 use crate::app::mcp_server::SESSION_V2_SCHEMA_VERSION;
 use crate::license::Tier;
 use serde_json::json;
+use std::fs;
 
 fn prepare_ts_bridge_transport_gate_root() -> std::path::PathBuf {
     let root = ts_bridge_transport_gate_fixture_root();
@@ -358,4 +359,65 @@ fn session_end_promotes_clone_propagation_drift_findings() {
         response["actions"][0]["kind"],
         json!("clone_propagation_drift")
     );
+    assert_eq!(
+        response["signal_summary"]["introduced_clone_propagation_drift_count"],
+        json!(1)
+    );
+    assert_eq!(
+        response["signal_summary"]["action_quality"]["top_action_source"],
+        json!("clone")
+    );
+    assert_eq!(
+        response["signal_summary"]["regression_detected"],
+        json!(true)
+    );
+
+    let event_log = root.join(".sentrux").join("agent-session-events.jsonl");
+    let last_event = fs::read_to_string(event_log)
+        .expect("read event log")
+        .lines()
+        .last()
+        .map(|line| serde_json::from_str::<serde_json::Value>(line).expect("parse event"))
+        .expect("session end event");
+
+    assert_eq!(last_event["event_type"], json!("session_ended"));
+    assert_eq!(
+        last_event["signal_summary"]["introduced_clone_propagation_drift_count"],
+        json!(1)
+    );
+    assert_eq!(
+        last_event["signal_summary"]["action_quality"]["top_action_source"],
+        json!("clone")
+    );
+}
+
+#[test]
+fn session_end_signal_summary_tracks_missing_propagation_obligations() {
+    let root = prepare_ts_bridge_transport_gate_root();
+    append_file(
+        &root,
+        "ts-bridge/src/transport.ts",
+        "\nexport function transportHelper(): number { return 1; }\n",
+    );
+
+    let mut state = fresh_mcp_state();
+    handle_scan(
+        &json!({"path": root.to_string_lossy().to_string()}),
+        &Tier::Free,
+        &mut state,
+    )
+    .expect("scan fixture");
+
+    let response = handle_session_end(&json!({}), &Tier::Free, &mut state).expect("session end");
+
+    assert!(
+        response["signal_summary"]["missing_propagation_obligation_count"]
+            .as_u64()
+            .is_some_and(|count| count >= 1)
+    );
+    assert_eq!(
+        response["signal_summary"]["regression_detected"],
+        json!(true)
+    );
+    assert_eq!(response["signal_summary"]["clear_to_stop"], json!(false));
 }

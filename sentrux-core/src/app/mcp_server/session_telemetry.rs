@@ -1,4 +1,6 @@
-use super::handlers::{AgentAction, AgentGate, CheckDiagnostics};
+use super::handlers::{
+    AgentAction, AgentGate, AgentIssue, CheckDiagnostics, CheckSignalSummary, SessionSignalSummary,
+};
 use serde_json::{json, Map, Value};
 use std::collections::BTreeSet;
 use std::fs::{self, OpenOptions};
@@ -51,8 +53,9 @@ pub(crate) struct CheckRunTelemetry<'a> {
     pub(crate) changed_files: &'a BTreeSet<String>,
     pub(crate) gate: AgentGate,
     pub(crate) actions: &'a [AgentAction],
-    pub(crate) issue_count: usize,
+    pub(crate) issues: &'a [AgentIssue],
     pub(crate) diagnostics: &'a CheckDiagnostics,
+    pub(crate) signal_summary: CheckSignalSummary,
     pub(crate) session_baseline_available: bool,
     pub(crate) reused_cached_scan: bool,
     pub(crate) elapsed_ms: u64,
@@ -65,6 +68,7 @@ pub(crate) struct SessionEndTelemetry<'a> {
     pub(crate) introduced_finding_kinds: Vec<String>,
     pub(crate) missing_obligation_count: usize,
     pub(crate) introduced_clone_finding_count: usize,
+    pub(crate) signal_summary: SessionSignalSummary,
     pub(crate) reused_cached_scan: bool,
 }
 
@@ -101,7 +105,11 @@ pub(crate) fn record_check_run(
     insert_changed_file_fields(&mut event, telemetry.changed_files);
     insert_action_fields(&mut event, telemetry.actions);
     event.insert("gate".to_string(), json!(telemetry.gate));
-    event.insert("issue_count".to_string(), json!(telemetry.issue_count));
+    event.insert("issue_count".to_string(), json!(telemetry.issues.len()));
+    event.insert(
+        "signal_summary".to_string(),
+        json!(telemetry.signal_summary),
+    );
     event.insert(
         "partial_results".to_string(),
         json!(telemetry.diagnostics.partial_results),
@@ -146,6 +154,10 @@ pub(crate) fn record_session_ended(
     event.insert(
         "introduced_clone_finding_count".to_string(),
         json!(telemetry.introduced_clone_finding_count),
+    );
+    event.insert(
+        "signal_summary".to_string(),
+        json!(telemetry.signal_summary),
     );
     event.insert(
         "reused_cached_scan".to_string(),

@@ -77,6 +77,7 @@ mod concepts;
 #[path = "context.rs"]
 mod context;
 mod debt;
+mod evaluation_signals;
 mod findings;
 mod health;
 mod scan;
@@ -125,6 +126,10 @@ pub(crate) use self::context::{
 };
 pub(crate) use self::debt::{
     build_debt_report_outputs, clone_family_inspection_focus, insert_debt_report_fields,
+};
+pub(crate) use self::evaluation_signals::{
+    build_check_signal_summary, build_session_signal_summary, CheckSignalSummary,
+    SessionSignalSummary,
 };
 pub(crate) use self::findings::{
     concentration_def, findings_def, obligations_def, parity_def, state_def,

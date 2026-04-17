@@ -44,6 +44,7 @@ pub(crate) struct SessionEndAnalysisData {
     pub(crate) blocking_findings: Vec<Value>,
     pub(crate) semantic_error: Option<String>,
     pub(crate) introduced_finding_kinds: Vec<String>,
+    pub(crate) signal_summary: SessionSignalSummary,
 }
 
 pub(crate) fn prepare_patch_run(
@@ -161,6 +162,13 @@ pub(crate) fn analyze_session_end_result(
         .iter()
         .map(|finding| finding_kind(finding).to_string())
         .collect::<Vec<_>>();
+    let signal_summary = build_session_signal_summary(
+        &introduced_findings,
+        &resolved_findings,
+        &missing_obligations,
+        &action_payloads,
+        gate_decision,
+    );
 
     SessionEndAnalysisData {
         changed_concepts: analysis.changed_touched_concepts.iter().cloned().collect(),
@@ -177,6 +185,7 @@ pub(crate) fn analyze_session_end_result(
         blocking_findings,
         semantic_error: patch_safety_semantic_error(analysis),
         introduced_finding_kinds,
+        signal_summary,
     }
 }
 

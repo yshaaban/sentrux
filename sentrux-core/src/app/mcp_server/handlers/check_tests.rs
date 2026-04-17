@@ -487,6 +487,18 @@ fn check_surfaces_clone_propagation_drift_actions() {
         .expect("clone propagation drift action");
 
     assert_eq!(actions[0]["kind"], json!("clone_propagation_drift"));
+    assert_eq!(
+        response["signal_summary"]["clone_propagation_drift_issue_count"],
+        json!(1)
+    );
+    assert_eq!(
+        response["signal_summary"]["action_quality"]["top_action_source"],
+        json!("clone")
+    );
+    assert_eq!(
+        response["signal_summary"]["action_quality"]["top_action_complete"],
+        json!(true)
+    );
     assert!(drift_action["fix_hint"]
         .as_str()
         .is_some_and(|hint| hint.contains("src/copy.ts::buildStatusBadge")
@@ -557,6 +569,17 @@ fn check_surfaces_incomplete_propagation_for_contract_updates() {
             .iter()
             .any(|action| action["kind"] == "incomplete_propagation"),
         "unexpected check response: {response}"
+    );
+    assert!(
+        response["signal_summary"]["propagation_issue_count"]
+            .as_u64()
+            .is_some_and(|count| count >= 1),
+        "unexpected signal summary: {}",
+        response["signal_summary"]
+    );
+    assert_eq!(
+        response["signal_summary"]["action_quality"]["top_action_source"],
+        json!("obligation")
     );
     assert!(actions
         .iter()
@@ -663,4 +686,50 @@ fn check_records_repo_local_session_events() {
     assert!(source.contains("\"event_type\":\"session_started\""));
     assert!(source.contains("\"event_type\":\"check_run\""));
     assert!(source.contains("\"session_mode\":\"explicit\""));
+}
+
+#[test]
+fn check_records_signal_summary_in_repo_local_session_events() {
+    let root = temp_root("check-session-signal-summary");
+    write_contract_propagation_fixture_files(&root);
+    init_git_repo(&root);
+    commit_all(&root, "initial");
+
+    let mut state = fresh_mcp_state();
+    handle_scan(
+        &json!({"path": root.to_string_lossy().to_string()}),
+        &Tier::Free,
+        &mut state,
+    )
+    .expect("scan fixture");
+    handle_session_start(&json!({}), &Tier::Free, &mut state).expect("session start");
+    write_file(
+        &root,
+        "src/domain/server-state-bootstrap.ts",
+        "export const SERVER_STATE_BOOTSTRAP_CATEGORIES = ['task', 'project'];\nexport type ServerStateBootstrapPayloadMap = { task: { id: string }, project: { id: string } };\n",
+    );
+    handle_scan(
+        &json!({"path": root.to_string_lossy().to_string()}),
+        &Tier::Free,
+        &mut state,
+    )
+    .expect("rescan fixture");
+    handle_check(&json!({}), &Tier::Free, &mut state).expect("check response");
+
+    let event_log = root.join(".sentrux").join("agent-session-events.jsonl");
+    let last_event = fs::read_to_string(event_log)
+        .expect("read event log")
+        .lines()
+        .last()
+        .map(|line| serde_json::from_str::<Value>(line).expect("parse event"))
+        .expect("check run event");
+
+    assert_eq!(last_event["event_type"], json!("check_run"));
+    assert!(last_event["signal_summary"]["propagation_issue_count"]
+        .as_u64()
+        .is_some_and(|count| count >= 1));
+    assert_eq!(
+        last_event["signal_summary"]["action_quality"]["top_action_source"],
+        json!("obligation")
+    );
 }

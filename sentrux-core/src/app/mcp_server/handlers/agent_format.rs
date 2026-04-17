@@ -4,6 +4,7 @@ use super::agent_guidance::{
     obligation_score_0_10000, obligation_severity, obligation_trust_tier,
     repair_packet_for_finding, repair_packet_for_obligation,
 };
+use super::evaluation_signals::CheckSignalSummary;
 use super::*;
 use crate::metrics::v2::FindingSeverity;
 use serde::Serialize;
@@ -114,6 +115,7 @@ pub(crate) struct CheckDiagnostics {
 pub(crate) struct AgentCheckResponse {
     pub(crate) issues: Vec<AgentIssue>,
     pub(crate) actions: Vec<AgentAction>,
+    pub(crate) signal_summary: CheckSignalSummary,
     pub(crate) gate: AgentGate,
     pub(crate) summary: String,
     pub(crate) changed_files: Vec<String>,
