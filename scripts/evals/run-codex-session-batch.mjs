@@ -14,6 +14,7 @@ import {
   summarizeBundleOutcome,
   writeJson,
 } from '../lib/eval-batch.mjs';
+import { runWithConcurrency } from '../lib/eval-runtime/common.mjs';
 import { runCodexSession } from './run-codex-session.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -66,25 +67,6 @@ function parseArgs(argv) {
   return result;
 }
 
-async function runWithConcurrency(items, concurrency, worker) {
-  const results = new Array(items.length);
-  let nextIndex = 0;
-  const workers = Array.from({ length: Math.min(concurrency, items.length || 1) }, async () => {
-    while (true) {
-      const index = nextIndex;
-      nextIndex += 1;
-      if (index >= items.length) {
-        return;
-      }
-
-      results[index] = await worker(items[index], index);
-    }
-  });
-
-  await Promise.all(workers);
-  return results;
-}
-
 function resolveTaskTimeoutMs(task, manifest) {
   return task.timeout_ms ?? manifest.timeout_ms ?? Number(process.env.EVAL_TIMEOUT_MS ?? '1800000');
 }
@@ -97,6 +79,26 @@ function resolveTaskIdleTimeoutMs(task, manifest) {
   );
 }
 
+function resolveTaskPromptFile(task, manifestDir) {
+  if (!task.prompt_file) {
+    return null;
+  }
+
+  return path.resolve(manifestDir, task.prompt_file);
+}
+
+function resolveTaskRulesSource(manifest, manifestDir) {
+  if (!manifest.rules_source) {
+    return null;
+  }
+
+  return path.resolve(manifestDir, manifest.rules_source);
+}
+
+function resolveTaskOutputDir(outputDir, task) {
+  return path.join(outputDir, task.task_id ?? `task-${Date.now()}`);
+}
+
 export function buildTaskSessionOptions(task, manifest, manifestDir, sourceRoot, outputDir) {
   return {
     sourceRoot,
@@ -104,19 +106,19 @@ export function buildTaskSessionOptions(task, manifest, manifestDir, sourceRoot,
     taskId: task.task_id,
     taskLabel: task.task_label,
     task: task.prompt ?? null,
-    taskFile: task.prompt_file ? path.resolve(manifestDir, task.prompt_file) : null,
+    taskFile: resolveTaskPromptFile(task, manifestDir),
     tags: parseTagList(task.tags),
     expectedSignalKinds: normalizeExpectedSignalKinds(
       task.expected_signal_kinds ?? manifest.expected_signal_kinds,
     ),
     expectedFixSurface: task.expected_fix_surface ?? null,
-    rulesSource: manifest.rules_source ? path.resolve(manifestDir, manifest.rules_source) : null,
+    rulesSource: resolveTaskRulesSource(manifest, manifestDir),
     analysisMode: manifest.analysis_mode ?? 'working_tree',
     model: manifest.model ?? null,
     timeoutMs: resolveTaskTimeoutMs(task, manifest),
     idleTimeoutMs: resolveTaskIdleTimeoutMs(task, manifest),
     pollMs: manifest.poll_ms ?? Number(process.env.EVAL_POLL_MS ?? '4000'),
-    outputDir: path.join(outputDir, task.task_id ?? `task-${Date.now()}`),
+    outputDir: resolveTaskOutputDir(outputDir, task),
     codexBin: manifest.codex_bin ?? process.env.CODEX_BIN ?? 'codex',
   };
 }
@@ -175,13 +177,40 @@ function telemetrySourcePathFromTaskRun(taskRun) {
     return null;
   }
 
-  const outputDir =
-    taskRun?.type === 'result' ? taskRun.result?.output_dir : taskRun.failure?.output_dir;
+  const outputDir = taskRunOutputDir(taskRun);
   if (!outputDir) {
     return null;
   }
 
   return path.join(outputDir, 'agent-session-events.jsonl');
+}
+
+function isTaskRunResult(entry) {
+  return entry?.type === 'result';
+}
+
+function isTaskRunFailure(entry) {
+  return entry?.type === 'failure';
+}
+
+function taskRunOutputDir(taskRun) {
+  if (isTaskRunResult(taskRun)) {
+    return taskRun.result?.output_dir ?? null;
+  }
+
+  if (isTaskRunFailure(taskRun)) {
+    return taskRun.failure?.output_dir ?? null;
+  }
+
+  return null;
+}
+
+function taskRunResult(entry) {
+  return entry.result;
+}
+
+function taskRunFailure(entry) {
+  return entry.failure;
 }
 
 function stripTaskTelemetry(entry) {
@@ -190,12 +219,8 @@ function stripTaskTelemetry(entry) {
 }
 
 export function summarizeTaskRuns(taskRuns, sourceRoot) {
-  const taskResults = taskRuns
-    .filter((entry) => entry?.type === 'result')
-    .map((entry) => entry.result);
-  const taskFailures = taskRuns
-    .filter((entry) => entry?.type === 'failure')
-    .map((entry) => entry.failure);
+  const taskResults = taskRuns.filter(isTaskRunResult).map(taskRunResult);
+  const taskFailures = taskRuns.filter(isTaskRunFailure).map(taskRunFailure);
   const summaries = taskRuns.map(telemetrySummaryFromTaskRun).filter(Boolean);
   const sourcePaths = taskRuns.map(telemetrySourcePathFromTaskRun).filter(Boolean);
   const mergedSummary = mergeSessionTelemetrySummaries(summaries, {
@@ -208,6 +233,43 @@ export function summarizeTaskRuns(taskRuns, sourceRoot) {
     taskFailures,
     mergedSummary,
   };
+}
+
+async function runBatchTask(task, manifest, manifestDir, sourceRoot, outputDir) {
+  const taskOptions = buildTaskSessionOptions(
+    task,
+    manifest,
+    manifestDir,
+    sourceRoot,
+    outputDir,
+  );
+  console.log(
+    `Running Codex batch task ${taskOptions.taskId ?? taskOptions.taskLabel ?? 'unknown-task'}`,
+  );
+
+  try {
+    const bundle = await runCodexSession(taskOptions);
+    if (!bundleCompleted(bundle)) {
+      return {
+        type: 'failure',
+        failure: buildTaskFailure(
+          taskOptions,
+          new Error(`Provider run ended with status ${bundle.status}`),
+          bundle,
+        ),
+      };
+    }
+
+    return {
+      type: 'result',
+      result: buildTaskResult(bundle, taskOptions),
+    };
+  } catch (error) {
+    return {
+      type: 'failure',
+      failure: buildTaskFailure(taskOptions, error),
+    };
+  }
 }
 
 async function main() {
@@ -225,38 +287,8 @@ async function main() {
   const taskRuns = await runWithConcurrency(
     manifest.tasks ?? [],
     args.concurrency,
-    async (task) => {
-      const taskOptions = buildTaskSessionOptions(
-        task,
-        manifest,
-        manifestDir,
-        sourceRoot,
-        outputDir,
-      );
-      console.log(`Running Codex batch task ${taskOptions.taskId ?? taskOptions.taskLabel ?? 'unknown-task'}`);
-      try {
-        const bundle = await runCodexSession(taskOptions);
-        if (!bundleCompleted(bundle)) {
-          return {
-            type: 'failure',
-            failure: buildTaskFailure(
-              taskOptions,
-              new Error(`Provider run ended with status ${bundle.status}`),
-              bundle,
-            ),
-          };
-        }
-
-        return {
-          type: 'result',
-          result: buildTaskResult(bundle, taskOptions),
-        };
-      } catch (error) {
-        return {
-          type: 'failure',
-          failure: buildTaskFailure(taskOptions, error),
-        };
-      }
+    async function runTask(task) {
+      return runBatchTask(task, manifest, manifestDir, sourceRoot, outputDir);
     },
   );
   const { taskResults, taskFailures, mergedSummary } = summarizeTaskRuns(taskRuns, sourceRoot);
