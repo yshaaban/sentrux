@@ -1,9 +1,8 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { nowIso } from './eval-runtime/common.mjs';
 
-export function nowIso() {
-  return new Date().toISOString();
-}
+export { nowIso } from './eval-runtime/common.mjs';
 
 export function slugify(value) {
   return String(value ?? '')

@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { prepareTypeScriptBenchmarkHome } from '../lib/benchmark-plugin-home.mjs';
 import { runTool } from '../lib/benchmark-harness.mjs';
+import { nowIso } from '../lib/eval-runtime/common.mjs';
 import { createEvalMcpSession, parseCliArgs } from '../lib/eval-support.mjs';
 import { runClaudeCode } from './providers/claude-code.mjs';
 
@@ -164,10 +165,6 @@ function usage() {
     '  --model <name>           Claude model override',
     '  --dry-run                Export the prompt payload without calling Claude',
   ].join('\n');
-}
-
-function nowIso() {
-  return new Date().toISOString();
 }
 
 export function deadPrivateCandidateScope(candidate) {

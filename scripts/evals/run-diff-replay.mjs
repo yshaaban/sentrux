@@ -14,6 +14,8 @@ import {
   maybeCopyFile,
   parseCliArgs,
 } from '../lib/eval-support.mjs';
+import { recordSessionSnapshot } from '../lib/eval-runtime/session-snapshot.mjs';
+import { nowIso } from '../lib/eval-runtime/common.mjs';
 import {
   createDogfoodCatalog,
   createParallelCodeCatalog,
@@ -109,10 +111,6 @@ function parseArgs(argv) {
   return result;
 }
 
-function nowIso() {
-  return new Date().toISOString();
-}
-
 function defaultOutputDir(sourceRoot, replayTarget) {
   return buildDefaultOutputDir(sourceRoot, 'replay', replayTarget);
 }
@@ -196,23 +194,6 @@ function resolveReplaySourceRoot(args) {
   return path.resolve(args.sourceRoot);
 }
 
-async function recordSnapshot(session, workRoot, label) {
-  const scanResult = await runTool(session, 'scan', { path: workRoot });
-  const checkResult = await runTool(session, 'check', {});
-
-  return {
-    label,
-    recorded_at: nowIso(),
-    scan_elapsed_ms: scanResult.elapsed_ms,
-    check_elapsed_ms: checkResult.elapsed_ms,
-    gate: checkResult.payload.gate ?? null,
-    changed_files: checkResult.payload.changed_files ?? [],
-    top_action_kind: checkResult.payload.actions?.[0]?.kind ?? null,
-    action_kinds: (checkResult.payload.actions ?? []).map((action) => action.kind).filter(Boolean),
-    check: checkResult.payload,
-  };
-}
-
 function buildReplayOutputPaths(outputDir) {
   return {
     bundlePath: path.join(outputDir, 'diff-replay.json'),
@@ -244,7 +225,7 @@ async function createReplayResources({ sourceRoot, repoLabel, replayTarget, args
 async function startReplaySession(session, workRoot) {
   await runTool(session, 'scan', { path: workRoot });
   await runTool(session, 'session_start', {});
-  return recordSnapshot(session, workRoot, 'initial');
+  return recordSessionSnapshot(session, workRoot, 'initial');
 }
 
 async function prepareFixtureReplay(args, clone, session) {
@@ -255,7 +236,7 @@ async function prepareFixtureReplay(args, clone, session) {
     await defect.inject(clone.workRoot),
     'injected_paths',
   );
-  const replaySnapshot = await recordSnapshot(session, clone.workRoot, 'replay');
+  const replaySnapshot = await recordSessionSnapshot(session, clone.workRoot, 'replay');
   const replayMetadata = {
     replay_type: 'defect_fixture',
     defect_id: defect.id,
@@ -297,7 +278,7 @@ async function prepareCommitReplay(args, sourceRoot, clone, session) {
   await checkoutReplayBase(clone, baseCommit);
   const initialSnapshot = await startReplaySession(session, clone.workRoot);
   await applyReplayPatch(clone, replayInputs, args.commit);
-  const replaySnapshot = await recordSnapshot(session, clone.workRoot, 'replay');
+  const replaySnapshot = await recordSessionSnapshot(session, clone.workRoot, 'replay');
 
   return {
     replayMetadata: {
