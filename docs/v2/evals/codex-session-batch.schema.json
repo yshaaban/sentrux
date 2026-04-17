@@ -43,6 +43,9 @@
             "items": { "type": "string" }
           },
           "expected_fix_surface": { "type": "string" },
+          "experiment_arm": { "type": "string" },
+          "session_goal": { "type": "string" },
+          "success_criteria": { "type": "string" },
           "timeout_ms": { "type": "integer", "minimum": 1 },
           "idle_timeout_ms": { "type": "integer", "minimum": 1 }
         },

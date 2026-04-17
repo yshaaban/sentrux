@@ -11,6 +11,8 @@ import {
   buildSignalScorecard,
   formatSignalScorecardMarkdown,
 } from '../lib/signal-scorecard.mjs';
+import { buildSessionCorpus, formatSessionCorpusMarkdown } from '../lib/session-corpus.mjs';
+import { buildEvidenceReview, formatEvidenceReviewMarkdown } from '../lib/evidence-review.mjs';
 import { buildSignalBacklog, formatSignalBacklogMarkdown } from '../lib/signal-backlog.mjs';
 import { loadSignalCohortManifest, getSignalCohort } from '../lib/signal-cohorts.mjs';
 import { resolveLatestRepoCalibrationArtifacts } from '../lib/repo-calibration-artifacts.mjs';
@@ -163,69 +165,44 @@ function resolveRepoLabel(args, inputs = {}) {
 async function main() {
   const args = parseArgs(process.argv);
   const sessionEventsPath = args.sessionEventsPath ?? defaultSessionEventsPath(args.repoRoot);
-  const sessionTelemetry = await loadSessionTelemetrySummary(sessionEventsPath, {
-    repoRoot: args.repoRoot,
-  });
-  const defectReport = await readJson(args.defectReportPath);
-  const reviewVerdicts = await readJson(args.reviewVerdictsPath);
-  const remediationReport = await readJson(args.remediationReportPath);
-  const benchmark = await readJson(args.benchmarkPath);
+  const inputs = await loadCalibrationInputs(args, sessionEventsPath);
   const resolvedRepoLabel = resolveRepoLabel(args, {
-    defectReport,
-    reviewVerdicts,
-    remediationReport,
-    benchmark,
-    sessionTelemetry,
+    defectReport: inputs.defectReport,
+    reviewVerdicts: inputs.reviewVerdicts,
+    remediationReport: inputs.remediationReport,
+    benchmark: inputs.benchmark,
+    sessionTelemetry: inputs.sessionTelemetry,
   });
-  const latestCalibration =
-    (!args.codexBatchPath || !args.replayBatchPath) && resolvedRepoLabel
-      ? await resolveLatestRepoCalibrationArtifacts({
-          repoRootPath: args.repoRoot,
-          repoLabel: resolvedRepoLabel,
-          latestCalibrationPath: args.latestCalibrationPath,
-        })
-      : null;
-  const codexBatchPath = args.codexBatchPath ?? latestCalibration?.artifacts?.codex_batch_json ?? null;
-  const replayBatchPath =
-    args.replayBatchPath ?? latestCalibration?.artifacts?.replay_batch_json ?? null;
-  const codexBatch = await readJson(codexBatchPath);
-  const replayBatch = await readJson(replayBatchPath);
+  const { latestCalibration, codexBatch, replayBatch } = await loadCalibrationBatches(
+    args,
+    resolvedRepoLabel,
+  );
 
   const scorecard = buildSignalScorecard({
     repoLabel: resolvedRepoLabel,
-    defectReport,
-    reviewVerdicts,
-    remediationReport,
-    benchmark,
-    sessionTelemetry,
+    defectReport: inputs.defectReport,
+    reviewVerdicts: inputs.reviewVerdicts,
+    remediationReport: inputs.remediationReport,
+    benchmark: inputs.benchmark,
+    sessionTelemetry: inputs.sessionTelemetry,
+    codexBatch,
+    replayBatch,
+  });
+  const sessionCorpus = buildSessionCorpus({
+    repoLabel: resolvedRepoLabel,
+    repoRoot: args.repoRoot,
+    sessionTelemetry: inputs.sessionTelemetry,
     codexBatch,
     replayBatch,
   });
   const resolvedCohortId = args.cohortId ?? latestCalibration?.cohortId ?? null;
 
-  await writeArtifactWithStableCompanion(
+  await writeCoreCalibrationArtifacts(
     args.outputDir,
     resolvedRepoLabel,
-    'session-telemetry-summary.json',
-    `${JSON.stringify(sessionTelemetry, null, 2)}\n`,
-  );
-  await writeArtifactWithStableCompanion(
-    args.outputDir,
-    resolvedRepoLabel,
-    'session-telemetry-summary.md',
-    formatSessionTelemetrySummaryMarkdown(sessionTelemetry),
-  );
-  await writeArtifactWithStableCompanion(
-    args.outputDir,
-    resolvedRepoLabel,
-    'signal-scorecard.json',
-    `${JSON.stringify(scorecard, null, 2)}\n`,
-  );
-  await writeArtifactWithStableCompanion(
-    args.outputDir,
-    resolvedRepoLabel,
-    'signal-scorecard.md',
-    formatSignalScorecardMarkdown(scorecard),
+    inputs.sessionTelemetry,
+    scorecard,
+    sessionCorpus,
   );
   if (resolvedCohortId) {
     const cohortManifest = await loadSignalCohortManifest(args.cohortManifestPath);
@@ -236,23 +213,139 @@ async function main() {
       codexBatch,
       replayBatch,
     });
-
-    await writeArtifactWithStableCompanion(
+    await writeBacklogArtifacts(args.outputDir, resolvedRepoLabel, backlog);
+    await writeEvidenceReviewArtifacts(
       args.outputDir,
       resolvedRepoLabel,
-      'signal-backlog.json',
-      `${JSON.stringify(backlog, null, 2)}\n`,
-    );
-    await writeArtifactWithStableCompanion(
-      args.outputDir,
-      resolvedRepoLabel,
-      'signal-backlog.md',
-      formatSignalBacklogMarkdown(backlog),
+      scorecard,
+      backlog,
+      sessionCorpus,
     );
   }
 
   console.log(
-    `Wrote calibration artifacts for ${resolvedRepoLabel}: ${sessionTelemetry.summary.session_count} session(s), ${scorecard.summary.total_signals} signal(s).`,
+    `Wrote calibration artifacts for ${resolvedRepoLabel}: ${inputs.sessionTelemetry.summary.session_count} session(s), ${scorecard.summary.total_signals} signal(s).`,
+  );
+}
+
+async function loadCalibrationInputs(args, sessionEventsPath) {
+  const sessionTelemetry = await loadSessionTelemetrySummary(sessionEventsPath, {
+    repoRoot: args.repoRoot,
+  });
+
+  return {
+    sessionTelemetry,
+    defectReport: await readJson(args.defectReportPath),
+    reviewVerdicts: await readJson(args.reviewVerdictsPath),
+    remediationReport: await readJson(args.remediationReportPath),
+    benchmark: await readJson(args.benchmarkPath),
+  };
+}
+
+async function loadCalibrationBatches(args, repoLabel) {
+  const latestCalibration =
+    (!args.codexBatchPath || !args.replayBatchPath) && repoLabel
+      ? await resolveLatestRepoCalibrationArtifacts({
+          repoRootPath: args.repoRoot,
+          repoLabel,
+          latestCalibrationPath: args.latestCalibrationPath,
+        })
+      : null;
+  const codexBatchPath =
+    args.codexBatchPath ?? latestCalibration?.artifacts?.codex_batch_json ?? null;
+  const replayBatchPath =
+    args.replayBatchPath ?? latestCalibration?.artifacts?.replay_batch_json ?? null;
+
+  return {
+    latestCalibration,
+    codexBatch: await readJson(codexBatchPath),
+    replayBatch: await readJson(replayBatchPath),
+  };
+}
+
+async function writeCoreCalibrationArtifacts(
+  outputDir,
+  repoLabel,
+  sessionTelemetry,
+  scorecard,
+  sessionCorpus,
+) {
+  await writeArtifactWithStableCompanion(
+    outputDir,
+    repoLabel,
+    'session-telemetry-summary.json',
+    `${JSON.stringify(sessionTelemetry, null, 2)}\n`,
+  );
+  await writeArtifactWithStableCompanion(
+    outputDir,
+    repoLabel,
+    'session-telemetry-summary.md',
+    formatSessionTelemetrySummaryMarkdown(sessionTelemetry),
+  );
+  await writeArtifactWithStableCompanion(
+    outputDir,
+    repoLabel,
+    'signal-scorecard.json',
+    `${JSON.stringify(scorecard, null, 2)}\n`,
+  );
+  await writeArtifactWithStableCompanion(
+    outputDir,
+    repoLabel,
+    'signal-scorecard.md',
+    formatSignalScorecardMarkdown(scorecard),
+  );
+  await writeArtifactWithStableCompanion(
+    outputDir,
+    repoLabel,
+    'session-corpus.json',
+    `${JSON.stringify(sessionCorpus, null, 2)}\n`,
+  );
+  await writeArtifactWithStableCompanion(
+    outputDir,
+    repoLabel,
+    'session-corpus.md',
+    formatSessionCorpusMarkdown(sessionCorpus),
+  );
+}
+
+async function writeBacklogArtifacts(outputDir, repoLabel, backlog) {
+  await writeArtifactWithStableCompanion(
+    outputDir,
+    repoLabel,
+    'signal-backlog.json',
+    `${JSON.stringify(backlog, null, 2)}\n`,
+  );
+  await writeArtifactWithStableCompanion(
+    outputDir,
+    repoLabel,
+    'signal-backlog.md',
+    formatSignalBacklogMarkdown(backlog),
+  );
+}
+
+async function writeEvidenceReviewArtifacts(
+  outputDir,
+  repoLabel,
+  scorecard,
+  backlog,
+  sessionCorpus,
+) {
+  const evidenceReview = buildEvidenceReview({
+    scorecard,
+    backlog,
+    sessionCorpus,
+  });
+  await writeArtifactWithStableCompanion(
+    outputDir,
+    repoLabel,
+    'evidence-review.json',
+    `${JSON.stringify(evidenceReview, null, 2)}\n`,
+  );
+  await writeArtifactWithStableCompanion(
+    outputDir,
+    repoLabel,
+    'evidence-review.md',
+    formatEvidenceReviewMarkdown(evidenceReview),
   );
 }
 

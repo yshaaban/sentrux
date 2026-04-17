@@ -62,16 +62,22 @@ export function buildSummaryMarkdown(summary) {
   lines.push(`- merged telemetry: ${summary.artifacts.session_telemetry_json ? `\`${summary.artifacts.session_telemetry_json}\`` : 'none'}`);
   lines.push(`- review packet: ${summary.artifacts.review_packet_json ? `\`${summary.artifacts.review_packet_json}\`` : 'skipped'}`);
   lines.push(`- scorecard: ${summary.artifacts.scorecard_json ? `\`${summary.artifacts.scorecard_json}\`` : 'skipped'}`);
+  lines.push(`- session corpus: ${summary.artifacts.session_corpus_json ? `\`${summary.artifacts.session_corpus_json}\`` : 'skipped'}`);
   lines.push(`- backlog: ${summary.artifacts.backlog_json ? `\`${summary.artifacts.backlog_json}\`` : 'skipped'}`);
+  lines.push(`- evidence review: ${summary.artifacts.evidence_review_json ? `\`${summary.artifacts.evidence_review_json}\`` : 'skipped'}`);
   lines.push('');
   lines.push('## Summary');
   lines.push('');
   lines.push(`- total sessions: ${summary.summary.session_count}`);
+  lines.push(`- corpus sessions: ${summary.summary.corpus_session_count ?? 0}`);
   lines.push(`- total signals: ${summary.summary.total_signals ?? 0}`);
   lines.push(`- weak signals: ${summary.summary.weak_signal_count ?? 0}`);
   lines.push(`- review samples: ${summary.summary.review_sample_count ?? 0}`);
   lines.push(`- live clean rate: ${summary.summary.live_clean_rate ?? 'n/a'}`);
   lines.push(`- replay clean rate: ${summary.summary.replay_clean_rate ?? 'n/a'}`);
+  lines.push(`- corpus agent clear rate: ${summary.summary.agent_clear_rate ?? 'n/a'}`);
+  lines.push(`- propagation escape rate: ${summary.summary.propagation_escape_rate ?? 'n/a'}`);
+  lines.push(`- clone followthrough escape rate: ${summary.summary.clone_followthrough_escape_rate ?? 'n/a'}`);
   lines.push(`- next signal: ${summary.summary.recommended_next_signal ?? 'none'}`);
   lines.push('');
 
@@ -83,6 +89,7 @@ export function buildSummaryMarkdown(summary) {
     lines.push(`- review samples delta: ${summary.delta.review_sample_count?.delta ?? 'n/a'}`);
     lines.push(`- live clean rate delta: ${summary.delta.live_clean_rate?.delta ?? 'n/a'}`);
     lines.push(`- replay clean rate delta: ${summary.delta.replay_clean_rate?.delta ?? 'n/a'}`);
+    lines.push(`- corpus agent clear rate delta: ${summary.delta.agent_clear_rate?.delta ?? 'n/a'}`);
     lines.push(`- next signal changed: ${summary.delta.recommended_next_signal?.changed ? 'yes' : 'no'}`);
     if (Array.isArray(summary.delta.recommendation_changes) && summary.delta.recommendation_changes.length > 0) {
       lines.push(`- recommendation changes: ${summary.delta.recommendation_changes.map((entry) => `${entry.signal_kind}:${entry.previous}->${entry.current}`).join(', ')}`);
@@ -104,7 +111,9 @@ export function buildSummaryMarkdown(summary) {
 
 export function buildSummaryDelta(
   currentScorecard,
+  currentSessionCorpus,
   previousScorecard,
+  previousSessionCorpus,
   currentBacklog,
   previousBacklog,
   currentReviewPacket,
@@ -134,6 +143,10 @@ export function buildSummaryDelta(
     replay_clean_rate: buildNumericDelta(
       currentBacklog?.summary?.replay_clean_rate,
       previousBacklog?.summary?.replay_clean_rate,
+    ),
+    agent_clear_rate: buildNumericDelta(
+      currentSessionCorpus?.summary?.agent_clear_rate,
+      previousSessionCorpus?.summary?.agent_clear_rate,
     ),
     recommended_next_signal: {
       previous: previousBacklog?.summary?.recommended_next_signal ?? null,
@@ -189,9 +202,15 @@ export function buildSummaryArtifacts({
   stableScorecardJsonPath,
   scorecardJsonPath,
   previousScorecardSnapshotPath,
+  stableSessionCorpusJsonPath,
+  sessionCorpusJsonPath,
+  previousSessionCorpusSnapshotPath,
   stableBacklogJsonPath,
   backlogJsonPath,
   previousBacklogSnapshotPath,
+  stableEvidenceReviewJsonPath,
+  evidenceReviewJsonPath,
+  previousEvidenceReviewSnapshotPath,
   mergedTelemetryJsonPath,
   codexBatchResult,
   codexBatchOutputDir,
@@ -199,7 +218,9 @@ export function buildSummaryArtifacts({
   replayBatchOutputDir,
   selectedReviewVerdicts,
   scorecard,
+  sessionCorpus,
   backlog,
+  evidenceReview,
 }) {
   return {
     codex_batch_json: codexBatchResult
@@ -223,8 +244,14 @@ export function buildSummaryArtifacts({
     scorecard_json: stableScorecardJsonPath ?? scorecardJsonPath,
     scorecard_run_json: scorecard ? scorecardJsonPath : null,
     previous_scorecard_json: previousScorecardSnapshotPath,
+    session_corpus_json: stableSessionCorpusJsonPath ?? sessionCorpusJsonPath,
+    session_corpus_run_json: sessionCorpus ? sessionCorpusJsonPath : null,
+    previous_session_corpus_json: previousSessionCorpusSnapshotPath,
     backlog_json: stableBacklogJsonPath ?? backlogJsonPath,
     backlog_run_json: backlog ? backlogJsonPath : null,
     previous_backlog_json: previousBacklogSnapshotPath,
+    evidence_review_json: stableEvidenceReviewJsonPath ?? evidenceReviewJsonPath,
+    evidence_review_run_json: evidenceReview ? evidenceReviewJsonPath : null,
+    previous_evidence_review_json: previousEvidenceReviewSnapshotPath,
   };
 }

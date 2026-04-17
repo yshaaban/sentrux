@@ -298,9 +298,17 @@ test('run-signal-calibration writes stable companion artifacts for repo-local ou
     const prefixedScorecard = JSON.parse(
       await readFile(path.join(outputDir, `${repoLabel}-signal-scorecard.json`), 'utf8'),
     );
+    const stableSessionCorpus = JSON.parse(
+      await readFile(path.join(outputDir, 'session-corpus.json'), 'utf8'),
+    );
+    const stableEvidenceReview = JSON.parse(
+      await readFile(path.join(outputDir, 'evidence-review.json'), 'utf8'),
+    );
 
     assert.equal(stableScorecard.summary.kpis.session_trial_count, 1);
     assert.equal(prefixedScorecard.summary.kpis.session_trial_count, 1);
+    assert.equal(stableSessionCorpus.summary.session_count, 1);
+    assert.equal(stableEvidenceReview.summary.ranking_miss_count, 0);
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }
@@ -379,10 +387,14 @@ test('run-signal-calibration infers repo label for latest calibration lookup and
     const prefixedScorecard = JSON.parse(
       await readFile(path.join(outputDir, `${repoLabel}-signal-scorecard.json`), 'utf8'),
     );
+    const prefixedSessionCorpus = JSON.parse(
+      await readFile(path.join(outputDir, `${repoLabel}-session-corpus.json`), 'utf8'),
+    );
 
     assert.equal(stableScorecard.repo_label, repoLabel);
     assert.equal(prefixedScorecard.repo_label, repoLabel);
     assert.equal(stableScorecard.summary.kpis.session_trial_count, 1);
+    assert.equal(prefixedSessionCorpus.repo_label, repoLabel);
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }

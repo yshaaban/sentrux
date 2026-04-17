@@ -89,78 +89,36 @@ async function runLoop(context) {
 
   try {
     const paths = resolveLoopArtifactPaths({ manifest, manifestPath, repoRootPath, outputDir });
-    const manifests = await loadLoopBatchManifests(paths);
-    const previousArtifacts = await capturePreviousArtifacts(outputDir, paths);
-    const {
-      runs,
-      batchResults,
-      mergedTelemetry,
-      selectedReviewVerdictsPath,
-    } = await runLoopStages({
+    const loopState = await runLoopState({
       args,
       manifest,
       paths,
       repoRootPath,
-      repoRoot,
-    });
-    const generatedArtifacts = await loadGeneratedArtifacts(
-      paths,
-      selectedReviewVerdictsPath,
-    );
-    const { reviewPacket, selectedReviewVerdicts, scorecard, backlog } = generatedArtifacts;
-    const stableArtifacts = buildSummaryArtifacts({
       outputDir,
-      stableReviewPacketJsonPath: paths.stableReviewPacketJsonPath,
-      reviewPacketJsonPath: paths.reviewPacketJsonPath,
-      reviewPacket,
-      previousReviewPacketSnapshotPath:
-        previousArtifacts.previousReviewPacketSnapshotPath,
-      selectedReviewVerdictsPath,
-      stableReviewVerdictsOutputPath: paths.stableReviewVerdictsOutputPath,
-      runReviewVerdictsOutputPath: paths.runReviewVerdictsOutputPath,
-      stableScorecardJsonPath: paths.stableScorecardJsonPath,
-      scorecardJsonPath: paths.scorecardJsonPath,
-      previousScorecardSnapshotPath: previousArtifacts.previousScorecardSnapshotPath,
-      stableBacklogJsonPath: paths.stableBacklogJsonPath,
-      backlogJsonPath: paths.backlogJsonPath,
-      previousBacklogSnapshotPath: previousArtifacts.previousBacklogSnapshotPath,
-      mergedTelemetryJsonPath: paths.mergedTelemetryJsonPath,
-      codexBatchResult: batchResults.codexBatchResult,
-      codexBatchOutputDir: paths.codexBatchOutputDir,
-      replayBatchResult: batchResults.replayBatchResult,
-      replayBatchOutputDir: paths.replayBatchOutputDir,
-      selectedReviewVerdicts,
-      scorecard,
-      backlog,
     });
-    const warnings = await buildLoopWarningSet({
-      paths,
-      reviewPacket,
-      selectedReviewVerdicts,
-      selectedReviewVerdictsPath,
-      manifests,
-      batchResults,
-      existingPathOrNull,
-    });
+    const stableArtifacts = buildLoopStableArtifacts(paths, outputDir, loopState);
+    const warnings = await buildLoopWarnings(paths, loopState);
     const summary = buildLoopSummary({
       outputDir,
       repoId,
       repoRootPath,
       manifest,
-      mergedTelemetry,
-      reviewPacket,
-      selectedReviewVerdicts,
-      scorecard,
-      backlog,
-      previousArtifacts,
+      mergedTelemetry: loopState.stageResults.mergedTelemetry,
+      reviewPacket: loopState.generatedArtifacts.reviewPacket,
+      selectedReviewVerdicts: loopState.generatedArtifacts.selectedReviewVerdicts,
+      scorecard: loopState.generatedArtifacts.scorecard,
+      sessionCorpus: loopState.generatedArtifacts.sessionCorpus,
+      backlog: loopState.generatedArtifacts.backlog,
+      evidenceReview: loopState.generatedArtifacts.evidenceReview,
+      previousArtifacts: loopState.previousArtifacts,
       stableArtifacts,
-      batchResults,
+      batchResults: loopState.stageResults.batchResults,
       warnings,
-      runs,
+      runs: loopState.stageResults.runs,
       nowIso,
     });
 
-    await publishStableLoopArtifacts(paths, selectedReviewVerdictsPath);
+    await publishStableLoopArtifacts(paths, loopState.stageResults.selectedReviewVerdictsPath);
     await writeLoopOutputs(outputDir, summary);
 
     console.log(
@@ -169,6 +127,79 @@ async function runLoop(context) {
   } finally {
     await releaseLoopLock();
   }
+}
+
+async function runLoopState({ args, manifest, paths, repoRootPath, outputDir }) {
+  const manifests = await loadLoopBatchManifests(paths);
+  const previousArtifacts = await capturePreviousArtifacts(outputDir, paths);
+  const stageResults = await runLoopStages({
+    args,
+    manifest,
+    paths,
+    repoRootPath,
+    repoRoot,
+  });
+  const generatedArtifacts = await loadGeneratedArtifacts(
+    paths,
+    stageResults.selectedReviewVerdictsPath,
+  );
+
+  return {
+    manifests,
+    previousArtifacts,
+    stageResults,
+    generatedArtifacts,
+  };
+}
+
+function buildLoopStableArtifacts(paths, outputDir, loopState) {
+  return buildSummaryArtifacts({
+    outputDir,
+    stableReviewPacketJsonPath: paths.stableReviewPacketJsonPath,
+    reviewPacketJsonPath: paths.reviewPacketJsonPath,
+    reviewPacket: loopState.generatedArtifacts.reviewPacket,
+    previousReviewPacketSnapshotPath:
+      loopState.previousArtifacts.previousReviewPacketSnapshotPath,
+    selectedReviewVerdictsPath: loopState.stageResults.selectedReviewVerdictsPath,
+    stableReviewVerdictsOutputPath: paths.stableReviewVerdictsOutputPath,
+    runReviewVerdictsOutputPath: paths.runReviewVerdictsOutputPath,
+    stableScorecardJsonPath: paths.stableScorecardJsonPath,
+    scorecardJsonPath: paths.scorecardJsonPath,
+    previousScorecardSnapshotPath: loopState.previousArtifacts.previousScorecardSnapshotPath,
+    stableSessionCorpusJsonPath: paths.stableSessionCorpusJsonPath,
+    sessionCorpusJsonPath: paths.sessionCorpusJsonPath,
+    previousSessionCorpusSnapshotPath:
+      loopState.previousArtifacts.previousSessionCorpusSnapshotPath,
+    stableBacklogJsonPath: paths.stableBacklogJsonPath,
+    backlogJsonPath: paths.backlogJsonPath,
+    previousBacklogSnapshotPath: loopState.previousArtifacts.previousBacklogSnapshotPath,
+    stableEvidenceReviewJsonPath: paths.stableEvidenceReviewJsonPath,
+    evidenceReviewJsonPath: paths.evidenceReviewJsonPath,
+    previousEvidenceReviewSnapshotPath:
+      loopState.previousArtifacts.previousEvidenceReviewSnapshotPath,
+    mergedTelemetryJsonPath: paths.mergedTelemetryJsonPath,
+    codexBatchResult: loopState.stageResults.batchResults.codexBatchResult,
+    codexBatchOutputDir: paths.codexBatchOutputDir,
+    replayBatchResult: loopState.stageResults.batchResults.replayBatchResult,
+    replayBatchOutputDir: paths.replayBatchOutputDir,
+    selectedReviewVerdicts: loopState.generatedArtifacts.selectedReviewVerdicts,
+    scorecard: loopState.generatedArtifacts.scorecard,
+    sessionCorpus: loopState.generatedArtifacts.sessionCorpus,
+    backlog: loopState.generatedArtifacts.backlog,
+    evidenceReview: loopState.generatedArtifacts.evidenceReview,
+  });
+}
+
+async function buildLoopWarnings(paths, loopState) {
+  return buildLoopWarningSet({
+    paths,
+    reviewPacket: loopState.generatedArtifacts.reviewPacket,
+    selectedReviewVerdicts: loopState.generatedArtifacts.selectedReviewVerdicts,
+    selectedReviewVerdictsPath: loopState.stageResults.selectedReviewVerdictsPath,
+    manifests: loopState.manifests,
+    batchResults: loopState.stageResults.batchResults,
+    existingPathOrNull,
+  });
 }
 
 async function main() {

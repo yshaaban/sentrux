@@ -125,6 +125,8 @@ test('buildSignalScorecard aggregates seeded, review, and remediation metrics', 
   assert.equal(scorecard.signals[0].session_trial_miss_rate, 0.5);
   assert.equal(scorecard.signals[0].session_resolution_rate, 1);
   assert.equal(scorecard.signals[0].top_action_clear_rate, 0.5);
+  assert.equal(scorecard.signals[0].agent_clear_rate, 0.5);
+  assert.equal(scorecard.signals[0].regression_after_fix_rate, 0);
   assert.equal(scorecard.signals[0].session_clean_rate, 1);
   assert.equal(scorecard.signals[0].session_thrash_rate, 0);
   assert.equal(scorecard.signals[0].average_entropy_delta, -0.5);
@@ -136,6 +138,13 @@ test('buildSignalScorecard aggregates seeded, review, and remediation metrics', 
   assert.equal(scorecard.summary.coverage.has_session_trials, true);
   assert.equal(scorecard.summary.kpis.session_count, 2);
   assert.equal(scorecard.summary.session_health.converged_session_count, 1);
+  assert.equal(scorecard.summary.session_health.top_action_session_count, 2);
+  assert.equal(scorecard.summary.session_health.top_action_cleared_count, 1);
+  assert.equal(scorecard.summary.session_health.agent_clear_rate, 0.5);
+  assert.equal(scorecard.summary.session_health.followup_regression_session_rate, 0);
+  assert.equal(scorecard.summary.session_health.regression_after_fix_rate, 0);
+  assert.equal(scorecard.summary.session_health.session_clean_rate, 1);
+  assert.equal(scorecard.summary.session_health.average_checks_to_clear, 3);
   assert.equal(scorecard.summary.session_health.average_entropy_delta, -0.5);
 });
 
@@ -462,8 +471,32 @@ test('formatSignalScorecardMarkdown renders the score table', function () {
       watchpoint_count: 0,
       needs_review_count: 0,
       degrade_count: 0,
+      ranking_quality: {
+        top_1_actionable_precision: 1,
+        top_1_actionable_count: 1,
+        top_1_reviewed_count: 1,
+        top_3_actionable_precision: 1,
+        top_3_actionable_count: 1,
+        top_3_reviewed_count: 1,
+        top_10_actionable_precision: 1,
+        top_10_actionable_count: 1,
+        top_10_reviewed_count: 1,
+        ranking_preference_satisfaction_rate: 1,
+        meets_primary_target_policy: true,
+      },
       session_health: {
         thrashing_session_count: 0,
+        top_action_session_count: 2,
+        top_action_cleared_count: 1,
+        followup_regression_count: 0,
+        reopened_top_action_count: 0,
+        session_clean_count: 1,
+        agent_clear_rate: 0.5,
+        followup_regression_session_rate: 0,
+        regression_after_fix_rate: 0,
+        session_clean_rate: 0.5,
+        session_thrash_rate: 0,
+        average_checks_to_clear: 2,
         average_entropy_delta: -0.5,
       },
     },
@@ -499,5 +532,8 @@ test('formatSignalScorecardMarkdown renders the score table', function () {
   assert.match(markdown, /Trials/);
   assert.match(markdown, /Top Action Sessions/);
   assert.match(markdown, /Thrash Rate/);
+  assert.match(markdown, /top-action sessions: 2/);
+  assert.match(markdown, /agent clear rate: 0\.5 \(1\/2\)/);
+  assert.match(markdown, /top-1 actionable precision/);
   assert.match(markdown, /0.5/);
 });

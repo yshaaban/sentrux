@@ -84,7 +84,13 @@
         "scorecard_output": {
           "type": "string"
         },
+        "session_corpus_output": {
+          "type": "string"
+        },
         "backlog_output": {
+          "type": "string"
+        },
+        "evidence_review_output": {
           "type": "string"
         }
       }

@@ -66,9 +66,17 @@ function resolveStableArtifactPaths(repoRootPath, artifactConfig) {
     repoRootPath,
     artifactConfig.scorecard_output,
   );
+  const configuredSessionCorpusPath = resolveRepoArtifactPath(
+    repoRootPath,
+    artifactConfig.session_corpus_output,
+  );
   const configuredBacklogPath = resolveRepoArtifactPath(
     repoRootPath,
     artifactConfig.backlog_output,
+  );
+  const configuredEvidenceReviewPath = resolveRepoArtifactPath(
+    repoRootPath,
+    artifactConfig.evidence_review_output,
   );
 
   return {
@@ -89,8 +97,24 @@ function resolveStableArtifactPaths(repoRootPath, artifactConfig) {
       configuredScorecardPath,
       '.md',
     ),
+    stableSessionCorpusJsonPath: deriveCompanionPath(
+      configuredSessionCorpusPath,
+      '.json',
+    ),
+    stableSessionCorpusMarkdownPath: deriveCompanionPath(
+      configuredSessionCorpusPath,
+      '.md',
+    ),
     stableBacklogJsonPath: deriveCompanionPath(configuredBacklogPath, '.json'),
     stableBacklogMarkdownPath: deriveCompanionPath(configuredBacklogPath, '.md'),
+    stableEvidenceReviewJsonPath: deriveCompanionPath(
+      configuredEvidenceReviewPath,
+      '.json',
+    ),
+    stableEvidenceReviewMarkdownPath: deriveCompanionPath(
+      configuredEvidenceReviewPath,
+      '.md',
+    ),
   };
 }
 
@@ -115,8 +139,12 @@ function resolveRunArtifactPaths(outputDir) {
     mergedTelemetryMarkdownPath: path.join(outputDir, 'session-telemetry-summary.md'),
     scorecardJsonPath: buildRunArtifactPath(outputDir, 'signal-scorecard', '.json'),
     scorecardMarkdownPath: buildRunArtifactPath(outputDir, 'signal-scorecard', '.md'),
+    sessionCorpusJsonPath: buildRunArtifactPath(outputDir, 'session-corpus', '.json'),
+    sessionCorpusMarkdownPath: buildRunArtifactPath(outputDir, 'session-corpus', '.md'),
     backlogJsonPath: buildRunArtifactPath(outputDir, 'signal-backlog', '.json'),
     backlogMarkdownPath: buildRunArtifactPath(outputDir, 'signal-backlog', '.md'),
+    evidenceReviewJsonPath: buildRunArtifactPath(outputDir, 'evidence-review', '.json'),
+    evidenceReviewMarkdownPath: buildRunArtifactPath(outputDir, 'evidence-review', '.md'),
   };
 }
 

@@ -15,7 +15,9 @@
     "review_verdicts_input": "../../examples/parallel-code-review-verdicts.json",
     "review_verdicts_output": ".sentrux/evals/parallel-code/review-verdicts.json",
     "scorecard_output": ".sentrux/evals/parallel-code/signal-scorecard.json",
-    "backlog_output": ".sentrux/evals/parallel-code/signal-backlog.json"
+    "session_corpus_output": ".sentrux/evals/parallel-code/session-corpus.json",
+    "backlog_output": ".sentrux/evals/parallel-code/signal-backlog.json",
+    "evidence_review_output": ".sentrux/evals/parallel-code/evidence-review.json"
   },
   "batch_notes": "Checked-in calibration manifest for the main benchmark repo. The live and replay batch manifests should be kept in sync with the current agent-loop cohort."
 }

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Sentrux Weekly Evidence Review",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "summary",
+    "promotion_candidates",
+    "demotion_candidates",
+    "ranking_misses"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "generated_at": { "type": "string" },
+    "repo_label": { "type": ["string", "null"] },
+    "summary": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["promotion_candidate_count", "demotion_candidate_count", "ranking_miss_count"]
+    },
+    "promotion_candidates": { "type": "array", "items": { "type": "object" } },
+    "demotion_candidates": { "type": "array", "items": { "type": "object" } },
+    "ranking_misses": { "type": "array", "items": { "type": "object" } },
+    "propagation_examples": { "type": "array", "items": { "type": "object" } },
+    "clone_examples": { "type": "array", "items": { "type": "object" } },
+    "thrashing_examples": { "type": "array", "items": { "type": "object" } },
+    "experiment_arms": { "type": "array", "items": { "type": "object" } }
+  }
+}

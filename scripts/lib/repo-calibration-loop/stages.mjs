@@ -140,6 +140,48 @@ async function runScorecardStage({
   );
 }
 
+async function runSessionCorpusStage({
+  mergedTelemetryJsonPath,
+  sessionCorpusJsonPath,
+  sessionCorpusMarkdownPath,
+  codexBatchResult,
+  codexBatchResultPath,
+  replayBatchResult,
+  replayBatchResultPath,
+  manifest,
+  repoRootPath,
+  runs,
+  repoRoot,
+}) {
+  const sessionCorpusArgs = [
+    '--repo-root',
+    repoRootPath,
+    '--repo-label',
+    manifest.repo_label ?? manifest.repo_id ?? path.basename(repoRootPath),
+    '--session-telemetry',
+    mergedTelemetryJsonPath,
+    '--output-json',
+    sessionCorpusJsonPath,
+    '--output-md',
+    sessionCorpusMarkdownPath,
+  ];
+
+  if (codexBatchResult) {
+    sessionCorpusArgs.push('--codex-batch', codexBatchResultPath);
+  }
+  if (replayBatchResult) {
+    sessionCorpusArgs.push('--replay-batch', replayBatchResultPath);
+  }
+
+  runs.push(
+    await runNodeScript(
+      repoRoot,
+      path.join(repoRoot, 'scripts/evals/build-session-corpus.mjs'),
+      sessionCorpusArgs,
+    ),
+  );
+}
+
 async function runBacklogStage({
   skipBacklog,
   scorecardJsonPath,
@@ -194,6 +236,55 @@ async function runBacklogStage({
   );
 }
 
+async function runEvidenceReviewStage({
+  skipBacklog,
+  scorecardJsonPath,
+  backlogJsonPath,
+  sessionCorpusJsonPath,
+  reviewPacketJsonPath,
+  evidenceReviewJsonPath,
+  evidenceReviewMarkdownPath,
+  runs,
+  repoRoot,
+}) {
+  if (skipBacklog) {
+    return;
+  }
+  if (
+    !(await pathExists(scorecardJsonPath)) ||
+    !(await pathExists(backlogJsonPath)) ||
+    !(await pathExists(sessionCorpusJsonPath))
+  ) {
+    throw new Error(
+      'Cannot build evidence review without scorecard, backlog, and session corpus artifacts',
+    );
+  }
+
+  const evidenceReviewArgs = [
+    '--scorecard',
+    scorecardJsonPath,
+    '--backlog',
+    backlogJsonPath,
+    '--session-corpus',
+    sessionCorpusJsonPath,
+    '--output-json',
+    evidenceReviewJsonPath,
+    '--output-md',
+    evidenceReviewMarkdownPath,
+  ];
+  if (await pathExists(reviewPacketJsonPath)) {
+    evidenceReviewArgs.push('--review-packet', reviewPacketJsonPath);
+  }
+
+  runs.push(
+    await runNodeScript(
+      repoRoot,
+      path.join(repoRoot, 'scripts/evals/build-evidence-review.mjs'),
+      evidenceReviewArgs,
+    ),
+  );
+}
+
 async function maybeRunProvisionalVerdictStage(args, manifest, paths, runs, repoRoot) {
   if (args.skipReview) {
     return;
@@ -225,6 +316,33 @@ async function resolveSelectedReviewVerdictsPath(args, paths) {
 
 export async function runLoopStages({ args, manifest, paths, repoRootPath, repoRoot }) {
   const runs = [];
+  const batchResults = await runBatchStages({
+    args,
+    manifest,
+    paths,
+    repoRootPath,
+    runs,
+    repoRoot,
+  });
+  const selectedReviewVerdictsPath = await runAnalysisStages({
+    args,
+    manifest,
+    paths,
+    repoRootPath,
+    batchResults,
+    runs,
+    repoRoot,
+  });
+
+  return {
+    runs,
+    batchResults,
+    mergedTelemetry: batchResults.mergedTelemetry,
+    selectedReviewVerdictsPath,
+  };
+}
+
+async function runBatchStages({ args, manifest, paths, repoRootPath, runs, repoRoot }) {
   const codexBatchResult = await runBatchLane({
     skip: args.skipLive,
     manifestPath: paths.codexBatchManifestPath,
@@ -247,7 +365,6 @@ export async function runLoopStages({ args, manifest, paths, repoRootPath, repoR
     runs,
     repoRoot,
   });
-  const batchResults = { codexBatchResult, replayBatchResult };
   const telemetrySummaries = [
     codexBatchResult?.telemetry_summary ?? null,
     replayBatchResult?.telemetry_summary ?? null,
@@ -261,20 +378,36 @@ export async function runLoopStages({ args, manifest, paths, repoRootPath, repoR
     repoRootPath,
   );
 
+  return {
+    codexBatchResult,
+    replayBatchResult,
+    mergedTelemetry,
+  };
+}
+
+async function runAnalysisStages({
+  args,
+  manifest,
+  paths,
+  repoRootPath,
+  batchResults,
+  runs,
+  repoRoot,
+}) {
   await runReviewStage({
     skipReview: args.skipReview,
     manifest,
     reviewPacketJsonPath: paths.reviewPacketJsonPath,
     reviewPacketMarkdownPath: paths.reviewPacketMarkdownPath,
-    codexBatchResult,
+    codexBatchResult: batchResults.codexBatchResult,
     codexBatchResultPath: paths.codexBatchResultPath,
-    replayBatchResult,
+    replayBatchResult: batchResults.replayBatchResult,
     replayBatchResultPath: paths.replayBatchResultPath,
     runs,
     repoRoot,
   });
-
   await maybeRunProvisionalVerdictStage(args, manifest, paths, runs, repoRoot);
+
   const selectedReviewVerdictsPath = await resolveSelectedReviewVerdictsPath(args, paths);
 
   await runScorecardStage({
@@ -284,14 +417,49 @@ export async function runLoopStages({ args, manifest, paths, repoRootPath, repoR
     mergedTelemetryJsonPath: paths.mergedTelemetryJsonPath,
     scorecardJsonPath: paths.scorecardJsonPath,
     scorecardMarkdownPath: paths.scorecardMarkdownPath,
-    codexBatchResult,
+    codexBatchResult: batchResults.codexBatchResult,
     codexBatchResultPath: paths.codexBatchResultPath,
-    replayBatchResult,
+    replayBatchResult: batchResults.replayBatchResult,
     replayBatchResultPath: paths.replayBatchResultPath,
     defectReportPath: paths.defectReportPath,
     selectedReviewVerdictsPath,
     remediationReportPath: paths.remediationReportPath,
     benchmarkPath: paths.benchmarkPath,
+    runs,
+    repoRoot,
+  });
+  await runPostScoreStages({
+    args,
+    manifest,
+    paths,
+    repoRootPath,
+    batchResults,
+    runs,
+    repoRoot,
+  });
+
+  return selectedReviewVerdictsPath;
+}
+
+async function runPostScoreStages({
+  args,
+  manifest,
+  paths,
+  repoRootPath,
+  batchResults,
+  runs,
+  repoRoot,
+}) {
+  await runSessionCorpusStage({
+    mergedTelemetryJsonPath: paths.mergedTelemetryJsonPath,
+    sessionCorpusJsonPath: paths.sessionCorpusJsonPath,
+    sessionCorpusMarkdownPath: paths.sessionCorpusMarkdownPath,
+    codexBatchResult: batchResults.codexBatchResult,
+    codexBatchResultPath: paths.codexBatchResultPath,
+    replayBatchResult: batchResults.replayBatchResult,
+    replayBatchResultPath: paths.replayBatchResultPath,
+    manifest,
+    repoRootPath,
     runs,
     repoRoot,
   });
@@ -302,18 +470,22 @@ export async function runLoopStages({ args, manifest, paths, repoRootPath, repoR
     backlogMarkdownPath: paths.backlogMarkdownPath,
     cohortManifestPath: paths.cohortManifestPath,
     cohortId: manifest.cohort_id,
-    codexBatchResult,
+    codexBatchResult: batchResults.codexBatchResult,
     codexBatchResultPath: paths.codexBatchResultPath,
-    replayBatchResult,
+    replayBatchResult: batchResults.replayBatchResult,
     replayBatchResultPath: paths.replayBatchResultPath,
     runs,
     repoRoot,
   });
-
-  return {
+  await runEvidenceReviewStage({
+    skipBacklog: args.skipBacklog,
+    scorecardJsonPath: paths.scorecardJsonPath,
+    backlogJsonPath: paths.backlogJsonPath,
+    sessionCorpusJsonPath: paths.sessionCorpusJsonPath,
+    reviewPacketJsonPath: paths.reviewPacketJsonPath,
+    evidenceReviewJsonPath: paths.evidenceReviewJsonPath,
+    evidenceReviewMarkdownPath: paths.evidenceReviewMarkdownPath,
     runs,
-    batchResults,
-    mergedTelemetry,
-    selectedReviewVerdictsPath,
-  };
+    repoRoot,
+  });
 }

@@ -22,6 +22,7 @@ import {
   inferScorecardRepoLabel,
 } from './signal-scorecard-evidence.mjs';
 import { formatSignalScorecardMarkdown } from './signal-scorecard-format.mjs';
+import { safeRatio } from './signal-summary-utils.mjs';
 
 function buildScorecardContext({
   repoLabel = null,
@@ -75,6 +76,76 @@ function buildSignalCoverageFields(coverageFlags) {
     has_session_action_evidence: coverageFlags.has_session_action_evidence,
     has_session_trial_evidence: coverageFlags.has_session_trial_evidence,
     promotion_evidence_complete: coverageFlags.promotion_evidence_complete,
+  };
+}
+
+function totalSessionSignalField(sessionTelemetry, fieldName) {
+  return (sessionTelemetry?.signals ?? []).reduce(function sumSignalField(total, signal) {
+    return total + (signal?.[fieldName] ?? 0);
+  }, 0);
+}
+
+function summarizeSessionHealth(sessionTelemetry) {
+  const summary = sessionTelemetry?.summary ?? {};
+  const topActionSessionCount =
+    summary.top_action_session_count ?? totalSessionSignalField(sessionTelemetry, 'top_action_sessions');
+  const topActionClearedCount =
+    summary.top_action_cleared_count ?? totalSessionSignalField(sessionTelemetry, 'sessions_cleared');
+  const followupRegressionCount =
+    summary.followup_regression_count ?? totalSessionSignalField(sessionTelemetry, 'followup_regressions');
+  const reopenedTopActionCount =
+    summary.reopened_top_action_count ?? totalSessionSignalField(sessionTelemetry, 'reopened_top_actions');
+  const sessionCleanCount =
+    summary.session_clean_count ?? totalSessionSignalField(sessionTelemetry, 'sessions_clean');
+  const sessionThrashingCount =
+    summary.thrashing_session_count ?? totalSessionSignalField(sessionTelemetry, 'sessions_thrashing');
+  const sessionStalledCount =
+    summary.stalled_session_count ?? totalSessionSignalField(sessionTelemetry, 'sessions_stalled');
+  const entropyIncreaseSessionCount =
+    summary.entropy_increase_session_count ??
+    totalSessionSignalField(sessionTelemetry, 'sessions_with_entropy_increase');
+  const totalChecksToClear =
+    summary.average_checks_to_clear !== undefined &&
+    summary.average_checks_to_clear !== null &&
+    summary.top_action_cleared_count !== undefined
+      ? summary.average_checks_to_clear * summary.top_action_cleared_count
+      : totalSessionSignalField(sessionTelemetry, 'total_checks_to_clear');
+  const totalEntropyDelta = totalSessionSignalField(sessionTelemetry, 'total_entropy_delta');
+  const fallbackAverageEntropyDelta = safeRatio(totalEntropyDelta, topActionSessionCount);
+
+  return {
+    converged_session_count: summary.converged_session_count ?? 0,
+    converging_session_count: summary.converging_session_count ?? 0,
+    stalled_session_count: sessionStalledCount,
+    thrashing_session_count: sessionThrashingCount,
+    top_action_session_count: topActionSessionCount,
+    top_action_cleared_count: topActionClearedCount,
+    followup_regression_count: followupRegressionCount,
+    reopened_top_action_count: reopenedTopActionCount,
+    session_clean_count: sessionCleanCount,
+    entropy_increase_session_count: entropyIncreaseSessionCount,
+    top_action_clear_rate:
+      summary.top_action_clear_rate ?? safeRatio(topActionClearedCount, topActionSessionCount),
+    agent_clear_rate:
+      summary.agent_clear_rate ?? safeRatio(topActionClearedCount, topActionSessionCount),
+    followup_regression_session_rate:
+      summary.followup_regression_session_rate ??
+      safeRatio(followupRegressionCount, topActionSessionCount),
+    regression_after_fix_rate:
+      summary.regression_after_fix_rate ??
+      safeRatio(reopenedTopActionCount, topActionSessionCount),
+    session_clean_rate:
+      summary.session_clean_rate ?? safeRatio(sessionCleanCount, topActionSessionCount),
+    session_thrash_rate:
+      summary.session_thrash_rate ?? safeRatio(sessionThrashingCount, topActionSessionCount),
+    session_stall_rate:
+      summary.session_stall_rate ?? safeRatio(sessionStalledCount, topActionSessionCount),
+    entropy_increase_rate:
+      summary.entropy_increase_rate ??
+      safeRatio(entropyIncreaseSessionCount, topActionSessionCount),
+    average_checks_to_clear:
+      summary.average_checks_to_clear ?? safeRatio(totalChecksToClear, topActionClearedCount),
+    average_entropy_delta: summary.average_entropy_delta ?? fallbackAverageEntropyDelta,
   };
 }
 
@@ -198,13 +269,7 @@ function buildScorecardSummary({
     },
     ranking_quality: rankingQuality,
     provisional_ranking_quality: provisionalRankingQuality,
-    session_health: {
-      converged_session_count: sessionTelemetry?.summary?.converged_session_count ?? 0,
-      converging_session_count: sessionTelemetry?.summary?.converging_session_count ?? 0,
-      stalled_session_count: sessionTelemetry?.summary?.stalled_session_count ?? 0,
-      thrashing_session_count: sessionTelemetry?.summary?.thrashing_session_count ?? 0,
-      average_entropy_delta: sessionTelemetry?.summary?.average_entropy_delta ?? null,
-    },
+    session_health: summarizeSessionHealth(sessionTelemetry),
   };
 }
 

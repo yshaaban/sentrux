@@ -15,7 +15,9 @@
     "review_verdicts_input": "../../examples/one-tool-review-verdicts.json",
     "review_verdicts_output": ".sentrux/evals/one-tool/review-verdicts.json",
     "scorecard_output": ".sentrux/evals/one-tool/signal-scorecard.json",
-    "backlog_output": ".sentrux/evals/one-tool/signal-backlog.json"
+    "session_corpus_output": ".sentrux/evals/one-tool/session-corpus.json",
+    "backlog_output": ".sentrux/evals/one-tool/signal-backlog.json",
+    "evidence_review_output": ".sentrux/evals/one-tool/evidence-review.json"
   },
   "batch_notes": "Checked-in calibration manifest for the mixed TypeScript and Python public repo configured by ONE_TOOL_ROOT. Use it for public onboarding/ranking evidence and broad mixed-language structural pressure, not for seeded-defect promotion."
 }

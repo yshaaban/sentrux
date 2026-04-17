@@ -376,6 +376,21 @@ export function createEmptySessionTelemetrySummary(repoRoot = null) {
       converging_session_count: 0,
       stalled_session_count: 0,
       thrashing_session_count: 0,
+      top_action_session_count: 0,
+      top_action_cleared_count: 0,
+      followup_regression_count: 0,
+      reopened_top_action_count: 0,
+      session_clean_count: 0,
+      entropy_increase_session_count: 0,
+      top_action_clear_rate: null,
+      agent_clear_rate: null,
+      followup_regression_session_rate: null,
+      regression_after_fix_rate: null,
+      session_clean_rate: null,
+      session_thrash_rate: null,
+      session_stall_rate: null,
+      entropy_increase_rate: null,
+      average_checks_to_clear: null,
       average_entropy_delta: null,
     },
     sessions: [],
@@ -540,6 +555,18 @@ export function formatSessionTelemetrySummaryMarkdown(summary) {
   lines.push(`- converging sessions: ${summary.summary.converging_session_count ?? 0}`);
   lines.push(`- stalled sessions: ${summary.summary.stalled_session_count ?? 0}`);
   lines.push(`- thrashing sessions: ${summary.summary.thrashing_session_count ?? 0}`);
+  lines.push(`- top-action sessions: ${summary.summary.top_action_session_count ?? 0}`);
+  lines.push(`- top actions cleared: ${summary.summary.top_action_cleared_count ?? 0}`);
+  lines.push(`- agent clear rate: ${summary.summary.agent_clear_rate ?? 'n/a'}`);
+  lines.push(
+    `- follow-up regression session rate: ${summary.summary.followup_regression_session_rate ?? 'n/a'}`,
+  );
+  lines.push(
+    `- regression-after-fix rate: ${summary.summary.regression_after_fix_rate ?? 'n/a'}`,
+  );
+  lines.push(`- session clean rate: ${summary.summary.session_clean_rate ?? 'n/a'}`);
+  lines.push(`- session thrash rate: ${summary.summary.session_thrash_rate ?? 'n/a'}`);
+  lines.push(`- average checks to clear: ${summary.summary.average_checks_to_clear ?? 'n/a'}`);
   lines.push(`- average entropy delta: ${summary.summary.average_entropy_delta ?? 'n/a'}`);
   lines.push('');
   lines.push('| Signal | Top Action Presented | Top Action Sessions | Follow-up Checks | Target Cleared | Follow-up Regressions | Resolution Rate | Regression Rate | Session Clean Rate | Thrash Rate | Avg Entropy Delta | Avg Checks To Clear |');

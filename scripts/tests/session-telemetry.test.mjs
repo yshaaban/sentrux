@@ -66,6 +66,13 @@ test('buildSessionTelemetrySummary tracks top-action follow-up resolution', func
   assert.equal(summary.sessions[0].final_session_clean, true);
   assert.equal(summary.summary.converged_session_count, 1);
   assert.equal(summary.summary.thrashing_session_count, 0);
+  assert.equal(summary.summary.top_action_session_count, 1);
+  assert.equal(summary.summary.top_action_cleared_count, 1);
+  assert.equal(summary.summary.agent_clear_rate, 1);
+  assert.equal(summary.summary.followup_regression_session_rate, 0);
+  assert.equal(summary.summary.regression_after_fix_rate, 0);
+  assert.equal(summary.summary.session_clean_rate, 1);
+  assert.equal(summary.summary.average_checks_to_clear, 1);
   assert.equal(summary.signals.length, 2);
   assert.equal(summary.signals[0].signal_kind, 'forbidden_raw_read');
   assert.equal(summary.signals[0].top_action_presented, 1);
@@ -73,6 +80,8 @@ test('buildSessionTelemetrySummary tracks top-action follow-up resolution', func
   assert.equal(summary.signals[0].target_cleared, 1);
   assert.equal(summary.signals[0].followup_regressions, 0);
   assert.equal(summary.signals[0].resolution_rate, 1);
+  assert.equal(summary.signals[0].agent_clear_rate, 1);
+  assert.equal(summary.signals[0].regression_after_fix_rate, 0);
   assert.equal(summary.signals[0].session_clean_rate, 1);
   assert.equal(summary.signals[0].session_thrash_rate, 0);
   assert.equal(summary.signals[0].average_entropy_delta, -2);
@@ -194,9 +203,13 @@ test('buildSessionTelemetrySummary marks thrashing sessions when entropy grows a
   assert.equal(summary.sessions[0].entropy_delta, 2);
   assert.equal(summary.sessions[0].convergence_status, 'thrashing');
   assert.equal(summary.summary.thrashing_session_count, 1);
+  assert.equal(summary.summary.regression_after_fix_rate, 1);
+  assert.equal(summary.summary.session_thrash_rate, 1);
+  assert.equal(summary.summary.entropy_increase_rate, 1);
   assert.equal(summary.signals[0].signal_kind, 'dependency_sprawl');
   assert.equal(summary.signals[0].sessions_thrashing, 1);
   assert.equal(summary.signals[0].reopened_top_actions, 1);
+  assert.equal(summary.signals[0].regression_after_fix_rate, 1);
   assert.equal(summary.signals[0].session_thrash_rate, 1);
   assert.equal(summary.signals[0].average_entropy_delta, 2);
   assert.equal(summary.signals[0].entropy_increase_rate, 1);
@@ -266,6 +279,14 @@ test('formatSessionTelemetrySummaryMarkdown renders the telemetry table', functi
       explicit_session_count: 1,
       implicit_session_count: 0,
       check_run_count: 2,
+      top_action_session_count: 1,
+      top_action_cleared_count: 0,
+      agent_clear_rate: 0,
+      followup_regression_session_rate: 1,
+      regression_after_fix_rate: 0,
+      session_clean_rate: 0,
+      session_thrash_rate: 1,
+      average_checks_to_clear: null,
     },
     signals: [
       {
@@ -287,6 +308,8 @@ test('formatSessionTelemetrySummaryMarkdown renders the telemetry table', functi
   assert.match(markdown, /missing_test_coverage/);
   assert.match(markdown, /Regression Rate/);
   assert.match(markdown, /Top Action Sessions/);
+  assert.match(markdown, /agent clear rate: 0/);
+  assert.match(markdown, /follow-up regression session rate: 1/);
   assert.match(markdown, /Session Clean Rate/);
   assert.match(markdown, /Thrash Rate/);
 });
@@ -301,6 +324,22 @@ test('mergeSessionTelemetrySummaries combines per-signal counts across summaries
         explicit_session_count: 1,
         implicit_session_count: 0,
         check_run_count: 2,
+        top_action_session_count: 1,
+        top_action_cleared_count: 1,
+        followup_regression_count: 0,
+        reopened_top_action_count: 0,
+        session_clean_count: 1,
+        entropy_increase_session_count: 0,
+        top_action_clear_rate: 1,
+        agent_clear_rate: 1,
+        followup_regression_session_rate: 0,
+        regression_after_fix_rate: 0,
+        session_clean_rate: 1,
+        session_thrash_rate: 0,
+        session_stall_rate: 0,
+        entropy_increase_rate: 0,
+        average_checks_to_clear: 1,
+        average_entropy_delta: 0,
       },
       sessions: [{ session_run_id: 'one' }],
       signals: [
@@ -325,6 +364,22 @@ test('mergeSessionTelemetrySummaries combines per-signal counts across summaries
         explicit_session_count: 0,
         implicit_session_count: 1,
         check_run_count: 1,
+        top_action_session_count: 1,
+        top_action_cleared_count: 0,
+        followup_regression_count: 0,
+        reopened_top_action_count: 0,
+        session_clean_count: 0,
+        entropy_increase_session_count: 0,
+        top_action_clear_rate: 0,
+        agent_clear_rate: 0,
+        followup_regression_session_rate: 0,
+        regression_after_fix_rate: 0,
+        session_clean_rate: 0,
+        session_thrash_rate: 0,
+        session_stall_rate: 1,
+        entropy_increase_rate: 0,
+        average_checks_to_clear: null,
+        average_entropy_delta: 0,
       },
       sessions: [{ session_run_id: 'two' }],
       signals: [
@@ -347,6 +402,10 @@ test('mergeSessionTelemetrySummaries combines per-signal counts across summaries
   assert.equal(merged.summary.session_count, 2);
   assert.equal(merged.summary.explicit_session_count, 1);
   assert.equal(merged.summary.implicit_session_count, 1);
+  assert.equal(merged.summary.top_action_session_count, 2);
+  assert.equal(merged.summary.top_action_cleared_count, 1);
+  assert.equal(merged.summary.agent_clear_rate, 0.5);
+  assert.equal(merged.summary.average_checks_to_clear, 1);
   assert.equal(merged.summary.average_entropy_delta, 0);
   assert.equal(merged.signals[0].signal_kind, 'missing_test_coverage');
   assert.equal(merged.signals[0].top_action_presented, 2);

@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Sentrux Session Corpus",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "generated_at", "summary", "review_queue", "sessions"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "generated_at": { "type": "string" },
+    "repo_label": { "type": ["string", "null"] },
+    "repo_root": { "type": ["string", "null"] },
+    "summary": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["session_count", "agent_clear_rate"]
+    },
+    "review_queue": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "sessions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "session_id",
+          "session_label",
+          "lane",
+          "status",
+          "tags",
+          "expected_signal_kinds",
+          "focus_areas",
+          "outcome",
+          "evidence_flags",
+          "outcome_bucket"
+        ],
+        "properties": {
+          "session_id": { "type": "string" },
+          "session_label": { "type": "string" },
+          "lane": { "enum": ["live", "replay"] },
+          "status": { "type": "string" },
+          "output_dir": { "type": ["string", "null"] },
+          "tags": { "type": "array", "items": { "type": "string" } },
+          "expected_signal_kinds": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "expected_fix_surface": { "type": ["string", "null"] },
+          "experiment_arm": { "type": ["string", "null"] },
+          "session_goal": { "type": ["string", "null"] },
+          "success_criteria": { "type": ["string", "null"] },
+          "focus_areas": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "outcome": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "initial_action_kinds",
+              "initial_top_action_kind",
+              "top_action_cleared",
+              "checks_to_clear_top_action",
+              "convergence_status",
+              "entropy_delta",
+              "final_gate",
+              "final_session_clean",
+              "followup_regression_introduced"
+            ],
+            "properties": {
+              "session_count": { "type": ["integer", "null"] },
+              "initial_action_kinds": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "initial_top_action_kind": { "type": ["string", "null"] },
+              "top_action_cleared": { "type": "boolean" },
+              "checks_to_clear_top_action": { "type": ["integer", "null"] },
+              "convergence_status": { "type": ["string", "null"] },
+              "entropy_delta": { "type": ["number", "null"] },
+              "final_gate": { "type": ["string", "null"] },
+              "final_session_clean": { "type": "boolean" },
+              "followup_regression_introduced": { "type": "boolean" }
+            }
+          },
+          "evidence_flags": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "expected_signal_missing",
+              "expected_signal_present_not_top",
+              "unexpected_top_action",
+              "followup_regression_introduced",
+              "top_action_cleared",
+              "final_session_clean"
+            ],
+            "properties": {
+              "expected_signal_missing": { "type": "boolean" },
+              "expected_signal_present_not_top": { "type": "boolean" },
+              "unexpected_top_action": { "type": "boolean" },
+              "followup_regression_introduced": { "type": "boolean" },
+              "top_action_cleared": { "type": "boolean" },
+              "final_session_clean": { "type": "boolean" }
+            }
+          },
+          "outcome_bucket": { "type": "string" }
+        }
+      }
+    }
+  }
+}

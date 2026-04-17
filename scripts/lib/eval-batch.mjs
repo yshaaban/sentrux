@@ -58,14 +58,19 @@ export function summarizeBundleOutcome(bundle) {
     bundle?.outcome?.initial_action_kinds ??
     bundle?.initial_check?.actions?.map((action) => action.kind).filter(Boolean) ??
     [];
+  const sessionCount =
+    bundle?.telemetry_summary?.summary?.session_count ?? bundle?.outcome?.session_count ?? null;
 
   return {
+    session_count: sessionCount,
     final_gate: bundle?.outcome?.final_gate ?? null,
     final_session_clean: bundle?.outcome?.final_session_clean ?? false,
     initial_top_action_kind: bundle?.outcome?.initial_top_action_kind ?? null,
     initial_action_kinds: initialActions,
     top_action_cleared: bundle?.outcome?.top_action_cleared ?? false,
     checks_to_clear_top_action: bundle?.outcome?.checks_to_clear_top_action ?? null,
+    convergence_status: bundle?.outcome?.convergence_status ?? null,
+    entropy_delta: bundle?.outcome?.entropy_delta ?? null,
     followup_regression_introduced:
       bundle?.outcome?.followup_regression_introduced ?? false,
   };
