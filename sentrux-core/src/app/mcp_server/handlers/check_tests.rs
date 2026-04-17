@@ -51,10 +51,19 @@ fn test_issue(
         repair_packet: RepairPacket {
             risk_statement: "test packet".to_string(),
             likely_fix_sites: vec![file.to_string()],
+            inspection_context: vec![file.to_string()],
             smallest_safe_first_cut: Some("test first cut".to_string()),
             verify_after: vec!["re-run sentrux check".to_string()],
             do_not_touch_yet: Vec::new(),
             completeness_0_10000: 9_000,
+            complete: true,
+            required_fields: super::agent_guidance::RepairPacketRequiredFields {
+                risk_statement: true,
+                repair_surface: true,
+                first_cut: true,
+                verification: true,
+            },
+            missing_fields: Vec::new(),
         },
     }
 }

@@ -444,4 +444,82 @@ mod tests {
         assert_eq!(issue.trust_tier, "trusted");
         assert_eq!(issue.severity, FindingSeverity::High);
     }
+
+    #[test]
+    fn generic_file_context_does_not_count_as_a_repair_surface() {
+        let issue = to_agent_issue(&json!({
+            "kind": "dead_private_code_cluster",
+            "summary": "Private code is no longer referenced from live callers.",
+            "files": ["src/app.ts"],
+            "trust_tier": "trusted",
+            "leverage_class": "secondary_cleanup",
+            "score_0_10000": 9200
+        }));
+
+        assert_eq!(issue.repair_packet.likely_fix_sites, Vec::<String>::new());
+        assert_eq!(issue.repair_packet.inspection_context, vec!["src/app.ts"]);
+        assert_eq!(issue.repair_packet.complete, false);
+        assert_eq!(issue.repair_packet.required_fields.repair_surface, false);
+        assert!(issue
+            .repair_packet
+            .missing_fields
+            .iter()
+            .any(|field| field == "repair_surface"));
+    }
+
+    #[test]
+    fn dependency_sprawl_uses_the_owner_file_as_a_concrete_repair_surface() {
+        let issue = to_agent_issue(&json!({
+            "kind": "dependency_sprawl",
+            "summary": "Entry surface fans out across too many owners.",
+            "files": ["src/app.ts"],
+            "trust_tier": "trusted",
+            "leverage_class": "architecture_signal",
+            "score_0_10000": 9200
+        }));
+
+        assert_eq!(issue.repair_packet.likely_fix_sites, vec!["src/app.ts"]);
+        assert_eq!(issue.repair_packet.complete, true);
+        assert_eq!(issue.repair_packet.required_fields.repair_surface, true);
+    }
+
+    #[test]
+    fn cycle_cluster_extracts_repair_surface_from_best_cut_evidence() {
+        let issue = to_agent_issue(&json!({
+            "kind": "cycle_cluster",
+            "summary": "Files src/a.ts and src/b.ts form a dependency cycle.",
+            "files": ["src/a.ts", "src/b.ts"],
+            "evidence": [
+                "best cut candidate: src/a.ts -> src/b.ts (removes 2 cyclic files)"
+            ]
+        }));
+
+        assert_eq!(
+            issue.repair_packet.likely_fix_sites,
+            vec!["src/a.ts", "src/b.ts"]
+        );
+        assert_eq!(issue.repair_packet.complete, true);
+    }
+
+    #[test]
+    fn clone_propagation_drift_uses_changed_and_unchanged_clone_sites_as_repair_surface() {
+        let issue = to_agent_issue(&json!({
+            "kind": "clone_propagation_drift",
+            "summary": "The changed clone path no longer matches its unchanged sibling.",
+            "files": ["src/source.ts", "src/copy.ts"],
+            "trust_tier": "trusted",
+            "leverage_class": "architecture_signal",
+            "score_0_10000": 9100,
+            "evidence": [
+                "changed clone member: src/source.ts::renderStatus",
+                "unchanged clone sibling: src/copy.ts::renderStatus"
+            ]
+        }));
+
+        assert_eq!(
+            issue.repair_packet.likely_fix_sites,
+            vec!["src/source.ts::renderStatus", "src/copy.ts::renderStatus"]
+        );
+        assert_eq!(issue.repair_packet.complete, true);
+    }
 }

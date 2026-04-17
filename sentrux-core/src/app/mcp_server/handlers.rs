@@ -64,7 +64,8 @@ mod view_support;
 
 pub(crate) use self::agent_format::{
     actions_from_findings_and_obligations, issue_blocks_gate, issues_from_findings_and_obligations,
-    AgentAction, AgentGate, AgentIssue, CheckDiagnostics, IssueSource, RepairPacket,
+    AgentAction, AgentGate, AgentIssue, CheckDiagnostics, IssueConfidence, IssueSource,
+    RepairPacket,
 };
 pub(crate) use self::brief::agent_brief_def;
 pub use self::brief::cli_agent_brief;

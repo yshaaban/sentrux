@@ -1,6 +1,6 @@
 use crate::app::mcp_server::handlers::{
     actions_from_findings_and_obligations, issue_blocks_gate, issues_from_findings_and_obligations,
-    AgentAction, AgentIssue, IssueSource, RepairPacket,
+    AgentAction, AgentIssue, IssueConfidence, IssueSource, RepairPacket,
 };
 use crate::metrics::v2::FindingSeverity;
 use serde::Serialize;
@@ -185,12 +185,12 @@ struct DeferredItem {
 pub fn build_agent_brief(input: AgentBriefInput) -> Result<Value, String> {
     let ranked_issues =
         issues_from_findings_and_obligations(&input.findings, &input.missing_obligations);
-    let mut primary_targets = match input.mode {
+    let primary_targets = match input.mode {
         AgentBriefMode::RepoOnboarding => select_onboarding_targets(&input, &ranked_issues),
         AgentBriefMode::Patch => select_patch_targets(&input, &ranked_issues),
         AgentBriefMode::PreMerge => select_pre_merge_targets(&input, &ranked_issues),
     };
-    primary_targets.truncate(input.limit.max(1));
+    let primary_targets = visible_primary_targets(&input, primary_targets, &ranked_issues);
 
     let do_not_chase = build_do_not_chase(&input);
     let decision = decide(&input, &primary_targets);
@@ -246,6 +246,46 @@ fn summarize_repo_shape(repo_shape: &Value) -> Value {
     })
 }
 
+fn visible_primary_targets(
+    input: &AgentBriefInput,
+    primary_targets: Vec<AgentBriefTarget>,
+    ranked_issues: &[AgentIssue],
+) -> Vec<AgentBriefTarget> {
+    let limit = input.limit.max(1);
+    let mut visible_targets = primary_targets.into_iter().take(limit).collect::<Vec<_>>();
+    ensure_visible_blocking_target(input, &mut visible_targets, ranked_issues);
+    visible_targets
+}
+
+fn ensure_visible_blocking_target(
+    input: &AgentBriefInput,
+    visible_targets: &mut Vec<AgentBriefTarget>,
+    ranked_issues: &[AgentIssue],
+) {
+    if input.mode != AgentBriefMode::PreMerge || input.decision.as_deref() != Some("fail") {
+        return;
+    }
+    if visible_targets.iter().any(|target| target.blocking) {
+        return;
+    }
+
+    let Some(blocking_issue) = ranked_issues.iter().find(|issue| issue_blocks_gate(issue)) else {
+        return;
+    };
+    let blocking_target = target_from_issue(blocking_issue, input);
+    if visible_targets
+        .iter()
+        .any(|target| target.kind == blocking_target.kind && target.scope == blocking_target.scope)
+    {
+        return;
+    }
+
+    if !visible_targets.is_empty() {
+        visible_targets.pop();
+    }
+    visible_targets.push(blocking_target);
+}
+
 fn select_onboarding_targets(
     input: &AgentBriefInput,
     ranked_issues: &[AgentIssue],
@@ -264,7 +304,26 @@ fn select_pre_merge_targets(
     input: &AgentBriefInput,
     ranked_issues: &[AgentIssue],
 ) -> Vec<AgentBriefTarget> {
-    select_primary_targets(ranked_issues, input, true)
+    let mut selected = select_primary_targets(ranked_issues, input, true);
+    if let Some(issue) = blocking_pre_merge_issue_to_surface(input, &selected, ranked_issues) {
+        selected.push(target_from_issue(issue, input));
+    }
+    selected
+}
+
+fn blocking_pre_merge_issue_to_surface<'a>(
+    input: &AgentBriefInput,
+    selected: &[AgentBriefTarget],
+    ranked_issues: &'a [AgentIssue],
+) -> Option<&'a AgentIssue> {
+    if input.decision.as_deref() != Some("fail") {
+        return None;
+    }
+    if selected.iter().any(|target| target.blocking) {
+        return None;
+    }
+
+    ranked_issues.iter().find(|issue| issue_blocks_gate(issue))
 }
 
 fn select_primary_targets(
@@ -308,28 +367,65 @@ fn issue_is_primary_target(
     if patch_scope_only && !issue_is_patch_relevant(issue, input) {
         return false;
     }
+    if issue_blocks_gate(issue) {
+        return true;
+    }
 
     match input.mode {
-        AgentBriefMode::RepoOnboarding => {
-            issue_blocks_gate(issue)
-                || issue.repair_packet.completeness_0_10000 >= 8_000
-                || issue.score_0_10000 >= 7_000
-                || matches!(
-                    issue.leverage_class.as_str(),
-                    "boundary_discipline" | "architecture_signal" | "local_refactor_target"
-                )
-        }
+        AgentBriefMode::RepoOnboarding => issue_meets_repo_onboarding_primary_contract(issue),
         AgentBriefMode::Patch => {
-            issue_blocks_gate(issue)
-                || issue.source == IssueSource::Obligation
-                || issue.repair_packet.completeness_0_10000 >= 8_000
+            issue.source == IssueSource::Obligation
+                || (issue_is_trusted_primary_candidate(issue)
+                    && issue_has_complete_repair_packet(issue)
+                    && issue_has_actionable_anchor(issue)
+                    && (issue_is_high_leverage(issue)
+                        || issue.severity == FindingSeverity::High
+                        || issue.score_0_10000 >= 7_500))
         }
         AgentBriefMode::PreMerge => {
-            issue_blocks_gate(issue)
-                || issue.severity == FindingSeverity::High
-                || (input.strict.unwrap_or(false) && issue.severity == FindingSeverity::Medium)
+            issue_is_trusted_primary_candidate(issue)
+                && issue_has_complete_repair_packet(issue)
+                && issue_has_actionable_anchor(issue)
+                && (issue.severity == FindingSeverity::High
+                    || (input.strict.unwrap_or(false)
+                        && issue.severity == FindingSeverity::Medium
+                        && issue_is_high_leverage(issue)))
         }
     }
+}
+
+fn issue_meets_repo_onboarding_primary_contract(issue: &AgentIssue) -> bool {
+    issue_is_trusted_primary_candidate(issue)
+        && issue_has_complete_repair_packet(issue)
+        && issue_has_actionable_anchor(issue)
+        && (issue_is_high_leverage(issue)
+            || issue.severity == FindingSeverity::High
+            || issue.score_0_10000 >= 7_500)
+}
+
+fn issue_is_trusted_primary_candidate(issue: &AgentIssue) -> bool {
+    issue.trust_tier == "trusted"
+        && issue.confidence != IssueConfidence::Experimental
+        && issue.presentation_class != "watchpoint"
+}
+
+fn issue_has_complete_repair_packet(issue: &AgentIssue) -> bool {
+    issue.repair_packet.complete
+}
+
+fn issue_has_actionable_anchor(issue: &AgentIssue) -> bool {
+    issue.concept_id.is_some()
+        || !issue.repair_packet.likely_fix_sites.is_empty()
+        || !issue.repair_packet.inspection_context.is_empty()
+        || !issue.evidence.is_empty()
+        || issue.fix_hint.is_some()
+}
+
+fn issue_is_high_leverage(issue: &AgentIssue) -> bool {
+    matches!(
+        issue.leverage_class.as_str(),
+        "boundary_discipline" | "architecture_signal" | "local_refactor_target"
+    )
 }
 
 fn issue_is_patch_relevant(issue: &AgentIssue, input: &AgentBriefInput) -> bool {
@@ -389,7 +485,7 @@ fn why_now(issue: &AgentIssue, input: &AgentBriefInput) -> Vec<String> {
     if BriefLeverageClass::from_issue(issue).is_high_leverage() {
         reasons.push("high_leverage".to_string());
     }
-    if issue.repair_packet.completeness_0_10000 >= 8_000 {
+    if issue.repair_packet.complete {
         reasons.push("clear_fix_surface".to_string());
     }
     if issue.source == IssueSource::Obligation {
@@ -541,6 +637,12 @@ fn inspection_focus(issue: &AgentIssue) -> Vec<String> {
             issue.repair_packet.likely_fix_sites.join(", ")
         )];
     }
+    if !issue.repair_packet.inspection_context.is_empty() {
+        return vec![format!(
+            "Inspect {} before widening the patch.",
+            issue.repair_packet.inspection_context.join(", ")
+        )];
+    }
     if !issue.evidence.is_empty() {
         return vec![
             "Inspect the cited evidence path before changing adjacent surfaces.".to_string(),
@@ -633,10 +735,10 @@ mod tests {
                 "starter_rules_toml": "[[module_contract]]",
             }),
             findings: vec![json!({
-                "kind": "concept_boundary_pressure",
+                "kind": "dependency_sprawl",
                 "scope": "api_endpoints_registry",
                 "severity": "high",
-                "summary": "Concept boundary pressure exists",
+                "summary": "Entry surface fans out across too many owners",
                 "trust_tier": "trusted",
                 "leverage_class": "boundary_discipline",
                 "inspection_focus": ["inspect canonical access"],
@@ -704,10 +806,10 @@ mod tests {
                 "starter_rules_toml": null,
             }),
             findings: vec![json!({
-                "kind": "concept_boundary_pressure",
+                "kind": "dependency_sprawl",
                 "scope": "task_git_status",
                 "severity": "high",
-                "summary": "Boundary pressure on task_git_status",
+                "summary": "task_git_status fans out across too many owners",
                 "trust_tier": "trusted",
                 "leverage_class": "architecture_signal",
                 "inspection_focus": ["inspect write ownership"],
@@ -754,6 +856,90 @@ mod tests {
             .iter()
             .any(|value| value == "touched_concept"));
         assert_eq!(brief["watchpoint_count"], 1);
+    }
+
+    #[test]
+    fn onboarding_brief_requires_a_complete_repair_packet_for_non_blocking_targets() {
+        let brief = build_agent_brief(AgentBriefInput {
+            mode: AgentBriefMode::RepoOnboarding,
+            repo_shape: json!({
+                "primary_archetype": "react_frontend",
+                "effective_archetypes": ["react_frontend"],
+                "boundary_roots": [],
+                "starter_rules_toml": null,
+            }),
+            findings: vec![json!({
+                "kind": "dead_private_code_cluster",
+                "scope": "src/app.ts",
+                "severity": "low",
+                "summary": "Private helpers are no longer referenced from live callers",
+                "trust_tier": "trusted",
+                "presentation_class": "structural_debt",
+                "leverage_class": "secondary_cleanup",
+                "score_0_10000": 9100,
+                "files": ["src/app.ts"],
+            })],
+            experimental_findings: Vec::new(),
+            missing_obligations: Vec::new(),
+            watchpoints: Vec::new(),
+            resolved_findings: Vec::new(),
+            changed_files: Vec::new(),
+            changed_concepts: Vec::new(),
+            decision: None,
+            summary: None,
+            confidence: json!({ "scan_confidence_0_10000": 9100 }),
+            scan_trust: json!({ "overall_confidence_0_10000": 9100 }),
+            freshness: json!({ "baseline_loaded": true }),
+            strict: None,
+            limit: 3,
+        })
+        .expect("agent brief");
+
+        assert_eq!(brief["primary_target_count"], 0);
+    }
+
+    #[test]
+    fn onboarding_brief_keeps_fixable_high_severity_structural_debt_visible() {
+        let brief = build_agent_brief(AgentBriefInput {
+            mode: AgentBriefMode::RepoOnboarding,
+            repo_shape: json!({
+                "primary_archetype": "rust_cli",
+                "effective_archetypes": ["rust_cli"],
+                "boundary_roots": [],
+                "starter_rules_toml": null,
+            }),
+            findings: vec![json!({
+                "kind": "large_file",
+                "scope": "src/main.rs",
+                "severity": "high",
+                "summary": "File 'src/main.rs' is 801 lines, above the rust threshold of 500",
+                "trust_tier": "trusted",
+                "presentation_class": "structural_debt",
+                "leverage_class": "secondary_cleanup",
+                "score_0_10000": 6895,
+                "files": ["src/main.rs"],
+                "candidate_split_axes": ["dependency boundary"],
+                "related_surfaces": ["src/format.rs"],
+            })],
+            experimental_findings: Vec::new(),
+            missing_obligations: Vec::new(),
+            watchpoints: Vec::new(),
+            resolved_findings: Vec::new(),
+            changed_files: Vec::new(),
+            changed_concepts: Vec::new(),
+            decision: None,
+            summary: None,
+            confidence: json!({ "scan_confidence_0_10000": 9000 }),
+            scan_trust: json!({ "overall_confidence_0_10000": 9000 }),
+            freshness: json!({ "baseline_loaded": true }),
+            strict: None,
+            limit: 3,
+        })
+        .expect("agent brief");
+
+        assert_eq!(brief["primary_target_count"], 1);
+        assert_eq!(brief["primary_targets"][0]["kind"], "large_file");
+        assert_eq!(brief["primary_targets"][0]["severity"], "high");
     }
 
     #[test]
@@ -920,6 +1106,159 @@ mod tests {
         assert_eq!(
             brief["primary_targets"][0]["scope"],
             "api_endpoints_registry"
+        );
+    }
+
+    #[test]
+    fn pre_merge_brief_keeps_a_blocking_target_visible_when_scope_filtering_would_hide_it() {
+        let brief = build_agent_brief(AgentBriefInput {
+            mode: AgentBriefMode::PreMerge,
+            repo_shape: json!({
+                "primary_archetype": "sdk",
+                "effective_archetypes": ["sdk"],
+                "boundary_roots": [],
+                "starter_rules_toml": null,
+            }),
+            findings: vec![json!({
+                "kind": "forbidden_writer",
+                "scope": "task_state",
+                "severity": "high",
+                "summary": "task_state is being written outside the owner",
+                "trust_tier": "trusted",
+                "leverage_class": "boundary_discipline",
+                "likely_fix_sites": [{ "site": "src/store/task-state.ts" }],
+                "concept_id": "task_state",
+                "score_0_10000": 9200,
+                "files": ["src/store/task-state.ts"],
+            })],
+            experimental_findings: Vec::new(),
+            missing_obligations: Vec::new(),
+            watchpoints: Vec::new(),
+            resolved_findings: Vec::new(),
+            changed_files: vec!["src/components/task-row.tsx".to_string()],
+            changed_concepts: Vec::new(),
+            decision: Some("fail".to_string()),
+            summary: None,
+            confidence: json!({ "scan_confidence_0_10000": 9200 }),
+            scan_trust: json!({ "overall_confidence_0_10000": 9200 }),
+            freshness: json!({ "baseline_loaded": true }),
+            strict: Some(false),
+            limit: 3,
+        })
+        .expect("agent brief");
+
+        assert_eq!(brief["decision"], "block");
+        assert_eq!(brief["primary_target_count"], 1);
+        assert_eq!(brief["primary_targets"][0]["blocking"], true);
+        assert_eq!(brief["primary_targets"][0]["kind"], "forbidden_writer");
+    }
+
+    #[test]
+    fn pre_merge_brief_keeps_a_blocking_target_visible_when_limit_would_truncate_it() {
+        let brief = build_agent_brief(AgentBriefInput {
+            mode: AgentBriefMode::PreMerge,
+            repo_shape: json!({
+                "primary_archetype": "sdk",
+                "effective_archetypes": ["sdk"],
+                "boundary_roots": [],
+                "starter_rules_toml": null,
+            }),
+            findings: vec![
+                json!({
+                    "kind": "large_file",
+                    "scope": "src/components/task-row.tsx",
+                    "severity": "high",
+                    "summary": "task-row is over the size threshold",
+                    "trust_tier": "trusted",
+                    "leverage_class": "architecture_signal",
+                    "likely_fix_sites": [{ "site": "src/components/task-row.tsx" }],
+                    "score_0_10000": 9500,
+                    "files": ["src/components/task-row.tsx"],
+                }),
+                json!({
+                    "kind": "forbidden_writer",
+                    "scope": "task_state",
+                    "severity": "high",
+                    "summary": "task_state is being written outside the owner",
+                    "trust_tier": "trusted",
+                    "leverage_class": "boundary_discipline",
+                    "likely_fix_sites": [{ "site": "src/store/task-state.ts" }],
+                    "concept_id": "task_state",
+                    "score_0_10000": 9200,
+                    "files": ["src/store/task-state.ts"],
+                }),
+            ],
+            experimental_findings: Vec::new(),
+            missing_obligations: Vec::new(),
+            watchpoints: Vec::new(),
+            resolved_findings: Vec::new(),
+            changed_files: vec!["src/components/task-row.tsx".to_string()],
+            changed_concepts: Vec::new(),
+            decision: Some("fail".to_string()),
+            summary: None,
+            confidence: json!({ "scan_confidence_0_10000": 9200 }),
+            scan_trust: json!({ "overall_confidence_0_10000": 9200 }),
+            freshness: json!({ "baseline_loaded": true }),
+            strict: Some(false),
+            limit: 1,
+        })
+        .expect("agent brief");
+
+        assert_eq!(brief["decision"], "block");
+        assert_eq!(brief["primary_target_count"], 1);
+        assert_eq!(brief["primary_targets"][0]["blocking"], true);
+        assert_eq!(brief["primary_targets"][0]["kind"], "forbidden_writer");
+    }
+
+    #[test]
+    fn patch_brief_keeps_clone_followthrough_targets_fixable() {
+        let brief = build_agent_brief(AgentBriefInput {
+            mode: AgentBriefMode::Patch,
+            repo_shape: json!({
+                "primary_archetype": "react_frontend",
+                "effective_archetypes": ["react_frontend"],
+                "boundary_roots": [],
+                "starter_rules_toml": null,
+            }),
+            findings: vec![json!({
+                "kind": "clone_propagation_drift",
+                "scope": "src/source.ts|src/copy.ts",
+                "severity": "high",
+                "summary": "The changed clone path no longer matches its unchanged sibling",
+                "trust_tier": "trusted",
+                "presentation_class": "structural_debt",
+                "leverage_class": "architecture_signal",
+                "score_0_10000": 9100,
+                "files": ["src/source.ts", "src/copy.ts"],
+                "evidence": [
+                    "changed clone member: src/source.ts::renderStatus",
+                    "unchanged clone sibling: src/copy.ts::renderStatus"
+                ],
+            })],
+            experimental_findings: Vec::new(),
+            missing_obligations: Vec::new(),
+            watchpoints: Vec::new(),
+            resolved_findings: Vec::new(),
+            changed_files: vec!["src/source.ts".to_string()],
+            changed_concepts: Vec::new(),
+            decision: Some("fail".to_string()),
+            summary: None,
+            confidence: json!({ "scan_confidence_0_10000": 9300 }),
+            scan_trust: json!({ "overall_confidence_0_10000": 9300 }),
+            freshness: json!({ "baseline_loaded": true }),
+            strict: Some(false),
+            limit: 3,
+        })
+        .expect("agent brief");
+
+        assert_eq!(brief["primary_target_count"], 1);
+        assert_eq!(
+            brief["primary_targets"][0]["kind"],
+            "clone_propagation_drift"
+        );
+        assert_eq!(
+            brief["primary_targets"][0]["repair_packet"]["required_fields"]["repair_surface"],
+            true
         );
     }
 }

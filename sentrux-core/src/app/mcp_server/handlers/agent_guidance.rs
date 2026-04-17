@@ -9,81 +9,142 @@ const INTRODUCED_DUPLICATE_PREFIX: &str = "introduced duplicate: ";
 const PREFERRED_OWNER_PREFIX: &str = "preferred owner: ";
 const CHANGED_CLONE_MEMBER_PREFIX: &str = "changed clone member: ";
 const UNCHANGED_CLONE_SIBLING_PREFIX: &str = "unchanged clone sibling: ";
+const BEST_CUT_CANDIDATE_PREFIX: &str = "best cut candidate: ";
+
+#[derive(Debug, Clone, Serialize)]
+pub(crate) struct RepairPacketRequiredFields {
+    pub(crate) risk_statement: bool,
+    pub(crate) repair_surface: bool,
+    pub(crate) first_cut: bool,
+    pub(crate) verification: bool,
+}
 
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct RepairPacket {
     pub(crate) risk_statement: String,
     pub(crate) likely_fix_sites: Vec<String>,
+    pub(crate) inspection_context: Vec<String>,
     pub(crate) smallest_safe_first_cut: Option<String>,
     pub(crate) verify_after: Vec<String>,
     pub(crate) do_not_touch_yet: Vec<String>,
     pub(crate) completeness_0_10000: u32,
+    pub(crate) complete: bool,
+    pub(crate) required_fields: RepairPacketRequiredFields,
+    pub(crate) missing_fields: Vec<String>,
 }
 
 pub(crate) fn repair_packet_for_finding(finding: &Value, kind: &str) -> RepairPacket {
-    let likely_fix_sites = likely_fix_sites_for_value(finding);
+    let likely_fix_sites = likely_fix_sites_for_value(finding, kind);
+    let inspection_context = inspection_context_for_finding(finding);
     let smallest_safe_first_cut = fix_hint_for_value(finding, kind);
     let risk_statement = finding_risk_statement(finding);
-    let verify_after = verify_after_for_kind(kind, &likely_fix_sites);
+    let verify_after = verify_after_for_kind(kind, &likely_fix_sites, &inspection_context);
     let do_not_touch_yet = do_not_touch_yet_for_kind(kind);
-    let completeness_0_10000 = repair_packet_completeness_0_10000(
+    let required_fields = repair_packet_required_fields(
+        !risk_statement.trim().is_empty(),
         !likely_fix_sites.is_empty(),
         smallest_safe_first_cut.is_some(),
         !verify_after.is_empty(),
-        !do_not_touch_yet.is_empty(),
     );
+    let missing_fields = repair_packet_missing_fields(&required_fields);
+    let completeness_0_10000 =
+        repair_packet_completeness_0_10000(&required_fields, !do_not_touch_yet.is_empty());
     RepairPacket {
         risk_statement,
         likely_fix_sites,
+        inspection_context,
         smallest_safe_first_cut,
         verify_after,
         do_not_touch_yet,
         completeness_0_10000,
+        complete: missing_fields.is_empty(),
+        required_fields,
+        missing_fields,
     }
 }
 
 pub(crate) fn repair_packet_for_obligation(obligation: &Value, kind: &str) -> RepairPacket {
     let likely_fix_sites = obligation_likely_fix_sites(obligation);
+    let inspection_context = inspection_context_for_obligation(obligation);
     let smallest_safe_first_cut = obligation_fix_hint(obligation, kind);
     let risk_statement = obligation_risk_statement(obligation, kind);
-    let verify_after = verify_after_for_kind(kind, &likely_fix_sites);
+    let verify_after = verify_after_for_kind(kind, &likely_fix_sites, &inspection_context);
     let do_not_touch_yet = do_not_touch_yet_for_kind(kind);
-    let completeness_0_10000 = repair_packet_completeness_0_10000(
+    let required_fields = repair_packet_required_fields(
+        !risk_statement.trim().is_empty(),
         !likely_fix_sites.is_empty(),
         smallest_safe_first_cut.is_some(),
         !verify_after.is_empty(),
-        !do_not_touch_yet.is_empty(),
     );
+    let missing_fields = repair_packet_missing_fields(&required_fields);
+    let completeness_0_10000 =
+        repair_packet_completeness_0_10000(&required_fields, !do_not_touch_yet.is_empty());
     RepairPacket {
         risk_statement,
         likely_fix_sites,
+        inspection_context,
         smallest_safe_first_cut,
         verify_after,
         do_not_touch_yet,
         completeness_0_10000,
+        complete: missing_fields.is_empty(),
+        required_fields,
+        missing_fields,
     }
 }
 
-fn repair_packet_completeness_0_10000(
+fn repair_packet_required_fields(
+    has_risk_statement: bool,
     has_fix_sites: bool,
     has_first_cut: bool,
     has_verify_after: bool,
+) -> RepairPacketRequiredFields {
+    RepairPacketRequiredFields {
+        risk_statement: has_risk_statement,
+        repair_surface: has_fix_sites,
+        first_cut: has_first_cut,
+        verification: has_verify_after,
+    }
+}
+
+fn repair_packet_missing_fields(required_fields: &RepairPacketRequiredFields) -> Vec<String> {
+    let mut missing_fields = Vec::new();
+    if !required_fields.risk_statement {
+        missing_fields.push("risk_statement".to_string());
+    }
+    if !required_fields.repair_surface {
+        missing_fields.push("repair_surface".to_string());
+    }
+    if !required_fields.first_cut {
+        missing_fields.push("first_cut".to_string());
+    }
+    if !required_fields.verification {
+        missing_fields.push("verification".to_string());
+    }
+    missing_fields
+}
+
+fn repair_packet_completeness_0_10000(
+    required_fields: &RepairPacketRequiredFields,
     has_do_not_touch_yet: bool,
 ) -> u32 {
-    let mut score = 2000;
-    if has_fix_sites {
+    let mut score = 0;
+    if required_fields.risk_statement {
         score += 2500;
     }
-    if has_first_cut {
+    if required_fields.repair_surface {
         score += 2500;
     }
-    if has_verify_after {
+    if required_fields.first_cut {
+        score += 2500;
+    }
+    if required_fields.verification {
         score += 2000;
     }
     if has_do_not_touch_yet {
-        score += 1000;
+        score += 500;
     }
-    score
+    score.min(10_000)
 }
 
 fn finding_risk_statement(finding: &Value) -> String {
@@ -110,12 +171,21 @@ fn obligation_risk_statement(_obligation: &Value, kind: &str) -> String {
         .to_string()
 }
 
-fn verify_after_for_kind(kind: &str, likely_fix_sites: &[String]) -> Vec<String> {
+fn verify_after_for_kind(
+    kind: &str,
+    likely_fix_sites: &[String],
+    inspection_context: &[String],
+) -> Vec<String> {
     let mut steps = Vec::new();
     if !likely_fix_sites.is_empty() {
         steps.push(format!(
             "Re-run `sentrux check` and confirm the lead issue clears for {}.",
             describe_list(likely_fix_sites)
+        ));
+    } else if !inspection_context.is_empty() {
+        steps.push(format!(
+            "Re-run `sentrux check` and confirm the lead issue clears around {}.",
+            describe_list(inspection_context)
         ));
     } else {
         steps.push(
@@ -310,8 +380,8 @@ fn string_array_values(finding: &Value, key: &str, limit: usize) -> Vec<String> 
         .unwrap_or_default()
 }
 
-fn likely_fix_sites_for_value(finding: &Value) -> Vec<String> {
-    let likely_fix_sites = finding
+fn likely_fix_sites_for_value(finding: &Value, kind: &str) -> Vec<String> {
+    let explicit_sites = finding
         .get("likely_fix_sites")
         .and_then(Value::as_array)
         .map(|sites| {
@@ -327,10 +397,30 @@ fn likely_fix_sites_for_value(finding: &Value) -> Vec<String> {
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default();
-    if !likely_fix_sites.is_empty() {
-        return likely_fix_sites;
+    if !explicit_sites.is_empty() {
+        return explicit_sites;
     }
 
+    match kind {
+        "large_file" | "dependency_sprawl" | "unstable_hotspot" | "hotspot" => {
+            finding_files(finding)
+                .into_iter()
+                .take(1)
+                .collect::<Vec<_>>()
+        }
+        "cycle_cluster" => cycle_cut_fix_sites(finding),
+        "session_introduced_clone" => session_introduced_clone_fix_sites(finding),
+        "clone_propagation_drift" => clone_propagation_drift_fix_sites(finding),
+        "touched_clone_family" => touched_clone_family_fix_sites(finding),
+        "authoritative_import_bypass" | "concept_boundary_pressure" => finding_files(finding)
+            .into_iter()
+            .take(1)
+            .collect::<Vec<_>>(),
+        _ => Vec::new(),
+    }
+}
+
+fn inspection_context_for_finding(finding: &Value) -> Vec<String> {
     finding_files(finding)
         .into_iter()
         .take(3)
@@ -338,7 +428,7 @@ fn likely_fix_sites_for_value(finding: &Value) -> Vec<String> {
 }
 
 fn obligation_likely_fix_sites(obligation: &Value) -> Vec<String> {
-    let likely_fix_sites = obligation
+    obligation
         .get("missing_sites")
         .and_then(Value::as_array)
         .map(|sites| {
@@ -359,11 +449,10 @@ fn obligation_likely_fix_sites(obligation: &Value) -> Vec<String> {
                 .take(5)
                 .collect::<Vec<_>>()
         })
-        .unwrap_or_default();
-    if !likely_fix_sites.is_empty() {
-        return likely_fix_sites;
-    }
+        .unwrap_or_default()
+}
 
+fn inspection_context_for_obligation(obligation: &Value) -> Vec<String> {
     obligation_files(obligation)
         .into_iter()
         .take(3)
@@ -377,6 +466,58 @@ fn describe_split_axes(split_axes: &[String]) -> String {
             .map(|split_axis| format!("the {split_axis}"))
             .collect::<Vec<_>>(),
     )
+}
+
+fn cycle_cut_fix_sites(finding: &Value) -> Vec<String> {
+    let Some(best_cut) = evidence_value_for_prefix(finding, BEST_CUT_CANDIDATE_PREFIX) else {
+        return Vec::new();
+    };
+    let Some((from, to)) = best_cut.split_once(" -> ") else {
+        return Vec::new();
+    };
+    vec![sanitize_fix_site(from), sanitize_fix_site(to)]
+}
+
+fn session_introduced_clone_fix_sites(finding: &Value) -> Vec<String> {
+    evidence_fix_sites(
+        finding,
+        &[INTRODUCED_DUPLICATE_PREFIX, PREFERRED_OWNER_PREFIX],
+    )
+}
+
+fn clone_propagation_drift_fix_sites(finding: &Value) -> Vec<String> {
+    evidence_fix_sites(
+        finding,
+        &[CHANGED_CLONE_MEMBER_PREFIX, UNCHANGED_CLONE_SIBLING_PREFIX],
+    )
+}
+
+fn touched_clone_family_fix_sites(finding: &Value) -> Vec<String> {
+    let fix_sites = clone_propagation_drift_fix_sites(finding);
+    if !fix_sites.is_empty() {
+        return fix_sites;
+    }
+
+    finding_files(finding)
+        .into_iter()
+        .take(2)
+        .collect::<Vec<_>>()
+}
+
+fn sanitize_fix_site(site: &str) -> String {
+    site.trim()
+        .split_once(" (")
+        .map(|(prefix, _)| prefix)
+        .unwrap_or(site.trim())
+        .to_string()
+}
+
+fn evidence_fix_sites(finding: &Value, prefixes: &[&str]) -> Vec<String> {
+    prefixes
+        .iter()
+        .filter_map(|prefix| evidence_value_for_prefix(finding, prefix))
+        .map(|site| sanitize_fix_site(&site))
+        .collect::<Vec<_>>()
 }
 
 fn describe_list(values: &[String]) -> String {
@@ -659,7 +800,16 @@ fn fix_hint_for_kind(kind: &str) -> Option<String> {
         "dependency_sprawl" => {
             "Extract a narrower facade or move behavior behind an existing module boundary."
         }
+        "authoritative_import_bypass" => {
+            "Route the caller back through the concept's canonical import surface instead of deep-importing the owner."
+        }
+        "concept_boundary_pressure" => {
+            "Move the shared concept access behind one owner before another sibling bypasses the same boundary."
+        }
         "unstable_hotspot" => "Stabilize the hotspot before adding more change pressure.",
+        "hotspot" => {
+            "Pull orchestration or side effects behind a narrower owner before adding more behavior here."
+        }
         "cycle_cluster" => "Cut the highest-leverage cycle seam first and re-run check.",
         "exact_clone_group" | "clone_group" | "clone_family" => {
             "Extract shared behavior or collapse the duplicated flow."
