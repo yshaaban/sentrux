@@ -65,7 +65,7 @@ Deliverables:
 - repair-oriented finding packets
 - promotion and demotion rules backed by public proof repos
 - release validation that matches the public product promise
-- parity fixtures that keep shared Rust/JS policy behavior from drifting
+- parity fixtures that keep shared Rust/JS policy tables and representative brief/report behavior from drifting
 
 Exit criteria:
 

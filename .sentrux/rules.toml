@@ -11,6 +11,7 @@ exclude = [
   ".sentrux/cache/**",
   "coverage/**",
   "docs/archive/**",
+  "docs/v2/examples/**",
   "node_modules/**",
   "target/**",
 ]

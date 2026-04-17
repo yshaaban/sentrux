@@ -144,24 +144,31 @@ New repo-specific defects should go into a repo-specific module, not back into t
 
 ## Parity Contract
 
-Shared-policy parity is enforced through fixture-driven tests.
+Shared-policy parity is enforced through fixture-driven tests. The contract has two layers:
+
+- static policy parity for score bands, action weights, and report ordering inputs
+- representative behavior parity for brief and report-selection outcomes that are supposed to stay aligned across Rust and JS
 
 Current fixture location:
 
 - [shared-policy.json](/home/yrsh/sentrux/scripts/tests/fixtures/policy-parity/shared-policy.json)
+- [behavior-parity.json](/home/yrsh/sentrux/scripts/tests/fixtures/policy-parity/behavior-parity.json)
 
 Current test consumers:
 
 - [signal-policy.test.mjs](/home/yrsh/sentrux/scripts/tests/signal-policy.test.mjs)
 - [signal_policy.rs](/home/yrsh/sentrux/sentrux-core/src/app/mcp_server/handlers/signal_policy.rs)
+- [v2-report-selection.test.mjs](/home/yrsh/sentrux/scripts/tests/v2-report-selection.test.mjs)
+- [tests.rs](/home/yrsh/sentrux/sentrux-core/src/app/mcp_server/agent_brief/tests.rs)
 
 If you change:
 
 - score-band thresholds
 - action-weight defaults
 - report ordering
+- representative brief/report ordering behavior
 
-you must update the shared policy file and the shared parity fixture together.
+you must update the shared policy file and the shared parity fixtures together.
 
 ## Maintainer Rules
 
@@ -179,5 +186,5 @@ This architecture is considered healthy only when:
 
 - self-onboarding no longer leads with unfinished refactor hotspots
 - remaining eval-runner duplication is below the surfaced watchpoint threshold
-- shared policy parity tests are green in Rust and JS
+- shared policy and representative behavior parity tests are green in Rust and JS
 - docs still match the live module layout
