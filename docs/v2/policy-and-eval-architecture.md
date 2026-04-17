@@ -114,6 +114,8 @@ Shared benchmark and session-health helpers live under:
 - [benchmark-harness.mjs](/home/yrsh/sentrux/scripts/lib/benchmark-harness.mjs)
 - [session-health-schema.mjs](/home/yrsh/sentrux/scripts/lib/session-health-schema.mjs)
 - [signal-scorecard-evidence.mjs](/home/yrsh/sentrux/scripts/lib/signal-scorecard-evidence.mjs)
+- [session-corpus.mjs](/home/yrsh/sentrux/scripts/lib/session-corpus.mjs)
+- [evidence-review.mjs](/home/yrsh/sentrux/scripts/lib/evidence-review.mjs)
 
 Entry scripts should only do these jobs:
 
@@ -124,6 +126,20 @@ Entry scripts should only do these jobs:
 - exit with the correct status
 
 They should not keep large blocks of reusable artifact or summary logic inline.
+
+The evaluation ownership stack now has four distinct layers:
+
+- session telemetry: repo-local MCP event log summarized into generic convergence and follow-up metrics
+- signal scorecard: per-signal calibration evidence across seeded, reviewed, remediation, and session surfaces
+- session corpus: normalized live/replay session outcomes with propagation and clone follow-through interpretation
+- evidence review: weekly promotion/demotion/ranking review built from scorecard, backlog, and session corpus
+
+Do not collapse those layers back into one file. The intent is:
+
+- telemetry stays generic and family-agnostic
+- scorecard stays signal-centric
+- session corpus owns per-session outcome interpretation
+- evidence review owns weekly prioritization summaries
 
 ## Defect Injection Boundaries
 

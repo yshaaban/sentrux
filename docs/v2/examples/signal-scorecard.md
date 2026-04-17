@@ -1,7 +1,7 @@
 # Signal Quality Scorecard
 
 - repo: `self-repo`
-- generated at: `2026-04-17T23:13:43.440Z`
+- generated at: `2026-04-17T23:43:33.489Z`
 - signals: 1
 - trusted: 0
 - watchpoint: 0
@@ -20,6 +20,13 @@
 - ranking preference satisfaction: n/a
 - primary-target policy: insufficient evidence
 - thrashing sessions: 0
+- top-action sessions: 0
+- agent clear rate: n/a
+- follow-up regression session rate: n/a
+- regression-after-fix rate: n/a
+- session clean rate: n/a
+- session thrash rate: n/a
+- average checks to clear: n/a
 - average entropy delta: n/a
 
 | Signal | Family | Status | Primary Lane | Seeded Recall | Primary Recall | Reviewed Precision | Noise Rate | Remediation Success | Trials | Top Action Sessions | Trial Miss Rate | Top Action Clear | Regression Rate | Session Clean Rate | Thrash Rate | Avg Entropy Delta | Avg Checks To Clear | Latency | Recommendation |

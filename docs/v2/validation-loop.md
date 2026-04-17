@@ -19,6 +19,7 @@ The loop validates the full v2 proof loop across these areas:
 7. fast-path `check` coverage and ranked action quality
 8. external evaluator calibration for agent guidance and experimental detectors
 9. remediation success on seeded defects
+10. real-session corpus and weekly evidence review for ranking, propagation, clone, and thrash outcomes
 
 ## Commands
 
@@ -247,6 +248,7 @@ The maintained tracking surfaces for that loop are:
 - [parallel-code head proof snapshot](./examples/parallel-code-head-proof-snapshot.md)
 - [parallel-code review verdicts](./examples/parallel-code-review-verdicts.md)
 - [parallel-code engineer report](./examples/parallel-code-live-engineer-report.md)
+- repo-local session corpus and evidence review artifacts under `.sentrux/evals/<repo>/`
 
 Maintainer feedback verdicts are tracked in [parallel-code-review-verdicts.json](./examples/parallel-code-review-verdicts.json) and summarized by [summarize_parallel_code_review_feedback.mjs](../../scripts/summarize_parallel_code_review_feedback.mjs).
 
@@ -436,6 +438,10 @@ Current metric contract to keep in mind when reading the scorecard:
 
 - `review_noise_rate` means reviewed false positives plus inconclusive cases over reviewed samples
 - `top_1_actionable_precision`, `top_3_actionable_precision`, and `top_10_actionable_precision` mean the share of reviewed findings in those ranked slots that were still actionable (`useful` or `useful_watchpoint`) after human review
+- `agent_clear_rate` means the share of top-action sessions where the top action actually cleared
+- `session_clean_rate` means the share of top-action sessions that ended clean after the session finished, which is intentionally stricter than just clearing the initial top action
+- `regression_after_fix_rate` means the share of top-action sessions where the initially-cleared action reopened later in the same session
+- `propagation_escape_rate` and `clone_followthrough_escape_rate` come from the normalized session corpus rather than raw telemetry because they require family-specific session interpretation
 - `ranking_preference_satisfaction_rate` means the share of explicit `preferred_over` comparisons that the reviewed order actually satisfied
 - `top_action_clear_rate` means sessions where the initial top action cleared over sessions where that signal surfaced as the top action
 - `followup_regression_rate` means follow-up checks that introduced new signal kinds over all follow-up checks for that signal

@@ -24,7 +24,7 @@ Current strategic emphasis:
 
 - improve top-finding quality before expanding analyzer breadth
 - make primary findings more fixable
-- govern promotion through public-safe proof, remediation evidence, and session telemetry
+- govern promotion through public-safe proof, remediation evidence, session telemetry, and a normalized session-corpus / weekly evidence-review loop
 - finish release credibility on the public path
 
 ## Strategy

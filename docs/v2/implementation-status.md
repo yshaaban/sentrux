@@ -93,6 +93,7 @@ The strongest completed work is:
 - review-packet builder, remediation-eval runner, and per-signal scorecard tooling
 - repo-local MCP session telemetry with session-summary generation and calibration-run wiring
 - disposable-clone Codex task capture and historical diff replay now feed the same session-telemetry and scorecard loop
+- normalized session-corpus artifacts and weekly evidence-review synthesis now sit on top of the live/replay calibration outputs
 - cohort-driven batch Codex capture, batch diff replay, and signal-backlog synthesis now exist for continuous calibration
 - checked-in repo calibration manifests, batch manifests, prompt files, and review-verdict schema/template now exist for `parallel-code`, `one-tool`, and `sentrux`
 - one-command repo calibration orchestration now exists through `run-repo-calibration-loop.mjs`

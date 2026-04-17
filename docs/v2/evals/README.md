@@ -18,6 +18,8 @@ Goals:
 - `review-verdicts.template.json` - starter verdict file for new repos
 - `codex-session-batch.schema.json` - schema for batch Codex task capture manifests
 - `diff-replay-batch.schema.json` - schema for batch replay manifests
+- `session-corpus.schema.json` - schema for normalized live/replay session evidence
+- `evidence-review.schema.json` - schema for the weekly evidence review artifact
 - `scenario.schema.json` - task/scenario schema
 - `result.schema.json` - result schema emitted by the runner
 - `repos/parallel-code.json` - checked-in calibration manifest for the repo configured by `PARALLEL_CODE_ROOT`
@@ -130,10 +132,12 @@ Supporting scripts now cover:
   Run a full external-repo validation pass, capture the raw MCP payloads plus reusable review packets, and emit both a Sentrux-facing `REPORT.md` and a repo-engineer-facing `ENGINEERING_REPORT.md` in one output directory.
 - `node scripts/evals/build-session-telemetry-summary.mjs --repo-root /path/to/repo`
   Summarize the repo-local `.sentrux/agent-session-events.jsonl` stream into per-session and per-signal resolution metrics.
+- `node scripts/evals/build-session-corpus.mjs`
+  Normalize live Codex task capture, replay runs, and merged telemetry into one session-evidence corpus with outcome buckets, propagation/clone focus areas, and a ranked review queue.
 - `node scripts/evals/run-codex-session.mjs --source-root /path/to/repo --task-file task.txt`
   Run a real Codex CLI task inside a disposable clone, capture intermediate `check` snapshots, and bundle the resulting session telemetry and outcome summary.
 - `node scripts/evals/run-codex-session-batch.mjs --manifest batch.json`
-  Run a cohort-oriented batch of real Codex tasks, keep failed or timed-out task metadata visible in the batch index, and merge any captured telemetry from those runs into the shared session summary.
+  Run a cohort-oriented batch of real Codex tasks, keep failed or timed-out task metadata visible in the batch index, and merge any captured telemetry from those runs into the shared session summary. Tasks can now also carry `experiment_arm`, `session_goal`, and `success_criteria` metadata so intervention experiments stay attached to the captured sessions.
 - `node scripts/evals/run-diff-replay.mjs --source-root /path/to/repo --commit <sha>`
   Reconstruct a before/after session from a real git commit by checking out the parent revision in a disposable clone, applying the patch, and recording the resulting `check` / `session_end` artifacts.
 - `node scripts/evals/run-diff-replay-batch.mjs --manifest replay-batch.json`
@@ -144,6 +148,8 @@ Supporting scripts now cover:
   Merge defect-injection results, reviewed verdicts, remediation outcomes, session telemetry, and benchmark latency into a per-signal scorecard. The scorecard now keeps explicit review-noise, top-action-clear, follow-up regression, evidence-coverage, top-1/top-3/top-10 actionable precision, and ranking-preference-satisfaction metrics so weak signals can be distinguished from under-instrumented ones and from findings that are true but misranked. When the benchmark artifact includes repeated samples, the scorecard consumes the authoritative top-level `benchmark` timings, so median-aggregated latency evidence flows through without extra wiring.
 - `node scripts/evals/build-signal-backlog.mjs`
   Combine the active cohort, scorecard, and live/replay batch outputs into a weak-signal and false-negative backlog. Candidate ordering now exposes an explicit priority score that weights live misses above replay misses and keeps regression follow-through pressure visible. Configured next candidates stay queued, but the recommended next signal now requires positive evidence instead of defaulting to a zero-score placeholder.
+- `node scripts/evals/build-evidence-review.mjs`
+  Combine the scorecard, backlog, session corpus, and optional review packet into one weekly evidence review artifact that highlights promotion candidates, demotion candidates, ranking misses, propagation/clone failures, and experiment-arm outcomes.
 - `node scripts/evals/run-signal-calibration.mjs`
   Build the session telemetry summary and the refreshed scorecard together for the current repo or benchmark artifact set. When explicit live/replay batch paths are omitted, the script now reuses the latest repo-calibration-loop batch artifacts for the same repo so stable self-eval scorecards do not silently lose session-trial evidence; when a cohort is available it also refreshes the backlog in the same pass.
 
@@ -182,6 +188,13 @@ All three lanes should feed the same scorecard inputs instead of creating separa
 
 Use checked-in `docs/v2/examples/` artifacts only for intentionally promoted reference runs.
 
+The weekly evidence loop should treat the session corpus as the canonical per-run outcome surface:
+
+- scorecards answer “is this signal worth trusting and ranking highly?”
+- backlog artifacts answer “what signal family is underperforming next?”
+- session corpus answers “what actually happened in live and replay sessions?”
+- evidence review answers “what should we promote, demote, or experiment on next week?”
+
 The checked-in live Codex batch manifests default to `analysis_mode: "working_tree"` so the real-work lane includes local uncommitted changes. Use `head_clone` only when you intentionally want a committed-HEAD calibration run.
 
 The checked-in replay batch manifests use explicit commit lists rather than broad `HEAD~N..HEAD` ranges. That keeps the default replay lane focused on code-rich commits and avoids letting docs-only churn dominate the backlog with low-value `large_file` noise.
@@ -198,7 +211,9 @@ The recommended operating model is:
 6. record verdicts with `review-verdicts.template.json` or the repo-specific verdict file
    When a repo only has the generic template, the loop can bootstrap a provisional repo-local verdict file from the latest review packet so scorecard precision coverage is not empty by default. Keep verdict order rank-preserving: top-1/top-3/top-10 actionable precision is computed from verdict order, not from scope-name sorting.
 7. build a refreshed scorecard
-8. build a backlog with `build-signal-backlog.mjs`
+8. build a session corpus with `build-session-corpus.mjs`
+9. build a backlog with `build-signal-backlog.mjs`
+10. build the weekly evidence review with `build-evidence-review.mjs`
 
 That keeps the current trusted/watchpoint candidates, the real-session evidence, and the “what should we build next?” report on one shared set of artifacts.
 
