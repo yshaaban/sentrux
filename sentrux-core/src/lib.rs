@@ -26,6 +26,7 @@ pub mod layout;
 pub mod license;
 pub mod metrics;
 pub mod renderer;
+pub(crate) mod string_enum;
 
 #[cfg(test)]
 pub mod test_support;

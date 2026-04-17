@@ -40,6 +40,30 @@ const FINDINGS_LIMIT_MAX: usize = 50;
 const FINDINGS_CLONE_SUPPORT_LIMIT: usize = 10;
 const FINDINGS_DEBT_SUPPORT_LIMIT: usize = 5;
 
+pub(crate) fn filter_structural_reports_by_rules(
+    reports: Vec<crate::metrics::v2::StructuralDebtReport>,
+    config: &RulesConfig,
+) -> Vec<crate::metrics::v2::StructuralDebtReport> {
+    reports
+        .into_iter()
+        .filter(|report| {
+            report.files.is_empty()
+                || report
+                    .files
+                    .iter()
+                    .any(|path| !project_path_is_excluded(config, path))
+        })
+        .collect()
+}
+
+fn project_path_is_excluded(config: &RulesConfig, path: &str) -> bool {
+    config
+        .project
+        .exclude
+        .iter()
+        .any(|pattern| crate::metrics::rules::glob_match(pattern, path) || pattern == path)
+}
+
 mod agent_format;
 mod agent_guidance;
 mod agent_ranking;
@@ -468,10 +492,12 @@ fn build_session_v2_baseline(
         crate::metrics::v2::ObligationScope::All,
         &BTreeSet::new(),
     );
-    let structural_reports =
-        crate::metrics::v2::build_structural_debt_reports_with_root(root, snapshot, health);
-    let all_finding_values = combined_other_finding_values(&semantic_findings, &structural_reports);
     let (config, _) = load_v2_rules_config(state, root);
+    let structural_reports = filter_structural_reports_by_rules(
+        crate::metrics::v2::build_structural_debt_reports_with_root(root, snapshot, health),
+        &config,
+    );
+    let all_finding_values = combined_other_finding_values(&semantic_findings, &structural_reports);
     let suppression_application = apply_suppressions(
         &config,
         finding_values(&clone_payload.exact_findings, &all_finding_values),

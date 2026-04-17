@@ -1,5 +1,9 @@
 use super::obligations_domain::concept_rule_paths;
-use super::{ObligationReport, ObligationScope, ObligationSite};
+use super::{
+    obligation_report_confidence, obligation_report_origin, obligation_report_score,
+    obligation_report_severity, obligation_report_trust_tier, ObligationReport, ObligationScope,
+    ObligationSite,
+};
 use crate::analysis::semantic::SemanticSnapshot;
 use crate::metrics::rules::{self, ContractRule, RulesConfig};
 use crate::metrics::testgap::is_test_file;
@@ -72,12 +76,20 @@ pub(super) fn build_contract_obligation(
 
     let summary =
         contract_obligation_summary(contract, &trigger_paths, changed_files, &missing_sites);
+    let origin = obligation_report_origin(true);
+    let severity =
+        obligation_report_severity("contract_surface_completeness", origin, missing_sites.len());
 
     Some(ObligationReport {
         id: format!("contract::{}", contract.id),
         kind: "contract_surface_completeness".to_string(),
         concept_id: Some(contract.id.clone()),
         domain_symbol_name: None,
+        origin,
+        trust_tier: obligation_report_trust_tier(origin),
+        confidence: obligation_report_confidence(origin),
+        severity,
+        score_0_10000: obligation_report_score(severity, origin, missing_sites.len()),
         summary,
         files: files.into_iter().collect(),
         required_sites: required_sites.clone(),

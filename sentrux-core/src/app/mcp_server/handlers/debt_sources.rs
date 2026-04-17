@@ -53,7 +53,9 @@ pub(crate) fn build_debt_report_outputs(
         allow_cold_evolution,
     );
     let concept_summaries = build_concept_debt_summaries(findings, obligations);
-    let structural_reports = structural_reports_for_scope(root, snapshot, health, extra_files);
+    let (rules_config, _) = load_v2_rules_config(state, root);
+    let structural_reports =
+        structural_reports_for_scope(root, snapshot, health, &rules_config, extra_files);
     let all_debt_signals = collect_debt_signals(
         &concept_summaries,
         &structural_reports,
@@ -150,10 +152,13 @@ pub(crate) fn structural_reports_for_scope(
     root: &Path,
     snapshot: &Snapshot,
     health: &metrics::HealthReport,
+    rules_config: &crate::metrics::rules::RulesConfig,
     scope_files: &BTreeSet<String>,
 ) -> Vec<crate::metrics::v2::StructuralDebtReport> {
-    let reports =
-        crate::metrics::v2::build_structural_debt_reports_with_root(root, snapshot, health);
+    let reports = filter_structural_reports_by_rules(
+        crate::metrics::v2::build_structural_debt_reports_with_root(root, snapshot, health),
+        rules_config,
+    );
     if scope_files.is_empty() {
         return reports;
     }

@@ -1,10 +1,13 @@
 use super::obligations_contract::path_matches;
+use super::{
+    obligation_report_confidence, obligation_report_origin, obligation_report_score,
+    obligation_report_severity, obligation_report_trust_tier, ObligationReport, ObligationScope,
+    ObligationSite,
+};
 use crate::analysis::semantic::{ClosedDomain, ExhaustivenessSite, SemanticSnapshot};
 use crate::metrics::rules::ConceptRule;
 use crate::metrics::testgap::is_test_file;
-use crate::metrics::v2::{
-    concept_targets, symbol_matches_targets, ObligationReport, ObligationScope, ObligationSite,
-};
+use crate::metrics::v2::{concept_targets, symbol_matches_targets};
 use std::collections::{BTreeSet, HashSet};
 
 const MAX_ZERO_CONFIG_DOMAIN_VARIANTS: usize = 16;
@@ -159,6 +162,12 @@ pub(super) fn build_domain_obligation(
     let missing_sites = coverage.missing_sites.into_iter().collect::<Vec<_>>();
     let missing_variants = coverage.missing_variants.into_iter().collect::<Vec<_>>();
     let files = coverage.files.into_iter().collect::<Vec<_>>();
+    let origin = obligation_report_origin(concept.is_some());
+    let severity = obligation_report_severity(
+        "closed_domain_exhaustiveness",
+        origin,
+        missing_variants.len(),
+    );
     let summary_label = concept
         .map(|concept| concept.id.as_str())
         .unwrap_or(domain.symbol_name.as_str());
@@ -170,6 +179,11 @@ pub(super) fn build_domain_obligation(
         kind: "closed_domain_exhaustiveness".to_string(),
         concept_id: concept.map(|concept| concept.id.clone()),
         domain_symbol_name: Some(domain.symbol_name.clone()),
+        origin,
+        trust_tier: obligation_report_trust_tier(origin),
+        confidence: obligation_report_confidence(origin),
+        severity,
+        score_0_10000: obligation_report_score(severity, origin, missing_sites.len()),
         summary: obligation_summary(summary_label, domain, &missing_sites, &missing_variants),
         context_burden: required_sites.len(),
         files,

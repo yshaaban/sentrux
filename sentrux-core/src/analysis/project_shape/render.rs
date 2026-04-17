@@ -1,5 +1,4 @@
-use super::{ModuleContractSuggestion, ProjectShapeReport};
-use std::collections::BTreeSet;
+use super::{dedupe_strings, ModuleContractSuggestion, ProjectShapeReport};
 
 pub(super) fn render_starter_rules(
     shape: &ProjectShapeReport,
@@ -124,15 +123,4 @@ fn quoted_list(values: &[String]) -> String {
         .map(|value| format!("{value:?}"))
         .collect::<Vec<_>>()
         .join(", ")
-}
-
-fn dedupe_strings(values: Vec<String>) -> Vec<String> {
-    let mut seen = BTreeSet::new();
-    let mut deduped = Vec::new();
-    for value in values {
-        if seen.insert(value.clone()) {
-            deduped.push(value);
-        }
-    }
-    deduped
 }

@@ -10,6 +10,7 @@ mod tests;
 use super::FindingSeverity;
 use crate::metrics::evolution::EvolutionReport;
 use crate::metrics::DuplicateGroup;
+use crate::string_enum::impl_str_enum;
 use family_support::{build_clone_family_summaries, prioritize_clone_findings};
 use group_support::{clone_drift_finding, compare_clone_findings};
 
@@ -81,15 +82,11 @@ pub enum RemediationPriority {
     High,
 }
 
-impl RemediationPriority {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Low => "low",
-            Self::Medium => "medium",
-            Self::High => "high",
-        }
-    }
-}
+impl_str_enum!(RemediationPriority {
+    Low => "low",
+    Medium => "medium",
+    High => "high",
+});
 
 #[derive(Debug, Clone, serde::Serialize, Default)]
 pub struct CloneRemediationHint {

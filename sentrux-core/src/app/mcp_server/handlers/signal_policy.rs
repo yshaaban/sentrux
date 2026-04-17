@@ -94,11 +94,11 @@ fn order_rank(order: &[String], class_name: &str) -> usize {
 
 #[cfg(test)]
 mod tests {
-    use serde::Deserialize;
     use super::{
         action_kind_weight, action_leverage_weight, action_presentation_weight,
         report_leverage_rank, report_presentation_rank, score_band_label,
     };
+    use serde::Deserialize;
 
     #[derive(Debug, Deserialize)]
     struct SharedPolicyFixture {

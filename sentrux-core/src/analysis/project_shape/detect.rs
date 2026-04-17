@@ -1,4 +1,4 @@
-use super::{boundaries, ProjectArchetypeMatch, ProjectShapeReport};
+use super::{boundaries, dedupe_strings, ProjectArchetypeMatch, ProjectShapeReport};
 use std::collections::BTreeSet;
 use std::path::Path;
 
@@ -351,17 +351,6 @@ fn dedupe_archetypes(values: Vec<ProjectArchetypeMatch>) -> Vec<ProjectArchetype
     let mut deduped = Vec::new();
     for value in values {
         if seen.insert(value.id.clone()) {
-            deduped.push(value);
-        }
-    }
-    deduped
-}
-
-fn dedupe_strings(values: Vec<String>) -> Vec<String> {
-    let mut seen = BTreeSet::new();
-    let mut deduped = Vec::new();
-    for value in values {
-        if seen.insert(value.clone()) {
             deduped.push(value);
         }
     }

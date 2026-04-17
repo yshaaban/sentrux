@@ -11,6 +11,7 @@ pub mod concepts;
 pub mod entry_points;
 pub mod git;
 pub mod graph;
+pub(crate) mod guardrail_tests;
 pub mod inferred_rules;
 pub mod lang_registry;
 pub mod parser;

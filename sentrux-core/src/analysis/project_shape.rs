@@ -4,6 +4,7 @@
 //! to common TypeScript repo families without hardcoding repo names.
 
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
 use std::path::Path;
 
 #[path = "project_shape/boundaries.rs"]
@@ -74,4 +75,15 @@ pub fn render_working_rules(
     existing_excludes: &[String],
 ) -> String {
     render::render_working_rules(shape, primary_language, existing_excludes)
+}
+
+pub(super) fn dedupe_strings(values: Vec<String>) -> Vec<String> {
+    let mut seen = BTreeSet::new();
+    let mut deduped = Vec::new();
+    for value in values {
+        if seen.insert(value.clone()) {
+            deduped.push(value);
+        }
+    }
+    deduped
 }

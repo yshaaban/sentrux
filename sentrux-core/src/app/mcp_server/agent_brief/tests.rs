@@ -1,5 +1,22 @@
 use super::{build_agent_brief, AgentBriefInput, AgentBriefMode};
-use serde_json::json;
+use serde_json::{json, Value};
+
+fn behavior_parity_fixture() -> Value {
+    serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../scripts/tests/fixtures/policy-parity/behavior-parity.json"
+    )))
+    .expect("behavior parity fixture")
+}
+
+fn mode_from_fixture(value: &str) -> AgentBriefMode {
+    match value {
+        "repo_onboarding" => AgentBriefMode::RepoOnboarding,
+        "patch" => AgentBriefMode::Patch,
+        "pre_merge" => AgentBriefMode::PreMerge,
+        other => panic!("unsupported brief mode fixture: {other}"),
+    }
+}
 
 #[test]
 fn onboarding_brief_prioritizes_trusted_findings_and_starter_rules() {
@@ -280,6 +297,97 @@ fn onboarding_brief_demotes_raw_clone_groups_below_more_fixable_targets() {
         .expect("primary targets")
         .iter()
         .all(|target| target["kind"] != "exact_clone_group"));
+}
+
+#[test]
+fn shared_behavior_fixtures_keep_representative_primary_targets_stable() {
+    let fixture = behavior_parity_fixture();
+    let cases = fixture["rust_brief_cases"]
+        .as_array()
+        .expect("rust brief cases");
+
+    for case in cases {
+        let brief = build_agent_brief(AgentBriefInput {
+            mode: mode_from_fixture(case["mode"].as_str().expect("brief mode")),
+            repo_shape: json!({
+                "primary_archetype": "react_frontend",
+                "effective_archetypes": ["react_frontend"],
+                "boundary_roots": [],
+                "starter_rules_toml": null,
+            }),
+            findings: case["findings"].as_array().expect("findings").to_vec(),
+            experimental_findings: Vec::new(),
+            missing_obligations: case["missing_obligations"]
+                .as_array()
+                .expect("missing obligations")
+                .to_vec(),
+            watchpoints: case["watchpoints"]
+                .as_array()
+                .expect("watchpoints")
+                .to_vec(),
+            resolved_findings: Vec::new(),
+            changed_files: case["changed_files"]
+                .as_array()
+                .expect("changed files")
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::to_string)
+                .collect(),
+            changed_concepts: case["changed_concepts"]
+                .as_array()
+                .expect("changed concepts")
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::to_string)
+                .collect(),
+            decision: case["decision"].as_str().map(str::to_string),
+            summary: None,
+            confidence: json!({ "scan_confidence_0_10000": 9000 }),
+            scan_trust: json!({ "overall_confidence_0_10000": 9000 }),
+            freshness: json!({ "baseline_loaded": true }),
+            strict: case["strict"].as_bool(),
+            limit: case["limit"].as_u64().expect("limit") as usize,
+        })
+        .expect("agent brief");
+
+        let expected_scopes = case["expected_primary_scopes"]
+            .as_array()
+            .expect("expected scopes")
+            .iter()
+            .filter_map(Value::as_str)
+            .map(str::to_string)
+            .collect::<Vec<_>>();
+        let expected_kinds = case["expected_primary_kinds"]
+            .as_array()
+            .expect("expected kinds")
+            .iter()
+            .filter_map(Value::as_str)
+            .map(str::to_string)
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            brief["primary_targets"]
+                .as_array()
+                .expect("primary targets")
+                .iter()
+                .map(|target| target["scope"].as_str().expect("target scope").to_string())
+                .collect::<Vec<_>>(),
+            expected_scopes,
+            "{}",
+            case["name"].as_str().expect("case name"),
+        );
+        assert_eq!(
+            brief["primary_targets"]
+                .as_array()
+                .expect("primary targets")
+                .iter()
+                .map(|target| target["kind"].as_str().expect("target kind").to_string())
+                .collect::<Vec<_>>(),
+            expected_kinds,
+            "{}",
+            case["name"].as_str().expect("case name"),
+        );
+    }
 }
 
 #[test]

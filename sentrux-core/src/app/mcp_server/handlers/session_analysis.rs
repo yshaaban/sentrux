@@ -127,12 +127,15 @@ pub(crate) fn build_patch_safety_analysis(
         bundle.health.duplicate_groups.len(),
         allow_cold_evolution,
     );
-    let structural_reports = crate::metrics::v2::build_structural_debt_reports_with_root(
-        root,
-        &bundle.snapshot,
-        &bundle.health,
-    );
     let (rules_config, rules_error) = load_v2_rules_config(state, root);
+    let structural_reports = filter_structural_reports_by_rules(
+        crate::metrics::v2::build_structural_debt_reports_with_root(
+            root,
+            &bundle.snapshot,
+            &bundle.health,
+        ),
+        &rules_config,
+    );
     let semantic = match analyze_patch_safety_semantic_snapshot(state, root) {
         Ok(semantic) => semantic,
         Err(error) => {

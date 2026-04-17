@@ -1,8 +1,8 @@
 //! Explicit concept graph extraction from v2 rules.
 
+use crate::analysis::guardrail_tests::walk_guardrail_test_sources;
 use crate::analysis::semantic::SemanticSnapshot;
 use crate::metrics::rules::{ConceptRule, ContractRule, RulesConfig, StateModelRule};
-use ignore::WalkBuilder;
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::Path;
 
@@ -90,28 +90,9 @@ pub fn detect_guardrail_tests(root: &Path, config: &RulesConfig) -> Vec<Guardrai
             (concept.id.as_str(), symbols, concept.related_tests.clone())
         })
         .collect::<Vec<_>>();
-    let mut evidence = WalkBuilder::new(root)
-        .hidden(true)
-        .git_ignore(true)
-        .git_global(true)
-        .git_exclude(true)
-        .build()
-        .filter_map(Result::ok)
-        .filter_map(|entry| {
-            let path = entry.into_path();
-            if !path.is_file() {
-                return None;
-            }
-            let relative_path = path
-                .strip_prefix(root)
-                .ok()?
-                .to_string_lossy()
-                .replace('\\', "/");
-            if !is_guardrail_test_path(&relative_path) {
-                return None;
-            }
-
-            let contents = std::fs::read_to_string(&path).ok()?;
+    let mut evidence = walk_guardrail_test_sources(root)
+        .into_iter()
+        .map(|(relative_path, contents)| {
             let mut matched_concepts = BTreeSet::new();
             let mut matched_symbols = BTreeSet::new();
             for (concept_id, symbols, related_tests) in &concept_symbols {
@@ -135,6 +116,7 @@ pub fn detect_guardrail_tests(root: &Path, config: &RulesConfig) -> Vec<Guardrai
                 matched_symbols: matched_symbols.into_iter().collect(),
             })
         })
+        .flatten()
         .collect::<Vec<_>>();
     evidence.sort_by(|left, right| left.path.cmp(&right.path));
     evidence
@@ -403,13 +385,6 @@ fn infer_concept_id(symbol_name: &str) -> String {
     }
 
     id.trim_matches('_').to_string()
-}
-
-fn is_guardrail_test_path(path: &str) -> bool {
-    path.ends_with(".architecture.test.ts")
-        || path.ends_with(".architecture.test.tsx")
-        || path.ends_with(".architecture.spec.ts")
-        || path.ends_with(".architecture.spec.tsx")
 }
 
 fn is_store_like_symbol(symbol_name: &str) -> bool {

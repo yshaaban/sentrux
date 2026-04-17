@@ -137,10 +137,13 @@ fn build_findings_review_surface(
         crate::metrics::v2::ObligationScope::All,
         &BTreeSet::new(),
     );
-    let structural_reports = crate::metrics::v2::build_structural_debt_reports_with_root(
-        &context.root,
-        &context.snapshot,
-        &context.health,
+    let structural_reports = filter_structural_reports_by_rules(
+        crate::metrics::v2::build_structural_debt_reports_with_root(
+            &context.root,
+            &context.snapshot,
+            &context.health,
+        ),
+        &rules_config,
     );
     let merged_findings = merge_findings(
         clone_payload.prioritized_findings.clone(),

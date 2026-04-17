@@ -1,7 +1,8 @@
 use super::agent_format::{
-    actions_from_issues, compare_agent_issues, to_agent_issue, AgentIssue, IssueConfidence,
-    IssueOrigin, IssueSource, RepairPacket,
+    actions_from_issues, compare_agent_issues, obligation_value_to_agent_issue, to_agent_issue,
+    AgentIssue, IssueConfidence, IssueOrigin, IssueSource, RepairPacket,
 };
+use super::check::obligation_issue_value;
 use super::test_support::{
     append_session_clone_watchpoint_note, commit_all, init_git_repo, temp_root,
     write_contract_propagation_fixture_files, write_file, write_session_clone_duplicate,
@@ -11,8 +12,11 @@ use super::test_support::{
 use super::{fresh_mcp_state, handle_check, handle_scan, handle_session_start};
 use crate::analysis::project_shape::{ModuleContractSuggestion, ProjectShapeReport};
 use crate::license::Tier;
-use crate::metrics::v2::FindingSeverity;
-use serde_json::json;
+use crate::metrics::v2::{
+    FindingSeverity, ObligationConfidence, ObligationOrigin, ObligationReport, ObligationSite,
+    ObligationTrustTier,
+};
+use serde_json::{json, Value};
 use std::fs;
 
 fn test_issue(
@@ -589,6 +593,42 @@ fn zero_config_boundary_findings_default_to_medium_confidence() {
 
     assert_eq!(issue.origin, IssueOrigin::ZeroConfig);
     assert_eq!(issue.confidence, IssueConfidence::Medium);
+}
+
+#[test]
+fn check_preserves_closed_domain_obligation_metadata_without_fabricating_concept_ids() {
+    let value = obligation_issue_value(&ObligationReport {
+        id: "closed-domain-task-presentation-status".to_string(),
+        kind: "closed_domain_exhaustiveness".to_string(),
+        concept_id: None,
+        domain_symbol_name: Some("TaskPresentationStatus".to_string()),
+        origin: ObligationOrigin::ZeroConfig,
+        trust_tier: ObligationTrustTier::Watchpoint,
+        confidence: ObligationConfidence::Medium,
+        severity: FindingSeverity::High,
+        score_0_10000: 8_700,
+        summary: "Domain 'TaskPresentationStatus' still needs exhaustive handling.".to_string(),
+        files: vec!["src/app/task-presentation-status.ts".to_string()],
+        required_sites: Vec::new(),
+        satisfied_sites: Vec::new(),
+        missing_sites: vec![ObligationSite {
+            path: "src/app/task-presentation-status.ts".to_string(),
+            kind: "closed_domain".to_string(),
+            line: Some(27),
+            detail: "missing exhaustive branch".to_string(),
+        }],
+        missing_variants: vec!["loading".to_string(), "ready".to_string()],
+        context_burden: 1,
+    });
+    let issue = obligation_value_to_agent_issue(&value);
+
+    assert_eq!(value["concept_id"], Value::Null);
+    assert_eq!(value["domain_symbol_name"], json!("TaskPresentationStatus"));
+    assert_eq!(value["missing_variants"], json!(["loading", "ready"]));
+    assert_eq!(issue.scope, "TaskPresentationStatus");
+    assert_eq!(issue.concept_id, None);
+    assert!(issue.message.contains("loading"));
+    assert!(issue.message.contains("ready"));
 }
 
 #[test]

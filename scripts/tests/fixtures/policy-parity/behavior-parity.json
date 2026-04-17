@@ -1,0 +1,175 @@
+{
+  "rust_brief_cases": [
+    {
+      "name": "onboarding_prefers_fixable_trusted_signal",
+      "mode": "repo_onboarding",
+      "findings": [
+        {
+          "kind": "dependency_sprawl",
+          "scope": "src/app.ts",
+          "severity": "high",
+          "summary": "Entry surface fans out across too many owners",
+          "trust_tier": "trusted",
+          "presentation_class": "structural_debt",
+          "leverage_class": "architecture_signal",
+          "score_0_10000": 8200,
+          "files": ["src/app.ts"],
+          "likely_fix_sites": [{"site": "src/app.ts"}]
+        },
+        {
+          "kind": "exact_clone_group",
+          "scope": "src/a.ts|src/b.ts",
+          "severity": "high",
+          "summary": "Exact clone group exists",
+          "trust_tier": "watchpoint",
+          "presentation_class": "watchpoint",
+          "leverage_class": "secondary_cleanup",
+          "score_0_10000": 9400,
+          "files": ["src/a.ts", "src/b.ts"]
+        }
+      ],
+      "missing_obligations": [],
+      "watchpoints": [],
+      "changed_files": [],
+      "changed_concepts": [],
+      "decision": null,
+      "strict": null,
+      "limit": 3,
+      "expected_primary_scopes": ["src/app.ts"],
+      "expected_primary_kinds": ["dependency_sprawl"]
+    },
+    {
+      "name": "patch_prefers_missing_obligation_before_structural_followup",
+      "mode": "patch",
+      "findings": [
+        {
+          "kind": "dependency_sprawl",
+          "scope": "task_git_status",
+          "severity": "high",
+          "summary": "task_git_status fans out across too many owners",
+          "trust_tier": "trusted",
+          "presentation_class": "structural_debt",
+          "leverage_class": "architecture_signal",
+          "score_0_10000": 9000,
+          "files": ["src/store/core.ts"],
+          "likely_fix_sites": [{"site": "src/store/core.ts"}],
+          "concept_id": "task_git_status"
+        }
+      ],
+      "missing_obligations": [
+        {
+          "kind": "incomplete_propagation",
+          "concept_id": "task_git_status",
+          "summary": "task_git_status still misses a canonical projection update",
+          "files": ["src/app/task-presentation.ts"],
+          "missing_sites": [
+            {
+              "path": "src/app/task-presentation.ts",
+              "kind": "concept_followthrough",
+              "line": 18,
+              "detail": "missing propagation"
+            }
+          ],
+          "origin": "explicit",
+          "trust_tier": "trusted",
+          "confidence": "high",
+          "severity": "high",
+          "score_0_10000": 9900
+        }
+      ],
+      "watchpoints": [],
+      "changed_files": ["src/store/core.ts"],
+      "changed_concepts": ["task_git_status"],
+      "decision": "fail",
+      "strict": false,
+      "limit": 3,
+      "expected_primary_scopes": ["task_git_status", "task_git_status"],
+      "expected_primary_kinds": ["incomplete_propagation", "dependency_sprawl"]
+    }
+  ],
+  "js_report_cases": [
+    {
+      "name": "summary_prefers_architecture_local_and_boundary_over_hardening",
+      "payload": {
+        "finding_details": [
+          {
+            "scope": "src/store/store.ts",
+            "kind": "dependency_sprawl",
+            "trust_tier": "trusted",
+            "presentation_class": "structural_debt",
+            "leverage_class": "architecture_signal",
+            "severity": "high",
+            "score_0_10000": 8200,
+            "summary": "src/store/store.ts dependency_sprawl",
+            "impact": "impact",
+            "role_tags": [],
+            "leverage_reasons": ["architecture_signal_reason"],
+            "candidate_split_axes": [],
+            "related_surfaces": [],
+            "metrics": {},
+            "cut_candidates": []
+          },
+          {
+            "scope": "src/components/TaskPanel.tsx",
+            "kind": "dependency_sprawl",
+            "trust_tier": "trusted",
+            "presentation_class": "structural_debt",
+            "leverage_class": "local_refactor_target",
+            "severity": "high",
+            "score_0_10000": 7600,
+            "summary": "src/components/TaskPanel.tsx dependency_sprawl",
+            "impact": "impact",
+            "role_tags": [],
+            "leverage_reasons": ["local_refactor_target_reason"],
+            "candidate_split_axes": [],
+            "related_surfaces": [],
+            "metrics": {},
+            "cut_candidates": []
+          },
+          {
+            "scope": "src/lib/ipc.ts",
+            "kind": "unstable_hotspot",
+            "trust_tier": "trusted",
+            "presentation_class": "guarded_facade",
+            "leverage_class": "boundary_discipline",
+            "severity": "medium",
+            "score_0_10000": 6900,
+            "summary": "src/lib/ipc.ts unstable_hotspot",
+            "impact": "impact",
+            "role_tags": [],
+            "leverage_reasons": ["boundary_discipline_reason"],
+            "candidate_split_axes": [],
+            "related_surfaces": [],
+            "metrics": {},
+            "cut_candidates": []
+          },
+          {
+            "scope": "ConnectionBannerState",
+            "kind": "closed_domain_exhaustiveness",
+            "trust_tier": "trusted",
+            "presentation_class": "hardening_note",
+            "leverage_class": "hardening_note",
+            "severity": "high",
+            "score_0_10000": 7000,
+            "summary": "ConnectionBannerState closed_domain_exhaustiveness",
+            "impact": "impact",
+            "role_tags": [],
+            "leverage_reasons": ["hardening_note_reason"],
+            "candidate_split_axes": [],
+            "related_surfaces": [],
+            "metrics": {},
+            "cut_candidates": []
+          }
+        ],
+        "watchpoints": [],
+        "debt_signals": [],
+        "debt_clusters": []
+      },
+      "expected_summary_scopes": [
+        "src/store/store.ts",
+        "src/components/TaskPanel.tsx",
+        "src/lib/ipc.ts"
+      ]
+    }
+  ]
+}

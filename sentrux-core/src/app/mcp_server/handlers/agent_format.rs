@@ -191,21 +191,12 @@ pub(crate) fn obligation_value_to_agent_issue(obligation: &Value) -> AgentIssue 
         .to_string();
     let files = obligation_files(obligation);
     let file = files.first().cloned().unwrap_or_default();
-    let scope = obligation
-        .get("concept_id")
-        .or_else(|| obligation.get("concept"))
-        .and_then(Value::as_str)
-        .map(str::to_string)
-        .or_else(|| files.first().cloned())
-        .unwrap_or_else(|| kind.clone());
+    let concept_id = obligation_concept_id(obligation);
+    let scope = obligation_scope(obligation, &files, &kind, concept_id.as_deref());
 
     AgentIssue {
         scope,
-        concept_id: obligation
-            .get("concept_id")
-            .or_else(|| obligation.get("concept"))
-            .and_then(Value::as_str)
-            .map(str::to_string),
+        concept_id,
         file,
         line: obligation_line(obligation),
         kind: kind.clone(),
@@ -222,6 +213,32 @@ pub(crate) fn obligation_value_to_agent_issue(obligation: &Value) -> AgentIssue 
         confidence: obligation_confidence(obligation),
         repair_packet: repair_packet_for_obligation(obligation, &kind),
     }
+}
+
+fn obligation_concept_id(obligation: &Value) -> Option<String> {
+    obligation
+        .get("concept_id")
+        .and_then(Value::as_str)
+        .or_else(|| obligation.get("concept").and_then(Value::as_str))
+        .map(str::to_string)
+}
+
+fn obligation_scope(
+    obligation: &Value,
+    files: &[String],
+    kind: &str,
+    concept_id: Option<&str>,
+) -> String {
+    concept_id
+        .map(str::to_string)
+        .or_else(|| {
+            obligation
+                .get("domain_symbol_name")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
+        .or_else(|| files.first().cloned())
+        .unwrap_or_else(|| kind.to_string())
 }
 
 fn issue_source_for_kind(kind: &str) -> IssueSource {

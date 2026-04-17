@@ -196,10 +196,13 @@ fn build_onboarding_brief_surface(
         crate::metrics::v2::ObligationScope::All,
         &BTreeSet::new(),
     );
-    let structural_reports = crate::metrics::v2::build_structural_debt_reports_with_root(
-        &context.root,
-        &context.snapshot,
-        &context.health,
+    let structural_reports = filter_structural_reports_by_rules(
+        crate::metrics::v2::build_structural_debt_reports_with_root(
+            &context.root,
+            &context.snapshot,
+            &context.health,
+        ),
+        &context.rules_config,
     );
     let other_findings = combined_other_finding_values(&semantic_findings, &structural_reports);
     let merged_findings = merge_findings(

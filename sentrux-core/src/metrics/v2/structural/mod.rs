@@ -2,9 +2,15 @@
 
 use super::FindingSeverity;
 mod cycles;
+mod dead_island_reports;
+mod dead_private_reports;
+mod dependency_reports;
 mod graph;
 mod guardrails;
+mod hotspot_reports;
+mod large_file_reports;
 mod path_roles;
+mod report_common;
 mod reports;
 mod scoring;
 mod utils;
@@ -13,6 +19,7 @@ use crate::core::snapshot::{flatten_files_ref, Snapshot};
 use crate::core::types::FileNode;
 use crate::metrics::testgap::is_test_file;
 use crate::metrics::{is_package_index_for_path, HealthReport};
+use crate::string_enum::impl_str_enum;
 use graph::build_structural_graph;
 use guardrails::{detect_architecture_guardrails, GuardrailFileEvidence};
 use path_roles::path_role_tags;
@@ -36,21 +43,11 @@ pub enum StructuralTrustTier {
     Experimental,
 }
 
-impl StructuralTrustTier {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Trusted => "trusted",
-            Self::Watchpoint => "watchpoint",
-            Self::Experimental => "experimental",
-        }
-    }
-}
-
-impl PartialEq<&str> for StructuralTrustTier {
-    fn eq(&self, other: &&str) -> bool {
-        self.as_str() == *other
-    }
-}
+impl_str_enum!(StructuralTrustTier {
+    Trusted => "trusted",
+    Watchpoint => "watchpoint",
+    Experimental => "experimental",
+});
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, serde::Serialize, Default)]
 #[serde(rename_all = "snake_case")]
@@ -64,24 +61,14 @@ pub enum StructuralPresentationClass {
     Experimental,
 }
 
-impl StructuralPresentationClass {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::StructuralDebt => "structural_debt",
-            Self::GuardedFacade => "guarded_facade",
-            Self::ToolingDebt => "tooling_debt",
-            Self::HardeningNote => "hardening_note",
-            Self::Watchpoint => "watchpoint",
-            Self::Experimental => "experimental",
-        }
-    }
-}
-
-impl PartialEq<&str> for StructuralPresentationClass {
-    fn eq(&self, other: &&str) -> bool {
-        self.as_str() == *other
-    }
-}
+impl_str_enum!(StructuralPresentationClass {
+    StructuralDebt => "structural_debt",
+    GuardedFacade => "guarded_facade",
+    ToolingDebt => "tooling_debt",
+    HardeningNote => "hardening_note",
+    Watchpoint => "watchpoint",
+    Experimental => "experimental",
+});
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, serde::Serialize, Default)]
 #[serde(rename_all = "snake_case")]
@@ -97,26 +84,16 @@ pub enum StructuralLeverageClass {
     Experimental,
 }
 
-impl StructuralLeverageClass {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::SecondaryCleanup => "secondary_cleanup",
-            Self::LocalRefactorTarget => "local_refactor_target",
-            Self::ArchitectureSignal => "architecture_signal",
-            Self::RegrowthWatchpoint => "regrowth_watchpoint",
-            Self::ToolingDebt => "tooling_debt",
-            Self::BoundaryDiscipline => "boundary_discipline",
-            Self::HardeningNote => "hardening_note",
-            Self::Experimental => "experimental",
-        }
-    }
-}
-
-impl PartialEq<&str> for StructuralLeverageClass {
-    fn eq(&self, other: &&str) -> bool {
-        self.as_str() == *other
-    }
-}
+impl_str_enum!(StructuralLeverageClass {
+    SecondaryCleanup => "secondary_cleanup",
+    LocalRefactorTarget => "local_refactor_target",
+    ArchitectureSignal => "architecture_signal",
+    RegrowthWatchpoint => "regrowth_watchpoint",
+    ToolingDebt => "tooling_debt",
+    BoundaryDiscipline => "boundary_discipline",
+    HardeningNote => "hardening_note",
+    Experimental => "experimental",
+});
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, serde::Serialize, Default)]
 #[serde(rename_all = "snake_case")]
@@ -126,20 +103,10 @@ pub enum StructuralSignalClass {
     Watchpoint,
 }
 
-impl StructuralSignalClass {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Debt => "debt",
-            Self::Watchpoint => "watchpoint",
-        }
-    }
-}
-
-impl PartialEq<&str> for StructuralSignalClass {
-    fn eq(&self, other: &&str) -> bool {
-        self.as_str() == *other
-    }
-}
+impl_str_enum!(StructuralSignalClass {
+    Debt => "debt",
+    Watchpoint => "watchpoint",
+});
 
 #[derive(Debug, Clone, serde::Serialize, Default)]
 pub struct StructuralDebtMetrics {

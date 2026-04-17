@@ -10,7 +10,9 @@ mod obligations_contract;
 mod obligations_domain;
 
 #[cfg(test)]
-use self::obligations_contract::summarize_contract_missing_sites;
+#[path = "obligations_tests.rs"]
+mod obligations_tests;
+
 use self::obligations_contract::{build_contract_obligation, path_matches};
 use self::obligations_domain::{
     build_domain_obligation, concept_rule_paths, domain_is_in_scope, relevant_domains,
@@ -22,6 +24,27 @@ use self::obligations_domain::{
 pub enum ObligationScope {
     All,
     Changed,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ObligationOrigin {
+    Explicit,
+    ZeroConfig,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ObligationTrustTier {
+    Trusted,
+    Watchpoint,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ObligationConfidence {
+    High,
+    Medium,
 }
 
 #[derive(Debug, Clone, serde::Serialize, Eq, PartialEq, Ord, PartialOrd)]
@@ -38,6 +61,11 @@ pub struct ObligationReport {
     pub kind: String,
     pub concept_id: Option<String>,
     pub domain_symbol_name: Option<String>,
+    pub origin: ObligationOrigin,
+    pub trust_tier: ObligationTrustTier,
+    pub confidence: ObligationConfidence,
+    pub severity: FindingSeverity,
+    pub score_0_10000: u32,
     pub summary: String,
     pub files: Vec<String>,
     pub required_sites: Vec<ObligationSite>,
@@ -124,7 +152,7 @@ pub fn build_obligation_findings(obligations: &[ObligationReport]) -> Vec<Semant
         .filter(|obligation| !obligation.missing_sites.is_empty())
         .map(|obligation| SemanticFinding {
             kind: obligation.kind.clone(),
-            severity: obligation_finding_severity(obligation),
+            severity: obligation.severity,
             concept_id: obligation_concept_id(obligation).to_owned(),
             summary: obligation.summary.clone(),
             files: obligation.files.clone(),
@@ -135,14 +163,6 @@ pub fn build_obligation_findings(obligations: &[ObligationReport]) -> Vec<Semant
                 .collect(),
         })
         .collect()
-}
-
-fn obligation_finding_severity(obligation: &ObligationReport) -> FindingSeverity {
-    if obligation.kind == "closed_domain_exhaustiveness" {
-        FindingSeverity::High
-    } else {
-        FindingSeverity::Medium
-    }
 }
 
 pub fn changed_concepts_from_obligations(obligations: &[ObligationReport]) -> Vec<String> {
@@ -198,918 +218,56 @@ fn obligation_concept_id(obligation: &ObligationReport) -> &str {
         .unwrap_or_default()
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{
-        build_obligation_findings, build_obligations, obligation_score_0_10000,
-        summarize_contract_missing_sites, ObligationScope,
+pub(crate) fn obligation_report_origin(has_explicit_owner: bool) -> ObligationOrigin {
+    if has_explicit_owner {
+        ObligationOrigin::Explicit
+    } else {
+        ObligationOrigin::ZeroConfig
+    }
+}
+
+pub(crate) fn obligation_report_trust_tier(origin: ObligationOrigin) -> ObligationTrustTier {
+    match origin {
+        ObligationOrigin::Explicit => ObligationTrustTier::Trusted,
+        ObligationOrigin::ZeroConfig => ObligationTrustTier::Watchpoint,
+    }
+}
+
+pub(crate) fn obligation_report_confidence(origin: ObligationOrigin) -> ObligationConfidence {
+    match origin {
+        ObligationOrigin::Explicit => ObligationConfidence::High,
+        ObligationOrigin::ZeroConfig => ObligationConfidence::Medium,
+    }
+}
+
+pub(crate) fn obligation_report_severity(
+    kind: &str,
+    origin: ObligationOrigin,
+    missing_variants: usize,
+) -> FindingSeverity {
+    if kind == "closed_domain_exhaustiveness" || missing_variants > 0 {
+        FindingSeverity::High
+    } else if origin == ObligationOrigin::Explicit {
+        FindingSeverity::High
+    } else {
+        FindingSeverity::Medium
+    }
+}
+
+pub(crate) fn obligation_report_score(
+    severity: FindingSeverity,
+    origin: ObligationOrigin,
+    missing_site_count: usize,
+) -> u32 {
+    let severity_bonus = match severity {
+        FindingSeverity::High => 1800,
+        FindingSeverity::Medium => 1000,
+        FindingSeverity::Low => 200,
     };
-    use crate::analysis::semantic::{
-        ClosedDomain, ExhaustivenessProofKind, ExhaustivenessSite, ExhaustivenessSiteKind,
-        ProjectModel, ReadFact, SemanticCapability, SemanticFileFact, SemanticSnapshot, SymbolFact,
+    let origin_bonus = match origin {
+        ObligationOrigin::Explicit => 1600,
+        ObligationOrigin::ZeroConfig => 600,
     };
-    use crate::metrics::rules::RulesConfig;
-    use crate::metrics::v2::ObligationSite;
-    use std::collections::BTreeSet;
-
-    #[test]
-    fn computes_missing_variants_and_related_test_obligations() {
-        let config: RulesConfig = toml::from_str(
-            r#"
-                [[concept]]
-                id = "task_presentation_status"
-                anchors = ["src/app/task-presentation-status.ts::TaskDotStatus"]
-                related_tests = ["src/app/task-presentation-status.test.ts"]
-            "#,
-        )
-        .expect("rules config");
-        let semantic = SemanticSnapshot {
-            project: ProjectModel::default(),
-            analyzed_files: 1,
-            capabilities: vec![
-                SemanticCapability::ClosedDomains,
-                SemanticCapability::ClosedDomainSites,
-            ],
-            files: vec![SemanticFileFact::default()],
-            symbols: Vec::new(),
-            reads: Vec::new(),
-            writes: Vec::new(),
-            closed_domains: vec![ClosedDomain {
-                path: "src/app/task-presentation-status.ts".to_string(),
-                symbol_name: "TaskDotStatus".to_string(),
-                variants: vec!["idle".to_string(), "busy".to_string(), "error".to_string()],
-                line: 4,
-                defining_file: Some("src/app/task-presentation-status.ts".to_string()),
-            }],
-            closed_domain_sites: vec![ExhaustivenessSite {
-                path: "src/components/Sidebar.tsx".to_string(),
-                domain_symbol_name: "TaskDotStatus".to_string(),
-                defining_file: Some("src/app/task-presentation-status.ts".to_string()),
-                site_kind: ExhaustivenessSiteKind::Switch,
-                proof_kind: ExhaustivenessProofKind::AssertNever,
-                covered_variants: vec!["idle".to_string(), "busy".to_string()],
-                line: 20,
-            }],
-            transition_sites: Vec::new(),
-        };
-        let changed_files = BTreeSet::from([
-            "src/app/task-presentation-status.ts".to_string(),
-            "src/components/Sidebar.tsx".to_string(),
-        ]);
-
-        let obligations =
-            build_obligations(&config, &semantic, ObligationScope::Changed, &changed_files);
-
-        assert_eq!(obligations.len(), 1);
-        assert_eq!(obligations[0].missing_variants, vec!["error".to_string()]);
-        assert_eq!(obligations[0].missing_sites.len(), 2);
-        assert!(obligations[0]
-            .missing_sites
-            .iter()
-            .any(|site| site.kind == "related_test"));
-        assert!(obligation_score_0_10000(&obligations) < 10000);
-    }
-
-    #[test]
-    fn closed_domain_exhaustiveness_findings_are_high_severity_without_site_coverage() {
-        let findings = build_obligation_findings(&[super::ObligationReport {
-            id: "task_status".to_string(),
-            kind: "closed_domain_exhaustiveness".to_string(),
-            concept_id: None,
-            domain_symbol_name: Some("TaskStatus".to_string()),
-            summary: "missing exhaustive coverage".to_string(),
-            files: vec!["src/task-status.ts".to_string()],
-            required_sites: vec![ObligationSite {
-                path: "src/task-status.ts".to_string(),
-                kind: "closed_domain".to_string(),
-                line: Some(10),
-                detail: "no exhaustive mapping or switch site found".to_string(),
-            }],
-            satisfied_sites: Vec::new(),
-            missing_sites: vec![ObligationSite {
-                path: "src/task-status.ts".to_string(),
-                kind: "closed_domain".to_string(),
-                line: Some(10),
-                detail: "no exhaustive mapping or switch site found".to_string(),
-            }],
-            missing_variants: Vec::new(),
-            context_burden: 1,
-        }]);
-
-        assert_eq!(findings.len(), 1);
-        assert_eq!(
-            findings[0].severity,
-            crate::metrics::v2::FindingSeverity::High
-        );
-    }
-
-    #[test]
-    fn changed_scope_includes_allowed_writer_paths() {
-        let config: RulesConfig = toml::from_str(
-            r#"
-                [[concept]]
-                id = "task_state"
-                anchors = ["src/domain/task-state.ts::TaskState"]
-                allowed_writers = ["src/app/task-state-writer.ts::*"]
-            "#,
-        )
-        .expect("rules config");
-        let semantic = SemanticSnapshot {
-            project: ProjectModel::default(),
-            analyzed_files: 1,
-            capabilities: vec![
-                SemanticCapability::ClosedDomains,
-                SemanticCapability::ClosedDomainSites,
-            ],
-            files: vec![SemanticFileFact::default()],
-            symbols: Vec::new(),
-            reads: Vec::new(),
-            writes: Vec::new(),
-            closed_domains: vec![ClosedDomain {
-                path: "src/domain/task-state.ts".to_string(),
-                symbol_name: "TaskState".to_string(),
-                variants: vec!["idle".to_string(), "running".to_string()],
-                line: 1,
-                defining_file: Some("src/domain/task-state.ts".to_string()),
-            }],
-            closed_domain_sites: vec![ExhaustivenessSite {
-                path: "src/app/presenter.ts".to_string(),
-                domain_symbol_name: "TaskState".to_string(),
-                defining_file: Some("src/domain/task-state.ts".to_string()),
-                site_kind: ExhaustivenessSiteKind::Switch,
-                proof_kind: ExhaustivenessProofKind::AssertNever,
-                covered_variants: vec!["idle".to_string()],
-                line: 10,
-            }],
-            transition_sites: Vec::new(),
-        };
-        let changed_files = BTreeSet::from(["src/app/task-state-writer.ts".to_string()]);
-
-        let obligations =
-            build_obligations(&config, &semantic, ObligationScope::Changed, &changed_files);
-
-        assert_eq!(obligations.len(), 1);
-        assert_eq!(obligations[0].concept_id.as_deref(), Some("task_state"));
-    }
-
-    #[test]
-    fn zero_config_domains_ignore_test_only_sites() {
-        let config: RulesConfig = toml::from_str("").expect("empty rules config");
-        let semantic = SemanticSnapshot {
-            project: ProjectModel::default(),
-            analyzed_files: 1,
-            capabilities: vec![
-                SemanticCapability::ClosedDomains,
-                SemanticCapability::ClosedDomainSites,
-            ],
-            files: vec![SemanticFileFact::default()],
-            symbols: Vec::new(),
-            reads: Vec::new(),
-            writes: Vec::new(),
-            closed_domains: vec![ClosedDomain {
-                path: "src/domain/task-state.ts".to_string(),
-                symbol_name: "TaskState".to_string(),
-                variants: vec!["idle".to_string(), "running".to_string()],
-                line: 1,
-                defining_file: Some("src/domain/task-state.ts".to_string()),
-            }],
-            closed_domain_sites: vec![ExhaustivenessSite {
-                path: "src/domain/task-state.test.ts".to_string(),
-                domain_symbol_name: "TaskState".to_string(),
-                defining_file: Some("src/domain/task-state.ts".to_string()),
-                site_kind: ExhaustivenessSiteKind::Switch,
-                proof_kind: ExhaustivenessProofKind::AssertNever,
-                covered_variants: vec!["idle".to_string()],
-                line: 10,
-            }],
-            transition_sites: Vec::new(),
-        };
-
-        let obligations =
-            build_obligations(&config, &semantic, ObligationScope::All, &BTreeSet::new());
-
-        assert!(obligations.is_empty());
-    }
-
-    #[test]
-    fn zero_config_domains_ignore_large_variant_sets() {
-        let config: RulesConfig = toml::from_str("").expect("empty rules config");
-        let semantic = SemanticSnapshot {
-            project: ProjectModel::default(),
-            analyzed_files: 1,
-            capabilities: vec![
-                SemanticCapability::ClosedDomains,
-                SemanticCapability::ClosedDomainSites,
-            ],
-            files: vec![SemanticFileFact::default()],
-            symbols: Vec::new(),
-            reads: Vec::new(),
-            writes: Vec::new(),
-            closed_domains: vec![ClosedDomain {
-                path: "src/domain/ipc.ts".to_string(),
-                symbol_name: "IPC".to_string(),
-                variants: (0..20).map(|index| format!("Variant{index}")).collect(),
-                line: 1,
-                defining_file: Some("src/domain/ipc.ts".to_string()),
-            }],
-            closed_domain_sites: vec![ExhaustivenessSite {
-                path: "src/app/ipc-switch.ts".to_string(),
-                domain_symbol_name: "IPC".to_string(),
-                defining_file: Some("src/domain/ipc.ts".to_string()),
-                site_kind: ExhaustivenessSiteKind::Switch,
-                proof_kind: ExhaustivenessProofKind::Switch,
-                covered_variants: vec!["Variant0".to_string()],
-                line: 10,
-            }],
-            transition_sites: Vec::new(),
-        };
-
-        let obligations =
-            build_obligations(&config, &semantic, ObligationScope::All, &BTreeSet::new());
-
-        assert!(obligations.is_empty());
-    }
-
-    #[test]
-    fn changed_scope_requires_related_contract_surfaces() {
-        let config: RulesConfig = toml::from_str(
-            r#"
-                [[contract]]
-                id = "server_state_bootstrap"
-                categories_symbol = "src/domain/server-state-bootstrap.ts::SERVER_STATE_BOOTSTRAP_CATEGORIES"
-                payload_map_symbol = "src/domain/server-state-bootstrap.ts::ServerStateBootstrapPayloadMap"
-                registry_symbol = "src/app/server-state-bootstrap-registry.ts::SERVER_STATE_BOOTSTRAP_REGISTRY"
-                browser_entry = "src/runtime/browser-session.ts"
-                electron_entry = "src/app/desktop-session.ts"
-            "#,
-        )
-        .expect("rules config");
-        let semantic = SemanticSnapshot {
-            project: ProjectModel::default(),
-            analyzed_files: 4,
-            capabilities: vec![SemanticCapability::Symbols],
-            files: vec![
-                SemanticFileFact {
-                    path: "src/domain/server-state-bootstrap.ts".to_string(),
-                    ..SemanticFileFact::default()
-                },
-                SemanticFileFact {
-                    path: "src/app/server-state-bootstrap-registry.ts".to_string(),
-                    ..SemanticFileFact::default()
-                },
-                SemanticFileFact {
-                    path: "src/runtime/browser-session.ts".to_string(),
-                    ..SemanticFileFact::default()
-                },
-                SemanticFileFact {
-                    path: "src/app/desktop-session.ts".to_string(),
-                    ..SemanticFileFact::default()
-                },
-            ],
-            symbols: vec![
-                SymbolFact {
-                    id: "cats".to_string(),
-                    path: "src/domain/server-state-bootstrap.ts".to_string(),
-                    name: "SERVER_STATE_BOOTSTRAP_CATEGORIES".to_string(),
-                    kind: "const".to_string(),
-                    line: 3,
-                },
-                SymbolFact {
-                    id: "payload".to_string(),
-                    path: "src/domain/server-state-bootstrap.ts".to_string(),
-                    name: "ServerStateBootstrapPayloadMap".to_string(),
-                    kind: "type_alias".to_string(),
-                    line: 8,
-                },
-                SymbolFact {
-                    id: "registry".to_string(),
-                    path: "src/app/server-state-bootstrap-registry.ts".to_string(),
-                    name: "SERVER_STATE_BOOTSTRAP_REGISTRY".to_string(),
-                    kind: "const".to_string(),
-                    line: 5,
-                },
-            ],
-            reads: Vec::new(),
-            writes: Vec::new(),
-            closed_domains: Vec::new(),
-            closed_domain_sites: Vec::new(),
-            transition_sites: Vec::new(),
-        };
-        let changed_files = BTreeSet::from(["src/domain/server-state-bootstrap.ts".to_string()]);
-
-        let obligations =
-            build_obligations(&config, &semantic, ObligationScope::Changed, &changed_files);
-
-        let contract = obligations
-            .iter()
-            .find(|obligation| obligation.kind == "contract_surface_completeness")
-            .expect("contract obligation");
-        assert_eq!(
-            contract.concept_id.as_deref(),
-            Some("server_state_bootstrap")
-        );
-        assert!(contract
-            .missing_sites
-            .iter()
-            .any(|site| site.kind == "registry_symbol"));
-        assert!(contract
-            .missing_sites
-            .iter()
-            .any(|site| site.kind == "browser_entry"));
-        assert!(contract
-            .missing_sites
-            .iter()
-            .any(|site| site.kind == "electron_entry"));
-    }
-
-    #[test]
-    fn changed_scope_triggers_contract_when_registry_surface_changes() {
-        let config: RulesConfig = toml::from_str(
-            r#"
-                [[contract]]
-                id = "server_state_bootstrap"
-                categories_symbol = "src/domain/server-state-bootstrap.ts::SERVER_STATE_BOOTSTRAP_CATEGORIES"
-                payload_map_symbol = "src/domain/server-state-bootstrap.ts::ServerStateBootstrapPayloadMap"
-                registry_symbol = "src/app/server-state-bootstrap-registry.ts::SERVER_STATE_BOOTSTRAP_REGISTRY"
-                browser_entry = "src/runtime/browser-session.ts"
-                electron_entry = "src/app/desktop-session.ts"
-            "#,
-        )
-        .expect("rules config");
-        let semantic = SemanticSnapshot {
-            project: ProjectModel::default(),
-            analyzed_files: 4,
-            capabilities: vec![SemanticCapability::Symbols],
-            files: vec![
-                SemanticFileFact {
-                    path: "src/domain/server-state-bootstrap.ts".to_string(),
-                    ..SemanticFileFact::default()
-                },
-                SemanticFileFact {
-                    path: "src/app/server-state-bootstrap-registry.ts".to_string(),
-                    ..SemanticFileFact::default()
-                },
-                SemanticFileFact {
-                    path: "src/runtime/browser-session.ts".to_string(),
-                    ..SemanticFileFact::default()
-                },
-                SemanticFileFact {
-                    path: "src/app/desktop-session.ts".to_string(),
-                    ..SemanticFileFact::default()
-                },
-            ],
-            symbols: vec![
-                SymbolFact {
-                    id: "cats".to_string(),
-                    path: "src/domain/server-state-bootstrap.ts".to_string(),
-                    name: "SERVER_STATE_BOOTSTRAP_CATEGORIES".to_string(),
-                    kind: "const".to_string(),
-                    line: 3,
-                },
-                SymbolFact {
-                    id: "payload".to_string(),
-                    path: "src/domain/server-state-bootstrap.ts".to_string(),
-                    name: "ServerStateBootstrapPayloadMap".to_string(),
-                    kind: "type_alias".to_string(),
-                    line: 8,
-                },
-                SymbolFact {
-                    id: "registry".to_string(),
-                    path: "src/app/server-state-bootstrap-registry.ts".to_string(),
-                    name: "SERVER_STATE_BOOTSTRAP_REGISTRY".to_string(),
-                    kind: "const".to_string(),
-                    line: 5,
-                },
-            ],
-            reads: Vec::new(),
-            writes: Vec::new(),
-            closed_domains: Vec::new(),
-            closed_domain_sites: Vec::new(),
-            transition_sites: Vec::new(),
-        };
-        let changed_files =
-            BTreeSet::from(["src/app/server-state-bootstrap-registry.ts".to_string()]);
-
-        let obligations =
-            build_obligations(&config, &semantic, ObligationScope::Changed, &changed_files);
-
-        let contract = obligations
-            .iter()
-            .find(|obligation| obligation.kind == "contract_surface_completeness")
-            .expect("contract obligation");
-        assert!(contract
-            .satisfied_sites
-            .iter()
-            .any(|site| site.kind == "registry_symbol"));
-        assert!(contract
-            .missing_sites
-            .iter()
-            .any(|site| site.kind == "categories_symbol"));
-        assert!(contract
-            .missing_sites
-            .iter()
-            .any(|site| site.kind == "browser_entry"));
-    }
-
-    #[test]
-    fn changed_scope_triggers_from_semantically_related_contract_reader() {
-        let config: RulesConfig = toml::from_str(
-            r#"
-                [[contract]]
-                id = "server_state_bootstrap"
-                categories_symbol = "src/domain/server-state-bootstrap.ts::SERVER_STATE_BOOTSTRAP_CATEGORIES"
-                payload_map_symbol = "src/domain/server-state-bootstrap.ts::ServerStateBootstrapPayloadMap"
-                registry_symbol = "src/app/server-state-bootstrap-registry.ts::SERVER_STATE_BOOTSTRAP_REGISTRY"
-                browser_entry = "src/runtime/browser-session.ts"
-                required_symbols = ["src/app/bootstrap-persist.ts::serializeBootstrapPayload"]
-            "#,
-        )
-        .expect("rules config");
-        let semantic = SemanticSnapshot {
-            project: ProjectModel::default(),
-            analyzed_files: 5,
-            capabilities: vec![SemanticCapability::Symbols, SemanticCapability::Reads],
-            files: vec![
-                SemanticFileFact {
-                    path: "src/domain/server-state-bootstrap.ts".to_string(),
-                    ..SemanticFileFact::default()
-                },
-                SemanticFileFact {
-                    path: "src/app/server-state-bootstrap-registry.ts".to_string(),
-                    ..SemanticFileFact::default()
-                },
-                SemanticFileFact {
-                    path: "src/runtime/browser-session.ts".to_string(),
-                    ..SemanticFileFact::default()
-                },
-                SemanticFileFact {
-                    path: "src/app/bootstrap-persist.ts".to_string(),
-                    ..SemanticFileFact::default()
-                },
-                SemanticFileFact {
-                    path: "src/app/bootstrap-adapter.ts".to_string(),
-                    ..SemanticFileFact::default()
-                },
-            ],
-            symbols: vec![
-                SymbolFact {
-                    id: "cats".to_string(),
-                    path: "src/domain/server-state-bootstrap.ts".to_string(),
-                    name: "SERVER_STATE_BOOTSTRAP_CATEGORIES".to_string(),
-                    kind: "const".to_string(),
-                    line: 3,
-                },
-                SymbolFact {
-                    id: "payload".to_string(),
-                    path: "src/domain/server-state-bootstrap.ts".to_string(),
-                    name: "ServerStateBootstrapPayloadMap".to_string(),
-                    kind: "type_alias".to_string(),
-                    line: 8,
-                },
-                SymbolFact {
-                    id: "registry".to_string(),
-                    path: "src/app/server-state-bootstrap-registry.ts".to_string(),
-                    name: "SERVER_STATE_BOOTSTRAP_REGISTRY".to_string(),
-                    kind: "const".to_string(),
-                    line: 5,
-                },
-                SymbolFact {
-                    id: "persist".to_string(),
-                    path: "src/app/bootstrap-persist.ts".to_string(),
-                    name: "serializeBootstrapPayload".to_string(),
-                    kind: "function".to_string(),
-                    line: 12,
-                },
-            ],
-            reads: vec![ReadFact {
-                path: "src/app/bootstrap-adapter.ts".to_string(),
-                symbol_name: "ServerStateBootstrapPayloadMap".to_string(),
-                read_kind: "type_reference".to_string(),
-                line: 21,
-            }],
-            writes: Vec::new(),
-            closed_domains: Vec::new(),
-            closed_domain_sites: Vec::new(),
-            transition_sites: Vec::new(),
-        };
-        let changed_files = BTreeSet::from(["src/app/bootstrap-adapter.ts".to_string()]);
-
-        let obligations =
-            build_obligations(&config, &semantic, ObligationScope::Changed, &changed_files);
-
-        let contract = obligations
-            .iter()
-            .find(|obligation| obligation.kind == "contract_surface_completeness")
-            .expect("contract obligation");
-        assert!(contract
-            .files
-            .contains(&"src/app/bootstrap-adapter.ts".to_string()));
-        assert!(contract.summary.contains("bootstrap-adapter.ts"));
-        assert!(contract
-            .missing_sites
-            .iter()
-            .any(|site| site.kind == "required_symbol"));
-    }
-
-    #[test]
-    fn changed_scope_triggers_from_semantically_related_contract_symbol_declaration() {
-        let config: RulesConfig = toml::from_str(
-            r#"
-                [[contract]]
-                id = "server_state_bootstrap"
-                payload_map_symbol = "src/domain/server-state-bootstrap.ts::ServerStateBootstrapPayloadMap"
-                required_symbols = ["src/app/bootstrap-persist.ts::serializeBootstrapPayload"]
-            "#,
-        )
-        .expect("rules config");
-        let semantic = SemanticSnapshot {
-            project: ProjectModel::default(),
-            analyzed_files: 3,
-            capabilities: vec![SemanticCapability::Symbols],
-            files: vec![
-                SemanticFileFact {
-                    path: "src/domain/server-state-bootstrap.ts".to_string(),
-                    ..SemanticFileFact::default()
-                },
-                SemanticFileFact {
-                    path: "src/app/bootstrap-persist.ts".to_string(),
-                    ..SemanticFileFact::default()
-                },
-                SemanticFileFact {
-                    path: "src/app/bootstrap-field-adapter.ts".to_string(),
-                    ..SemanticFileFact::default()
-                },
-            ],
-            symbols: vec![
-                SymbolFact {
-                    id: "payload".to_string(),
-                    path: "src/domain/server-state-bootstrap.ts".to_string(),
-                    name: "ServerStateBootstrapPayloadMap".to_string(),
-                    kind: "type_alias".to_string(),
-                    line: 8,
-                },
-                SymbolFact {
-                    id: "persist".to_string(),
-                    path: "src/app/bootstrap-persist.ts".to_string(),
-                    name: "serializeBootstrapPayload".to_string(),
-                    kind: "function".to_string(),
-                    line: 12,
-                },
-                SymbolFact {
-                    id: "field".to_string(),
-                    path: "src/app/bootstrap-field-adapter.ts".to_string(),
-                    name: "ServerStateBootstrapPayloadMap.snapshot".to_string(),
-                    kind: "property_signature".to_string(),
-                    line: 4,
-                },
-            ],
-            reads: Vec::new(),
-            writes: Vec::new(),
-            closed_domains: Vec::new(),
-            closed_domain_sites: Vec::new(),
-            transition_sites: Vec::new(),
-        };
-        let changed_files = BTreeSet::from(["src/app/bootstrap-field-adapter.ts".to_string()]);
-
-        let obligations =
-            build_obligations(&config, &semantic, ObligationScope::Changed, &changed_files);
-
-        let contract = obligations
-            .iter()
-            .find(|obligation| obligation.kind == "contract_surface_completeness")
-            .expect("contract obligation");
-        assert!(contract
-            .files
-            .contains(&"src/app/bootstrap-field-adapter.ts".to_string()));
-        assert!(contract.summary.contains("bootstrap-field-adapter.ts"));
-    }
-
-    #[test]
-    fn changed_scope_ignores_test_only_contract_readers() {
-        let config: RulesConfig = toml::from_str(
-            r#"
-                [[contract]]
-                id = "server_state_bootstrap"
-                categories_symbol = "src/domain/server-state-bootstrap.ts::SERVER_STATE_BOOTSTRAP_CATEGORIES"
-                registry_symbol = "src/app/server-state-bootstrap-registry.ts::SERVER_STATE_BOOTSTRAP_REGISTRY"
-                browser_entry = "src/runtime/browser-session.ts"
-            "#,
-        )
-        .expect("rules config");
-        let semantic = SemanticSnapshot {
-            project: ProjectModel::default(),
-            analyzed_files: 4,
-            capabilities: vec![SemanticCapability::Symbols, SemanticCapability::Reads],
-            files: vec![
-                SemanticFileFact {
-                    path: "src/domain/server-state-bootstrap.ts".to_string(),
-                    ..SemanticFileFact::default()
-                },
-                SemanticFileFact {
-                    path: "src/app/server-state-bootstrap-registry.ts".to_string(),
-                    ..SemanticFileFact::default()
-                },
-                SemanticFileFact {
-                    path: "src/runtime/browser-session.ts".to_string(),
-                    ..SemanticFileFact::default()
-                },
-                SemanticFileFact {
-                    path: "src/app/server-state-bootstrap.test.ts".to_string(),
-                    ..SemanticFileFact::default()
-                },
-            ],
-            symbols: vec![
-                SymbolFact {
-                    id: "cats".to_string(),
-                    path: "src/domain/server-state-bootstrap.ts".to_string(),
-                    name: "SERVER_STATE_BOOTSTRAP_CATEGORIES".to_string(),
-                    kind: "const".to_string(),
-                    line: 3,
-                },
-                SymbolFact {
-                    id: "registry".to_string(),
-                    path: "src/app/server-state-bootstrap-registry.ts".to_string(),
-                    name: "SERVER_STATE_BOOTSTRAP_REGISTRY".to_string(),
-                    kind: "const".to_string(),
-                    line: 5,
-                },
-            ],
-            reads: vec![ReadFact {
-                path: "src/app/server-state-bootstrap.test.ts".to_string(),
-                symbol_name: "SERVER_STATE_BOOTSTRAP_CATEGORIES".to_string(),
-                read_kind: "property_access".to_string(),
-                line: 12,
-            }],
-            writes: Vec::new(),
-            closed_domains: Vec::new(),
-            closed_domain_sites: Vec::new(),
-            transition_sites: Vec::new(),
-        };
-        let changed_files = BTreeSet::from(["src/app/server-state-bootstrap.test.ts".to_string()]);
-
-        let obligations =
-            build_obligations(&config, &semantic, ObligationScope::Changed, &changed_files);
-
-        assert!(obligations.is_empty());
-    }
-
-    #[test]
-    fn all_scope_reports_missing_declared_contract_sites() {
-        let config: RulesConfig = toml::from_str(
-            r#"
-                [[contract]]
-                id = "server_state_bootstrap"
-                categories_symbol = "src/domain/server-state-bootstrap.ts::SERVER_STATE_BOOTSTRAP_CATEGORIES"
-                browser_entry = "src/runtime/browser-session.ts"
-            "#,
-        )
-        .expect("rules config");
-        let semantic = SemanticSnapshot {
-            project: ProjectModel::default(),
-            analyzed_files: 0,
-            capabilities: vec![SemanticCapability::Symbols],
-            files: Vec::new(),
-            symbols: Vec::new(),
-            reads: Vec::new(),
-            writes: Vec::new(),
-            closed_domains: Vec::new(),
-            closed_domain_sites: Vec::new(),
-            transition_sites: Vec::new(),
-        };
-
-        let obligations =
-            build_obligations(&config, &semantic, ObligationScope::All, &BTreeSet::new());
-
-        let contract = obligations
-            .iter()
-            .find(|obligation| obligation.kind == "contract_surface_completeness")
-            .expect("contract obligation");
-        assert_eq!(contract.missing_sites.len(), 2);
-        assert!(contract
-            .missing_sites
-            .iter()
-            .all(|site| site.detail.contains("declared contract site is missing")));
-    }
-
-    #[test]
-    fn all_scope_reports_required_contract_extensions() {
-        let config: RulesConfig = toml::from_str(
-            r#"
-                [[contract]]
-                id = "server_state_bootstrap"
-                categories_symbol = "src/domain/server-state-bootstrap.ts::SERVER_STATE_BOOTSTRAP_CATEGORIES"
-                registry_symbol = "src/app/server-state-bootstrap-registry.ts::SERVER_STATE_BOOTSTRAP_REGISTRY"
-                required_symbols = ["src/app/bootstrap-persist.ts::serializeBootstrapPayload"]
-                required_files = ["src/runtime/server-state-bootstrap.ts"]
-            "#,
-        )
-        .expect("rules config");
-        let semantic = SemanticSnapshot {
-            project: ProjectModel::default(),
-            analyzed_files: 0,
-            capabilities: vec![SemanticCapability::Symbols],
-            files: Vec::new(),
-            symbols: Vec::new(),
-            reads: Vec::new(),
-            writes: Vec::new(),
-            closed_domains: Vec::new(),
-            closed_domain_sites: Vec::new(),
-            transition_sites: Vec::new(),
-        };
-
-        let obligations =
-            build_obligations(&config, &semantic, ObligationScope::All, &BTreeSet::new());
-
-        let contract = obligations
-            .iter()
-            .find(|obligation| obligation.kind == "contract_surface_completeness")
-            .expect("contract obligation");
-        assert!(contract
-            .missing_sites
-            .iter()
-            .any(|site| site.kind == "required_symbol"));
-        assert!(contract
-            .missing_sites
-            .iter()
-            .any(|site| site.kind == "required_file"));
-    }
-
-    #[test]
-    fn contract_missing_sites_prioritize_runtime_and_registry_surfaces() {
-        let config: RulesConfig = toml::from_str(
-            r#"
-                [[contract]]
-                id = "server_state_bootstrap"
-                registry_symbol = "src/app/server-state-bootstrap-registry.ts::SERVER_STATE_BOOTSTRAP_REGISTRY"
-                browser_entry = "src/runtime/browser-session.ts"
-                required_files = ["src/app/bootstrap-persist.ts"]
-            "#,
-        )
-        .expect("rules config");
-        let semantic = SemanticSnapshot {
-            project: ProjectModel::default(),
-            analyzed_files: 0,
-            capabilities: vec![SemanticCapability::Symbols],
-            files: Vec::new(),
-            symbols: Vec::new(),
-            reads: Vec::new(),
-            writes: Vec::new(),
-            closed_domains: Vec::new(),
-            closed_domain_sites: Vec::new(),
-            transition_sites: Vec::new(),
-        };
-
-        let obligations =
-            build_obligations(&config, &semantic, ObligationScope::All, &BTreeSet::new());
-
-        let contract = obligations
-            .iter()
-            .find(|obligation| obligation.kind == "contract_surface_completeness")
-            .expect("contract obligation");
-        assert_eq!(
-            contract
-                .missing_sites
-                .first()
-                .map(|site| site.kind.as_str()),
-            Some("browser_entry")
-        );
-        assert_eq!(
-            contract.missing_sites.get(1).map(|site| site.kind.as_str()),
-            Some("registry_symbol")
-        );
-        assert_eq!(
-            contract.missing_sites.get(2).map(|site| site.kind.as_str()),
-            Some("required_file")
-        );
-    }
-
-    #[test]
-    fn contract_missing_site_summary_dedupes_non_adjacent_labels() {
-        let summary = summarize_contract_missing_sites(&[
-            ObligationSite {
-                path: "src/app/bootstrap-adapter.ts".to_string(),
-                kind: "required_symbol".to_string(),
-                line: None,
-                detail: "update adapter".to_string(),
-            },
-            ObligationSite {
-                path: "src/runtime/browser-session.ts".to_string(),
-                kind: "browser_entry".to_string(),
-                line: None,
-                detail: "update browser runtime entry".to_string(),
-            },
-            ObligationSite {
-                path: "src/app/bootstrap-persist.ts".to_string(),
-                kind: "required_symbol".to_string(),
-                line: None,
-                detail: "update required contract symbol".to_string(),
-            },
-        ]);
-
-        assert_eq!(
-            summary,
-            "the required symbol and browser runtime entry surfaces"
-        );
-    }
-
-    #[test]
-    fn zero_config_domain_matching_prefers_defining_file() {
-        let config: RulesConfig = toml::from_str("").expect("empty rules config");
-        let semantic = SemanticSnapshot {
-            project: ProjectModel::default(),
-            analyzed_files: 1,
-            capabilities: vec![
-                SemanticCapability::ClosedDomains,
-                SemanticCapability::ClosedDomainSites,
-            ],
-            files: vec![SemanticFileFact::default()],
-            symbols: Vec::new(),
-            reads: Vec::new(),
-            writes: Vec::new(),
-            closed_domains: vec![
-                ClosedDomain {
-                    path: "src/domain/task-state.ts".to_string(),
-                    symbol_name: "TaskState".to_string(),
-                    variants: vec!["idle".to_string(), "running".to_string()],
-                    line: 1,
-                    defining_file: Some("src/domain/task-state.ts".to_string()),
-                },
-                ClosedDomain {
-                    path: "src/legacy/task-state.ts".to_string(),
-                    symbol_name: "TaskState".to_string(),
-                    variants: vec!["ready".to_string(), "done".to_string()],
-                    line: 1,
-                    defining_file: Some("src/legacy/task-state.ts".to_string()),
-                },
-            ],
-            closed_domain_sites: vec![ExhaustivenessSite {
-                path: "src/app/presenter.ts".to_string(),
-                domain_symbol_name: "TaskState".to_string(),
-                defining_file: Some("src/legacy/task-state.ts".to_string()),
-                site_kind: ExhaustivenessSiteKind::Switch,
-                proof_kind: ExhaustivenessProofKind::AssertNever,
-                covered_variants: vec!["ready".to_string()],
-                line: 14,
-            }],
-            transition_sites: Vec::new(),
-        };
-
-        let obligations =
-            build_obligations(&config, &semantic, ObligationScope::All, &BTreeSet::new());
-
-        assert_eq!(obligations.len(), 1);
-        assert!(obligations[0].summary.contains("src/legacy/task-state.ts"));
-        assert_eq!(obligations[0].missing_variants, vec!["done".to_string()]);
-
-        let findings = build_obligation_findings(&obligations);
-        assert_eq!(findings.len(), 1);
-        assert!(findings[0]
-            .evidence
-            .iter()
-            .any(|entry| entry.contains("src/legacy/task-state.ts")));
-        assert!(findings[0]
-            .evidence
-            .iter()
-            .any(|entry| entry.contains("ready, done")));
-    }
-
-    #[test]
-    fn zero_config_domains_are_not_in_changed_scope_when_unrelated_files_change() {
-        let config: RulesConfig = toml::from_str("").expect("empty rules config");
-        let semantic = SemanticSnapshot {
-            project: ProjectModel::default(),
-            analyzed_files: 1,
-            capabilities: vec![
-                SemanticCapability::ClosedDomains,
-                SemanticCapability::ClosedDomainSites,
-            ],
-            files: vec![SemanticFileFact::default()],
-            symbols: Vec::new(),
-            reads: Vec::new(),
-            writes: Vec::new(),
-            closed_domains: vec![ClosedDomain {
-                path: "src/domain/task-state.ts".to_string(),
-                symbol_name: "TaskState".to_string(),
-                variants: vec!["idle".to_string(), "running".to_string()],
-                line: 1,
-                defining_file: Some("src/domain/task-state.ts".to_string()),
-            }],
-            closed_domain_sites: vec![ExhaustivenessSite {
-                path: "src/app/presenter.ts".to_string(),
-                domain_symbol_name: "TaskState".to_string(),
-                defining_file: Some("src/domain/task-state.ts".to_string()),
-                site_kind: ExhaustivenessSiteKind::Switch,
-                proof_kind: ExhaustivenessProofKind::AssertNever,
-                covered_variants: vec!["idle".to_string()],
-                line: 10,
-            }],
-            transition_sites: Vec::new(),
-        };
-        let changed_files = BTreeSet::from(["src/app/unrelated.ts".to_string()]);
-
-        let obligations =
-            build_obligations(&config, &semantic, ObligationScope::Changed, &changed_files);
-
-        assert!(obligations.is_empty());
-    }
+    let site_bonus = (missing_site_count.min(3) as u32) * 500;
+    (6000 + severity_bonus + origin_bonus + site_bonus).min(10_000)
 }

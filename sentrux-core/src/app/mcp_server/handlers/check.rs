@@ -1,6 +1,7 @@
 use super::agent_format::{
-    actions_from_issues, compare_agent_issues, issue_blocks_gate, to_agent_issue,
-    AgentCheckResponse, AgentGate, AgentIssue, CheckAvailability, CheckDiagnostics,
+    actions_from_issues, compare_agent_issues, issue_blocks_gate,
+    issues_from_findings_and_obligations, AgentCheckResponse, AgentGate, AgentIssue,
+    CheckAvailability, CheckDiagnostics,
 };
 use super::semantic_batch::SemanticAnalysisBatch;
 use super::*;
@@ -133,11 +134,13 @@ fn build_fast_check_issues(
         })
         .unwrap_or_default();
 
+    let obligation_values = build_changed_obligation_values(&changed_analysis);
     let mut findings = build_changed_semantic_finding_values(&changed_analysis);
     findings.extend(build_changed_structural_finding_values(
         root,
         snapshot,
         health,
+        &rules_config,
         changed_files,
     ));
 
@@ -183,12 +186,12 @@ fn build_fast_check_issues(
         changed_files,
     ));
 
-    let suppression_application = apply_suppressions(&rules_config, findings);
-    let mut issues = suppression_application
-        .visible_findings
-        .iter()
-        .map(to_agent_issue)
-        .collect::<Vec<_>>();
+    let mut suppressible_values = obligation_values;
+    suppressible_values.extend(findings);
+    let suppression_application = apply_suppressions(&rules_config, suppressible_values);
+    let (visible_obligations, visible_findings) =
+        partition_check_issue_values(suppression_application.visible_findings);
+    let mut issues = issues_from_findings_and_obligations(&visible_findings, &visible_obligations);
     issues.sort_by(compare_agent_issues);
 
     let diagnostics = build_fast_check_diagnostics(
@@ -222,21 +225,22 @@ fn analyze_check_semantics(state: &mut McpState, root: &Path) -> SemanticCheckSt
     }
 }
 
-fn build_changed_semantic_finding_values(changed_analysis: &SemanticAnalysisBatch) -> Vec<Value> {
-    let mut findings = changed_analysis
+fn build_changed_obligation_values(changed_analysis: &SemanticAnalysisBatch) -> Vec<Value> {
+    changed_analysis
         .obligations
         .iter()
         .filter(|obligation| !obligation.missing_sites.is_empty())
         .map(obligation_issue_value)
-        .collect::<Vec<_>>();
-    findings.extend(
-        changed_analysis
-            .findings
-            .iter()
-            .filter(|finding| finding.kind != "closed_domain_exhaustiveness")
-            .map(semantic_finding_value),
-    );
-    findings
+        .collect::<Vec<_>>()
+}
+
+fn build_changed_semantic_finding_values(changed_analysis: &SemanticAnalysisBatch) -> Vec<Value> {
+    changed_analysis
+        .findings
+        .iter()
+        .filter(|finding| finding.kind != "closed_domain_exhaustiveness")
+        .map(semantic_finding_value)
+        .collect::<Vec<_>>()
 }
 
 fn build_fast_check_diagnostics(
@@ -308,17 +312,6 @@ fn diagnostics_errors(
     ])
 }
 
-fn obligation_finding_severity(
-    obligation: &crate::metrics::v2::ObligationReport,
-) -> FindingSeverity {
-    if obligation.kind == "closed_domain_exhaustiveness" || !obligation.missing_variants.is_empty()
-    {
-        FindingSeverity::High
-    } else {
-        FindingSeverity::Medium
-    }
-}
-
 fn compute_agent_gate(issues: &[AgentIssue]) -> AgentGate {
     if issues.iter().any(issue_blocks_gate) {
         return AgentGate::Fail;
@@ -376,8 +369,7 @@ fn derived_obligation_kind(obligation: &crate::metrics::v2::ObligationReport) ->
     }
 }
 
-fn obligation_issue_value(obligation: &crate::metrics::v2::ObligationReport) -> Value {
-    let severity = obligation_finding_severity(obligation);
+pub(crate) fn obligation_issue_value(obligation: &crate::metrics::v2::ObligationReport) -> Value {
     let kind = derived_obligation_kind(obligation);
     let summary = if kind == "incomplete_propagation" {
         let concept = obligation
@@ -393,39 +385,63 @@ fn obligation_issue_value(obligation: &crate::metrics::v2::ObligationReport) -> 
         obligation.summary.clone()
     };
     json!({
+        "source": "obligation",
         "kind": kind,
-        "severity": severity,
-        "concept_id": obligation.concept_id.clone().unwrap_or_else(|| obligation.domain_symbol_name.clone().unwrap_or_default()),
+        "severity": obligation.severity,
+        "concept_id": obligation.concept_id.clone(),
+        "domain_symbol_name": obligation.domain_symbol_name.clone(),
         "summary": summary,
-        "files": obligation.files,
-        "missing_sites": obligation.missing_sites,
+        "files": obligation.files.clone(),
+        "missing_sites": obligation.missing_sites.clone(),
+        "missing_variants": obligation.missing_variants.clone(),
         "evidence": obligation.missing_sites.iter().map(|site| {
             let line_suffix = site.line.map(|line| format!(":{line}")).unwrap_or_default();
             format!("{}{} [{}]", site.path, line_suffix, site.detail)
         }).collect::<Vec<_>>(),
-        "origin": if obligation.concept_id.is_some() { "explicit" } else { "zero_config" },
-        "confidence": if obligation.concept_id.is_some() { "high" } else { "medium" },
+        "origin": obligation.origin,
+        "trust_tier": obligation.trust_tier,
+        "confidence": obligation.confidence,
+        "score_0_10000": obligation.score_0_10000,
         "line": obligation.missing_sites.iter().find_map(|site| site.line),
     })
+}
+
+fn partition_check_issue_values(values: Vec<Value>) -> (Vec<Value>, Vec<Value>) {
+    let mut obligations = Vec::new();
+    let mut findings = Vec::new();
+
+    for value in values {
+        if value.get("source").and_then(Value::as_str) == Some("obligation") {
+            obligations.push(value);
+        } else {
+            findings.push(value);
+        }
+    }
+
+    (obligations, findings)
 }
 
 fn build_changed_structural_finding_values(
     root: &Path,
     snapshot: &Snapshot,
     health: &metrics::HealthReport,
+    rules_config: &crate::metrics::rules::RulesConfig,
     changed_files: &BTreeSet<String>,
 ) -> Vec<Value> {
-    crate::metrics::v2::build_structural_debt_reports_with_root(root, snapshot, health)
-        .into_iter()
-        .filter(|report| {
-            report.files.iter().any(|path| changed_files.contains(path))
-                && matches!(
-                    report.kind.as_str(),
-                    "large_file" | "dependency_sprawl" | "unstable_hotspot" | "cycle_cluster"
-                )
-        })
-        .map(structural_report_value)
-        .collect()
+    filter_structural_reports_by_rules(
+        crate::metrics::v2::build_structural_debt_reports_with_root(root, snapshot, health),
+        rules_config,
+    )
+    .into_iter()
+    .filter(|report| {
+        report.files.iter().any(|path| changed_files.contains(path))
+            && matches!(
+                report.kind.as_str(),
+                "large_file" | "dependency_sprawl" | "unstable_hotspot" | "cycle_cluster"
+            )
+    })
+    .map(structural_report_value)
+    .collect()
 }
 
 fn session_introduced_clone_finding_values(
