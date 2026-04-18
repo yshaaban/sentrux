@@ -278,6 +278,8 @@ test('signal cohort helpers flatten default-lane lead and supporting metadata', 
   assert(agentLeadSignalKinds.has('forbidden_raw_read'));
   assert(!agentLeadSignalKinds.has('closed_domain_exhaustiveness'));
   assert(!agentLeadSignalKinds.has('large_file'));
+  assert.equal(metadataLookup.get('incomplete_propagation')?.lead_priority, 10);
+  assert.equal(metadataLookup.get('forbidden_raw_read')?.lead_priority, 30);
 });
 
 test('selectLeverageBuckets falls back to cohort metadata for default-lane selection', function () {
@@ -352,6 +354,194 @@ test('selectLeverageBuckets honors explicit default surface roles over cohort fa
   );
   assert(
     !buckets.summary_candidates.some((entry) => entry.scope === 'src/app/status.ts'),
+  );
+});
+
+test('selectLeverageBuckets compresses duplicate default-lane signal kinds and keeps the best-evidenced lead', function () {
+  const findingsPayload = {
+    finding_details: [
+      candidate({
+        scope: 'src/app/raw-read-low.ts',
+        kind: 'forbidden_raw_read',
+        leverageClass: 'boundary_discipline',
+        severity: 'high',
+        reviewed_precision: 0.75,
+        top_action_help_rate: 0.25,
+        task_success_rate: 0.25,
+        intervention_net_value_score: 0,
+        session_verdict_count: 4,
+      }),
+      candidate({
+        scope: 'src/app/raw-read-high.ts',
+        kind: 'forbidden_raw_read',
+        leverageClass: 'boundary_discipline',
+        severity: 'high',
+        reviewed_precision: 1,
+        top_action_help_rate: 1,
+        task_success_rate: 1,
+        intervention_net_value_score: 1,
+        session_verdict_count: 4,
+      }),
+      candidate({
+        scope: 'src/app/propagation.ts',
+        kind: 'incomplete_propagation',
+        leverageClass: 'boundary_discipline',
+        severity: 'high',
+        reviewed_precision: 1,
+        top_action_help_rate: 1,
+        task_success_rate: 1,
+        intervention_net_value_score: 1,
+        session_verdict_count: 4,
+      }),
+    ],
+    watchpoints: [],
+    debt_signals: [],
+    debt_clusters: [],
+  };
+
+  const buckets = selectLeverageBuckets(findingsPayload);
+
+  assert.deepEqual(
+    buckets.summary_candidates.map((entry) => entry.scope),
+    ['src/app/propagation.ts', 'src/app/raw-read-high.ts'],
+  );
+  assert(
+    !buckets.summary_candidates.some((entry) => entry.scope === 'src/app/raw-read-low.ts'),
+  );
+});
+
+test('selectLeverageBuckets suppresses broad structural pressure from the default lane unless the patch worsened it and repair is concrete', function () {
+  const findingsPayload = {
+    finding_details: [
+      candidate({
+        scope: 'src/app/huge-module.ts',
+        kind: 'large_file',
+        leverageClass: 'secondary_cleanup',
+        severity: 'high',
+        primary_lane: 'agent_default',
+        default_surface_role: 'lead',
+        signal_family: 'structural',
+        patch_worsened: false,
+        likely_fix_sites: [{ path: 'src/app/huge-module.ts', rationale: 'split owner' }],
+      }),
+      candidate({
+        scope: 'src/app/propagation.ts',
+        kind: 'incomplete_propagation',
+        leverageClass: 'boundary_discipline',
+        severity: 'high',
+      }),
+    ],
+    watchpoints: [],
+    debt_signals: [],
+    debt_clusters: [],
+  };
+
+  const buckets = selectLeverageBuckets(findingsPayload);
+
+  assert.deepEqual(
+    buckets.summary_candidates.map((entry) => entry.scope),
+    ['src/app/propagation.ts'],
+  );
+  assert(
+    !buckets.summary_candidates.some((entry) => entry.scope === 'src/app/huge-module.ts'),
+  );
+});
+
+test('selectLeverageBuckets allows patch-worsened structural pressure into the default lane when the repair surface is concrete', function () {
+  const findingsPayload = {
+    finding_details: [
+      candidate({
+        scope: 'src/app/huge-module.ts',
+        kind: 'large_file',
+        leverageClass: 'secondary_cleanup',
+        severity: 'high',
+        primary_lane: 'agent_default',
+        default_surface_role: 'lead',
+        signal_family: 'structural',
+        patch_worsened: true,
+        likely_fix_sites: [{ path: 'src/app/huge-module.ts', rationale: 'split owner' }],
+      }),
+      candidate({
+        scope: 'src/app/propagation.ts',
+        kind: 'incomplete_propagation',
+        leverageClass: 'boundary_discipline',
+        severity: 'high',
+      }),
+    ],
+    watchpoints: [],
+    debt_signals: [],
+    debt_clusters: [],
+  };
+
+  const buckets = selectLeverageBuckets(findingsPayload);
+
+  assert.deepEqual(
+    buckets.summary_candidates.map((entry) => entry.scope),
+    ['src/app/propagation.ts', 'src/app/huge-module.ts'],
+  );
+});
+
+test('selectLeverageBuckets uses follow-through and repair value evidence to break default-lane ties', function () {
+  const findingsPayload = {
+    finding_details: [
+      candidate({
+        scope: 'src/app/raw-read-reviewed.ts',
+        kind: 'forbidden_raw_read',
+        leverageClass: 'boundary_discipline',
+        severity: 'high',
+        reviewed_precision: 1,
+        top_action_follow_rate: 0.4,
+        top_action_help_rate: 0.4,
+        remediation_success_rate: 0.5,
+        reviewer_acceptance_rate: 0.5,
+        reviewer_disagreement_rate: 0.5,
+        patch_expansion_rate: 0.5,
+        intervention_cost_checks_mean: 4,
+        session_verdict_count: 5,
+      }),
+      candidate({
+        scope: 'src/app/raw-read-helpful.ts',
+        kind: 'forbidden_raw_read',
+        leverageClass: 'boundary_discipline',
+        severity: 'high',
+        reviewed_precision: 0.9,
+        top_action_follow_rate: 1,
+        top_action_help_rate: 1,
+        remediation_success_rate: 1,
+        reviewer_acceptance_rate: 1,
+        reviewer_disagreement_rate: 0,
+        patch_expansion_rate: 0,
+        intervention_cost_checks_mean: 1,
+        session_verdict_count: 5,
+      }),
+      candidate({
+        scope: 'src/app/propagation.ts',
+        kind: 'incomplete_propagation',
+        leverageClass: 'boundary_discipline',
+        severity: 'high',
+        top_action_follow_rate: 0.9,
+        top_action_help_rate: 0.9,
+        remediation_success_rate: 0.9,
+        reviewer_acceptance_rate: 0.9,
+        reviewer_disagreement_rate: 0.1,
+        patch_expansion_rate: 0.1,
+        intervention_cost_checks_mean: 1,
+        session_verdict_count: 5,
+      }),
+    ],
+    watchpoints: [],
+    debt_signals: [],
+    debt_clusters: [],
+  };
+
+  const buckets = selectLeverageBuckets(findingsPayload);
+
+  assert.deepEqual(
+    buckets.summary_candidates.map((entry) => entry.scope),
+    ['src/app/propagation.ts', 'src/app/raw-read-helpful.ts'],
+  );
+  assert(
+    !buckets.summary_candidates.some((entry) => entry.scope === 'src/app/raw-read-reviewed.ts'),
   );
 });
 

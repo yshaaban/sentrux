@@ -78,6 +78,7 @@ function buildScorecardContext({
     sessionVerdicts,
   });
   applySignalSessionVerdicts(signalMap, sessionCorpus);
+  applySignalTreatmentEvidence(signalMap, sessionCorpus);
   applySignalCohortMetadata(signalMap, cohortManifest, cohortId);
 
   return {
@@ -167,6 +168,18 @@ function applySignalSessionVerdicts(signalMap, sessionCorpus) {
       'patch_expanded_unnecessarily_count',
       verdict.patch_expanded_unnecessarily,
     );
+    incrementBooleanSessionVerdict(
+      entry,
+      'reviewer_acceptance_sample_count',
+      'reviewer_accepted_count',
+      verdict.reviewer_accepts_top_action,
+    );
+    incrementBooleanSessionVerdict(
+      entry,
+      'reviewer_disagreement_sample_count',
+      'reviewer_disagreed_count',
+      verdict.reviewer_disagrees_with_top_action,
+    );
 
     if (
       Number.isInteger(verdict.intervention_cost_checks) &&
@@ -175,6 +188,87 @@ function applySignalSessionVerdicts(signalMap, sessionCorpus) {
       entry.intervention_cost_sample_count += 1;
       entry.intervention_cost_checks_total += verdict.intervention_cost_checks;
     }
+  }
+}
+
+function compareSignalTreatmentComparison(left, right) {
+  if (left.qualified_for_default_rollout !== right.qualified_for_default_rollout) {
+    return Number(right.qualified_for_default_rollout) -
+      Number(left.qualified_for_default_rollout);
+  }
+  if (left.intervention_net_value_score_delta !== right.intervention_net_value_score_delta) {
+    return (
+      (right.intervention_net_value_score_delta ?? Number.NEGATIVE_INFINITY) -
+      (left.intervention_net_value_score_delta ?? Number.NEGATIVE_INFINITY)
+    );
+  }
+  if (left.top_action_help_rate_delta !== right.top_action_help_rate_delta) {
+    return (
+      (right.top_action_help_rate_delta ?? Number.NEGATIVE_INFINITY) -
+      (left.top_action_help_rate_delta ?? Number.NEGATIVE_INFINITY)
+    );
+  }
+  if (left.task_success_rate_delta !== right.task_success_rate_delta) {
+    return (
+      (right.task_success_rate_delta ?? Number.NEGATIVE_INFINITY) -
+      (left.task_success_rate_delta ?? Number.NEGATIVE_INFINITY)
+    );
+  }
+  if (left.patch_expansion_rate_delta !== right.patch_expansion_rate_delta) {
+    return (
+      (left.patch_expansion_rate_delta ?? Number.POSITIVE_INFINITY) -
+      (right.patch_expansion_rate_delta ?? Number.POSITIVE_INFINITY)
+    );
+  }
+  if (left.session_count !== right.session_count) {
+    return right.session_count - left.session_count;
+  }
+  if (left.baseline_session_count !== right.baseline_session_count) {
+    return right.baseline_session_count - left.baseline_session_count;
+  }
+
+  return left.experiment_arm.localeCompare(right.experiment_arm);
+}
+
+function applySignalTreatmentEvidence(signalMap, sessionCorpus) {
+  const statsBySignalKind = new Map();
+
+  for (const comparison of sessionCorpus?.signal_experiment_comparisons ?? []) {
+    const current = statsBySignalKind.get(comparison.signal_kind) ?? {
+      comparisonCount: 0,
+      qualifiedComparisonCount: 0,
+      bestComparison: null,
+    };
+
+    current.comparisonCount += 1;
+    if (comparison.qualified_for_default_rollout === true) {
+      current.qualifiedComparisonCount += 1;
+    }
+    if (
+      !current.bestComparison ||
+      compareSignalTreatmentComparison(comparison, current.bestComparison) < 0
+    ) {
+      current.bestComparison = comparison;
+    }
+
+    statsBySignalKind.set(comparison.signal_kind, current);
+  }
+
+  for (const [signalKind, stats] of statsBySignalKind.entries()) {
+    const entry = ensureSignalEntry(signalMap, signalKind);
+
+    entry.signal_treatment_comparison_count = stats.comparisonCount;
+    entry.signal_treatment_qualified_comparison_count = stats.qualifiedComparisonCount;
+    entry.signal_treatment_ready = stats.qualifiedComparisonCount > 0;
+    entry.signal_treatment_best_arm = stats.bestComparison?.experiment_arm ?? null;
+    entry.signal_treatment_top_action_help_rate_delta =
+      stats.bestComparison?.top_action_help_rate_delta ?? null;
+    entry.signal_treatment_task_success_rate_delta =
+      stats.bestComparison?.task_success_rate_delta ?? null;
+    entry.signal_treatment_patch_expansion_rate_delta =
+      stats.bestComparison?.patch_expansion_rate_delta ?? null;
+    entry.signal_treatment_intervention_net_value_score_delta =
+      stats.bestComparison?.intervention_net_value_score_delta ?? null;
   }
 }
 
@@ -271,6 +365,8 @@ function buildProductValueSummary(sessionCorpus) {
     top_action_help_rate: summary.top_action_help_rate ?? null,
     task_success_rate: summary.task_success_rate ?? null,
     patch_expansion_rate: summary.patch_expansion_rate ?? null,
+    reviewer_acceptance_rate: summary.reviewer_acceptance_rate ?? null,
+    reviewer_disagreement_rate: summary.reviewer_disagreement_rate ?? null,
     intervention_cost_checks_mean: summary.intervention_cost_checks_mean ?? null,
     intervention_net_value_score: summary.intervention_net_value_score ?? null,
     lane_summaries: laneSummaries,
@@ -291,6 +387,8 @@ function buildLaneProductValueSummary(entries, lane) {
     top_action_help_rate: sessionVerdictSummary.top_action_help_rate,
     task_success_rate: sessionVerdictSummary.task_success_rate,
     patch_expansion_rate: sessionVerdictSummary.patch_expansion_rate,
+    reviewer_acceptance_rate: sessionVerdictSummary.reviewer_acceptance_rate,
+    reviewer_disagreement_rate: sessionVerdictSummary.reviewer_disagreement_rate,
     intervention_cost_checks_mean: sessionVerdictSummary.intervention_cost_checks_mean,
     intervention_net_value_score: sessionVerdictSummary.intervention_net_value_score,
   };
@@ -335,6 +433,14 @@ function buildSignalProductValueFields(entry) {
     entry.intervention_cost_checks_total ?? 0,
     entry.intervention_cost_sample_count ?? 0,
   );
+  const reviewerAcceptanceRate = safeRatio(
+    entry.reviewer_accepted_count ?? 0,
+    entry.reviewer_acceptance_sample_count ?? 0,
+  );
+  const reviewerDisagreementRate = safeRatio(
+    entry.reviewer_disagreed_count ?? 0,
+    entry.reviewer_disagreement_sample_count ?? 0,
+  );
 
   return {
     session_verdict_count: entry.session_verdict_count ?? 0,
@@ -352,9 +458,28 @@ function buildSignalProductValueFields(entry) {
     patch_expansion_sample_count: entry.patch_expansion_sample_count ?? 0,
     patch_expanded_unnecessarily_count: entry.patch_expanded_unnecessarily_count ?? 0,
     patch_expansion_rate: patchExpansionRate,
+    reviewer_acceptance_sample_count: entry.reviewer_acceptance_sample_count ?? 0,
+    reviewer_accepted_count: entry.reviewer_accepted_count ?? 0,
+    reviewer_acceptance_rate: reviewerAcceptanceRate,
+    reviewer_disagreement_sample_count: entry.reviewer_disagreement_sample_count ?? 0,
+    reviewer_disagreed_count: entry.reviewer_disagreed_count ?? 0,
+    reviewer_disagreement_rate: reviewerDisagreementRate,
     intervention_cost_sample_count: entry.intervention_cost_sample_count ?? 0,
     intervention_cost_checks_total: entry.intervention_cost_checks_total ?? 0,
     intervention_cost_checks_mean: interventionCostChecksMean,
+    signal_treatment_comparison_count: entry.signal_treatment_comparison_count ?? 0,
+    signal_treatment_qualified_comparison_count:
+      entry.signal_treatment_qualified_comparison_count ?? 0,
+    signal_treatment_ready: entry.signal_treatment_ready === true,
+    signal_treatment_best_arm: entry.signal_treatment_best_arm ?? null,
+    signal_treatment_top_action_help_rate_delta:
+      entry.signal_treatment_top_action_help_rate_delta ?? null,
+    signal_treatment_task_success_rate_delta:
+      entry.signal_treatment_task_success_rate_delta ?? null,
+    signal_treatment_patch_expansion_rate_delta:
+      entry.signal_treatment_patch_expansion_rate_delta ?? null,
+    signal_treatment_intervention_net_value_score_delta:
+      entry.signal_treatment_intervention_net_value_score_delta ?? null,
     intervention_net_value_score: buildInterventionNetValueScore({
       topActionFollowRate,
       topActionHelpRate,
@@ -475,7 +600,12 @@ function buildScorecardSummary({
       (signal) => signal.promotion_evidence_complete,
     ).length,
     default_rollout_candidate_count: signals.filter(
-      (signal) => signal.default_rollout_recommendation === 'await_treatment_proof',
+      (signal) =>
+        signal.default_rollout_recommendation === 'await_treatment_proof' ||
+        signal.default_rollout_recommendation === 'ready_for_default_on',
+    ).length,
+    default_rollout_ready_count: signals.filter(
+      (signal) => signal.default_rollout_recommendation === 'ready_for_default_on',
     ).length,
     kpis: {
       defect_sample_count: defectReport?.results?.length ?? 0,

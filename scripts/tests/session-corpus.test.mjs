@@ -144,6 +144,22 @@ test('buildSessionCorpus normalizes live and replay sessions into one review sur
         },
       ],
     },
+    adjudicationSummary: {
+      status: 'scaffold_only',
+      task_count: 2,
+      decision_count: 2,
+      structured_evidence_only: true,
+      audit_logging_ready: true,
+      auto_apply_enabled: false,
+      recommended_model: 'MiniMax M2.7',
+    },
+    phaseTracking: {
+      bounded_llm_adjudication: {
+        phase_id: 'phase_3_bounded_llm_adjudication',
+        status: 'scaffold_only',
+        milestone: 'structured_bundle_contract',
+      },
+    },
   });
 
   assert.equal(corpus.summary.session_count, 4);
@@ -175,11 +191,16 @@ test('buildSessionCorpus normalizes live and replay sessions into one review sur
   assert.equal(corpus.summary.focus_area_count, 3);
   assert.equal(corpus.summary.top_action_failure_count, 2);
   assert.equal(corpus.summary.experiment_arm_count, 2);
+  assert.equal(corpus.summary.signal_experiment_count, 4);
+  assert.equal(corpus.summary.signal_experiment_comparison_count, 0);
+  assert.equal(corpus.summary.signal_experiment_ready_count, 0);
   assert.equal(corpus.summary.session_verdict_count, 3);
   assert.equal(corpus.summary.top_action_follow_rate, 0.667);
   assert.equal(corpus.summary.top_action_help_rate, 0.5);
   assert.equal(corpus.summary.task_success_rate, 0.667);
   assert.equal(corpus.summary.patch_expansion_rate, 0.333);
+  assert.equal(corpus.summary.reviewer_acceptance_rate, null);
+  assert.equal(corpus.summary.reviewer_disagreement_rate, null);
   assert.equal(corpus.summary.intervention_cost_checks_mean, 2);
   assert.equal(corpus.summary.intervention_net_value_score, 0.278);
   assert.equal(corpus.summary.top_action_session_count, 3);
@@ -188,6 +209,22 @@ test('buildSessionCorpus normalizes live and replay sessions into one review sur
   assert.equal(corpus.summary.regression_after_fix_rate, 0);
   assert.equal(corpus.summary.propagation_escape_rate, 0.5);
   assert.equal(corpus.summary.duplicate_logic_introduced_rate, 0.25);
+  assert.deepEqual(corpus.phase_tracking, {
+    bounded_llm_adjudication: {
+      phase_id: 'phase_3_bounded_llm_adjudication',
+      status: 'scaffold_only',
+      milestone: 'structured_bundle_contract',
+    },
+  });
+  assert.deepEqual(corpus.adjudication_summary, {
+    status: 'scaffold_only',
+    task_count: 2,
+    decision_count: 2,
+    structured_evidence_only: true,
+    audit_logging_ready: true,
+    auto_apply_enabled: false,
+    recommended_model: 'MiniMax M2.7',
+  });
   assert.equal(corpus.review_queue.length, 1);
   assert.equal(corpus.sessions[0].outcome_bucket, 'provider_failed');
   assert.deepEqual(corpus.sessions[0].program_tracking, corpus.evidence_sources.live);
@@ -225,6 +262,10 @@ test('buildSessionCorpus normalizes live and replay sessions into one review sur
   assert.equal(corpus.experiment_arm_summaries[0].session_verdict_count, 3);
   assert.equal(corpus.experiment_arm_summaries[0].top_action_help_rate, 0.5);
   assert.equal(corpus.experiment_arm_summaries[0].focus_area_counts[0].focus_area, 'propagation');
+  assert.equal(corpus.signal_experiment_summaries[0].signal_kind, 'clone_propagation_drift');
+  assert.equal(corpus.signal_experiment_summaries[0].experiment_arm, 'report_only');
+  assert.equal(corpus.signal_experiment_summaries[1].signal_kind, 'closed_domain_exhaustiveness');
+  assert.equal(corpus.signal_experiment_summaries[1].expected_top_action_rate, 1);
   assert.equal(corpus.sessions[1].session_verdict?.top_action_helped, true);
   assert.match(
     formatSessionCorpusMarkdown(corpus),
@@ -232,6 +273,7 @@ test('buildSessionCorpus normalizes live and replay sessions into one review sur
   );
   assert.match(formatSessionCorpusMarkdown(corpus), /top-action sessions: 3/);
   assert.match(formatSessionCorpusMarkdown(corpus), /top-action help rate: 0.5/);
+  assert.match(formatSessionCorpusMarkdown(corpus), /bounded adjudication status: scaffold_only/);
   assert.match(formatSessionCorpusMarkdown(corpus), /Focus Areas/);
   assert.match(formatSessionCorpusMarkdown(corpus), /Top Action Failures/);
   assert.match(formatSessionCorpusMarkdown(corpus), /Experiment Arms/);
@@ -315,13 +357,21 @@ test('buildSessionCorpus computes treatment-vs-baseline arm comparisons when a b
   });
 
   assert.equal(corpus.summary.experiment_arm_comparison_count, 1);
+  assert.equal(corpus.summary.signal_experiment_comparison_count, 1);
+  assert.equal(corpus.summary.signal_experiment_ready_count, 1);
   assert.equal(corpus.experiment_arm_comparisons[0].experiment_arm, 'fix_this_first');
   assert.equal(corpus.experiment_arm_comparisons[0].baseline_experiment_arm, 'no_intervention');
   assert.equal(corpus.experiment_arm_comparisons[0].agent_clear_rate_delta, 1);
   assert.equal(corpus.experiment_arm_comparisons[0].top_action_help_rate_delta, 1);
   assert.equal(corpus.experiment_arm_comparisons[0].task_success_rate_delta, 1);
   assert.equal(corpus.experiment_arm_comparisons[0].intervention_net_value_score_delta, 1);
+  assert.equal(corpus.signal_experiment_comparisons[0].signal_kind, 'incomplete_propagation');
+  assert.equal(corpus.signal_experiment_comparisons[0].qualified_for_default_rollout, true);
+  assert.equal(corpus.signal_experiment_comparisons[0].expected_top_action_rate_delta, 1);
+  assert.equal(corpus.signal_experiment_comparisons[0].top_action_help_rate_delta, 1);
+  assert.match(formatSessionCorpusMarkdown(corpus), /signal-matched ready signals: 1/);
   assert.match(formatSessionCorpusMarkdown(corpus), /Experiment Arm Comparisons/);
+  assert.match(formatSessionCorpusMarkdown(corpus), /Signal-Matched Comparisons/);
 });
 
 test('buildSessionCorpus keeps clean-but-misranked sessions in the review queue', function () {

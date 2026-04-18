@@ -2,6 +2,8 @@ export const SIGNAL_PROMOTION_POLICY = Object.freeze({
   seededRecallMin: 0.95,
   reviewedPrecisionMin: 0.8,
   reviewNoiseRateMax: 0.2,
+  reviewerAcceptanceRateMin: 0.6,
+  reviewerDisagreementRateMax: 0.4,
   remediationSuccessMin: 0.6,
   topActionClearRateMin: 0.6,
   topActionFollowRateMin: 0.6,
@@ -49,3 +51,32 @@ export const SIGNAL_BACKLOG_PRIORITY_WEIGHTS = Object.freeze({
   regressionFollowup: 2,
   outOfCohortBonus: 1,
 });
+
+function numericOrNull(value) {
+  return Number.isFinite(value) ? value : null;
+}
+
+export function comparisonQualifiesForDefaultRollout(entry) {
+  if (!entry) {
+    return false;
+  }
+
+  const topActionHelpRateDelta = numericOrNull(entry.top_action_help_rate_delta);
+  const taskSuccessRateDelta = numericOrNull(entry.task_success_rate_delta);
+  const interventionNetValueScoreDelta = numericOrNull(
+    entry.intervention_net_value_score_delta,
+  );
+  const patchExpansionRateDelta = numericOrNull(entry.patch_expansion_rate_delta);
+
+  return (
+    topActionHelpRateDelta !== null &&
+    topActionHelpRateDelta >= SIGNAL_DEFAULT_ROLLOUT_POLICY.topActionHelpRateDeltaMin &&
+    taskSuccessRateDelta !== null &&
+    taskSuccessRateDelta >= SIGNAL_DEFAULT_ROLLOUT_POLICY.taskSuccessRateDeltaMin &&
+    interventionNetValueScoreDelta !== null &&
+    interventionNetValueScoreDelta >=
+      SIGNAL_DEFAULT_ROLLOUT_POLICY.interventionNetValueScoreDeltaMin &&
+    patchExpansionRateDelta !== null &&
+    patchExpansionRateDelta <= SIGNAL_DEFAULT_ROLLOUT_POLICY.patchExpansionRateDeltaMax
+  );
+}

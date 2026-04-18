@@ -2,6 +2,7 @@ import { asArray, safeRatio } from './signal-summary-utils.mjs';
 import { normalizeExperimentArm } from './experiment-arms.mjs';
 import { buildTopActionSummary, normalizeExecutionOutcome } from './eval-batch.mjs';
 import { applySessionVerdicts, buildSessionVerdictSummary } from './session-verdicts.mjs';
+import { comparisonQualifiesForDefaultRollout } from './signal-calibration-policy.mjs';
 
 const MISSED_EXPECTED_SIGNAL_BUCKETS = new Set([
   'missed_expected_signal',
@@ -28,6 +29,86 @@ function uniqueSortedStrings(values) {
   return [...new Set(values.filter(Boolean).map(String))].sort((left, right) =>
     left.localeCompare(right),
   );
+}
+
+function stringOrNull(value) {
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  return null;
+}
+
+function finiteNumberOrDefault(value, defaultValue) {
+  if (Number.isFinite(value)) {
+    return value;
+  }
+
+  return defaultValue;
+}
+
+function booleanOrNull(value) {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  return null;
+}
+
+function normalizeAdjudicationSummary(value) {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  return {
+    status: stringOrNull(value.status),
+    task_count: finiteNumberOrDefault(value.task_count, 0),
+    decision_count: finiteNumberOrDefault(value.decision_count, 0),
+    structured_evidence_only: booleanOrNull(value.structured_evidence_only),
+    audit_logging_ready: booleanOrNull(value.audit_logging_ready),
+    auto_apply_enabled: booleanOrNull(value.auto_apply_enabled),
+    recommended_model: stringOrNull(value.recommended_model),
+  };
+}
+
+function buildAdjudicationFallbackTracking(adjudicationSummary) {
+  if (!adjudicationSummary) {
+    return null;
+  }
+
+  return {
+    phase_id: null,
+    status: adjudicationSummary.status,
+    milestone: null,
+  };
+}
+
+function normalizeBoundedTracking(value, adjudicationSummary) {
+  if (!value || typeof value !== 'object') {
+    return buildAdjudicationFallbackTracking(adjudicationSummary);
+  }
+
+  return {
+    phase_id: stringOrNull(value.phase_id),
+    status: stringOrNull(value.status) ?? adjudicationSummary?.status ?? null,
+    milestone: stringOrNull(value.milestone),
+  };
+}
+
+function normalizePhaseTracking(value, adjudicationSummary = null) {
+  const source = value && typeof value === 'object' ? value : {};
+  const boundedTracking = normalizeBoundedTracking(
+    source.bounded_llm_adjudication,
+    adjudicationSummary,
+  );
+
+  if (!boundedTracking) {
+    return null;
+  }
+
+  return {
+    bounded_llm_adjudication: boundedTracking,
+  };
 }
 
 function roundMetric(value) {
@@ -506,6 +587,33 @@ function metricDelta(leftValue, rightValue) {
   return roundMetric(leftValue - rightValue);
 }
 
+function effectSizeSummary(entry, baseline) {
+  return {
+    clean_rate: metricDelta(entry.clean_rate, baseline.clean_rate),
+    agent_clear_rate: metricDelta(entry.agent_clear_rate, baseline.agent_clear_rate),
+    top_action_follow_rate: metricDelta(
+      entry.top_action_follow_rate,
+      baseline.top_action_follow_rate,
+    ),
+    top_action_help_rate: metricDelta(
+      entry.top_action_help_rate,
+      baseline.top_action_help_rate,
+    ),
+    task_success_rate: metricDelta(
+      entry.task_success_rate,
+      baseline.task_success_rate,
+    ),
+    patch_expansion_rate: metricDelta(
+      entry.patch_expansion_rate,
+      baseline.patch_expansion_rate,
+    ),
+    intervention_net_value_score: metricDelta(
+      entry.intervention_net_value_score,
+      baseline.intervention_net_value_score,
+    ),
+  };
+}
+
 export function buildExperimentArmComparisons(experimentArmSummaries) {
   const baseline = experimentArmSummaries.find(function isBaseline(entry) {
     return entry.experiment_arm === 'no_intervention';
@@ -519,6 +627,8 @@ export function buildExperimentArmComparisons(experimentArmSummaries) {
       return entry.experiment_arm !== baseline.experiment_arm;
     })
     .map(function toComparison(entry) {
+      const effectSize = effectSizeSummary(entry, baseline);
+
       return {
         experiment_arm: entry.experiment_arm,
         baseline_experiment_arm: baseline.experiment_arm,
@@ -547,6 +657,14 @@ export function buildExperimentArmComparisons(experimentArmSummaries) {
           entry.task_success_rate,
           baseline.task_success_rate,
         ),
+        reviewer_acceptance_rate_delta: metricDelta(
+          entry.reviewer_acceptance_rate,
+          baseline.reviewer_acceptance_rate,
+        ),
+        reviewer_disagreement_rate_delta: metricDelta(
+          entry.reviewer_disagreement_rate,
+          baseline.reviewer_disagreement_rate,
+        ),
         patch_expansion_rate_delta: metricDelta(
           entry.patch_expansion_rate,
           baseline.patch_expansion_rate,
@@ -559,10 +677,202 @@ export function buildExperimentArmComparisons(experimentArmSummaries) {
           entry.intervention_net_value_score,
           baseline.intervention_net_value_score,
         ),
+        effect_size: effectSize,
       };
     })
     .sort(function compareComparisons(left, right) {
       return left.experiment_arm.localeCompare(right.experiment_arm);
+    });
+}
+
+export function buildSignalExperimentSummaries(entries) {
+  const signalArmEntries = new Map();
+
+  for (const entry of entries) {
+    const experimentArm = normalizeExperimentArm(entry.experiment_arm);
+    if (!experimentArm) {
+      continue;
+    }
+
+    for (const signalKind of uniqueSortedStrings(asArray(entry.expected_signal_kinds))) {
+      const compositeKey = `${signalKind}\u0000${experimentArm}`;
+      if (!signalArmEntries.has(compositeKey)) {
+        signalArmEntries.set(compositeKey, {
+          signal_kind: signalKind,
+          experiment_arm: experimentArm,
+          session_count: 0,
+          expected_top_action_count: 0,
+          clean_session_count: 0,
+          regression_session_count: 0,
+          review_queue_count: 0,
+          top_action_session_count: 0,
+          top_action_cleared_count: 0,
+          regression_after_fix_count: 0,
+          session_entries: [],
+        });
+      }
+
+      const summaryEntry = signalArmEntries.get(compositeKey);
+      summaryEntry.session_entries.push(entry);
+      summaryEntry.session_count += 1;
+      if (entry.outcome?.initial_top_action_kind === signalKind) {
+        summaryEntry.expected_top_action_count += 1;
+      }
+      if (entry.outcome?.final_session_clean) {
+        summaryEntry.clean_session_count += 1;
+      }
+      if (entry.outcome?.followup_regression_introduced) {
+        summaryEntry.regression_session_count += 1;
+      }
+      if (needsReview(entry)) {
+        summaryEntry.review_queue_count += 1;
+      }
+      if (hasTopActionSession(entry)) {
+        summaryEntry.top_action_session_count += 1;
+        if (hasClearedTopAction(entry)) {
+          summaryEntry.top_action_cleared_count += 1;
+          if (hasRegressionAfterFix(entry)) {
+            summaryEntry.regression_after_fix_count += 1;
+          }
+        }
+      }
+    }
+  }
+
+  return [...signalArmEntries.values()]
+    .map(function finalizeSignalArm(entry) {
+      const sessionVerdictSummary = buildSessionVerdictSummary(entry.session_entries);
+
+      return {
+        signal_kind: entry.signal_kind,
+        experiment_arm: entry.experiment_arm,
+        session_count: entry.session_count,
+        expected_top_action_count: entry.expected_top_action_count,
+        clean_session_count: entry.clean_session_count,
+        regression_session_count: entry.regression_session_count,
+        review_queue_count: entry.review_queue_count,
+        top_action_session_count: entry.top_action_session_count,
+        top_action_cleared_count: entry.top_action_cleared_count,
+        regression_after_fix_count: entry.regression_after_fix_count,
+        expected_top_action_rate: safeRatio(
+          entry.expected_top_action_count,
+          entry.session_count,
+        ),
+        clean_rate: safeRatio(entry.clean_session_count, entry.session_count),
+        agent_clear_rate: safeRatio(entry.top_action_cleared_count, entry.top_action_session_count),
+        review_queue_rate: safeRatio(entry.review_queue_count, entry.session_count),
+        regression_rate: safeRatio(entry.regression_session_count, entry.session_count),
+        regression_after_fix_rate: safeRatio(
+          entry.regression_after_fix_count,
+          entry.top_action_session_count,
+        ),
+        ...sessionVerdictSummary,
+      };
+    })
+    .sort(function compareSignalSummaries(left, right) {
+      return (
+        left.signal_kind.localeCompare(right.signal_kind) ||
+        left.experiment_arm.localeCompare(right.experiment_arm)
+      );
+    });
+}
+
+export function buildSignalExperimentComparisons(signalExperimentSummaries) {
+  const summariesBySignal = new Map();
+
+  for (const entry of signalExperimentSummaries) {
+    const signalSummaries = summariesBySignal.get(entry.signal_kind) ?? [];
+    signalSummaries.push(entry);
+    summariesBySignal.set(entry.signal_kind, signalSummaries);
+  }
+
+  const comparisons = [];
+
+  for (const [signalKind, signalSummaries] of summariesBySignal.entries()) {
+    const baseline = signalSummaries.find(function isBaseline(entry) {
+      return entry.experiment_arm === 'no_intervention';
+    });
+    if (!baseline) {
+      continue;
+    }
+
+    for (const entry of signalSummaries) {
+      if (entry.experiment_arm === baseline.experiment_arm) {
+        continue;
+      }
+
+      comparisons.push({
+        signal_kind: signalKind,
+        experiment_arm: entry.experiment_arm,
+        baseline_experiment_arm: baseline.experiment_arm,
+        session_count: entry.session_count,
+        baseline_session_count: baseline.session_count,
+        expected_top_action_rate_delta: metricDelta(
+          entry.expected_top_action_rate,
+          baseline.expected_top_action_rate,
+        ),
+        clean_rate_delta: metricDelta(entry.clean_rate, baseline.clean_rate),
+        agent_clear_rate_delta: metricDelta(entry.agent_clear_rate, baseline.agent_clear_rate),
+        review_queue_rate_delta: metricDelta(
+          entry.review_queue_rate,
+          baseline.review_queue_rate,
+        ),
+        regression_rate_delta: metricDelta(entry.regression_rate, baseline.regression_rate),
+        regression_after_fix_rate_delta: metricDelta(
+          entry.regression_after_fix_rate,
+          baseline.regression_after_fix_rate,
+        ),
+        top_action_follow_rate_delta: metricDelta(
+          entry.top_action_follow_rate,
+          baseline.top_action_follow_rate,
+        ),
+        top_action_help_rate_delta: metricDelta(
+          entry.top_action_help_rate,
+          baseline.top_action_help_rate,
+        ),
+        task_success_rate_delta: metricDelta(
+          entry.task_success_rate,
+          baseline.task_success_rate,
+        ),
+        reviewer_acceptance_rate_delta: metricDelta(
+          entry.reviewer_acceptance_rate,
+          baseline.reviewer_acceptance_rate,
+        ),
+        reviewer_disagreement_rate_delta: metricDelta(
+          entry.reviewer_disagreement_rate,
+          baseline.reviewer_disagreement_rate,
+        ),
+        patch_expansion_rate_delta: metricDelta(
+          entry.patch_expansion_rate,
+          baseline.patch_expansion_rate,
+        ),
+        intervention_cost_checks_mean_delta: metricDelta(
+          entry.intervention_cost_checks_mean,
+          baseline.intervention_cost_checks_mean,
+        ),
+        intervention_net_value_score_delta: metricDelta(
+          entry.intervention_net_value_score,
+          baseline.intervention_net_value_score,
+        ),
+        effect_size: effectSizeSummary(entry, baseline),
+      });
+    }
+  }
+
+  return comparisons
+    .map(function toQualifiedComparison(entry) {
+      return {
+        ...entry,
+        qualified_for_default_rollout: comparisonQualifiesForDefaultRollout(entry),
+      };
+    })
+    .sort(function compareSignalComparisons(left, right) {
+      return (
+        left.signal_kind.localeCompare(right.signal_kind) ||
+        Number(right.qualified_for_default_rollout) -
+          Number(left.qualified_for_default_rollout) ||
+        left.experiment_arm.localeCompare(right.experiment_arm)
+      );
     });
 }
 
@@ -573,6 +883,8 @@ function buildCorpusSummary(
   topActionFailureSummary,
   experimentArmSummaries,
   experimentArmComparisons,
+  signalExperimentSummaries,
+  signalExperimentComparisons,
 ) {
   const liveEntries = entries.filter(function isLive(entry) {
     return entry.lane === 'live';
@@ -628,6 +940,17 @@ function buildCorpusSummary(
     top_action_failure_count: topActionFailureSummary.length,
     experiment_arm_count: experimentArmSummaries.length,
     experiment_arm_comparison_count: experimentArmComparisons.length,
+    signal_experiment_count: signalExperimentSummaries.length,
+    signal_experiment_comparison_count: signalExperimentComparisons.length,
+    signal_experiment_ready_count: new Set(
+      signalExperimentComparisons
+        .filter(function isQualifiedComparison(entry) {
+          return entry.qualified_for_default_rollout === true;
+        })
+        .map(function toSignalKind(entry) {
+          return entry.signal_kind;
+        }),
+    ).size,
     agent_clear_rate: safeRatio(topActionClearedCount, topActionSessionCount),
     provider_failure_rate: safeRatio(providerFailureCount, entries.length),
     regression_after_fix_rate: safeRatio(regressionAfterFixCount, topActionSessionCount),
@@ -678,6 +1001,8 @@ export function buildSessionCorpus({
   codexBatch = null,
   replayBatch = null,
   sessionVerdicts = null,
+  adjudicationSummary = null,
+  phaseTracking = null,
 }) {
   const normalizedEntries = [
     ...normalizeBatchEntries(codexBatch, 'live'),
@@ -695,7 +1020,15 @@ export function buildSessionCorpus({
   const topActionFailureSummary = buildTopActionFailureSummary(entries);
   const experimentArmSummaries = buildExperimentArmSummaries(entries);
   const experimentArmComparisons = buildExperimentArmComparisons(experimentArmSummaries);
+  const signalExperimentSummaries = buildSignalExperimentSummaries(entries);
+  const signalExperimentComparisons =
+    buildSignalExperimentComparisons(signalExperimentSummaries);
   const evidenceSources = buildEvidenceSources(codexBatch, replayBatch);
+  const normalizedAdjudicationSummary = normalizeAdjudicationSummary(adjudicationSummary);
+  const normalizedPhaseTracking = normalizePhaseTracking(
+    phaseTracking,
+    normalizedAdjudicationSummary,
+  );
 
   return {
     schema_version: 1,
@@ -715,6 +1048,8 @@ export function buildSessionCorpus({
       sessionTelemetry?.repo_root ??
       null,
     evidence_sources: evidenceSources,
+    phase_tracking: normalizedPhaseTracking,
+    adjudication_summary: normalizedAdjudicationSummary,
     summary: buildCorpusSummary(
       entries,
       sessionTelemetry,
@@ -722,11 +1057,15 @@ export function buildSessionCorpus({
       topActionFailureSummary,
       experimentArmSummaries,
       experimentArmComparisons,
+      signalExperimentSummaries,
+      signalExperimentComparisons,
     ),
     focus_area_summaries: focusAreaSummaries,
     top_action_failure_summary: topActionFailureSummary,
     experiment_arm_summaries: experimentArmSummaries,
     experiment_arm_comparisons: experimentArmComparisons,
+    signal_experiment_summaries: signalExperimentSummaries,
+    signal_experiment_comparisons: signalExperimentComparisons,
     review_queue: selectReviewQueue(entries),
     sessions: entries,
   };
@@ -792,7 +1131,7 @@ function appendExperimentArmSection(lines, experimentArms) {
     const focusAreaSummary = focusAreaCountsToText(entry.focus_area_counts);
     const productValueSummary =
       entry.session_verdict_count > 0
-        ? `, follow=${entry.top_action_follow_rate ?? 'n/a'}, help=${entry.top_action_help_rate ?? 'n/a'}, success=${entry.task_success_rate ?? 'n/a'}, expand=${entry.patch_expansion_rate ?? 'n/a'}, cost=${entry.intervention_cost_checks_mean ?? 'n/a'}, value=${entry.intervention_net_value_score ?? 'n/a'}`
+        ? `, follow=${entry.top_action_follow_rate ?? 'n/a'}, help=${entry.top_action_help_rate ?? 'n/a'}, success=${entry.task_success_rate ?? 'n/a'}, expand=${entry.patch_expansion_rate ?? 'n/a'}, accept=${entry.reviewer_acceptance_rate ?? 'n/a'}, disagree=${entry.reviewer_disagreement_rate ?? 'n/a'}, cost=${entry.intervention_cost_checks_mean ?? 'n/a'}, value=${entry.intervention_net_value_score ?? 'n/a'}`
         : '';
     lines.push(
       `- \`${entry.experiment_arm}\`: sessions=${entry.session_count}, clear=${entry.agent_clear_rate ?? 'n/a'}, clean=${entry.clean_rate ?? 'n/a'}, regressions=${entry.regression_rate ?? 'n/a'}, review=${entry.review_queue_rate ?? 'n/a'}${productValueSummary}, focus=[${focusAreaSummary}]`,
@@ -811,6 +1150,21 @@ function appendExperimentArmComparisonSection(lines, comparisons) {
   for (const entry of comparisons) {
     lines.push(
       `- \`${entry.experiment_arm}\` vs \`${entry.baseline_experiment_arm}\`: clear_delta=${entry.agent_clear_rate_delta ?? 'n/a'}, help_delta=${entry.top_action_help_rate_delta ?? 'n/a'}, success_delta=${entry.task_success_rate_delta ?? 'n/a'}, expand_delta=${entry.patch_expansion_rate_delta ?? 'n/a'}, value_delta=${entry.intervention_net_value_score_delta ?? 'n/a'}`,
+    );
+  }
+  lines.push('');
+}
+
+function appendSignalExperimentComparisonSection(lines, comparisons) {
+  if (comparisons.length === 0) {
+    return;
+  }
+
+  lines.push('## Signal-Matched Comparisons');
+  lines.push('');
+  for (const entry of comparisons) {
+    lines.push(
+      `- \`${entry.signal_kind}\` / \`${entry.experiment_arm}\` vs \`${entry.baseline_experiment_arm}\`: qualified=${entry.qualified_for_default_rollout ? 'true' : 'false'}, top_match_delta=${entry.expected_top_action_rate_delta ?? 'n/a'}, help_delta=${entry.top_action_help_rate_delta ?? 'n/a'}, success_delta=${entry.task_success_rate_delta ?? 'n/a'}, expand_delta=${entry.patch_expansion_rate_delta ?? 'n/a'}, accept_delta=${entry.reviewer_acceptance_rate_delta ?? 'n/a'}, disagree_delta=${entry.reviewer_disagreement_rate_delta ?? 'n/a'}, value_delta=${entry.intervention_net_value_score_delta ?? 'n/a'}`,
     );
   }
   lines.push('');
@@ -839,6 +1193,10 @@ function appendProductValueLines(lines, summary) {
   lines.push(`- top-action help rate: ${summary.top_action_help_rate ?? 'n/a'}`);
   lines.push(`- task success rate: ${summary.task_success_rate ?? 'n/a'}`);
   lines.push(`- patch expansion rate: ${summary.patch_expansion_rate ?? 'n/a'}`);
+  lines.push(`- reviewer acceptance rate: ${summary.reviewer_acceptance_rate ?? 'n/a'}`);
+  lines.push(
+    `- reviewer disagreement rate: ${summary.reviewer_disagreement_rate ?? 'n/a'}`,
+  );
   lines.push(
     `- intervention cost checks mean: ${summary.intervention_cost_checks_mean ?? 'n/a'}`,
   );
@@ -867,6 +1225,12 @@ export function formatSessionCorpusMarkdown(corpus) {
     `- experiment arm comparisons: ${corpus.summary.experiment_arm_comparison_count ?? 0}`,
   );
   lines.push(
+    `- signal-matched comparisons: ${corpus.summary.signal_experiment_comparison_count ?? 0}`,
+  );
+  lines.push(
+    `- signal-matched ready signals: ${corpus.summary.signal_experiment_ready_count ?? 0}`,
+  );
+  lines.push(
     `- regression-after-fix rate: ${corpus.summary.regression_after_fix_rate ?? 'n/a'}`,
   );
   lines.push(`- propagation escape rate: ${corpus.summary.propagation_escape_rate ?? 'n/a'}`);
@@ -877,6 +1241,32 @@ export function formatSessionCorpusMarkdown(corpus) {
     `- clone followthrough escape rate: ${corpus.summary.clone_followthrough_escape_rate ?? 'n/a'}`,
   );
   appendProductValueLines(lines, corpus.summary);
+  if (corpus.adjudication_summary) {
+    lines.push(
+      `- bounded adjudication status: ${corpus.adjudication_summary.status ?? 'n/a'}`,
+    );
+    lines.push(
+      `- bounded adjudication decisions: ${corpus.adjudication_summary.decision_count ?? 0}`,
+    );
+    lines.push(
+      `- bounded adjudication structured-only: ${
+        corpus.adjudication_summary.structured_evidence_only === null
+          ? 'n/a'
+          : corpus.adjudication_summary.structured_evidence_only
+            ? 'true'
+            : 'false'
+      }`,
+    );
+    lines.push(
+      `- bounded adjudication audit logging ready: ${
+        corpus.adjudication_summary.audit_logging_ready === null
+          ? 'n/a'
+          : corpus.adjudication_summary.audit_logging_ready
+            ? 'true'
+            : 'false'
+      }`,
+    );
+  }
   lines.push('');
 
   appendFocusAreaSection(lines, asArray(corpus.focus_area_summaries).slice(0, 10));
@@ -885,6 +1275,10 @@ export function formatSessionCorpusMarkdown(corpus) {
   appendExperimentArmComparisonSection(
     lines,
     asArray(corpus.experiment_arm_comparisons).slice(0, 10),
+  );
+  appendSignalExperimentComparisonSection(
+    lines,
+    asArray(corpus.signal_experiment_comparisons).slice(0, 10),
   );
   appendSessionSection(lines, 'Review Queue', corpus.review_queue.slice(0, 10));
   appendSessionSection(

@@ -244,6 +244,12 @@ export function normalizeSessionVerdict(verdict) {
     patch_expanded_unnecessarily: normalizeOptionalBoolean(
       verdict.patch_expanded_unnecessarily,
     ),
+    reviewer_accepts_top_action: normalizeOptionalBoolean(
+      verdict.reviewer_accepts_top_action,
+    ),
+    reviewer_disagrees_with_top_action: normalizeOptionalBoolean(
+      verdict.reviewer_disagrees_with_top_action,
+    ),
     intervention_cost_checks: normalizeOptionalInteger(verdict.intervention_cost_checks),
     intervention_cost_notes: normalizeOptionalString(verdict.intervention_cost_notes),
     reviewer_confidence: normalizeReviewerConfidence(verdict.reviewer_confidence),
@@ -299,6 +305,11 @@ export function buildSessionVerdictSummary(entries) {
   const topActionHelp = countBooleanField(verdicts, 'top_action_helped');
   const taskSuccess = countBooleanField(verdicts, 'task_completed_successfully');
   const patchExpansion = countBooleanField(verdicts, 'patch_expanded_unnecessarily');
+  const reviewerAcceptance = countBooleanField(verdicts, 'reviewer_accepts_top_action');
+  const reviewerDisagreement = countBooleanField(
+    verdicts,
+    'reviewer_disagrees_with_top_action',
+  );
   const interventionCostChecks = collectIntegerField(verdicts, 'intervention_cost_checks');
   const interventionCostChecksTotal = interventionCostChecks.reduce(function sum(total, value) {
     return total + value;
@@ -320,6 +331,12 @@ export function buildSessionVerdictSummary(entries) {
     patch_expansion_sample_count: patchExpansion.sampleCount,
     patch_expanded_unnecessarily_count: patchExpansion.trueCount,
     patch_expansion_rate: patchExpansion.rate,
+    reviewer_acceptance_sample_count: reviewerAcceptance.sampleCount,
+    reviewer_accepted_count: reviewerAcceptance.trueCount,
+    reviewer_acceptance_rate: reviewerAcceptance.rate,
+    reviewer_disagreement_sample_count: reviewerDisagreement.sampleCount,
+    reviewer_disagreed_count: reviewerDisagreement.trueCount,
+    reviewer_disagreement_rate: reviewerDisagreement.rate,
     intervention_cost_sample_count: interventionCostChecks.length,
     intervention_cost_checks_total: interventionCostChecksTotal,
     intervention_cost_checks_mean: interventionCostChecksMean,

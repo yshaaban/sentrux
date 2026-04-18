@@ -46,6 +46,22 @@ test('buildEvidenceReview summarizes promotion, demotion, ranking, and experimen
       ],
     },
     sessionCorpus: {
+      phase_tracking: {
+        bounded_llm_adjudication: {
+          phase_id: 'phase_3_bounded_llm_adjudication',
+          status: 'scaffold_only',
+          milestone: 'structured_bundle_contract',
+        },
+      },
+      adjudication_summary: {
+        status: 'scaffold_only',
+        task_count: 2,
+        decision_count: 2,
+        structured_evidence_only: true,
+        audit_logging_ready: true,
+        auto_apply_enabled: false,
+        recommended_model: 'MiniMax M2.7',
+      },
       sessions: [
         {
           session_id: 'live-1',
@@ -141,7 +157,26 @@ test('buildEvidenceReview summarizes promotion, demotion, ranking, and experimen
   assert.equal(review.summary.top_action_failure_count, 3);
   assert.equal(review.summary.experiment_arm_count, 2);
   assert.equal(review.summary.experiment_arm_comparison_count, 0);
+  assert.equal(review.summary.signal_experiment_comparison_count, 0);
   assert.equal(review.summary.session_verdict_count, 3);
+  assert.equal(review.summary.bounded_adjudication_task_count, 2);
+  assert.equal(review.summary.bounded_adjudication_decision_count, 2);
+  assert.deepEqual(review.phase_tracking, {
+    bounded_llm_adjudication: {
+      phase_id: 'phase_3_bounded_llm_adjudication',
+      status: 'scaffold_only',
+      milestone: 'structured_bundle_contract',
+    },
+  });
+  assert.deepEqual(review.adjudication_summary, {
+    status: 'scaffold_only',
+    task_count: 2,
+    decision_count: 2,
+    structured_evidence_only: true,
+    audit_logging_ready: true,
+    auto_apply_enabled: false,
+    recommended_model: 'MiniMax M2.7',
+  });
   assert.equal(review.promotion_candidates[0].signal_kind, 'incomplete_propagation');
   assert.equal(review.demotion_candidates[0].signal_kind, 'forbidden_raw_read');
   assert.equal(review.ranking_misses[0].signal_kind, 'zero_config_boundary_violation');
@@ -171,6 +206,7 @@ test('buildEvidenceReview summarizes promotion, demotion, ranking, and experimen
   assert.equal(review.experiment_arms[0].clean_rate, 0);
   assert.equal(review.experiment_arms[0].regression_rate, 0.5);
   assert.deepEqual(review.experiment_arm_comparisons, []);
+  assert.deepEqual(review.signal_experiment_comparisons, []);
   assert.equal(review.product_value?.top_action_follow_rate, 0.667);
   assert.equal(review.product_value?.top_action_help_rate, 0.5);
   assert.equal(review.product_value?.task_success_rate, 0.333);
@@ -182,7 +218,9 @@ test('buildEvidenceReview summarizes promotion, demotion, ranking, and experimen
   assert(review.default_on_promotion.blockers.includes('no_signal_candidates'));
   assert.match(formatEvidenceReviewMarkdown(review), /Promotion Candidates/);
   assert.match(formatEvidenceReviewMarkdown(review), /Default-On Promotion/);
+  assert.match(formatEvidenceReviewMarkdown(review), /Bounded Adjudication/);
   assert.match(formatEvidenceReviewMarkdown(review), /ready for default-on: false/);
+  assert.match(formatEvidenceReviewMarkdown(review), /recommended model: MiniMax M2.7/);
   assert.match(formatEvidenceReviewMarkdown(review), /top-action help rate: 0.5/);
   assert.match(formatEvidenceReviewMarkdown(review), /Focus Area Rollups/);
   assert.match(formatEvidenceReviewMarkdown(review), /Top Action Failures/);
@@ -313,25 +351,33 @@ test('buildEvidenceReview summarizes treatment-vs-baseline comparisons when a ba
   });
 
   assert.equal(review.summary.experiment_arm_comparison_count, 1);
+  assert.equal(review.summary.signal_experiment_comparison_count, 1);
   assert.equal(review.summary.default_on_candidate_count, 1);
   assert.equal(review.default_on_candidates[0].signal_kind, 'incomplete_propagation');
-  assert.equal(review.default_on_promotion.ready, false);
-  assert.equal(review.default_on_promotion.evidence_complete, false);
-  assert.equal(review.default_on_promotion.evidence_scope, 'repo_level');
+  assert.equal(review.default_on_promotion.ready, true);
+  assert.equal(review.default_on_promotion.evidence_complete, true);
+  assert.equal(review.default_on_promotion.evidence_scope, 'signal_level');
   assert.equal(review.default_on_promotion.repo_treatment_ready, true);
-  assert.equal(review.default_on_promotion.signal_matched_treatment_evidence, false);
+  assert.equal(review.default_on_promotion.signal_matched_treatment_evidence, true);
   assert.equal(review.default_on_promotion.best_treatment_arm, 'fix_this_first');
-  assert(review.default_on_promotion.blockers.includes('missing_signal_matched_treatment_evidence'));
+  assert.equal(review.default_on_promotion.signal_matched_comparison_count, 1);
+  assert.equal(review.default_on_promotion.qualified_signal_matched_comparison_count, 1);
+  assert.deepEqual(review.default_on_promotion.blockers, []);
+  assert.equal(review.default_on_promotion.candidate_signal_evidence[0].signal_kind, 'incomplete_propagation');
+  assert.equal(review.default_on_promotion.candidate_signal_evidence[0].qualified, true);
   assert.equal(review.experiment_arm_comparisons[0].experiment_arm, 'fix_this_first');
   assert.equal(review.experiment_arm_comparisons[0].baseline_experiment_arm, 'no_intervention');
   assert.equal(review.experiment_arm_comparisons[0].top_action_help_rate_delta, 1);
   assert.equal(review.experiment_arm_comparisons[0].task_success_rate_delta, 1);
   assert.equal(review.experiment_arm_comparisons[0].intervention_net_value_score_delta, 1);
+  assert.equal(review.signal_experiment_comparisons[0].signal_kind, 'incomplete_propagation');
+  assert.equal(review.signal_experiment_comparisons[0].top_action_help_rate_delta, 1);
   assert.match(formatEvidenceReviewMarkdown(review), /Experiment Arm Comparisons/);
+  assert.match(formatEvidenceReviewMarkdown(review), /Signal-Matched Comparisons/);
   assert.match(formatEvidenceReviewMarkdown(review), /Default-On Candidates/);
   assert.match(formatEvidenceReviewMarkdown(review), /repo treatment ready: true/);
   assert.match(
     formatEvidenceReviewMarkdown(review),
-    /signal-matched treatment evidence: false/,
+    /signal-matched treatment evidence: true/,
   );
 });

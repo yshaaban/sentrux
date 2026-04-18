@@ -239,6 +239,12 @@ test('buildSummaryMarkdown surfaces default-on evidence status explicitly', func
       default_on_repo_treatment_ready: true,
       default_on_evidence_scope: 'repo_level',
       evidence_phase_id: 'phase_5_treatment_baseline',
+      bounded_adjudication_status: 'scaffold_only',
+      bounded_adjudication_decision_count: 3,
+      bounded_adjudication_structured_evidence_only: true,
+      bounded_adjudication_audit_logging_ready: true,
+      bounded_adjudication_auto_apply_enabled: false,
+      bounded_adjudication_phase_id: 'phase_3_bounded_llm_adjudication',
       recommended_next_signal: 'incomplete_propagation',
     },
     delta: null,
@@ -250,4 +256,9 @@ test('buildSummaryMarkdown surfaces default-on evidence status explicitly', func
   assert.match(markdown, /repo treatment ready: true/);
   assert.match(markdown, /default-on evidence scope: repo_level/);
   assert.match(markdown, /evidence phase: phase_5_treatment_baseline/);
+  assert.match(markdown, /bounded adjudication status: scaffold_only/);
+  assert.match(markdown, /bounded adjudication decisions: 3/);
+  assert.match(markdown, /bounded adjudication structured-only: true/);
+  assert.match(markdown, /bounded adjudication auto-apply enabled: false/);
+  assert.match(markdown, /bounded adjudication phase: phase_3_bounded_llm_adjudication/);
 });

@@ -3,6 +3,11 @@ import {
   reportLeveragePriority,
   reportPresentationPriority,
 } from '../signal-policy.mjs';
+import {
+  candidateBooleanValue,
+  candidateFieldValue,
+  candidateNumberValue,
+} from './normalization.mjs';
 
 function severityPriority(severity) {
   switch (severity) {
@@ -21,11 +26,180 @@ function hasZeroActionWeight(candidate) {
   return actionKindWeight(candidate?.kind ?? '') === 0;
 }
 
+function promotionStatusPriority(status) {
+  switch (status) {
+    case 'trusted':
+      return 0;
+    case 'watchpoint':
+      return 1;
+    case 'experimental':
+      return 2;
+    default:
+      return 3;
+  }
+}
+
+function numericValue(value) {
+  return Number.isFinite(value) ? value : null;
+}
+
+function compareOptionalNumberDesc(left, right) {
+  const leftValue = numericValue(left);
+  const rightValue = numericValue(right);
+  if (leftValue === null && rightValue === null) {
+    return 0;
+  }
+  if (leftValue === null) {
+    return 1;
+  }
+  if (rightValue === null) {
+    return -1;
+  }
+
+  return rightValue - leftValue;
+}
+
+function compareOptionalNumberAsc(left, right) {
+  const leftValue = numericValue(left);
+  const rightValue = numericValue(right);
+  if (leftValue === null && rightValue === null) {
+    return 0;
+  }
+  if (leftValue === null) {
+    return 1;
+  }
+  if (rightValue === null) {
+    return -1;
+  }
+
+  return leftValue - rightValue;
+}
+
+function compareBooleanTrueFirst(left, right) {
+  return Number(Boolean(right)) - Number(Boolean(left));
+}
+
+function candidateNumber(candidate, keys) {
+  for (const key of keys) {
+    const value = candidateNumberValue(candidate, key);
+    if (value !== null) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function candidateBoolean(candidate, keys) {
+  for (const key of keys) {
+    const value = candidateBooleanValue(candidate, key);
+    if (value !== null) {
+      return value;
+    }
+  }
+
+  return false;
+}
+
+function defaultRolloutReady(candidate) {
+  return candidateFieldValue(candidate, 'default_rollout_recommendation') === 'ready_for_default_on';
+}
+
+function compareEvidenceMetrics(left, right) {
+  return (
+    compareBooleanTrueFirst(
+      defaultRolloutReady(left),
+      defaultRolloutReady(right),
+    ) ||
+    compareBooleanTrueFirst(
+      candidateBoolean(left, ['signal_treatment_ready']),
+      candidateBoolean(right, ['signal_treatment_ready']),
+    ) ||
+    compareOptionalNumberDesc(
+      candidateNumber(left, [
+        'signal_treatment_intervention_net_value_score_delta',
+        'intervention_net_value_score_delta',
+      ]),
+      candidateNumber(right, [
+        'signal_treatment_intervention_net_value_score_delta',
+        'intervention_net_value_score_delta',
+      ]),
+    ) ||
+    compareOptionalNumberDesc(
+      candidateNumber(left, ['top_action_help_rate']),
+      candidateNumber(right, ['top_action_help_rate']),
+    ) ||
+    compareOptionalNumberDesc(
+      candidateNumber(left, ['top_action_follow_rate']),
+      candidateNumber(right, ['top_action_follow_rate']),
+    ) ||
+    compareOptionalNumberDesc(
+      candidateNumber(left, ['reviewer_acceptance_rate']),
+      candidateNumber(right, ['reviewer_acceptance_rate']),
+    ) ||
+    compareOptionalNumberDesc(
+      candidateNumber(left, ['remediation_success_rate']),
+      candidateNumber(right, ['remediation_success_rate']),
+    ) ||
+    compareOptionalNumberDesc(
+      candidateNumber(left, ['task_success_rate']),
+      candidateNumber(right, ['task_success_rate']),
+    ) ||
+    compareOptionalNumberDesc(
+      candidateNumber(left, ['intervention_net_value_score']),
+      candidateNumber(right, ['intervention_net_value_score']),
+    ) ||
+    compareOptionalNumberDesc(
+      candidateNumber(left, ['reviewed_precision']),
+      candidateNumber(right, ['reviewed_precision']),
+    ) ||
+    compareOptionalNumberDesc(
+      candidateNumber(left, ['top_1_actionable_precision']),
+      candidateNumber(right, ['top_1_actionable_precision']),
+    ) ||
+    compareOptionalNumberDesc(
+      candidateNumber(left, ['top_3_actionable_precision']),
+      candidateNumber(right, ['top_3_actionable_precision']),
+    ) ||
+    compareOptionalNumberAsc(
+      candidateNumber(left, ['reviewer_disagreement_rate']),
+      candidateNumber(right, ['reviewer_disagreement_rate']),
+    ) ||
+    compareOptionalNumberAsc(
+      candidateNumber(left, ['patch_expansion_rate']),
+      candidateNumber(right, ['patch_expansion_rate']),
+    ) ||
+    compareOptionalNumberAsc(
+      candidateNumber(left, ['patch_expansion_cost', 'intervention_cost_checks_mean']),
+      candidateNumber(right, ['patch_expansion_cost', 'intervention_cost_checks_mean']),
+    ) ||
+    compareOptionalNumberAsc(
+      candidateNumber(left, ['review_noise_rate']),
+      candidateNumber(right, ['review_noise_rate']),
+    ) ||
+    compareOptionalNumberDesc(
+      candidateNumber(left, ['session_verdict_count']),
+      candidateNumber(right, ['session_verdict_count']),
+    ) ||
+    compareOptionalNumberDesc(
+      candidateNumber(left, ['reviewed_total']),
+      candidateNumber(right, ['reviewed_total']),
+    ) ||
+    compareOptionalNumberDesc(
+      candidateNumber(left, ['session_trial_count']),
+      candidateNumber(right, ['session_trial_count']),
+    ) ||
+    promotionStatusPriority(left.promotion_status) -
+      promotionStatusPriority(right.promotion_status)
+  );
+}
+
 function compareCandidates(left, right) {
   return (
     Number(hasZeroActionWeight(left)) - Number(hasZeroActionWeight(right)) ||
     reportLeveragePriority(left.leverage_class) - reportLeveragePriority(right.leverage_class) ||
     right.within_bucket_strength_0_10000 - left.within_bucket_strength_0_10000 ||
+    compareEvidenceMetrics(left, right) ||
     severityPriority(left.severity) - severityPriority(right.severity) ||
     reportPresentationPriority(left.presentation_class) -
       reportPresentationPriority(right.presentation_class) ||
@@ -56,4 +230,11 @@ function uniqueByScope(candidates) {
   return unique;
 }
 
-export { compareCandidates, hasZeroActionWeight, severityPriority, sortCandidates, uniqueByScope };
+export {
+  compareCandidates,
+  compareEvidenceMetrics,
+  hasZeroActionWeight,
+  severityPriority,
+  sortCandidates,
+  uniqueByScope,
+};

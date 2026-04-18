@@ -111,16 +111,67 @@ export function buildSummaryMarkdown(summary) {
   lines.push(`- top-action help rate: ${summary.summary.top_action_help_rate ?? 'n/a'}`);
   lines.push(`- task success rate: ${summary.summary.task_success_rate ?? 'n/a'}`);
   lines.push(`- patch expansion rate: ${summary.summary.patch_expansion_rate ?? 'n/a'}`);
+  lines.push(
+    `- reviewer acceptance rate: ${summary.summary.reviewer_acceptance_rate ?? 'n/a'}`,
+  );
+  lines.push(
+    `- reviewer disagreement rate: ${summary.summary.reviewer_disagreement_rate ?? 'n/a'}`,
+  );
   lines.push(`- intervention net value score: ${summary.summary.intervention_net_value_score ?? 'n/a'}`);
   lines.push(`- propagation escape rate: ${summary.summary.propagation_escape_rate ?? 'n/a'}`);
   lines.push(`- clone followthrough escape rate: ${summary.summary.clone_followthrough_escape_rate ?? 'n/a'}`);
+  lines.push(
+    `- signal-matched ready signals: ${summary.summary.signal_matched_ready_count ?? 0}`,
+  );
   lines.push(`- default-on candidates: ${summary.summary.evidence_review_default_on_candidates ?? 0}`);
+  lines.push(
+    `- default-on ready signals: ${summary.summary.evidence_review_default_on_ready_signals ?? 0}`,
+  );
   lines.push(`- default-on ready: ${summary.summary.default_on_ready ? 'true' : 'false'}`);
   lines.push(
     `- repo treatment ready: ${summary.summary.default_on_repo_treatment_ready ? 'true' : 'false'}`,
   );
   lines.push(`- default-on evidence scope: ${summary.summary.default_on_evidence_scope ?? 'n/a'}`);
+  lines.push(
+    `- signal treatment ready count: ${summary.summary.default_on_signal_treatment_ready_count ?? 0}`,
+  );
   lines.push(`- evidence phase: ${summary.summary.evidence_phase_id ?? 'n/a'}`);
+  lines.push(
+    `- bounded adjudication status: ${summary.summary.bounded_adjudication_status ?? 'n/a'}`,
+  );
+  lines.push(
+    `- bounded adjudication decisions: ${summary.summary.bounded_adjudication_decision_count ?? 0}`,
+  );
+  lines.push(
+    `- bounded adjudication structured-only: ${
+      summary.summary.bounded_adjudication_structured_evidence_only === null
+        ? 'n/a'
+        : summary.summary.bounded_adjudication_structured_evidence_only
+          ? 'true'
+          : 'false'
+    }`,
+  );
+  lines.push(
+    `- bounded adjudication audit logging ready: ${
+      summary.summary.bounded_adjudication_audit_logging_ready === null
+        ? 'n/a'
+        : summary.summary.bounded_adjudication_audit_logging_ready
+          ? 'true'
+          : 'false'
+    }`,
+  );
+  lines.push(
+    `- bounded adjudication auto-apply enabled: ${
+      summary.summary.bounded_adjudication_auto_apply_enabled === null
+        ? 'n/a'
+        : summary.summary.bounded_adjudication_auto_apply_enabled
+          ? 'true'
+          : 'false'
+    }`,
+  );
+  lines.push(
+    `- bounded adjudication phase: ${summary.summary.bounded_adjudication_phase_id ?? 'n/a'}`,
+  );
   lines.push(`- next signal: ${summary.summary.recommended_next_signal ?? 'none'}`);
   lines.push('');
 
@@ -136,6 +187,18 @@ export function buildSummaryMarkdown(summary) {
     lines.push(`- corpus agent clear rate delta: ${summary.delta.agent_clear_rate?.delta ?? 'n/a'}`);
     lines.push(`- top-action help rate delta: ${summary.delta.top_action_help_rate?.delta ?? 'n/a'}`);
     lines.push(`- task success rate delta: ${summary.delta.task_success_rate?.delta ?? 'n/a'}`);
+    lines.push(
+      `- reviewer acceptance rate delta: ${summary.delta.reviewer_acceptance_rate?.delta ?? 'n/a'}`,
+    );
+    lines.push(
+      `- reviewer disagreement rate delta: ${summary.delta.reviewer_disagreement_rate?.delta ?? 'n/a'}`,
+    );
+    lines.push(
+      `- signal-matched ready signals delta: ${summary.delta.signal_matched_ready_count?.delta ?? 'n/a'}`,
+    );
+    lines.push(
+      `- default-on ready signals delta: ${summary.delta.default_on_ready_signal_count?.delta ?? 'n/a'}`,
+    );
     lines.push(`- next signal changed: ${summary.delta.recommended_next_signal?.changed ? 'yes' : 'no'}`);
     if (Array.isArray(summary.delta.recommendation_changes) && summary.delta.recommendation_changes.length > 0) {
       lines.push(`- recommendation changes: ${summary.delta.recommendation_changes.map((entry) => `${entry.signal_kind}:${entry.previous}->${entry.current}`).join(', ')}`);
@@ -205,6 +268,22 @@ export function buildSummaryDelta(
     task_success_rate: buildNumericDelta(
       currentSessionCorpus?.summary?.task_success_rate,
       previousSessionCorpus?.summary?.task_success_rate,
+    ),
+    reviewer_acceptance_rate: buildNumericDelta(
+      currentSessionCorpus?.summary?.reviewer_acceptance_rate,
+      previousSessionCorpus?.summary?.reviewer_acceptance_rate,
+    ),
+    reviewer_disagreement_rate: buildNumericDelta(
+      currentSessionCorpus?.summary?.reviewer_disagreement_rate,
+      previousSessionCorpus?.summary?.reviewer_disagreement_rate,
+    ),
+    signal_matched_ready_count: buildNumericDelta(
+      currentSessionCorpus?.summary?.signal_experiment_ready_count ?? 0,
+      previousSessionCorpus?.summary?.signal_experiment_ready_count ?? 0,
+    ),
+    default_on_ready_signal_count: buildNumericDelta(
+      currentScorecard?.summary?.default_rollout_ready_count ?? 0,
+      previousScorecard?.summary?.default_rollout_ready_count ?? 0,
     ),
     recommended_next_signal: {
       previous: previousBacklog?.summary?.recommended_next_signal ?? null,

@@ -47,6 +47,31 @@ function normalizeOptionalScore(value) {
   return value;
 }
 
+function derivedReviewerAcceptance(normalizedCategory) {
+  if (normalizedCategory === 'true_positive' || normalizedCategory === 'acceptable_warning') {
+    return true;
+  }
+  if (normalizedCategory === 'false_positive') {
+    return false;
+  }
+
+  return null;
+}
+
+function derivedReviewerDisagreement(normalizedCategory, verdict) {
+  if (normalizedCategory === 'false_positive' || normalizedCategory === 'inconclusive') {
+    return true;
+  }
+  if (verdict.rank_preserved === true) {
+    return false;
+  }
+  if (verdict.rank_preserved === false) {
+    return true;
+  }
+
+  return null;
+}
+
 function buildStructuredReviewDefaults(prefix = '') {
   return {
     [`${prefix}review_rank_observed_total`]: 0,
@@ -62,6 +87,10 @@ function buildStructuredReviewDefaults(prefix = '') {
     [`${prefix}review_helpfulness_sum`]: 0,
     [`${prefix}review_distraction_cost_total`]: 0,
     [`${prefix}review_distraction_cost_sum`]: 0,
+    [`${prefix}reviewer_acceptance_sample_count`]: 0,
+    [`${prefix}reviewer_accepted_count`]: 0,
+    [`${prefix}reviewer_disagreement_sample_count`]: 0,
+    [`${prefix}reviewer_disagreed_count`]: 0,
     [`${prefix}ranking_preference_total`]: 0,
     [`${prefix}ranking_preference_satisfied`]: 0,
     [`${prefix}ranking_preference_violated`]: 0,
@@ -117,8 +146,20 @@ export function createEmptySignalEntry(signalKind, overrides = {}) {
     task_completed_successfully_count: 0,
     patch_expansion_sample_count: 0,
     patch_expanded_unnecessarily_count: 0,
+    reviewer_acceptance_sample_count: 0,
+    reviewer_accepted_count: 0,
+    reviewer_disagreement_sample_count: 0,
+    reviewer_disagreed_count: 0,
     intervention_cost_sample_count: 0,
     intervention_cost_checks_total: 0,
+    signal_treatment_comparison_count: 0,
+    signal_treatment_qualified_comparison_count: 0,
+    signal_treatment_ready: false,
+    signal_treatment_best_arm: null,
+    signal_treatment_top_action_help_rate_delta: null,
+    signal_treatment_task_success_rate_delta: null,
+    signal_treatment_patch_expansion_rate_delta: null,
+    signal_treatment_intervention_net_value_score_delta: null,
     provisional_reviewed_total: 0,
     provisional_true_positive: 0,
     provisional_acceptable_warning: 0,
@@ -258,6 +299,30 @@ function recordStructuredReviewFields(entry, verdict, prefix) {
   }
 }
 
+function recordReviewerVerdictFields(entry, verdict, normalizedCategory, prefix) {
+  const reviewerAcceptance = isBooleanValue(verdict.reviewer_accepts_primary_action)
+    ? verdict.reviewer_accepts_primary_action
+    : derivedReviewerAcceptance(normalizedCategory);
+  const reviewerDisagreement = isBooleanValue(verdict.reviewer_disagrees_with_rank)
+    ? verdict.reviewer_disagrees_with_rank
+    : derivedReviewerDisagreement(normalizedCategory, verdict);
+
+  recordNamedBooleanCount(
+    entry,
+    'reviewer_acceptance_sample_count',
+    'reviewer_accepted_count',
+    reviewerAcceptance,
+    prefix,
+  );
+  recordNamedBooleanCount(
+    entry,
+    'reviewer_disagreement_sample_count',
+    'reviewer_disagreed_count',
+    reviewerDisagreement,
+    prefix,
+  );
+}
+
 export function applyReviewVerdicts(signalMap, reviewVerdicts) {
   const provisionalPrefix = reviewVerdicts?.provisional ? 'provisional_' : '';
   const verdicts = asArray(reviewVerdicts?.verdicts);
@@ -284,6 +349,7 @@ export function applyReviewVerdicts(signalMap, reviewVerdicts) {
       (entry[`${provisionalPrefix}${normalizedCategory}`] ?? 0) + 1;
     recordTopKReviewCounts(entry, normalizedCategory, index, provisionalPrefix);
     recordStructuredReviewFields(entry, verdict, provisionalPrefix);
+    recordReviewerVerdictFields(entry, verdict, normalizedCategory, provisionalPrefix);
 
     for (const preferredScope of asArray(verdict.preferred_over)) {
       if (typeof preferredScope !== 'string' || preferredScope.length === 0) {
@@ -382,6 +448,18 @@ export function buildSignalReviewFields(
       entry.review_distraction_cost_sum ?? 0,
       entry.review_distraction_cost_total ?? 0,
     ),
+    reviewer_acceptance_sample_count: entry.reviewer_acceptance_sample_count ?? 0,
+    reviewer_accepted_count: entry.reviewer_accepted_count ?? 0,
+    reviewer_acceptance_rate: safeRatio(
+      entry.reviewer_accepted_count ?? 0,
+      entry.reviewer_acceptance_sample_count ?? 0,
+    ),
+    reviewer_disagreement_sample_count: entry.reviewer_disagreement_sample_count ?? 0,
+    reviewer_disagreed_count: entry.reviewer_disagreed_count ?? 0,
+    reviewer_disagreement_rate: safeRatio(
+      entry.reviewer_disagreed_count ?? 0,
+      entry.reviewer_disagreement_sample_count ?? 0,
+    ),
     ranking_preference_total: entry.ranking_preference_total ?? 0,
     ranking_preference_satisfied: entry.ranking_preference_satisfied ?? 0,
     ranking_preference_violated: entry.ranking_preference_violated ?? 0,
@@ -458,6 +536,21 @@ export function buildSignalReviewFields(
       entry.provisional_review_distraction_cost_sum ?? 0,
       entry.provisional_review_distraction_cost_total ?? 0,
     ),
+    provisional_reviewer_acceptance_sample_count:
+      entry.provisional_reviewer_acceptance_sample_count ?? 0,
+    provisional_reviewer_accepted_count: entry.provisional_reviewer_accepted_count ?? 0,
+    provisional_reviewer_acceptance_rate: safeRatio(
+      entry.provisional_reviewer_accepted_count ?? 0,
+      entry.provisional_reviewer_acceptance_sample_count ?? 0,
+    ),
+    provisional_reviewer_disagreement_sample_count:
+      entry.provisional_reviewer_disagreement_sample_count ?? 0,
+    provisional_reviewer_disagreed_count:
+      entry.provisional_reviewer_disagreed_count ?? 0,
+    provisional_reviewer_disagreement_rate: safeRatio(
+      entry.provisional_reviewer_disagreed_count ?? 0,
+      entry.provisional_reviewer_disagreement_sample_count ?? 0,
+    ),
     provisional_ranking_preference_total: entry.provisional_ranking_preference_total ?? 0,
     provisional_ranking_preference_satisfied:
       entry.provisional_ranking_preference_satisfied ?? 0,
@@ -488,6 +581,10 @@ function buildPromotionInputs(entry) {
   const taskCompletedSuccessfullyCount = entry.task_completed_successfully_count ?? 0;
   const patchExpansionSampleCount = entry.patch_expansion_sample_count ?? 0;
   const patchExpandedUnnecessarilyCount = entry.patch_expanded_unnecessarily_count ?? 0;
+  const reviewerAcceptanceSampleCount = entry.reviewer_acceptance_sample_count ?? 0;
+  const reviewerAcceptedCount = entry.reviewer_accepted_count ?? 0;
+  const reviewerDisagreementSampleCount = entry.reviewer_disagreement_sample_count ?? 0;
+  const reviewerDisagreedCount = entry.reviewer_disagreed_count ?? 0;
   const interventionCostSampleCount = entry.intervention_cost_sample_count ?? 0;
   const interventionCostChecksTotal = entry.intervention_cost_checks_total ?? 0;
 
@@ -510,6 +607,14 @@ function buildPromotionInputs(entry) {
     remediationSuccess: safeRatio(
       entry.remediation_success ?? 0,
       entry.remediation_total ?? 0,
+    ),
+    reviewerAcceptanceRate: safeRatio(
+      reviewerAcceptedCount,
+      reviewerAcceptanceSampleCount,
+    ),
+    reviewerDisagreementRate: safeRatio(
+      reviewerDisagreedCount,
+      reviewerDisagreementSampleCount,
     ),
     reviewNoiseRate: safeRatio(falsePositives + inconclusive, reviewedTotal),
     reviewedPrecision: safeRatio(
@@ -581,6 +686,18 @@ function promotionNoiseDecision(metrics) {
     metrics.reviewedPrecision < SIGNAL_PROMOTION_POLICY.reviewedPrecisionMin
   ) {
     return 'reduce_noise';
+  }
+  if (
+    metrics.reviewerAcceptanceRate !== null &&
+    metrics.reviewerAcceptanceRate < SIGNAL_PROMOTION_POLICY.reviewerAcceptanceRateMin
+  ) {
+    return 'reduce_noise';
+  }
+  if (
+    metrics.reviewerDisagreementRate !== null &&
+    metrics.reviewerDisagreementRate > SIGNAL_PROMOTION_POLICY.reviewerDisagreementRateMax
+  ) {
+    return 'needs_review';
   }
   return null;
 }
@@ -760,6 +877,10 @@ export function buildDefaultRolloutRecommendation(entry) {
     return blockedRecommendation;
   }
 
+  if (entry.signal_treatment_ready === true) {
+    return 'ready_for_default_on';
+  }
+
   return 'await_treatment_proof';
 }
 
@@ -875,6 +996,22 @@ export function buildRankingQualitySummary(signals, prefix = '') {
     signals,
     `${prefix}review_distraction_cost_sum`,
   );
+  const reviewerAcceptanceSampleCount = sumSignalField(
+    signals,
+    `${prefix}reviewer_acceptance_sample_count`,
+  );
+  const reviewerAcceptedCount = sumSignalField(
+    signals,
+    `${prefix}reviewer_accepted_count`,
+  );
+  const reviewerDisagreementSampleCount = sumSignalField(
+    signals,
+    `${prefix}reviewer_disagreement_sample_count`,
+  );
+  const reviewerDisagreedCount = sumSignalField(
+    signals,
+    `${prefix}reviewer_disagreed_count`,
+  );
   const top1ActionablePrecision = safeRatio(top1ActionableCount, top1ReviewedCount);
   const top3ActionablePrecision = safeRatio(top3ActionableCount, top3ReviewedCount);
   const top10ActionablePrecision = safeRatio(top10ActionableCount, top10ReviewedCount);
@@ -928,6 +1065,18 @@ export function buildRankingQualitySummary(signals, prefix = '') {
     sample_distraction_cost_mean: safeRatio(
       reviewDistractionCostSum,
       reviewDistractionCostTotal,
+    ),
+    reviewer_acceptance_sample_count: reviewerAcceptanceSampleCount,
+    reviewer_accepted_count: reviewerAcceptedCount,
+    reviewer_acceptance_rate: safeRatio(
+      reviewerAcceptedCount,
+      reviewerAcceptanceSampleCount,
+    ),
+    reviewer_disagreement_sample_count: reviewerDisagreementSampleCount,
+    reviewer_disagreed_count: reviewerDisagreedCount,
+    reviewer_disagreement_rate: safeRatio(
+      reviewerDisagreedCount,
+      reviewerDisagreementSampleCount,
     ),
     meets_primary_target_policy: evaluatePrimaryTargetPolicy({
       top1ReviewedCount,

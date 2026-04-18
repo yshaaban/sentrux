@@ -26,6 +26,8 @@
       ]
     },
     "evidence_sources": { "type": "object", "additionalProperties": true },
+    "phase_tracking": { "type": ["object", "null"], "additionalProperties": true },
+    "adjudication_summary": { "type": ["object", "null"], "additionalProperties": true },
     "promotion_candidates": { "type": "array", "items": { "type": "object" } },
     "demotion_candidates": { "type": "array", "items": { "type": "object" } },
     "default_on_candidates": { "type": "array", "items": { "type": "object" } },
@@ -38,6 +40,7 @@
     "thrashing_examples": { "type": "array", "items": { "type": "object" } },
     "experiment_arms": { "type": "array", "items": { "type": "object" } },
     "experiment_arm_comparisons": { "type": "array", "items": { "type": "object" } },
+    "signal_experiment_comparisons": { "type": "array", "items": { "type": "object" } },
     "product_value": { "type": ["object", "null"] }
   }
 }

@@ -6,6 +6,7 @@ function buildSignal({
   promotionStatus,
   primaryLane,
   defaultSurfaceRole,
+  leadPriority = null,
   rationale,
 }) {
   return {
@@ -14,6 +15,7 @@ function buildSignal({
     promotion_status: promotionStatus,
     primary_lane: primaryLane,
     default_surface_role: defaultSurfaceRole,
+    lead_priority: Number.isInteger(leadPriority) ? leadPriority : null,
     rationale,
   };
 }
@@ -26,6 +28,7 @@ function buildAgentLoopCoreSignals() {
       promotionStatus: 'trusted',
       primaryLane: 'agent_default',
       defaultSurfaceRole: 'supporting_note',
+      leadPriority: 20,
       rationale: 'High-value semantic completeness signal for TypeScript agent edits.',
     }),
     buildSignal({
@@ -34,6 +37,7 @@ function buildAgentLoopCoreSignals() {
       promotionStatus: 'trusted',
       primaryLane: 'agent_default',
       defaultSurfaceRole: 'lead',
+      leadPriority: 30,
       rationale: 'Strong explicit-rule regression that should block unsafe agent shortcuts.',
     }),
     buildSignal({
@@ -42,6 +46,7 @@ function buildAgentLoopCoreSignals() {
       promotionStatus: 'watchpoint',
       primaryLane: 'agent_default',
       defaultSurfaceRole: 'lead',
+      leadPriority: 40,
       rationale:
         'Fresh duplication introduced in the current session is a high-ROI agent mistake signal when it stays session-scoped and concrete.',
     }),
@@ -51,6 +56,7 @@ function buildAgentLoopCoreSignals() {
       promotionStatus: 'watchpoint',
       primaryLane: 'agent_default',
       defaultSurfaceRole: 'lead',
+      leadPriority: 50,
       rationale:
         'Editing one side of an existing duplicate without syncing its sibling is a common agent followthrough miss and should stay visible in the fast loop.',
     }),
@@ -60,6 +66,7 @@ function buildAgentLoopCoreSignals() {
       promotionStatus: 'watchpoint',
       primaryLane: 'agent_default',
       defaultSurfaceRole: 'lead',
+      leadPriority: 10,
       rationale:
         'Explicit contract-surface propagation misses are sharp enough to calibrate as a conservative watchpoint before broader propagation heuristics.',
     }),
@@ -69,6 +76,7 @@ function buildAgentLoopCoreSignals() {
       promotionStatus: 'watchpoint',
       primaryLane: 'agent_default',
       defaultSurfaceRole: 'lead',
+      leadPriority: 60,
       rationale:
         'Direct zero-config boundary violations now have deterministic fixture-backed replay coverage plus seeded detection and remediation evidence, so they should stay visible in the fast loop as a maintained watchpoint.',
     }),
@@ -83,6 +91,7 @@ function buildSupportingStructuralWatchpoints() {
       promotionStatus: 'watchpoint',
       primaryLane: 'maintainer_watchpoint',
       defaultSurfaceRole: 'supporting_watchpoint',
+      leadPriority: 200,
       rationale: 'Common omission signal that should stay visible without over-blocking.',
     }),
     buildSignal({
@@ -91,6 +100,7 @@ function buildSupportingStructuralWatchpoints() {
       promotionStatus: 'watchpoint',
       primaryLane: 'maintainer_watchpoint',
       defaultSurfaceRole: 'supporting_watchpoint',
+      leadPriority: 210,
       rationale: 'Regrowth warning that is valuable when it stays actionable.',
     }),
   ];
@@ -173,6 +183,7 @@ export function buildSignalMetadataLookup(manifest = null, cohortId = null) {
       promotion_status: entry.promotion_status ?? 'unspecified',
       primary_lane: entry.primary_lane ?? null,
       default_surface_role: entry.default_surface_role ?? null,
+      lead_priority: Number.isInteger(entry.lead_priority) ? entry.lead_priority : null,
       rationale: entry.rationale ?? null,
     });
   }

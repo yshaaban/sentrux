@@ -44,19 +44,49 @@ function normalizeMetrics(metrics) {
   return {};
 }
 
-function metricValue(candidate, key) {
+function candidateFieldValue(candidate, key) {
   const normalizedKey = normalizeMetricKey(key);
-  const metric = candidate.metrics?.[normalizedKey];
-  if (typeof metric === 'number') {
-    return metric;
+  if (!candidate || typeof candidate !== 'object') {
+    return undefined;
   }
 
-  const directValue = candidate[normalizedKey];
-  if (typeof directValue === 'number') {
-    return directValue;
+  if (candidate[normalizedKey] !== undefined) {
+    return candidate[normalizedKey];
+  }
+  if (candidate.metrics?.[normalizedKey] !== undefined) {
+    return candidate.metrics[normalizedKey];
   }
 
-  return 0;
+  return undefined;
+}
+
+function candidateNumberValue(candidate, key) {
+  const value = candidateFieldValue(candidate, key);
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function candidateBooleanValue(candidate, key) {
+  const value = candidateFieldValue(candidate, key);
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (value === 1 || value === 0) {
+    return value === 1;
+  }
+  if (typeof value === 'string') {
+    if (value === 'true') {
+      return true;
+    }
+    if (value === 'false') {
+      return false;
+    }
+  }
+
+  return null;
+}
+
+function metricValue(candidate, key) {
+  return candidateNumberValue(candidate, key) ?? 0;
 }
 
 function hasRoleTag(candidate, roleTag) {
@@ -156,6 +186,9 @@ function hasHotspotOverlap(matchingSignal, matchingClusters) {
 export {
   bestCutCandidate,
   cappedBonus,
+  candidateBooleanValue,
+  candidateFieldValue,
+  candidateNumberValue,
   compactSelectedCandidate,
   containsReason,
   defaultLeverageClass,

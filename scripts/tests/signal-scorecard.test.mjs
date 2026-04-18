@@ -35,6 +35,8 @@ test('buildSignalScorecard aggregates seeded, review, and remediation metrics', 
           category: 'useful',
           rank_observed: 1,
           rank_preserved: true,
+          reviewer_accepts_primary_action: true,
+          reviewer_disagrees_with_rank: false,
           repair_packet_complete: true,
           repair_packet_missing_fields: [],
           repair_packet_fix_surface_clear: true,
@@ -202,12 +204,15 @@ test('buildSignalScorecard aggregates seeded, review, and remediation metrics', 
   assert.equal(scorecard.summary.coverage.has_session_trials, true);
   assert.equal(scorecard.summary.coverage.has_session_verdicts, true);
   assert.equal(scorecard.summary.default_rollout_candidate_count, 0);
+  assert.equal(scorecard.summary.default_rollout_ready_count, 0);
   assert.equal(scorecard.summary.kpis.session_count, 2);
   assert.equal(scorecard.summary.product_value.session_verdict_count, 2);
   assert.equal(scorecard.summary.product_value.top_action_follow_rate, 0.5);
   assert.equal(scorecard.summary.product_value.top_action_help_rate, 1);
   assert.equal(scorecard.summary.product_value.task_success_rate, 0.5);
   assert.equal(scorecard.summary.product_value.patch_expansion_rate, 0.5);
+  assert.equal(scorecard.summary.product_value.reviewer_acceptance_rate, null);
+  assert.equal(scorecard.summary.product_value.reviewer_disagreement_rate, null);
   assert.equal(scorecard.summary.product_value.intervention_cost_checks_mean, 1.5);
   assert.equal(scorecard.summary.product_value.intervention_net_value_score, 0.333);
   assert.deepEqual(scorecard.summary.product_value.lane_summaries, [
@@ -219,6 +224,8 @@ test('buildSignalScorecard aggregates seeded, review, and remediation metrics', 
       top_action_help_rate: 1,
       task_success_rate: 1,
       patch_expansion_rate: 0,
+      reviewer_acceptance_rate: null,
+      reviewer_disagreement_rate: null,
       intervention_cost_checks_mean: 1,
       intervention_net_value_score: 1,
     },
@@ -230,6 +237,8 @@ test('buildSignalScorecard aggregates seeded, review, and remediation metrics', 
       top_action_help_rate: null,
       task_success_rate: 0,
       patch_expansion_rate: 1,
+      reviewer_acceptance_rate: null,
+      reviewer_disagreement_rate: null,
       intervention_cost_checks_mean: 2,
       intervention_net_value_score: -0.666,
     },
@@ -238,6 +247,8 @@ test('buildSignalScorecard aggregates seeded, review, and remediation metrics', 
   assert.equal(scorecard.summary.ranking_quality.repair_packet_complete_rate, 1);
   assert.equal(scorecard.summary.ranking_quality.sample_helpfulness_mean, 3);
   assert.equal(scorecard.summary.ranking_quality.sample_distraction_cost_mean, 0);
+  assert.equal(scorecard.summary.ranking_quality.reviewer_acceptance_rate, 1);
+  assert.equal(scorecard.summary.ranking_quality.reviewer_disagreement_rate, 0);
   assert.equal(scorecard.summary.session_health.converged_session_count, 1);
   assert.equal(scorecard.summary.session_health.top_action_session_count, 2);
   assert.equal(scorecard.summary.session_health.top_action_cleared_count, 1);
@@ -247,6 +258,37 @@ test('buildSignalScorecard aggregates seeded, review, and remediation metrics', 
   assert.equal(scorecard.summary.session_health.session_clean_rate, 1);
   assert.equal(scorecard.summary.session_health.average_checks_to_clear, 3);
   assert.equal(scorecard.summary.session_health.average_entropy_delta, -0.5);
+});
+
+test('buildSignalScorecard derives reviewer acceptance and disagreement from review outcomes when explicit flags are absent', function () {
+  const scorecard = buildSignalScorecard({
+    reviewVerdicts: {
+      verdicts: [
+        {
+          kind: 'forbidden_raw_read',
+          category: 'useful',
+          rank_observed: 1,
+          rank_preserved: true,
+        },
+        {
+          kind: 'large_file',
+          category: 'low_value',
+          rank_observed: 2,
+          rank_preserved: false,
+        },
+      ],
+    },
+  });
+
+  const rawRead = scorecard.signals.find((signal) => signal.signal_kind === 'forbidden_raw_read');
+  const largeFile = scorecard.signals.find((signal) => signal.signal_kind === 'large_file');
+
+  assert.equal(rawRead.reviewer_acceptance_rate, 1);
+  assert.equal(rawRead.reviewer_disagreement_rate, 0);
+  assert.equal(largeFile.reviewer_acceptance_rate, null);
+  assert.equal(largeFile.reviewer_disagreement_rate, 1);
+  assert.equal(scorecard.summary.ranking_quality.reviewer_acceptance_rate, 1);
+  assert.equal(scorecard.summary.ranking_quality.reviewer_disagreement_rate, 0.5);
 });
 
 test('buildSignalScorecard promotion recommendations react to poor intervention outcomes', function () {
@@ -457,6 +499,168 @@ test('buildSignalScorecard marks trusted agent-default leads as awaiting treatme
   assert.equal(scorecard.signals[0].default_surface_role, 'lead');
   assert.equal(scorecard.signals[0].default_rollout_recommendation, 'await_treatment_proof');
   assert.equal(scorecard.summary.default_rollout_candidate_count, 1);
+  assert.equal(scorecard.summary.default_rollout_ready_count, 0);
+});
+
+test('buildSignalScorecard marks signals ready for default-on after qualified signal-matched treatment evidence', function () {
+  const scorecard = buildSignalScorecard({
+    repoLabel: 'signal-treatment-ready',
+    defectReport: {
+      repo_label: 'signal-treatment-ready',
+      defects: [
+        {
+          id: 'propagation',
+          signal_kind: 'incomplete_propagation',
+          signal_family: 'obligation',
+          promotion_status: 'trusted',
+          blocking_intent: 'blocking',
+        },
+      ],
+      results: [
+        {
+          defect_id: 'propagation',
+          detected: true,
+          check: { supported: true, matched: true },
+        },
+      ],
+    },
+    reviewVerdicts: {
+      verdicts: [
+        {
+          kind: 'incomplete_propagation',
+          category: 'useful',
+          rank_observed: 1,
+          rank_preserved: true,
+        },
+        {
+          kind: 'incomplete_propagation',
+          category: 'useful',
+          rank_observed: 1,
+          rank_preserved: true,
+        },
+        {
+          kind: 'incomplete_propagation',
+          category: 'useful',
+          rank_observed: 1,
+          rank_preserved: true,
+        },
+      ],
+    },
+    remediationReport: {
+      results: [
+        {
+          signal_kind: 'incomplete_propagation',
+          fixed: true,
+          regression_free: true,
+        },
+      ],
+    },
+    sessionVerdicts: {
+      repo_label: 'signal-treatment-ready',
+      verdicts: [
+        {
+          session_id: 'baseline-propagation',
+          lane: 'live',
+          top_action_followed: false,
+          top_action_helped: false,
+          task_completed_successfully: false,
+          patch_expanded_unnecessarily: false,
+          intervention_cost_checks: 0,
+          reviewer_confidence: 'high',
+        },
+        {
+          session_id: 'treatment-propagation-1',
+          lane: 'live',
+          top_action_followed: true,
+          top_action_helped: true,
+          task_completed_successfully: true,
+          patch_expanded_unnecessarily: false,
+          intervention_cost_checks: 1,
+          reviewer_confidence: 'high',
+        },
+        {
+          session_id: 'treatment-propagation-2',
+          lane: 'live',
+          top_action_followed: true,
+          top_action_helped: true,
+          task_completed_successfully: true,
+          patch_expanded_unnecessarily: false,
+          intervention_cost_checks: 1,
+          reviewer_confidence: 'high',
+        },
+        {
+          session_id: 'treatment-propagation-3',
+          lane: 'live',
+          top_action_followed: true,
+          top_action_helped: true,
+          task_completed_successfully: true,
+          patch_expanded_unnecessarily: false,
+          intervention_cost_checks: 1,
+          reviewer_confidence: 'high',
+        },
+      ],
+    },
+    codexBatch: {
+      results: [
+        {
+          task_id: 'baseline-propagation',
+          experiment_arm: 'no_intervention',
+          expected_signal_kinds: ['incomplete_propagation'],
+          outcome: {
+            initial_top_action_kind: 'large_file',
+            initial_action_kinds: ['large_file'],
+            top_action_cleared: false,
+            final_session_clean: false,
+            followup_regression_introduced: false,
+          },
+        },
+        {
+          task_id: 'treatment-propagation-1',
+          experiment_arm: 'fix_this_first',
+          expected_signal_kinds: ['incomplete_propagation'],
+          outcome: {
+            initial_top_action_kind: 'incomplete_propagation',
+            initial_action_kinds: ['incomplete_propagation'],
+            top_action_cleared: true,
+            final_session_clean: true,
+            followup_regression_introduced: false,
+          },
+        },
+        {
+          task_id: 'treatment-propagation-2',
+          experiment_arm: 'fix_this_first',
+          expected_signal_kinds: ['incomplete_propagation'],
+          outcome: {
+            initial_top_action_kind: 'incomplete_propagation',
+            initial_action_kinds: ['incomplete_propagation'],
+            top_action_cleared: true,
+            final_session_clean: true,
+            followup_regression_introduced: false,
+          },
+        },
+        {
+          task_id: 'treatment-propagation-3',
+          experiment_arm: 'fix_this_first',
+          expected_signal_kinds: ['incomplete_propagation'],
+          outcome: {
+            initial_top_action_kind: 'incomplete_propagation',
+            initial_action_kinds: ['incomplete_propagation'],
+            top_action_cleared: true,
+            final_session_clean: true,
+            followup_regression_introduced: false,
+          },
+        },
+      ],
+    },
+  });
+
+  assert.equal(scorecard.signals.length, 2);
+  assert.equal(scorecard.signals[0].signal_kind, 'incomplete_propagation');
+  assert.equal(scorecard.signals[0].signal_treatment_ready, true);
+  assert.equal(scorecard.signals[0].signal_treatment_best_arm, 'fix_this_first');
+  assert.equal(scorecard.signals[0].default_rollout_recommendation, 'ready_for_default_on');
+  assert.equal(scorecard.summary.default_rollout_candidate_count, 1);
+  assert.equal(scorecard.summary.default_rollout_ready_count, 1);
 });
 
 test('buildSignalScorecard uses the active cohort metadata instead of the default cohort only', function () {
@@ -1071,6 +1275,8 @@ test('formatSignalScorecardMarkdown renders the score table', function () {
         top_action_help_rate: 0.5,
         task_success_rate: 0.5,
         patch_expansion_rate: 0.5,
+        reviewer_acceptance_rate: null,
+        reviewer_disagreement_rate: null,
         intervention_cost_checks_mean: 1.5,
         intervention_net_value_score: 0.333,
         lane_summaries: [
@@ -1081,6 +1287,8 @@ test('formatSignalScorecardMarkdown renders the score table', function () {
             top_action_help_rate: 1,
             task_success_rate: 1,
             patch_expansion_rate: 0,
+            reviewer_acceptance_rate: null,
+            reviewer_disagreement_rate: null,
             intervention_net_value_score: 1,
           },
         ],
@@ -1122,10 +1330,15 @@ test('formatSignalScorecardMarkdown renders the score table', function () {
   assert.match(markdown, /Top Action Sessions/);
   assert.match(markdown, /Follow Rate/);
   assert.match(markdown, /Help Rate/);
+  assert.match(markdown, /Accept Rate/);
+  assert.match(markdown, /Disagree Rate/);
   assert.match(markdown, /Thrash Rate/);
   assert.match(markdown, /top-action sessions: 2/);
   assert.match(markdown, /agent clear rate: 0\.5 \(1\/2\)/);
-  assert.match(markdown, /live lane: verdicts=1, follow=1, help=1, success=1, expand=0, value=1/);
+  assert.match(
+    markdown,
+    /live lane: verdicts=1, follow=1, help=1, success=1, expand=0, accept=n\/a, disagree=n\/a, value=1/,
+  );
   assert.match(markdown, /top-1 actionable precision/);
   assert.match(markdown, /0.5/);
 });
