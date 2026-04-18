@@ -26,9 +26,9 @@ That includes:
 
 The authoritative Rust surfaces are:
 
-- [agent_ranking.rs](/home/yrsh/sentrux/sentrux-core/src/app/mcp_server/handlers/agent_ranking.rs)
-- [signal_policy.rs](/home/yrsh/sentrux/sentrux-core/src/app/mcp_server/handlers/signal_policy.rs)
-- [agent_brief](/home/yrsh/sentrux/sentrux-core/src/app/mcp_server/agent_brief)
+- [agent_ranking.rs](../../sentrux-core/src/app/mcp_server/handlers/agent_ranking.rs)
+- [signal_policy.rs](../../sentrux-core/src/app/mcp_server/handlers/signal_policy.rs)
+- [agent_brief](../../sentrux-core/src/app/mcp_server/agent_brief)
 
 JS owns proof, reporting, and eval orchestration.
 
@@ -44,12 +44,12 @@ JS must not invent a competing live-product ranking policy.
 
 Shared static policy lives in:
 
-- [.sentrux/signal-policy.json](/home/yrsh/sentrux/.sentrux/signal-policy.json)
+- [.sentrux/signal-policy.json](../../.sentrux/signal-policy.json)
 
 Both runtimes consume it through thin loaders:
 
-- [signal_policy.rs](/home/yrsh/sentrux/sentrux-core/src/app/mcp_server/handlers/signal_policy.rs)
-- [signal-policy.mjs](/home/yrsh/sentrux/scripts/lib/signal-policy.mjs)
+- [signal_policy.rs](../../sentrux-core/src/app/mcp_server/handlers/signal_policy.rs)
+- [signal-policy.mjs](../../scripts/lib/signal-policy.mjs)
 
 This file is the source of truth for:
 
@@ -68,13 +68,13 @@ The old monoliths were split on purpose.
 
 Current boundaries:
 
-- [agent_brief](/home/yrsh/sentrux/sentrux-core/src/app/mcp_server/agent_brief)
+- [agent_brief](../../sentrux-core/src/app/mcp_server/agent_brief)
   - `mod.rs` is the entrypoint and shared types
   - `policy.rs` owns decision and deferred-item rules
   - `select.rs` owns primary-target eligibility and visibility
   - `render.rs` owns target rendering and inspection guidance
   - `tests.rs` owns brief-specific regressions
-- [findings](/home/yrsh/sentrux/sentrux-core/src/app/mcp_server/handlers/findings)
+- [findings](../../sentrux-core/src/app/mcp_server/handlers/findings)
   - each tool-specific file owns only one findings surface
   - shared response and context helpers stay out of the tool entrypoint files
 
@@ -86,15 +86,15 @@ The public report-selection stack is intentionally split.
 
 Current boundaries:
 
-- [v2-report-selection.mjs](/home/yrsh/sentrux/scripts/lib/v2-report-selection.mjs)
+- [v2-report-selection.mjs](../../scripts/lib/v2-report-selection.mjs)
   - public facade only
-- [normalization.mjs](/home/yrsh/sentrux/scripts/lib/v2-report-selection/normalization.mjs)
+- [normalization.mjs](../../scripts/lib/v2-report-selection/normalization.mjs)
   - candidate normalization and defaulting
-- [ranking.mjs](/home/yrsh/sentrux/scripts/lib/v2-report-selection/ranking.mjs)
+- [ranking.mjs](../../scripts/lib/v2-report-selection/ranking.mjs)
   - within-bucket ranking profiles
-- [compare.mjs](/home/yrsh/sentrux/scripts/lib/v2-report-selection/compare.mjs)
+- [compare.mjs](../../scripts/lib/v2-report-selection/compare.mjs)
   - deterministic ordering and dedupe behavior
-- [buckets.mjs](/home/yrsh/sentrux/scripts/lib/v2-report-selection/buckets.mjs)
+- [buckets.mjs](../../scripts/lib/v2-report-selection/buckets.mjs)
   - leverage and presentation bucket selection
 
 The facade file should stay small. If new logic grows there, it usually belongs in one of the internal modules instead.
@@ -105,17 +105,17 @@ Eval entrypoints should be thin composition roots.
 
 Current shared runtime helpers live under:
 
-- [common.mjs](/home/yrsh/sentrux/scripts/lib/eval-runtime/common.mjs)
-- [provider-task-runner.mjs](/home/yrsh/sentrux/scripts/lib/eval-runtime/provider-task-runner.mjs)
-- [scenarios.mjs](/home/yrsh/sentrux/scripts/lib/eval-runtime/scenarios.mjs)
+- [common.mjs](../../scripts/lib/eval-runtime/common.mjs)
+- [provider-task-runner.mjs](../../scripts/lib/eval-runtime/provider-task-runner.mjs)
+- [scenarios.mjs](../../scripts/lib/eval-runtime/scenarios.mjs)
 
 Shared benchmark and session-health helpers live under:
 
-- [benchmark-harness.mjs](/home/yrsh/sentrux/scripts/lib/benchmark-harness.mjs)
-- [session-health-schema.mjs](/home/yrsh/sentrux/scripts/lib/session-health-schema.mjs)
-- [signal-scorecard-evidence.mjs](/home/yrsh/sentrux/scripts/lib/signal-scorecard-evidence.mjs)
-- [session-corpus.mjs](/home/yrsh/sentrux/scripts/lib/session-corpus.mjs)
-- [evidence-review.mjs](/home/yrsh/sentrux/scripts/lib/evidence-review.mjs)
+- [benchmark-harness.mjs](../../scripts/lib/benchmark-harness.mjs)
+- [session-health-schema.mjs](../../scripts/lib/session-health-schema.mjs)
+- [signal-scorecard-evidence.mjs](../../scripts/lib/signal-scorecard-evidence.mjs)
+- [session-corpus.mjs](../../scripts/lib/session-corpus.mjs)
+- [evidence-review.mjs](../../scripts/lib/evidence-review.mjs)
 
 Entry scripts should only do these jobs:
 
@@ -147,13 +147,13 @@ The defect catalog is now modular by source.
 
 Current structure:
 
-- [catalog.mjs](/home/yrsh/sentrux/scripts/defect-injection/catalog.mjs)
+- [catalog.mjs](../../scripts/defect-injection/catalog.mjs)
   - public catalog facade
-- [catalog-core.mjs](/home/yrsh/sentrux/scripts/defect-injection/catalog-core.mjs)
+- [catalog-core.mjs](../../scripts/defect-injection/catalog-core.mjs)
   - shared defect model and core helpers
-- [catalog-dogfood.mjs](/home/yrsh/sentrux/scripts/defect-injection/catalog-dogfood.mjs)
+- [catalog-dogfood.mjs](../../scripts/defect-injection/catalog-dogfood.mjs)
   - Sentrux-specific catalog entries
-- [catalog-parallel-code.mjs](/home/yrsh/sentrux/scripts/defect-injection/catalog-parallel-code.mjs)
+- [catalog-parallel-code.mjs](../../scripts/defect-injection/catalog-parallel-code.mjs)
   - `parallel-code` catalog entries
 
 New repo-specific defects should go into a repo-specific module, not back into the facade file.
@@ -167,15 +167,15 @@ Shared-policy parity is enforced through fixture-driven tests. The contract has 
 
 Current fixture location:
 
-- [shared-policy.json](/home/yrsh/sentrux/scripts/tests/fixtures/policy-parity/shared-policy.json)
-- [behavior-parity.json](/home/yrsh/sentrux/scripts/tests/fixtures/policy-parity/behavior-parity.json)
+- [shared-policy.json](../../scripts/tests/fixtures/policy-parity/shared-policy.json)
+- [behavior-parity.json](../../scripts/tests/fixtures/policy-parity/behavior-parity.json)
 
 Current test consumers:
 
-- [signal-policy.test.mjs](/home/yrsh/sentrux/scripts/tests/signal-policy.test.mjs)
-- [signal_policy.rs](/home/yrsh/sentrux/sentrux-core/src/app/mcp_server/handlers/signal_policy.rs)
-- [v2-report-selection.test.mjs](/home/yrsh/sentrux/scripts/tests/v2-report-selection.test.mjs)
-- [tests.rs](/home/yrsh/sentrux/sentrux-core/src/app/mcp_server/agent_brief/tests.rs)
+- [signal-policy.test.mjs](../../scripts/tests/signal-policy.test.mjs)
+- [signal_policy.rs](../../sentrux-core/src/app/mcp_server/handlers/signal_policy.rs)
+- [v2-report-selection.test.mjs](../../scripts/tests/v2-report-selection.test.mjs)
+- [tests.rs](../../sentrux-core/src/app/mcp_server/agent_brief/tests.rs)
 
 If you change:
 
