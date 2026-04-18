@@ -1,6 +1,6 @@
 # Sentrux V2
 
-Status: public maintainer docs refreshed on 2026-04-17
+Status: public maintainer docs refreshed on 2026-04-19
 
 V2 is the patch-safety and structured-guidance lane for Sentrux. It sits beside the older structural lane rather than replacing it outright.
 
@@ -51,6 +51,8 @@ If you are reading these docs as a maintainer, the core question is no longer "w
 ## Validation And Evidence
 
 - [Validation Loop](./validation-loop.md)
+- [Experiment Program](./experiment-program.md)
+- [Experiment Records](./experiments/README.md)
 - [False-Positive Review](./false-positive-review.md)
 - [Parallel-Code Case Study](./parallel-code-case-study.md)
 - [Eval Harness](./evals/README.md)

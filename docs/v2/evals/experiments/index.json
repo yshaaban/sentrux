@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-19T00:00:00.000Z",
+  "schema": "../experiment.schema.json",
+  "experiments": [
+    {
+      "experiment_id": "default-lane-family-ablation",
+      "path": "./default-lane-family-ablation.json"
+    },
+    {
+      "experiment_id": "large-file-demotion",
+      "path": "./large-file-demotion.json"
+    },
+    {
+      "experiment_id": "obligation-breadth-expansion",
+      "path": "./obligation-breadth-expansion.json"
+    },
+    {
+      "experiment_id": "treatment-vs-baseline-confirmation",
+      "path": "./treatment-vs-baseline-confirmation.json"
+    },
+    {
+      "experiment_id": "bounded-llm-adjudication-advisory",
+      "path": "./bounded-llm-adjudication-advisory.json"
+    }
+  ]
+}

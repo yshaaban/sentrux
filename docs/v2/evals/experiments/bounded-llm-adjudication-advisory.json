@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "experiment_id": "bounded-llm-adjudication-advisory",
+  "title": "Bounded LLM Adjudication Advisory Trial",
+  "workstream": "bounded_llm_adjudication",
+  "status": "planned",
+  "cycle_id": "2026-04-cycle-3",
+  "program_id": "agent-loop-core",
+  "phase_id": "phase_9_bounded_llm_adjudication",
+  "owner_doc": "../../experiment-program.md",
+  "decision_question": "Can bounded LLM adjudication improve top-action help rate and repair guidance quality enough to justify latency and cost after static and semantic narrowing?",
+  "hypothesis": "A bounded adjudication pass over structured evidence bundles can rerank ambiguous candidates, suppress low-value findings, and improve repair packets without replacing static and semantic narrowing.",
+  "primary_metrics": [
+    "top_action_help_rate",
+    "reviewer_disagreement_rate",
+    "repair_packet_complete_rate",
+    "intervention_net_value_score"
+  ],
+  "secondary_metrics": [
+    "task_success_rate",
+    "patch_expansion_rate",
+    "remediation_success_rate",
+    "ranking_miss_count"
+  ],
+  "variants": [
+    {
+      "variant_id": "static-semantic-only",
+      "name": "Static and semantic only",
+      "status": "active",
+      "description": "Current narrowing without LLM adjudication.",
+      "policy_delta": null
+    },
+    {
+      "variant_id": "bounded-advisory-rerank",
+      "name": "Bounded advisory rerank",
+      "status": "screening",
+      "description": "Use the LLM only to rerank ambiguous candidates and suppress likely low-value leads from structured evidence bundles.",
+      "policy_delta": "Structured evidence bundle, advisory only, full audit logging."
+    },
+    {
+      "variant_id": "bounded-repair-guidance",
+      "name": "Bounded repair guidance",
+      "status": "screening",
+      "description": "Keep ranking static, but use the LLM to strengthen likely fix sites, repair guidance, and verification notes.",
+      "policy_delta": "Structured evidence bundle, guidance only, no raw repo scan."
+    }
+  ],
+  "repo_runs": [
+    {
+      "run_id": "sentrux-current",
+      "repo_id": "sentrux",
+      "variant_id": "static-semantic-only",
+      "manifest": "../repos/sentrux.json",
+      "output_dir": ".sentrux/evals/experiments/bounded-llm-adjudication/current/sentrux",
+      "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
+    }
+  ],
+  "exit_bar": [
+    "Keep the LLM outside the initial narrowing path and feed it structured evidence bundles only.",
+    "Log every input, output, and decision path for audit.",
+    "Do not enable by default unless help rate improves enough to justify added latency and cost."
+  ],
+  "decision": null
+}

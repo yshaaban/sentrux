@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "experiment_id": "default-lane-family-ablation",
+  "title": "Default-Lane Family Ablation",
+  "workstream": "default_lane",
+  "status": "in_progress",
+  "cycle_id": "2026-04-cycle-1",
+  "program_id": "agent-loop-core",
+  "phase_id": "phase_6_default_lane_family_ablation",
+  "owner_doc": "../../experiment-program.md",
+  "decision_question": "Which signal families belong in the default agent lane when the lead list is capped to one to three primary actions?",
+  "hypothesis": "Clone, obligation, boundary, and patch-local concentration signals will outperform policies that elevate broad structural pressure into the lead lane.",
+  "primary_metrics": [
+    "top_action_help_rate",
+    "top_action_follow_rate",
+    "task_success_rate",
+    "intervention_net_value_score"
+  ],
+  "secondary_metrics": [
+    "ranking_miss_count",
+    "reviewed_precision",
+    "repair_packet_complete_rate",
+    "patch_expansion_rate"
+  ],
+  "variants": [
+    {
+      "variant_id": "current_policy",
+      "name": "Current policy",
+      "status": "active",
+      "description": "Current ranking, watchpoint suppression, and tie-breaker behavior.",
+      "policy_delta": null
+    },
+    {
+      "variant_id": "clone-obligation-rules",
+      "name": "Clone, obligation, rules",
+      "status": "screening",
+      "description": "Keep only clone, propagation, boundary, and direct obligation families eligible for the default lane.",
+      "policy_delta": "Remove structural pressure families from lead eligibility."
+    },
+    {
+      "variant_id": "clone-obligation-rules-concentration",
+      "name": "Add patch-local concentration",
+      "status": "screening",
+      "description": "Allow patch-local concentration only when the patch itself worsened reviewability or branching pressure.",
+      "policy_delta": "Patch-local concentration can fill a lead slot if it is causal and repairable."
+    },
+    {
+      "variant_id": "structural-pressure-disabled",
+      "name": "No structural pressure in default lane",
+      "status": "screening",
+      "description": "Demote all structural pressure findings to supporting evidence or maintainer watchpoints.",
+      "policy_delta": "Suppress large_file and broad concentration findings from the lead lane."
+    },
+    {
+      "variant_id": "structural-pressure-patch-local",
+      "name": "Patch-worsened structural pressure only",
+      "status": "screening",
+      "description": "Only allow structural pressure when the patch directly worsened it and the fix surface is concrete.",
+      "policy_delta": "Require patch-local causality and a clear fix surface for structural pressure to rank."
+    }
+  ],
+  "repo_runs": [
+    {
+      "run_id": "sentrux-current",
+      "repo_id": "sentrux",
+      "variant_id": "current_policy",
+      "manifest": "../repos/sentrux.json",
+      "output_dir": ".sentrux/evals/experiments/default-lane-family-ablation/current/sentrux",
+      "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
+    },
+    {
+      "run_id": "parallel-code-current",
+      "repo_id": "parallel-code",
+      "variant_id": "current_policy",
+      "manifest": "../repos/parallel-code.json",
+      "output_dir": ".sentrux/evals/experiments/default-lane-family-ablation/current/parallel-code",
+      "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
+    },
+    {
+      "run_id": "one-tool-current",
+      "repo_id": "one-tool",
+      "variant_id": "current_policy",
+      "manifest": "../repos/one-tool.json",
+      "output_dir": ".sentrux/evals/experiments/default-lane-family-ablation/current/one-tool",
+      "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
+    }
+  ],
+  "exit_bar": [
+    "Screen enough repos to prove the default lane stays within one to three primary actions.",
+    "Shortlist two lead-lane policies for confirmation using measured help, follow, and patch-expansion tradeoffs.",
+    "Reject any policy that improves follow rate without improving help rate."
+  ],
+  "decision": null
+}

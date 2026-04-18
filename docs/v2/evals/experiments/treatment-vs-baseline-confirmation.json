@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "experiment_id": "treatment-vs-baseline-confirmation",
+  "title": "Treatment vs Baseline Confirmation",
+  "workstream": "treatment_baseline",
+  "status": "planned",
+  "cycle_id": "2026-04-cycle-2",
+  "program_id": "agent-loop-core",
+  "phase_id": "phase_8_treatment_confirmation",
+  "owner_doc": "../../experiment-program.md",
+  "decision_question": "Do the narrowed intervention signals beat baseline on fixed tasks strongly enough to drive promotion and demotion decisions?",
+  "hypothesis": "Treatment evidence should become the decisive promotion bar only when paired baseline versus Sentrux-assisted runs show better task success, fewer escaped regressions, and higher top-action help on the same tasks and repos.",
+  "primary_metrics": [
+    "task_success_rate",
+    "top_action_help_rate",
+    "patch_expansion_rate",
+    "reviewer_disagreement_rate"
+  ],
+  "secondary_metrics": [
+    "top_action_follow_rate",
+    "intervention_net_value_score",
+    "promotion_candidate_count",
+    "demotion_candidate_count"
+  ],
+  "variants": [
+    {
+      "variant_id": "current_batch_arms",
+      "name": "Current batch arms",
+      "status": "active",
+      "description": "Use the checked-in baseline and intervention arms already encoded in the live and replay batch manifests.",
+      "policy_delta": null
+    },
+    {
+      "variant_id": "signal_specific_confirmation",
+      "name": "Signal-specific confirmation",
+      "status": "screening",
+      "description": "Run fixed task sets where the promoted signal family is the main intervention difference rather than only repo-level treatment.",
+      "policy_delta": "Require signal-matched paired runs for promotion."
+    }
+  ],
+  "repo_runs": [
+    {
+      "run_id": "sentrux-current",
+      "repo_id": "sentrux",
+      "variant_id": "current_batch_arms",
+      "manifest": "../repos/sentrux.json",
+      "output_dir": ".sentrux/evals/experiments/treatment-confirmation/current/sentrux",
+      "artifact_expectations": ["repo_calibration_loop", "session_corpus", "evidence_review", "scorecard"]
+    },
+    {
+      "run_id": "parallel-code-current",
+      "repo_id": "parallel-code",
+      "variant_id": "current_batch_arms",
+      "manifest": "../repos/parallel-code.json",
+      "output_dir": ".sentrux/evals/experiments/treatment-confirmation/current/parallel-code",
+      "artifact_expectations": ["repo_calibration_loop", "session_corpus", "evidence_review", "scorecard"]
+    },
+    {
+      "run_id": "one-tool-current",
+      "repo_id": "one-tool",
+      "variant_id": "current_batch_arms",
+      "manifest": "../repos/one-tool.json",
+      "output_dir": ".sentrux/evals/experiments/treatment-confirmation/current/one-tool",
+      "artifact_expectations": ["repo_calibration_loop", "session_corpus", "evidence_review", "scorecard"]
+    }
+  ],
+  "exit_bar": [
+    "Use the same protocol for baseline and treatment across at least three repos and fixed task sets.",
+    "Publish signal-level effect-size reporting rather than only repo-level comparisons.",
+    "Do not promote a signal family until signal-matched treatment evidence is stronger than reviewed precision alone."
+  ],
+  "decision": null
+}

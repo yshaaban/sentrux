@@ -14,6 +14,8 @@ Goals:
 - `index.json` - manifest for the checked-in scenarios
 - `signal-cohorts.json` - active signal cohort definitions for calibration
 - `repo-calibration.schema.json` - schema for per-repo calibration manifests
+- `experiment.schema.json` - schema for machine-readable experiment specs
+- `experiments/index.json` - registry for the active experiment specs
 - `review-verdicts.schema.json` - schema for human review verdict input
 - `review-verdicts.template.json` - starter verdict file for new repos
 - `session-verdicts.schema.json` - schema for maintainer-scored session-value verdict input
@@ -27,6 +29,7 @@ Goals:
 - `repos/parallel-code.json` - checked-in calibration manifest for the repo configured by `PARALLEL_CODE_ROOT`
 - `repos/one-tool.json` - checked-in calibration manifest for the repo configured by `ONE_TOOL_ROOT`
 - `repos/sentrux.json` - checked-in calibration manifest for the current Sentrux checkout
+- `experiments/*.json` - checked-in experiment specs for the active v2 workstreams
 - `batches/parallel-code-codex-session-batch.json` - live Codex batch manifest for `parallel-code`
 - `batches/parallel-code-diff-replay-batch.json` - replay batch manifest for `parallel-code`
 - `batches/one-tool-codex-session-batch.json` - live Codex batch manifest for `one-tool`
@@ -128,6 +131,11 @@ Supporting scripts now cover:
 
 - `node scripts/evals/run-repo-calibration-loop.mjs --manifest docs/v2/evals/repos/<repo>.json`
   Run the full per-repo calibration loop from one checked-in manifest. The loop now snapshots the previous repo-local scorecard/backlog/review packet when available, emits delta summaries, warns when seeded-defect, remediation, or benchmark inputs are missing, and can bootstrap provisional review verdicts from the latest review packet when a repo only has the generic template.
+- `node scripts/evals/run-experiment.mjs --experiment docs/v2/evals/experiments/<experiment>.json`
+  Plan or execute a checked-in experiment spec. This wraps the repo-calibration loop, keeps run outputs grouped by experiment, and preserves the distinction between automated repo-calibration runs and tracked manual or policy-branch runs.
+- `node scripts/evals/build-experiment-tracker.mjs`
+  Build a repo-local tracker artifact that rolls up experiment status, run coverage, and the latest captured metrics across all checked-in experiment specs.
+  The top-level eval manifest now points to the experiment registry instead of duplicating the experiment list, so `docs/v2/evals/index.json` and `docs/v2/evals/experiments/index.json` do not drift independently.
 - `node scripts/evals/build-check-review-packet.mjs`
   Build a reusable review packet from `check`, `findings`, or `session_end` for manual false-positive review. Artifact mode can read a single bundle, a live Codex batch, a replay batch, or a combined live+replay set without rescanning repo HEAD. For `check`, the builder samples the first non-empty ranked payload across recorded snapshots instead of assuming `initial_check` is representative, and it emits a companion verdict-template JSON matching the review-verdict schema. The packet summary now also records repair-packet completeness for the full sample set plus the top 3 and top 10 ranked samples so fix-guidance gaps stay visible even before remediation evals exist.
 - `node scripts/evals/run-external-repo-validation.mjs --repo-root /path/to/repo`

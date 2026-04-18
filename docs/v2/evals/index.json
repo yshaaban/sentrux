@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-04-03T00:00:00.000Z",
+  "generated_at": "2026-04-19T00:00:00.000Z",
   "default_provider": "claude-code",
   "runner": "scripts/evals/run.mjs",
   "calibration_runner": "scripts/evals/run-repo-calibration-loop.mjs",
@@ -8,6 +8,7 @@
     "scenario": "./scenario.schema.json",
     "result": "./result.schema.json",
     "repo_calibration": "./repo-calibration.schema.json",
+    "experiment": "./experiment.schema.json",
     "review_verdicts": "./review-verdicts.schema.json",
     "session_verdicts": "./session-verdicts.schema.json",
     "codex_session_batch": "./codex-session-batch.schema.json",
@@ -59,6 +60,7 @@
       "path": "./batches/sentrux-diff-replay-batch.json"
     }
   ],
+  "experiment_registry": "./experiments/index.json",
   "review_verdicts": {
     "schema": "./review-verdicts.schema.json",
     "template": "./review-verdicts.template.json"

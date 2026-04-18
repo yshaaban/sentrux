@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "experiment_id": "obligation-breadth-expansion",
+  "title": "Obligation Breadth Expansion",
+  "workstream": "obligation_breadth",
+  "status": "planned",
+  "cycle_id": "2026-04-cycle-2",
+  "program_id": "agent-loop-core",
+  "phase_id": "phase_7_obligation_expansion",
+  "owner_doc": "../../experiment-program.md",
+  "decision_question": "Which additional follow-through surfaces should extend obligation modeling so the tool can answer what else must change with higher precision?",
+  "hypothesis": "DTOs, config keys, registries, command and status surfaces, public APIs, sibling clone families, and explicit validation surfaces will materially improve missing-followthrough guidance if they are tied to changed symbols and concrete dependent surfaces.",
+  "primary_metrics": [
+    "top_action_help_rate",
+    "task_success_rate",
+    "remediation_success_rate",
+    "repair_packet_complete_rate"
+  ],
+  "secondary_metrics": [
+    "reviewed_precision",
+    "ranking_miss_count",
+    "patch_expansion_rate",
+    "reviewer_disagreement_rate"
+  ],
+  "variants": [
+    {
+      "variant_id": "current_contract_triggers",
+      "name": "Current contract triggers",
+      "status": "active",
+      "description": "Current closed-domain and contract-driven obligation detection.",
+      "policy_delta": null
+    },
+    {
+      "variant_id": "dto-config-registry",
+      "name": "DTO, config, registry expansion",
+      "status": "screening",
+      "description": "Add follow-through modeling for DTOs, config keys, registries, and command/status surfaces.",
+      "policy_delta": "Expand obligation graph breadth and dependent surface hints."
+    },
+    {
+      "variant_id": "api-clone-test-docs",
+      "name": "API, clone, test, docs expansion",
+      "status": "screening",
+      "description": "Add sibling clone family propagation, public API dependents, and concrete validation and documentation surfaces.",
+      "policy_delta": "Extend changed-symbol precision and stale validation surface detection."
+    }
+  ],
+  "repo_runs": [
+    {
+      "run_id": "sentrux-current",
+      "repo_id": "sentrux",
+      "variant_id": "current_contract_triggers",
+      "manifest": "../repos/sentrux.json",
+      "output_dir": ".sentrux/evals/experiments/obligation-breadth/current/sentrux",
+      "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus", "scorecard"]
+    }
+  ],
+  "exit_bar": [
+    "Move beyond a generic something is missing judgment and point to concrete dependent surfaces and likely fix sites.",
+    "Reject expansions that increase reviewed precision noise or broad stale-surface guessing.",
+    "Promote only the obligation families that improve repair-packet completeness and remediation success."
+  ],
+  "decision": null
+}
