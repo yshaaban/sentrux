@@ -5,6 +5,9 @@ pub(crate) fn decorate_finding_with_classification(finding: &Value) -> Value {
     let presentation_class = finding_presentation_class(finding);
     let leverage_class = finding_leverage_class(finding);
     let leverage_reasons = finding_leverage_reasons(finding);
+    let primary_lane = finding_primary_lane(finding, presentation_class);
+    let default_surface_role =
+        default_surface_role_for_finding(finding_kind(finding), primary_lane, presentation_class);
     let mut finding = finding.clone();
     if let Some(payload) = finding.as_object_mut() {
         payload.insert(
@@ -16,6 +19,14 @@ pub(crate) fn decorate_finding_with_classification(finding: &Value) -> Value {
             Value::String(leverage_class.as_str().to_string()),
         );
         payload.insert("leverage_reasons".to_string(), json!(leverage_reasons));
+        payload.insert(
+            "primary_lane".to_string(),
+            Value::String(primary_lane.to_string()),
+        );
+        payload.insert(
+            "default_surface_role".to_string(),
+            Value::String(default_surface_role.to_string()),
+        );
     }
 
     finding
@@ -75,18 +86,99 @@ pub(crate) fn build_finding_details(findings: &[Value], limit: usize) -> Vec<Fin
     findings.iter().take(limit).map(finding_detail).collect()
 }
 
+fn is_agent_default_kind(kind: &str) -> bool {
+    matches!(
+        kind,
+        "authoritative_import_bypass"
+            | "clone_propagation_drift"
+            | "closed_domain_exhaustiveness"
+            | "concept_boundary_pressure"
+            | "contract_parity_gap"
+            | "contract_surface_completeness"
+            | "forbidden_raw_read"
+            | "forbidden_writer"
+            | "incomplete_propagation"
+            | "multi_writer_concept"
+            | "session_introduced_clone"
+            | "state_integrity_missing_site"
+            | "state_integrity_unmapped_root"
+            | "writer_outside_allowlist"
+            | "zero_config_boundary_violation"
+    )
+}
+
+pub(crate) fn classify_primary_lane(
+    kind: &str,
+    trust_tier: FindingTrustTier,
+    _presentation_class: FindingPresentationClass,
+) -> &'static str {
+    if trust_tier == FindingTrustTier::Experimental {
+        return "experimental";
+    }
+    if is_agent_default_kind(kind) {
+        return "agent_default";
+    }
+
+    "maintainer_watchpoint"
+}
+
+pub(crate) fn classify_default_surface_role(
+    kind: &str,
+    primary_lane: &str,
+    presentation_class: FindingPresentationClass,
+) -> &'static str {
+    match primary_lane {
+        "agent_default" => {
+            if kind == "closed_domain_exhaustiveness"
+                || presentation_class == FindingPresentationClass::HardeningNote
+            {
+                "supporting_note"
+            } else {
+                "lead"
+            }
+        }
+        "experimental" => "experimental",
+        _ => "supporting_watchpoint",
+    }
+}
+
+fn finding_primary_lane(
+    finding: &Value,
+    presentation_class: FindingPresentationClass,
+) -> &'static str {
+    classify_primary_lane(
+        finding_kind(finding),
+        finding_trust_tier(finding),
+        presentation_class,
+    )
+}
+
+fn default_surface_role_for_finding(
+    kind: &str,
+    primary_lane: &str,
+    presentation_class: FindingPresentationClass,
+) -> &'static str {
+    classify_default_surface_role(kind, primary_lane, presentation_class)
+}
+
 fn finding_detail(finding: &Value) -> FindingDetail {
     let kind = finding_kind(finding).to_string();
     let files = dedupe_strings_preserve_order(finding_files(finding));
     let evidence = dedupe_strings_preserve_order(finding_string_values(finding, "evidence"));
     let inspection_focus = finding_detail_inspection_focus(finding);
+    let presentation_class = finding_presentation_class(finding);
+    let primary_lane = finding_primary_lane(finding, presentation_class).to_string();
+    let default_surface_role =
+        default_surface_role_for_finding(&kind, &primary_lane, presentation_class).to_string();
 
     annotate_finding_detail(FindingDetail {
         kind: kind.clone(),
         trust_tier: finding_trust_tier(finding),
-        presentation_class: finding_presentation_class(finding),
+        presentation_class,
         leverage_class: finding_leverage_class(finding),
         leverage_class_explicit: finding.get("leverage_class").is_some(),
+        primary_lane,
+        default_surface_role,
         scope: finding_scope(finding),
         severity: severity_of_value(finding),
         summary: finding
@@ -324,6 +416,8 @@ pub(crate) struct FindingDetail {
     pub(crate) leverage_class: FindingLeverageClass,
     #[serde(skip)]
     pub(crate) leverage_class_explicit: bool,
+    pub(crate) primary_lane: String,
+    pub(crate) default_surface_role: String,
     pub(crate) scope: String,
     pub(crate) severity: FindingSeverity,
     pub(crate) summary: String,
@@ -516,6 +610,8 @@ mod tests {
             presentation_class: FindingPresentationClass::GuardedFacade,
             leverage_class: FindingLeverageClass::BoundaryDiscipline,
             leverage_class_explicit: true,
+            primary_lane: "maintainer_watchpoint".to_string(),
+            default_surface_role: "supporting_watchpoint".to_string(),
             scope: "src/lib/ipc.ts".to_string(),
             severity: FindingSeverity::Medium,
             summary: "Transport facade is under pressure".to_string(),
@@ -549,6 +645,24 @@ mod tests {
         assert_eq!(serialized["trust_tier"], "trusted");
         assert_eq!(serialized["presentation_class"], "guarded_facade");
         assert_eq!(serialized["leverage_class"], "boundary_discipline");
+        assert_eq!(serialized["primary_lane"], "maintainer_watchpoint");
+        assert_eq!(serialized["default_surface_role"], "supporting_watchpoint");
         assert_eq!(serialized["severity"], "medium");
+    }
+
+    #[test]
+    fn finding_details_include_agent_lane_and_surface_role_metadata() {
+        let details = build_finding_details(
+            &[json!({
+                "kind": "forbidden_raw_read",
+                "summary": "Raw read bypasses the owner.",
+                "severity": "high",
+                "files": ["src/app.ts"],
+            })],
+            1,
+        );
+
+        assert_eq!(details[0].primary_lane, "agent_default");
+        assert_eq!(details[0].default_surface_role, "lead");
     }
 }

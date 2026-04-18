@@ -1,10 +1,26 @@
 use super::*;
 
+fn classify_lane_metadata(
+    kind: &str,
+    trust_tier: DebtTrustTier,
+    presentation_class: PresentationClass,
+) -> (String, String) {
+    let primary_lane = classify_primary_lane(kind, trust_tier, presentation_class).to_string();
+    let default_surface_role =
+        classify_default_surface_role(kind, &primary_lane, presentation_class).to_string();
+
+    (primary_lane, default_surface_role)
+}
+
 pub(crate) fn annotate_debt_signal(mut signal: DebtSignal) -> DebtSignal {
     let fan_in = signal
         .metrics
         .fan_in
         .or(signal.metrics.inbound_reference_count);
+    let (primary_lane, default_surface_role) =
+        classify_lane_metadata(&signal.kind, signal.trust_tier, signal.presentation_class);
+    signal.primary_lane = primary_lane;
+    signal.default_surface_role = default_surface_role;
     signal.leverage_class = annotate_leverage_class(
         signal.leverage_class,
         &mut signal.leverage_reasons,
@@ -28,6 +44,13 @@ pub(crate) fn annotate_debt_signal(mut signal: DebtSignal) -> DebtSignal {
 pub(crate) fn annotate_inspection_watchpoint(
     mut watchpoint: InspectionWatchpoint,
 ) -> InspectionWatchpoint {
+    let (primary_lane, default_surface_role) = classify_lane_metadata(
+        &watchpoint.kind,
+        watchpoint.trust_tier,
+        watchpoint.presentation_class,
+    );
+    watchpoint.primary_lane = primary_lane;
+    watchpoint.default_surface_role = default_surface_role;
     watchpoint.leverage_class = annotate_leverage_class(
         watchpoint.leverage_class,
         &mut watchpoint.leverage_reasons,

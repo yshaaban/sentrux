@@ -12,9 +12,10 @@ mod classification_presentation;
 mod classification_readers;
 
 pub(crate) use classification_details::{
-    build_finding_details, decorate_finding_with_classification, is_experimental_finding,
-    merge_findings, partition_experimental_findings,
-    partition_review_surface_experimental_findings, severity_of_value,
+    build_finding_details, classify_default_surface_role, classify_primary_lane,
+    decorate_finding_with_classification, is_experimental_finding, merge_findings,
+    partition_experimental_findings, partition_review_surface_experimental_findings,
+    severity_of_value,
 };
 pub(crate) use classification_leverage::backfill_leverage_fields;
 use classification_leverage::{

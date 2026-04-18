@@ -113,8 +113,61 @@ fn findings_surface_concept_summaries_debt_signals_and_watchpoints() {
 
     assert!(response["concept_summaries"].is_array());
     assert!(response["debt_signals"].is_array());
+    assert!(response["debt_clusters"].is_array());
     assert!(response["watchpoints"].is_array());
     assert!(response["finding_details"].is_array());
+    assert!(response["findings"]
+        .as_array()
+        .expect("findings array")
+        .iter()
+        .all(|finding| finding
+            .get("primary_lane")
+            .and_then(|value| value.as_str())
+            .is_some()));
+    assert!(response["finding_details"]
+        .as_array()
+        .expect("finding details array")
+        .iter()
+        .all(|detail| detail
+            .get("default_surface_role")
+            .and_then(|value| value.as_str())
+            .is_some()));
+    assert!(response["debt_signals"]
+        .as_array()
+        .expect("debt signals array")
+        .iter()
+        .all(|signal| signal
+            .get("primary_lane")
+            .and_then(|value| value.as_str())
+            .is_some()
+            && signal
+                .get("default_surface_role")
+                .and_then(|value| value.as_str())
+                .is_some()));
+    assert!(response["debt_clusters"]
+        .as_array()
+        .expect("debt clusters array")
+        .iter()
+        .all(|cluster| cluster
+            .get("primary_lane")
+            .and_then(|value| value.as_str())
+            .is_some()
+            && cluster
+                .get("default_surface_role")
+                .and_then(|value| value.as_str())
+                .is_some()));
+    assert!(response["watchpoints"]
+        .as_array()
+        .expect("watchpoints array")
+        .iter()
+        .all(|watchpoint| watchpoint
+            .get("primary_lane")
+            .and_then(|value| value.as_str())
+            .is_some()
+            && watchpoint
+                .get("default_surface_role")
+                .and_then(|value| value.as_str())
+                .is_some()));
 }
 
 #[test]
@@ -138,6 +191,14 @@ fn findings_surface_structural_debt_signals() {
         .get("kind")
         .and_then(|value| value.as_str())
         .is_some()));
+    assert!(debt_signals.iter().all(|signal| signal
+        .get("primary_lane")
+        .and_then(|value| value.as_str())
+        .is_some()
+        && signal
+            .get("default_surface_role")
+            .and_then(|value| value.as_str())
+            .is_some()));
 }
 
 #[test]

@@ -1,6 +1,7 @@
 use super::classification::{
-    dedupe_strings_preserve_order, FindingLeverageClass,
-    FindingPresentationClass as PresentationClass, FindingTrustTier as DebtTrustTier,
+    classify_default_surface_role, classify_primary_lane, dedupe_strings_preserve_order,
+    FindingLeverageClass, FindingPresentationClass as PresentationClass,
+    FindingTrustTier as DebtTrustTier,
 };
 use super::*;
 use crate::metrics::v2::FindingSeverity;
@@ -73,6 +74,8 @@ pub(crate) struct DebtSignal {
     pub(crate) trust_tier: DebtTrustTier,
     pub(crate) presentation_class: PresentationClass,
     pub(crate) leverage_class: Option<FindingLeverageClass>,
+    pub(crate) primary_lane: String,
+    pub(crate) default_surface_role: String,
     pub(crate) scope: String,
     pub(crate) signal_class: SignalClass,
     pub(crate) signal_families: Vec<String>,
@@ -96,6 +99,8 @@ pub(crate) struct InspectionWatchpoint {
     pub(crate) trust_tier: DebtTrustTier,
     pub(crate) presentation_class: PresentationClass,
     pub(crate) leverage_class: Option<FindingLeverageClass>,
+    pub(crate) primary_lane: String,
+    pub(crate) default_surface_role: String,
     pub(crate) scope: String,
     pub(crate) severity: FindingSeverity,
     pub(crate) score_0_10000: u32,
@@ -120,6 +125,8 @@ struct DebtCluster {
     trust_tier: DebtTrustTier,
     presentation_class: PresentationClass,
     leverage_class: FindingLeverageClass,
+    primary_lane: String,
+    default_surface_role: String,
     scope: String,
     severity: FindingSeverity,
     score_0_10000: u32,
@@ -257,6 +264,8 @@ mod tests {
             trust_tier: DebtTrustTier::Trusted,
             presentation_class: PresentationClass::StructuralDebt,
             leverage_class: Some(FindingLeverageClass::LocalRefactorTarget),
+            primary_lane: String::new(),
+            default_surface_role: String::new(),
             scope: "src/components/terminal-session.ts".to_string(),
             signal_class: SignalClass::Debt,
             signal_families: vec!["coordination".to_string()],
@@ -286,6 +295,8 @@ mod tests {
             signal.leverage_reasons,
             vec!["extracted_owner_shell_pressure".to_string()]
         );
+        assert_eq!(signal.primary_lane, "maintainer_watchpoint");
+        assert_eq!(signal.default_surface_role, "supporting_watchpoint");
     }
 
     #[test]
@@ -295,6 +306,8 @@ mod tests {
             trust_tier: DebtTrustTier::Watchpoint,
             presentation_class: PresentationClass::Watchpoint,
             leverage_class: Some(FindingLeverageClass::ArchitectureSignal),
+            primary_lane: String::new(),
+            default_surface_role: String::new(),
             scope: "src/store/store.ts".to_string(),
             severity: FindingSeverity::High,
             score_0_10000: 8_900,
@@ -322,6 +335,8 @@ mod tests {
             watchpoint.leverage_reasons,
             vec!["shared_barrel_boundary_hub".to_string()]
         );
+        assert_eq!(watchpoint.primary_lane, "maintainer_watchpoint");
+        assert_eq!(watchpoint.default_surface_role, "supporting_watchpoint");
     }
 
     #[test]
@@ -334,6 +349,8 @@ mod tests {
                 trust_tier: DebtTrustTier::Trusted,
                 presentation_class: PresentationClass::StructuralDebt,
                 leverage_class: Some(FindingLeverageClass::LocalRefactorTarget),
+                primary_lane: String::new(),
+                default_surface_role: String::new(),
                 scope: "concept:task_state".to_string(),
                 signal_class: SignalClass::Debt,
                 signal_families: vec!["boundary".to_string()],
@@ -357,6 +374,8 @@ mod tests {
                 trust_tier: DebtTrustTier::Watchpoint,
                 presentation_class: PresentationClass::Watchpoint,
                 leverage_class: Some(FindingLeverageClass::RegrowthWatchpoint),
+                primary_lane: String::new(),
+                default_surface_role: String::new(),
                 scope: "concept:task_state".to_string(),
                 severity: FindingSeverity::Low,
                 score_0_10000: 3_800,
@@ -388,15 +407,25 @@ mod tests {
         assert!(result.get("optimization_priorities").is_none());
         assert!(result.get("debt_context_error").is_none());
         assert!(result.get("opportunity_context_error").is_none());
+        assert_eq!(
+            result["debt_signals"][0]["primary_lane"],
+            json!("maintainer_watchpoint")
+        );
+        assert_eq!(
+            result["watchpoints"][0]["default_surface_role"],
+            json!("supporting_watchpoint")
+        );
     }
 
     #[test]
     fn debt_classifications_serialize_to_canonical_strings() {
-        let signal = DebtSignal {
+        let signal = annotate_debt_signal(DebtSignal {
             kind: "concept".to_string(),
             trust_tier: DebtTrustTier::Watchpoint,
             presentation_class: PresentationClass::Watchpoint,
             leverage_class: Some(FindingLeverageClass::BoundaryDiscipline),
+            primary_lane: String::new(),
+            default_surface_role: String::new(),
             scope: "concept:task_state".to_string(),
             signal_class: SignalClass::Watchpoint,
             signal_families: vec!["propagation".to_string()],
@@ -412,12 +441,14 @@ mod tests {
             candidate_split_axes: vec!["concept boundary".to_string()],
             related_surfaces: vec!["src/domain/task-state.ts".to_string()],
             metrics: DebtSignalMetrics::default(),
-        };
-        let watchpoint = InspectionWatchpoint {
+        });
+        let watchpoint = annotate_inspection_watchpoint(InspectionWatchpoint {
             kind: "concept_watchpoint".to_string(),
             trust_tier: DebtTrustTier::Experimental,
             presentation_class: PresentationClass::Experimental,
             leverage_class: Some(FindingLeverageClass::RegrowthWatchpoint),
+            primary_lane: String::new(),
+            default_surface_role: String::new(),
             scope: "concept:task_state".to_string(),
             severity: FindingSeverity::High,
             score_0_10000: 8_800,
@@ -435,7 +466,7 @@ mod tests {
             hotspot_count: 0,
             missing_site_count: 1,
             boundary_pressure_count: 0,
-        };
+        });
 
         let signal_json = serde_json::to_value(&signal).expect("serialize signal");
         let watchpoint_json = serde_json::to_value(&watchpoint).expect("serialize watchpoint");
@@ -443,11 +474,21 @@ mod tests {
         assert_eq!(signal_json["trust_tier"], json!("watchpoint"));
         assert_eq!(signal_json["presentation_class"], json!("watchpoint"));
         assert_eq!(signal_json["leverage_class"], json!("boundary_discipline"));
+        assert_eq!(signal_json["primary_lane"], json!("maintainer_watchpoint"));
+        assert_eq!(
+            signal_json["default_surface_role"],
+            json!("supporting_watchpoint")
+        );
         assert_eq!(watchpoint_json["trust_tier"], json!("experimental"));
         assert_eq!(watchpoint_json["presentation_class"], json!("experimental"));
         assert_eq!(
             watchpoint_json["leverage_class"],
             json!("regrowth_watchpoint")
+        );
+        assert_eq!(watchpoint_json["primary_lane"], json!("experimental"));
+        assert_eq!(
+            watchpoint_json["default_surface_role"],
+            json!("experimental")
         );
     }
 }

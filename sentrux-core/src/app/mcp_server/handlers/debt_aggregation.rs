@@ -76,6 +76,8 @@ fn build_concept_debt_signal(
             summary.missing_site_count,
         ),
         leverage_class: None,
+        primary_lane: String::new(),
+        default_surface_role: String::new(),
         scope: summary.concept_id.clone(),
         signal_class: concept_signal_class(summary),
         signal_families: concept_signal_families(summary),
@@ -211,6 +213,8 @@ pub(super) fn build_inspection_watchpoints(
                 trust_tier: DebtTrustTier::Watchpoint,
                 presentation_class: PresentationClass::Watchpoint,
                 leverage_class: None,
+                primary_lane: String::new(),
+                default_surface_role: String::new(),
                 scope: summary.concept_id.clone(),
                 severity: signal_severity(score_0_10000),
                 score_0_10000,
@@ -273,6 +277,8 @@ pub(super) fn debt_signal_watchpoints(
                 trust_tier: signal.trust_tier,
                 presentation_class: signal.presentation_class,
                 leverage_class: signal.leverage_class.clone(),
+                primary_lane: signal.primary_lane.clone(),
+                default_surface_role: signal.default_surface_role.clone(),
                 scope: signal.scope.clone(),
                 severity: signal.severity,
                 score_0_10000: signal.score_0_10000,
@@ -402,13 +408,21 @@ fn debt_cluster(signals: &[DebtSignal]) -> Option<DebtCluster> {
         .max()
         .unwrap_or(0);
     let trust_tier = cluster_trust_tier(signals);
+    let presentation_class = cluster_presentation_class(signals);
     let aggregate_bonus = ((signals.len().saturating_sub(1)) as u32 * 500).min(2000);
     let score_0_10000 = (highest_score + aggregate_bonus).min(10_000);
+    let primary_lane =
+        classify_primary_lane("debt_cluster", trust_tier, presentation_class).to_string();
+    let default_surface_role =
+        classify_default_surface_role("debt_cluster", &primary_lane, presentation_class)
+            .to_string();
 
     Some(DebtCluster {
         trust_tier,
-        presentation_class: cluster_presentation_class(signals),
+        presentation_class,
         leverage_class: cluster_leverage_class(signals),
+        primary_lane,
+        default_surface_role,
         scope: format!("cluster:{}", files.join("|")),
         severity: signal_severity(score_0_10000),
         score_0_10000,

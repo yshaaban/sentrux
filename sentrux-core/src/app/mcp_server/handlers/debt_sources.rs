@@ -177,6 +177,8 @@ pub(crate) fn structural_signal(report: &crate::metrics::v2::StructuralDebtRepor
         leverage_class: Some(FindingLeverageClass::from_str(
             report.leverage_class.as_str(),
         )),
+        primary_lane: String::new(),
+        default_surface_role: String::new(),
         scope: report.scope.clone(),
         signal_class: SignalClass::from_str(report.signal_class.as_str()),
         signal_families: report.signal_families.clone(),
@@ -296,6 +298,8 @@ fn clone_family_signal(family: &Value) -> Option<DebtSignal> {
         },
         presentation_class: PresentationClass::Watchpoint,
         leverage_class: None,
+        primary_lane: String::new(),
+        default_surface_role: String::new(),
         scope,
         signal_class: if score_0_10000 >= 6500 {
             SignalClass::Debt
@@ -364,6 +368,8 @@ fn clone_group_signal(finding: &Value) -> Option<DebtSignal> {
         },
         presentation_class: PresentationClass::Watchpoint,
         leverage_class: None,
+        primary_lane: String::new(),
+        default_surface_role: String::new(),
         scope,
         signal_class: if score_0_10000 >= 6500 {
             SignalClass::Debt
@@ -425,6 +431,8 @@ fn hotspot_signal(report: &crate::metrics::v2::ConcentrationReport) -> Option<De
             0,
         ),
         leverage_class: None,
+        primary_lane: String::new(),
+        default_surface_role: String::new(),
         scope: report.path.clone(),
         signal_class: if report.score_0_10000 >= 6500 {
             SignalClass::Debt

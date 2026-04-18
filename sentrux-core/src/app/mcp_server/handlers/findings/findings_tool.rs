@@ -3,7 +3,7 @@ use super::*;
 pub fn findings_def() -> ToolDef {
     ToolDef {
         name: "findings",
-        description: "Return primary v2 patch-safety and technical-debt findings for the current scan, with clone drift, concept debt summaries, debt signals, watchpoints, and confidence metadata.",
+        description: "Return primary v2 patch-safety and technical-debt findings for the current scan, with clone drift, concept debt summaries, debt signals, watchpoints, confidence metadata, and agent-lane versus maintainer-watchpoint classification fields.",
         input_schema: json!({
             "type": "object",
             "properties": {
