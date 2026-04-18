@@ -50,6 +50,7 @@ export async function loadLoopBatchManifests(paths) {
 
 export async function capturePreviousArtifacts(outputDir, paths) {
   const previousReviewPacket = await readExistingJson(paths.stableReviewPacketJsonPath);
+  const previousSessionVerdicts = await readExistingJson(paths.stableSessionVerdictsOutputPath);
   const previousScorecard = await readExistingJson(paths.stableScorecardJsonPath);
   const previousSessionCorpus = await readExistingJson(paths.stableSessionCorpusJsonPath);
   const previousBacklog = await readExistingJson(paths.stableBacklogJsonPath);
@@ -63,6 +64,11 @@ export async function capturePreviousArtifacts(outputDir, paths) {
     outputDir,
     'previous-signal-scorecard',
     previousScorecard,
+  );
+  const previousSessionVerdictsSnapshotPath = buildPreviousSnapshotPath(
+    outputDir,
+    'previous-session-verdicts',
+    previousSessionVerdicts,
   );
   const previousBacklogSnapshotPath = buildPreviousSnapshotPath(
     outputDir,
@@ -81,6 +87,7 @@ export async function capturePreviousArtifacts(outputDir, paths) {
   );
 
   await writeSnapshotIfPresent(previousReviewPacketSnapshotPath, previousReviewPacket);
+  await writeSnapshotIfPresent(previousSessionVerdictsSnapshotPath, previousSessionVerdicts);
   await writeSnapshotIfPresent(previousScorecardSnapshotPath, previousScorecard);
   await writeSnapshotIfPresent(previousSessionCorpusSnapshotPath, previousSessionCorpus);
   await writeSnapshotIfPresent(previousBacklogSnapshotPath, previousBacklog);
@@ -88,11 +95,13 @@ export async function capturePreviousArtifacts(outputDir, paths) {
 
   return {
     previousReviewPacket,
+    previousSessionVerdicts,
     previousScorecard,
     previousSessionCorpus,
     previousBacklog,
     previousEvidenceReview,
     previousReviewPacketSnapshotPath,
+    previousSessionVerdictsSnapshotPath,
     previousScorecardSnapshotPath,
     previousSessionCorpusSnapshotPath,
     previousBacklogSnapshotPath,
@@ -100,7 +109,11 @@ export async function capturePreviousArtifacts(outputDir, paths) {
   };
 }
 
-export async function loadGeneratedArtifacts(paths, selectedReviewVerdictsPath) {
+export async function loadGeneratedArtifacts(
+  paths,
+  selectedReviewVerdictsPath,
+  selectedSessionVerdictsPath,
+) {
   const reviewPacket = await loadBatchManifestIfPresent(paths.reviewPacketJsonPath);
   const scorecard = await loadBatchManifestIfPresent(paths.scorecardJsonPath);
   const sessionCorpus = await loadBatchManifestIfPresent(paths.sessionCorpusJsonPath);
@@ -109,10 +122,14 @@ export async function loadGeneratedArtifacts(paths, selectedReviewVerdictsPath) 
   const selectedReviewVerdicts = selectedReviewVerdictsPath
     ? await readExistingJson(selectedReviewVerdictsPath)
     : null;
+  const selectedSessionVerdicts = selectedSessionVerdictsPath
+    ? await readExistingJson(selectedSessionVerdictsPath)
+    : null;
 
   return {
     reviewPacket,
     selectedReviewVerdicts,
+    selectedSessionVerdicts,
     scorecard,
     sessionCorpus,
     backlog,
@@ -120,7 +137,11 @@ export async function loadGeneratedArtifacts(paths, selectedReviewVerdictsPath) 
   };
 }
 
-export async function publishStableLoopArtifacts(paths, selectedReviewVerdictsPath) {
+export async function publishStableLoopArtifacts(
+  paths,
+  selectedReviewVerdictsPath,
+  selectedSessionVerdictsPath,
+) {
   await publishArtifacts([
     {
       sourcePath: paths.reviewPacketJsonPath,
@@ -132,7 +153,19 @@ export async function publishStableLoopArtifacts(paths, selectedReviewVerdictsPa
     },
     {
       sourcePath: selectedReviewVerdictsPath,
+      targetPath: paths.runReviewVerdictsOutputPath,
+    },
+    {
+      sourcePath: selectedReviewVerdictsPath,
       targetPath: paths.stableReviewVerdictsOutputPath,
+    },
+    {
+      sourcePath: selectedSessionVerdictsPath,
+      targetPath: paths.runSessionVerdictsOutputPath,
+    },
+    {
+      sourcePath: selectedSessionVerdictsPath,
+      targetPath: paths.stableSessionVerdictsOutputPath,
     },
     {
       sourcePath: paths.scorecardJsonPath,
@@ -184,6 +217,7 @@ export async function writeLoopOutputs(outputDir, summary) {
     latest_output_dir: outputDir,
     summary_json: summaryJsonPath,
     scorecard_json: summary.artifacts.scorecard_json,
+    session_verdicts_json: summary.artifacts.session_verdicts_output,
     session_corpus_json: summary.artifacts.session_corpus_json,
     backlog_json: summary.artifacts.backlog_json,
     review_packet_json: summary.artifacts.review_packet_json,

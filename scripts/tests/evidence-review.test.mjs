@@ -61,6 +61,16 @@ test('buildEvidenceReview summarizes promotion, demotion, ranking, and experimen
             final_session_clean: false,
             followup_regression_introduced: false,
           },
+          session_verdict: {
+            session_id: 'live-1',
+            top_action_followed: false,
+            top_action_helped: null,
+            task_completed_successfully: false,
+            patch_expanded_unnecessarily: true,
+            intervention_cost_checks: 2,
+            reviewer_confidence: 'high',
+            notes: 'Missed the expected propagation repair.',
+          },
         },
         {
           session_id: 'live-2',
@@ -76,6 +86,16 @@ test('buildEvidenceReview summarizes promotion, demotion, ranking, and experimen
             final_session_clean: false,
             followup_regression_introduced: true,
           },
+          session_verdict: {
+            session_id: 'live-2',
+            top_action_followed: true,
+            top_action_helped: false,
+            task_completed_successfully: false,
+            patch_expanded_unnecessarily: false,
+            intervention_cost_checks: 3,
+            reviewer_confidence: 'medium',
+            notes: 'Followed the clone finding but did not converge.',
+          },
         },
         {
           session_id: 'live-3',
@@ -90,6 +110,16 @@ test('buildEvidenceReview summarizes promotion, demotion, ranking, and experimen
             entropy_delta: 3,
             final_session_clean: false,
             followup_regression_introduced: false,
+          },
+          session_verdict: {
+            session_id: 'live-3',
+            top_action_followed: true,
+            top_action_helped: true,
+            task_completed_successfully: true,
+            patch_expanded_unnecessarily: false,
+            intervention_cost_checks: 1,
+            reviewer_confidence: 'high',
+            notes: 'The intervention was eventually useful.',
           },
         },
       ],
@@ -109,6 +139,7 @@ test('buildEvidenceReview summarizes promotion, demotion, ranking, and experimen
   assert.equal(review.summary.focus_area_count, 3);
   assert.equal(review.summary.top_action_failure_count, 3);
   assert.equal(review.summary.experiment_arm_count, 2);
+  assert.equal(review.summary.session_verdict_count, 3);
   assert.equal(review.promotion_candidates[0].signal_kind, 'incomplete_propagation');
   assert.equal(review.demotion_candidates[0].signal_kind, 'forbidden_raw_read');
   assert.equal(review.ranking_misses[0].signal_kind, 'zero_config_boundary_violation');
@@ -137,7 +168,12 @@ test('buildEvidenceReview summarizes promotion, demotion, ranking, and experimen
   assert.equal(review.experiment_arms[0].focus_area_counts[0].focus_area, 'clone_followthrough');
   assert.equal(review.experiment_arms[0].clean_rate, 0);
   assert.equal(review.experiment_arms[0].regression_rate, 0.5);
+  assert.equal(review.product_value?.top_action_follow_rate, 0.667);
+  assert.equal(review.product_value?.top_action_help_rate, 0.5);
+  assert.equal(review.product_value?.task_success_rate, 0.333);
+  assert.equal(review.product_value?.patch_expansion_rate, 0.333);
   assert.match(formatEvidenceReviewMarkdown(review), /Promotion Candidates/);
+  assert.match(formatEvidenceReviewMarkdown(review), /top-action help rate: 0.5/);
   assert.match(formatEvidenceReviewMarkdown(review), /Focus Area Rollups/);
   assert.match(formatEvidenceReviewMarkdown(review), /Top Action Failures/);
   assert.match(formatEvidenceReviewMarkdown(review), /Experiment Arms/);

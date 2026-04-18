@@ -28,6 +28,7 @@ export function formatSignalScorecardMarkdown(scorecard) {
   appendKpiLines(lines, scorecard.summary.kpis);
   appendRankingQualityLines(lines, scorecard.summary.ranking_quality);
   appendSessionHealthLines(lines, scorecard.summary.session_health);
+  appendProductValueLines(lines, scorecard.summary.product_value);
   appendSignalTable(lines, scorecard.signals);
 
   lines.push('');
@@ -57,6 +58,7 @@ function appendKpiLines(lines, kpis) {
   lines.push(`- provisional reviewed samples: ${kpis.provisional_review_sample_count ?? 0}`);
   lines.push(`- remediation samples: ${kpis.remediation_sample_count ?? 0}`);
   lines.push(`- sessions: ${kpis.session_count ?? 0}`);
+  lines.push(`- session verdicts: ${kpis.session_verdict_count ?? 0}`);
   lines.push(`- actionable reviewed samples: ${kpis.actionable_review_sample_count ?? 0}`);
 }
 
@@ -88,6 +90,20 @@ function appendRankingQualityLines(lines, rankingQuality) {
   );
   lines.push(
     `- ranking preference satisfaction: ${rankingQuality.ranking_preference_satisfaction_rate ?? 'n/a'}`,
+  );
+  lines.push(`- rank preserved rate: ${rankingQuality.rank_preserved_rate ?? 'n/a'}`);
+  lines.push(
+    `- repair packet complete rate: ${rankingQuality.repair_packet_complete_rate ?? 'n/a'}`,
+  );
+  lines.push(
+    `- repair packet fix-surface clarity: ${rankingQuality.repair_packet_fix_surface_clear_rate ?? 'n/a'}`,
+  );
+  lines.push(
+    `- repair packet verification clarity: ${rankingQuality.repair_packet_verification_clear_rate ?? 'n/a'}`,
+  );
+  lines.push(`- sample helpfulness mean: ${rankingQuality.sample_helpfulness_mean ?? 'n/a'}`);
+  lines.push(
+    `- sample distraction cost mean: ${rankingQuality.sample_distraction_cost_mean ?? 'n/a'}`,
   );
   lines.push(
     `- primary-target policy: ${formatPrimaryTargetPolicy(
@@ -134,6 +150,23 @@ function appendSessionHealthLines(lines, sessionHealth) {
   lines.push(`- session thrash rate: ${sessionHealth.session_thrash_rate ?? 'n/a'}`);
   lines.push(`- average checks to clear: ${sessionHealth.average_checks_to_clear ?? 'n/a'}`);
   lines.push(`- average entropy delta: ${sessionHealth.average_entropy_delta ?? 'n/a'}`);
+}
+
+function appendProductValueLines(lines, productValue) {
+  if (!productValue || (productValue.session_verdict_count ?? 0) === 0) {
+    return;
+  }
+
+  lines.push(`- top-action follow rate: ${productValue.top_action_follow_rate ?? 'n/a'}`);
+  lines.push(`- top-action help rate: ${productValue.top_action_help_rate ?? 'n/a'}`);
+  lines.push(`- task success rate: ${productValue.task_success_rate ?? 'n/a'}`);
+  lines.push(`- patch expansion rate: ${productValue.patch_expansion_rate ?? 'n/a'}`);
+  lines.push(
+    `- intervention cost checks mean: ${productValue.intervention_cost_checks_mean ?? 'n/a'}`,
+  );
+  lines.push(
+    `- intervention net value score: ${productValue.intervention_net_value_score ?? 'n/a'}`,
+  );
 }
 
 function appendSignalTable(lines, signals) {

@@ -1,5 +1,6 @@
 import { asArray, safeRatio } from './signal-summary-utils.mjs';
 import { normalizeExperimentArm } from './experiment-arms.mjs';
+import { applySessionVerdicts, buildSessionVerdictSummary } from './session-verdicts.mjs';
 
 const MISSED_EXPECTED_SIGNAL_BUCKETS = new Set([
   'missed_expected_signal',
@@ -408,6 +409,11 @@ export function buildExperimentArmSummaries(entries) {
 
   return [...arms.values()]
     .map(function finalizeArm(entry) {
+      const armEntries = entries.filter(function matchesArm(sessionEntry) {
+        return normalizeExperimentArm(sessionEntry.experiment_arm) === entry.experiment_arm;
+      });
+      const sessionVerdictSummary = buildSessionVerdictSummary(armEntries);
+
       return {
         experiment_arm: entry.experiment_arm,
         session_count: entry.session_count,
@@ -439,6 +445,7 @@ export function buildExperimentArmSummaries(entries) {
           entry.regression_after_fix_count,
           entry.top_action_session_count,
         ),
+        ...sessionVerdictSummary,
       };
     })
     .sort(function compareExperimentArms(left, right) {
@@ -446,7 +453,13 @@ export function buildExperimentArmSummaries(entries) {
     });
 }
 
-function buildCorpusSummary(entries, sessionTelemetry, focusAreaSummaries, topActionFailureSummary, experimentArmSummaries) {
+function buildCorpusSummary(
+  entries,
+  sessionTelemetry,
+  focusAreaSummaries,
+  topActionFailureSummary,
+  experimentArmSummaries,
+) {
   const liveEntries = entries.filter(function isLive(entry) {
     return entry.lane === 'live';
   });
@@ -479,6 +492,7 @@ function buildCorpusSummary(entries, sessionTelemetry, focusAreaSummaries, topAc
 
   const propagationSessionCount = countFocusArea(entries, 'propagation');
   const cloneSessionCount = countFocusArea(entries, 'clone_followthrough');
+  const sessionVerdictSummary = buildSessionVerdictSummary(entries);
 
   return {
     session_count: entries.length,
@@ -513,6 +527,7 @@ function buildCorpusSummary(entries, sessionTelemetry, focusAreaSummaries, topAc
       countFocusAreaEscapes(entries, 'clone_followthrough'),
       cloneSessionCount,
     ),
+    ...sessionVerdictSummary,
     telemetry_session_count: sessionTelemetry?.summary?.session_count ?? 0,
     telemetry_thrashing_session_count:
       sessionTelemetry?.summary?.thrashing_session_count ?? 0,
@@ -547,8 +562,9 @@ export function buildSessionCorpus({
   sessionTelemetry = null,
   codexBatch = null,
   replayBatch = null,
+  sessionVerdicts = null,
 }) {
-  const entries = [
+  const normalizedEntries = [
     ...normalizeBatchEntries(codexBatch, 'live'),
     ...normalizeBatchEntries(replayBatch, 'replay'),
   ].sort(function compareEntries(left, right) {
@@ -557,6 +573,7 @@ export function buildSessionCorpus({
     }
     return left.session_id.localeCompare(right.session_id);
   });
+  const entries = applySessionVerdicts(normalizedEntries, sessionVerdicts);
   const focusAreaSummaries = buildFocusAreaSummaries(entries);
   const topActionFailureSummary = buildTopActionFailureSummary(entries);
   const experimentArmSummaries = buildExperimentArmSummaries(entries);
@@ -568,6 +585,8 @@ export function buildSessionCorpus({
       repoLabel ??
       codexBatch?.repo_label ??
       replayBatch?.repo_label ??
+      sessionVerdicts?.repo_label ??
+      sessionVerdicts?.repo ??
       sessionTelemetry?.repo_label ??
       null,
     repo_root:
@@ -599,8 +618,11 @@ function appendSessionSection(lines, title, entries) {
   lines.push(`## ${title}`);
   lines.push('');
   for (const entry of entries) {
+    const sessionVerdictSummary = entry.session_verdict
+      ? `, followed=${entry.session_verdict.top_action_followed ?? 'n/a'}, helped=${entry.session_verdict.top_action_helped ?? 'n/a'}, success=${entry.session_verdict.task_completed_successfully ?? 'n/a'}`
+      : '';
     lines.push(
-      `- [${entry.lane}] \`${entry.session_id}\`: bucket=${entry.outcome_bucket}, expected=[${entry.expected_signal_kinds.join(', ')}], top=${entry.outcome.initial_top_action_kind ?? 'none'}, clean=${entry.outcome.final_session_clean}, regression=${entry.outcome.followup_regression_introduced}`,
+      `- [${entry.lane}] \`${entry.session_id}\`: bucket=${entry.outcome_bucket}, expected=[${entry.expected_signal_kinds.join(', ')}], top=${entry.outcome.initial_top_action_kind ?? 'none'}, clean=${entry.outcome.final_session_clean}, regression=${entry.outcome.followup_regression_introduced}${sessionVerdictSummary}`,
     );
   }
   lines.push('');
@@ -646,8 +668,12 @@ function appendExperimentArmSection(lines, experimentArms) {
   lines.push('');
   for (const entry of experimentArms) {
     const focusAreaSummary = focusAreaCountsToText(entry.focus_area_counts);
+    const productValueSummary =
+      entry.session_verdict_count > 0
+        ? `, follow=${entry.top_action_follow_rate ?? 'n/a'}, help=${entry.top_action_help_rate ?? 'n/a'}, success=${entry.task_success_rate ?? 'n/a'}, expand=${entry.patch_expansion_rate ?? 'n/a'}, cost=${entry.intervention_cost_checks_mean ?? 'n/a'}, value=${entry.intervention_net_value_score ?? 'n/a'}`
+        : '';
     lines.push(
-      `- \`${entry.experiment_arm}\`: sessions=${entry.session_count}, clear=${entry.agent_clear_rate ?? 'n/a'}, clean=${entry.clean_rate ?? 'n/a'}, regressions=${entry.regression_rate ?? 'n/a'}, review=${entry.review_queue_rate ?? 'n/a'}, focus=[${focusAreaSummary}]`,
+      `- \`${entry.experiment_arm}\`: sessions=${entry.session_count}, clear=${entry.agent_clear_rate ?? 'n/a'}, clean=${entry.clean_rate ?? 'n/a'}, regressions=${entry.regression_rate ?? 'n/a'}, review=${entry.review_queue_rate ?? 'n/a'}${productValueSummary}, focus=[${focusAreaSummary}]`,
     );
   }
   lines.push('');
@@ -664,6 +690,24 @@ function focusAreaCountsToText(focusAreaCounts) {
       return `${entry.focus_area}:${entry.session_count}`;
     })
     .join(', ');
+}
+
+function appendProductValueLines(lines, summary) {
+  if (!summary || (summary.session_verdict_count ?? 0) === 0) {
+    return;
+  }
+
+  lines.push(`- session verdicts: ${summary.session_verdict_count}`);
+  lines.push(`- top-action follow rate: ${summary.top_action_follow_rate ?? 'n/a'}`);
+  lines.push(`- top-action help rate: ${summary.top_action_help_rate ?? 'n/a'}`);
+  lines.push(`- task success rate: ${summary.task_success_rate ?? 'n/a'}`);
+  lines.push(`- patch expansion rate: ${summary.patch_expansion_rate ?? 'n/a'}`);
+  lines.push(
+    `- intervention cost checks mean: ${summary.intervention_cost_checks_mean ?? 'n/a'}`,
+  );
+  lines.push(
+    `- intervention net value score: ${summary.intervention_net_value_score ?? 'n/a'}`,
+  );
 }
 
 export function formatSessionCorpusMarkdown(corpus) {
@@ -692,6 +736,7 @@ export function formatSessionCorpusMarkdown(corpus) {
   lines.push(
     `- clone followthrough escape rate: ${corpus.summary.clone_followthrough_escape_rate ?? 'n/a'}`,
   );
+  appendProductValueLines(lines, corpus.summary);
   lines.push('');
 
   appendFocusAreaSection(lines, asArray(corpus.focus_area_summaries).slice(0, 10));

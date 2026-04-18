@@ -50,6 +50,38 @@
             "type": "string",
             "minLength": 1
           },
+          "rank_observed": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "rank_preserved": {
+            "type": ["boolean", "null"]
+          },
+          "repair_packet_complete": {
+            "type": ["boolean", "null"]
+          },
+          "repair_packet_missing_fields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "repair_packet_fix_surface_clear": {
+            "type": ["boolean", "null"]
+          },
+          "repair_packet_verification_clear": {
+            "type": ["boolean", "null"]
+          },
+          "sample_helpfulness": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "sample_distraction_cost": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
           "category": {
             "enum": [
               "useful",

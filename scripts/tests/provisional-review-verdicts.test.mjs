@@ -35,6 +35,13 @@ test('buildVerdicts applies known policies and kind filtering', function () {
         scope: 'src/a.rs',
         report_bucket: 'actions',
         summary: 'Large file warning',
+        rank: 1,
+        repair_packet: {
+          complete: false,
+          missing_fields: ['fix_hint'],
+          fix_surface_clear: true,
+          verification_clear: true,
+        },
       },
       {
         kind: 'touched_clone_family',
@@ -53,6 +60,12 @@ test('buildVerdicts applies known policies and kind filtering', function () {
   assert.equal(verdicts[0].kind, 'large_file');
   assert.equal(verdicts[0].category, 'useful_watchpoint');
   assert.equal(verdicts[0].expected_trust_tier, 'watchpoint');
+  assert.equal(verdicts[0].rank_observed, 1);
+  assert.equal(verdicts[0].rank_preserved, true);
+  assert.equal(verdicts[0].repair_packet_complete, false);
+  assert.deepEqual(verdicts[0].repair_packet_missing_fields, ['fix_hint']);
+  assert.equal(verdicts[0].sample_helpfulness, 2);
+  assert.equal(verdicts[0].sample_distraction_cost, 1);
   assert.match(verdicts[0].engineer_note, /Large file warning/);
 });
 

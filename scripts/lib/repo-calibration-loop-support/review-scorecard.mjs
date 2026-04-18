@@ -18,6 +18,17 @@ export async function selectReviewVerdictsPath(outputPath, inputPath) {
   return null;
 }
 
+export async function selectSessionVerdictsPath(outputPath, inputPath) {
+  if (inputPath && (await pathExists(inputPath))) {
+    return inputPath;
+  }
+  if (outputPath && (await pathExists(outputPath))) {
+    return outputPath;
+  }
+
+  return null;
+}
+
 export function countReviewSamples(reviewPacket) {
   return reviewPacket?.summary?.sample_count ?? reviewPacket?.samples?.length ?? 0;
 }
@@ -121,6 +132,7 @@ export async function buildScorecardArgs({
   replayBatchPath = null,
   defectReportPath = null,
   selectedReviewVerdictsPath = null,
+  selectedSessionVerdictsPath = null,
   remediationReportPath = null,
   benchmarkPath = null,
 }) {
@@ -148,6 +160,9 @@ export async function buildScorecardArgs({
   }
   if (selectedReviewVerdictsPath) {
     scorecardArgs.push('--review-verdicts', selectedReviewVerdictsPath);
+  }
+  if (selectedSessionVerdictsPath) {
+    scorecardArgs.push('--session-verdicts', selectedSessionVerdictsPath);
   }
 
   return scorecardArgs;

@@ -27,6 +27,7 @@ function parseArgs(argv) {
     repoLabel: null,
     defectReportPath: null,
     reviewVerdictsPath: null,
+    sessionVerdictsPath: null,
     remediationReportPath: null,
     benchmarkPath: null,
     sessionEventsPath: null,
@@ -58,6 +59,11 @@ function parseArgs(argv) {
     if (value === '--review-verdicts') {
       index += 1;
       result.reviewVerdictsPath = argv[index];
+      continue;
+    }
+    if (value === '--session-verdicts') {
+      index += 1;
+      result.sessionVerdictsPath = argv[index];
       continue;
     }
     if (value === '--remediation-report') {
@@ -151,6 +157,8 @@ function resolveRepoLabel(args, inputs = {}) {
     args.repoLabel ??
     inputs.defectReport?.repo_label ??
     inputs.reviewVerdicts?.repo ??
+    inputs.sessionVerdicts?.repo_label ??
+    inputs.sessionVerdicts?.repo ??
     inputs.remediationReport?.repo_label ??
     inputs.sessionTelemetry?.repo_label ??
     inputs.sessionTelemetry?.repo_root ??
@@ -169,6 +177,7 @@ async function main() {
   const resolvedRepoLabel = resolveRepoLabel(args, {
     defectReport: inputs.defectReport,
     reviewVerdicts: inputs.reviewVerdicts,
+    sessionVerdicts: inputs.sessionVerdicts,
     remediationReport: inputs.remediationReport,
     benchmark: inputs.benchmark,
     sessionTelemetry: inputs.sessionTelemetry,
@@ -187,6 +196,7 @@ async function main() {
     sessionTelemetry: inputs.sessionTelemetry,
     codexBatch,
     replayBatch,
+    sessionVerdicts: inputs.sessionVerdicts,
   });
   const sessionCorpus = buildSessionCorpus({
     repoLabel: resolvedRepoLabel,
@@ -194,6 +204,7 @@ async function main() {
     sessionTelemetry: inputs.sessionTelemetry,
     codexBatch,
     replayBatch,
+    sessionVerdicts: inputs.sessionVerdicts,
   });
   const resolvedCohortId = args.cohortId ?? latestCalibration?.cohortId ?? null;
 
@@ -237,6 +248,7 @@ async function loadCalibrationInputs(args, sessionEventsPath) {
     sessionTelemetry,
     defectReport: await readJson(args.defectReportPath),
     reviewVerdicts: await readJson(args.reviewVerdictsPath),
+    sessionVerdicts: await readJson(args.sessionVerdictsPath),
     remediationReport: await readJson(args.remediationReportPath),
     benchmark: await readJson(args.benchmarkPath),
   };

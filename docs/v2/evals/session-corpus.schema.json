@@ -66,6 +66,44 @@
             "type": "array",
             "items": { "type": "string" }
           },
+          "session_verdict": {
+            "type": ["object", "null"],
+            "additionalProperties": false,
+            "required": [
+              "session_id",
+              "repo_label",
+              "batch_name",
+              "lane",
+              "session_label",
+              "task_id",
+              "experiment_arm",
+              "top_action_followed",
+              "top_action_helped",
+              "task_completed_successfully",
+              "patch_expanded_unnecessarily",
+              "intervention_cost_checks",
+              "intervention_cost_notes",
+              "reviewer_confidence",
+              "notes"
+            ],
+            "properties": {
+              "session_id": { "type": "string" },
+              "repo_label": { "type": ["string", "null"] },
+              "batch_name": { "type": ["string", "null"] },
+              "lane": { "type": ["string", "null"] },
+              "session_label": { "type": ["string", "null"] },
+              "task_id": { "type": ["string", "null"] },
+              "experiment_arm": { "type": ["string", "null"] },
+              "top_action_followed": { "type": ["boolean", "null"] },
+              "top_action_helped": { "type": ["boolean", "null"] },
+              "task_completed_successfully": { "type": ["boolean", "null"] },
+              "patch_expanded_unnecessarily": { "type": ["boolean", "null"] },
+              "intervention_cost_checks": { "type": ["integer", "null"] },
+              "intervention_cost_notes": { "type": ["string", "null"] },
+              "reviewer_confidence": { "type": ["string", "null"] },
+              "notes": { "type": ["string", "null"] }
+            }
+          },
           "outcome": {
             "type": "object",
             "additionalProperties": false,

@@ -8,6 +8,7 @@ import {
   buildScorecardArgs,
   buildReviewArgs,
   selectReviewVerdictsPath,
+  selectSessionVerdictsPath,
 } from '../evals/run-repo-calibration-loop.mjs';
 
 test('buildReviewArgs fails fast when codex review source lacks a live batch', function () {
@@ -95,6 +96,7 @@ test('buildScorecardArgs includes live and replay batch artifacts when present',
     const remediationReportPath = path.join(tempRoot, 'remediation-report.json');
     const benchmarkPath = path.join(tempRoot, 'benchmark.json');
     const reviewVerdictsPath = path.join(tempRoot, 'review-verdicts.json');
+    const sessionVerdictsPath = path.join(tempRoot, 'session-verdicts.json');
 
     await Promise.all([
       writeFile(codexBatchPath, '{}\n', 'utf8'),
@@ -103,6 +105,7 @@ test('buildScorecardArgs includes live and replay batch artifacts when present',
       writeFile(remediationReportPath, '{}\n', 'utf8'),
       writeFile(benchmarkPath, '{}\n', 'utf8'),
       writeFile(reviewVerdictsPath, '{}\n', 'utf8'),
+      writeFile(sessionVerdictsPath, '{}\n', 'utf8'),
     ]);
 
     const args = await buildScorecardArgs({
@@ -118,6 +121,7 @@ test('buildScorecardArgs includes live and replay batch artifacts when present',
       replayBatchPath,
       defectReportPath,
       selectedReviewVerdictsPath: reviewVerdictsPath,
+      selectedSessionVerdictsPath: sessionVerdictsPath,
       remediationReportPath,
       benchmarkPath,
     });
@@ -125,9 +129,26 @@ test('buildScorecardArgs includes live and replay batch artifacts when present',
     assert.match(args.join(' '), /--codex-batch .*codex-session-batch\.json/);
     assert.match(args.join(' '), /--replay-batch .*diff-replay-batch\.json/);
     assert.match(args.join(' '), /--review-verdicts .*review-verdicts\.json/);
+    assert.match(args.join(' '), /--session-verdicts .*session-verdicts\.json/);
     assert.match(args.join(' '), /--defect-report .*defect-report\.json/);
     assert.match(args.join(' '), /--remediation-report .*remediation-report\.json/);
     assert.match(args.join(' '), /--benchmark .*benchmark\.json/);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('selectSessionVerdictsPath prefers curated input over prior stable output', async function () {
+  const tempRoot = await mkdtemp(path.join(tmpdir(), 'sentrux-session-verdict-selection-'));
+  try {
+    const inputPath = path.join(tempRoot, 'session-verdicts.json');
+    const outputPath = path.join(tempRoot, 'generated-session-verdicts.json');
+    await writeFile(inputPath, '{}\n', 'utf8');
+    await writeFile(outputPath, '{}\n', 'utf8');
+
+    const selectedPath = await selectSessionVerdictsPath(outputPath, inputPath);
+
+    assert.equal(selectedPath, inputPath);
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }

@@ -12,6 +12,7 @@ function parseArgs(argv) {
     repoRootPath: null,
     repoLabel: null,
     sessionTelemetryPath: null,
+    sessionVerdictsPath: null,
     codexBatchPath: null,
     replayBatchPath: null,
     latestCalibrationPath: null,
@@ -34,6 +35,11 @@ function parseArgs(argv) {
     if (value === '--session-telemetry') {
       index += 1;
       result.sessionTelemetryPath = argv[index];
+      continue;
+    }
+    if (value === '--session-verdicts') {
+      index += 1;
+      result.sessionVerdictsPath = argv[index];
       continue;
     }
     if (value === '--codex-batch') {
@@ -78,6 +84,8 @@ function resolveRepoLabel(args, inputs) {
     args.repoLabel ??
     inputs.codexBatch?.repo_label ??
     inputs.replayBatch?.repo_label ??
+    inputs.sessionVerdicts?.repo_label ??
+    inputs.sessionVerdicts?.repo ??
     inputs.sessionTelemetry?.repo_label ??
     inputs.sessionTelemetry?.repo_root ??
     (args.repoRootPath ? path.basename(args.repoRootPath) : null) ??
@@ -109,16 +117,26 @@ async function main() {
   const sessionTelemetry = args.sessionTelemetryPath
     ? await readJsonFile(args.sessionTelemetryPath)
     : null;
+  const sessionVerdicts = args.sessionVerdictsPath
+    ? await readJsonFile(args.sessionVerdictsPath)
+    : null;
   const inferredRepoLabel = resolveRepoLabel(args, {
     codexBatch: null,
     replayBatch: null,
+    sessionVerdicts,
     sessionTelemetry,
   });
   const { codexBatch, replayBatch } = await resolveBatchInputs(args, inferredRepoLabel);
   const corpus = buildSessionCorpus({
-    repoLabel: resolveRepoLabel(args, { codexBatch, replayBatch, sessionTelemetry }),
+    repoLabel: resolveRepoLabel(args, {
+      codexBatch,
+      replayBatch,
+      sessionVerdicts,
+      sessionTelemetry,
+    }),
     repoRoot: args.repoRootPath,
     sessionTelemetry,
+    sessionVerdicts,
     codexBatch,
     replayBatch,
   });

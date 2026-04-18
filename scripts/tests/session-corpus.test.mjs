@@ -96,6 +96,44 @@ test('buildSessionCorpus normalizes live and replay sessions into one review sur
         },
       ],
     },
+    sessionVerdicts: {
+      repo_label: 'demo-repo',
+      verdicts: [
+        {
+          session_id: 'propagation-fix',
+          lane: 'live',
+          top_action_followed: false,
+          top_action_helped: null,
+          task_completed_successfully: false,
+          patch_expanded_unnecessarily: true,
+          intervention_cost_checks: 2,
+          reviewer_confidence: 'high',
+          notes: 'Ignored the expected propagation fix path.',
+        },
+        {
+          session_id: 'governance-fix',
+          lane: 'live',
+          top_action_followed: true,
+          top_action_helped: true,
+          task_completed_successfully: true,
+          patch_expanded_unnecessarily: false,
+          intervention_cost_checks: 1,
+          reviewer_confidence: 'high',
+          notes: 'Followed the right repair path.',
+        },
+        {
+          session_id: 'commit-123',
+          lane: 'replay',
+          top_action_followed: true,
+          top_action_helped: false,
+          task_completed_successfully: true,
+          patch_expanded_unnecessarily: false,
+          intervention_cost_checks: 3,
+          reviewer_confidence: 'medium',
+          notes: 'Recovered late after extra checks.',
+        },
+      ],
+    },
   });
 
   assert.equal(corpus.summary.session_count, 4);
@@ -109,6 +147,13 @@ test('buildSessionCorpus normalizes live and replay sessions into one review sur
   assert.equal(corpus.summary.focus_area_count, 3);
   assert.equal(corpus.summary.top_action_failure_count, 2);
   assert.equal(corpus.summary.experiment_arm_count, 2);
+  assert.equal(corpus.summary.session_verdict_count, 3);
+  assert.equal(corpus.summary.top_action_follow_rate, 0.667);
+  assert.equal(corpus.summary.top_action_help_rate, 0.5);
+  assert.equal(corpus.summary.task_success_rate, 0.667);
+  assert.equal(corpus.summary.patch_expansion_rate, 0.333);
+  assert.equal(corpus.summary.intervention_cost_checks_mean, 2);
+  assert.equal(corpus.summary.intervention_net_value_score, 0.278);
   assert.equal(corpus.summary.top_action_session_count, 3);
   assert.equal(corpus.summary.top_action_cleared_count, 2);
   assert.equal(corpus.summary.agent_clear_rate, 0.667);
@@ -131,12 +176,16 @@ test('buildSessionCorpus normalizes live and replay sessions into one review sur
   );
   assert.equal(corpus.experiment_arm_summaries[0].experiment_arm, 'fix_this_first');
   assert.equal(corpus.experiment_arm_summaries[0].session_count, 3);
+  assert.equal(corpus.experiment_arm_summaries[0].session_verdict_count, 3);
+  assert.equal(corpus.experiment_arm_summaries[0].top_action_help_rate, 0.5);
   assert.equal(corpus.experiment_arm_summaries[0].focus_area_counts[0].focus_area, 'propagation');
+  assert.equal(corpus.sessions[1].session_verdict?.top_action_helped, true);
   assert.match(
     formatSessionCorpusMarkdown(corpus),
     /duplicate logic introduced rate: 0.25/,
   );
   assert.match(formatSessionCorpusMarkdown(corpus), /top-action sessions: 3/);
+  assert.match(formatSessionCorpusMarkdown(corpus), /top-action help rate: 0.5/);
   assert.match(formatSessionCorpusMarkdown(corpus), /Focus Areas/);
   assert.match(formatSessionCorpusMarkdown(corpus), /Top Action Failures/);
   assert.match(formatSessionCorpusMarkdown(corpus), /Experiment Arms/);

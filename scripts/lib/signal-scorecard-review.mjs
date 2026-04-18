@@ -34,6 +34,40 @@ function isHelpfulReviewCategory(normalizedCategory) {
   return normalizedCategory === 'true_positive' || normalizedCategory === 'acceptable_warning';
 }
 
+function isBooleanValue(value) {
+  return value === true || value === false;
+}
+
+function normalizeOptionalScore(value) {
+  if (!Number.isInteger(value) || value < 0) {
+    return null;
+  }
+
+  return value;
+}
+
+function buildStructuredReviewDefaults(prefix = '') {
+  return {
+    [`${prefix}review_rank_observed_total`]: 0,
+    [`${prefix}review_rank_preserved_total`]: 0,
+    [`${prefix}review_rank_preserved_count`]: 0,
+    [`${prefix}review_repair_packet_total`]: 0,
+    [`${prefix}review_repair_packet_complete_count`]: 0,
+    [`${prefix}review_repair_packet_fix_surface_total`]: 0,
+    [`${prefix}review_repair_packet_fix_surface_clear_count`]: 0,
+    [`${prefix}review_repair_packet_verification_total`]: 0,
+    [`${prefix}review_repair_packet_verification_clear_count`]: 0,
+    [`${prefix}review_helpfulness_total`]: 0,
+    [`${prefix}review_helpfulness_sum`]: 0,
+    [`${prefix}review_distraction_cost_total`]: 0,
+    [`${prefix}review_distraction_cost_sum`]: 0,
+    [`${prefix}ranking_preference_total`]: 0,
+    [`${prefix}ranking_preference_satisfied`]: 0,
+    [`${prefix}ranking_preference_violated`]: 0,
+    [`${prefix}ranking_preference_unresolved`]: 0,
+  };
+}
+
 export function createEmptySignalEntry(signalKind, overrides = {}) {
   return {
     signal_kind: signalKind,
@@ -80,20 +114,14 @@ export function createEmptySignalEntry(signalKind, overrides = {}) {
     review_top_3_actionable: 0,
     review_top_10_total: 0,
     review_top_10_actionable: 0,
-    ranking_preference_total: 0,
-    ranking_preference_satisfied: 0,
-    ranking_preference_violated: 0,
-    ranking_preference_unresolved: 0,
+    ...buildStructuredReviewDefaults(),
     provisional_review_top_1_total: 0,
     provisional_review_top_1_actionable: 0,
     provisional_review_top_3_total: 0,
     provisional_review_top_3_actionable: 0,
     provisional_review_top_10_total: 0,
     provisional_review_top_10_actionable: 0,
-    provisional_ranking_preference_total: 0,
-    provisional_ranking_preference_satisfied: 0,
-    provisional_ranking_preference_violated: 0,
-    provisional_ranking_preference_unresolved: 0,
+    ...buildStructuredReviewDefaults('provisional_'),
     ...overrides,
   };
 }
@@ -152,6 +180,68 @@ function recordRankingPreference(entry, preferredIndex, verdictIndex, prefix) {
   entry[`${prefix}ranking_preference_violated`] += 1;
 }
 
+function recordBooleanField(entry, fieldPrefix, value, prefix) {
+  if (!isBooleanValue(value)) {
+    return;
+  }
+
+  entry[`${prefix}${fieldPrefix}_total`] += 1;
+  if (value) {
+    entry[`${prefix}${fieldPrefix}_count`] += 1;
+  }
+}
+
+function recordNamedBooleanCount(entry, totalFieldName, countFieldName, value, prefix) {
+  if (!isBooleanValue(value)) {
+    return;
+  }
+
+  entry[`${prefix}${totalFieldName}`] += 1;
+  if (value) {
+    entry[`${prefix}${countFieldName}`] += 1;
+  }
+}
+
+function recordStructuredReviewFields(entry, verdict, prefix) {
+  if (Number.isInteger(verdict.rank_observed) && verdict.rank_observed > 0) {
+    entry[`${prefix}review_rank_observed_total`] += 1;
+  }
+  recordBooleanField(entry, 'review_rank_preserved', verdict.rank_preserved, prefix);
+  recordNamedBooleanCount(
+    entry,
+    'review_repair_packet_total',
+    'review_repair_packet_complete_count',
+    verdict.repair_packet_complete,
+    prefix,
+  );
+  recordNamedBooleanCount(
+    entry,
+    'review_repair_packet_fix_surface_total',
+    'review_repair_packet_fix_surface_clear_count',
+    verdict.repair_packet_fix_surface_clear,
+    prefix,
+  );
+  recordNamedBooleanCount(
+    entry,
+    'review_repair_packet_verification_total',
+    'review_repair_packet_verification_clear_count',
+    verdict.repair_packet_verification_clear,
+    prefix,
+  );
+
+  const helpfulness = normalizeOptionalScore(verdict.sample_helpfulness);
+  if (helpfulness !== null) {
+    entry[`${prefix}review_helpfulness_total`] += 1;
+    entry[`${prefix}review_helpfulness_sum`] += helpfulness;
+  }
+
+  const distractionCost = normalizeOptionalScore(verdict.sample_distraction_cost);
+  if (distractionCost !== null) {
+    entry[`${prefix}review_distraction_cost_total`] += 1;
+    entry[`${prefix}review_distraction_cost_sum`] += distractionCost;
+  }
+}
+
 export function applyReviewVerdicts(signalMap, reviewVerdicts) {
   const provisionalPrefix = reviewVerdicts?.provisional ? 'provisional_' : '';
   const verdicts = asArray(reviewVerdicts?.verdicts);
@@ -177,6 +267,7 @@ export function applyReviewVerdicts(signalMap, reviewVerdicts) {
     entry[`${provisionalPrefix}${normalizedCategory}`] =
       (entry[`${provisionalPrefix}${normalizedCategory}`] ?? 0) + 1;
     recordTopKReviewCounts(entry, normalizedCategory, index, provisionalPrefix);
+    recordStructuredReviewFields(entry, verdict, provisionalPrefix);
 
     for (const preferredScope of asArray(verdict.preferred_over)) {
       if (typeof preferredScope !== 'string' || preferredScope.length === 0) {
@@ -234,6 +325,47 @@ export function buildSignalReviewFields(
       entry.review_top_10_actionable ?? 0,
       entry.review_top_10_total ?? 0,
     ),
+    review_rank_observed_total: entry.review_rank_observed_total ?? 0,
+    review_rank_preserved_total: entry.review_rank_preserved_total ?? 0,
+    review_rank_preserved_count: entry.review_rank_preserved_count ?? 0,
+    rank_preserved_rate: safeRatio(
+      entry.review_rank_preserved_count ?? 0,
+      entry.review_rank_preserved_total ?? 0,
+    ),
+    review_repair_packet_total: entry.review_repair_packet_total ?? 0,
+    review_repair_packet_complete_count: entry.review_repair_packet_complete_count ?? 0,
+    repair_packet_complete_rate: safeRatio(
+      entry.review_repair_packet_complete_count ?? 0,
+      entry.review_repair_packet_total ?? 0,
+    ),
+    review_repair_packet_fix_surface_total:
+      entry.review_repair_packet_fix_surface_total ?? 0,
+    review_repair_packet_fix_surface_clear_count:
+      entry.review_repair_packet_fix_surface_clear_count ?? 0,
+    repair_packet_fix_surface_clear_rate: safeRatio(
+      entry.review_repair_packet_fix_surface_clear_count ?? 0,
+      entry.review_repair_packet_fix_surface_total ?? 0,
+    ),
+    review_repair_packet_verification_total:
+      entry.review_repair_packet_verification_total ?? 0,
+    review_repair_packet_verification_clear_count:
+      entry.review_repair_packet_verification_clear_count ?? 0,
+    repair_packet_verification_clear_rate: safeRatio(
+      entry.review_repair_packet_verification_clear_count ?? 0,
+      entry.review_repair_packet_verification_total ?? 0,
+    ),
+    review_helpfulness_total: entry.review_helpfulness_total ?? 0,
+    review_helpfulness_sum: entry.review_helpfulness_sum ?? 0,
+    sample_helpfulness_mean: safeRatio(
+      entry.review_helpfulness_sum ?? 0,
+      entry.review_helpfulness_total ?? 0,
+    ),
+    review_distraction_cost_total: entry.review_distraction_cost_total ?? 0,
+    review_distraction_cost_sum: entry.review_distraction_cost_sum ?? 0,
+    sample_distraction_cost_mean: safeRatio(
+      entry.review_distraction_cost_sum ?? 0,
+      entry.review_distraction_cost_total ?? 0,
+    ),
     ranking_preference_total: entry.ranking_preference_total ?? 0,
     ranking_preference_satisfied: entry.ranking_preference_satisfied ?? 0,
     ranking_preference_violated: entry.ranking_preference_violated ?? 0,
@@ -259,6 +391,56 @@ export function buildSignalReviewFields(
     provisional_top_10_actionable_precision: safeRatio(
       entry.provisional_review_top_10_actionable ?? 0,
       entry.provisional_review_top_10_total ?? 0,
+    ),
+    provisional_review_rank_observed_total:
+      entry.provisional_review_rank_observed_total ?? 0,
+    provisional_review_rank_preserved_total:
+      entry.provisional_review_rank_preserved_total ?? 0,
+    provisional_review_rank_preserved_count:
+      entry.provisional_review_rank_preserved_count ?? 0,
+    provisional_rank_preserved_rate: safeRatio(
+      entry.provisional_review_rank_preserved_count ?? 0,
+      entry.provisional_review_rank_preserved_total ?? 0,
+    ),
+    provisional_review_repair_packet_total:
+      entry.provisional_review_repair_packet_total ?? 0,
+    provisional_review_repair_packet_complete_count:
+      entry.provisional_review_repair_packet_complete_count ?? 0,
+    provisional_repair_packet_complete_rate: safeRatio(
+      entry.provisional_review_repair_packet_complete_count ?? 0,
+      entry.provisional_review_repair_packet_total ?? 0,
+    ),
+    provisional_review_repair_packet_fix_surface_total:
+      entry.provisional_review_repair_packet_fix_surface_total ?? 0,
+    provisional_review_repair_packet_fix_surface_clear_count:
+      entry.provisional_review_repair_packet_fix_surface_clear_count ?? 0,
+    provisional_repair_packet_fix_surface_clear_rate: safeRatio(
+      entry.provisional_review_repair_packet_fix_surface_clear_count ?? 0,
+      entry.provisional_review_repair_packet_fix_surface_total ?? 0,
+    ),
+    provisional_review_repair_packet_verification_total:
+      entry.provisional_review_repair_packet_verification_total ?? 0,
+    provisional_review_repair_packet_verification_clear_count:
+      entry.provisional_review_repair_packet_verification_clear_count ?? 0,
+    provisional_repair_packet_verification_clear_rate: safeRatio(
+      entry.provisional_review_repair_packet_verification_clear_count ?? 0,
+      entry.provisional_review_repair_packet_verification_total ?? 0,
+    ),
+    provisional_review_helpfulness_total:
+      entry.provisional_review_helpfulness_total ?? 0,
+    provisional_review_helpfulness_sum:
+      entry.provisional_review_helpfulness_sum ?? 0,
+    provisional_sample_helpfulness_mean: safeRatio(
+      entry.provisional_review_helpfulness_sum ?? 0,
+      entry.provisional_review_helpfulness_total ?? 0,
+    ),
+    provisional_review_distraction_cost_total:
+      entry.provisional_review_distraction_cost_total ?? 0,
+    provisional_review_distraction_cost_sum:
+      entry.provisional_review_distraction_cost_sum ?? 0,
+    provisional_sample_distraction_cost_mean: safeRatio(
+      entry.provisional_review_distraction_cost_sum ?? 0,
+      entry.provisional_review_distraction_cost_total ?? 0,
     ),
     provisional_ranking_preference_total: entry.provisional_ranking_preference_total ?? 0,
     provisional_ranking_preference_satisfied:
@@ -515,6 +697,46 @@ export function buildRankingQualitySummary(signals, prefix = '') {
     signals,
     `${prefix}ranking_preference_unresolved`,
   );
+  const rankObservedTotal = sumSignalField(signals, `${prefix}review_rank_observed_total`);
+  const rankPreservedTotal = sumSignalField(
+    signals,
+    `${prefix}review_rank_preserved_total`,
+  );
+  const rankPreservedCount = sumSignalField(
+    signals,
+    `${prefix}review_rank_preserved_count`,
+  );
+  const repairPacketTotal = sumSignalField(signals, `${prefix}review_repair_packet_total`);
+  const repairPacketCompleteCount = sumSignalField(
+    signals,
+    `${prefix}review_repair_packet_complete_count`,
+  );
+  const repairPacketFixSurfaceTotal = sumSignalField(
+    signals,
+    `${prefix}review_repair_packet_fix_surface_total`,
+  );
+  const repairPacketFixSurfaceClearCount = sumSignalField(
+    signals,
+    `${prefix}review_repair_packet_fix_surface_clear_count`,
+  );
+  const repairPacketVerificationTotal = sumSignalField(
+    signals,
+    `${prefix}review_repair_packet_verification_total`,
+  );
+  const repairPacketVerificationClearCount = sumSignalField(
+    signals,
+    `${prefix}review_repair_packet_verification_clear_count`,
+  );
+  const reviewHelpfulnessTotal = sumSignalField(signals, `${prefix}review_helpfulness_total`);
+  const reviewHelpfulnessSum = sumSignalField(signals, `${prefix}review_helpfulness_sum`);
+  const reviewDistractionCostTotal = sumSignalField(
+    signals,
+    `${prefix}review_distraction_cost_total`,
+  );
+  const reviewDistractionCostSum = sumSignalField(
+    signals,
+    `${prefix}review_distraction_cost_sum`,
+  );
   const top1ActionablePrecision = safeRatio(top1ActionableCount, top1ReviewedCount);
   const top3ActionablePrecision = safeRatio(top3ActionableCount, top3ReviewedCount);
   const top10ActionablePrecision = safeRatio(top10ActionableCount, top10ReviewedCount);
@@ -540,6 +762,35 @@ export function buildRankingQualitySummary(signals, prefix = '') {
     ranking_preference_violated: rankingPreferenceViolated,
     ranking_preference_unresolved: rankingPreferenceUnresolved,
     ranking_preference_satisfaction_rate: rankingPreferenceSatisfactionRate,
+    rank_observed_total: rankObservedTotal,
+    rank_preserved_total: rankPreservedTotal,
+    rank_preserved_count: rankPreservedCount,
+    rank_preserved_rate: safeRatio(rankPreservedCount, rankPreservedTotal),
+    repair_packet_total: repairPacketTotal,
+    repair_packet_complete_count: repairPacketCompleteCount,
+    repair_packet_complete_rate: safeRatio(
+      repairPacketCompleteCount,
+      repairPacketTotal,
+    ),
+    repair_packet_fix_surface_total: repairPacketFixSurfaceTotal,
+    repair_packet_fix_surface_clear_count: repairPacketFixSurfaceClearCount,
+    repair_packet_fix_surface_clear_rate: safeRatio(
+      repairPacketFixSurfaceClearCount,
+      repairPacketFixSurfaceTotal,
+    ),
+    repair_packet_verification_total: repairPacketVerificationTotal,
+    repair_packet_verification_clear_count: repairPacketVerificationClearCount,
+    repair_packet_verification_clear_rate: safeRatio(
+      repairPacketVerificationClearCount,
+      repairPacketVerificationTotal,
+    ),
+    review_helpfulness_total: reviewHelpfulnessTotal,
+    sample_helpfulness_mean: safeRatio(reviewHelpfulnessSum, reviewHelpfulnessTotal),
+    review_distraction_cost_total: reviewDistractionCostTotal,
+    sample_distraction_cost_mean: safeRatio(
+      reviewDistractionCostSum,
+      reviewDistractionCostTotal,
+    ),
     meets_primary_target_policy: evaluatePrimaryTargetPolicy({
       top1ReviewedCount,
       top1ActionablePrecision,

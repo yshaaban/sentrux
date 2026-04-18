@@ -42,6 +42,10 @@ function resolveManifestArtifactPaths(manifestPath, manifest, artifactConfig) {
       manifestPath,
       artifactConfig.review_verdicts_input ?? manifest.review_verdicts,
     ),
+    sessionVerdictsPath: resolveManifestPath(
+      manifestPath,
+      artifactConfig.session_verdicts_input,
+    ),
     defectReportPath: resolveManifestPath(
       manifestPath,
       artifactConfig.seeded_defect_report ?? manifest.defect_report,
@@ -83,6 +87,10 @@ function resolveStableArtifactPaths(repoRootPath, artifactConfig) {
     stableReviewVerdictsOutputPath: resolveRepoArtifactPath(
       repoRootPath,
       artifactConfig.review_verdicts_output,
+    ),
+    stableSessionVerdictsOutputPath: resolveRepoArtifactPath(
+      repoRootPath,
+      artifactConfig.session_verdicts_output,
     ),
     stableReviewPacketJsonPath: deriveCompanionPath(
       configuredReviewPacketPath,
@@ -133,6 +141,11 @@ function resolveRunArtifactPaths(outputDir) {
     runReviewVerdictsOutputPath: buildRunArtifactPath(
       outputDir,
       'review-verdicts',
+      '.json',
+    ),
+    runSessionVerdictsOutputPath: buildRunArtifactPath(
+      outputDir,
+      'session-verdicts',
       '.json',
     ),
     mergedTelemetryJsonPath: path.join(outputDir, 'session-telemetry-summary.json'),

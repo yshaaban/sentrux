@@ -16,6 +16,7 @@ export {
   maybeBuildProvisionalReviewVerdicts,
   readExistingJson,
   selectReviewVerdictsPath,
+  selectSessionVerdictsPath,
 } from './repo-calibration-loop-support/review-scorecard.mjs';
 export {
   buildBatchExpectationWarnings,

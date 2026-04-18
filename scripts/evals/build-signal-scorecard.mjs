@@ -20,6 +20,7 @@ function parseArgs(argv) {
     repoLabel: null,
     defectReportPath: null,
     reviewVerdictsPath: null,
+    sessionVerdictsPath: null,
     remediationReportPath: null,
     benchmarkPath: null,
     sessionTelemetryPath: null,
@@ -50,6 +51,11 @@ function parseArgs(argv) {
     if (value === '--review-verdicts') {
       index += 1;
       result.reviewVerdictsPath = argv[index];
+      continue;
+    }
+    if (value === '--session-verdicts') {
+      index += 1;
+      result.sessionVerdictsPath = argv[index];
       continue;
     }
     if (value === '--remediation-report') {
@@ -97,7 +103,7 @@ function parseArgs(argv) {
 
   if (!hasAnyScorecardInput(result)) {
     throw new Error(
-      'Provide at least one scorecard input: --defect-report, --review-verdicts, --remediation-report, --benchmark, --session-telemetry, --codex-batch, or --replay-batch',
+      'Provide at least one scorecard input: --defect-report, --review-verdicts, --session-verdicts, --remediation-report, --benchmark, --session-telemetry, --codex-batch, or --replay-batch',
     );
   }
 
@@ -108,6 +114,7 @@ function hasAnyScorecardInput(args) {
   return Boolean(
     args.defectReportPath ||
       args.reviewVerdictsPath ||
+      args.sessionVerdictsPath ||
       args.remediationReportPath ||
       args.benchmarkPath ||
       args.sessionTelemetryPath ||
@@ -121,6 +128,8 @@ function resolveRepoLabel(args, inputs = {}) {
     args.repoLabel ??
     inputs.defectReport?.repo_label ??
     inputs.reviewVerdicts?.repo ??
+    inputs.sessionVerdicts?.repo_label ??
+    inputs.sessionVerdicts?.repo ??
     inputs.remediationReport?.repo_label ??
     inputs.sessionTelemetry?.repo_label ??
     inputs.sessionTelemetry?.repo_root ??
@@ -137,6 +146,9 @@ async function main() {
   const reviewVerdicts = args.reviewVerdictsPath
     ? await readJsonFile(args.reviewVerdictsPath)
     : null;
+  const sessionVerdicts = args.sessionVerdictsPath
+    ? await readJsonFile(args.sessionVerdictsPath)
+    : null;
   const remediationReport = args.remediationReportPath
     ? await readJsonFile(args.remediationReportPath)
     : null;
@@ -147,6 +159,7 @@ async function main() {
   const resolvedRepoLabel = resolveRepoLabel(args, {
     defectReport,
     reviewVerdicts,
+    sessionVerdicts,
     remediationReport,
     benchmark,
     sessionTelemetry,
@@ -169,6 +182,7 @@ async function main() {
     repoLabel: resolvedRepoLabel,
     defectReport,
     reviewVerdicts,
+    sessionVerdicts,
     remediationReport,
     benchmark,
     sessionTelemetry,

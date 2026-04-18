@@ -19,7 +19,7 @@ The loop validates the full v2 proof loop across these areas:
 7. fast-path `check` coverage and ranked action quality
 8. external evaluator calibration for agent guidance and experimental detectors
 9. remediation success on seeded defects
-10. real-session corpus and weekly evidence review for ranking, propagation, clone, and thrash outcomes
+10. real-session corpus, optional session verdicts, and weekly evidence review for ranking, propagation, clone, and thrash outcomes
 
 ## Commands
 
@@ -397,6 +397,7 @@ The expected loop is:
 2. run `node scripts/evals/run-repo-calibration-loop.mjs --manifest docs/v2/evals/repos/<repo>.json`
 3. inspect the generated review packet
 4. apply the verdict template or the repo-specific review verdict file
+   Review verdicts score finding precision and ranking. Session verdicts are a separate overlay on the session corpus for measuring whether the surfaced top action helped the Codex session at acceptable cost.
 5. rerun the same repo-level loop if you want the refreshed scorecard and backlog to incorporate the new verdicts
 6. inspect the loop delta summary and warnings to compare the new outputs against the previous calibration snapshot
 

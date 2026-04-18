@@ -1,0 +1,24 @@
+{
+  "repo_label": "replace-me",
+  "captured_at": "2026-04-18T00:00:00Z",
+  "source_artifact": "docs/v2/examples/replace-me-session-corpus.json",
+  "source_feedback": "Brief note describing which session corpus or batch summary was reviewed and what kind of session-value signal this verdict pass should capture.",
+  "verdicts": [
+    {
+      "session_id": "replace-me-session-001",
+      "repo_label": "replace-me",
+      "lane": "live",
+      "session_label": "Keep a focused repo edit contained",
+      "task_id": "replace-me-control",
+      "experiment_arm": "report_only",
+      "top_action_followed": true,
+      "top_action_helped": true,
+      "task_completed_successfully": true,
+      "patch_expanded_unnecessarily": false,
+      "intervention_cost_checks": 1,
+      "intervention_cost_notes": "The intervention triggered one extra verification pass before the patch converged.",
+      "reviewer_confidence": "high",
+      "notes": "Explain whether the surfaced top action improved the session outcome and whether the extra intervention cost was acceptable."
+    }
+  ]
+}

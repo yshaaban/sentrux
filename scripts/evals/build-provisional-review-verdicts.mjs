@@ -178,17 +178,75 @@ function shouldIncludeSample(sample, allowedKinds) {
   return allowedKinds.has(sample.kind);
 }
 
+function buildSampleHelpfulness(policy) {
+  switch (policy.category) {
+    case 'useful':
+      return 3;
+    case 'useful_watchpoint':
+      return 2;
+    case 'low_value':
+      return 1;
+    case 'incorrect':
+      return 0;
+    default:
+      return 1;
+  }
+}
+
+function buildSampleDistractionCost(policy, sample) {
+  let distractionCost = 0;
+
+  if (policy.category === 'low_value' || policy.category === 'real_but_overstated') {
+    distractionCost = 2;
+  }
+  if (policy.category === 'incorrect') {
+    distractionCost = 3;
+  }
+  if (sample.repair_packet?.complete === false) {
+    distractionCost = Math.min(3, distractionCost + 1);
+  }
+
+  return distractionCost;
+}
+
+function resolveObservedRank(sample, index) {
+  if (Number.isInteger(sample.rank) && sample.rank > 0) {
+    return sample.rank;
+  }
+
+  return index + 1;
+}
+
+function resolveRankPreserved(sample, index) {
+  if (!Number.isInteger(sample.rank) || sample.rank <= 0) {
+    return null;
+  }
+
+  return sample.rank === index + 1;
+}
+
 export function buildVerdicts(packet, args) {
   const allowedKinds = new Set(args.kinds);
 
   return (packet.samples ?? [])
-    .filter((sample) => shouldIncludeSample(sample, allowedKinds))
-    .map((sample) => {
+    .filter(function includeAllowedKinds(sample) {
+      return shouldIncludeSample(sample, allowedKinds);
+    })
+    .map(function buildVerdict(sample, index) {
       const policy = getKindPolicy(sample.kind);
       return {
         scope: sample.scope ?? sample.source_label ?? 'unknown-scope',
         kind: sample.kind ?? 'unknown-kind',
         report_bucket: sample.report_bucket ?? packet.tool ?? 'packet',
+        rank_observed: resolveObservedRank(sample, index),
+        rank_preserved: resolveRankPreserved(sample, index),
+        repair_packet_complete: sample.repair_packet?.complete ?? null,
+        repair_packet_missing_fields: sample.repair_packet?.missing_fields ?? [],
+        repair_packet_fix_surface_clear: sample.repair_packet?.fix_surface_clear ?? null,
+        repair_packet_verification_clear:
+          sample.repair_packet?.verification_clear ?? null,
+        sample_helpfulness: buildSampleHelpfulness(policy),
+        sample_distraction_cost: buildSampleDistractionCost(policy, sample),
         category: policy.category,
         expected_trust_tier: policy.expected_trust_tier,
         expected_presentation_class: policy.expected_presentation_class,

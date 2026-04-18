@@ -28,6 +28,7 @@
     "propagation_examples": { "type": "array", "items": { "type": "object" } },
     "clone_examples": { "type": "array", "items": { "type": "object" } },
     "thrashing_examples": { "type": "array", "items": { "type": "object" } },
-    "experiment_arms": { "type": "array", "items": { "type": "object" } }
+    "experiment_arms": { "type": "array", "items": { "type": "object" } },
+    "product_value": { "type": ["object", "null"] }
   }
 }

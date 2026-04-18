@@ -32,6 +32,41 @@ test('buildSignalScorecard aggregates seeded, review, and remediation metrics', 
         {
           kind: 'closed_domain_exhaustiveness',
           category: 'useful',
+          rank_observed: 1,
+          rank_preserved: true,
+          repair_packet_complete: true,
+          repair_packet_missing_fields: [],
+          repair_packet_fix_surface_clear: true,
+          repair_packet_verification_clear: true,
+          sample_helpfulness: 3,
+          sample_distraction_cost: 0,
+        },
+      ],
+    },
+    sessionVerdicts: {
+      repo_label: 'parallel-code',
+      verdicts: [
+        {
+          session_id: 'live-exhaustiveness',
+          lane: 'live',
+          top_action_followed: true,
+          top_action_helped: true,
+          task_completed_successfully: true,
+          patch_expanded_unnecessarily: false,
+          intervention_cost_checks: 1,
+          reviewer_confidence: 'high',
+          notes: 'Followed the expected exhaustiveness fix.',
+        },
+        {
+          session_id: 'replay-exhaustiveness',
+          lane: 'replay',
+          top_action_followed: false,
+          top_action_helped: null,
+          task_completed_successfully: false,
+          patch_expanded_unnecessarily: true,
+          intervention_cost_checks: 2,
+          reviewer_confidence: 'medium',
+          notes: 'Missed the replay signal and expanded the patch.',
         },
       ],
     },
@@ -135,8 +170,21 @@ test('buildSignalScorecard aggregates seeded, review, and remediation metrics', 
   assert.equal(scorecard.signals[0].promotion_evidence_complete, true);
   assert.equal(scorecard.signals[0].latency_ms, 134.2);
   assert.equal(scorecard.summary.kpis.session_trial_count, 2);
+  assert.equal(scorecard.summary.kpis.session_verdict_count, 2);
   assert.equal(scorecard.summary.coverage.has_session_trials, true);
+  assert.equal(scorecard.summary.coverage.has_session_verdicts, true);
   assert.equal(scorecard.summary.kpis.session_count, 2);
+  assert.equal(scorecard.summary.product_value.session_verdict_count, 2);
+  assert.equal(scorecard.summary.product_value.top_action_follow_rate, 0.5);
+  assert.equal(scorecard.summary.product_value.top_action_help_rate, 1);
+  assert.equal(scorecard.summary.product_value.task_success_rate, 0.5);
+  assert.equal(scorecard.summary.product_value.patch_expansion_rate, 0.5);
+  assert.equal(scorecard.summary.product_value.intervention_cost_checks_mean, 1.5);
+  assert.equal(scorecard.summary.product_value.intervention_net_value_score, 0.333);
+  assert.equal(scorecard.summary.ranking_quality.rank_preserved_rate, 1);
+  assert.equal(scorecard.summary.ranking_quality.repair_packet_complete_rate, 1);
+  assert.equal(scorecard.summary.ranking_quality.sample_helpfulness_mean, 3);
+  assert.equal(scorecard.summary.ranking_quality.sample_distraction_cost_mean, 0);
   assert.equal(scorecard.summary.session_health.converged_session_count, 1);
   assert.equal(scorecard.summary.session_health.top_action_session_count, 2);
   assert.equal(scorecard.summary.session_health.top_action_cleared_count, 1);

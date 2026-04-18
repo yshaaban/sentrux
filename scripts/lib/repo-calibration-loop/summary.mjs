@@ -10,6 +10,7 @@ export async function buildLoopWarningSet({
   reviewPacket,
   selectedReviewVerdicts,
   selectedReviewVerdictsPath,
+  selectedSessionVerdictsPath,
   manifests,
   batchResults,
   existingPathOrNull,
@@ -17,6 +18,7 @@ export async function buildLoopWarningSet({
   return [
     ...buildWarnings(
       selectedReviewVerdictsPath,
+      selectedSessionVerdictsPath,
       await existingPathOrNull(paths.defectReportPath),
       await existingPathOrNull(paths.remediationReportPath),
       await existingPathOrNull(paths.benchmarkPath),
@@ -48,6 +50,7 @@ export function buildLoopSummary({
   mergedTelemetry,
   reviewPacket,
   selectedReviewVerdicts,
+  selectedSessionVerdicts,
   scorecard,
   sessionCorpus,
   backlog,
@@ -79,9 +82,16 @@ export function buildLoopSummary({
       weak_signal_count: backlog?.summary?.weak_signal_count ?? 0,
       review_sample_count:
         reviewPacket?.summary?.sample_count ?? reviewPacket?.samples?.length ?? 0,
+      session_verdict_count: selectedSessionVerdicts?.verdicts?.length ?? 0,
       live_clean_rate: backlog?.summary?.live_clean_rate ?? null,
       replay_clean_rate: backlog?.summary?.replay_clean_rate ?? null,
       agent_clear_rate: sessionCorpus?.summary?.agent_clear_rate ?? null,
+      top_action_follow_rate: sessionCorpus?.summary?.top_action_follow_rate ?? null,
+      top_action_help_rate: sessionCorpus?.summary?.top_action_help_rate ?? null,
+      task_success_rate: sessionCorpus?.summary?.task_success_rate ?? null,
+      patch_expansion_rate: sessionCorpus?.summary?.patch_expansion_rate ?? null,
+      intervention_net_value_score:
+        sessionCorpus?.summary?.intervention_net_value_score ?? null,
       propagation_escape_rate: sessionCorpus?.summary?.propagation_escape_rate ?? null,
       clone_followthrough_escape_rate:
         sessionCorpus?.summary?.clone_followthrough_escape_rate ?? null,

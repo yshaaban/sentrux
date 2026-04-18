@@ -6,6 +6,7 @@ import {
   maybeBuildProvisionalReviewVerdicts,
   runNodeScript,
   selectReviewVerdictsPath,
+  selectSessionVerdictsPath,
 } from '../repo-calibration-loop-support.mjs';
 import {
   formatSessionTelemetrySummaryMarkdown,
@@ -108,6 +109,7 @@ async function runScorecardStage({
   replayBatchResultPath,
   defectReportPath,
   selectedReviewVerdictsPath,
+  selectedSessionVerdictsPath,
   remediationReportPath,
   benchmarkPath,
   runs,
@@ -127,6 +129,7 @@ async function runScorecardStage({
     replayBatchPath: replayBatchResult ? replayBatchResultPath : null,
     defectReportPath,
     selectedReviewVerdictsPath,
+    selectedSessionVerdictsPath,
     remediationReportPath,
     benchmarkPath,
   });
@@ -144,6 +147,7 @@ async function runSessionCorpusStage({
   mergedTelemetryJsonPath,
   sessionCorpusJsonPath,
   sessionCorpusMarkdownPath,
+  selectedSessionVerdictsPath,
   codexBatchResult,
   codexBatchResultPath,
   replayBatchResult,
@@ -171,6 +175,9 @@ async function runSessionCorpusStage({
   }
   if (replayBatchResult) {
     sessionCorpusArgs.push('--replay-batch', replayBatchResultPath);
+  }
+  if (selectedSessionVerdictsPath) {
+    sessionCorpusArgs.push('--session-verdicts', selectedSessionVerdictsPath);
   }
 
   runs.push(
@@ -314,6 +321,13 @@ async function resolveSelectedReviewVerdictsPath(args, paths) {
   );
 }
 
+async function resolveSelectedSessionVerdictsPath(paths) {
+  return selectSessionVerdictsPath(
+    paths.stableSessionVerdictsOutputPath,
+    paths.sessionVerdictsPath,
+  );
+}
+
 export async function runLoopStages({ args, manifest, paths, repoRootPath, repoRoot }) {
   const runs = [];
   const batchResults = await runBatchStages({
@@ -324,7 +338,7 @@ export async function runLoopStages({ args, manifest, paths, repoRootPath, repoR
     runs,
     repoRoot,
   });
-  const selectedReviewVerdictsPath = await runAnalysisStages({
+  const selectedPaths = await runAnalysisStages({
     args,
     manifest,
     paths,
@@ -338,7 +352,8 @@ export async function runLoopStages({ args, manifest, paths, repoRootPath, repoR
     runs,
     batchResults,
     mergedTelemetry: batchResults.mergedTelemetry,
-    selectedReviewVerdictsPath,
+    selectedReviewVerdictsPath: selectedPaths.selectedReviewVerdictsPath,
+    selectedSessionVerdictsPath: selectedPaths.selectedSessionVerdictsPath,
   };
 }
 
@@ -409,6 +424,7 @@ async function runAnalysisStages({
   await maybeRunProvisionalVerdictStage(args, manifest, paths, runs, repoRoot);
 
   const selectedReviewVerdictsPath = await resolveSelectedReviewVerdictsPath(args, paths);
+  const selectedSessionVerdictsPath = await resolveSelectedSessionVerdictsPath(paths);
 
   await runScorecardStage({
     skipScorecard: args.skipScorecard,
@@ -423,30 +439,36 @@ async function runAnalysisStages({
     replayBatchResultPath: paths.replayBatchResultPath,
     defectReportPath: paths.defectReportPath,
     selectedReviewVerdictsPath,
+    selectedSessionVerdictsPath,
     remediationReportPath: paths.remediationReportPath,
     benchmarkPath: paths.benchmarkPath,
     runs,
     repoRoot,
   });
   await runPostScoreStages({
-    args,
+    skipBacklog: args.skipBacklog,
     manifest,
     paths,
     repoRootPath,
     batchResults,
+    selectedSessionVerdictsPath,
     runs,
     repoRoot,
   });
 
-  return selectedReviewVerdictsPath;
+  return {
+    selectedReviewVerdictsPath,
+    selectedSessionVerdictsPath,
+  };
 }
 
 async function runPostScoreStages({
-  args,
+  skipBacklog,
   manifest,
   paths,
   repoRootPath,
   batchResults,
+  selectedSessionVerdictsPath,
   runs,
   repoRoot,
 }) {
@@ -454,6 +476,7 @@ async function runPostScoreStages({
     mergedTelemetryJsonPath: paths.mergedTelemetryJsonPath,
     sessionCorpusJsonPath: paths.sessionCorpusJsonPath,
     sessionCorpusMarkdownPath: paths.sessionCorpusMarkdownPath,
+    selectedSessionVerdictsPath,
     codexBatchResult: batchResults.codexBatchResult,
     codexBatchResultPath: paths.codexBatchResultPath,
     replayBatchResult: batchResults.replayBatchResult,
@@ -464,7 +487,7 @@ async function runPostScoreStages({
     repoRoot,
   });
   await runBacklogStage({
-    skipBacklog: args.skipBacklog,
+    skipBacklog,
     scorecardJsonPath: paths.scorecardJsonPath,
     backlogJsonPath: paths.backlogJsonPath,
     backlogMarkdownPath: paths.backlogMarkdownPath,
@@ -478,7 +501,7 @@ async function runPostScoreStages({
     repoRoot,
   });
   await runEvidenceReviewStage({
-    skipBacklog: args.skipBacklog,
+    skipBacklog,
     scorecardJsonPath: paths.scorecardJsonPath,
     backlogJsonPath: paths.backlogJsonPath,
     sessionCorpusJsonPath: paths.sessionCorpusJsonPath,

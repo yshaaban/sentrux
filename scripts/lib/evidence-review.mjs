@@ -1,6 +1,7 @@
 import {
   asArray,
 } from './signal-summary-utils.mjs';
+import { buildSessionVerdictSummary } from './session-verdicts.mjs';
 import {
   buildExperimentArmSummaries,
   buildFocusAreaSummaries,
@@ -162,6 +163,26 @@ function buildCorpusRollups(sessionCorpus) {
   };
 }
 
+function buildProductValueSummary(sessionCorpus) {
+  const summary =
+    corpusSessions(sessionCorpus).length > 0
+      ? buildSessionVerdictSummary(corpusSessions(sessionCorpus))
+      : sessionCorpus?.summary ?? {};
+  if ((summary.session_verdict_count ?? 0) === 0) {
+    return null;
+  }
+
+  return {
+    session_verdict_count: summary.session_verdict_count ?? 0,
+    top_action_follow_rate: summary.top_action_follow_rate ?? null,
+    top_action_help_rate: summary.top_action_help_rate ?? null,
+    task_success_rate: summary.task_success_rate ?? null,
+    patch_expansion_rate: summary.patch_expansion_rate ?? null,
+    intervention_cost_checks_mean: summary.intervention_cost_checks_mean ?? null,
+    intervention_net_value_score: summary.intervention_net_value_score ?? null,
+  };
+}
+
 function selectCorpusEntries(sessionCorpus, predicate) {
   return corpusSessions(sessionCorpus).filter(predicate).slice(0, 10);
 }
@@ -218,6 +239,7 @@ export function buildEvidenceReview({
     topActionFailureSummary,
     experimentArms,
   } = buildCorpusRollups(sessionCorpus);
+  const productValueSummary = buildProductValueSummary(sessionCorpus);
   const propagationExamples = selectFocusAreaExamples(sessionCorpus, 'propagation');
   const cloneExamples = selectFocusAreaExamples(sessionCorpus, 'clone_followthrough');
   const thrashingExamples = selectThrashingExamples(sessionCorpus);
@@ -238,6 +260,7 @@ export function buildEvidenceReview({
       focus_area_count: focusAreaSummaries.length,
       top_action_failure_count: topActionFailureSummary.length,
       experiment_arm_count: experimentArms.length,
+      session_verdict_count: productValueSummary?.session_verdict_count ?? 0,
     },
     promotion_candidates: promotionCandidates,
     demotion_candidates: demotionCandidates,
@@ -248,6 +271,7 @@ export function buildEvidenceReview({
     clone_examples: cloneExamples,
     thrashing_examples: thrashingExamples,
     experiment_arms: experimentArms,
+    product_value: productValueSummary,
   };
 }
 
@@ -266,6 +290,25 @@ export function formatEvidenceReviewMarkdown(review) {
   lines.push(`- focus areas: ${review.summary.focus_area_count ?? 0}`);
   lines.push(`- top action failures: ${review.summary.top_action_failure_count ?? 0}`);
   lines.push(`- experiment arms: ${review.summary.experiment_arm_count ?? 0}`);
+  if (review.product_value) {
+    lines.push(`- session verdicts: ${review.product_value.session_verdict_count ?? 0}`);
+    lines.push(
+      `- top-action follow rate: ${review.product_value.top_action_follow_rate ?? 'n/a'}`,
+    );
+    lines.push(
+      `- top-action help rate: ${review.product_value.top_action_help_rate ?? 'n/a'}`,
+    );
+    lines.push(`- task success rate: ${review.product_value.task_success_rate ?? 'n/a'}`);
+    lines.push(
+      `- patch expansion rate: ${review.product_value.patch_expansion_rate ?? 'n/a'}`,
+    );
+    lines.push(
+      `- intervention cost checks mean: ${review.product_value.intervention_cost_checks_mean ?? 'n/a'}`,
+    );
+    lines.push(
+      `- intervention net value score: ${review.product_value.intervention_net_value_score ?? 'n/a'}`,
+    );
+  }
   lines.push('');
 
   appendSummarySection(lines, 'Promotion Candidates', review.promotion_candidates, function formatEntry(entry) {
@@ -293,7 +336,7 @@ export function formatEvidenceReviewMarkdown(review) {
     return `\`${entry.session_id}\` [${entry.lane}] bucket=${entry.outcome_bucket}, convergence=${entry.outcome.convergence_status ?? 'n/a'}, entropy=${entry.outcome.entropy_delta ?? 'n/a'}, top=${entry.outcome.initial_top_action_kind ?? 'none'}`;
   });
   appendSummarySection(lines, 'Experiment Arms', review.experiment_arms, function formatEntry(entry) {
-    return `\`${entry.experiment_arm}\`: sessions=${entry.session_count}, clear=${entry.agent_clear_rate ?? 'n/a'}, clean=${entry.clean_rate ?? 'n/a'}, regressions=${entry.regression_rate ?? 'n/a'}, review=${entry.review_queue_rate ?? 'n/a'}, focus=[${focusAreaCountsToText(entry.focus_area_counts)}]`;
+    return `\`${entry.experiment_arm}\`: sessions=${entry.session_count}, clear=${entry.agent_clear_rate ?? 'n/a'}, clean=${entry.clean_rate ?? 'n/a'}, regressions=${entry.regression_rate ?? 'n/a'}, review=${entry.review_queue_rate ?? 'n/a'}, follow=${entry.top_action_follow_rate ?? 'n/a'}, help=${entry.top_action_help_rate ?? 'n/a'}, success=${entry.task_success_rate ?? 'n/a'}, expand=${entry.patch_expansion_rate ?? 'n/a'}, value=${entry.intervention_net_value_score ?? 'n/a'}, focus=[${focusAreaCountsToText(entry.focus_area_counts)}]`;
   });
 
   return `${lines.join('\n')}\n`;

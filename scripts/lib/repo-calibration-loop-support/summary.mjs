@@ -20,19 +20,22 @@ function buildRecommendationChanges(currentScorecard, previousScorecard) {
   }
 
   const previousBySignalKind = new Map(
-    (previousScorecard.signals ?? []).map((signal) => [
-      signal.signal_kind,
-      signal.promotion_recommendation,
-    ]),
+    (previousScorecard.signals ?? []).map(function mapPreviousSignal(signal) {
+      return [signal.signal_kind, signal.promotion_recommendation];
+    }),
   );
 
   return (currentScorecard.signals ?? [])
-    .map((signal) => ({
-      signal_kind: signal.signal_kind,
-      previous: previousBySignalKind.get(signal.signal_kind) ?? null,
-      current: signal.promotion_recommendation ?? null,
-    }))
-    .filter((entry) => entry.previous !== null && entry.previous !== entry.current);
+    .map(function mapCurrentSignal(signal) {
+      return {
+        signal_kind: signal.signal_kind,
+        previous: previousBySignalKind.get(signal.signal_kind) ?? null,
+        current: signal.promotion_recommendation ?? null,
+      };
+    })
+    .filter(function changedRecommendation(entry) {
+      return entry.previous !== null && entry.previous !== entry.current;
+    });
 }
 
 function buildReviewVerdictsMode(selectedReviewVerdictsPath, selectedReviewVerdicts) {
@@ -46,6 +49,14 @@ function buildReviewVerdictsMode(selectedReviewVerdictsPath, selectedReviewVerdi
   return 'curated';
 }
 
+function formatArtifactValue(value, fallbackLabel) {
+  if (!value) {
+    return fallbackLabel;
+  }
+
+  return `\`${value}\``;
+}
+
 export function buildSummaryMarkdown(summary) {
   const lines = [];
   lines.push('# Repo Calibration Loop');
@@ -57,14 +68,33 @@ export function buildSummaryMarkdown(summary) {
   lines.push('');
   lines.push('## Artifacts');
   lines.push('');
-  lines.push(`- live batch: ${summary.artifacts.codex_batch_json ? `\`${summary.artifacts.codex_batch_json}\`` : 'skipped'}`);
-  lines.push(`- replay batch: ${summary.artifacts.replay_batch_json ? `\`${summary.artifacts.replay_batch_json}\`` : 'skipped'}`);
-  lines.push(`- merged telemetry: ${summary.artifacts.session_telemetry_json ? `\`${summary.artifacts.session_telemetry_json}\`` : 'none'}`);
-  lines.push(`- review packet: ${summary.artifacts.review_packet_json ? `\`${summary.artifacts.review_packet_json}\`` : 'skipped'}`);
-  lines.push(`- scorecard: ${summary.artifacts.scorecard_json ? `\`${summary.artifacts.scorecard_json}\`` : 'skipped'}`);
-  lines.push(`- session corpus: ${summary.artifacts.session_corpus_json ? `\`${summary.artifacts.session_corpus_json}\`` : 'skipped'}`);
-  lines.push(`- backlog: ${summary.artifacts.backlog_json ? `\`${summary.artifacts.backlog_json}\`` : 'skipped'}`);
-  lines.push(`- evidence review: ${summary.artifacts.evidence_review_json ? `\`${summary.artifacts.evidence_review_json}\`` : 'skipped'}`);
+  lines.push(
+    `- live batch: ${formatArtifactValue(summary.artifacts.codex_batch_json, 'skipped')}`,
+  );
+  lines.push(
+    `- replay batch: ${formatArtifactValue(summary.artifacts.replay_batch_json, 'skipped')}`,
+  );
+  lines.push(
+    `- merged telemetry: ${formatArtifactValue(summary.artifacts.session_telemetry_json, 'none')}`,
+  );
+  lines.push(
+    `- review packet: ${formatArtifactValue(summary.artifacts.review_packet_json, 'skipped')}`,
+  );
+  lines.push(
+    `- session verdicts: ${formatArtifactValue(summary.artifacts.session_verdicts_output, 'missing')}`,
+  );
+  lines.push(
+    `- scorecard: ${formatArtifactValue(summary.artifacts.scorecard_json, 'skipped')}`,
+  );
+  lines.push(
+    `- session corpus: ${formatArtifactValue(summary.artifacts.session_corpus_json, 'skipped')}`,
+  );
+  lines.push(
+    `- backlog: ${formatArtifactValue(summary.artifacts.backlog_json, 'skipped')}`,
+  );
+  lines.push(
+    `- evidence review: ${formatArtifactValue(summary.artifacts.evidence_review_json, 'skipped')}`,
+  );
   lines.push('');
   lines.push('## Summary');
   lines.push('');
@@ -73,9 +103,15 @@ export function buildSummaryMarkdown(summary) {
   lines.push(`- total signals: ${summary.summary.total_signals ?? 0}`);
   lines.push(`- weak signals: ${summary.summary.weak_signal_count ?? 0}`);
   lines.push(`- review samples: ${summary.summary.review_sample_count ?? 0}`);
+  lines.push(`- session verdicts: ${summary.summary.session_verdict_count ?? 0}`);
   lines.push(`- live clean rate: ${summary.summary.live_clean_rate ?? 'n/a'}`);
   lines.push(`- replay clean rate: ${summary.summary.replay_clean_rate ?? 'n/a'}`);
   lines.push(`- corpus agent clear rate: ${summary.summary.agent_clear_rate ?? 'n/a'}`);
+  lines.push(`- top-action follow rate: ${summary.summary.top_action_follow_rate ?? 'n/a'}`);
+  lines.push(`- top-action help rate: ${summary.summary.top_action_help_rate ?? 'n/a'}`);
+  lines.push(`- task success rate: ${summary.summary.task_success_rate ?? 'n/a'}`);
+  lines.push(`- patch expansion rate: ${summary.summary.patch_expansion_rate ?? 'n/a'}`);
+  lines.push(`- intervention net value score: ${summary.summary.intervention_net_value_score ?? 'n/a'}`);
   lines.push(`- propagation escape rate: ${summary.summary.propagation_escape_rate ?? 'n/a'}`);
   lines.push(`- clone followthrough escape rate: ${summary.summary.clone_followthrough_escape_rate ?? 'n/a'}`);
   lines.push(`- next signal: ${summary.summary.recommended_next_signal ?? 'none'}`);
@@ -87,9 +123,12 @@ export function buildSummaryMarkdown(summary) {
     lines.push(`- total signals delta: ${summary.delta.total_signals?.delta ?? 'n/a'}`);
     lines.push(`- weak signals delta: ${summary.delta.weak_signal_count?.delta ?? 'n/a'}`);
     lines.push(`- review samples delta: ${summary.delta.review_sample_count?.delta ?? 'n/a'}`);
+    lines.push(`- session verdicts delta: ${summary.delta.session_verdict_count?.delta ?? 'n/a'}`);
     lines.push(`- live clean rate delta: ${summary.delta.live_clean_rate?.delta ?? 'n/a'}`);
     lines.push(`- replay clean rate delta: ${summary.delta.replay_clean_rate?.delta ?? 'n/a'}`);
     lines.push(`- corpus agent clear rate delta: ${summary.delta.agent_clear_rate?.delta ?? 'n/a'}`);
+    lines.push(`- top-action help rate delta: ${summary.delta.top_action_help_rate?.delta ?? 'n/a'}`);
+    lines.push(`- task success rate delta: ${summary.delta.task_success_rate?.delta ?? 'n/a'}`);
     lines.push(`- next signal changed: ${summary.delta.recommended_next_signal?.changed ? 'yes' : 'no'}`);
     if (Array.isArray(summary.delta.recommendation_changes) && summary.delta.recommendation_changes.length > 0) {
       lines.push(`- recommendation changes: ${summary.delta.recommendation_changes.map((entry) => `${entry.signal_kind}:${entry.previous}->${entry.current}`).join(', ')}`);
@@ -136,6 +175,10 @@ export function buildSummaryDelta(
       countReviewSamples(currentReviewPacket),
       countReviewSamples(previousReviewPacket),
     ),
+    session_verdict_count: buildNumericDelta(
+      currentSessionCorpus?.summary?.session_verdict_count ?? 0,
+      previousSessionCorpus?.summary?.session_verdict_count ?? 0,
+    ),
     live_clean_rate: buildNumericDelta(
       currentBacklog?.summary?.live_clean_rate,
       previousBacklog?.summary?.live_clean_rate,
@@ -147,6 +190,14 @@ export function buildSummaryDelta(
     agent_clear_rate: buildNumericDelta(
       currentSessionCorpus?.summary?.agent_clear_rate,
       previousSessionCorpus?.summary?.agent_clear_rate,
+    ),
+    top_action_help_rate: buildNumericDelta(
+      currentSessionCorpus?.summary?.top_action_help_rate,
+      previousSessionCorpus?.summary?.top_action_help_rate,
+    ),
+    task_success_rate: buildNumericDelta(
+      currentSessionCorpus?.summary?.task_success_rate,
+      previousSessionCorpus?.summary?.task_success_rate,
     ),
     recommended_next_signal: {
       previous: previousBacklog?.summary?.recommended_next_signal ?? null,
@@ -161,6 +212,7 @@ export function buildSummaryDelta(
 
 export function buildWarnings(
   selectedReviewVerdictsPath,
+  selectedSessionVerdictsPath,
   defectReportPath,
   remediationReportPath,
   benchmarkPath,
@@ -173,6 +225,9 @@ export function buildWarnings(
     warnings.push('review verdict input missing; scorecard precision metrics have no curated review evidence');
   } else if (selectedReviewVerdicts?.provisional) {
     warnings.push('using provisional review verdicts generated from packet metadata; replace with curated review before treating precision metrics as promotion-grade evidence');
+  }
+  if (!selectedSessionVerdictsPath) {
+    warnings.push('session verdict input missing; product-value metrics have no curated session-level evidence');
   }
   if (!defectReportPath) {
     warnings.push('seeded defect report missing; scorecard recall metrics have no deterministic detector coverage');
@@ -191,7 +246,6 @@ export function buildWarnings(
 }
 
 export function buildSummaryArtifacts({
-  outputDir,
   stableReviewPacketJsonPath,
   reviewPacketJsonPath,
   reviewPacket,
@@ -199,6 +253,10 @@ export function buildSummaryArtifacts({
   selectedReviewVerdictsPath,
   stableReviewVerdictsOutputPath,
   runReviewVerdictsOutputPath,
+  selectedSessionVerdictsPath,
+  stableSessionVerdictsOutputPath,
+  runSessionVerdictsOutputPath,
+  previousSessionVerdictsSnapshotPath,
   stableScorecardJsonPath,
   scorecardJsonPath,
   previousScorecardSnapshotPath,
@@ -217,6 +275,7 @@ export function buildSummaryArtifacts({
   replayBatchResult,
   replayBatchOutputDir,
   selectedReviewVerdicts,
+  selectedSessionVerdicts,
   scorecard,
   sessionCorpus,
   backlog,
@@ -241,6 +300,13 @@ export function buildSummaryArtifacts({
       selectedReviewVerdictsPath,
       selectedReviewVerdicts,
     ),
+    session_verdicts_input: selectedSessionVerdictsPath,
+    session_verdicts_output:
+      stableSessionVerdictsOutputPath ?? runSessionVerdictsOutputPath,
+    session_verdicts_run_output: selectedSessionVerdicts
+      ? runSessionVerdictsOutputPath
+      : null,
+    previous_session_verdicts_json: previousSessionVerdictsSnapshotPath,
     scorecard_json: stableScorecardJsonPath ?? scorecardJsonPath,
     scorecard_run_json: scorecard ? scorecardJsonPath : null,
     previous_scorecard_json: previousScorecardSnapshotPath,

@@ -213,11 +213,14 @@ export function inferScorecardRepoLabel({
   sessionTelemetry = null,
   codexBatch = null,
   replayBatch = null,
+  sessionVerdicts = null,
 }) {
   return (
     repoLabel ??
     defectReport?.repo_label ??
     reviewVerdicts?.repo ??
+    sessionVerdicts?.repo_label ??
+    sessionVerdicts?.repo ??
     remediationReport?.repo_label ??
     sessionTelemetry?.repo_label ??
     sessionTelemetry?.repo_root ??

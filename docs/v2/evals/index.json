@@ -9,6 +9,7 @@
     "result": "./result.schema.json",
     "repo_calibration": "./repo-calibration.schema.json",
     "review_verdicts": "./review-verdicts.schema.json",
+    "session_verdicts": "./session-verdicts.schema.json",
     "codex_session_batch": "./codex-session-batch.schema.json",
     "diff_replay_batch": "./diff-replay-batch.schema.json"
   },
@@ -61,6 +62,10 @@
   "review_verdicts": {
     "schema": "./review-verdicts.schema.json",
     "template": "./review-verdicts.template.json"
+  },
+  "session_verdicts": {
+    "schema": "./session-verdicts.schema.json",
+    "template": "./session-verdicts.template.json"
   },
   "prompt_sets": [
     {

@@ -14,6 +14,7 @@ import {
   existingPathOrNull,
   resolveLoopArtifactPaths,
   selectReviewVerdictsPath,
+  selectSessionVerdictsPath,
 } from '../lib/repo-calibration-loop-support.mjs';
 import { parseArgs, nowIso } from '../lib/repo-calibration-loop/args.mjs';
 import { loadRepoCalibrationManifest } from '../lib/repo-calibration-loop/manifest.mjs';
@@ -36,6 +37,7 @@ export {
   buildScorecardArgs,
   parseArgs,
   selectReviewVerdictsPath,
+  selectSessionVerdictsPath,
 };
 
 function defaultLoopOutputDir(repoRootPath, manifest, requestedOutputDir) {
@@ -96,7 +98,7 @@ async function runLoop(context) {
       repoRootPath,
       outputDir,
     });
-    const stableArtifacts = buildLoopStableArtifacts(paths, outputDir, loopState);
+    const stableArtifacts = buildLoopStableArtifacts(paths, loopState);
     const warnings = await buildLoopWarnings(paths, loopState);
     const summary = buildLoopSummary({
       outputDir,
@@ -106,6 +108,7 @@ async function runLoop(context) {
       mergedTelemetry: loopState.stageResults.mergedTelemetry,
       reviewPacket: loopState.generatedArtifacts.reviewPacket,
       selectedReviewVerdicts: loopState.generatedArtifacts.selectedReviewVerdicts,
+      selectedSessionVerdicts: loopState.generatedArtifacts.selectedSessionVerdicts,
       scorecard: loopState.generatedArtifacts.scorecard,
       sessionCorpus: loopState.generatedArtifacts.sessionCorpus,
       backlog: loopState.generatedArtifacts.backlog,
@@ -118,7 +121,11 @@ async function runLoop(context) {
       nowIso,
     });
 
-    await publishStableLoopArtifacts(paths, loopState.stageResults.selectedReviewVerdictsPath);
+    await publishStableLoopArtifacts(
+      paths,
+      loopState.stageResults.selectedReviewVerdictsPath,
+      loopState.stageResults.selectedSessionVerdictsPath,
+    );
     await writeLoopOutputs(outputDir, summary);
 
     console.log(
@@ -142,6 +149,7 @@ async function runLoopState({ args, manifest, paths, repoRootPath, outputDir }) 
   const generatedArtifacts = await loadGeneratedArtifacts(
     paths,
     stageResults.selectedReviewVerdictsPath,
+    stageResults.selectedSessionVerdictsPath,
   );
 
   return {
@@ -152,9 +160,8 @@ async function runLoopState({ args, manifest, paths, repoRootPath, outputDir }) 
   };
 }
 
-function buildLoopStableArtifacts(paths, outputDir, loopState) {
+function buildLoopStableArtifacts(paths, loopState) {
   return buildSummaryArtifacts({
-    outputDir,
     stableReviewPacketJsonPath: paths.stableReviewPacketJsonPath,
     reviewPacketJsonPath: paths.reviewPacketJsonPath,
     reviewPacket: loopState.generatedArtifacts.reviewPacket,
@@ -163,6 +170,11 @@ function buildLoopStableArtifacts(paths, outputDir, loopState) {
     selectedReviewVerdictsPath: loopState.stageResults.selectedReviewVerdictsPath,
     stableReviewVerdictsOutputPath: paths.stableReviewVerdictsOutputPath,
     runReviewVerdictsOutputPath: paths.runReviewVerdictsOutputPath,
+    selectedSessionVerdictsPath: loopState.stageResults.selectedSessionVerdictsPath,
+    stableSessionVerdictsOutputPath: paths.stableSessionVerdictsOutputPath,
+    runSessionVerdictsOutputPath: paths.runSessionVerdictsOutputPath,
+    previousSessionVerdictsSnapshotPath:
+      loopState.previousArtifacts.previousSessionVerdictsSnapshotPath,
     stableScorecardJsonPath: paths.stableScorecardJsonPath,
     scorecardJsonPath: paths.scorecardJsonPath,
     previousScorecardSnapshotPath: loopState.previousArtifacts.previousScorecardSnapshotPath,
@@ -183,6 +195,7 @@ function buildLoopStableArtifacts(paths, outputDir, loopState) {
     replayBatchResult: loopState.stageResults.batchResults.replayBatchResult,
     replayBatchOutputDir: paths.replayBatchOutputDir,
     selectedReviewVerdicts: loopState.generatedArtifacts.selectedReviewVerdicts,
+    selectedSessionVerdicts: loopState.generatedArtifacts.selectedSessionVerdicts,
     scorecard: loopState.generatedArtifacts.scorecard,
     sessionCorpus: loopState.generatedArtifacts.sessionCorpus,
     backlog: loopState.generatedArtifacts.backlog,
@@ -196,6 +209,7 @@ async function buildLoopWarnings(paths, loopState) {
     reviewPacket: loopState.generatedArtifacts.reviewPacket,
     selectedReviewVerdicts: loopState.generatedArtifacts.selectedReviewVerdicts,
     selectedReviewVerdictsPath: loopState.stageResults.selectedReviewVerdictsPath,
+    selectedSessionVerdictsPath: loopState.stageResults.selectedSessionVerdictsPath,
     manifests: loopState.manifests,
     batchResults: loopState.stageResults.batchResults,
     existingPathOrNull,

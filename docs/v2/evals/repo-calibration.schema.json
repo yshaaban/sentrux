@@ -81,6 +81,12 @@
         "review_verdicts_output": {
           "type": "string"
         },
+        "session_verdicts_input": {
+          "type": ["string", "null"]
+        },
+        "session_verdicts_output": {
+          "type": ["string", "null"]
+        },
         "scorecard_output": {
           "type": "string"
         },

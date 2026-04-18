@@ -23,6 +23,7 @@ import {
 } from './signal-scorecard-evidence.mjs';
 import { formatSignalScorecardMarkdown } from './signal-scorecard-format.mjs';
 import { safeRatio } from './signal-summary-utils.mjs';
+import { buildSessionCorpus } from './session-corpus.mjs';
 
 function buildScorecardContext({
   repoLabel = null,
@@ -33,6 +34,7 @@ function buildScorecardContext({
   sessionTelemetry = null,
   codexBatch = null,
   replayBatch = null,
+  sessionVerdicts = null,
 }) {
   const signalMap = buildSeededEntries(defectReport);
   applyReviewVerdicts(signalMap, reviewVerdicts);
@@ -50,12 +52,20 @@ function buildScorecardContext({
     sessionTelemetry,
     codexBatch,
     replayBatch,
+    sessionVerdicts,
   });
   const liveSessionTrialCount = countExpectedSignalTrials(codexBatch?.results);
   const replaySessionTrialCount = countExpectedSignalTrials(replayBatch?.results);
   const totalSessionTrialCount = liveSessionTrialCount + replaySessionTrialCount;
   const sessionCount =
     sessionTelemetry?.summary?.session_count ?? sessionTelemetry?.sessions?.length ?? 0;
+  const sessionCorpus = buildSessionCorpus({
+    repoLabel: repoLabelValue,
+    sessionTelemetry,
+    codexBatch,
+    replayBatch,
+    sessionVerdicts,
+  });
 
   return {
     signalMap,
@@ -63,6 +73,7 @@ function buildScorecardContext({
     repoLabelValue,
     totalSessionTrialCount,
     sessionCount,
+    sessionCorpus,
   };
 }
 
@@ -149,6 +160,20 @@ function summarizeSessionHealth(sessionTelemetry) {
   };
 }
 
+function buildProductValueSummary(sessionCorpus) {
+  const summary = sessionCorpus?.summary ?? {};
+
+  return {
+    session_verdict_count: summary.session_verdict_count ?? 0,
+    top_action_follow_rate: summary.top_action_follow_rate ?? null,
+    top_action_help_rate: summary.top_action_help_rate ?? null,
+    task_success_rate: summary.task_success_rate ?? null,
+    patch_expansion_rate: summary.patch_expansion_rate ?? null,
+    intervention_cost_checks_mean: summary.intervention_cost_checks_mean ?? null,
+    intervention_net_value_score: summary.intervention_net_value_score ?? null,
+  };
+}
+
 function buildSignalRecord(entry, latencyMs) {
   const counts = buildSignalCounts(entry);
   const reviewMetrics = buildReviewMetrics(
@@ -228,9 +253,11 @@ function buildScorecardSummary({
   totalSessionTrialCount,
   latencyMs,
   sessionTelemetry = null,
+  sessionCorpus = null,
 }) {
   const rankingQuality = buildRankingQualitySummary(signals);
   const provisionalRankingQuality = buildRankingQualitySummary(signals, 'provisional_');
+  const productValue = buildProductValueSummary(sessionCorpus);
 
   return {
     total_signals: signals.length,
@@ -254,6 +281,7 @@ function buildScorecardSummary({
       remediation_sample_count: remediationReport?.results?.length ?? 0,
       session_trial_count: totalSessionTrialCount,
       session_count: sessionCount,
+      session_verdict_count: productValue.session_verdict_count,
       actionable_review_sample_count: rankingQuality.actionable_review_sample_count,
     },
     coverage: {
@@ -265,11 +293,13 @@ function buildScorecardSummary({
       has_remediation_results: (remediationReport?.results?.length ?? 0) > 0,
       has_session_telemetry: sessionCount > 0,
       has_session_trials: totalSessionTrialCount > 0,
+      has_session_verdicts: productValue.session_verdict_count > 0,
       has_benchmark: latencyMs !== null,
     },
     ranking_quality: rankingQuality,
     provisional_ranking_quality: provisionalRankingQuality,
     session_health: summarizeSessionHealth(sessionTelemetry),
+    product_value: productValue,
   };
 }
 
@@ -282,6 +312,7 @@ export function buildSignalScorecard({
   sessionTelemetry = null,
   codexBatch = null,
   replayBatch = null,
+  sessionVerdicts = null,
 }) {
   const context = buildScorecardContext({
     repoLabel,
@@ -292,6 +323,7 @@ export function buildSignalScorecard({
     sessionTelemetry,
     codexBatch,
     replayBatch,
+    sessionVerdicts,
   });
   const signals = [...context.signalMap.values()]
     .map((entry) => buildSignalRecord(entry, context.latencyMs))
@@ -311,6 +343,7 @@ export function buildSignalScorecard({
       totalSessionTrialCount: context.totalSessionTrialCount,
       latencyMs: context.latencyMs,
       sessionTelemetry,
+      sessionCorpus: context.sessionCorpus,
     }),
   };
 }

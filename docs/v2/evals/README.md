@@ -16,6 +16,8 @@ Goals:
 - `repo-calibration.schema.json` - schema for per-repo calibration manifests
 - `review-verdicts.schema.json` - schema for human review verdict input
 - `review-verdicts.template.json` - starter verdict file for new repos
+- `session-verdicts.schema.json` - schema for maintainer-scored session-value verdict input
+- `session-verdicts.template.json` - starter verdict file for Codex session value review
 - `codex-session-batch.schema.json` - schema for batch Codex task capture manifests
 - `diff-replay-batch.schema.json` - schema for batch replay manifests
 - `session-corpus.schema.json` - schema for normalized live/replay session evidence
@@ -196,6 +198,15 @@ The weekly evidence loop should treat the session corpus as the canonical per-ru
 - session corpus answers “what actually happened in live and replay sessions?”
 - evidence review answers “what should we promote, demote, or experiment on next week?”
 
+## Verdict Types
+
+Keep review verdicts and session verdicts separate.
+
+- `review_verdicts` are per-finding judgments over a review packet or report. They calibrate precision, ranking, trust tier, and presentation for individual signals.
+- `session_verdicts` are per-session judgments over a session corpus or batch summary. They measure product value across Codex sessions: whether the top action was followed, whether it helped, whether the task still landed, and what extra intervention cost or patch sprawl the session paid.
+
+A signal can be precise in a review packet but still be low-value in a real session if following it derails the task. The inverse is also possible: a session can land successfully even when one reviewed finding was overstated. Treat the artifacts as complementary, not interchangeable.
+
 The checked-in live Codex batch manifests default to `analysis_mode: "working_tree"` so the real-work lane includes local uncommitted changes. Use `head_clone` only when you intentionally want a committed-HEAD calibration run.
 
 The checked-in replay batch manifests use explicit commit lists rather than broad `HEAD~N..HEAD` ranges. That keeps the default replay lane focused on code-rich commits and avoids letting docs-only churn dominate the backlog with low-value `large_file` noise.
@@ -213,8 +224,11 @@ The recommended operating model is:
    When a repo only has the generic template, the loop can bootstrap a provisional repo-local verdict file from the latest review packet so scorecard precision coverage is not empty by default. Keep verdict order rank-preserving: top-1/top-3/top-10 actionable precision is computed from verdict order, not from scope-name sorting.
 7. build a refreshed scorecard
 8. build a session corpus with `build-session-corpus.mjs`
-9. build a backlog with `build-signal-backlog.mjs`
-10. build the weekly evidence review with `build-evidence-review.mjs`
+9. optionally record per-session value judgments with `session-verdicts.template.json`
+   Session verdicts are distinct from review verdicts: use them to score whether the surfaced top action helped a Codex session at acceptable cost, not to replace per-finding precision or ranking review.
+   Repo manifests should usually leave `session_verdicts_input` unset until a maintainer curates verdicts against a real session corpus or batch run. Static checked-in examples drift quickly because verdict matching is session-id based.
+10. build a backlog with `build-signal-backlog.mjs`
+11. build the weekly evidence review with `build-evidence-review.mjs`
 
 That keeps the current trusted/watchpoint candidates, the real-session evidence, and the “what should we build next?” report on one shared set of artifacts.
 

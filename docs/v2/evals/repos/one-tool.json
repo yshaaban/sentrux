@@ -14,6 +14,8 @@
     "review_packet_output": ".sentrux/evals/one-tool/check-review-packet.md",
     "review_verdicts_input": "../../examples/one-tool-review-verdicts.json",
     "review_verdicts_output": ".sentrux/evals/one-tool/review-verdicts.json",
+    "session_verdicts_input": null,
+    "session_verdicts_output": ".sentrux/evals/one-tool/session-verdicts.json",
     "scorecard_output": ".sentrux/evals/one-tool/signal-scorecard.json",
     "session_corpus_output": ".sentrux/evals/one-tool/session-corpus.json",
     "backlog_output": ".sentrux/evals/one-tool/signal-backlog.json",

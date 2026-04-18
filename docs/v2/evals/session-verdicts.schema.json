@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Sentrux Session Verdicts",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["repo_label", "captured_at", "source_artifact", "verdicts"],
+  "properties": {
+    "repo_label": {
+      "type": "string",
+      "minLength": 1
+    },
+    "captured_at": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_artifact": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_feedback": {
+      "type": "string"
+    },
+    "verdicts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "session_id",
+          "repo_label",
+          "top_action_followed",
+          "top_action_helped",
+          "task_completed_successfully",
+          "patch_expanded_unnecessarily",
+          "intervention_cost_checks",
+          "intervention_cost_notes",
+          "reviewer_confidence",
+          "notes"
+        ],
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "repo_label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "lane": {
+            "enum": ["live", "replay"]
+          },
+          "session_label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "task_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "experiment_arm": {
+            "type": "string",
+            "minLength": 1
+          },
+          "top_action_followed": {
+            "type": "boolean"
+          },
+          "top_action_helped": {
+            "type": ["boolean", "null"]
+          },
+          "task_completed_successfully": {
+            "type": "boolean"
+          },
+          "patch_expanded_unnecessarily": {
+            "type": "boolean"
+          },
+          "intervention_cost_checks": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "intervention_cost_notes": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reviewer_confidence": {
+            "enum": ["low", "medium", "high"]
+          },
+          "notes": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

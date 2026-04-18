@@ -122,6 +122,8 @@ function buildRepairPacket(sample, scope, summary, evidence, expectedFixSurface)
     fix_hint: hasText(fixHint),
     likely_fix_sites: likelyFixSites.length > 0,
   };
+  const fixSurfaceClear = requiredFieldState.repair_surface;
+  const verificationClear = evidence.length > 0 || inspectionFocus.length > 0;
   const complete = REVIEW_PACKET_COMPLETENESS_POLICY.requiredFields.every(
     (field) => requiredFieldState[field],
   );
@@ -151,6 +153,8 @@ function buildRepairPacket(sample, scope, summary, evidence, expectedFixSurface)
     missing_fields: missingFields,
     required_fields: requiredFieldState,
     preferred_fields: preferredFieldState,
+    fix_surface_clear: fixSurfaceClear,
+    verification_clear: verificationClear,
     fix_hint: fixHint,
     likely_fix_sites: likelyFixSites,
     inspection_focus: inspectionFocus,
