@@ -43,7 +43,23 @@
             "items": { "type": "string" }
           },
           "expected_fix_surface": { "type": "string" },
-          "experiment_arm": { "type": "string" },
+          "experiment_arm": {
+            "type": "string",
+            "enum": [
+              "no_intervention",
+              "no-intervention",
+              "report_only",
+              "report-only",
+              "fix_this_first",
+              "fix-first",
+              "stop_and_refactor",
+              "stop-and-refactor",
+              "baseline",
+              "baseline/no-intervention",
+              "directive_fix_first",
+              "directive_stop_and_refactor"
+            ]
+          },
           "session_goal": { "type": "string" },
           "success_criteria": { "type": "string" },
           "timeout_ms": { "type": "integer", "minimum": 1 },

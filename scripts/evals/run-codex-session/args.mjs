@@ -16,6 +16,7 @@ import {
   setNumberOption,
   setStringOption,
 } from '../../lib/eval-cli-shared.mjs';
+import { normalizeExperimentArm } from './intervention-arms.mjs';
 
 export function parseArgs(argv) {
   const result = {
@@ -28,6 +29,9 @@ export function parseArgs(argv) {
     tags: [],
     expectedSignalKinds: [],
     expectedFixSurface: null,
+    experimentArm: null,
+    sessionGoal: null,
+    successCriteria: null,
     rulesSource: null,
     analysisMode: 'working_tree',
     model: process.env.EVAL_MODEL ?? null,
@@ -53,6 +57,9 @@ export function parseArgs(argv) {
       '--tag': appendStringOption('tags'),
       '--expected-signal-kind': appendStringOption('expectedSignalKinds'),
       '--expected-fix-surface': setStringOption('expectedFixSurface'),
+      '--experiment-arm': setStringOption('experimentArm'),
+      '--session-goal': setStringOption('sessionGoal'),
+      '--success-criteria': setStringOption('successCriteria'),
       '--rules-source': setStringOption('rulesSource'),
       '--analysis-mode': setStringOption('analysisMode'),
       '--model': setStringOption('model'),
@@ -70,6 +77,7 @@ export function parseArgs(argv) {
   assertPositiveNumberOption('--timeout-ms', result.timeoutMs);
   assertNonNegativeNumberOption('--idle-timeout-ms', result.idleTimeoutMs);
   assertPositiveNumberOption('--poll-ms', result.pollMs);
+  result.experimentArm = normalizeExperimentArm(result.experimentArm);
 
   return result;
 }

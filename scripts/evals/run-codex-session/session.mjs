@@ -21,6 +21,7 @@ import {
   summarizeProviderStatus,
   writeRunStatus,
 } from './status.mjs';
+import { applyExperimentArmToPrompt } from './intervention-arms.mjs';
 
 function buildCompletedCodexStatus(bundle, executionStatus, snapshots, providerRun, clone) {
   return {
@@ -42,8 +43,9 @@ export async function runCodexSession(options) {
   };
   const sourceRoot = path.resolve(args.sourceRoot);
   const repoLabel = resolveRepoLabel(sourceRoot, args.repoLabel);
-  const prompt = await loadPrompt(args);
-  const taskLabel = args.taskLabel ?? prompt.split(/\r?\n/, 1)[0] ?? 'codex-session';
+  const rawPrompt = await loadPrompt(args);
+  const taskLabel = args.taskLabel ?? rawPrompt.split(/\r?\n/, 1)[0] ?? 'codex-session';
+  const prompt = applyExperimentArmToPrompt(rawPrompt, args);
   const taskId = args.taskId ?? slugify(taskLabel);
   const outputDir = path.resolve(args.outputDir ?? defaultOutputDir(sourceRoot, taskLabel));
   const paths = buildCodexOutputPaths(outputDir);

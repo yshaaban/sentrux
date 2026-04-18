@@ -12,17 +12,45 @@
   "codex_bin": "codex",
   "tasks": [
     {
-      "task_id": "parallel-code-raw-read-guardrail",
-      "task_label": "Tighten a raw-read boundary",
+      "task_id": "parallel-code-raw-read-guardrail-control",
+      "task_label": "Tighten a raw-read boundary (control)",
       "prompt_file": "../prompts/parallel-code/raw-read-guardrail.md",
+      "experiment_arm": "no_intervention",
+      "session_goal": "land the raw-read boundary fix without collateral drift",
+      "success_criteria": "the rule violation clears and the patch stays contained",
       "tags": ["calibration", "rules"],
       "expected_signal_kinds": ["forbidden_raw_read"],
       "expected_fix_surface": "explicit rule violation"
     },
     {
-      "task_id": "parallel-code-exhaustiveness-hardening",
-      "task_label": "Harden a domain exhaustiveness seam",
+      "task_id": "parallel-code-raw-read-guardrail-fix-first",
+      "task_label": "Tighten a raw-read boundary (fix this first)",
+      "prompt_file": "../prompts/parallel-code/raw-read-guardrail.md",
+      "experiment_arm": "fix_this_first",
+      "session_goal": "land the raw-read boundary fix without collateral drift",
+      "success_criteria": "the rule violation clears and the patch stays contained",
+      "tags": ["calibration", "rules"],
+      "expected_signal_kinds": ["forbidden_raw_read"],
+      "expected_fix_surface": "explicit rule violation"
+    },
+    {
+      "task_id": "parallel-code-exhaustiveness-hardening-control",
+      "task_label": "Harden a domain exhaustiveness seam (control)",
       "prompt_file": "../prompts/parallel-code/exhaustiveness-hardening.md",
+      "experiment_arm": "no_intervention",
+      "session_goal": "close the exhaustiveness seam without widening the edit surface",
+      "success_criteria": "the missing exhaustiveness pressure clears with a contained followthrough change",
+      "tags": ["calibration", "exhaustiveness"],
+      "expected_signal_kinds": ["closed_domain_exhaustiveness"],
+      "expected_fix_surface": "TypeScript exhaustiveness seam"
+    },
+    {
+      "task_id": "parallel-code-exhaustiveness-hardening-fix-first",
+      "task_label": "Harden a domain exhaustiveness seam (fix this first)",
+      "prompt_file": "../prompts/parallel-code/exhaustiveness-hardening.md",
+      "experiment_arm": "fix_this_first",
+      "session_goal": "close the exhaustiveness seam without widening the edit surface",
+      "success_criteria": "the missing exhaustiveness pressure clears with a contained followthrough change",
       "tags": ["calibration", "exhaustiveness"],
       "expected_signal_kinds": ["closed_domain_exhaustiveness"],
       "expected_fix_surface": "TypeScript exhaustiveness seam"

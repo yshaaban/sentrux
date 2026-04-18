@@ -14,6 +14,9 @@
       "task_id": "one-tool-mcp-cycle-cut",
       "task_label": "Cut the small MCP cycle cleanly",
       "prompt_file": "../prompts/one-tool/mcp-cycle-cut.md",
+      "experiment_arm": "no_intervention",
+      "session_goal": "remove the small MCP cycle without broadening the patch",
+      "success_criteria": "the cycle is gone and the external MCP surface stays stable",
       "tags": ["calibration", "structure", "mcp"],
       "expected_signal_kinds": ["cycle_cluster"],
       "expected_fix_surface": "narrow MCP boundary cut"
@@ -22,6 +25,9 @@
       "task_id": "one-tool-command-surface-split",
       "task_label": "Split one high-pressure command surface",
       "prompt_file": "../prompts/one-tool/command-surface-split.md",
+      "experiment_arm": "stop_and_refactor",
+      "session_goal": "reduce one command surface without changing behavior",
+      "success_criteria": "the command surface is simpler and the patch is easy to justify in review",
       "tags": ["calibration", "structure", "commands"],
       "expected_signal_kinds": ["large_file", "hotspot"],
       "expected_fix_surface": "contained command-group refactor"

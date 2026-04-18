@@ -16,6 +16,7 @@ import {
 } from '../lib/eval-batch.mjs';
 import { runWithConcurrency } from '../lib/eval-runtime/common.mjs';
 import { runCodexSession } from './run-codex-session.mjs';
+import { normalizeExperimentArm } from './run-codex-session/intervention-arms.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -99,6 +100,20 @@ function resolveTaskOutputDir(outputDir, task) {
   return path.join(outputDir, task.task_id ?? `task-${Date.now()}`);
 }
 
+function buildTaskMetadata(taskOptions) {
+  return {
+    task_id: taskOptions.taskId ?? null,
+    task_label: taskOptions.taskLabel ?? null,
+    tags: taskOptions.tags,
+    expected_signal_kinds: taskOptions.expectedSignalKinds,
+    expected_fix_surface: taskOptions.expectedFixSurface,
+    experiment_arm: taskOptions.experimentArm,
+    session_goal: taskOptions.sessionGoal,
+    success_criteria: taskOptions.successCriteria,
+    output_dir: taskOptions.outputDir,
+  };
+}
+
 export function buildTaskSessionOptions(task, manifest, manifestDir, sourceRoot, outputDir) {
   return {
     sourceRoot,
@@ -112,7 +127,7 @@ export function buildTaskSessionOptions(task, manifest, manifestDir, sourceRoot,
       task.expected_signal_kinds ?? manifest.expected_signal_kinds,
     ),
     expectedFixSurface: task.expected_fix_surface ?? null,
-    experimentArm: task.experiment_arm ?? null,
+    experimentArm: normalizeExperimentArm(task.experiment_arm),
     sessionGoal: task.session_goal ?? null,
     successCriteria: task.success_criteria ?? null,
     rulesSource: resolveTaskRulesSource(manifest, manifestDir),
@@ -129,16 +144,10 @@ export function buildTaskSessionOptions(task, manifest, manifestDir, sourceRoot,
 function buildTaskResult(bundle, taskOptions) {
   return {
     status: 'completed',
+    ...buildTaskMetadata(taskOptions),
     task_id: taskOptions.taskId ?? bundle.task_id ?? null,
     task_label: taskOptions.taskLabel ?? bundle.task_label ?? null,
-    tags: taskOptions.tags,
-    expected_signal_kinds: taskOptions.expectedSignalKinds,
-    expected_fix_surface: taskOptions.expectedFixSurface,
-    experiment_arm: taskOptions.experimentArm,
-    session_goal: taskOptions.sessionGoal,
-    success_criteria: taskOptions.successCriteria,
     telemetry_summary: bundle.telemetry_summary,
-    output_dir: taskOptions.outputDir,
     outcome: summarizeBundleOutcome(bundle),
   };
 }
@@ -146,16 +155,10 @@ function buildTaskResult(bundle, taskOptions) {
 function buildTaskFailure(taskOptions, error, bundle = null) {
   return {
     status: bundle?.status ?? 'failed',
+    ...buildTaskMetadata(taskOptions),
     task_id: taskOptions.taskId ?? bundle?.task_id ?? null,
     task_label: taskOptions.taskLabel ?? bundle?.task_label ?? null,
-    tags: taskOptions.tags,
-    expected_signal_kinds: taskOptions.expectedSignalKinds,
-    expected_fix_surface: taskOptions.expectedFixSurface,
-    experiment_arm: taskOptions.experimentArm,
-    session_goal: taskOptions.sessionGoal,
-    success_criteria: taskOptions.successCriteria,
     telemetry_summary: bundle?.telemetry_summary ?? null,
-    output_dir: taskOptions.outputDir,
     outcome: bundle ? summarizeBundleOutcome(bundle) : null,
     provider_exit_code: bundle?.provider_run?.exit_code ?? null,
     provider_timed_out: bundle?.provider_run?.timed_out ?? false,
@@ -252,8 +255,9 @@ async function runBatchTask(task, manifest, manifestDir, sourceRoot, outputDir) 
     sourceRoot,
     outputDir,
   );
+  const armLabel = taskOptions.experimentArm ? ` [${taskOptions.experimentArm}]` : '';
   console.log(
-    `Running Codex batch task ${taskOptions.taskId ?? taskOptions.taskLabel ?? 'unknown-task'}`,
+    `Running Codex batch task ${taskOptions.taskId ?? taskOptions.taskLabel ?? 'unknown-task'}${armLabel}`,
   );
 
   try {

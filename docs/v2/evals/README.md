@@ -137,7 +137,8 @@ Supporting scripts now cover:
 - `node scripts/evals/run-codex-session.mjs --source-root /path/to/repo --task-file task.txt`
   Run a real Codex CLI task inside a disposable clone, capture intermediate `check` snapshots, and bundle the resulting session telemetry and outcome summary.
 - `node scripts/evals/run-codex-session-batch.mjs --manifest batch.json`
-  Run a cohort-oriented batch of real Codex tasks, keep failed or timed-out task metadata visible in the batch index, and merge any captured telemetry from those runs into the shared session summary. Tasks can now also carry `experiment_arm`, `session_goal`, and `success_criteria` metadata so intervention experiments stay attached to the captured sessions.
+  Run a cohort-oriented batch of real Codex tasks, keep failed or timed-out task metadata visible in the batch index, and merge any captured telemetry from those runs into the shared session summary. Tasks can now also carry `experiment_arm`, `session_goal`, and `success_criteria` metadata so intervention experiments stay attached to the captured sessions, and `experiment_arm` now also wraps the task prompt with the selected intervention instructions before the session starts.
+  The supported canonical arms are `no_intervention`, `report_only`, `fix_this_first`, and `stop_and_refactor`. Legacy aliases such as `baseline`, `directive_fix_first`, and `directive_stop_and_refactor` are normalized on ingest for backward compatibility, but checked-in manifests should use the canonical names.
 - `node scripts/evals/run-diff-replay.mjs --source-root /path/to/repo --commit <sha>`
   Reconstruct a before/after session from a real git commit by checking out the parent revision in a disposable clone, applying the patch, and recording the resulting `check` / `session_end` artifacts.
 - `node scripts/evals/run-diff-replay-batch.mjs --manifest replay-batch.json`
