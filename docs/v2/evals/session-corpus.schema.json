@@ -26,6 +26,10 @@
       "type": "array",
       "items": { "type": "object" }
     },
+    "experiment_arm_comparisons": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
     "review_queue": {
       "type": "array",
       "items": { "type": "object" }
@@ -110,6 +114,7 @@
             "required": [
               "initial_action_kinds",
               "initial_top_action_kind",
+              "top_action",
               "top_action_cleared",
               "checks_to_clear_top_action",
               "convergence_status",
@@ -125,6 +130,26 @@
                 "items": { "type": "string" }
               },
               "initial_top_action_kind": { "type": ["string", "null"] },
+              "top_action": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "presented",
+                  "cleared",
+                  "checks_to_clear",
+                  "followed",
+                  "helped"
+                ],
+                "properties": {
+                  "kind": { "type": ["string", "null"] },
+                  "presented": { "type": "boolean" },
+                  "cleared": { "type": "boolean" },
+                  "checks_to_clear": { "type": ["integer", "null"] },
+                  "followed": { "type": ["boolean", "null"] },
+                  "helped": { "type": ["boolean", "null"] }
+                }
+              },
               "top_action_cleared": { "type": "boolean" },
               "checks_to_clear_top_action": { "type": ["integer", "null"] },
               "convergence_status": { "type": ["string", "null"] },

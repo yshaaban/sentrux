@@ -53,6 +53,21 @@ export function normalizeExpectedSignalKinds(value) {
   return Array.isArray(value) ? value.filter(Boolean).map(String) : [String(value)];
 }
 
+export function buildTopActionSummary(outcome, sessionVerdict = null) {
+  const kind =
+    typeof outcome?.initial_top_action_kind === 'string' ? outcome.initial_top_action_kind : null;
+  const presented = kind !== null && kind.length > 0;
+
+  return {
+    kind,
+    presented,
+    cleared: presented ? outcome?.top_action_cleared ?? false : false,
+    checks_to_clear: presented ? outcome?.checks_to_clear_top_action ?? null : null,
+    followed: sessionVerdict?.top_action_followed ?? null,
+    helped: sessionVerdict?.top_action_helped ?? null,
+  };
+}
+
 export function normalizeExecutionOutcome(outcome, executionStatus = 'completed') {
   const isCompletedExecution = !executionStatus || executionStatus === 'completed';
   const normalizedOutcome = {
@@ -68,6 +83,7 @@ export function normalizeExecutionOutcome(outcome, executionStatus = 'completed'
     followup_regression_introduced:
       outcome?.followup_regression_introduced ?? false,
   };
+  normalizedOutcome.top_action = buildTopActionSummary(normalizedOutcome);
 
   if (isCompletedExecution) {
     return normalizedOutcome;
@@ -91,6 +107,7 @@ export function normalizeExecutionOutcome(outcome, executionStatus = 'completed'
   ) {
     normalizedOutcome.convergence_status = 'stalled';
   }
+  normalizedOutcome.top_action = buildTopActionSummary(normalizedOutcome);
 
   return normalizedOutcome;
 }

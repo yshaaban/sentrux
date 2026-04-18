@@ -149,7 +149,7 @@ function selectSourceReport(sessionVerdicts) {
   return normalizeOptionalString(sessionVerdicts.source_artifact);
 }
 
-function buildInterventionNetValueScore({
+export function buildInterventionNetValueScore({
   topActionFollowRate,
   topActionHelpRate,
   taskSuccessRate,

@@ -103,6 +103,19 @@ export function createEmptySignalEntry(signalKind, overrides = {}) {
     repeated_top_action_carries: 0,
     total_entropy_delta: 0,
     sessions_with_entropy_increase: 0,
+    session_verdict_count: 0,
+    live_session_verdict_count: 0,
+    replay_session_verdict_count: 0,
+    top_action_follow_sample_count: 0,
+    top_action_followed_count: 0,
+    top_action_help_sample_count: 0,
+    top_action_helped_count: 0,
+    task_success_sample_count: 0,
+    task_completed_successfully_count: 0,
+    patch_expansion_sample_count: 0,
+    patch_expanded_unnecessarily_count: 0,
+    intervention_cost_sample_count: 0,
+    intervention_cost_checks_total: 0,
     provisional_reviewed_total: 0,
     provisional_true_positive: 0,
     provisional_acceptable_warning: 0,
@@ -463,6 +476,17 @@ function buildPromotionInputs(entry) {
   const top1ReviewedTotal = entry.review_top_1_total ?? 0;
   const top3ReviewedTotal = entry.review_top_3_total ?? 0;
   const rankingPreferenceTotal = entry.ranking_preference_total ?? 0;
+  const sessionVerdictCount = entry.session_verdict_count ?? 0;
+  const topActionFollowSampleCount = entry.top_action_follow_sample_count ?? 0;
+  const topActionFollowedCount = entry.top_action_followed_count ?? 0;
+  const topActionHelpSampleCount = entry.top_action_help_sample_count ?? 0;
+  const topActionHelpedCount = entry.top_action_helped_count ?? 0;
+  const taskSuccessSampleCount = entry.task_success_sample_count ?? 0;
+  const taskCompletedSuccessfullyCount = entry.task_completed_successfully_count ?? 0;
+  const patchExpansionSampleCount = entry.patch_expansion_sample_count ?? 0;
+  const patchExpandedUnnecessarilyCount = entry.patch_expanded_unnecessarily_count ?? 0;
+  const interventionCostSampleCount = entry.intervention_cost_sample_count ?? 0;
+  const interventionCostChecksTotal = entry.intervention_cost_checks_total ?? 0;
 
   return {
     falsePositives,
@@ -490,9 +514,31 @@ function buildPromotionInputs(entry) {
       reviewedTotal,
     ),
     reviewedTotal,
+    sessionVerdictCount,
     seededRecall: safeRatio(entry.seeded_detected, entry.seeded_total),
     sessionCleanRate: safeRatio(entry.session_clean ?? 0, entry.top_action_sessions ?? 0),
     sessionThrashRate: safeRatio(entry.sessions_thrashing ?? 0, entry.top_action_sessions ?? 0),
+    taskSuccessRate: safeRatio(
+      taskCompletedSuccessfullyCount,
+      taskSuccessSampleCount,
+    ),
+    patchExpansionRate: safeRatio(
+      patchExpandedUnnecessarilyCount,
+      patchExpansionSampleCount,
+    ),
+    interventionCostChecksMean: safeRatio(
+      interventionCostChecksTotal,
+      interventionCostSampleCount,
+    ),
+    topActionFollowRate: safeRatio(
+      topActionFollowedCount,
+      topActionFollowSampleCount,
+    ),
+    topActionHelpRate: safeRatio(
+      topActionHelpedCount,
+      topActionHelpSampleCount,
+    ),
+    interventionNetValueScore: entry.intervention_net_value_score ?? null,
     top1ActionablePrecision: safeRatio(
       entry.review_top_1_actionable ?? 0,
       top1ReviewedTotal,
@@ -565,6 +611,45 @@ function promotionPrimaryTargetDecision(metrics) {
   return null;
 }
 
+function promotionOutcomeDecision(metrics) {
+  if (metrics.sessionVerdictCount < SIGNAL_PROMOTION_POLICY.sessionVerdictMinSamples) {
+    return null;
+  }
+  if (
+    metrics.topActionFollowRate !== null &&
+    metrics.topActionFollowRate < SIGNAL_PROMOTION_POLICY.topActionFollowRateMin
+  ) {
+    return 'improve_fix_guidance';
+  }
+  if (
+    metrics.topActionHelpRate !== null &&
+    metrics.topActionHelpRate < SIGNAL_PROMOTION_POLICY.topActionHelpRateMin
+  ) {
+    return 'improve_fix_guidance';
+  }
+  if (
+    metrics.taskSuccessRate !== null &&
+    metrics.taskSuccessRate < SIGNAL_PROMOTION_POLICY.taskSuccessRateMin
+  ) {
+    return 'improve_fix_guidance';
+  }
+  if (
+    metrics.patchExpansionRate !== null &&
+    metrics.patchExpansionRate > SIGNAL_PROMOTION_POLICY.patchExpansionRateMax
+  ) {
+    return 'improve_fix_guidance';
+  }
+  if (
+    metrics.interventionNetValueScore !== null &&
+    metrics.interventionNetValueScore <
+      SIGNAL_PROMOTION_POLICY.interventionNetValueScoreMin
+  ) {
+    return 'improve_fix_guidance';
+  }
+
+  return null;
+}
+
 function promotionFixGuidanceDecision(metrics) {
   if (
     metrics.remediationSuccess !== null &&
@@ -615,6 +700,11 @@ export function buildPromotionRecommendation(entry) {
   const primaryTargetDecision = promotionPrimaryTargetDecision(metrics);
   if (primaryTargetDecision) {
     return primaryTargetDecision;
+  }
+
+  const outcomeDecision = promotionOutcomeDecision(metrics);
+  if (outcomeDecision) {
+    return outcomeDecision;
   }
 
   const fixGuidanceDecision = promotionFixGuidanceDecision(metrics);

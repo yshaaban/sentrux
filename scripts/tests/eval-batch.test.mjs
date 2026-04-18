@@ -18,6 +18,14 @@ test('summarizeBundleOutcome prefers telemetry-derived initial action kinds', fu
 
   assert.deepEqual(outcome.initial_action_kinds, ['large_file']);
   assert.equal(outcome.initial_top_action_kind, 'large_file');
+  assert.deepEqual(outcome.top_action, {
+    kind: 'large_file',
+    presented: true,
+    cleared: false,
+    checks_to_clear: null,
+    followed: null,
+    helped: null,
+  });
 });
 
 test('summarizeBundleOutcome falls back to initial check actions', function () {
@@ -36,6 +44,8 @@ test('summarizeBundleOutcome falls back to initial check actions', function () {
     'forbidden_raw_read',
     'missing_test_coverage',
   ]);
+  assert.equal(outcome.top_action.kind, 'forbidden_raw_read');
+  assert.equal(outcome.top_action.presented, true);
 });
 
 test('summarizeBundleOutcome normalizes failed sessions away from clean pass outcomes', function () {
@@ -58,6 +68,14 @@ test('summarizeBundleOutcome normalizes failed sessions away from clean pass out
   assert.equal(outcome.final_session_clean, false);
   assert.equal(outcome.convergence_status, 'provider_failed');
   assert.equal(outcome.checks_to_clear_top_action, null);
+  assert.deepEqual(outcome.top_action, {
+    kind: null,
+    presented: false,
+    cleared: false,
+    checks_to_clear: null,
+    followed: null,
+    helped: null,
+  });
 });
 
 test('resolveManifestPath resolves repo roots relative to the manifest file', function () {

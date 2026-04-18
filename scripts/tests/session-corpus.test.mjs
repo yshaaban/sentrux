@@ -165,6 +165,22 @@ test('buildSessionCorpus normalizes live and replay sessions into one review sur
   assert.equal(corpus.sessions[1].outcome_bucket, 'clean');
   assert.equal(corpus.sessions[2].outcome_bucket, 'missed_expected_signal');
   assert.equal(corpus.sessions[3].outcome_bucket, 'clean');
+  assert.deepEqual(corpus.sessions[0].outcome.top_action, {
+    kind: null,
+    presented: false,
+    cleared: false,
+    checks_to_clear: null,
+    followed: null,
+    helped: null,
+  });
+  assert.deepEqual(corpus.sessions[1].outcome.top_action, {
+    kind: 'closed_domain_exhaustiveness',
+    presented: true,
+    cleared: true,
+    checks_to_clear: 1,
+    followed: true,
+    helped: true,
+  });
   assert.equal(corpus.focus_area_summaries[0].focus_area, 'clone_followthrough');
   assert.equal(corpus.focus_area_summaries[0].session_count, 2);
   assert.equal(corpus.focus_area_summaries[1].focus_area, 'propagation');
@@ -189,6 +205,93 @@ test('buildSessionCorpus normalizes live and replay sessions into one review sur
   assert.match(formatSessionCorpusMarkdown(corpus), /Focus Areas/);
   assert.match(formatSessionCorpusMarkdown(corpus), /Top Action Failures/);
   assert.match(formatSessionCorpusMarkdown(corpus), /Experiment Arms/);
+});
+
+test('buildSessionCorpus computes treatment-vs-baseline arm comparisons when a baseline arm exists', function () {
+  const corpus = buildSessionCorpus({
+    repoLabel: 'demo-repo',
+    codexBatch: {
+      repo_label: 'demo-repo',
+      results: [
+        {
+          status: 'completed',
+          task_id: 'baseline-task',
+          task_label: 'Baseline task',
+          experiment_arm: 'no_intervention',
+          expected_signal_kinds: ['incomplete_propagation'],
+          outcome: {
+            session_count: 1,
+            initial_action_kinds: ['large_file'],
+            initial_top_action_kind: 'large_file',
+            convergence_status: 'stalled',
+            entropy_delta: 1,
+            final_gate: 'fail',
+            final_session_clean: false,
+            top_action_cleared: false,
+            checks_to_clear_top_action: null,
+            followup_regression_introduced: false,
+          },
+        },
+        {
+          status: 'completed',
+          task_id: 'treatment-task',
+          task_label: 'Treatment task',
+          experiment_arm: 'fix_this_first',
+          expected_signal_kinds: ['incomplete_propagation'],
+          outcome: {
+            session_count: 1,
+            initial_action_kinds: ['incomplete_propagation'],
+            initial_top_action_kind: 'incomplete_propagation',
+            convergence_status: 'converged',
+            entropy_delta: -1,
+            final_gate: 'pass',
+            final_session_clean: true,
+            top_action_cleared: true,
+            checks_to_clear_top_action: 1,
+            followup_regression_introduced: false,
+          },
+        },
+      ],
+    },
+    sessionVerdicts: {
+      repo_label: 'demo-repo',
+      verdicts: [
+        {
+          session_id: 'baseline-task',
+          lane: 'live',
+          experiment_arm: 'no_intervention',
+          top_action_followed: false,
+          top_action_helped: false,
+          task_completed_successfully: false,
+          patch_expanded_unnecessarily: false,
+          intervention_cost_checks: 0,
+          reviewer_confidence: 'high',
+          notes: 'Baseline run did not recover.',
+        },
+        {
+          session_id: 'treatment-task',
+          lane: 'live',
+          experiment_arm: 'fix_this_first',
+          top_action_followed: true,
+          top_action_helped: true,
+          task_completed_successfully: true,
+          patch_expanded_unnecessarily: false,
+          intervention_cost_checks: 1,
+          reviewer_confidence: 'high',
+          notes: 'Treatment run converged cleanly.',
+        },
+      ],
+    },
+  });
+
+  assert.equal(corpus.summary.experiment_arm_comparison_count, 1);
+  assert.equal(corpus.experiment_arm_comparisons[0].experiment_arm, 'fix_this_first');
+  assert.equal(corpus.experiment_arm_comparisons[0].baseline_experiment_arm, 'no_intervention');
+  assert.equal(corpus.experiment_arm_comparisons[0].agent_clear_rate_delta, 1);
+  assert.equal(corpus.experiment_arm_comparisons[0].top_action_help_rate_delta, 1);
+  assert.equal(corpus.experiment_arm_comparisons[0].task_success_rate_delta, 1);
+  assert.equal(corpus.experiment_arm_comparisons[0].intervention_net_value_score_delta, 1);
+  assert.match(formatSessionCorpusMarkdown(corpus), /Experiment Arm Comparisons/);
 });
 
 test('buildSessionCorpus keeps clean-but-misranked sessions in the review queue', function () {

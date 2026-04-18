@@ -29,6 +29,7 @@
     "clone_examples": { "type": "array", "items": { "type": "object" } },
     "thrashing_examples": { "type": "array", "items": { "type": "object" } },
     "experiment_arms": { "type": "array", "items": { "type": "object" } },
+    "experiment_arm_comparisons": { "type": "array", "items": { "type": "object" } },
     "product_value": { "type": ["object", "null"] }
   }
 }

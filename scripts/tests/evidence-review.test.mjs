@@ -139,6 +139,7 @@ test('buildEvidenceReview summarizes promotion, demotion, ranking, and experimen
   assert.equal(review.summary.focus_area_count, 3);
   assert.equal(review.summary.top_action_failure_count, 3);
   assert.equal(review.summary.experiment_arm_count, 2);
+  assert.equal(review.summary.experiment_arm_comparison_count, 0);
   assert.equal(review.summary.session_verdict_count, 3);
   assert.equal(review.promotion_candidates[0].signal_kind, 'incomplete_propagation');
   assert.equal(review.demotion_candidates[0].signal_kind, 'forbidden_raw_read');
@@ -168,6 +169,7 @@ test('buildEvidenceReview summarizes promotion, demotion, ranking, and experimen
   assert.equal(review.experiment_arms[0].focus_area_counts[0].focus_area, 'clone_followthrough');
   assert.equal(review.experiment_arms[0].clean_rate, 0);
   assert.equal(review.experiment_arms[0].regression_rate, 0.5);
+  assert.deepEqual(review.experiment_arm_comparisons, []);
   assert.equal(review.product_value?.top_action_follow_rate, 0.667);
   assert.equal(review.product_value?.top_action_help_rate, 0.5);
   assert.equal(review.product_value?.task_success_rate, 0.333);
@@ -210,4 +212,78 @@ test('buildEvidenceReview recomputes corpus rollups from sessions when both are 
   assert.equal(review.top_action_failure_summary[0].outcome_bucket, 'missed_expected_signal');
   assert.equal(review.experiment_arms[0].experiment_arm, 'fix_this_first');
   assert.equal(review.experiment_arms[0].session_count, 1);
+});
+
+test('buildEvidenceReview summarizes treatment-vs-baseline comparisons when a baseline arm exists', function () {
+  const review = buildEvidenceReview({
+    sessionCorpus: {
+      sessions: [
+        {
+          session_id: 'baseline-1',
+          lane: 'live',
+          focus_areas: ['propagation'],
+          experiment_arm: 'no_intervention',
+          expected_signal_kinds: ['incomplete_propagation'],
+          outcome_bucket: 'missed_expected_signal',
+          outcome: {
+            initial_top_action_kind: 'large_file',
+            top_action_cleared: false,
+            checks_to_clear_top_action: null,
+            convergence_status: 'stalled',
+            entropy_delta: 1,
+            final_gate: 'fail',
+            final_session_clean: false,
+            followup_regression_introduced: false,
+          },
+          session_verdict: {
+            session_id: 'baseline-1',
+            top_action_followed: false,
+            top_action_helped: false,
+            task_completed_successfully: false,
+            patch_expanded_unnecessarily: false,
+            intervention_cost_checks: 0,
+            reviewer_confidence: 'high',
+            notes: 'Baseline missed the repair.',
+          },
+        },
+        {
+          session_id: 'treatment-1',
+          lane: 'live',
+          focus_areas: ['propagation'],
+          experiment_arm: 'fix_this_first',
+          expected_signal_kinds: ['incomplete_propagation'],
+          outcome_bucket: 'clean',
+          outcome: {
+            initial_top_action_kind: 'incomplete_propagation',
+            top_action_cleared: true,
+            checks_to_clear_top_action: 1,
+            convergence_status: 'converged',
+            entropy_delta: -1,
+            final_gate: 'pass',
+            final_session_clean: true,
+            followup_regression_introduced: false,
+          },
+          session_verdict: {
+            session_id: 'treatment-1',
+            top_action_followed: true,
+            top_action_helped: true,
+            task_completed_successfully: true,
+            patch_expanded_unnecessarily: false,
+            intervention_cost_checks: 1,
+            reviewer_confidence: 'high',
+            notes: 'Treatment converged.',
+          },
+        },
+      ],
+      review_queue: [],
+    },
+  });
+
+  assert.equal(review.summary.experiment_arm_comparison_count, 1);
+  assert.equal(review.experiment_arm_comparisons[0].experiment_arm, 'fix_this_first');
+  assert.equal(review.experiment_arm_comparisons[0].baseline_experiment_arm, 'no_intervention');
+  assert.equal(review.experiment_arm_comparisons[0].top_action_help_rate_delta, 1);
+  assert.equal(review.experiment_arm_comparisons[0].task_success_rate_delta, 1);
+  assert.equal(review.experiment_arm_comparisons[0].intervention_net_value_score_delta, 1);
+  assert.match(formatEvidenceReviewMarkdown(review), /Experiment Arm Comparisons/);
 });

@@ -1,6 +1,6 @@
 import { asArray, safeRatio } from './signal-summary-utils.mjs';
 import { normalizeExperimentArm } from './experiment-arms.mjs';
-import { normalizeExecutionOutcome } from './eval-batch.mjs';
+import { buildTopActionSummary, normalizeExecutionOutcome } from './eval-batch.mjs';
 import { applySessionVerdicts, buildSessionVerdictSummary } from './session-verdicts.mjs';
 
 const MISSED_EXPECTED_SIGNAL_BUCKETS = new Set([
@@ -28,6 +28,14 @@ function uniqueSortedStrings(values) {
   return [...new Set(values.filter(Boolean).map(String))].sort((left, right) =>
     left.localeCompare(right),
   );
+}
+
+function roundMetric(value) {
+  if (!Number.isFinite(value)) {
+    return null;
+  }
+
+  return Number(value.toFixed(3));
 }
 
 function focusAreasForExpectedSignals(expectedSignalKinds, tags) {
@@ -194,6 +202,16 @@ function normalizeBatchEntry(entry, lane) {
   return normalizedEntry;
 }
 
+function enrichTopActionOutcome(entry) {
+  return {
+    ...entry,
+    outcome: {
+      ...entry.outcome,
+      top_action: buildTopActionSummary(entry.outcome, entry.session_verdict ?? null),
+    },
+  };
+}
+
 function normalizeBatchEntries(batch, lane) {
   const results = asArray(batch?.results).map(function fromResult(result) {
     return normalizeBatchEntry(result, lane);
@@ -271,6 +289,10 @@ function focusAreaCountsForEntries(entries) {
     }
   }
 
+  return serializeFocusAreaCounts(counts);
+}
+
+function serializeFocusAreaCounts(counts) {
   return [...counts.entries()]
     .map(function toFocusAreaCountEntry([focus_area, session_count]) {
       return {
@@ -388,10 +410,12 @@ export function buildExperimentArmSummaries(entries) {
         top_action_cleared_count: 0,
         regression_after_fix_count: 0,
         focus_area_counts: new Map(),
+        session_entries: [],
       });
     }
 
     const armEntry = arms.get(arm);
+    armEntry.session_entries.push(entry);
     armEntry.session_count += 1;
     if (entry.outcome?.final_session_clean) {
       armEntry.clean_session_count += 1;
@@ -422,10 +446,7 @@ export function buildExperimentArmSummaries(entries) {
 
   return [...arms.values()]
     .map(function finalizeArm(entry) {
-      const armEntries = entries.filter(function matchesArm(sessionEntry) {
-        return normalizeExperimentArm(sessionEntry.experiment_arm) === entry.experiment_arm;
-      });
-      const sessionVerdictSummary = buildSessionVerdictSummary(armEntries);
+      const sessionVerdictSummary = buildSessionVerdictSummary(entry.session_entries);
 
       return {
         experiment_arm: entry.experiment_arm,
@@ -436,20 +457,7 @@ export function buildExperimentArmSummaries(entries) {
         top_action_session_count: entry.top_action_session_count,
         top_action_cleared_count: entry.top_action_cleared_count,
         regression_after_fix_count: entry.regression_after_fix_count,
-        focus_area_counts: [...entry.focus_area_counts.entries()]
-          .map(function toFocusAreaCountEntry([focus_area, session_count]) {
-            return {
-              focus_area,
-              session_count,
-            };
-          })
-          .sort(function compareFocusAreaCounts(left, right) {
-            if (right.session_count !== left.session_count) {
-              return right.session_count - left.session_count;
-            }
-
-            return left.focus_area.localeCompare(right.focus_area);
-          }),
+        focus_area_counts: serializeFocusAreaCounts(entry.focus_area_counts),
         clean_rate: safeRatio(entry.clean_session_count, entry.session_count),
         agent_clear_rate: safeRatio(entry.top_action_cleared_count, entry.top_action_session_count),
         review_queue_rate: safeRatio(entry.review_queue_count, entry.session_count),
@@ -466,12 +474,81 @@ export function buildExperimentArmSummaries(entries) {
     });
 }
 
+function metricDelta(leftValue, rightValue) {
+  if (!Number.isFinite(leftValue) || !Number.isFinite(rightValue)) {
+    return null;
+  }
+
+  return roundMetric(leftValue - rightValue);
+}
+
+export function buildExperimentArmComparisons(experimentArmSummaries) {
+  const baseline = experimentArmSummaries.find(function isBaseline(entry) {
+    return entry.experiment_arm === 'no_intervention';
+  });
+  if (!baseline) {
+    return [];
+  }
+
+  return experimentArmSummaries
+    .filter(function isTreatment(entry) {
+      return entry.experiment_arm !== baseline.experiment_arm;
+    })
+    .map(function toComparison(entry) {
+      return {
+        experiment_arm: entry.experiment_arm,
+        baseline_experiment_arm: baseline.experiment_arm,
+        session_count: entry.session_count,
+        baseline_session_count: baseline.session_count,
+        clean_rate_delta: metricDelta(entry.clean_rate, baseline.clean_rate),
+        agent_clear_rate_delta: metricDelta(entry.agent_clear_rate, baseline.agent_clear_rate),
+        review_queue_rate_delta: metricDelta(
+          entry.review_queue_rate,
+          baseline.review_queue_rate,
+        ),
+        regression_rate_delta: metricDelta(entry.regression_rate, baseline.regression_rate),
+        regression_after_fix_rate_delta: metricDelta(
+          entry.regression_after_fix_rate,
+          baseline.regression_after_fix_rate,
+        ),
+        top_action_follow_rate_delta: metricDelta(
+          entry.top_action_follow_rate,
+          baseline.top_action_follow_rate,
+        ),
+        top_action_help_rate_delta: metricDelta(
+          entry.top_action_help_rate,
+          baseline.top_action_help_rate,
+        ),
+        task_success_rate_delta: metricDelta(
+          entry.task_success_rate,
+          baseline.task_success_rate,
+        ),
+        patch_expansion_rate_delta: metricDelta(
+          entry.patch_expansion_rate,
+          baseline.patch_expansion_rate,
+        ),
+        intervention_cost_checks_mean_delta: metricDelta(
+          entry.intervention_cost_checks_mean,
+          baseline.intervention_cost_checks_mean,
+        ),
+        intervention_net_value_score_delta: metricDelta(
+          entry.intervention_net_value_score,
+          baseline.intervention_net_value_score,
+        ),
+      };
+    })
+    .sort(function compareComparisons(left, right) {
+      return left.experiment_arm.localeCompare(right.experiment_arm);
+    });
+}
+
 function buildCorpusSummary(
   entries,
   sessionTelemetry,
   focusAreaSummaries,
   topActionFailureSummary,
   experimentArmSummaries,
+  experimentArmComparisons,
 ) {
   const liveEntries = entries.filter(function isLive(entry) {
     return entry.lane === 'live';
@@ -526,6 +603,7 @@ function buildCorpusSummary(
     focus_area_count: focusAreaSummaries.length,
     top_action_failure_count: topActionFailureSummary.length,
     experiment_arm_count: experimentArmSummaries.length,
+    experiment_arm_comparison_count: experimentArmComparisons.length,
     agent_clear_rate: safeRatio(topActionClearedCount, topActionSessionCount),
     provider_failure_rate: safeRatio(providerFailureCount, entries.length),
     regression_after_fix_rate: safeRatio(regressionAfterFixCount, topActionSessionCount),
@@ -586,10 +664,13 @@ export function buildSessionCorpus({
     }
     return left.session_id.localeCompare(right.session_id);
   });
-  const entries = applySessionVerdicts(normalizedEntries, sessionVerdicts);
+  const entries = applySessionVerdicts(normalizedEntries, sessionVerdicts).map(
+    enrichTopActionOutcome,
+  );
   const focusAreaSummaries = buildFocusAreaSummaries(entries);
   const topActionFailureSummary = buildTopActionFailureSummary(entries);
   const experimentArmSummaries = buildExperimentArmSummaries(entries);
+  const experimentArmComparisons = buildExperimentArmComparisons(experimentArmSummaries);
 
   return {
     schema_version: 1,
@@ -614,10 +695,12 @@ export function buildSessionCorpus({
       focusAreaSummaries,
       topActionFailureSummary,
       experimentArmSummaries,
+      experimentArmComparisons,
     ),
     focus_area_summaries: focusAreaSummaries,
     top_action_failure_summary: topActionFailureSummary,
     experiment_arm_summaries: experimentArmSummaries,
+    experiment_arm_comparisons: experimentArmComparisons,
     review_queue: selectReviewQueue(entries),
     sessions: entries,
   };
@@ -692,6 +775,21 @@ function appendExperimentArmSection(lines, experimentArms) {
   lines.push('');
 }
 
+function appendExperimentArmComparisonSection(lines, comparisons) {
+  if (comparisons.length === 0) {
+    return;
+  }
+
+  lines.push('## Experiment Arm Comparisons');
+  lines.push('');
+  for (const entry of comparisons) {
+    lines.push(
+      `- \`${entry.experiment_arm}\` vs \`${entry.baseline_experiment_arm}\`: clear_delta=${entry.agent_clear_rate_delta ?? 'n/a'}, help_delta=${entry.top_action_help_rate_delta ?? 'n/a'}, success_delta=${entry.task_success_rate_delta ?? 'n/a'}, expand_delta=${entry.patch_expansion_rate_delta ?? 'n/a'}, value_delta=${entry.intervention_net_value_score_delta ?? 'n/a'}`,
+    );
+  }
+  lines.push('');
+}
+
 function focusAreaCountsToText(focusAreaCounts) {
   const counts = asArray(focusAreaCounts);
   if (counts.length === 0) {
@@ -740,6 +838,9 @@ export function formatSessionCorpusMarkdown(corpus) {
   lines.push(`- top action failures tracked: ${corpus.summary.top_action_failure_count ?? 0}`);
   lines.push(`- experiment arms tracked: ${corpus.summary.experiment_arm_count ?? 0}`);
   lines.push(
+    `- experiment arm comparisons: ${corpus.summary.experiment_arm_comparison_count ?? 0}`,
+  );
+  lines.push(
     `- regression-after-fix rate: ${corpus.summary.regression_after_fix_rate ?? 'n/a'}`,
   );
   lines.push(`- propagation escape rate: ${corpus.summary.propagation_escape_rate ?? 'n/a'}`);
@@ -755,6 +856,10 @@ export function formatSessionCorpusMarkdown(corpus) {
   appendFocusAreaSection(lines, asArray(corpus.focus_area_summaries).slice(0, 10));
   appendFailureSection(lines, asArray(corpus.top_action_failure_summary).slice(0, 10));
   appendExperimentArmSection(lines, asArray(corpus.experiment_arm_summaries).slice(0, 10));
+  appendExperimentArmComparisonSection(
+    lines,
+    asArray(corpus.experiment_arm_comparisons).slice(0, 10),
+  );
   appendSessionSection(lines, 'Review Queue', corpus.review_queue.slice(0, 10));
   appendSessionSection(
     lines,

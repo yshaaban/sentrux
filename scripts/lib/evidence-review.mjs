@@ -1,33 +1,87 @@
-import {
-  asArray,
-} from './signal-summary-utils.mjs';
+import { asArray } from './signal-summary-utils.mjs';
 import { buildSessionVerdictSummary } from './session-verdicts.mjs';
 import {
   buildExperimentArmSummaries,
+  buildExperimentArmComparisons,
   buildFocusAreaSummaries,
   selectReviewQueue,
   buildTopActionFailureSummary,
 } from './session-corpus.mjs';
+import {
+  SIGNAL_PRIMARY_TARGET_POLICY,
+  SIGNAL_PROMOTION_POLICY,
+} from './signal-calibration-policy.mjs';
 
-const PROMOTION_THRESHOLDS = Object.freeze({
-  reviewed_precision: 0.75,
-  top_1_actionable_precision: 0.5,
-  top_3_actionable_precision: 0.66,
-  remediation_success_rate: 0.5,
-  session_clean_rate: 0.5,
-  session_trial_miss_rate: 0.25,
-});
-
-const DEMOTION_THRESHOLDS = Object.freeze({
-  review_noise_rate: 0.3,
-  top_1_actionable_precision: 0.4,
-  top_3_actionable_precision: 0.5,
-  session_clean_rate: 0.4,
-  session_trial_miss_rate: 0.4,
-});
+const SESSION_TRIAL_MISS_PROMOTION_MAX = 0.25;
+const SESSION_TRIAL_MISS_DEMOTION_MAX = 0.4;
+const DEMOTION_TOP1_ACTIONABLE_PRECISION_MIN = 0.4;
+const DEMOTION_TOP3_ACTIONABLE_PRECISION_MIN = 0.5;
 
 function numericOrNull(value) {
   return Number.isFinite(value) ? value : null;
+}
+
+function readOutcomeMetrics(signal) {
+  return {
+    topActionFollowRate: numericOrNull(signal.top_action_follow_rate),
+    topActionHelpRate: numericOrNull(signal.top_action_help_rate),
+    taskSuccessRate: numericOrNull(signal.task_success_rate),
+    patchExpansionRate: numericOrNull(signal.patch_expansion_rate),
+    interventionNetValueScore: numericOrNull(signal.intervention_net_value_score),
+  };
+}
+
+function buildOutcomeEvidenceFields(signal) {
+  const outcomeMetrics = readOutcomeMetrics(signal);
+
+  return {
+    session_verdict_count: signal.session_verdict_count ?? 0,
+    top_action_follow_rate: outcomeMetrics.topActionFollowRate,
+    top_action_help_rate: outcomeMetrics.topActionHelpRate,
+    task_success_rate: outcomeMetrics.taskSuccessRate,
+    patch_expansion_rate: outcomeMetrics.patchExpansionRate,
+    intervention_net_value_score: outcomeMetrics.interventionNetValueScore,
+  };
+}
+
+function hasVerdictEvidence(signal) {
+  return (signal.session_verdict_count ?? 0) >= SIGNAL_PROMOTION_POLICY.sessionVerdictMinSamples;
+}
+
+function passesOutcomeThresholds(signal) {
+  const outcomeMetrics = readOutcomeMetrics(signal);
+
+  return (
+    outcomeMetrics.topActionFollowRate !== null &&
+    outcomeMetrics.topActionFollowRate >= SIGNAL_PROMOTION_POLICY.topActionFollowRateMin &&
+    outcomeMetrics.topActionHelpRate !== null &&
+    outcomeMetrics.topActionHelpRate >= SIGNAL_PROMOTION_POLICY.topActionHelpRateMin &&
+    outcomeMetrics.taskSuccessRate !== null &&
+    outcomeMetrics.taskSuccessRate >= SIGNAL_PROMOTION_POLICY.taskSuccessRateMin &&
+    outcomeMetrics.patchExpansionRate !== null &&
+    outcomeMetrics.patchExpansionRate <= SIGNAL_PROMOTION_POLICY.patchExpansionRateMax &&
+    outcomeMetrics.interventionNetValueScore !== null &&
+    outcomeMetrics.interventionNetValueScore >=
+      SIGNAL_PROMOTION_POLICY.interventionNetValueScoreMin
+  );
+}
+
+function violatesOutcomeThresholds(signal) {
+  const outcomeMetrics = readOutcomeMetrics(signal);
+
+  return (
+    (outcomeMetrics.topActionFollowRate !== null &&
+      outcomeMetrics.topActionFollowRate < SIGNAL_PROMOTION_POLICY.topActionFollowRateMin) ||
+    (outcomeMetrics.topActionHelpRate !== null &&
+      outcomeMetrics.topActionHelpRate < SIGNAL_PROMOTION_POLICY.topActionHelpRateMin) ||
+    (outcomeMetrics.taskSuccessRate !== null &&
+      outcomeMetrics.taskSuccessRate < SIGNAL_PROMOTION_POLICY.taskSuccessRateMin) ||
+    (outcomeMetrics.patchExpansionRate !== null &&
+      outcomeMetrics.patchExpansionRate > SIGNAL_PROMOTION_POLICY.patchExpansionRateMax) ||
+    (outcomeMetrics.interventionNetValueScore !== null &&
+      outcomeMetrics.interventionNetValueScore <
+        SIGNAL_PROMOTION_POLICY.interventionNetValueScoreMin)
+  );
 }
 
 function passesPromotionThresholds(signal) {
@@ -37,21 +91,29 @@ function passesPromotionThresholds(signal) {
   const remediationSuccess = numericOrNull(signal.remediation_success_rate);
   const sessionClean = numericOrNull(signal.session_clean_rate);
   const sessionTrialMiss = numericOrNull(signal.session_trial_miss_rate);
-
-  return (
+  const passesCoreThresholds =
     reviewedPrecision !== null &&
-    reviewedPrecision >= PROMOTION_THRESHOLDS.reviewed_precision &&
+    reviewedPrecision >= SIGNAL_PROMOTION_POLICY.reviewedPrecisionMin &&
     top1 !== null &&
-    top1 >= PROMOTION_THRESHOLDS.top_1_actionable_precision &&
+    top1 >= SIGNAL_PRIMARY_TARGET_POLICY.top1ActionablePrecisionMin &&
     top3 !== null &&
-    top3 >= PROMOTION_THRESHOLDS.top_3_actionable_precision &&
+    top3 >= SIGNAL_PRIMARY_TARGET_POLICY.top3ActionablePrecisionMin &&
     remediationSuccess !== null &&
-    remediationSuccess >= PROMOTION_THRESHOLDS.remediation_success_rate &&
+    remediationSuccess >= SIGNAL_PROMOTION_POLICY.remediationSuccessMin &&
     sessionClean !== null &&
-    sessionClean >= PROMOTION_THRESHOLDS.session_clean_rate &&
+    sessionClean >= SIGNAL_PROMOTION_POLICY.sessionCleanRateMin &&
     sessionTrialMiss !== null &&
-    sessionTrialMiss <= PROMOTION_THRESHOLDS.session_trial_miss_rate
-  );
+    sessionTrialMiss <= SESSION_TRIAL_MISS_PROMOTION_MAX;
+
+  if (!passesCoreThresholds) {
+    return false;
+  }
+
+  if (!hasVerdictEvidence(signal)) {
+    return true;
+  }
+
+  return passesOutcomeThresholds(signal);
 }
 
 function violatesTrustedThresholds(signal) {
@@ -60,14 +122,22 @@ function violatesTrustedThresholds(signal) {
   const top3 = numericOrNull(signal.top_3_actionable_precision);
   const sessionClean = numericOrNull(signal.session_clean_rate);
   const sessionTrialMiss = numericOrNull(signal.session_trial_miss_rate);
+  const violatesCoreThresholds =
+    (reviewNoise !== null && reviewNoise > SIGNAL_PROMOTION_POLICY.reviewNoiseRateMax) ||
+    (top1 !== null && top1 < DEMOTION_TOP1_ACTIONABLE_PRECISION_MIN) ||
+    (top3 !== null && top3 < DEMOTION_TOP3_ACTIONABLE_PRECISION_MIN) ||
+    (sessionClean !== null && sessionClean < SIGNAL_PROMOTION_POLICY.sessionCleanRateMin) ||
+    (sessionTrialMiss !== null && sessionTrialMiss > SESSION_TRIAL_MISS_DEMOTION_MAX);
 
-  return (
-    (reviewNoise !== null && reviewNoise > DEMOTION_THRESHOLDS.review_noise_rate) ||
-    (top1 !== null && top1 < DEMOTION_THRESHOLDS.top_1_actionable_precision) ||
-    (top3 !== null && top3 < DEMOTION_THRESHOLDS.top_3_actionable_precision) ||
-    (sessionClean !== null && sessionClean < DEMOTION_THRESHOLDS.session_clean_rate) ||
-    (sessionTrialMiss !== null && sessionTrialMiss > DEMOTION_THRESHOLDS.session_trial_miss_rate)
-  );
+  if (violatesCoreThresholds) {
+    return true;
+  }
+
+  if (!hasVerdictEvidence(signal)) {
+    return false;
+  }
+
+  return violatesOutcomeThresholds(signal);
 }
 
 function buildPromotionCandidates(scorecard) {
@@ -86,6 +156,7 @@ function buildPromotionCandidates(scorecard) {
         remediation_success_rate: signal.remediation_success_rate ?? null,
         session_clean_rate: signal.session_clean_rate ?? null,
         session_trial_miss_rate: signal.session_trial_miss_rate ?? null,
+        ...buildOutcomeEvidenceFields(signal),
       };
     })
     .sort(function compareCandidates(left, right) {
@@ -107,6 +178,7 @@ function buildDemotionCandidates(scorecard) {
         top_3_actionable_precision: signal.top_3_actionable_precision ?? null,
         session_clean_rate: signal.session_clean_rate ?? null,
         session_trial_miss_rate: signal.session_trial_miss_rate ?? null,
+        ...buildOutcomeEvidenceFields(signal),
       };
     })
     .sort(function compareCandidates(left, right) {
@@ -152,14 +224,18 @@ function buildCorpusRollups(sessionCorpus) {
       focusAreaSummaries: asArray(sessionCorpus?.focus_area_summaries),
       topActionFailureSummary: asArray(sessionCorpus?.top_action_failure_summary),
       experimentArms: asArray(sessionCorpus?.experiment_arm_summaries),
+      experimentArmComparisons: asArray(sessionCorpus?.experiment_arm_comparisons),
     };
   }
+
+  const experimentArms = buildExperimentArmSummaries(sessions);
 
   return {
     reviewQueue: selectReviewQueue(sessions),
     focusAreaSummaries: buildFocusAreaSummaries(sessions),
     topActionFailureSummary: buildTopActionFailureSummary(sessions),
-    experimentArms: buildExperimentArmSummaries(sessions),
+    experimentArms,
+    experimentArmComparisons: buildExperimentArmComparisons(experimentArms),
   };
 }
 
@@ -238,6 +314,7 @@ export function buildEvidenceReview({
     focusAreaSummaries,
     topActionFailureSummary,
     experimentArms,
+    experimentArmComparisons,
   } = buildCorpusRollups(sessionCorpus);
   const productValueSummary = buildProductValueSummary(sessionCorpus);
   const propagationExamples = selectFocusAreaExamples(sessionCorpus, 'propagation');
@@ -260,6 +337,7 @@ export function buildEvidenceReview({
       focus_area_count: focusAreaSummaries.length,
       top_action_failure_count: topActionFailureSummary.length,
       experiment_arm_count: experimentArms.length,
+      experiment_arm_comparison_count: experimentArmComparisons.length,
       session_verdict_count: productValueSummary?.session_verdict_count ?? 0,
     },
     promotion_candidates: promotionCandidates,
@@ -271,6 +349,7 @@ export function buildEvidenceReview({
     clone_examples: cloneExamples,
     thrashing_examples: thrashingExamples,
     experiment_arms: experimentArms,
+    experiment_arm_comparisons: experimentArmComparisons,
     product_value: productValueSummary,
   };
 }
@@ -290,6 +369,9 @@ export function formatEvidenceReviewMarkdown(review) {
   lines.push(`- focus areas: ${review.summary.focus_area_count ?? 0}`);
   lines.push(`- top action failures: ${review.summary.top_action_failure_count ?? 0}`);
   lines.push(`- experiment arms: ${review.summary.experiment_arm_count ?? 0}`);
+  lines.push(
+    `- experiment arm comparisons: ${review.summary.experiment_arm_comparison_count ?? 0}`,
+  );
   if (review.product_value) {
     lines.push(`- session verdicts: ${review.product_value.session_verdict_count ?? 0}`);
     lines.push(
@@ -312,10 +394,10 @@ export function formatEvidenceReviewMarkdown(review) {
   lines.push('');
 
   appendSummarySection(lines, 'Promotion Candidates', review.promotion_candidates, function formatEntry(entry) {
-    return `\`${entry.signal_kind}\`: reviewed=${entry.reviewed_precision ?? 'n/a'}, top1=${entry.top_1_actionable_precision ?? 'n/a'}, top3=${entry.top_3_actionable_precision ?? 'n/a'}, remediation=${entry.remediation_success_rate ?? 'n/a'}, clean=${entry.session_clean_rate ?? 'n/a'}, miss=${entry.session_trial_miss_rate ?? 'n/a'}`;
+    return `\`${entry.signal_kind}\`: reviewed=${entry.reviewed_precision ?? 'n/a'}, top1=${entry.top_1_actionable_precision ?? 'n/a'}, top3=${entry.top_3_actionable_precision ?? 'n/a'}, remediation=${entry.remediation_success_rate ?? 'n/a'}, clean=${entry.session_clean_rate ?? 'n/a'}, follow=${entry.top_action_follow_rate ?? 'n/a'}, help=${entry.top_action_help_rate ?? 'n/a'}, success=${entry.task_success_rate ?? 'n/a'}, expand=${entry.patch_expansion_rate ?? 'n/a'}, value=${entry.intervention_net_value_score ?? 'n/a'}, miss=${entry.session_trial_miss_rate ?? 'n/a'}`;
   });
   appendSummarySection(lines, 'Demotion Candidates', review.demotion_candidates, function formatEntry(entry) {
-    return `\`${entry.signal_kind}\`: noise=${entry.review_noise_rate ?? 'n/a'}, top1=${entry.top_1_actionable_precision ?? 'n/a'}, top3=${entry.top_3_actionable_precision ?? 'n/a'}, clean=${entry.session_clean_rate ?? 'n/a'}, miss=${entry.session_trial_miss_rate ?? 'n/a'}`;
+    return `\`${entry.signal_kind}\`: noise=${entry.review_noise_rate ?? 'n/a'}, top1=${entry.top_1_actionable_precision ?? 'n/a'}, top3=${entry.top_3_actionable_precision ?? 'n/a'}, clean=${entry.session_clean_rate ?? 'n/a'}, follow=${entry.top_action_follow_rate ?? 'n/a'}, help=${entry.top_action_help_rate ?? 'n/a'}, success=${entry.task_success_rate ?? 'n/a'}, expand=${entry.patch_expansion_rate ?? 'n/a'}, value=${entry.intervention_net_value_score ?? 'n/a'}, miss=${entry.session_trial_miss_rate ?? 'n/a'}`;
   });
   appendSummarySection(lines, 'Ranking Misses', review.ranking_misses, function formatEntry(entry) {
     return `\`${entry.signal_kind}\`: missing=${entry.expected_missing_count}, present_not_top=${entry.expected_present_not_top_count}, crowded=${entry.crowded_out_expected_count}, unexpected_top=${entry.unexpected_top_action_count}, miss_rate=${entry.session_trial_miss_rate ?? 'n/a'}`;
@@ -338,6 +420,14 @@ export function formatEvidenceReviewMarkdown(review) {
   appendSummarySection(lines, 'Experiment Arms', review.experiment_arms, function formatEntry(entry) {
     return `\`${entry.experiment_arm}\`: sessions=${entry.session_count}, clear=${entry.agent_clear_rate ?? 'n/a'}, clean=${entry.clean_rate ?? 'n/a'}, regressions=${entry.regression_rate ?? 'n/a'}, review=${entry.review_queue_rate ?? 'n/a'}, follow=${entry.top_action_follow_rate ?? 'n/a'}, help=${entry.top_action_help_rate ?? 'n/a'}, success=${entry.task_success_rate ?? 'n/a'}, expand=${entry.patch_expansion_rate ?? 'n/a'}, value=${entry.intervention_net_value_score ?? 'n/a'}, focus=[${focusAreaCountsToText(entry.focus_area_counts)}]`;
   });
+  appendSummarySection(
+    lines,
+    'Experiment Arm Comparisons',
+    review.experiment_arm_comparisons,
+    function formatEntry(entry) {
+      return `\`${entry.experiment_arm}\` vs \`${entry.baseline_experiment_arm}\`: clear_delta=${entry.agent_clear_rate_delta ?? 'n/a'}, help_delta=${entry.top_action_help_rate_delta ?? 'n/a'}, success_delta=${entry.task_success_rate_delta ?? 'n/a'}, expand_delta=${entry.patch_expansion_rate_delta ?? 'n/a'}, value_delta=${entry.intervention_net_value_score_delta ?? 'n/a'}`;
+    },
+  );
 
   return `${lines.join('\n')}\n`;
 }

@@ -4,6 +4,14 @@ import { hasZeroActionWeight, sortCandidates, uniqueByScope } from './compare.mj
 import { scoreBandLabel } from '../signal-policy.mjs';
 
 const SUMMARY_SLOT_LIMIT = 5;
+const DEFAULT_LANE_SLOT_LIMIT = 3;
+const DEFAULT_LANE_SIGNAL_KINDS = new Set([
+  'clone_propagation_drift',
+  'forbidden_raw_read',
+  'incomplete_propagation',
+  'session_introduced_clone',
+  'zero_config_boundary_violation',
+]);
 
 function clustersForScope(debtClusters, scope) {
   return (debtClusters ?? []).filter((cluster) => (cluster.files ?? []).includes(scope));
@@ -119,6 +127,22 @@ function selectSummaryCandidates(summaryBuckets) {
   return summaryCandidates;
 }
 
+function isDefaultLaneCandidate(candidate) {
+  if (!candidate || hasZeroActionWeight(candidate)) {
+    return false;
+  }
+
+  if (candidate.default_surface_role === 'supporting_watchpoint') {
+    return false;
+  }
+
+  if (candidate.default_surface_role === 'lead') {
+    return true;
+  }
+
+  return DEFAULT_LANE_SIGNAL_KINDS.has(candidate.kind);
+}
+
 function collectCoveredScopes(buckets) {
   const coveredScopes = new Set();
 
@@ -134,6 +158,9 @@ function collectCoveredScopes(buckets) {
 function selectLeverageBuckets(findingsPayload) {
   const candidateSets = collectCandidates(findingsPayload);
   const allCandidates = [...candidateSets.trusted_details, ...candidateSets.trusted_watchpoints];
+  const defaultLaneCandidates = uniqueByScope(
+    sortCandidates(allCandidates.filter((candidate) => isDefaultLaneCandidate(candidate))),
+  ).slice(0, DEFAULT_LANE_SLOT_LIMIT);
   const architectureSignals = bucketCandidates(allCandidates, 'architecture_signal', 2);
   const localRefactorTargets = bucketCandidates(
     candidateSets.trusted_details,
@@ -149,13 +176,17 @@ function selectLeverageBuckets(findingsPayload) {
   const secondaryCleanup = bucketCandidates(allCandidates, 'secondary_cleanup', 3);
   const hardeningNotes = bucketCandidates(candidateSets.trusted_details, 'hardening_note', 3);
   const toolingDebt = bucketCandidates(candidateSets.trusted_details, 'tooling_debt', 3);
-  const summaryCandidates = selectSummaryCandidates([
-    architectureSignals,
-    localRefactorTargets,
-    boundaryDiscipline,
-    regrowthWatchpoints,
-    secondaryCleanup,
-  ]);
+  let summaryCandidates = defaultLaneCandidates;
+
+  if (summaryCandidates.length === 0) {
+    summaryCandidates = selectSummaryCandidates([
+      architectureSignals,
+      localRefactorTargets,
+      boundaryDiscipline,
+      regrowthWatchpoints,
+      secondaryCleanup,
+    ]);
+  }
   const selectedScopes = new Set(summaryCandidates.map((candidate) => candidate.scope));
   const coveredScopes = collectCoveredScopes([
     architectureSignals,

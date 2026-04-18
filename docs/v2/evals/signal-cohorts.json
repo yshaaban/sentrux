@@ -5,62 +5,109 @@
     {
       "cohort_id": "agent-loop-core",
       "title": "Agent Loop Core",
-      "description": "Initial high-ROI signal cohort for fast coding-agent feedback calibration.",
+      "description": "Intervention-grade default lane for fast coding-agent feedback calibration.",
+      "primary_lane": "agent_default",
       "signals": [
         {
           "signal_kind": "closed_domain_exhaustiveness",
           "signal_family": "obligation",
           "promotion_status": "trusted",
+          "primary_lane": "agent_default",
+          "default_surface_role": "supporting_note",
           "rationale": "High-value semantic completeness signal for TypeScript agent edits."
         },
         {
           "signal_kind": "forbidden_raw_read",
           "signal_family": "rules",
           "promotion_status": "trusted",
+          "primary_lane": "agent_default",
+          "default_surface_role": "lead",
           "rationale": "Strong explicit-rule regression that should block unsafe agent shortcuts."
-        },
-        {
-          "signal_kind": "missing_test_coverage",
-          "signal_family": "structural",
-          "promotion_status": "watchpoint",
-          "rationale": "Common omission signal that should stay visible without over-blocking."
-        },
-        {
-          "signal_kind": "large_file",
-          "signal_family": "structural",
-          "promotion_status": "watchpoint",
-          "rationale": "Regrowth warning that is valuable when it stays actionable."
         },
         {
           "signal_kind": "session_introduced_clone",
           "signal_family": "clone",
           "promotion_status": "watchpoint",
+          "primary_lane": "agent_default",
+          "default_surface_role": "lead",
           "rationale": "Fresh duplication introduced in the current session is a high-ROI agent mistake signal when it stays session-scoped and concrete."
         },
         {
           "signal_kind": "clone_propagation_drift",
           "signal_family": "clone",
           "promotion_status": "watchpoint",
+          "primary_lane": "agent_default",
+          "default_surface_role": "lead",
           "rationale": "Editing one side of an existing duplicate without syncing its sibling is a common agent followthrough miss and should stay visible in the fast loop."
         },
         {
           "signal_kind": "incomplete_propagation",
           "signal_family": "obligation",
           "promotion_status": "watchpoint",
+          "primary_lane": "agent_default",
+          "default_surface_role": "lead",
           "rationale": "Explicit contract-surface propagation misses are sharp enough to calibrate as a conservative watchpoint before broader propagation heuristics."
         },
         {
           "signal_kind": "zero_config_boundary_violation",
           "signal_family": "rules",
           "promotion_status": "watchpoint",
+          "primary_lane": "agent_default",
+          "default_surface_role": "lead",
           "rationale": "Direct zero-config boundary violations now have deterministic fixture-backed replay coverage plus seeded detection and remediation evidence, so they should stay visible in the fast loop as a maintained watchpoint."
         }
+      ],
+      "supporting_watchpoints": [
+        {
+          "signal_kind": "missing_test_coverage",
+          "signal_family": "structural",
+          "promotion_status": "watchpoint",
+          "primary_lane": "maintainer_watchpoint",
+          "default_surface_role": "supporting_watchpoint",
+          "rationale": "Common omission signal that should stay visible without over-blocking."
+        },
+        {
+          "signal_kind": "large_file",
+          "signal_family": "structural",
+          "promotion_status": "watchpoint",
+          "primary_lane": "maintainer_watchpoint",
+          "default_surface_role": "supporting_watchpoint",
+          "rationale": "Regrowth warning that is valuable when it stays actionable."
+        }
+      ],
+      "linked_supporting_cohort_ids": [
+        "agent-structural-watchpoints"
       ],
       "next_candidates": [
         "multi_writer_concept",
         "forbidden_writer",
         "writer_outside_allowlist"
       ]
+    },
+    {
+      "cohort_id": "agent-structural-watchpoints",
+      "title": "Agent Structural Watchpoints",
+      "description": "Broader structural watchpoints that should stay inspectable without crowding the default agent lane.",
+      "primary_lane": "maintainer_watchpoint",
+      "signals": [
+        {
+          "signal_kind": "missing_test_coverage",
+          "signal_family": "structural",
+          "promotion_status": "watchpoint",
+          "primary_lane": "maintainer_watchpoint",
+          "default_surface_role": "supporting_watchpoint",
+          "rationale": "Common omission signal that should stay visible without over-blocking."
+        },
+        {
+          "signal_kind": "large_file",
+          "signal_family": "structural",
+          "promotion_status": "watchpoint",
+          "primary_lane": "maintainer_watchpoint",
+          "default_surface_role": "supporting_watchpoint",
+          "rationale": "Regrowth warning that is valuable when it stays actionable."
+        }
+      ],
+      "next_candidates": []
     }
   ]
 }

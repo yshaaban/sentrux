@@ -143,33 +143,55 @@ test('buildSignalScorecard aggregates seeded, review, and remediation metrics', 
       ],
     },
   });
+  const exhaustivenessSignal = scorecard.signals.find(function findSignal(signal) {
+    return signal.signal_kind === 'closed_domain_exhaustiveness';
+  });
+  const replayTopActionSignal = scorecard.signals.find(function findSignal(signal) {
+    return signal.signal_kind === 'large_file';
+  });
 
-  assert.equal(scorecard.signals.length, 1);
-  assert.equal(scorecard.signals[0].signal_kind, 'closed_domain_exhaustiveness');
-  assert.equal(scorecard.signals[0].primary_lane, 'check');
-  assert.equal(scorecard.signals[0].seeded_recall, 1);
-  assert.equal(scorecard.signals[0].primary_recall, 1);
-  assert.equal(scorecard.signals[0].reviewed_precision, 1);
-  assert.equal(scorecard.signals[0].useful_precision, 1);
-  assert.equal(scorecard.signals[0].review_noise_rate, 0);
-  assert.equal(scorecard.signals[0].remediation_success_rate, 1);
-  assert.equal(scorecard.signals[0].session_trial_count, 2);
-  assert.equal(scorecard.signals[0].live_session_trial_count, 1);
-  assert.equal(scorecard.signals[0].replay_session_trial_count, 1);
-  assert.equal(scorecard.signals[0].session_expectation_hit_rate, 0.5);
-  assert.equal(scorecard.signals[0].session_expectation_top_action_rate, 0.5);
-  assert.equal(scorecard.signals[0].session_trial_miss_rate, 0.5);
-  assert.equal(scorecard.signals[0].session_resolution_rate, 1);
-  assert.equal(scorecard.signals[0].top_action_clear_rate, 0.5);
-  assert.equal(scorecard.signals[0].agent_clear_rate, 0.5);
-  assert.equal(scorecard.signals[0].regression_after_fix_rate, 0);
-  assert.equal(scorecard.signals[0].session_clean_rate, 1);
-  assert.equal(scorecard.signals[0].session_thrash_rate, 0);
-  assert.equal(scorecard.signals[0].average_entropy_delta, -0.5);
-  assert.equal(scorecard.signals[0].entropy_increase_rate, 0);
-  assert.equal(scorecard.signals[0].average_checks_to_clear, 3);
-  assert.equal(scorecard.signals[0].promotion_evidence_complete, true);
-  assert.equal(scorecard.signals[0].latency_ms, 134.2);
+  assert.equal(scorecard.signals.length, 2);
+  assert.ok(exhaustivenessSignal);
+  assert.ok(replayTopActionSignal);
+  assert.equal(exhaustivenessSignal.primary_lane, 'check');
+  assert.equal(exhaustivenessSignal.seeded_recall, 1);
+  assert.equal(exhaustivenessSignal.primary_recall, 1);
+  assert.equal(exhaustivenessSignal.reviewed_precision, 1);
+  assert.equal(exhaustivenessSignal.useful_precision, 1);
+  assert.equal(exhaustivenessSignal.review_noise_rate, 0);
+  assert.equal(exhaustivenessSignal.remediation_success_rate, 1);
+  assert.equal(exhaustivenessSignal.session_trial_count, 2);
+  assert.equal(exhaustivenessSignal.live_session_trial_count, 1);
+  assert.equal(exhaustivenessSignal.replay_session_trial_count, 1);
+  assert.equal(exhaustivenessSignal.session_expectation_hit_rate, 0.5);
+  assert.equal(exhaustivenessSignal.session_expectation_top_action_rate, 0.5);
+  assert.equal(exhaustivenessSignal.session_trial_miss_rate, 0.5);
+  assert.equal(exhaustivenessSignal.session_resolution_rate, 1);
+  assert.equal(exhaustivenessSignal.top_action_clear_rate, 0.5);
+  assert.equal(exhaustivenessSignal.agent_clear_rate, 0.5);
+  assert.equal(exhaustivenessSignal.session_verdict_count, 1);
+  assert.equal(exhaustivenessSignal.live_session_verdict_count, 1);
+  assert.equal(exhaustivenessSignal.replay_session_verdict_count, 0);
+  assert.equal(exhaustivenessSignal.top_action_follow_rate, 1);
+  assert.equal(exhaustivenessSignal.top_action_help_rate, 1);
+  assert.equal(exhaustivenessSignal.task_success_rate, 1);
+  assert.equal(exhaustivenessSignal.patch_expansion_rate, 0);
+  assert.equal(exhaustivenessSignal.intervention_cost_checks_mean, 1);
+  assert.equal(exhaustivenessSignal.intervention_net_value_score, 1);
+  assert.equal(exhaustivenessSignal.regression_after_fix_rate, 0);
+  assert.equal(exhaustivenessSignal.session_clean_rate, 1);
+  assert.equal(exhaustivenessSignal.session_thrash_rate, 0);
+  assert.equal(exhaustivenessSignal.average_entropy_delta, -0.5);
+  assert.equal(exhaustivenessSignal.entropy_increase_rate, 0);
+  assert.equal(exhaustivenessSignal.average_checks_to_clear, 3);
+  assert.equal(exhaustivenessSignal.promotion_evidence_complete, true);
+  assert.equal(exhaustivenessSignal.latency_ms, 134.2);
+  assert.equal(exhaustivenessSignal.promotion_recommendation, 'improve_fix_guidance');
+  assert.equal(replayTopActionSignal.session_verdict_count, 1);
+  assert.equal(replayTopActionSignal.replay_session_verdict_count, 1);
+  assert.equal(replayTopActionSignal.top_action_follow_rate, 0);
+  assert.equal(replayTopActionSignal.patch_expansion_rate, 1);
+  assert.equal(replayTopActionSignal.has_session_evidence, false);
   assert.equal(scorecard.summary.kpis.session_trial_count, 2);
   assert.equal(scorecard.summary.kpis.session_verdict_count, 2);
   assert.equal(scorecard.summary.coverage.has_session_trials, true);
@@ -182,6 +204,30 @@ test('buildSignalScorecard aggregates seeded, review, and remediation metrics', 
   assert.equal(scorecard.summary.product_value.patch_expansion_rate, 0.5);
   assert.equal(scorecard.summary.product_value.intervention_cost_checks_mean, 1.5);
   assert.equal(scorecard.summary.product_value.intervention_net_value_score, 0.333);
+  assert.deepEqual(scorecard.summary.product_value.lane_summaries, [
+    {
+      lane: 'live',
+      session_count: 1,
+      session_verdict_count: 1,
+      top_action_follow_rate: 1,
+      top_action_help_rate: 1,
+      task_success_rate: 1,
+      patch_expansion_rate: 0,
+      intervention_cost_checks_mean: 1,
+      intervention_net_value_score: 1,
+    },
+    {
+      lane: 'replay',
+      session_count: 1,
+      session_verdict_count: 1,
+      top_action_follow_rate: 0,
+      top_action_help_rate: null,
+      task_success_rate: 0,
+      patch_expansion_rate: 1,
+      intervention_cost_checks_mean: 2,
+      intervention_net_value_score: -0.666,
+    },
+  ]);
   assert.equal(scorecard.summary.ranking_quality.rank_preserved_rate, 1);
   assert.equal(scorecard.summary.ranking_quality.repair_packet_complete_rate, 1);
   assert.equal(scorecard.summary.ranking_quality.sample_helpfulness_mean, 3);
@@ -195,6 +241,142 @@ test('buildSignalScorecard aggregates seeded, review, and remediation metrics', 
   assert.equal(scorecard.summary.session_health.session_clean_rate, 1);
   assert.equal(scorecard.summary.session_health.average_checks_to_clear, 3);
   assert.equal(scorecard.summary.session_health.average_entropy_delta, -0.5);
+});
+
+test('buildSignalScorecard promotion recommendations react to poor intervention outcomes', function () {
+  const scorecard = buildSignalScorecard({
+    repoLabel: 'outcome-sensitive',
+    defectReport: {
+      repo_label: 'outcome-sensitive',
+      defects: [
+        {
+          id: 'raw-read',
+          signal_kind: 'forbidden_raw_read',
+          signal_family: 'rules',
+          promotion_status: 'trusted',
+          blocking_intent: 'blocking',
+        },
+      ],
+      results: [
+        {
+          defect_id: 'raw-read',
+          detected: true,
+          check: { supported: true, matched: true },
+        },
+      ],
+    },
+    reviewVerdicts: {
+      verdicts: [
+        {
+          kind: 'forbidden_raw_read',
+          category: 'useful',
+          rank_observed: 1,
+          rank_preserved: true,
+        },
+      ],
+    },
+    remediationReport: {
+      results: [
+        {
+          signal_kind: 'forbidden_raw_read',
+          fixed: true,
+          regression_free: true,
+        },
+      ],
+    },
+    sessionVerdicts: {
+      repo_label: 'outcome-sensitive',
+      verdicts: [
+        {
+          session_id: 'live-raw-read',
+          lane: 'live',
+          top_action_followed: false,
+          top_action_helped: false,
+          task_completed_successfully: false,
+          patch_expanded_unnecessarily: true,
+          intervention_cost_checks: 4,
+          reviewer_confidence: 'high',
+        },
+      ],
+    },
+    codexBatch: {
+      results: [
+        {
+          task_id: 'live-raw-read',
+          expected_signal_kinds: ['forbidden_raw_read'],
+          outcome: {
+            initial_top_action_kind: 'forbidden_raw_read',
+            initial_action_kinds: ['forbidden_raw_read'],
+          },
+        },
+      ],
+    },
+  });
+
+  assert.equal(scorecard.signals.length, 1);
+  assert.equal(scorecard.signals[0].signal_kind, 'forbidden_raw_read');
+  assert.equal(scorecard.signals[0].reviewed_precision, 1);
+  assert.equal(scorecard.signals[0].session_verdict_count, 1);
+  assert.equal(scorecard.signals[0].top_action_follow_rate, 0);
+  assert.equal(scorecard.signals[0].top_action_help_rate, 0);
+  assert.equal(scorecard.signals[0].task_success_rate, 0);
+  assert.equal(scorecard.signals[0].patch_expansion_rate, 1);
+  assert.equal(scorecard.signals[0].intervention_cost_checks_mean, 4);
+  assert.equal(scorecard.signals[0].intervention_net_value_score, -1);
+  assert.equal(scorecard.signals[0].promotion_recommendation, 'improve_fix_guidance');
+});
+
+test('buildSignalScorecard retains verdict evidence for unexpected top actions', function () {
+  const scorecard = buildSignalScorecard({
+    repoLabel: 'verdict-only-top-action',
+    sessionVerdicts: {
+      repo_label: 'verdict-only-top-action',
+      verdicts: [
+        {
+          session_id: 'unexpected-large-file',
+          lane: 'live',
+          top_action_followed: false,
+          top_action_helped: false,
+          task_completed_successfully: false,
+          patch_expanded_unnecessarily: true,
+          intervention_cost_checks: 2,
+          reviewer_confidence: 'high',
+        },
+      ],
+    },
+    codexBatch: {
+      results: [
+        {
+          task_id: 'unexpected-large-file',
+          expected_signal_kinds: ['incomplete_propagation'],
+          outcome: {
+            initial_top_action_kind: 'large_file',
+            initial_action_kinds: ['large_file'],
+          },
+        },
+      ],
+    },
+  });
+  const largeFile = scorecard.signals.find(function findSignal(signal) {
+    return signal.signal_kind === 'large_file';
+  });
+  const expectedSignal = scorecard.signals.find(function findSignal(signal) {
+    return signal.signal_kind === 'incomplete_propagation';
+  });
+
+  assert.ok(largeFile);
+  assert.ok(expectedSignal);
+  assert.equal(largeFile.session_verdict_count, 1);
+  assert.equal(largeFile.top_action_follow_rate, 0);
+  assert.equal(largeFile.top_action_help_rate, 0);
+  assert.equal(largeFile.task_success_rate, 0);
+  assert.equal(largeFile.patch_expansion_rate, 1);
+  assert.equal(largeFile.intervention_cost_checks_mean, 2);
+  assert.equal(largeFile.has_session_action_evidence, false);
+  assert.equal(largeFile.has_session_evidence, false);
+  assert.equal(largeFile.has_session_trial_evidence, false);
+  assert.equal(expectedSignal.session_trial_count, 1);
+  assert.equal(expectedSignal.session_expectation_misses, 1);
 });
 
 test('buildSignalScorecard treats missed expected trials as valid session evidence', function () {
@@ -697,6 +879,26 @@ test('formatSignalScorecardMarkdown renders the score table', function () {
         average_checks_to_clear: 2,
         average_entropy_delta: -0.5,
       },
+      product_value: {
+        session_verdict_count: 2,
+        top_action_follow_rate: 0.5,
+        top_action_help_rate: 0.5,
+        task_success_rate: 0.5,
+        patch_expansion_rate: 0.5,
+        intervention_cost_checks_mean: 1.5,
+        intervention_net_value_score: 0.333,
+        lane_summaries: [
+          {
+            lane: 'live',
+            session_verdict_count: 1,
+            top_action_follow_rate: 1,
+            top_action_help_rate: 1,
+            task_success_rate: 1,
+            patch_expansion_rate: 0,
+            intervention_net_value_score: 1,
+          },
+        ],
+      },
     },
     signals: [
       {
@@ -712,6 +914,9 @@ test('formatSignalScorecardMarkdown renders the score table', function () {
         session_trial_count: 2,
         top_action_sessions: 1,
         session_trial_miss_rate: 0.5,
+        top_action_follow_rate: 1,
+        top_action_help_rate: 1,
+        intervention_net_value_score: 1,
         top_action_clear_rate: 0.5,
         followup_regression_rate: 0,
         session_clean_rate: 0.5,
@@ -729,9 +934,12 @@ test('formatSignalScorecardMarkdown renders the score table', function () {
   assert.match(markdown, /keep_watchpoint/);
   assert.match(markdown, /Trials/);
   assert.match(markdown, /Top Action Sessions/);
+  assert.match(markdown, /Follow Rate/);
+  assert.match(markdown, /Help Rate/);
   assert.match(markdown, /Thrash Rate/);
   assert.match(markdown, /top-action sessions: 2/);
   assert.match(markdown, /agent clear rate: 0\.5 \(1\/2\)/);
+  assert.match(markdown, /live lane: verdicts=1, follow=1, help=1, success=1, expand=0, value=1/);
   assert.match(markdown, /top-1 actionable precision/);
   assert.match(markdown, /0.5/);
 });

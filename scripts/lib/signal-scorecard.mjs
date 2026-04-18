@@ -25,6 +25,10 @@ import {
 import { formatSignalScorecardMarkdown } from './signal-scorecard-format.mjs';
 import { safeRatio } from './signal-summary-utils.mjs';
 import { buildSessionCorpus } from './session-corpus.mjs';
+import {
+  buildInterventionNetValueScore,
+  buildSessionVerdictSummary,
+} from './session-verdicts.mjs';
 
 function buildScorecardContext({
   repoLabel = null,
@@ -69,6 +73,7 @@ function buildScorecardContext({
     replayBatch,
     sessionVerdicts,
   });
+  applySignalSessionVerdicts(signalMap, sessionCorpus);
 
   return {
     signalMap,
@@ -79,6 +84,69 @@ function buildScorecardContext({
     sessionCorpus,
     hydratedReviewVerdicts,
   };
+}
+
+function incrementBooleanSessionVerdict(entry, totalFieldName, countFieldName, value) {
+  if (value !== true && value !== false) {
+    return;
+  }
+
+  entry[totalFieldName] += 1;
+  if (value) {
+    entry[countFieldName] += 1;
+  }
+}
+
+function applySignalSessionVerdicts(signalMap, sessionCorpus) {
+  for (const session of sessionCorpus?.sessions ?? []) {
+    const signalKind = session?.outcome?.initial_top_action_kind;
+    const verdict = session?.session_verdict;
+    if (typeof signalKind !== 'string' || signalKind.length === 0 || !verdict) {
+      continue;
+    }
+
+    const entry = ensureSignalEntry(signalMap, signalKind);
+    entry.session_verdict_count += 1;
+    if (session.lane === 'live') {
+      entry.live_session_verdict_count += 1;
+    }
+    if (session.lane === 'replay') {
+      entry.replay_session_verdict_count += 1;
+    }
+
+    incrementBooleanSessionVerdict(
+      entry,
+      'top_action_follow_sample_count',
+      'top_action_followed_count',
+      verdict.top_action_followed,
+    );
+    incrementBooleanSessionVerdict(
+      entry,
+      'top_action_help_sample_count',
+      'top_action_helped_count',
+      verdict.top_action_helped,
+    );
+    incrementBooleanSessionVerdict(
+      entry,
+      'task_success_sample_count',
+      'task_completed_successfully_count',
+      verdict.task_completed_successfully,
+    );
+    incrementBooleanSessionVerdict(
+      entry,
+      'patch_expansion_sample_count',
+      'patch_expanded_unnecessarily_count',
+      verdict.patch_expanded_unnecessarily,
+    );
+
+    if (
+      Number.isInteger(verdict.intervention_cost_checks) &&
+      verdict.intervention_cost_checks >= 0
+    ) {
+      entry.intervention_cost_sample_count += 1;
+      entry.intervention_cost_checks_total += verdict.intervention_cost_checks;
+    }
+  }
 }
 
 function buildSignalCoverageFields(coverageFlags) {
@@ -166,6 +234,7 @@ function summarizeSessionHealth(sessionTelemetry) {
 
 function buildProductValueSummary(sessionCorpus) {
   const summary = sessionCorpus?.summary ?? {};
+  const laneSummaries = buildLaneProductValueSummaries(sessionCorpus);
 
   return {
     session_verdict_count: summary.session_verdict_count ?? 0,
@@ -175,6 +244,95 @@ function buildProductValueSummary(sessionCorpus) {
     patch_expansion_rate: summary.patch_expansion_rate ?? null,
     intervention_cost_checks_mean: summary.intervention_cost_checks_mean ?? null,
     intervention_net_value_score: summary.intervention_net_value_score ?? null,
+    lane_summaries: laneSummaries,
+  };
+}
+
+function buildLaneProductValueSummary(entries, lane) {
+  const sessionVerdictSummary = buildSessionVerdictSummary(entries);
+  if ((sessionVerdictSummary.session_verdict_count ?? 0) === 0) {
+    return null;
+  }
+
+  return {
+    lane,
+    session_count: entries.length,
+    session_verdict_count: sessionVerdictSummary.session_verdict_count,
+    top_action_follow_rate: sessionVerdictSummary.top_action_follow_rate,
+    top_action_help_rate: sessionVerdictSummary.top_action_help_rate,
+    task_success_rate: sessionVerdictSummary.task_success_rate,
+    patch_expansion_rate: sessionVerdictSummary.patch_expansion_rate,
+    intervention_cost_checks_mean: sessionVerdictSummary.intervention_cost_checks_mean,
+    intervention_net_value_score: sessionVerdictSummary.intervention_net_value_score,
+  };
+}
+
+function buildLaneProductValueSummaries(sessionCorpus) {
+  const sessions = sessionCorpus?.sessions ?? [];
+  const laneEntries = {
+    live: sessions.filter(function isLiveSession(entry) {
+      return entry.lane === 'live';
+    }),
+    replay: sessions.filter(function isReplaySession(entry) {
+      return entry.lane === 'replay';
+    }),
+  };
+
+  return ['live', 'replay']
+    .map(function toLaneSummary(lane) {
+      return buildLaneProductValueSummary(laneEntries[lane], lane);
+    })
+    .filter(Boolean);
+}
+
+function buildSignalProductValueFields(entry) {
+  const topActionFollowRate = safeRatio(
+    entry.top_action_followed_count ?? 0,
+    entry.top_action_follow_sample_count ?? 0,
+  );
+  const topActionHelpRate = safeRatio(
+    entry.top_action_helped_count ?? 0,
+    entry.top_action_help_sample_count ?? 0,
+  );
+  const taskSuccessRate = safeRatio(
+    entry.task_completed_successfully_count ?? 0,
+    entry.task_success_sample_count ?? 0,
+  );
+  const patchExpansionRate = safeRatio(
+    entry.patch_expanded_unnecessarily_count ?? 0,
+    entry.patch_expansion_sample_count ?? 0,
+  );
+  const interventionCostChecksMean = safeRatio(
+    entry.intervention_cost_checks_total ?? 0,
+    entry.intervention_cost_sample_count ?? 0,
+  );
+
+  return {
+    session_verdict_count: entry.session_verdict_count ?? 0,
+    live_session_verdict_count: entry.live_session_verdict_count ?? 0,
+    replay_session_verdict_count: entry.replay_session_verdict_count ?? 0,
+    top_action_follow_sample_count: entry.top_action_follow_sample_count ?? 0,
+    top_action_followed_count: entry.top_action_followed_count ?? 0,
+    top_action_follow_rate: topActionFollowRate,
+    top_action_help_sample_count: entry.top_action_help_sample_count ?? 0,
+    top_action_helped_count: entry.top_action_helped_count ?? 0,
+    top_action_help_rate: topActionHelpRate,
+    task_success_sample_count: entry.task_success_sample_count ?? 0,
+    task_completed_successfully_count: entry.task_completed_successfully_count ?? 0,
+    task_success_rate: taskSuccessRate,
+    patch_expansion_sample_count: entry.patch_expansion_sample_count ?? 0,
+    patch_expanded_unnecessarily_count: entry.patch_expanded_unnecessarily_count ?? 0,
+    patch_expansion_rate: patchExpansionRate,
+    intervention_cost_sample_count: entry.intervention_cost_sample_count ?? 0,
+    intervention_cost_checks_total: entry.intervention_cost_checks_total ?? 0,
+    intervention_cost_checks_mean: interventionCostChecksMean,
+    intervention_net_value_score: buildInterventionNetValueScore({
+      topActionFollowRate,
+      topActionHelpRate,
+      taskSuccessRate,
+      patchExpansionRate,
+      interventionCostChecksMean,
+    }),
   };
 }
 
@@ -225,6 +383,7 @@ function buildSignalRecord(entry, latencyMs) {
     remediation_total: counts.remediation.remediationTotal,
     remediation_success: counts.remediation.remediationSuccess,
   };
+  const signalProductValue = buildSignalProductValueFields(entry);
 
   return {
     signal_kind: entry.signal_kind,
@@ -243,8 +402,12 @@ function buildSignalRecord(entry, latencyMs) {
     ),
     ...buildSignalRemediationFields(counts.remediation),
     ...buildSignalSessionFields(counts.session, sessionMetrics),
+    ...signalProductValue,
     latency_ms: entry.seeded_check_supported > 0 ? latencyMs : null,
-    promotion_recommendation: buildPromotionRecommendation(promotionEntry),
+    promotion_recommendation: buildPromotionRecommendation({
+      ...promotionEntry,
+      ...signalProductValue,
+    }),
   };
 }
 

@@ -1,59 +1,98 @@
 import { readFile } from 'node:fs/promises';
 
+function buildSignal({
+  signalKind,
+  signalFamily,
+  promotionStatus,
+  primaryLane,
+  defaultSurfaceRole,
+  rationale,
+}) {
+  return {
+    signal_kind: signalKind,
+    signal_family: signalFamily,
+    promotion_status: promotionStatus,
+    primary_lane: primaryLane,
+    default_surface_role: defaultSurfaceRole,
+    rationale,
+  };
+}
+
 function buildAgentLoopCoreSignals() {
   return [
-    {
-      signal_kind: 'closed_domain_exhaustiveness',
-      signal_family: 'obligation',
-      promotion_status: 'trusted',
+    buildSignal({
+      signalKind: 'closed_domain_exhaustiveness',
+      signalFamily: 'obligation',
+      promotionStatus: 'trusted',
+      primaryLane: 'agent_default',
+      defaultSurfaceRole: 'supporting_note',
       rationale: 'High-value semantic completeness signal for TypeScript agent edits.',
-    },
-    {
-      signal_kind: 'forbidden_raw_read',
-      signal_family: 'rules',
-      promotion_status: 'trusted',
+    }),
+    buildSignal({
+      signalKind: 'forbidden_raw_read',
+      signalFamily: 'rules',
+      promotionStatus: 'trusted',
+      primaryLane: 'agent_default',
+      defaultSurfaceRole: 'lead',
       rationale: 'Strong explicit-rule regression that should block unsafe agent shortcuts.',
-    },
-    {
-      signal_kind: 'missing_test_coverage',
-      signal_family: 'structural',
-      promotion_status: 'watchpoint',
-      rationale: 'Common omission signal that should stay visible without over-blocking.',
-    },
-    {
-      signal_kind: 'large_file',
-      signal_family: 'structural',
-      promotion_status: 'watchpoint',
-      rationale: 'Regrowth warning that is valuable when it stays actionable.',
-    },
-    {
-      signal_kind: 'session_introduced_clone',
-      signal_family: 'clone',
-      promotion_status: 'watchpoint',
+    }),
+    buildSignal({
+      signalKind: 'session_introduced_clone',
+      signalFamily: 'clone',
+      promotionStatus: 'watchpoint',
+      primaryLane: 'agent_default',
+      defaultSurfaceRole: 'lead',
       rationale:
         'Fresh duplication introduced in the current session is a high-ROI agent mistake signal when it stays session-scoped and concrete.',
-    },
-    {
-      signal_kind: 'clone_propagation_drift',
-      signal_family: 'clone',
-      promotion_status: 'watchpoint',
+    }),
+    buildSignal({
+      signalKind: 'clone_propagation_drift',
+      signalFamily: 'clone',
+      promotionStatus: 'watchpoint',
+      primaryLane: 'agent_default',
+      defaultSurfaceRole: 'lead',
       rationale:
         'Editing one side of an existing duplicate without syncing its sibling is a common agent followthrough miss and should stay visible in the fast loop.',
-    },
-    {
-      signal_kind: 'incomplete_propagation',
-      signal_family: 'obligation',
-      promotion_status: 'watchpoint',
+    }),
+    buildSignal({
+      signalKind: 'incomplete_propagation',
+      signalFamily: 'obligation',
+      promotionStatus: 'watchpoint',
+      primaryLane: 'agent_default',
+      defaultSurfaceRole: 'lead',
       rationale:
         'Explicit contract-surface propagation misses are sharp enough to calibrate as a conservative watchpoint before broader propagation heuristics.',
-    },
-    {
-      signal_kind: 'zero_config_boundary_violation',
-      signal_family: 'rules',
-      promotion_status: 'watchpoint',
+    }),
+    buildSignal({
+      signalKind: 'zero_config_boundary_violation',
+      signalFamily: 'rules',
+      promotionStatus: 'watchpoint',
+      primaryLane: 'agent_default',
+      defaultSurfaceRole: 'lead',
       rationale:
         'Direct zero-config boundary violations now have deterministic fixture-backed replay coverage plus seeded detection and remediation evidence, so they should stay visible in the fast loop as a maintained watchpoint.',
-    },
+    }),
+  ];
+}
+
+function buildSupportingStructuralWatchpoints() {
+  return [
+    buildSignal({
+      signalKind: 'missing_test_coverage',
+      signalFamily: 'structural',
+      promotionStatus: 'watchpoint',
+      primaryLane: 'maintainer_watchpoint',
+      defaultSurfaceRole: 'supporting_watchpoint',
+      rationale: 'Common omission signal that should stay visible without over-blocking.',
+    }),
+    buildSignal({
+      signalKind: 'large_file',
+      signalFamily: 'structural',
+      promotionStatus: 'watchpoint',
+      primaryLane: 'maintainer_watchpoint',
+      defaultSurfaceRole: 'supporting_watchpoint',
+      rationale: 'Regrowth warning that is valuable when it stays actionable.',
+    }),
   ];
 }
 
@@ -66,13 +105,25 @@ export function buildDefaultSignalCohorts() {
         cohort_id: 'agent-loop-core',
         title: 'Agent Loop Core',
         description:
-          'Initial high-ROI signal cohort for fast coding-agent feedback calibration.',
+          'Intervention-grade default lane for fast coding-agent feedback calibration.',
+        primary_lane: 'agent_default',
         signals: buildAgentLoopCoreSignals(),
+        supporting_watchpoints: buildSupportingStructuralWatchpoints(),
+        linked_supporting_cohort_ids: ['agent-structural-watchpoints'],
         next_candidates: [
           'multi_writer_concept',
           'forbidden_writer',
           'writer_outside_allowlist',
         ],
+      },
+      {
+        cohort_id: 'agent-structural-watchpoints',
+        title: 'Agent Structural Watchpoints',
+        description:
+          'Broader structural watchpoints that should stay inspectable without crowding the default agent lane.',
+        primary_lane: 'maintainer_watchpoint',
+        signals: buildSupportingStructuralWatchpoints(),
+        next_candidates: [],
       },
     ],
   };
