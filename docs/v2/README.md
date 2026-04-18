@@ -28,6 +28,7 @@ If you are reading these docs as a maintainer, the core question is no longer "w
 
 ## Start Here
 
+- [Master Plan](./master-plan.md)
 - [Implementation Status](./implementation-status.md)
 - [MCP And CLI](./mcp-and-cli.md)
 - [Testing And Validation](./testing-and-validation.md)

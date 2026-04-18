@@ -1,6 +1,6 @@
 # Sentrux V2 Roadmap
 
-Last audited: 2026-04-17
+Last audited: 2026-04-18
 
 Status legend:
 
@@ -23,8 +23,9 @@ Current public-release framing:
 Current strategic emphasis:
 
 - improve top-finding quality before expanding analyzer breadth
-- make primary findings more fixable
-- govern promotion through public-safe proof, remediation evidence, session telemetry, and a normalized session-corpus / weekly evidence-review loop
+- keep the default agent lane intervention-grade, fix-oriented, and low-noise
+- keep maintainer-lane watchpoints available without polluting the default patch surface
+- govern promotion through public-safe proof, remediation evidence, session telemetry, and treatment-vs-baseline evidence
 - finish release credibility on the public path
 
 ## Strategy
@@ -50,28 +51,56 @@ That means analyzer expansion is now secondary to:
 - public-proof governance
 - release credibility
 
-## Current Program: Quality Compression
+The roadmap now runs under one product contract:
+
+- the agent lane is the default patch surface and should show only intervention-grade actions
+- the maintainer lane carries broader watchpoints, backlog shaping, and trend context
+- treatment-vs-baseline evidence is the decisive promotion bar for default-on agent-lane signals
+
+## Program Phase Tracker
+
+This roadmap implements the phases defined in [Master Plan](./master-plan.md). The phases overlap, but this table keeps the current program legible.
+
+| Phase | Status | Roadmap emphasis | Current gap |
+| --- | --- | --- | --- |
+| Phase 0: Reset the product contract | `[-]` | trust/output framing, scorecard framing, lane split language | product surfaces and promotion logic are not yet fully aligned on the same outcome-first contract |
+| Phase 1: Harden the intervention-grade signal set | `[-]` | patch-safety wedge, trust tiers, demotion of non-fixable findings | the default lane still needs stronger suppression of non-intervention-grade signals |
+| Phase 2: Expand the semantic obligation graph | `[-]` | obligation engine, concept graph, changed-surface precision | richer contract families and follow-through precision are still incomplete |
+| Phase 3: Add bounded LLM adjudication | `[ ]` | future ranking and repair-packet compression work | no bounded adjudication loop is shipping yet |
+| Phase 4: Add checker and pattern synthesis | `[ ]` | future detector growth from confirmed incidents | no synthesis workflow is live yet |
+| Phase 5: Build the treatment-vs-baseline evidence program | `[-]` | scorecards, remediation evals, session corpus, calibration runs | paired baseline/treatment proof is not yet the main promotion input |
+| Phase 6: Product surface compression | `[-]` | `check`, `agent_brief`, ranking, repair guidance, trust-tier presentation | the product still does not consistently compress to 1-3 primary actions |
+| Phase 7: Release gate | `[-]` | public-safe proof, preflight, analyzer promotion, benchmark gate | release trust still depends on stronger outcome evidence and quiet-runner proof |
+
+## Current Program: Intervention Proof And Product Narrowing
 
 Status: in progress
 
 Goal:
 
 - turn the existing wedge into a stricter product surface that is more selective, more fixable, and more evidence-backed
+- prove that the default agent lane helps agents land cleaner patches than baseline
+- keep maintainer watchpoints available without letting them dominate the patch surface
 
 Deliverables:
 
 - stronger primary-target ranking
 - fewer but higher-value lead findings
 - repair-oriented finding packets
+- a stable agent-lane vs maintainer-lane split across docs and product surfaces
 - promotion and demotion rules backed by public proof repos
+- treatment-vs-baseline evidence that influences promotion decisions
 - release validation that matches the public product promise
 - parity fixtures that keep shared Rust/JS policy tables and representative brief/report behavior from drifting
 
 Exit criteria:
 
 - the first few findings are usually worth fixing first
+- the default lane usually shows only 1-3 intervention-grade actions
+- maintainer-lane watchpoints do not crowd the default patch lane
 - primary findings include enough guidance to shorten the next edit
 - promoted detectors are supported by public-safe proof and remediation evidence
+- default-on agent-lane detectors are also supported by treatment-vs-baseline evidence
 - public release confidence is backed by remote CI and RC artifact validation
 - shared policy changes fail tests when Rust and JS interpretation diverge
 

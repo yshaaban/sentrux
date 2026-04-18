@@ -8,11 +8,11 @@ If a roadmap item, metric, or analyzer conflicts with this doctrine, the doctrin
 
 ## Primary Job
 
-Sentrux v2 exists to reduce agentic entropy by catching patch-level architectural regressions and technical-debt signals before they land.
+Sentrux v2 exists to reduce agentic entropy by catching patch-level architectural regressions and maintainability drift before they land.
 
 The core product question is:
 
-> What did this patch change, what architectural obligations did that create, what objective debt signals or watchpoints did it expose, and what did the agent fail to update?
+> What did this patch change, what architectural obligations did that create, what intervention-grade signals does the agent need to act on now, and what maintainer watchpoints should stay out of the default patch lane?
 
 That question should be answered first through fast-path `check`, then through a mode-aware `agent_brief` when the agent needs more context. Agents should never have to stitch together raw tool output to find the next fix.
 
@@ -44,6 +44,30 @@ Secondary users:
 - CI gate
 - repo owner looking at trend summaries
 
+## Product Lanes
+
+V2 has two product lanes with different jobs and different evidence bars.
+
+Agent lane:
+
+- default patch surface
+- intervention-grade only
+- patch-local
+- fix-oriented
+- low-noise
+- optimized for top-action follow rate, top-action help rate, and treatment-vs-baseline outcomes
+
+Maintainer lane:
+
+- broader structural watchpoints
+- backlog shaping and trend review
+- slower-moving quality governance
+- useful even when the next patch action is not obvious
+
+The agent lane is the primary product claim.
+
+The maintainer lane can be rich, but it must not crowd out the first 1-3 patch actions. If a signal is informative but not reliably fixable in-session, it belongs in the maintainer lane or a supporting watchpoint surface.
+
 ## Primary Outputs
 
 The product surface must be ordered like this:
@@ -57,6 +81,8 @@ The product surface must be ordered like this:
 7. confidence
 
 The scorecard is useful, but it is not the core wedge. Any optimization-like output is a sorting aid, not a roadmap decision. `check`, `agent_brief`, and `session_end` should all lead with the same ranked action model.
+
+Default agent-lane outputs should usually show at most 1-3 primary actions. Broader debt summaries, structural watchpoints, and trend context belong behind that lead surface.
 
 ## Primary-Target Contract
 
@@ -104,7 +130,7 @@ The brief should synthesize findings, obligations, session delta, and confidence
 
 ## Core Wedge
 
-The highest-ROI v2 wedge is only three analyzer families:
+The foundational highest-ROI v2 wedge is still three analyzer families:
 
 1. clone drift
 2. authority and access
@@ -118,6 +144,13 @@ These directly address the most expensive static failure modes in agentic coding
 - boundary erosion and brittle coordination hotspots
 
 For beta, concept-level findings in this wedge should rely on explicit critical concept rules.
+
+The default intervention-grade portfolio can expand beyond that foundation only when the added signal family improves the agent lane without degrading trust. The current candidate expansion families are:
+
+1. change-triggered library-evolution drift
+2. patch-worsened concentration growth
+
+These are agent-lane candidates only when they stay local, fix-oriented, and evidence-backed. Otherwise they remain maintainer-lane watchpoints.
 
 Zero-config beta findings should be limited to:
 
@@ -194,6 +227,7 @@ Do not hide uncertainty behind precise scores.
 Engineer-facing defaults should:
 
 - lead with trusted findings
+- keep default agent-lane actions separate from maintainer-lane watchpoints
 - separate watchpoints from trusted debt signals
 - quarantine experimental detectors from default ratchets and top finding lists
 - separate trust from leverage: reliability is not the same as improvement leverage
@@ -218,6 +252,13 @@ Promotion standard:
 - detectors that consistently produce actionable, fixable, high-value findings can graduate into primary surfaces
 - detectors that are informative but not reliably worth acting on should remain watchpoints or supporting context
 
+Default-on agent-lane promotion needs a stricter bar than generic detector promotion. It should require:
+
+- reviewed precision and false-positive review strong enough to trust the finding
+- repair guidance that is specific enough to shorten the next edit
+- positive remediation and session evidence
+- treatment-vs-baseline evidence that the surfaced action improves outcomes, not just artifact quality
+
 ## Anti-Goals
 
 Do not optimize v2 around:
@@ -236,10 +277,12 @@ V2 is succeeding when:
 1. agents get fixable findings at `check`
 2. touched-concept regressions can fail CI with high trust
 3. important architectural rules become machine-checkable
-4. `parallel-code` gets meaningful debt signals and watchpoints that match its own architecture docs and tests
-5. the score is no longer the primary product narrative
-6. seeded defects, false-positive review, and remediation evals all support the signals we promote
-7. real session telemetry shows the top-ranked `check` actions are actually getting cleared without creating new regressions
+4. the default agent lane usually shows only 1-3 intervention-grade actions
+5. maintainer watchpoints stay available without polluting the default patch lane
+6. `parallel-code` gets meaningful debt signals and watchpoints that match its own architecture docs and tests
+7. the score is no longer the primary product narrative
+8. seeded defects, false-positive review, remediation evals, and treatment-vs-baseline runs all support the signals we promote
+9. real session telemetry shows the top-ranked `check` actions are actually getting cleared without creating new regressions
 
 The next chapter after the core wedge is not "more analyzers first." It is quality compression:
 

@@ -15,6 +15,24 @@ Current release note:
 - CLI `check` remains the legacy structural rules check and should be validated as supporting context, not as the primary v2 surface
 - public release validation must keep checked-in artifacts and docs free of private repo names, internal infrastructure links, and workstation-specific paths
 
+## Validation Contract
+
+Validation now has to serve two product lanes with different bars.
+
+Agent lane:
+
+- validates the default patch surface
+- cares about intervention-grade signals only
+- must prove ranked action quality, fixability, and treatment-vs-baseline outcome improvement
+
+Maintainer lane:
+
+- validates broader watchpoints and structural context
+- cares about evidence quality, stability, and governance usefulness
+- does not need the same top-action or in-session intervention bar
+
+This means a structurally correct watchpoint is not automatically good enough for default-on agent-lane promotion.
+
 ## Testing Goals
 
 The test strategy must prove:
@@ -25,6 +43,7 @@ The test strategy must prove:
 4. false positives stay controlled
 5. upgrades do not silently regress case-study findings
 6. shared Rust and JS policy consumers do not drift on score bands or ordering
+7. default agent-lane findings improve outcomes over baseline, not just offline artifact quality
 
 ## Test Layers
 
@@ -183,7 +202,18 @@ Current learning:
 
 ## Validation Metrics
 
-V2 should track at least these validation metrics:
+V2 should track at least these validation metrics.
+
+Primary agent-lane metrics:
+
+1. top-action follow rate
+2. top-action help rate
+3. task success rate under treatment vs baseline
+4. regression-after-fix rate
+5. patch expansion caused by intervention
+6. reviewer disagreement rate on surfaced primary actions
+
+Supporting validation metrics:
 
 1. semantic extraction accuracy on fixtures
 2. analyzer precision on benchmark repos
@@ -195,6 +225,8 @@ The goal is not perfect recall.
 
 The goal is high trust on the findings we choose to surface and gate on.
 
+For the default patch surface, generic reviewed precision is necessary but not sufficient. The decisive question is whether the surfaced action helped the agent land a cleaner patch than baseline.
+
 Shared-policy parity is now part of that trust bar:
 
 - [.sentrux/signal-policy.json](../../.sentrux/signal-policy.json) is the shared static source
@@ -205,6 +237,7 @@ For the lead surface, the quality bar is stricter than generic reviewed precisio
 - are the first 1, 3, and 10 reviewed findings still actionable enough to deserve their rank
 - do reviewer ranking preferences agree with the presented order
 - does remediation and session telemetry show that the surfaced findings were actually fixable
+- does treatment beat baseline when those findings are surfaced as the lead action
 
 Current support boundary:
 
@@ -212,6 +245,19 @@ Current support boundary:
 - ranking-preference satisfaction is scorecard-grade when verdicts use `preferred_over`
 - repair-packet completeness is scorecard-grade supporting evidence when verdicts preserve the structured repair fields; the current bar is the `REVIEW_PACKET_COMPLETENESS_POLICY` in [`../../scripts/lib/signal-calibration-policy.mjs`](../../scripts/lib/signal-calibration-policy.mjs) (`scope`, `summary`, `evidence`, and `repair_surface` required, `fix_hint` and `likely_fix_sites` preferred, top-3 complete rate at least `0.8`, top-10 complete rate at least `0.7`)
 - repair-packet completeness does not replace ranking quality, remediation success, or session outcomes; it strengthens fixability evidence after the detector is already showing useful ranked behavior
+
+## Treatment-Vs-Baseline Evidence
+
+Treatment-vs-baseline runs are now part of the validation stack, not a later optional study.
+
+Minimum bar for the agent lane:
+
+1. run paired baseline and Sentrux-assisted tasks on the same scoped repo/task set
+2. record one canonical top-action event shape across both runs
+3. compare task success, escaped regressions, patch expansion, review acceptance, top-action follow, and top-action help
+4. use those results in detector promotion and demotion decisions
+
+This bar is stronger than the maintainer-lane bar. A watchpoint can remain useful with weaker in-session evidence; a default-on agent-lane signal cannot.
 
 ## Recommended Loop
 
@@ -275,6 +321,14 @@ it should have:
 4. documented confidence behavior
 5. scorecard evidence that meets the current promotion policy in [`../../scripts/lib/signal-calibration-policy.mjs`](../../scripts/lib/signal-calibration-policy.mjs)
 
+Before a signal becomes default-on in the agent lane, it should also have:
+
+1. positive remediation and session evidence
+2. treatment-vs-baseline evidence that the surfaced action improves outcomes
+3. repair-packet quality strong enough to shorten the next edit
+
+Signals that are real but do not meet that bar should stay maintainer-lane watchpoints or `experimental`.
+
 Current promotion policy thresholds:
 
 - seeded recall at least `0.95`
@@ -293,6 +347,7 @@ Signals that fail those thresholds should stay `watchpoint` or `experimental` un
 
 Do not treat high reviewed precision alone as promotion-grade evidence. A signal that is often "technically true" but still weak in the first few ranked slots is still failing the primary-target bar.
 Do not treat strong repair-packet completeness alone as promotion-grade evidence either. It is useful supporting evidence for fixability, not a substitute for ranked usefulness or clean session outcomes.
+Do not treat maintainer-lane usefulness as a license to promote a signal into the default patch lane. The agent lane has the stricter bar.
 
 ## Implementation Tasks
 

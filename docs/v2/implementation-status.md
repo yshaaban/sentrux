@@ -1,10 +1,10 @@
 # Sentrux V2 Implementation Status
 
-Last audited: 2026-04-17
+Last audited: 2026-04-18
 
 ## Overall Verdict
 
-The implementation is in a good place relative to the **core v2 wedge**, but it is not done relative to the **full roadmap** or the stricter product bar of "developers consistently get the right few things to fix first."
+The implementation is in a good place relative to the **core v2 wedge**, but it is not done relative to the **full roadmap** or the stricter product bar of "agents consistently get the right few things to fix first."
 
 Current assessment:
 
@@ -13,13 +13,14 @@ Current assessment:
 - full roadmap: partially implemented
 - cross-cutting proof and validation: materially improved, with fast-path MCP `check`, defect injection, and signal-quality scorecard foundations now landed
 - public release readiness: materially improved, with public-safe docs, hygiene enforcement, and deterministic local release preflight now in place
-- current product risk: no longer missing engine capability first; now mostly top-finding quality, repair guidance, proof governance, and release credibility
+- current product risk: no longer missing engine capability first; now mostly agent-lane selectivity, repair guidance, treatment-vs-baseline proof, and release credibility
 
 Working estimate:
 
 - core wedge completion: about 90-92%
 - full roadmap completion: about 80-85%
 - validation and proof completion: about 78-82%
+- outcome-proof completion: about 45-55%
 
 ## Strategic Read
 
@@ -30,9 +31,26 @@ The next critical phase is product-quality compression:
 - improve the quality of the first few findings a user sees
 - make primary findings more repairable
 - promote or demote detectors through public-proof discipline
+- keep the agent lane separate from maintainer-lane watchpoints
+- make treatment-vs-baseline evidence part of the default-on promotion bar
 - keep release credibility aligned with the local product story
 
 This is the right next phase because the core wedge is already real. The biggest remaining risk is not detector count. It is whether the lead surface is selective, fixable, and trustworthy enough for repeated use.
+
+## Program Status By Phase
+
+This status view follows the phase model in [master-plan.md](./master-plan.md) rather than only the tier model below.
+
+| Phase | Status | What is already true | Main remaining gap |
+| --- | --- | --- | --- |
+| Phase 0: Reset the product contract | In progress | doctrine, roadmap, scorecards, evidence review, session corpus, and findings surfaces now share lane language and outcome-first promotion inputs | some downstream surfaces still need to consume the same lane metadata and top-action contract without compatibility gaps |
+| Phase 1: Harden the intervention-grade signal set | In progress | clone drift, authority/access, obligation completeness, trust-tiered findings, and the narrowed intervention-grade cohort are shipping | the default lane still needs stronger suppression of maintainer-style watchpoints and broader proof across repos |
+| Phase 2: Expand the semantic obligation graph | In progress | closed-domain and initial contract-driven obligation expansion are real | richer contract families, finer changed-symbol precision, and stronger follow-through linking remain incomplete |
+| Phase 3: Add bounded LLM adjudication | Not started | research direction and product guardrails are defined | no production adjudication loop is in the default product or eval pipeline yet |
+| Phase 4: Add checker and pattern synthesis | Not started | verdict, remediation, and calibration artifacts exist to seed future synthesis work | no evidence-backed synthesis loop is implemented yet |
+| Phase 5: Build the treatment-vs-baseline evidence program | In progress | scorecards, remediation evals, session telemetry, diff replay, canonical top-action telemetry, and experiment-arm comparison artifacts exist | controlled paired baseline/treatment runs are not yet the decisive promotion evidence |
+| Phase 6: Product surface compression | In progress | `check`, `agent_brief`, trust tiers, repair-packet tooling, and lane-aware lead selection have improved the lead surface | the product still does not consistently compress to 1-3 intervention-grade actions |
+| Phase 7: Release gate | In progress | public-safe hygiene, preflight, release checklist, and promotion scaffolding are in place | release credibility still depends on stronger outcome evidence and benchmark-gate depth |
 
 ## What Is True Today
 
@@ -106,7 +124,8 @@ The strongest completed work is:
 The strongest product truth today is narrower than the full roadmap:
 
 - Sentrux is already useful as a patch-safety and structural review assistant
-- Sentrux is not yet broadly proven as a universal code-quality reviewer across arbitrary repos
+- the maintainer/watchpoint lane is richer than the proven default agent lane
+- Sentrux is not yet broadly proven as a universal code-quality reviewer across arbitrary repos or as a treatment that reliably beats baseline
 
 ## Overall Status By Tier
 
@@ -402,11 +421,14 @@ The current implementation is enough to say:
 - the **core patch-safety engine exists**
 - the **MCP story is real**
 - the **TypeScript-first architecture is viable**
+- the **agent-lane vs maintainer-lane split now shows up in docs, scorecards, and findings surfaces**
+- the **evidence artifacts now carry a canonical top-action object and explicit treatment-vs-baseline comparisons**
 
 It is not enough to say:
 
 - the full roadmap is delivered
 - the case-study proof loop is closed
+- treatment beats baseline on the primary product metrics
 - the product is equally mature across MCP, CLI, and GUI
 
 ## Biggest Remaining Gaps
@@ -419,11 +441,11 @@ It is not enough to say:
 
 ## Recommended Next Execution Order
 
-1. reduce the remaining scan-bound warm patch-safety cost
-2. expand benchmark-repo unhappy-path validation and formal analyzer promotion criteria
-3. decide whether the desktop product needs first-class v2 panels instead of doctrinal alignment only
-4. deepen contract-field precision only where real repo feedback still shows misses
-5. validate parity, concentration, and debt-signal quality against more non-happy-path repo scenarios
+1. strengthen Phase 5 so paired treatment-vs-baseline runs, not just artifact summaries, become the decisive promotion input
+2. keep tightening Phase 1 and Phase 6 until the default patch surface usually compresses to 1-3 intervention-grade actions
+3. finish the remaining Phase 0 propagation so every consumer surface uses the same lane metadata and top-action contract
+4. deepen Phase 2 only where repo evidence still shows missed follow-through or weak fix-surface precision
+5. treat performance, release gate depth, and supporting watchpoint quality as enabling work, not as substitutes for outcome proof
 
 ## Beta Readiness
 
@@ -432,5 +454,7 @@ The implementation is past a useful **MCP beta** and close to a broader **MCP/CL
 The missing bar is mostly not new analysis code. It is:
 
 - proof on the real case-study repo
+- treatment-vs-baseline evidence on agent outcomes
 - validation artifacts
 - surface consistency across product entry points
+- a cleaner separation between default patch actions and maintainer watchpoints
