@@ -2,6 +2,7 @@ import {
   SIGNAL_DEFAULT_ROLLOUT_POLICY,
   SIGNAL_PRIMARY_TARGET_POLICY,
   SIGNAL_PROMOTION_POLICY,
+  REVIEW_PACKET_COMPLETENESS_POLICY,
 } from './signal-calibration-policy.mjs';
 import { asArray, ensureMapEntry, safeRatio } from './signal-summary-utils.mjs';
 
@@ -45,6 +46,22 @@ function normalizeOptionalScore(value) {
   }
 
   return value;
+}
+
+function meetsMinimum(value, minimum) {
+  return value !== null && value >= minimum;
+}
+
+function isBelowMinimum(value, minimum) {
+  return value !== null && value < minimum;
+}
+
+function exceedsMaximum(value, maximum) {
+  return value !== null && value > maximum;
+}
+
+function meetsMaximum(value, maximum) {
+  return value !== null && value <= maximum;
 }
 
 function derivedReviewerAcceptance(normalizedCategory) {
@@ -572,6 +589,8 @@ function buildPromotionInputs(entry) {
   const top1ReviewedTotal = entry.review_top_1_total ?? 0;
   const top3ReviewedTotal = entry.review_top_3_total ?? 0;
   const rankingPreferenceTotal = entry.ranking_preference_total ?? 0;
+  const repairPacketPromotionThreshold =
+    repairPacketPromotionThresholdForReviewedTotal(reviewedTotal);
   const sessionVerdictCount = entry.session_verdict_count ?? 0;
   const topActionFollowSampleCount = entry.top_action_follow_sample_count ?? 0;
   const topActionFollowedCount = entry.top_action_followed_count ?? 0;
@@ -608,6 +627,19 @@ function buildPromotionInputs(entry) {
       entry.remediation_success ?? 0,
       entry.remediation_total ?? 0,
     ),
+    repairPacketCompleteShare: safeRatio(
+      entry.review_repair_packet_complete_count ?? 0,
+      reviewedTotal,
+    ),
+    repairPacketFixSurfaceClearShare: safeRatio(
+      entry.review_repair_packet_fix_surface_clear_count ?? 0,
+      reviewedTotal,
+    ),
+    repairPacketPromotionThreshold,
+    repairPacketVerificationClearShare: safeRatio(
+      entry.review_repair_packet_verification_clear_count ?? 0,
+      reviewedTotal,
+    ),
     reviewerAcceptanceRate: safeRatio(
       reviewerAcceptedCount,
       reviewerAcceptanceSampleCount,
@@ -622,7 +654,12 @@ function buildPromotionInputs(entry) {
       reviewedTotal,
     ),
     reviewedTotal,
+    productPrimaryLane: entry.product_primary_lane ?? null,
     sessionVerdictCount,
+    sessionTrialMissRate: safeRatio(
+      entry.session_expectation_misses ?? 0,
+      entry.session_trial_count ?? 0,
+    ),
     seededRecall: safeRatio(entry.seeded_detected, entry.seeded_total),
     sessionCleanRate: safeRatio(entry.session_clean ?? 0, entry.top_action_sessions ?? 0),
     sessionThrashRate: safeRatio(entry.sessions_thrashing ?? 0, entry.top_action_sessions ?? 0),
@@ -664,38 +701,49 @@ function buildPromotionInputs(entry) {
   };
 }
 
+function repairPacketPromotionThresholdForReviewedTotal(reviewedTotal) {
+  if (reviewedTotal === 0) {
+    return null;
+  }
+  if (reviewedTotal >= 10) {
+    return REVIEW_PACKET_COMPLETENESS_POLICY.promotionCandidateTop10RateMin;
+  }
+  if (reviewedTotal >= 3) {
+    return REVIEW_PACKET_COMPLETENESS_POLICY.promotionCandidateTop3RateMin;
+  }
+
+  return REVIEW_PACKET_COMPLETENESS_POLICY.promotionCandidateSmallSampleRateMin;
+}
+
 function promotionNoiseDecision(metrics) {
   if (metrics.reviewedTotal > 0 && metrics.falsePositives > 0) {
     return 'degrade_or_quarantine';
   }
   if (
     metrics.reviewedTotal > 0 &&
-    metrics.reviewNoiseRate !== null &&
-    metrics.reviewNoiseRate > SIGNAL_PROMOTION_POLICY.reviewNoiseRateMax
+    exceedsMaximum(metrics.reviewNoiseRate, SIGNAL_PROMOTION_POLICY.reviewNoiseRateMax)
   ) {
     return 'needs_review';
   }
-  if (
-    metrics.seededRecall !== null &&
-    metrics.seededRecall < SIGNAL_PROMOTION_POLICY.seededRecallMin
-  ) {
+  if (isBelowMinimum(metrics.seededRecall, SIGNAL_PROMOTION_POLICY.seededRecallMin)) {
     return 'improve_detection';
   }
+  if (isBelowMinimum(metrics.reviewedPrecision, SIGNAL_PROMOTION_POLICY.reviewedPrecisionMin)) {
+    return 'reduce_noise';
+  }
   if (
-    metrics.reviewedPrecision !== null &&
-    metrics.reviewedPrecision < SIGNAL_PROMOTION_POLICY.reviewedPrecisionMin
+    isBelowMinimum(
+      metrics.reviewerAcceptanceRate,
+      SIGNAL_PROMOTION_POLICY.reviewerAcceptanceRateMin,
+    )
   ) {
     return 'reduce_noise';
   }
   if (
-    metrics.reviewerAcceptanceRate !== null &&
-    metrics.reviewerAcceptanceRate < SIGNAL_PROMOTION_POLICY.reviewerAcceptanceRateMin
-  ) {
-    return 'reduce_noise';
-  }
-  if (
-    metrics.reviewerDisagreementRate !== null &&
-    metrics.reviewerDisagreementRate > SIGNAL_PROMOTION_POLICY.reviewerDisagreementRateMax
+    exceedsMaximum(
+      metrics.reviewerDisagreementRate,
+      SIGNAL_PROMOTION_POLICY.reviewerDisagreementRateMax,
+    )
   ) {
     return 'needs_review';
   }
@@ -736,33 +784,26 @@ function promotionOutcomeDecision(metrics) {
     return null;
   }
   if (
-    metrics.topActionFollowRate !== null &&
-    metrics.topActionFollowRate < SIGNAL_PROMOTION_POLICY.topActionFollowRateMin
+    isBelowMinimum(metrics.topActionFollowRate, SIGNAL_PROMOTION_POLICY.topActionFollowRateMin)
   ) {
     return 'improve_fix_guidance';
   }
   if (
-    metrics.topActionHelpRate !== null &&
-    metrics.topActionHelpRate < SIGNAL_PROMOTION_POLICY.topActionHelpRateMin
+    isBelowMinimum(metrics.topActionHelpRate, SIGNAL_PROMOTION_POLICY.topActionHelpRateMin)
   ) {
     return 'improve_fix_guidance';
   }
-  if (
-    metrics.taskSuccessRate !== null &&
-    metrics.taskSuccessRate < SIGNAL_PROMOTION_POLICY.taskSuccessRateMin
-  ) {
+  if (isBelowMinimum(metrics.taskSuccessRate, SIGNAL_PROMOTION_POLICY.taskSuccessRateMin)) {
+    return 'improve_fix_guidance';
+  }
+  if (exceedsMaximum(metrics.patchExpansionRate, SIGNAL_PROMOTION_POLICY.patchExpansionRateMax)) {
     return 'improve_fix_guidance';
   }
   if (
-    metrics.patchExpansionRate !== null &&
-    metrics.patchExpansionRate > SIGNAL_PROMOTION_POLICY.patchExpansionRateMax
-  ) {
-    return 'improve_fix_guidance';
-  }
-  if (
-    metrics.interventionNetValueScore !== null &&
-    metrics.interventionNetValueScore <
-      SIGNAL_PROMOTION_POLICY.interventionNetValueScoreMin
+    isBelowMinimum(
+      metrics.interventionNetValueScore,
+      SIGNAL_PROMOTION_POLICY.interventionNetValueScoreMin,
+    )
   ) {
     return 'improve_fix_guidance';
   }
@@ -770,44 +811,100 @@ function promotionOutcomeDecision(metrics) {
   return null;
 }
 
+function promotionRepairPacketDecision(metrics) {
+  if (metrics.productPrimaryLane !== 'agent_default') {
+    return null;
+  }
+  if (metrics.reviewedTotal === 0 || metrics.repairPacketPromotionThreshold === null) {
+    return null;
+  }
+  if (!meetsMinimum(
+    metrics.repairPacketCompleteShare,
+    metrics.repairPacketPromotionThreshold,
+  )) {
+    return 'improve_fix_guidance';
+  }
+  if (!meetsMinimum(
+    metrics.repairPacketFixSurfaceClearShare,
+    metrics.repairPacketPromotionThreshold,
+  )) {
+    return 'improve_fix_guidance';
+  }
+  if (!meetsMinimum(
+    metrics.repairPacketVerificationClearShare,
+    metrics.repairPacketPromotionThreshold,
+  )) {
+    return 'improve_fix_guidance';
+  }
+
+  return null;
+}
+
 function promotionFixGuidanceDecision(metrics) {
+  const repairPacketDecision = promotionRepairPacketDecision(metrics);
+  if (repairPacketDecision) {
+    return repairPacketDecision;
+  }
   if (
-    metrics.remediationSuccess !== null &&
-    metrics.remediationSuccess < SIGNAL_PROMOTION_POLICY.remediationSuccessMin
+    isBelowMinimum(metrics.remediationSuccess, SIGNAL_PROMOTION_POLICY.remediationSuccessMin)
   ) {
     return 'improve_fix_guidance';
   }
   if (
-    metrics.topActionClearRate !== null &&
-    metrics.topActionClearRate < SIGNAL_PROMOTION_POLICY.topActionClearRateMin
+    isBelowMinimum(metrics.topActionClearRate, SIGNAL_PROMOTION_POLICY.topActionClearRateMin)
   ) {
     return 'improve_fix_guidance';
   }
   if (
-    metrics.sessionCleanRate !== null &&
-    metrics.sessionCleanRate < SIGNAL_PROMOTION_POLICY.sessionCleanRateMin
+    isBelowMinimum(metrics.sessionCleanRate, SIGNAL_PROMOTION_POLICY.sessionCleanRateMin)
   ) {
     return 'improve_fix_guidance';
   }
-  if (
-    metrics.followupRegressionRate !== null &&
-    metrics.followupRegressionRate > SIGNAL_PROMOTION_POLICY.followupRegressionRateMax
-  ) {
+  if (exceedsMaximum(
+    metrics.followupRegressionRate,
+    SIGNAL_PROMOTION_POLICY.followupRegressionRateMax,
+  )) {
     return 'improve_fix_guidance';
   }
-  if (
-    metrics.sessionThrashRate !== null &&
-    metrics.sessionThrashRate > SIGNAL_PROMOTION_POLICY.sessionThrashRateMax
-  ) {
+  if (exceedsMaximum(metrics.sessionThrashRate, SIGNAL_PROMOTION_POLICY.sessionThrashRateMax)) {
     return 'improve_fix_guidance';
   }
-  if (
-    metrics.entropyIncreaseRate !== null &&
-    metrics.entropyIncreaseRate > SIGNAL_PROMOTION_POLICY.entropyIncreaseRateMax
-  ) {
+  if (exceedsMaximum(
+    metrics.entropyIncreaseRate,
+    SIGNAL_PROMOTION_POLICY.entropyIncreaseRateMax,
+  )) {
     return 'improve_fix_guidance';
   }
   return null;
+}
+
+function meetsDefaultRolloutEvidenceThresholds(metrics) {
+  return (
+    meetsMinimum(metrics.reviewedPrecision, SIGNAL_PROMOTION_POLICY.reviewedPrecisionMin) &&
+    metrics.top1ReviewedTotal >= SIGNAL_PRIMARY_TARGET_POLICY.top1MinReviewedSamples &&
+    meetsMinimum(
+      metrics.top1ActionablePrecision,
+      SIGNAL_PRIMARY_TARGET_POLICY.top1ActionablePrecisionMin,
+    ) &&
+    metrics.top3ReviewedTotal >= SIGNAL_PRIMARY_TARGET_POLICY.top3MinReviewedSamples &&
+    meetsMinimum(
+      metrics.top3ActionablePrecision,
+      SIGNAL_PRIMARY_TARGET_POLICY.top3ActionablePrecisionMin,
+    ) &&
+    meetsMinimum(metrics.remediationSuccess, SIGNAL_PROMOTION_POLICY.remediationSuccessMin) &&
+    meetsMaximum(
+      metrics.sessionTrialMissRate,
+      SIGNAL_DEFAULT_ROLLOUT_POLICY.sessionTrialMissRateMax,
+    ) &&
+    meetsMinimum(metrics.topActionFollowRate, SIGNAL_PROMOTION_POLICY.topActionFollowRateMin) &&
+    meetsMinimum(metrics.topActionHelpRate, SIGNAL_PROMOTION_POLICY.topActionHelpRateMin) &&
+    meetsMinimum(metrics.taskSuccessRate, SIGNAL_PROMOTION_POLICY.taskSuccessRateMin) &&
+    meetsMaximum(metrics.patchExpansionRate, SIGNAL_PROMOTION_POLICY.patchExpansionRateMax) &&
+    meetsMinimum(
+      metrics.interventionNetValueScore,
+      SIGNAL_PROMOTION_POLICY.interventionNetValueScoreMin,
+    )
+  );
 }
 
 function defaultRolloutRecommendationBlocked(entry, metrics) {
@@ -816,9 +913,6 @@ function defaultRolloutRecommendationBlocked(entry, metrics) {
   }
   if (entry.default_surface_role !== 'lead') {
     return 'not_default_lead';
-  }
-  if (entry.promotion_status !== 'trusted') {
-    return 'keep_watchpoint';
   }
 
   const primaryTargetDecision = promotionPrimaryTargetDecision(metrics);
@@ -840,6 +934,9 @@ function defaultRolloutRecommendationBlocked(entry, metrics) {
     metrics.sessionVerdictCount < SIGNAL_DEFAULT_ROLLOUT_POLICY.sessionVerdictMinSamples
   ) {
     return 'needs_more_session_evidence';
+  }
+  if (!meetsDefaultRolloutEvidenceThresholds(metrics)) {
+    return `keep_${entry.promotion_status ?? 'unspecified'}`;
   }
 
   return null;

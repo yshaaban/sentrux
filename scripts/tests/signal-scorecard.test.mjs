@@ -375,7 +375,7 @@ test('buildSignalScorecard promotion recommendations react to poor intervention 
   assert.equal(scorecard.signals[0].default_rollout_recommendation, 'improve_fix_guidance');
 });
 
-test('buildSignalScorecard marks trusted agent-default leads as awaiting treatment proof after stronger session evidence', function () {
+test('buildSignalScorecard blocks default-lane promotion when repair packets are incomplete or unclear', function () {
   const scorecard = buildSignalScorecard({
     repoLabel: 'default-rollout-ready',
     defectReport: {
@@ -404,6 +404,9 @@ test('buildSignalScorecard marks trusted agent-default leads as awaiting treatme
           category: 'useful',
           rank_observed: 1,
           rank_preserved: true,
+          repair_packet_complete: true,
+          repair_packet_fix_surface_clear: true,
+          repair_packet_verification_clear: true,
         },
         {
           kind: 'forbidden_raw_read',
@@ -416,6 +419,9 @@ test('buildSignalScorecard marks trusted agent-default leads as awaiting treatme
           category: 'useful',
           rank_observed: 1,
           rank_preserved: true,
+          repair_packet_complete: true,
+          repair_packet_fix_surface_clear: false,
+          repair_packet_verification_clear: true,
         },
       ],
     },
@@ -497,12 +503,155 @@ test('buildSignalScorecard marks trusted agent-default leads as awaiting treatme
   assert.equal(scorecard.signals[0].signal_kind, 'forbidden_raw_read');
   assert.equal(scorecard.signals[0].product_primary_lane, 'agent_default');
   assert.equal(scorecard.signals[0].default_surface_role, 'lead');
+  assert.equal(scorecard.signals[0].reviewed_total, 3);
+  assert.equal(scorecard.signals[0].review_repair_packet_total, 2);
+  assert.equal(scorecard.signals[0].repair_packet_complete_rate, 1);
+  assert.equal(scorecard.signals[0].repair_packet_fix_surface_clear_rate, 0.5);
+  assert.equal(scorecard.signals[0].repair_packet_verification_clear_rate, 1);
+  assert.equal(scorecard.signals[0].promotion_recommendation, 'improve_fix_guidance');
+  assert.equal(scorecard.signals[0].default_rollout_recommendation, 'improve_fix_guidance');
+  assert.equal(scorecard.summary.default_rollout_candidate_count, 0);
+  assert.equal(scorecard.summary.default_rollout_ready_count, 0);
+});
+
+test('buildSignalScorecard marks trusted agent-default leads as awaiting treatment proof after strong repair guidance and session evidence', function () {
+  const scorecard = buildSignalScorecard({
+    repoLabel: 'default-rollout-ready',
+    defectReport: {
+      repo_label: 'default-rollout-ready',
+      defects: [
+        {
+          id: 'raw-read',
+          signal_kind: 'forbidden_raw_read',
+          signal_family: 'rules',
+          promotion_status: 'trusted',
+          blocking_intent: 'blocking',
+        },
+      ],
+      results: [
+        {
+          defect_id: 'raw-read',
+          detected: true,
+          check: { supported: true, matched: true },
+        },
+      ],
+    },
+    reviewVerdicts: {
+      verdicts: [
+        {
+          kind: 'forbidden_raw_read',
+          category: 'useful',
+          rank_observed: 1,
+          rank_preserved: true,
+          repair_packet_complete: true,
+          repair_packet_fix_surface_clear: true,
+          repair_packet_verification_clear: true,
+        },
+        {
+          kind: 'forbidden_raw_read',
+          category: 'useful',
+          rank_observed: 1,
+          rank_preserved: true,
+          repair_packet_complete: true,
+          repair_packet_fix_surface_clear: true,
+          repair_packet_verification_clear: true,
+        },
+        {
+          kind: 'forbidden_raw_read',
+          category: 'useful',
+          rank_observed: 1,
+          rank_preserved: true,
+          repair_packet_complete: true,
+          repair_packet_fix_surface_clear: true,
+          repair_packet_verification_clear: true,
+        },
+      ],
+    },
+    remediationReport: {
+      results: [
+        {
+          signal_kind: 'forbidden_raw_read',
+          fixed: true,
+          regression_free: true,
+        },
+      ],
+    },
+    sessionVerdicts: {
+      repo_label: 'default-rollout-ready',
+      verdicts: [
+        {
+          session_id: 'live-raw-read-1',
+          lane: 'live',
+          top_action_followed: true,
+          top_action_helped: true,
+          task_completed_successfully: true,
+          patch_expanded_unnecessarily: false,
+          intervention_cost_checks: 1,
+          reviewer_confidence: 'high',
+        },
+        {
+          session_id: 'live-raw-read-2',
+          lane: 'live',
+          top_action_followed: true,
+          top_action_helped: true,
+          task_completed_successfully: true,
+          patch_expanded_unnecessarily: false,
+          intervention_cost_checks: 1,
+          reviewer_confidence: 'high',
+        },
+        {
+          session_id: 'live-raw-read-3',
+          lane: 'live',
+          top_action_followed: true,
+          top_action_helped: true,
+          task_completed_successfully: true,
+          patch_expanded_unnecessarily: false,
+          intervention_cost_checks: 1,
+          reviewer_confidence: 'high',
+        },
+      ],
+    },
+    codexBatch: {
+      results: [
+        {
+          task_id: 'live-raw-read-1',
+          expected_signal_kinds: ['forbidden_raw_read'],
+          outcome: {
+            initial_top_action_kind: 'forbidden_raw_read',
+            initial_action_kinds: ['forbidden_raw_read'],
+          },
+        },
+        {
+          task_id: 'live-raw-read-2',
+          expected_signal_kinds: ['forbidden_raw_read'],
+          outcome: {
+            initial_top_action_kind: 'forbidden_raw_read',
+            initial_action_kinds: ['forbidden_raw_read'],
+          },
+        },
+        {
+          task_id: 'live-raw-read-3',
+          expected_signal_kinds: ['forbidden_raw_read'],
+          outcome: {
+            initial_top_action_kind: 'forbidden_raw_read',
+            initial_action_kinds: ['forbidden_raw_read'],
+          },
+        },
+      ],
+    },
+  });
+
+  assert.equal(scorecard.signals.length, 1);
+  assert.equal(scorecard.signals[0].signal_kind, 'forbidden_raw_read');
+  assert.equal(scorecard.signals[0].product_primary_lane, 'agent_default');
+  assert.equal(scorecard.signals[0].default_surface_role, 'lead');
+  assert.equal(scorecard.signals[0].promotion_recommendation, 'keep_trusted');
   assert.equal(scorecard.signals[0].default_rollout_recommendation, 'await_treatment_proof');
   assert.equal(scorecard.summary.default_rollout_candidate_count, 1);
   assert.equal(scorecard.summary.default_rollout_ready_count, 0);
 });
 
-test('buildSignalScorecard marks signals ready for default-on after qualified signal-matched treatment evidence', function () {
+test('buildSignalScorecard marks lead default-lane watchpoints ready for default-on after qualified signal-matched treatment evidence', function () {
   const scorecard = buildSignalScorecard({
     repoLabel: 'signal-treatment-ready',
     defectReport: {
@@ -512,7 +661,7 @@ test('buildSignalScorecard marks signals ready for default-on after qualified si
           id: 'propagation',
           signal_kind: 'incomplete_propagation',
           signal_family: 'obligation',
-          promotion_status: 'trusted',
+          promotion_status: 'watchpoint',
           blocking_intent: 'blocking',
         },
       ],
@@ -531,18 +680,27 @@ test('buildSignalScorecard marks signals ready for default-on after qualified si
           category: 'useful',
           rank_observed: 1,
           rank_preserved: true,
+          repair_packet_complete: true,
+          repair_packet_fix_surface_clear: true,
+          repair_packet_verification_clear: true,
         },
         {
           kind: 'incomplete_propagation',
           category: 'useful',
           rank_observed: 1,
           rank_preserved: true,
+          repair_packet_complete: true,
+          repair_packet_fix_surface_clear: true,
+          repair_packet_verification_clear: true,
         },
         {
           kind: 'incomplete_propagation',
           category: 'useful',
           rank_observed: 1,
           rank_preserved: true,
+          repair_packet_complete: true,
+          repair_packet_fix_surface_clear: true,
+          repair_packet_verification_clear: true,
         },
       ],
     },
@@ -654,11 +812,17 @@ test('buildSignalScorecard marks signals ready for default-on after qualified si
     },
   });
 
+  const propagationSignal = scorecard.signals.find(function findSignal(signal) {
+    return signal.signal_kind === 'incomplete_propagation';
+  });
+
   assert.equal(scorecard.signals.length, 2);
-  assert.equal(scorecard.signals[0].signal_kind, 'incomplete_propagation');
-  assert.equal(scorecard.signals[0].signal_treatment_ready, true);
-  assert.equal(scorecard.signals[0].signal_treatment_best_arm, 'fix_this_first');
-  assert.equal(scorecard.signals[0].default_rollout_recommendation, 'ready_for_default_on');
+  assert.ok(propagationSignal);
+  assert.equal(propagationSignal.promotion_status, 'watchpoint');
+  assert.equal(propagationSignal.promotion_recommendation, 'keep_watchpoint');
+  assert.equal(propagationSignal.signal_treatment_ready, true);
+  assert.equal(propagationSignal.signal_treatment_best_arm, 'fix_this_first');
+  assert.equal(propagationSignal.default_rollout_recommendation, 'ready_for_default_on');
   assert.equal(scorecard.summary.default_rollout_candidate_count, 1);
   assert.equal(scorecard.summary.default_rollout_ready_count, 1);
 });

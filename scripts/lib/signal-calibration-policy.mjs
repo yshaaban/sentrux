@@ -32,6 +32,7 @@ export const SIGNAL_PRIMARY_TARGET_POLICY = Object.freeze({
 export const SIGNAL_DEFAULT_ROLLOUT_POLICY = Object.freeze({
   sessionVerdictMinSamples: 3,
   experimentArmMinComparisons: 1,
+  sessionTrialMissRateMax: 0.25,
   topActionHelpRateDeltaMin: 0,
   taskSuccessRateDeltaMin: 0,
   interventionNetValueScoreDeltaMin: 0,
@@ -43,6 +44,9 @@ export const REVIEW_PACKET_COMPLETENESS_POLICY = Object.freeze({
   preferredFields: Object.freeze(['fix_hint', 'likely_fix_sites']),
   top3CompleteRateMin: 0.8,
   top10CompleteRateMin: 0.7,
+  promotionCandidateSmallSampleRateMin: 1,
+  promotionCandidateTop3RateMin: 0.8,
+  promotionCandidateTop10RateMin: 0.7,
 });
 
 export const SIGNAL_BACKLOG_PRIORITY_WEIGHTS = Object.freeze({
