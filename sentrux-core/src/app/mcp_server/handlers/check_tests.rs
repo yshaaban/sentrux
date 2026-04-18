@@ -1,6 +1,6 @@
 use super::agent_format::{
     actions_from_issues, compare_agent_issues, obligation_value_to_agent_issue, to_agent_issue,
-    AgentIssue, IssueConfidence, IssueOrigin, IssueSource, RepairPacket,
+    AgentIssue, AgentIssueEvidence, IssueConfidence, IssueOrigin, IssueSource, RepairPacket,
 };
 use super::check::obligation_issue_value;
 use super::test_support::{
@@ -52,6 +52,7 @@ fn test_issue(
         source,
         origin,
         confidence,
+        evidence_metrics: AgentIssueEvidence::default(),
         repair_packet: RepairPacket {
             risk_statement: "test packet".to_string(),
             likely_fix_sites: vec![file.to_string()],
@@ -454,6 +455,114 @@ fn session_introduced_clone_actions_rank_above_structural_watchpoints() {
     issues.sort_by(compare_agent_issues);
 
     assert_eq!(issues[0].kind, "session_introduced_clone");
+}
+
+#[test]
+fn evidence_backed_actions_break_ties_inside_the_same_signal_family() {
+    let mut better_issue = test_issue(
+        "task_status_projection",
+        "src/app/status.ts",
+        Some(10),
+        "forbidden_raw_read",
+        "Task status is read directly.",
+        FindingSeverity::Medium,
+        IssueSource::Rules,
+        IssueOrigin::Explicit,
+        IssueConfidence::High,
+    );
+    better_issue.evidence_metrics = AgentIssueEvidence {
+        signal_treatment_ready: Some(true),
+        top_action_help_rate: Some(0.9),
+        top_action_follow_rate: Some(0.8),
+        reviewer_acceptance_rate: Some(0.85),
+        remediation_success_rate: Some(0.75),
+        task_success_rate: Some(0.8),
+        intervention_net_value_score: Some(0.7),
+        reviewer_disagreement_rate: Some(0.05),
+        patch_expansion_rate: Some(0.1),
+        intervention_cost_checks_mean: Some(1.0),
+        ..AgentIssueEvidence::default()
+    };
+
+    let mut weaker_issue = test_issue(
+        "task_status_projection",
+        "src/app/status.ts",
+        Some(10),
+        "forbidden_raw_read",
+        "Task status is read directly.",
+        FindingSeverity::Medium,
+        IssueSource::Rules,
+        IssueOrigin::Explicit,
+        IssueConfidence::High,
+    );
+    weaker_issue.evidence_metrics = AgentIssueEvidence {
+        top_action_help_rate: Some(0.2),
+        top_action_follow_rate: Some(0.2),
+        reviewer_acceptance_rate: Some(0.4),
+        remediation_success_rate: Some(0.2),
+        task_success_rate: Some(0.3),
+        intervention_net_value_score: Some(0.1),
+        reviewer_disagreement_rate: Some(0.4),
+        patch_expansion_rate: Some(0.7),
+        intervention_cost_checks_mean: Some(4.0),
+        ..AgentIssueEvidence::default()
+    };
+
+    let mut issues = vec![weaker_issue, better_issue];
+    issues.sort_by(compare_agent_issues);
+
+    assert_eq!(
+        issues[0].evidence_metrics.signal_treatment_ready,
+        Some(true)
+    );
+    assert!(actions_from_issues(&issues, 1)[0]
+        .why_now
+        .iter()
+        .any(|reason| reason == "helped_prior_sessions"));
+}
+
+#[test]
+fn patch_worsened_structural_pressure_ranks_above_equivalent_non_worsened_pressure() {
+    let mut patch_worsened_issue = test_issue(
+        "src/app.ts",
+        "src/app.ts",
+        None,
+        "dependency_sprawl",
+        "src/app.ts fans out across too many dependencies.",
+        FindingSeverity::Medium,
+        IssueSource::Structural,
+        IssueOrigin::Explicit,
+        IssueConfidence::High,
+    );
+    patch_worsened_issue.trust_tier = "trusted".to_string();
+    patch_worsened_issue.leverage_class = "architecture_signal".to_string();
+    patch_worsened_issue.presentation_class = "structural_debt".to_string();
+    patch_worsened_issue
+        .evidence_metrics
+        .patch_directly_worsened = Some(true);
+
+    let mut inherited_issue = test_issue(
+        "src/app.ts",
+        "src/app.ts",
+        None,
+        "dependency_sprawl",
+        "src/app.ts fans out across too many dependencies.",
+        FindingSeverity::Medium,
+        IssueSource::Structural,
+        IssueOrigin::Explicit,
+        IssueConfidence::High,
+    );
+    inherited_issue.trust_tier = "trusted".to_string();
+    inherited_issue.leverage_class = "architecture_signal".to_string();
+    inherited_issue.presentation_class = "structural_debt".to_string();
+
+    let mut issues = vec![inherited_issue, patch_worsened_issue];
+    issues.sort_by(compare_agent_issues);
+
+    assert_eq!(
+        issues[0].evidence_metrics.patch_directly_worsened,
+        Some(true)
+    );
 }
 
 #[test]

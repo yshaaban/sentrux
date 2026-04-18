@@ -151,7 +151,9 @@ fn issue_source_label(source: IssueSource) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::{build_check_signal_summary, build_session_signal_summary, ActionQualitySummary};
-    use crate::app::mcp_server::handlers::agent_format::{IssueOrigin, IssueSource};
+    use crate::app::mcp_server::handlers::agent_format::{
+        AgentIssueEvidence, IssueOrigin, IssueSource,
+    };
     use crate::app::mcp_server::handlers::{
         AgentAction, AgentIssue, IssueConfidence, RepairPacket,
     };
@@ -182,6 +184,7 @@ mod tests {
             origin: IssueOrigin::Explicit,
             confidence: IssueConfidence::High,
             why_now: vec!["why".to_string()],
+            evidence_metrics: AgentIssueEvidence::default(),
             repair_packet: RepairPacket {
                 risk_statement: "risk".to_string(),
                 likely_fix_sites: vec!["src/app.ts".to_string()],
@@ -225,6 +228,7 @@ mod tests {
             source: IssueSource::Rules,
             origin: IssueOrigin::Explicit,
             confidence: IssueConfidence::High,
+            evidence_metrics: AgentIssueEvidence::default(),
             repair_packet: RepairPacket {
                 risk_statement: "risk".to_string(),
                 likely_fix_sites: vec!["src/app.ts".to_string()],

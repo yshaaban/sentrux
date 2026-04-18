@@ -67,6 +67,8 @@ pub(crate) struct AgentIssue {
     pub(crate) source: IssueSource,
     pub(crate) origin: IssueOrigin,
     pub(crate) confidence: IssueConfidence,
+    #[serde(skip_serializing_if = "AgentIssueEvidence::is_empty", default)]
+    pub(crate) evidence_metrics: AgentIssueEvidence,
     pub(crate) repair_packet: RepairPacket,
 }
 
@@ -92,7 +94,80 @@ pub(crate) struct AgentAction {
     pub(crate) origin: IssueOrigin,
     pub(crate) confidence: IssueConfidence,
     pub(crate) why_now: Vec<String>,
+    #[serde(skip_serializing_if = "AgentIssueEvidence::is_empty", default)]
+    pub(crate) evidence_metrics: AgentIssueEvidence,
     pub(crate) repair_packet: RepairPacket,
+}
+
+#[derive(Debug, Clone, Default, Serialize)]
+pub(crate) struct AgentIssueEvidence {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) default_rollout_ready: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) signal_treatment_ready: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) patch_directly_worsened: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) signal_treatment_intervention_net_value_score_delta: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) top_action_help_rate: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) top_action_follow_rate: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) reviewer_acceptance_rate: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) remediation_success_rate: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) task_success_rate: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) intervention_net_value_score: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) reviewed_precision: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) top_1_actionable_precision: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) top_3_actionable_precision: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) reviewer_disagreement_rate: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) patch_expansion_rate: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) intervention_cost_checks_mean: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) review_noise_rate: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) repair_packet_complete_rate: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) repair_packet_fix_surface_clear_rate: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) repair_packet_verification_clear_rate: Option<f64>,
+}
+
+impl AgentIssueEvidence {
+    fn is_empty(&self) -> bool {
+        self.default_rollout_ready.is_none()
+            && self.signal_treatment_ready.is_none()
+            && self.patch_directly_worsened.is_none()
+            && self
+                .signal_treatment_intervention_net_value_score_delta
+                .is_none()
+            && self.top_action_help_rate.is_none()
+            && self.top_action_follow_rate.is_none()
+            && self.reviewer_acceptance_rate.is_none()
+            && self.remediation_success_rate.is_none()
+            && self.task_success_rate.is_none()
+            && self.intervention_net_value_score.is_none()
+            && self.reviewed_precision.is_none()
+            && self.top_1_actionable_precision.is_none()
+            && self.top_3_actionable_precision.is_none()
+            && self.reviewer_disagreement_rate.is_none()
+            && self.patch_expansion_rate.is_none()
+            && self.intervention_cost_checks_mean.is_none()
+            && self.review_noise_rate.is_none()
+            && self.repair_packet_complete_rate.is_none()
+            && self.repair_packet_fix_surface_clear_rate.is_none()
+            && self.repair_packet_verification_clear_rate.is_none()
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -122,12 +197,27 @@ pub(crate) struct AgentCheckResponse {
     pub(crate) diagnostics: CheckDiagnostics,
 }
 
+const PATCH_WORSENED_FIELD_KEYS: &[&str] = &[
+    "patch_directly_worsened",
+    "patch_worsened",
+    "current_patch_worsened",
+    "introduced_by_patch",
+    "session_introduced",
+];
+const TREATMENT_NET_VALUE_DELTA_FIELD_KEYS: &[&str] = &[
+    "signal_treatment_intervention_net_value_score_delta",
+    "intervention_net_value_score_delta",
+];
+const PATCH_EXPANSION_COST_FIELD_KEYS: &[&str] =
+    &["patch_expansion_cost", "intervention_cost_checks_mean"];
+
 pub(crate) fn to_agent_issue(finding: &Value) -> AgentIssue {
     let finding = decorate_finding_with_classification(finding);
     let kind = canonical_issue_kind(finding_kind(&finding)).to_string();
     let files = finding_files(&finding);
     let file = files.first().cloned().unwrap_or_default();
     let repair_packet = repair_packet_for_finding(&finding, &kind);
+    let evidence_metrics = issue_evidence_for_value(&finding);
     AgentIssue {
         scope: issue_scope_for_value(&finding, &files, &kind),
         concept_id: finding
@@ -179,6 +269,7 @@ pub(crate) fn to_agent_issue(finding: &Value) -> AgentIssue {
         source: issue_source_for_kind(&kind),
         origin: issue_origin_for_value(&finding, &kind),
         confidence: issue_confidence_for_value(&finding, &kind),
+        evidence_metrics,
         repair_packet,
         kind,
     }
@@ -213,8 +304,85 @@ pub(crate) fn obligation_value_to_agent_issue(obligation: &Value) -> AgentIssue 
         source: IssueSource::Obligation,
         origin: obligation_origin(obligation),
         confidence: obligation_confidence(obligation),
+        evidence_metrics: AgentIssueEvidence::default(),
         repair_packet: repair_packet_for_obligation(obligation, &kind),
     }
+}
+
+fn issue_evidence_for_value(finding: &Value) -> AgentIssueEvidence {
+    AgentIssueEvidence {
+        default_rollout_ready: default_rollout_ready_field(finding),
+        signal_treatment_ready: boolean_field(finding, &["signal_treatment_ready"]),
+        patch_directly_worsened: boolean_field(finding, PATCH_WORSENED_FIELD_KEYS),
+        signal_treatment_intervention_net_value_score_delta: number_field(
+            finding,
+            TREATMENT_NET_VALUE_DELTA_FIELD_KEYS,
+        ),
+        top_action_help_rate: number_field(finding, &["top_action_help_rate"]),
+        top_action_follow_rate: number_field(finding, &["top_action_follow_rate"]),
+        reviewer_acceptance_rate: number_field(finding, &["reviewer_acceptance_rate"]),
+        remediation_success_rate: number_field(finding, &["remediation_success_rate"]),
+        task_success_rate: number_field(finding, &["task_success_rate"]),
+        intervention_net_value_score: number_field(finding, &["intervention_net_value_score"]),
+        reviewed_precision: number_field(finding, &["reviewed_precision"]),
+        top_1_actionable_precision: number_field(finding, &["top_1_actionable_precision"]),
+        top_3_actionable_precision: number_field(finding, &["top_3_actionable_precision"]),
+        reviewer_disagreement_rate: number_field(finding, &["reviewer_disagreement_rate"]),
+        patch_expansion_rate: number_field(finding, &["patch_expansion_rate"]),
+        intervention_cost_checks_mean: number_field(finding, PATCH_EXPANSION_COST_FIELD_KEYS),
+        review_noise_rate: number_field(finding, &["review_noise_rate"]),
+        repair_packet_complete_rate: number_field(finding, &["repair_packet_complete_rate"]),
+        repair_packet_fix_surface_clear_rate: number_field(
+            finding,
+            &["repair_packet_fix_surface_clear_rate"],
+        ),
+        repair_packet_verification_clear_rate: number_field(
+            finding,
+            &["repair_packet_verification_clear_rate"],
+        ),
+    }
+}
+
+fn default_rollout_ready_field(finding: &Value) -> Option<bool> {
+    first_field_value(finding, &["default_rollout_recommendation"])
+        .and_then(Value::as_str)
+        .map(|value| value == "ready_for_default_on")
+}
+
+fn number_field(value: &Value, keys: &[&str]) -> Option<f64> {
+    first_field_value(value, keys).and_then(value_to_number)
+}
+
+fn value_to_number(value: &Value) -> Option<f64> {
+    value
+        .as_f64()
+        .or_else(|| value.as_i64().map(|number| number as f64))
+        .or_else(|| value.as_u64().map(|number| number as f64))
+        .or_else(|| value.as_str().and_then(|number| number.parse::<f64>().ok()))
+}
+
+fn boolean_field(value: &Value, keys: &[&str]) -> Option<bool> {
+    first_field_value(value, keys).and_then(value_to_bool)
+}
+
+fn first_field_value<'a>(value: &'a Value, keys: &[&str]) -> Option<&'a Value> {
+    keys.iter().find_map(|key| value.get(key))
+}
+
+fn value_to_bool(value: &Value) -> Option<bool> {
+    value
+        .as_bool()
+        .or_else(|| value.as_u64().map(|number| number > 0))
+        .or_else(|| value.as_i64().map(|number| number > 0))
+        .or_else(|| {
+            value
+                .as_str()
+                .and_then(|flag| match flag.trim().to_ascii_lowercase().as_str() {
+                    "true" | "yes" | "ready" => Some(true),
+                    "false" | "no" | "pending" => Some(false),
+                    _ => None,
+                })
+        })
 }
 
 fn obligation_concept_id(obligation: &Value) -> Option<String> {

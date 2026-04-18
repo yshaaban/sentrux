@@ -10,6 +10,8 @@ use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use std::time::Instant;
 
+const DEFAULT_AGENT_ACTION_LIMIT: usize = 3;
+
 pub fn check_def() -> ToolDef {
     ToolDef {
         name: "check",
@@ -62,7 +64,7 @@ pub(crate) fn handle_check(
         )
     };
     let gate = compute_agent_gate(&issues);
-    let actions = actions_from_issues(&issues, issues.len());
+    let actions = actions_from_issues(&issues, DEFAULT_AGENT_ACTION_LIMIT);
     let signal_summary = build_check_signal_summary(&issues, &actions);
     let summary = build_check_summary(
         &issues,

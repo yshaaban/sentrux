@@ -6,6 +6,7 @@ use super::signal_policy::{
     action_kind_weight, action_leverage_weight, action_presentation_weight,
 };
 use serde_json::Value;
+use std::cmp::Ordering;
 
 pub(crate) fn issue_blocks_gate(issue: &AgentIssue) -> bool {
     match issue.source {
@@ -42,6 +43,7 @@ pub(crate) fn actions_from_issues(issues: &[AgentIssue], limit: usize) -> Vec<Ag
             origin: issue.origin,
             confidence: issue.confidence,
             why_now: why_now_for_issue(issue),
+            evidence_metrics: issue.evidence_metrics.clone(),
             repair_packet: issue.repair_packet.clone(),
         })
         .collect()
@@ -69,7 +71,7 @@ pub(crate) fn actions_from_findings_and_obligations(
     actions_from_issues(&issues, limit)
 }
 
-fn right_gate_weight(issue: &AgentIssue) -> u8 {
+fn issue_gate_weight(issue: &AgentIssue) -> u8 {
     if issue_blocks_gate(issue) {
         1
     } else {
@@ -92,6 +94,11 @@ fn issue_source_weight(issue: &AgentIssue) -> u8 {
         (IssueSource::Obligation, _) => 5,
         (IssueSource::Rules, IssueOrigin::Explicit) => 4,
         (IssueSource::Rules, IssueOrigin::ZeroConfig) => 2,
+        (IssueSource::Structural, _)
+            if is_broad_structural_pressure(issue) && !issue_patch_directly_worsened(issue) =>
+        {
+            0
+        }
         (IssueSource::Structural, _) => 1,
         (IssueSource::Clone, _) => 0,
     }
@@ -130,7 +137,176 @@ fn issue_repairability_weight(issue: &AgentIssue) -> u8 {
     (issue.repair_packet.completeness_0_10000 / 2000).min(5) as u8
 }
 
+fn is_broad_structural_pressure(issue: &AgentIssue) -> bool {
+    matches!(
+        issue.kind.as_str(),
+        "large_file" | "dependency_sprawl" | "unstable_hotspot" | "missing_test_coverage"
+    )
+}
+
+fn issue_patch_directly_worsened(issue: &AgentIssue) -> bool {
+    issue
+        .evidence_metrics
+        .patch_directly_worsened
+        .unwrap_or(false)
+}
+
+fn compare_boolean_true_first(left: bool, right: bool) -> Ordering {
+    right.cmp(&left)
+}
+
+fn compare_optional_boolean_true_first(left: Option<bool>, right: Option<bool>) -> Ordering {
+    compare_boolean_true_first(left.unwrap_or(false), right.unwrap_or(false))
+}
+
+fn compare_optional_number_desc(left: Option<f64>, right: Option<f64>) -> Ordering {
+    match (left, right) {
+        (Some(left_value), Some(right_value)) => right_value
+            .partial_cmp(&left_value)
+            .unwrap_or(Ordering::Equal),
+        (Some(_), None) => Ordering::Less,
+        (None, Some(_)) => Ordering::Greater,
+        (None, None) => Ordering::Equal,
+    }
+}
+
+fn compare_optional_number_asc(left: Option<f64>, right: Option<f64>) -> Ordering {
+    match (left, right) {
+        (Some(left_value), Some(right_value)) => left_value
+            .partial_cmp(&right_value)
+            .unwrap_or(Ordering::Equal),
+        (Some(_), None) => Ordering::Less,
+        (None, Some(_)) => Ordering::Greater,
+        (None, None) => Ordering::Equal,
+    }
+}
+
+fn compare_issue_evidence_metrics(left: &AgentIssue, right: &AgentIssue) -> Ordering {
+    let left_metrics = &left.evidence_metrics;
+    let right_metrics = &right.evidence_metrics;
+
+    compare_optional_boolean_true_first(
+        left_metrics.default_rollout_ready,
+        right_metrics.default_rollout_ready,
+    )
+    .then_with(|| {
+        compare_optional_boolean_true_first(
+            left_metrics.signal_treatment_ready,
+            right_metrics.signal_treatment_ready,
+        )
+    })
+    .then_with(|| {
+        compare_optional_boolean_true_first(
+            left_metrics.patch_directly_worsened,
+            right_metrics.patch_directly_worsened,
+        )
+    })
+    .then_with(|| {
+        compare_optional_number_desc(
+            left_metrics.signal_treatment_intervention_net_value_score_delta,
+            right_metrics.signal_treatment_intervention_net_value_score_delta,
+        )
+    })
+    .then_with(|| {
+        compare_optional_number_desc(
+            left_metrics.top_action_help_rate,
+            right_metrics.top_action_help_rate,
+        )
+    })
+    .then_with(|| {
+        compare_optional_number_desc(
+            left_metrics.top_action_follow_rate,
+            right_metrics.top_action_follow_rate,
+        )
+    })
+    .then_with(|| {
+        compare_optional_number_desc(
+            left_metrics.reviewer_acceptance_rate,
+            right_metrics.reviewer_acceptance_rate,
+        )
+    })
+    .then_with(|| {
+        compare_optional_number_desc(
+            left_metrics.remediation_success_rate,
+            right_metrics.remediation_success_rate,
+        )
+    })
+    .then_with(|| {
+        compare_optional_number_desc(
+            left_metrics.task_success_rate,
+            right_metrics.task_success_rate,
+        )
+    })
+    .then_with(|| {
+        compare_optional_number_desc(
+            left_metrics.intervention_net_value_score,
+            right_metrics.intervention_net_value_score,
+        )
+    })
+    .then_with(|| {
+        compare_optional_number_desc(
+            left_metrics.reviewed_precision,
+            right_metrics.reviewed_precision,
+        )
+    })
+    .then_with(|| {
+        compare_optional_number_desc(
+            left_metrics.top_1_actionable_precision,
+            right_metrics.top_1_actionable_precision,
+        )
+    })
+    .then_with(|| {
+        compare_optional_number_desc(
+            left_metrics.top_3_actionable_precision,
+            right_metrics.top_3_actionable_precision,
+        )
+    })
+    .then_with(|| {
+        compare_optional_number_asc(
+            left_metrics.reviewer_disagreement_rate,
+            right_metrics.reviewer_disagreement_rate,
+        )
+    })
+    .then_with(|| {
+        compare_optional_number_asc(
+            left_metrics.patch_expansion_rate,
+            right_metrics.patch_expansion_rate,
+        )
+    })
+    .then_with(|| {
+        compare_optional_number_asc(
+            left_metrics.intervention_cost_checks_mean,
+            right_metrics.intervention_cost_checks_mean,
+        )
+    })
+    .then_with(|| {
+        compare_optional_number_asc(
+            left_metrics.review_noise_rate,
+            right_metrics.review_noise_rate,
+        )
+    })
+    .then_with(|| {
+        compare_optional_number_desc(
+            left_metrics.repair_packet_complete_rate,
+            right_metrics.repair_packet_complete_rate,
+        )
+    })
+    .then_with(|| {
+        compare_optional_number_desc(
+            left_metrics.repair_packet_fix_surface_clear_rate,
+            right_metrics.repair_packet_fix_surface_clear_rate,
+        )
+    })
+    .then_with(|| {
+        compare_optional_number_desc(
+            left_metrics.repair_packet_verification_clear_rate,
+            right_metrics.repair_packet_verification_clear_rate,
+        )
+    })
+}
+
 fn why_now_for_issue(issue: &AgentIssue) -> Vec<String> {
+    let metrics = &issue.evidence_metrics;
     let mut reasons = Vec::new();
     if issue_blocks_gate(issue) {
         reasons.push("gate_blocker".to_string());
@@ -144,6 +320,35 @@ fn why_now_for_issue(issue: &AgentIssue) -> Vec<String> {
     if issue_repairability_weight(issue) >= 4 {
         reasons.push("clear_fix_surface".to_string());
     }
+    if metrics.default_rollout_ready.unwrap_or(false) {
+        reasons.push("default_rollout_ready".to_string());
+    } else if metrics.signal_treatment_ready.unwrap_or(false) {
+        reasons.push("treatment_proven".to_string());
+    }
+    if metrics.top_action_help_rate.is_some_and(|rate| rate >= 0.5) {
+        reasons.push("helped_prior_sessions".to_string());
+    }
+    if metrics
+        .top_action_follow_rate
+        .is_some_and(|rate| rate >= 0.5)
+    {
+        reasons.push("followed_in_prior_sessions".to_string());
+    }
+    if metrics
+        .reviewer_disagreement_rate
+        .is_some_and(|rate| rate <= 0.15)
+    {
+        reasons.push("low_reviewer_disagreement".to_string());
+    }
+    if metrics
+        .patch_expansion_rate
+        .is_some_and(|rate| rate <= 0.25)
+    {
+        reasons.push("bounded_patch_surface".to_string());
+    }
+    if issue_patch_directly_worsened(issue) {
+        reasons.push("patch_directly_worsened".to_string());
+    }
     if issue.source == IssueSource::Obligation {
         reasons.push("changed_concept".to_string());
     }
@@ -153,9 +358,9 @@ fn why_now_for_issue(issue: &AgentIssue) -> Vec<String> {
     reasons
 }
 
-pub(crate) fn compare_agent_issues(left: &AgentIssue, right: &AgentIssue) -> std::cmp::Ordering {
-    right_gate_weight(right)
-        .cmp(&right_gate_weight(left))
+pub(crate) fn compare_agent_issues(left: &AgentIssue, right: &AgentIssue) -> Ordering {
+    issue_gate_weight(right)
+        .cmp(&issue_gate_weight(left))
         .then_with(|| issue_source_weight(right).cmp(&issue_source_weight(left)))
         .then_with(|| issue_kind_weight(right).cmp(&issue_kind_weight(left)))
         .then_with(|| right.severity.priority().cmp(&left.severity.priority()))
@@ -164,6 +369,7 @@ pub(crate) fn compare_agent_issues(left: &AgentIssue, right: &AgentIssue) -> std
         .then_with(|| issue_trust_tier_weight(right).cmp(&issue_trust_tier_weight(left)))
         .then_with(|| issue_confidence_weight(right).cmp(&issue_confidence_weight(left)))
         .then_with(|| issue_repairability_weight(right).cmp(&issue_repairability_weight(left)))
+        .then_with(|| compare_issue_evidence_metrics(left, right))
         .then_with(|| right.score_0_10000.cmp(&left.score_0_10000))
         .then_with(|| left.file.cmp(&right.file))
         .then_with(|| left.kind.cmp(&right.kind))
