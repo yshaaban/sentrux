@@ -151,6 +151,8 @@ Current status:
 - benchmark comparison now has an explicit policy:
   - fail at `>250ms` and `>20%`
   - warn at `>150ms` and `>10%`
+- the external eval runtime now has a bounded adjudication scaffold for structured evidence bundles only, with schema-checked provider outputs, cited-evidence reference validation, stored audit records, and explicit `auto_apply_eligible: false` guardrails suitable for MiniMax M2.7-style trials
+- scorecard, session-corpus, and evidence-review artifacts now carry reviewer acceptance/disagreement rates plus signal-matched default-rollout qualification so promotion reviews can judge help, disagreement, and treatment readiness together
 - a release checklist now exists in [release-checklist.md](./release-checklist.md)
 - the validation loop now has a dedicated local public release preflight in `scripts/release_preflight_public.mjs`, including `ts-bridge` dependency installation, pinned `tree-sitter` CLI setup when needed, current-platform grammar-bundle generation, bundle-aware installer smoke on supported hosts, and an explicit tracked-tree cleanliness check without regenerating benchmark artifacts
 - the public tree now has a hygiene scanner that blocks abandoned upstream links, private repo names, internal domains, and maintainer workstation paths
@@ -247,6 +249,7 @@ Current support boundary:
 - repair-packet completeness does not replace ranking quality, remediation success, or session outcomes; it strengthens fixability evidence after the detector is already showing useful ranked behavior
 - scorecards now separate broad promotion guidance from stricter default-on readiness by carrying per-signal `default_rollout_recommendation`; evidence reviews then summarize `default_on_candidates`, repo-level treatment evidence, and final `default_on_promotion` readiness separately from generic promotion candidates
 - session corpus, scorecard, and evidence review artifacts now carry `evidence_sources` so paired baseline/treatment outputs can be traced back to their program, phase, batch, cohort, and analysis mode without relying on filename conventions
+- bounded adjudication remains scaffold-grade only: the current runtime can log structured evidence bundles, decisions, and phase/progress status for audit, but it does not yet authorize live ranking changes or free-form repo scans
 
 ## Treatment-Vs-Baseline Evidence
 

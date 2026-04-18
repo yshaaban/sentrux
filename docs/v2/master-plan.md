@@ -79,11 +79,11 @@ This plan is tracked as a concurrent program, not a strict waterfall. Several ph
 | --- | --- | --- | --- |
 | Phase 0: Reset the product contract | In progress | doctrine, roadmap, scorecards, evidence review, session corpus, and findings surfaces now share the agent-lane vs maintainer-lane split plus an outcome-first contract | some downstream product surfaces still need to consume the same lane metadata and top-action contract without fallback shims |
 | Phase 1: Harden the intervention-grade signal set | In progress | clone drift, authority/access, obligation completeness, trust-tiered findings, and the narrowed default cohort are live; structural findings are increasingly framed as supporting context | the default lane is not yet consistently limited to a small set of intervention-grade actions across repos |
-| Phase 2: Expand the semantic obligation graph | In progress | closed-domain and initial contract-driven obligation expansion are real | richer contract families, better changed-symbol precision, and test/doc follow-through remain incomplete |
-| Phase 3: Add bounded LLM adjudication | Planned | research direction and guardrails are now explicit | no production bounded adjudication path is in the default evaluation loop yet |
+| Phase 2: Expand the semantic obligation graph | In progress | closed-domain and contract-driven obligation expansion now classify DTO, registry, public-API, config, command-status, and test/doc follow-through with surface-aware repair guidance | richer contract families, better changed-symbol precision, and broader sibling-surface coverage remain incomplete |
+| Phase 3: Add bounded LLM adjudication | In progress | structured-evidence adjudication schemas, deterministic bundle prompts, audit records, and conservative progress-tracking fields now exist for the eval/runtime surfaces | the scaffold is still advisory-only; no production reranking loop or signal-matched treatment proof is wired into the default evaluation path yet |
 | Phase 4: Add checker and pattern synthesis | Planned | incident and verdict artifacts exist to support future synthesis | no evidence-backed synthesis workflow is shipping yet |
-| Phase 5: Build the treatment-vs-baseline evidence program | In progress | scorecards, remediation evals, session telemetry, diff replay, canonical top-action telemetry, and experiment-arm comparisons now exist in the evidence artifacts | controlled paired baseline/treatment runs still need to become the decisive promotion evidence |
-| Phase 6: Product surface compression | In progress | `check`, `agent_brief`, trust tiers, repair-packet work, lane-aware cohorts, and lane-aware findings surfaces have improved the lead surface | the product still needs a consistent 1-3 action default lane with maintainer watchpoints kept separate under real repo variance |
+| Phase 5: Build the treatment-vs-baseline evidence program | In progress | scorecards, remediation evals, session telemetry, diff replay, signal-matched experiment comparisons, effect-size reporting, and default-rollout qualification now exist in the evidence artifacts | controlled paired baseline/treatment runs still need to become the decisive promotion evidence |
+| Phase 6: Product surface compression | In progress | `check`, `agent_brief`, trust tiers, repair-packet work, lane-aware cohorts, and lane-aware findings surfaces now enforce a 1-3 action default lane with structural pressure suppressed unless the patch directly worsened it and repair surfaces are concrete | the remaining gap is demonstrating that the same compression quality holds across more public repos and live usage |
 | Phase 7: Release gate | In progress | public-safe hygiene, deterministic preflight, and release checklists are real | release credibility still depends on stronger promotion proof and treatment-vs-baseline evidence |
 
 Current program emphasis:
@@ -421,6 +421,11 @@ Deliverables:
 - structured adjudication prompts for MiniMax M2.7
 - bounded evidence packages for candidate ranking
 - clearer repair-surface and verification-surface packets
+
+Current position:
+
+- a conservative scaffold now exists in the eval/runtime surfaces with deterministic structured-evidence prompts, schema-checked JSON outputs, stored bundle hashes, cited-evidence auditing, and explicit "no auto-apply" guardrails
+- the scaffold is intentionally advisory-only until paired outcome evidence justifies any live reranking or suppression behavior
 
 Key tasks:
 
