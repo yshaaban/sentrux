@@ -46,6 +46,9 @@ function appendOverviewLines(lines, scorecard) {
   lines.push(
     `- complete promotion evidence: ${scorecard.summary.promotion_evidence_complete_count ?? 0}`,
   );
+  lines.push(
+    `- default-rollout candidates: ${scorecard.summary.default_rollout_candidate_count ?? 0}`,
+  );
 }
 
 function appendKpiLines(lines, kpis) {
@@ -177,12 +180,12 @@ function appendProductValueLines(lines, productValue) {
 
 function appendSignalTable(lines, signals) {
   lines.push('');
-  lines.push('| Signal | Family | Status | Primary Lane | Seeded Recall | Primary Recall | Reviewed Precision | Noise Rate | Remediation Success | Trials | Top Action Sessions | Trial Miss Rate | Follow Rate | Help Rate | Net Value | Top Action Clear | Regression Rate | Session Clean Rate | Thrash Rate | Avg Entropy Delta | Avg Checks To Clear | Latency | Recommendation |');
-  lines.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
+  lines.push('| Signal | Family | Status | Product Lane | Default Role | Primary Lane | Seeded Recall | Primary Recall | Reviewed Precision | Noise Rate | Remediation Success | Trials | Top Action Sessions | Trial Miss Rate | Follow Rate | Help Rate | Net Value | Top Action Clear | Regression Rate | Session Clean Rate | Thrash Rate | Avg Entropy Delta | Avg Checks To Clear | Latency | Recommendation | Default Rollout |');
+  lines.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
 
   for (const signal of signals) {
     lines.push(
-      `| \`${signal.signal_kind}\` | \`${signal.signal_family}\` | \`${signal.promotion_status}\` | \`${signal.primary_lane ?? 'n/a'}\` | ${signal.seeded_recall ?? 'n/a'} | ${signal.primary_recall ?? 'n/a'} | ${signal.reviewed_precision ?? 'n/a'} | ${signal.review_noise_rate ?? 'n/a'} | ${signal.remediation_success_rate ?? 'n/a'} | ${signal.session_trial_count ?? 0} | ${signal.top_action_sessions ?? 0} | ${signal.session_trial_miss_rate ?? 'n/a'} | ${signal.top_action_follow_rate ?? 'n/a'} | ${signal.top_action_help_rate ?? 'n/a'} | ${signal.intervention_net_value_score ?? 'n/a'} | ${signal.top_action_clear_rate ?? 'n/a'} | ${signal.followup_regression_rate ?? 'n/a'} | ${signal.session_clean_rate ?? 'n/a'} | ${signal.session_thrash_rate ?? 'n/a'} | ${signal.average_entropy_delta ?? 'n/a'} | ${signal.average_checks_to_clear ?? 'n/a'} | ${signal.latency_ms ?? 'n/a'} | \`${signal.promotion_recommendation}\` |`,
+      `| \`${signal.signal_kind}\` | \`${signal.signal_family}\` | \`${signal.promotion_status}\` | \`${signal.product_primary_lane ?? 'n/a'}\` | \`${signal.default_surface_role ?? 'n/a'}\` | \`${signal.primary_lane ?? 'n/a'}\` | ${signal.seeded_recall ?? 'n/a'} | ${signal.primary_recall ?? 'n/a'} | ${signal.reviewed_precision ?? 'n/a'} | ${signal.review_noise_rate ?? 'n/a'} | ${signal.remediation_success_rate ?? 'n/a'} | ${signal.session_trial_count ?? 0} | ${signal.top_action_sessions ?? 0} | ${signal.session_trial_miss_rate ?? 'n/a'} | ${signal.top_action_follow_rate ?? 'n/a'} | ${signal.top_action_help_rate ?? 'n/a'} | ${signal.intervention_net_value_score ?? 'n/a'} | ${signal.top_action_clear_rate ?? 'n/a'} | ${signal.followup_regression_rate ?? 'n/a'} | ${signal.session_clean_rate ?? 'n/a'} | ${signal.session_thrash_rate ?? 'n/a'} | ${signal.average_entropy_delta ?? 'n/a'} | ${signal.average_checks_to_clear ?? 'n/a'} | ${signal.latency_ms ?? 'n/a'} | \`${signal.promotion_recommendation}\` | \`${signal.default_rollout_recommendation ?? 'n/a'}\` |`,
     );
   }
 }

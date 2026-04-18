@@ -88,6 +88,28 @@ function sessionLabelForEntry(entry) {
   return entry.task_label ?? entry.commit ?? entry.replay_id ?? entry.task_id ?? 'session';
 }
 
+function buildProgramTracking(batch, lane) {
+  if (!batch) {
+    return null;
+  }
+
+  return {
+    lane,
+    program_id: batch.program_id ?? batch.cohort_id ?? batch.batch_id ?? null,
+    phase_id: batch.phase_id ?? null,
+    batch_id: batch.batch_id ?? null,
+    cohort_id: batch.cohort_id ?? null,
+    analysis_mode: batch.analysis_mode ?? (lane === 'replay' ? 'head_clone' : 'working_tree'),
+  };
+}
+
+function buildEvidenceSources(codexBatch, replayBatch) {
+  return {
+    live: buildProgramTracking(codexBatch, 'live'),
+    replay: buildProgramTracking(replayBatch, 'replay'),
+  };
+}
+
 function normalizeInitialActionKinds(outcome) {
   return uniqueSortedStrings(asArray(outcome?.initial_action_kinds));
 }
@@ -153,7 +175,7 @@ function outcomeBucketForEntry(entry) {
   return 'incomplete';
 }
 
-function normalizeBatchEntry(entry, lane) {
+function normalizeBatchEntry(entry, lane, programTracking) {
   const outcome = entry.outcome ?? {};
   const expectedSignalKinds = uniqueSortedStrings(asArray(entry.expected_signal_kinds));
   const initialActionKinds = normalizeInitialActionKinds(outcome);
@@ -188,6 +210,7 @@ function normalizeBatchEntry(entry, lane) {
     session_goal: entry.session_goal ?? null,
     success_criteria: entry.success_criteria ?? null,
     focus_areas: focusAreasForExpectedSignals(expectedSignalKinds, tags),
+    program_tracking: programTracking,
     outcome: normalizedOutcome,
   };
 
@@ -213,11 +236,12 @@ function enrichTopActionOutcome(entry) {
 }
 
 function normalizeBatchEntries(batch, lane) {
+  const programTracking = buildProgramTracking(batch, lane);
   const results = asArray(batch?.results).map(function fromResult(result) {
-    return normalizeBatchEntry(result, lane);
+    return normalizeBatchEntry(result, lane, programTracking);
   });
   const failures = asArray(batch?.failures).map(function fromFailure(failure) {
-    return normalizeBatchEntry(failure, lane);
+    return normalizeBatchEntry(failure, lane, programTracking);
   });
 
   return [...results, ...failures];
@@ -671,6 +695,7 @@ export function buildSessionCorpus({
   const topActionFailureSummary = buildTopActionFailureSummary(entries);
   const experimentArmSummaries = buildExperimentArmSummaries(entries);
   const experimentArmComparisons = buildExperimentArmComparisons(experimentArmSummaries);
+  const evidenceSources = buildEvidenceSources(codexBatch, replayBatch);
 
   return {
     schema_version: 1,
@@ -689,6 +714,7 @@ export function buildSessionCorpus({
       replayBatch?.repo_root ??
       sessionTelemetry?.repo_root ??
       null,
+    evidence_sources: evidenceSources,
     summary: buildCorpusSummary(
       entries,
       sessionTelemetry,

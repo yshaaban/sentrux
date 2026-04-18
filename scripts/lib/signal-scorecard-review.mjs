@@ -1,4 +1,5 @@
 import {
+  SIGNAL_DEFAULT_ROLLOUT_POLICY,
   SIGNAL_PRIMARY_TARGET_POLICY,
   SIGNAL_PROMOTION_POLICY,
 } from './signal-calibration-policy.mjs';
@@ -74,6 +75,8 @@ export function createEmptySignalEntry(signalKind, overrides = {}) {
     signal_family: 'unknown',
     promotion_status: 'unspecified',
     blocking_intent: 'unspecified',
+    product_primary_lane: null,
+    default_surface_role: null,
     seeded_total: 0,
     seeded_detected: 0,
     primary_lane: null,
@@ -690,6 +693,41 @@ function promotionFixGuidanceDecision(metrics) {
   return null;
 }
 
+function defaultRolloutRecommendationBlocked(entry, metrics) {
+  if (entry.product_primary_lane !== 'agent_default') {
+    return 'not_agent_default';
+  }
+  if (entry.default_surface_role !== 'lead') {
+    return 'not_default_lead';
+  }
+  if (entry.promotion_status !== 'trusted') {
+    return 'keep_watchpoint';
+  }
+
+  const primaryTargetDecision = promotionPrimaryTargetDecision(metrics);
+  if (primaryTargetDecision) {
+    return 'improve_primary_target_quality';
+  }
+
+  const outcomeDecision = promotionOutcomeDecision(metrics);
+  if (outcomeDecision) {
+    return outcomeDecision;
+  }
+
+  const fixGuidanceDecision = promotionFixGuidanceDecision(metrics);
+  if (fixGuidanceDecision) {
+    return fixGuidanceDecision;
+  }
+
+  if (
+    metrics.sessionVerdictCount < SIGNAL_DEFAULT_ROLLOUT_POLICY.sessionVerdictMinSamples
+  ) {
+    return 'needs_more_session_evidence';
+  }
+
+  return null;
+}
+
 export function buildPromotionRecommendation(entry) {
   const metrics = buildPromotionInputs(entry);
   const noiseDecision = promotionNoiseDecision(metrics);
@@ -713,6 +751,16 @@ export function buildPromotionRecommendation(entry) {
   }
 
   return `keep_${entry.promotion_status ?? 'unspecified'}`;
+}
+
+export function buildDefaultRolloutRecommendation(entry) {
+  const metrics = buildPromotionInputs(entry);
+  const blockedRecommendation = defaultRolloutRecommendationBlocked(entry, metrics);
+  if (blockedRecommendation) {
+    return blockedRecommendation;
+  }
+
+  return 'await_treatment_proof';
 }
 
 function sumSignalField(signals, fieldName) {

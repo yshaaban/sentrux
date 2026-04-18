@@ -136,6 +136,8 @@ export async function buildScorecardArgs({
   selectedSessionVerdictsPath = null,
   remediationReportPath = null,
   benchmarkPath = null,
+  cohortManifestPath = null,
+  cohortId = null,
 }) {
   const scorecardArgs = [
     '--repo-label',
@@ -165,6 +167,12 @@ export async function buildScorecardArgs({
   }
   if (selectedSessionVerdictsPath) {
     scorecardArgs.push('--session-verdicts', selectedSessionVerdictsPath);
+  }
+  if (cohortManifestPath) {
+    scorecardArgs.push('--cohort-manifest', cohortManifestPath);
+  }
+  if (cohortId) {
+    scorecardArgs.push('--cohort-id', cohortId);
   }
 
   return scorecardArgs;

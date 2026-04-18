@@ -1,5 +1,7 @@
 {
   "schema_version": 1,
+  "program_id": "agent-loop-core",
+  "phase_id": "phase_5_treatment_baseline",
   "batch_id": "sentrux-codex-session-batch",
   "cohort_id": "agent-loop-core",
   "repo_root": "../../../..",

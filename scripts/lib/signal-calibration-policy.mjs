@@ -27,6 +27,15 @@ export const SIGNAL_PRIMARY_TARGET_POLICY = Object.freeze({
   rankingPreferenceMinComparisons: 1,
 });
 
+export const SIGNAL_DEFAULT_ROLLOUT_POLICY = Object.freeze({
+  sessionVerdictMinSamples: 3,
+  experimentArmMinComparisons: 1,
+  topActionHelpRateDeltaMin: 0,
+  taskSuccessRateDeltaMin: 0,
+  interventionNetValueScoreDeltaMin: 0,
+  patchExpansionRateDeltaMax: 0,
+});
+
 export const REVIEW_PACKET_COMPLETENESS_POLICY = Object.freeze({
   requiredFields: Object.freeze(['scope', 'summary', 'evidence', 'repair_surface']),
   preferredFields: Object.freeze(['fix_hint', 'likely_fix_sites']),

@@ -9,6 +9,10 @@ import {
   selectPresentationBuckets,
   scoreBandLabel,
 } from '../lib/v2-report-selection.mjs';
+import {
+  buildDefaultAgentLeadSignalKindSet,
+  buildSignalMetadataLookup,
+} from '../lib/signal-cohorts.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -34,6 +38,7 @@ function candidate({
   roleTags = [],
   metrics = {},
   cutCandidates = [],
+  ...rest
 }) {
   return {
     scope,
@@ -51,6 +56,7 @@ function candidate({
     related_surfaces: [],
     metrics,
     cut_candidates: cutCandidates,
+    ...rest,
   };
 }
 
@@ -247,6 +253,106 @@ test('selectLeverageBuckets keeps zero-weight large_file out of summary slots wh
     ['src/store/store.ts', 'src/components/TaskPanel.tsx'],
   );
   assert.equal(buckets.regrowth_watchpoints[0].scope, 'src/app-shell.ts');
+});
+
+test('signal cohort helpers flatten default-lane lead and supporting metadata', function () {
+  const metadataLookup = buildSignalMetadataLookup();
+  const agentLeadSignalKinds = buildDefaultAgentLeadSignalKindSet();
+
+  assert.equal(
+    metadataLookup.get('forbidden_raw_read')?.default_surface_role,
+    'lead',
+  );
+  assert.equal(
+    metadataLookup.get('forbidden_raw_read')?.primary_lane,
+    'agent_default',
+  );
+  assert.equal(
+    metadataLookup.get('missing_test_coverage')?.default_surface_role,
+    'supporting_watchpoint',
+  );
+  assert.equal(
+    metadataLookup.get('missing_test_coverage')?.primary_lane,
+    'maintainer_watchpoint',
+  );
+  assert(agentLeadSignalKinds.has('forbidden_raw_read'));
+  assert(!agentLeadSignalKinds.has('closed_domain_exhaustiveness'));
+  assert(!agentLeadSignalKinds.has('large_file'));
+});
+
+test('selectLeverageBuckets falls back to cohort metadata for default-lane selection', function () {
+  const findingsPayload = {
+    finding_details: [
+      candidate({
+        scope: 'src/app/status.ts',
+        kind: 'forbidden_raw_read',
+        leverageClass: 'boundary_discipline',
+        severity: 'high',
+      }),
+      candidate({
+        scope: 'src/app/large-file.ts',
+        kind: 'large_file',
+        leverageClass: 'secondary_cleanup',
+        severity: 'high',
+      }),
+      candidate({
+        scope: 'TaskDotStatus',
+        kind: 'closed_domain_exhaustiveness',
+        leverageClass: 'hardening_note',
+        presentationClass: 'hardening_note',
+        severity: 'high',
+      }),
+    ],
+    watchpoints: [],
+    debt_signals: [],
+    debt_clusters: [],
+  };
+
+  const buckets = selectLeverageBuckets(findingsPayload);
+
+  assert.equal(buckets.summary_candidates.length, 1);
+  assert.equal(buckets.summary_candidates[0].scope, 'src/app/status.ts');
+  assert.equal(buckets.summary_candidates[0].kind, 'forbidden_raw_read');
+  assert(!buckets.summary_candidates.some((entry) => entry.kind === 'large_file'));
+  assert(
+    !buckets.summary_candidates.some(
+      (entry) => entry.kind === 'closed_domain_exhaustiveness',
+    ),
+  );
+});
+
+test('selectLeverageBuckets honors explicit default surface roles over cohort fallback', function () {
+  const findingsPayload = {
+    finding_details: [
+      candidate({
+        scope: 'src/app/status.ts',
+        kind: 'forbidden_raw_read',
+        leverageClass: 'boundary_discipline',
+        severity: 'high',
+        primary_lane: 'maintainer_watchpoint',
+        default_surface_role: 'supporting_watchpoint',
+      }),
+      candidate({
+        scope: 'src/app/store.ts',
+        kind: 'incomplete_propagation',
+        leverageClass: 'boundary_discipline',
+        severity: 'high',
+      }),
+    ],
+    watchpoints: [],
+    debt_signals: [],
+    debt_clusters: [],
+  };
+
+  const buckets = selectLeverageBuckets(findingsPayload);
+
+  assert.deepEqual(
+    buckets.summary_candidates.map((entry) => entry.scope),
+    ['src/app/store.ts'],
+  );
+  assert(
+    !buckets.summary_candidates.some((entry) => entry.scope === 'src/app/status.ts'),
+  );
 });
 
 test('selectLeverageBuckets sorts equal-priority candidates deterministically by scope', function () {

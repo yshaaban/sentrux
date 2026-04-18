@@ -6,11 +6,14 @@
   "required": ["schema_version", "repo_root"],
   "properties": {
     "schema_version": { "const": 1 },
+    "program_id": { "type": "string" },
+    "phase_id": { "type": "string" },
     "batch_id": { "type": "string" },
     "cohort_id": { "type": "string" },
     "repo_root": { "type": "string", "minLength": 1 },
     "repo_label": { "type": "string" },
     "rules_source": { "type": "string" },
+    "analysis_mode": { "enum": ["working_tree", "head_clone"] },
     "expected_signal_kinds": {
       "type": "array",
       "items": { "type": "string" }

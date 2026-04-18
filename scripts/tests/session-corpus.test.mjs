@@ -18,6 +18,11 @@ test('buildSessionCorpus normalizes live and replay sessions into one review sur
     },
     codexBatch: {
       repo_label: 'demo-repo',
+      program_id: 'agent-loop-core',
+      phase_id: 'phase_5_treatment_baseline',
+      batch_id: 'live-batch',
+      cohort_id: 'agent-loop-core',
+      analysis_mode: 'working_tree',
       results: [
         {
           status: 'completed',
@@ -74,6 +79,11 @@ test('buildSessionCorpus normalizes live and replay sessions into one review sur
     },
     replayBatch: {
       repo_label: 'demo-repo',
+      program_id: 'agent-loop-core',
+      phase_id: 'phase_5_treatment_baseline',
+      batch_id: 'replay-batch',
+      cohort_id: 'agent-loop-core',
+      analysis_mode: 'head_clone',
       results: [
         {
           replay_id: 'commit-123',
@@ -141,6 +151,24 @@ test('buildSessionCorpus normalizes live and replay sessions into one review sur
   assert.equal(corpus.summary.replay_session_count, 1);
   assert.equal(corpus.summary.clean_session_count, 2);
   assert.equal(corpus.summary.provider_failure_count, 1);
+  assert.deepEqual(corpus.evidence_sources, {
+    live: {
+      lane: 'live',
+      program_id: 'agent-loop-core',
+      phase_id: 'phase_5_treatment_baseline',
+      batch_id: 'live-batch',
+      cohort_id: 'agent-loop-core',
+      analysis_mode: 'working_tree',
+    },
+    replay: {
+      lane: 'replay',
+      program_id: 'agent-loop-core',
+      phase_id: 'phase_5_treatment_baseline',
+      batch_id: 'replay-batch',
+      cohort_id: 'agent-loop-core',
+      analysis_mode: 'head_clone',
+    },
+  });
   assert.equal(corpus.summary.missed_expected_signal_count, 1);
   assert.equal(corpus.summary.propagation_session_count, 2);
   assert.equal(corpus.summary.clone_session_count, 2);
@@ -162,8 +190,10 @@ test('buildSessionCorpus normalizes live and replay sessions into one review sur
   assert.equal(corpus.summary.duplicate_logic_introduced_rate, 0.25);
   assert.equal(corpus.review_queue.length, 1);
   assert.equal(corpus.sessions[0].outcome_bucket, 'provider_failed');
+  assert.deepEqual(corpus.sessions[0].program_tracking, corpus.evidence_sources.live);
   assert.equal(corpus.sessions[1].outcome_bucket, 'clean');
   assert.equal(corpus.sessions[2].outcome_bucket, 'missed_expected_signal');
+  assert.deepEqual(corpus.sessions[3].program_tracking, corpus.evidence_sources.replay);
   assert.equal(corpus.sessions[3].outcome_bucket, 'clean');
   assert.deepEqual(corpus.sessions[0].outcome.top_action, {
     kind: null,

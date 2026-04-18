@@ -129,6 +129,74 @@ export function buildDefaultSignalCohorts() {
   };
 }
 
+function collectCohortMetadataEntries(manifest, cohortId, seenCohortIds = new Set()) {
+  const cohort = getSignalCohort(manifest, cohortId);
+  if (seenCohortIds.has(cohort.cohort_id)) {
+    return [];
+  }
+
+  seenCohortIds.add(cohort.cohort_id);
+  const metadataEntries = [];
+
+  for (const signal of [...(cohort.signals ?? []), ...(cohort.supporting_watchpoints ?? [])]) {
+    metadataEntries.push({
+      cohort_id: cohort.cohort_id,
+      ...signal,
+    });
+  }
+  for (const linkedCohortId of cohort.linked_supporting_cohort_ids ?? []) {
+    metadataEntries.push(
+      ...collectCohortMetadataEntries(manifest, linkedCohortId, seenCohortIds),
+    );
+  }
+
+  return metadataEntries;
+}
+
+export function buildSignalMetadataLookup(manifest = null, cohortId = null) {
+  const resolvedManifest = manifest ?? buildDefaultSignalCohorts();
+  const metadataEntries = collectCohortMetadataEntries(
+    resolvedManifest,
+    cohortId ?? resolvedManifest.default_cohort_id,
+  );
+  const metadataBySignalKind = new Map();
+
+  for (const entry of metadataEntries) {
+    if (!entry?.signal_kind || metadataBySignalKind.has(entry.signal_kind)) {
+      continue;
+    }
+
+    metadataBySignalKind.set(entry.signal_kind, {
+      cohort_id: entry.cohort_id,
+      signal_kind: entry.signal_kind,
+      signal_family: entry.signal_family ?? 'unknown',
+      promotion_status: entry.promotion_status ?? 'unspecified',
+      primary_lane: entry.primary_lane ?? null,
+      default_surface_role: entry.default_surface_role ?? null,
+      rationale: entry.rationale ?? null,
+    });
+  }
+
+  return metadataBySignalKind;
+}
+
+export function buildDefaultAgentLeadSignalKindSet(manifest = null, cohortId = null) {
+  const metadataBySignalKind = buildSignalMetadataLookup(manifest, cohortId);
+
+  return new Set(
+    Array.from(metadataBySignalKind.values())
+      .filter(function isAgentLead(entry) {
+        return (
+          entry.primary_lane === 'agent_default' &&
+          entry.default_surface_role === 'lead'
+        );
+      })
+      .map(function toSignalKind(entry) {
+        return entry.signal_kind;
+      }),
+  );
+}
+
 export function getSignalCohort(manifest, cohortId = null) {
   const resolvedManifest = manifest ?? buildDefaultSignalCohorts();
   const resolvedCohortId = cohortId ?? resolvedManifest.default_cohort_id;
@@ -155,4 +223,42 @@ export async function loadSignalCohortManifest(targetPath) {
   }
 
   return manifest;
+}
+
+export function resolveSignalCohortId({
+  cohortId = null,
+  fallbackCohortId = null,
+  codexBatch = null,
+  replayBatch = null,
+}) {
+  return (
+    cohortId ??
+    codexBatch?.cohort_id ??
+    replayBatch?.cohort_id ??
+    fallbackCohortId ??
+    null
+  );
+}
+
+export async function loadSignalCohortContext({
+  cohortManifestPath,
+  cohortId = null,
+  fallbackCohortId = null,
+  codexBatch = null,
+  replayBatch = null,
+}) {
+  const resolvedCohortId = resolveSignalCohortId({
+    cohortId,
+    fallbackCohortId,
+    codexBatch,
+    replayBatch,
+  });
+  const cohortManifest = resolvedCohortId
+    ? await loadSignalCohortManifest(cohortManifestPath)
+    : null;
+
+  return {
+    cohortId: resolvedCohortId,
+    cohortManifest,
+  };
 }

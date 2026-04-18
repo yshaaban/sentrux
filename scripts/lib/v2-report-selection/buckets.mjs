@@ -2,16 +2,12 @@ import { normalizeCandidate, signalMatchesScope } from './normalization.mjs';
 import { rankingProfile } from './ranking.mjs';
 import { hasZeroActionWeight, sortCandidates, uniqueByScope } from './compare.mjs';
 import { scoreBandLabel } from '../signal-policy.mjs';
+import { buildDefaultAgentLeadSignalKindSet, buildSignalMetadataLookup } from '../signal-cohorts.mjs';
 
 const SUMMARY_SLOT_LIMIT = 5;
 const DEFAULT_LANE_SLOT_LIMIT = 3;
-const DEFAULT_LANE_SIGNAL_KINDS = new Set([
-  'clone_propagation_drift',
-  'forbidden_raw_read',
-  'incomplete_propagation',
-  'session_introduced_clone',
-  'zero_config_boundary_violation',
-]);
+const DEFAULT_AGENT_LEAD_SIGNAL_KINDS = buildDefaultAgentLeadSignalKindSet();
+const DEFAULT_SIGNAL_METADATA = buildSignalMetadataLookup();
 
 function clustersForScope(debtClusters, scope) {
   return (debtClusters ?? []).filter((cluster) => (cluster.files ?? []).includes(scope));
@@ -132,15 +128,20 @@ function isDefaultLaneCandidate(candidate) {
     return false;
   }
 
-  if (candidate.default_surface_role === 'supporting_watchpoint') {
+  const signalMetadata = DEFAULT_SIGNAL_METADATA.get(candidate.kind);
+  const primaryLane = candidate.primary_lane ?? signalMetadata?.primary_lane ?? null;
+  const defaultSurfaceRole =
+    candidate.default_surface_role ?? signalMetadata?.default_surface_role ?? null;
+
+  if (defaultSurfaceRole === 'supporting_watchpoint') {
     return false;
   }
 
-  if (candidate.default_surface_role === 'lead') {
+  if (primaryLane === 'agent_default' && defaultSurfaceRole === 'lead') {
     return true;
   }
 
-  return DEFAULT_LANE_SIGNAL_KINDS.has(candidate.kind);
+  return DEFAULT_AGENT_LEAD_SIGNAL_KINDS.has(candidate.kind);
 }
 
 function collectCoveredScopes(buckets) {

@@ -9,6 +9,14 @@
     "generated_at": { "type": "string" },
     "repo_label": { "type": ["string", "null"] },
     "repo_root": { "type": ["string", "null"] },
+    "evidence_sources": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "live": { "$ref": "#/$defs/programTracking" },
+        "replay": { "$ref": "#/$defs/programTracking" }
+      }
+    },
     "summary": {
       "type": "object",
       "additionalProperties": true,
@@ -66,6 +74,7 @@
           "experiment_arm": { "type": ["string", "null"] },
           "session_goal": { "type": ["string", "null"] },
           "success_criteria": { "type": ["string", "null"] },
+          "program_tracking": { "$ref": "#/$defs/programTracking" },
           "focus_areas": {
             "type": "array",
             "items": { "type": "string" }
@@ -181,6 +190,28 @@
           },
           "outcome_bucket": { "type": "string" }
         }
+      }
+    }
+  },
+  "$defs": {
+    "programTracking": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": [
+        "lane",
+        "program_id",
+        "phase_id",
+        "batch_id",
+        "cohort_id",
+        "analysis_mode"
+      ],
+      "properties": {
+        "lane": { "type": ["string", "null"] },
+        "program_id": { "type": ["string", "null"] },
+        "phase_id": { "type": ["string", "null"] },
+        "batch_id": { "type": ["string", "null"] },
+        "cohort_id": { "type": ["string", "null"] },
+        "analysis_mode": { "type": ["string", "null"] }
       }
     }
   }

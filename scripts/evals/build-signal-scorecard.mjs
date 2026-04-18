@@ -5,6 +5,7 @@ import {
   buildSignalScorecard,
   formatSignalScorecardMarkdown,
 } from '../lib/signal-scorecard.mjs';
+import { loadSignalCohortContext } from '../lib/signal-cohorts.mjs';
 import { resolveLatestRepoCalibrationArtifacts } from '../lib/repo-calibration-artifacts.mjs';
 import {
   readJsonFile,
@@ -28,6 +29,8 @@ function parseArgs(argv) {
     codexBatchPath: null,
     replayBatchPath: null,
     latestCalibrationPath: null,
+    cohortManifestPath: path.join(repoRoot, 'docs/v2/evals', 'signal-cohorts.json'),
+    cohortId: null,
     outputJsonPath: null,
     outputMarkdownPath: null,
   };
@@ -92,6 +95,16 @@ function parseArgs(argv) {
     if (value === '--latest-calibration') {
       index += 1;
       result.latestCalibrationPath = argv[index];
+      continue;
+    }
+    if (value === '--cohort-manifest') {
+      index += 1;
+      result.cohortManifestPath = argv[index];
+      continue;
+    }
+    if (value === '--cohort-id') {
+      index += 1;
+      result.cohortId = argv[index];
       continue;
     }
     if (value === '--output-json') {
@@ -196,6 +209,13 @@ async function main() {
     args.replayBatchPath ?? latestCalibration?.artifacts?.replay_batch_json ?? null;
   const codexBatch = codexBatchPath ? await readJsonFile(codexBatchPath) : null;
   const replayBatch = replayBatchPath ? await readJsonFile(replayBatchPath) : null;
+  const cohortContext = await loadSignalCohortContext({
+    cohortManifestPath: args.cohortManifestPath,
+    cohortId: args.cohortId,
+    fallbackCohortId: latestCalibration?.cohortId ?? null,
+    codexBatch,
+    replayBatch,
+  });
 
   const scorecard = buildSignalScorecard({
     repoLabel: resolvedRepoLabel,
@@ -208,6 +228,8 @@ async function main() {
     sessionTelemetry,
     codexBatch,
     replayBatch,
+    cohortManifest: cohortContext.cohortManifest,
+    cohortId: cohortContext.cohortId,
   });
   const markdown = formatSignalScorecardMarkdown(scorecard);
 

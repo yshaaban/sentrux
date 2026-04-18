@@ -14,7 +14,7 @@ import {
 import { buildSessionCorpus, formatSessionCorpusMarkdown } from '../lib/session-corpus.mjs';
 import { buildEvidenceReview, formatEvidenceReviewMarkdown } from '../lib/evidence-review.mjs';
 import { buildSignalBacklog, formatSignalBacklogMarkdown } from '../lib/signal-backlog.mjs';
-import { loadSignalCohortManifest, getSignalCohort } from '../lib/signal-cohorts.mjs';
+import { getSignalCohort, loadSignalCohortContext } from '../lib/signal-cohorts.mjs';
 import { resolveLatestRepoCalibrationArtifacts } from '../lib/repo-calibration-artifacts.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -186,6 +186,13 @@ async function main() {
     args,
     resolvedRepoLabel,
   );
+  const cohortContext = await loadSignalCohortContext({
+    cohortManifestPath: args.cohortManifestPath,
+    cohortId: args.cohortId,
+    fallbackCohortId: latestCalibration?.cohortId ?? null,
+    codexBatch,
+    replayBatch,
+  });
 
   const scorecard = buildSignalScorecard({
     repoLabel: resolvedRepoLabel,
@@ -197,6 +204,8 @@ async function main() {
     codexBatch,
     replayBatch,
     sessionVerdicts: inputs.sessionVerdicts,
+    cohortManifest: cohortContext.cohortManifest,
+    cohortId: cohortContext.cohortId,
   });
   const sessionCorpus = buildSessionCorpus({
     repoLabel: resolvedRepoLabel,
@@ -206,7 +215,6 @@ async function main() {
     replayBatch,
     sessionVerdicts: inputs.sessionVerdicts,
   });
-  const resolvedCohortId = args.cohortId ?? latestCalibration?.cohortId ?? null;
 
   await writeCoreCalibrationArtifacts(
     args.outputDir,
@@ -215,9 +223,11 @@ async function main() {
     scorecard,
     sessionCorpus,
   );
-  if (resolvedCohortId) {
-    const cohortManifest = await loadSignalCohortManifest(args.cohortManifestPath);
-    const cohort = getSignalCohort(cohortManifest, resolvedCohortId);
+  if (cohortContext.cohortId) {
+    const cohort = getSignalCohort(
+      cohortContext.cohortManifest,
+      cohortContext.cohortId,
+    );
     const backlog = buildSignalBacklog({
       cohort,
       scorecard,

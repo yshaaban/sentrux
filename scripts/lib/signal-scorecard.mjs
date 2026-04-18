@@ -1,5 +1,6 @@
 import {
   applyReviewVerdicts,
+  buildDefaultRolloutRecommendation,
   buildPromotionRecommendation,
   buildRankingQualitySummary,
   buildReviewMetrics,
@@ -25,6 +26,7 @@ import {
 import { formatSignalScorecardMarkdown } from './signal-scorecard-format.mjs';
 import { safeRatio } from './signal-summary-utils.mjs';
 import { buildSessionCorpus } from './session-corpus.mjs';
+import { buildSignalMetadataLookup } from './signal-cohorts.mjs';
 import {
   buildInterventionNetValueScore,
   buildSessionVerdictSummary,
@@ -41,6 +43,8 @@ function buildScorecardContext({
   codexBatch = null,
   replayBatch = null,
   sessionVerdicts = null,
+  cohortManifest = null,
+  cohortId = null,
 }) {
   const hydratedReviewVerdicts = enrichReviewVerdictsFromPacket(reviewVerdicts, reviewPacket);
   const signalMap = buildSeededEntries(defectReport);
@@ -74,6 +78,7 @@ function buildScorecardContext({
     sessionVerdicts,
   });
   applySignalSessionVerdicts(signalMap, sessionCorpus);
+  applySignalCohortMetadata(signalMap, cohortManifest, cohortId);
 
   return {
     signalMap,
@@ -84,6 +89,30 @@ function buildScorecardContext({
     sessionCorpus,
     hydratedReviewVerdicts,
   };
+}
+
+function applySignalCohortMetadata(signalMap, cohortManifest = null, cohortId = null) {
+  const signalMetadata = buildSignalMetadataLookup(cohortManifest, cohortId);
+
+  for (const [signalKind, entry] of signalMap.entries()) {
+    const metadata = signalMetadata.get(signalKind);
+    if (!metadata) {
+      continue;
+    }
+
+    if (!entry.signal_family || entry.signal_family === 'unknown') {
+      entry.signal_family = metadata.signal_family ?? entry.signal_family;
+    }
+    if (!entry.promotion_status || entry.promotion_status === 'unspecified') {
+      entry.promotion_status = metadata.promotion_status ?? entry.promotion_status;
+    }
+    if (!entry.product_primary_lane) {
+      entry.product_primary_lane = metadata.primary_lane ?? null;
+    }
+    if (!entry.default_surface_role) {
+      entry.default_surface_role = metadata.default_surface_role ?? null;
+    }
+  }
 }
 
 function incrementBooleanSessionVerdict(entry, totalFieldName, countFieldName, value) {
@@ -390,6 +419,8 @@ function buildSignalRecord(entry, latencyMs) {
     signal_family: entry.signal_family,
     promotion_status: entry.promotion_status,
     blocking_intent: entry.blocking_intent,
+    product_primary_lane: entry.product_primary_lane,
+    default_surface_role: entry.default_surface_role,
     primary_lane: entry.primary_lane,
     ...buildSignalRecallFields(entry),
     ...buildSignalCoverageFields(coverageFlags),
@@ -405,6 +436,10 @@ function buildSignalRecord(entry, latencyMs) {
     ...signalProductValue,
     latency_ms: entry.seeded_check_supported > 0 ? latencyMs : null,
     promotion_recommendation: buildPromotionRecommendation({
+      ...promotionEntry,
+      ...signalProductValue,
+    }),
+    default_rollout_recommendation: buildDefaultRolloutRecommendation({
       ...promotionEntry,
       ...signalProductValue,
     }),
@@ -438,6 +473,9 @@ function buildScorecardSummary({
     ).length,
     promotion_evidence_complete_count: signals.filter(
       (signal) => signal.promotion_evidence_complete,
+    ).length,
+    default_rollout_candidate_count: signals.filter(
+      (signal) => signal.default_rollout_recommendation === 'await_treatment_proof',
     ).length,
     kpis: {
       defect_sample_count: defectReport?.results?.length ?? 0,
@@ -481,6 +519,8 @@ export function buildSignalScorecard({
   codexBatch = null,
   replayBatch = null,
   sessionVerdicts = null,
+  cohortManifest = null,
+  cohortId = null,
 }) {
   const context = buildScorecardContext({
     repoLabel,
@@ -493,6 +533,8 @@ export function buildSignalScorecard({
     codexBatch,
     replayBatch,
     sessionVerdicts,
+    cohortManifest,
+    cohortId,
   });
   const signals = [...context.signalMap.values()]
     .map((entry) => buildSignalRecord(entry, context.latencyMs))
@@ -502,6 +544,7 @@ export function buildSignalScorecard({
     schema_version: 1,
     generated_at: new Date().toISOString(),
     repo_label: context.repoLabelValue,
+    evidence_sources: context.sessionCorpus?.evidence_sources ?? { live: null, replay: null },
     signals,
     summary: buildScorecardSummary({
       signals,

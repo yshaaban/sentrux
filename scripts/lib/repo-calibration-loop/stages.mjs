@@ -100,6 +100,8 @@ async function runScorecardStage({
   skipScorecard,
   manifest,
   repoRootPath,
+  cohortManifestPath,
+  cohortId,
   mergedTelemetryJsonPath,
   scorecardJsonPath,
   scorecardMarkdownPath,
@@ -134,6 +136,8 @@ async function runScorecardStage({
     selectedSessionVerdictsPath,
     remediationReportPath,
     benchmarkPath,
+    cohortManifestPath,
+    cohortId,
   });
 
   runs.push(
@@ -432,6 +436,8 @@ async function runAnalysisStages({
     skipScorecard: args.skipScorecard,
     manifest,
     repoRootPath,
+    cohortManifestPath: paths.cohortManifestPath,
+    cohortId: manifest.cohort_id,
     mergedTelemetryJsonPath: paths.mergedTelemetryJsonPath,
     scorecardJsonPath: paths.scorecardJsonPath,
     scorecardMarkdownPath: paths.scorecardMarkdownPath,

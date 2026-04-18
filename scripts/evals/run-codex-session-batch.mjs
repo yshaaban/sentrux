@@ -308,10 +308,13 @@ async function main() {
   const batchResult = {
     schema_version: 1,
     generated_at: nowIso(),
+    program_id: manifest.program_id ?? cohort.cohort_id,
+    phase_id: manifest.phase_id ?? null,
     batch_id: manifest.batch_id ?? cohort.cohort_id,
     repo_label: manifest.repo_label ?? path.basename(sourceRoot),
     repo_root: sourceRoot,
     cohort_id: cohort.cohort_id,
+    analysis_mode: manifest.analysis_mode ?? 'working_tree',
     active_signal_kinds: cohort.signals.map((signal) => signal.signal_kind),
     task_count: (manifest.tasks ?? []).length,
     success_count: taskResults.length,
