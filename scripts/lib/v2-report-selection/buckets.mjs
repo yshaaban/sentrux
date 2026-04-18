@@ -220,11 +220,12 @@ function candidateHasConcreteRepairSurface(candidate) {
     return true;
   }
 
-  const completeRate = candidateNumber(candidate, [
+  const repairSurfaceRate = candidateNumber(candidate, [
     'repair_packet_complete_rate',
+    'repair_packet_fix_surface_clear_rate',
     'repair_packet_fix_surface_clarity_rate',
   ]);
-  if (completeRate !== null && completeRate > 0) {
+  if (repairSurfaceRate !== null && repairSurfaceRate > 0) {
     return true;
   }
 

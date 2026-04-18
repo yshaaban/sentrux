@@ -9,6 +9,29 @@ import {
   candidateNumberValue,
 } from './normalization.mjs';
 
+const PATCH_WORSENED_KEYS = Object.freeze([
+  'patch_directly_worsened',
+  'patch_worsened',
+  'current_patch_worsened',
+  'introduced_by_patch',
+  'session_introduced',
+]);
+
+const TREATMENT_NET_VALUE_DELTA_KEYS = Object.freeze([
+  'signal_treatment_intervention_net_value_score_delta',
+  'intervention_net_value_score_delta',
+]);
+
+const PATCH_EXPANSION_COST_KEYS = Object.freeze([
+  'patch_expansion_cost',
+  'intervention_cost_checks_mean',
+]);
+
+const REPAIR_PACKET_FIX_SURFACE_RATE_KEYS = Object.freeze([
+  'repair_packet_fix_surface_clear_rate',
+  'repair_packet_fix_surface_clarity_rate',
+]);
+
 function severityPriority(severity) {
   switch (severity) {
     case 'high':
@@ -115,15 +138,13 @@ function compareEvidenceMetrics(left, right) {
       candidateBoolean(left, ['signal_treatment_ready']),
       candidateBoolean(right, ['signal_treatment_ready']),
     ) ||
+    compareBooleanTrueFirst(
+      candidateBoolean(left, PATCH_WORSENED_KEYS),
+      candidateBoolean(right, PATCH_WORSENED_KEYS),
+    ) ||
     compareOptionalNumberDesc(
-      candidateNumber(left, [
-        'signal_treatment_intervention_net_value_score_delta',
-        'intervention_net_value_score_delta',
-      ]),
-      candidateNumber(right, [
-        'signal_treatment_intervention_net_value_score_delta',
-        'intervention_net_value_score_delta',
-      ]),
+      candidateNumber(left, TREATMENT_NET_VALUE_DELTA_KEYS),
+      candidateNumber(right, TREATMENT_NET_VALUE_DELTA_KEYS),
     ) ||
     compareOptionalNumberDesc(
       candidateNumber(left, ['top_action_help_rate']),
@@ -170,12 +191,24 @@ function compareEvidenceMetrics(left, right) {
       candidateNumber(right, ['patch_expansion_rate']),
     ) ||
     compareOptionalNumberAsc(
-      candidateNumber(left, ['patch_expansion_cost', 'intervention_cost_checks_mean']),
-      candidateNumber(right, ['patch_expansion_cost', 'intervention_cost_checks_mean']),
+      candidateNumber(left, PATCH_EXPANSION_COST_KEYS),
+      candidateNumber(right, PATCH_EXPANSION_COST_KEYS),
     ) ||
     compareOptionalNumberAsc(
       candidateNumber(left, ['review_noise_rate']),
       candidateNumber(right, ['review_noise_rate']),
+    ) ||
+    compareOptionalNumberDesc(
+      candidateNumber(left, ['repair_packet_complete_rate']),
+      candidateNumber(right, ['repair_packet_complete_rate']),
+    ) ||
+    compareOptionalNumberDesc(
+      candidateNumber(left, REPAIR_PACKET_FIX_SURFACE_RATE_KEYS),
+      candidateNumber(right, REPAIR_PACKET_FIX_SURFACE_RATE_KEYS),
+    ) ||
+    compareOptionalNumberDesc(
+      candidateNumber(left, ['repair_packet_verification_clear_rate']),
+      candidateNumber(right, ['repair_packet_verification_clear_rate']),
     ) ||
     compareOptionalNumberDesc(
       candidateNumber(left, ['session_verdict_count']),

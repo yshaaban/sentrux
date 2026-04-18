@@ -13,6 +13,7 @@ import {
   buildDefaultAgentLeadSignalKindSet,
   buildSignalMetadataLookup,
 } from '../lib/signal-cohorts.mjs';
+import { compareEvidenceMetrics } from '../lib/v2-report-selection/compare.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -542,6 +543,107 @@ test('selectLeverageBuckets uses follow-through and repair value evidence to bre
   );
   assert(
     !buckets.summary_candidates.some((entry) => entry.scope === 'src/app/raw-read-reviewed.ts'),
+  );
+});
+
+test('compareEvidenceMetrics prefers patch-worsened candidates when other evidence is tied', function () {
+  const commonCandidate = {
+    kind: 'dependency_sprawl',
+    trust_tier: 'trusted',
+    leverage_class: 'architecture_signal',
+    presentation_class: 'structural_debt',
+    severity: 'high',
+    reviewed_precision: 0.9,
+    top_action_follow_rate: 0.8,
+    top_action_help_rate: 0.8,
+    remediation_success_rate: 0.8,
+    reviewer_acceptance_rate: 0.8,
+    reviewer_disagreement_rate: 0.1,
+    patch_expansion_rate: 0.1,
+    intervention_cost_checks_mean: 1,
+  };
+
+  const inheritedPressure = candidate({
+    scope: 'src/app/inherited.ts',
+    ...commonCandidate,
+  });
+  const patchWorsenedPressure = candidate({
+    scope: 'src/app/worsened.ts',
+    patch_directly_worsened: true,
+    ...commonCandidate,
+  });
+
+  assert(compareEvidenceMetrics(patchWorsenedPressure, inheritedPressure) < 0);
+  assert(compareEvidenceMetrics(inheritedPressure, patchWorsenedPressure) > 0);
+});
+
+test('compareEvidenceMetrics prefers clearer repair packets when the rest of the evidence is tied', function () {
+  const commonCandidate = {
+    kind: 'forbidden_raw_read',
+    trust_tier: 'trusted',
+    leverage_class: 'boundary_discipline',
+    presentation_class: 'guarded_facade',
+    severity: 'high',
+    reviewed_precision: 1,
+    top_action_follow_rate: 1,
+    top_action_help_rate: 1,
+    remediation_success_rate: 1,
+    reviewer_acceptance_rate: 1,
+    reviewer_disagreement_rate: 0,
+    patch_expansion_rate: 0,
+    intervention_cost_checks_mean: 1,
+  };
+
+  const weakerPacket = candidate({
+    scope: 'src/app/raw-read-weaker.ts',
+    repair_packet_complete_rate: 1,
+    repair_packet_fix_surface_clear_rate: 0.5,
+    repair_packet_verification_clear_rate: 0.5,
+    ...commonCandidate,
+  });
+  const clearerPacket = candidate({
+    scope: 'src/app/raw-read-clearer.ts',
+    repair_packet_complete_rate: 1,
+    repair_packet_fix_surface_clear_rate: 1,
+    repair_packet_verification_clear_rate: 1,
+    ...commonCandidate,
+  });
+
+  assert(compareEvidenceMetrics(clearerPacket, weakerPacket) < 0);
+  assert(compareEvidenceMetrics(weakerPacket, clearerPacket) > 0);
+});
+
+test('selectLeverageBuckets treats fix-surface clear-rate evidence as a concrete repair surface', function () {
+  const findingsPayload = {
+    finding_details: [
+      candidate({
+        scope: 'src/app/huge-module.ts',
+        kind: 'large_file',
+        leverageClass: 'secondary_cleanup',
+        severity: 'high',
+        primary_lane: 'agent_default',
+        default_surface_role: 'lead',
+        signal_family: 'structural',
+        patch_worsened: true,
+        repair_packet_fix_surface_clear_rate: 1,
+      }),
+      candidate({
+        scope: 'src/app/propagation.ts',
+        kind: 'incomplete_propagation',
+        leverageClass: 'boundary_discipline',
+        severity: 'high',
+      }),
+    ],
+    watchpoints: [],
+    debt_signals: [],
+    debt_clusters: [],
+  };
+
+  const buckets = selectLeverageBuckets(findingsPayload);
+
+  assert.deepEqual(
+    buckets.summary_candidates.map((entry) => entry.scope),
+    ['src/app/propagation.ts', 'src/app/huge-module.ts'],
   );
 });
 
