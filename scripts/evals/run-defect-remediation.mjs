@@ -160,6 +160,12 @@ async function runProvider(options) {
     });
   }
 
+  if (options.provider === 'minimax-openai') {
+    throw new Error(
+      'Provider minimax-openai is evaluation-only and cannot edit disposable repo clones. Use claude-code or codex-cli for remediation runs.',
+    );
+  }
+
   throw new Error(`Unsupported provider: ${options.provider}`);
 }
 

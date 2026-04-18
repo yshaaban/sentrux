@@ -2,6 +2,7 @@ import { assertScenarioRepoExists, buildScenarioSummary, resolveRepoRoot } from 
 import { buildTaskPrompt, buildOutputSchema, BASE_APPEND_SYSTEM_PROMPT } from './provider-task-runner/task-schemas.mjs';
 import { buildDryRunProviderOutput, runProvider } from './provider-task-runner/provider.mjs';
 import { evaluateTask, extractResponsePayload } from './provider-task-runner/evaluation.mjs';
+import { buildBoundedAdjudicationArtifact } from './provider-task-runner/adjudication.mjs';
 import {
   buildRunIndex,
   buildTaskResultSummary,
@@ -39,6 +40,11 @@ export async function runEvalTask({ scenario, scenarioPath, task, options, finis
         summary: 'dry run skipped provider execution',
       }
     : evaluateTask(task, responsePayload.response_json, providerOutput);
+  const adjudication = buildBoundedAdjudicationArtifact(
+    task,
+    responsePayload.response_json,
+    scenario,
+  );
 
   return {
     schema_version: 1,
@@ -52,7 +58,7 @@ export async function runEvalTask({ scenario, scenarioPath, task, options, finis
       task_id: task.task_id,
       kind: task.kind,
       mode: task.mode ?? null,
-      prompt: task.prompt,
+      prompt: task.prompt ?? null,
       notes: task.notes ?? null,
       checks: task.checks ?? [],
     },
@@ -81,6 +87,8 @@ export async function runEvalTask({ scenario, scenarioPath, task, options, finis
       stderr: providerOutput.stderr,
     },
     evaluation,
+    adjudication,
+    phase_tracking: adjudication?.phase_tracking ?? null,
   };
 }
 

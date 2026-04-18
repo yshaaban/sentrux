@@ -93,14 +93,18 @@ Options:
   --manifest <path>     Load scenario file list from a manifest JSON file
   --scenario <path>     Run a single scenario file; repeatable
   --output-dir <path>   Write results to this directory
-  --provider <name>     Provider name (default: claude-code)
-  --model <name>        Claude model alias or full name
+  --provider <name>     Provider name (default: claude-code; supports claude-code, codex-cli, minimax-openai)
+  --model <name>        Provider model name
   --timeout-ms <n>      Provider timeout in milliseconds
   --concurrency <n>    Number of tasks to run in parallel
   --claude-bin <path>   Path to the Claude Code CLI binary
   --codex-bin <path>    Path to the Codex CLI binary
   --dry-run             Validate scenarios without calling any provider
   --help                Show this help text
+
+MiniMax auth:
+  Set MINIMAX_API_KEY (or OPENAI_API_KEY) for --provider minimax-openai.
+  Optionally set MINIMAX_BASE_URL to override the default https://api.minimax.io/v1 endpoint.
 `);
 }
 

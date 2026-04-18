@@ -1,5 +1,9 @@
 import { runClaudeCode } from '../../../evals/providers/claude-code.mjs';
 import { runCodexExec } from '../../../evals/providers/codex-cli.mjs';
+import {
+  resolveMiniMaxBaseUrl,
+  runMiniMaxOpenAI,
+} from '../../../evals/providers/minimax-openai.mjs';
 import { nowIso } from '../common.mjs';
 import { fail } from '../common.mjs';
 
@@ -27,17 +31,38 @@ async function runProvider(options) {
     });
   }
 
+  if (options.provider === 'minimax-openai') {
+    return runMiniMaxOpenAI({
+      cwd: options.cwd,
+      prompt: options.prompt,
+      model: options.model,
+      jsonSchema: options.jsonSchema,
+      appendSystemPrompt: options.appendSystemPrompt,
+      timeoutMs: options.timeoutMs,
+    });
+  }
+
   fail(`Unsupported provider: ${options.provider}`);
 }
 
-function buildDryRunProviderOutput(options, repoRoot) {
-  const executable = options.provider === 'codex-cli' ? options.codexBin : options.claudeBin;
+function dryRunExecutable(options) {
+  if (options.provider === 'codex-cli') {
+    return options.codexBin;
+  }
 
+  if (options.provider === 'minimax-openai') {
+    return `${resolveMiniMaxBaseUrl()}/chat/completions`;
+  }
+
+  return options.claudeBin;
+}
+
+function buildDryRunProviderOutput(options, repoRoot) {
   return {
     provider: options.provider,
     provider_version: null,
     command: {
-      executable,
+      executable: dryRunExecutable(options),
       args: [],
     },
     cwd: repoRoot,

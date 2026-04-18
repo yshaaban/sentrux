@@ -1,4 +1,9 @@
 import { resolveRepoRoot } from '../scenarios.mjs';
+import {
+  BOUNDED_ADJUDICATION_OUTPUT_SCHEMA,
+  buildBoundedAdjudicationChecks,
+  buildBoundedAdjudicationPrompt,
+} from './adjudication.mjs';
 
 const BASE_APPEND_SYSTEM_PROMPT = [
   'You are an external evaluation worker.',
@@ -119,12 +124,18 @@ function buildOutputSchema(task) {
   if (task.kind === 'agent_brief') {
     return AGENT_BRIEF_OUTPUT_SCHEMA;
   }
+  if (task.kind === 'bounded_adjudication') {
+    return BOUNDED_ADJUDICATION_OUTPUT_SCHEMA;
+  }
 
   return DEAD_PRIVATE_OUTPUT_SCHEMA;
 }
 
 function buildTaskPrompt(scenario, scenarioPath, task) {
   const repoRoot = resolveRepoRoot(scenario, scenarioPath);
+  if (task.kind === 'bounded_adjudication') {
+    return buildBoundedAdjudicationPrompt(task, scenario, repoRoot);
+  }
   const lines = [
     `Repository: ${scenario.repo.name}`,
     `Repository root: ${repoRoot}`,
@@ -140,7 +151,7 @@ function buildTaskPrompt(scenario, scenarioPath, task) {
   return lines.join('\n');
 }
 
-function defaultChecksForTask(task) {
+function defaultChecksForTask(task, scenario = null) {
   if (task.kind === 'agent_brief') {
     return [
       { kind: 'has', path: 'task_kind', severity: 'required' },
@@ -150,6 +161,9 @@ function defaultChecksForTask(task) {
       { kind: 'min_items', path: 'next_steps', min: 1, severity: 'required' },
       { kind: 'has', path: 'confidence_0_1', severity: 'required' },
     ];
+  }
+  if (task.kind === 'bounded_adjudication') {
+    return buildBoundedAdjudicationChecks(task, scenario);
   }
 
   return [

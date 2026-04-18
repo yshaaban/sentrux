@@ -1,4 +1,5 @@
 import { fail } from '../common.mjs';
+import { defaultChecksForTask } from './task-schemas.mjs';
 
 function getValueAtPath(value, pathExpression) {
   if (typeof pathExpression !== 'string' || !pathExpression) {
@@ -45,6 +46,33 @@ function summarizeValue(value) {
   return String(value);
 }
 
+function summarizeArrayLength(value) {
+  if (Array.isArray(value)) {
+    return `array(len=${value.length})`;
+  }
+
+  return summarizeValue(value);
+}
+
+function checksForTask(task) {
+  if (Array.isArray(task.checks) && task.checks.length > 0) {
+    return task.checks;
+  }
+
+  return defaultChecksForTask(task);
+}
+
+function evaluationSummaryForStatus(status) {
+  switch (status) {
+    case 'pass':
+      return 'all required checks passed';
+    case 'warn':
+      return 'required checks passed, optional checks failed';
+    default:
+      return 'provider or required checks failed';
+  }
+}
+
 function runCheck(responseJson, check) {
   const severity = check.severity ?? 'required';
   const observed = getValueAtPath(responseJson, check.path);
@@ -71,17 +99,13 @@ function runCheck(responseJson, check) {
     case 'min_items': {
       result.passed = Array.isArray(observed) && observed.length >= Number(check.min ?? 0);
       result.message = result.passed ? `length >= ${check.min}` : `length < ${check.min}`;
-      result.observed_summary = Array.isArray(observed)
-        ? `array(len=${observed.length})`
-        : summarizeValue(observed);
+      result.observed_summary = summarizeArrayLength(observed);
       break;
     }
     case 'max_items': {
       result.passed = Array.isArray(observed) && observed.length <= Number(check.max ?? 0);
       result.message = result.passed ? `length <= ${check.max}` : `length > ${check.max}`;
-      result.observed_summary = Array.isArray(observed)
-        ? `array(len=${observed.length})`
-        : summarizeValue(observed);
+      result.observed_summary = summarizeArrayLength(observed);
       break;
     }
     case 'enum': {
@@ -131,6 +155,20 @@ function runCheck(responseJson, check) {
       result.expected_summary = summarizeValue(check.value);
       break;
     }
+    case 'all_items_in_set': {
+      const allowed = new Set(Array.isArray(check.allowed) ? check.allowed : []);
+      result.passed =
+        observed === undefined ||
+        observed === null ||
+        (Array.isArray(observed) &&
+          observed.every((entry) => typeof entry === 'string' && allowed.has(entry)));
+      result.message = result.passed ? 'all items matched allowed set' : 'items outside allowed set';
+      result.expected_summary = `subset_of(${JSON.stringify([...allowed])})`;
+      result.observed_summary = Array.isArray(observed)
+        ? `array(len=${observed.length}, preview=${JSON.stringify(observed.slice(0, 5))})`
+        : summarizeValue(observed);
+      break;
+    }
     default:
       fail(`Unsupported check kind: ${check.kind}`);
   }
@@ -143,12 +181,13 @@ function runCheck(responseJson, check) {
 }
 
 function evaluateTask(task, responseJson, providerStatus) {
-  const checks =
-    Array.isArray(task.checks) && task.checks.length > 0 ? task.checks : defaultChecksForTask(task);
+  const checks = checksForTask(task);
   const checkResults = checks.map((check) => runCheck(responseJson, check));
   const requiredChecks = checkResults.filter((check) => check.severity !== 'optional');
   const requiredFailures = requiredChecks.filter((check) => !check.passed);
-  const optionalFailures = checkResults.filter((check) => check.severity === 'optional' && !check.passed);
+  const optionalFailures = checkResults.filter(
+    (check) => check.severity === 'optional' && !check.passed,
+  );
   const providerFailed =
     providerStatus.exit_code !== 0 || providerStatus.timed_out || !providerStatus.stdout_json;
 
@@ -172,12 +211,7 @@ function evaluateTask(task, responseJson, providerStatus) {
     failed_check_count: checkResults.length - passedCount,
     check_results: checkResults,
     provider_failed: providerFailed,
-    summary:
-      status === 'pass'
-        ? 'all required checks passed'
-        : status === 'warn'
-          ? 'required checks passed, optional checks failed'
-          : 'provider or required checks failed',
+    summary: evaluationSummaryForStatus(status),
   };
 }
 
@@ -236,7 +270,9 @@ function extractResponsePayload(providerOutput, task) {
     typeof directJson === 'object' &&
     typeof directJson.task_kind === 'string' &&
     ((task.kind === 'agent_brief' && directJson.task_kind === 'agent_brief') ||
-      (task.kind === 'dead_private' && directJson.task_kind === 'dead_private'));
+      (task.kind === 'dead_private' && directJson.task_kind === 'dead_private') ||
+      (task.kind === 'bounded_adjudication' &&
+        directJson.task_kind === 'bounded_adjudication'));
 
   if (looksLikeTaskPayload) {
     return {
@@ -255,4 +291,11 @@ function extractResponsePayload(providerOutput, task) {
   };
 }
 
-export { evaluateTask, extractResponsePayload, getValueAtPath, parseMaybeJson, runCheck, summarizeValue };
+export {
+  evaluateTask,
+  extractResponsePayload,
+  getValueAtPath,
+  parseMaybeJson,
+  runCheck,
+  summarizeValue,
+};
