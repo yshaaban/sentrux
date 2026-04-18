@@ -110,3 +110,61 @@ fn repair_packet_for_raw_read_keeps_accessor_based_hint() {
         .iter()
         .any(|step| step.contains("agent_guidance.rs")));
 }
+
+#[test]
+fn repair_packet_for_propagation_obligation_prioritizes_registry_dto_and_test_doc_surfaces() {
+    let obligation = json!({
+        "kind": "incomplete_propagation",
+        "concept_id": "agent_guidance",
+        "files": [
+            "docs/agent-brief.md",
+            "src/app/mcp_server/handlers/session_response.rs",
+            "src/app/mcp_server/handlers/bootstrap-registry.rs"
+        ],
+        "missing_sites": [
+            {
+                "path": "docs/agent-brief.md",
+                "kind": "required_file",
+                "detail": "update required test/doc surface"
+            },
+            {
+                "path": "src/app/mcp_server/handlers/session_response.rs",
+                "kind": "required_file",
+                "detail": "update required DTO surface"
+            },
+            {
+                "path": "src/app/mcp_server/handlers/bootstrap-registry.rs",
+                "kind": "required_symbol",
+                "line": 12,
+                "detail": "update required registry surface"
+            }
+        ]
+    });
+
+    let packet = repair_packet_for_obligation(&obligation, "incomplete_propagation");
+
+    assert_eq!(
+        packet.likely_fix_sites,
+        vec![
+            "src/app/mcp_server/handlers/bootstrap-registry.rs:12".to_string(),
+            "src/app/mcp_server/handlers/session_response.rs".to_string(),
+            "docs/agent-brief.md".to_string()
+        ]
+    );
+    assert!(packet
+        .smallest_safe_first_cut
+        .as_deref()
+        .is_some_and(|hint| hint.contains("registry, DTO, and test/doc surfaces")));
+    assert!(packet
+        .verify_after
+        .iter()
+        .any(|step| step.contains("response/DTO surface")));
+    assert!(packet
+        .verify_after
+        .iter()
+        .any(|step| step.contains("test/doc surface")));
+    assert!(packet
+        .verify_after
+        .iter()
+        .any(|step| step.contains("Re-run `sentrux gate`")));
+}

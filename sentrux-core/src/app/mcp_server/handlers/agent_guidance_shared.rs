@@ -203,6 +203,7 @@ impl FindingGuidanceInput {
 #[derive(Debug, Clone, Default)]
 pub(crate) struct ObligationSiteInput {
     pub(crate) path: String,
+    pub(crate) kind: String,
     pub(crate) line: Option<u32>,
     pub(crate) detail: String,
 }
@@ -321,6 +322,11 @@ pub(crate) fn obligation_missing_site_inputs(obligation: &Value) -> Vec<Obligati
                         .or_else(|| site.get("path").and_then(Value::as_str))?;
                     Some(ObligationSiteInput {
                         path: path.to_string(),
+                        kind: site
+                            .get("kind")
+                            .and_then(Value::as_str)
+                            .unwrap_or("missing_site")
+                            .to_string(),
                         line: site
                             .get("line")
                             .and_then(Value::as_u64)

@@ -541,4 +541,59 @@ mod tests {
         );
         assert_eq!(issue.repair_packet.complete, true);
     }
+
+    #[test]
+    fn propagation_obligation_prefers_production_sites_and_preserves_surface_specific_guidance() {
+        let issue = obligation_value_to_agent_issue(&json!({
+            "kind": "incomplete_propagation",
+            "concept_id": "agent_guidance",
+            "files": [
+                "docs/agent-brief.md",
+                "src/app/mcp_server/handlers/session_response.rs",
+                "src/app/mcp_server/handlers/bootstrap-registry.rs"
+            ],
+            "missing_sites": [
+                {
+                    "path": "docs/agent-brief.md",
+                    "kind": "required_file",
+                    "detail": "update required test/doc surface"
+                },
+                {
+                    "path": "src/app/mcp_server/handlers/session_response.rs",
+                    "kind": "required_file",
+                    "detail": "update required DTO surface"
+                },
+                {
+                    "path": "src/app/mcp_server/handlers/bootstrap-registry.rs",
+                    "kind": "required_symbol",
+                    "line": 12,
+                    "detail": "update required registry surface"
+                }
+            ]
+        }));
+
+        assert_eq!(issue.line, Some(12));
+        assert_eq!(
+            issue.evidence,
+            vec![
+                "src/app/mcp_server/handlers/bootstrap-registry.rs:12 [update required registry surface]"
+                    .to_string(),
+                "src/app/mcp_server/handlers/session_response.rs [update required DTO surface]"
+                    .to_string(),
+                "docs/agent-brief.md [update required test/doc surface]".to_string(),
+            ]
+        );
+        assert_eq!(
+            issue.repair_packet.likely_fix_sites,
+            vec![
+                "src/app/mcp_server/handlers/bootstrap-registry.rs:12".to_string(),
+                "src/app/mcp_server/handlers/session_response.rs".to_string(),
+                "docs/agent-brief.md".to_string(),
+            ]
+        );
+        assert!(issue
+            .fix_hint
+            .as_deref()
+            .is_some_and(|hint| hint.contains("registry, DTO, and test/doc surfaces")));
+    }
 }

@@ -19,6 +19,7 @@ pub(crate) fn repair_packet_for_finding(finding: &Value, kind: &str) -> RepairPa
         inspection_context_for_finding(&input),
         fix_hint_for_finding(&input, kind),
         finding_risk_statement(finding),
+        None,
     )
 }
 

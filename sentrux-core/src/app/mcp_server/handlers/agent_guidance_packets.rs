@@ -29,8 +29,10 @@ pub(crate) fn build_repair_packet(
     inspection_context: Vec<String>,
     smallest_safe_first_cut: Option<String>,
     risk_statement: String,
+    verify_after_override: Option<Vec<String>>,
 ) -> RepairPacket {
-    let verify_after = verify_after_for_kind(kind, &likely_fix_sites, &inspection_context);
+    let verify_after = verify_after_override
+        .unwrap_or_else(|| verify_after_for_kind(kind, &likely_fix_sites, &inspection_context));
     let do_not_touch_yet = do_not_touch_yet_for_kind(kind);
     let required_fields = repair_packet_required_fields(
         !risk_statement.trim().is_empty(),

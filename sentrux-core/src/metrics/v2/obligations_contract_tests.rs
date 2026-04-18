@@ -577,3 +577,90 @@ fn contract_missing_site_summary_dedupes_non_adjacent_labels() {
         "the required symbol and browser runtime entry surfaces"
     );
 }
+
+#[test]
+fn contract_missing_sites_classify_required_registry_dto_config_and_test_doc_surfaces() {
+    let summary = summarize_contract_missing_sites(&[
+        ObligationSite {
+            path: "src/app/mcp_server/handlers/bootstrap-registry.rs".to_string(),
+            kind: "required_symbol".to_string(),
+            line: None,
+            detail: "update required contract symbol".to_string(),
+        },
+        ObligationSite {
+            path: "src/app/mcp_server/handlers/session_response.rs".to_string(),
+            kind: "required_file".to_string(),
+            line: None,
+            detail: "update required contract file".to_string(),
+        },
+        ObligationSite {
+            path: "src/app/mcp_server/handlers/evaluation_signals.rs".to_string(),
+            kind: "required_file".to_string(),
+            line: None,
+            detail: "update required contract file".to_string(),
+        },
+        ObligationSite {
+            path: ".sentrux/rules.toml".to_string(),
+            kind: "required_file".to_string(),
+            line: None,
+            detail: "update required contract file".to_string(),
+        },
+        ObligationSite {
+            path: "docs/agent-brief.md".to_string(),
+            kind: "required_file".to_string(),
+            line: None,
+            detail: "update required contract file".to_string(),
+        },
+    ]);
+
+    assert_eq!(summary, "the registry, DTO and 3 other required surfaces");
+}
+
+#[test]
+fn contract_missing_sites_prioritize_required_registry_and_dto_surfaces_before_docs() {
+    let config: RulesConfig = toml::from_str(
+        r#"
+                [[contract]]
+                id = "agent_guidance"
+                required_symbols = ["src/app/mcp_server/handlers/bootstrap-registry.rs::BOOTSTRAP_REGISTRY"]
+                required_files = [
+                    "src/app/mcp_server/handlers/session_response.rs",
+                    ".sentrux/rules.toml",
+                    "docs/agent-brief.md"
+                ]
+            "#,
+    )
+    .expect("rules config");
+    let semantic = SemanticSnapshot {
+        project: ProjectModel::default(),
+        analyzed_files: 0,
+        capabilities: vec![SemanticCapability::Symbols],
+        files: Vec::new(),
+        symbols: Vec::new(),
+        reads: Vec::new(),
+        writes: Vec::new(),
+        closed_domains: Vec::new(),
+        closed_domain_sites: Vec::new(),
+        transition_sites: Vec::new(),
+    };
+
+    let obligations = build_obligations(&config, &semantic, ObligationScope::All, &BTreeSet::new());
+
+    let contract = obligations
+        .iter()
+        .find(|obligation| obligation.kind == "contract_surface_completeness")
+        .expect("contract obligation");
+    assert_eq!(
+        contract
+            .missing_sites
+            .iter()
+            .map(|site| site.path.as_str())
+            .collect::<Vec<_>>(),
+        vec![
+            "src/app/mcp_server/handlers/bootstrap-registry.rs",
+            "src/app/mcp_server/handlers/session_response.rs",
+            ".sentrux/rules.toml",
+            "docs/agent-brief.md"
+        ]
+    );
+}

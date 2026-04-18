@@ -159,7 +159,7 @@ fn contract_required_symbol_targets(contract: &ContractRule) -> Vec<ContractSymb
             .map(|scoped_symbol| ContractSymbolTarget {
                 scoped_symbol,
                 kind: "required_symbol",
-                detail: "update required contract symbol",
+                detail: required_contract_symbol_detail(scoped_symbol),
             }),
     );
 
@@ -190,7 +190,7 @@ fn contract_required_file_targets(contract: &ContractRule) -> Vec<ContractFileTa
             .map(|path| ContractFileTarget {
                 path,
                 kind: "required_file",
-                detail: "update required contract file",
+                detail: required_contract_file_detail(path),
             }),
     );
 
@@ -442,15 +442,27 @@ fn contract_site_priority(site: &ObligationSite) -> u8 {
     match site.kind.as_str() {
         "browser_entry" | "electron_entry" => 0,
         "registry_symbol" => 1,
-        "payload_map_symbol" | "categories_symbol" => 2,
-        "required_symbol" | "required_file" => {
+        "payload_map_symbol" | "categories_symbol" => 6,
+        "required_symbol" | "required_file" => contract_required_site_priority(site),
+        _ => 8,
+    }
+}
+
+fn contract_required_site_priority(site: &ObligationSite) -> u8 {
+    match contract_required_surface_label(&site.path) {
+        Some("registry") => 1,
+        Some("public API") => 2,
+        Some("DTO") => 3,
+        Some("command status") => 4,
+        Some("config") => 5,
+        Some("test/doc") => 9,
+        _ => {
             if contract_site_has_boundary_risk(site) {
-                3
+                7
             } else {
-                4
+                8
             }
         }
-        _ => 5,
     }
 }
 
@@ -510,8 +522,12 @@ fn contract_site_summary_label(site: &ObligationSite) -> &'static str {
         "registry_symbol" => "registry",
         "payload_map_symbol" => "payload map",
         "categories_symbol" => "categories",
-        "required_symbol" => "required symbol",
-        "required_file" => "required file",
+        "required_symbol" | "required_file" => contract_required_surface_label(&site.path)
+            .unwrap_or_else(|| match site.kind.as_str() {
+                "required_symbol" => "required symbol",
+                "required_file" => "required file",
+                _ => "declared contract",
+            }),
         _ => "declared contract",
     }
 }
@@ -525,6 +541,108 @@ fn dedup_labels_preserving_order(labels: Vec<&'static str>) -> Vec<&'static str>
         }
     }
     deduped
+}
+
+fn required_contract_symbol_detail(scoped_symbol: &str) -> &'static str {
+    let path = scoped_symbol
+        .split_once("::")
+        .map(|(path, _)| path)
+        .unwrap_or(scoped_symbol);
+    required_contract_surface_detail(path, true)
+}
+
+fn required_contract_file_detail(path: &str) -> &'static str {
+    required_contract_surface_detail(path, false)
+}
+
+fn required_contract_surface_detail(path: &str, is_symbol: bool) -> &'static str {
+    match contract_required_surface_label(path) {
+        Some("registry") => "update required registry surface",
+        Some("public API") => "update required public API surface",
+        Some("DTO") => "update required DTO surface",
+        Some("command status") => "update required command status surface",
+        Some("config") => "update required config surface",
+        Some("test/doc") => "update required test/doc surface",
+        _ => {
+            if is_symbol {
+                "update required contract symbol"
+            } else {
+                "update required contract file"
+            }
+        }
+    }
+}
+
+fn contract_required_surface_label(path: &str) -> Option<&'static str> {
+    let lowered_path = path.to_ascii_lowercase();
+    if looks_like_contract_test_or_doc_surface(&lowered_path) {
+        return Some("test/doc");
+    }
+    if lowered_path.contains("registry") {
+        return Some("registry");
+    }
+    if looks_like_contract_public_api_surface(&lowered_path) {
+        return Some("public API");
+    }
+    if looks_like_contract_dto_surface(&lowered_path) {
+        return Some("DTO");
+    }
+    if looks_like_contract_command_status_surface(&lowered_path) {
+        return Some("command status");
+    }
+    if looks_like_contract_config_surface(&lowered_path) {
+        return Some("config");
+    }
+
+    None
+}
+
+fn looks_like_contract_public_api_surface(lowered_path: &str) -> bool {
+    lowered_path.ends_with("/mod.rs")
+        || lowered_path.ends_with("/lib.rs")
+        || lowered_path.ends_with("/index.ts")
+        || lowered_path.ends_with("/index.tsx")
+        || lowered_path.ends_with("/index.js")
+        || lowered_path.ends_with("/index.jsx")
+        || lowered_path.contains("public_api")
+        || lowered_path.contains("public-api")
+        || lowered_path.ends_with("/brief.rs")
+}
+
+fn looks_like_contract_dto_surface(lowered_path: &str) -> bool {
+    lowered_path.contains("/dto")
+        || lowered_path.contains("_dto")
+        || lowered_path.contains("-dto")
+        || lowered_path.contains("response")
+        || lowered_path.contains("request")
+        || lowered_path.contains("payload")
+        || lowered_path.contains("format")
+}
+
+fn looks_like_contract_command_status_surface(lowered_path: &str) -> bool {
+    lowered_path.contains("command_status")
+        || lowered_path.contains("command-status")
+        || lowered_path.contains("commandstatus")
+        || lowered_path.contains("evaluation_signals")
+        || (lowered_path.contains("command") && lowered_path.contains("status"))
+}
+
+fn looks_like_contract_config_surface(lowered_path: &str) -> bool {
+    lowered_path.contains("config")
+        || lowered_path.contains("settings")
+        || lowered_path.ends_with(".toml")
+        || lowered_path.ends_with(".yaml")
+        || lowered_path.ends_with(".yml")
+        || lowered_path.ends_with(".json")
+}
+
+fn looks_like_contract_test_or_doc_surface(lowered_path: &str) -> bool {
+    is_test_file(lowered_path)
+        || lowered_path.contains("/docs/")
+        || lowered_path.ends_with(".md")
+        || lowered_path.ends_with(".mdx")
+        || lowered_path.ends_with(".rst")
+        || lowered_path.ends_with(".adoc")
 }
 
 pub(super) fn path_matches(pattern: &str, path: &str) -> bool {
