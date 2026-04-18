@@ -1,4 +1,26 @@
 import { asArray, safeRatio } from './signal-summary-utils.mjs';
+import { normalizeExperimentArm } from './experiment-arms.mjs';
+
+const MISSED_EXPECTED_SIGNAL_BUCKETS = new Set([
+  'missed_expected_signal',
+  'clean_but_missed_expected_signal',
+]);
+
+const EXPECTED_SIGNAL_NOT_TOP_BUCKETS = new Set([
+  'expected_signal_present_not_top',
+  'clean_but_misranked',
+]);
+
+const TOP_ACTION_FAILURE_BUCKETS = [
+  'missed_expected_signal',
+  'clean_but_missed_expected_signal',
+  'expected_signal_present_not_top',
+  'clean_but_misranked',
+  'regressed',
+  'thrashing',
+  'stalled',
+  'provider_failed',
+];
 
 function uniqueSortedStrings(values) {
   return [...new Set(values.filter(Boolean).map(String))].sort((left, right) =>
@@ -129,7 +151,7 @@ function normalizeBatchEntry(entry, lane) {
     tags,
     expected_signal_kinds: expectedSignalKinds,
     expected_fix_surface: entry.expected_fix_surface ?? null,
-    experiment_arm: entry.experiment_arm ?? null,
+    experiment_arm: normalizeExperimentArm(entry.experiment_arm),
     session_goal: entry.session_goal ?? null,
     success_criteria: entry.success_criteria ?? null,
     focus_areas: focusAreasForExpectedSignals(expectedSignalKinds, tags),
@@ -179,18 +201,18 @@ function countFocusArea(entries, focusArea) {
   });
 }
 
-function countFocusAreaBucket(entries, focusArea, outcomeBucket) {
-  return countEntries(entries, function hasFocusAreaBucket(entry) {
-    return entry.focus_areas.includes(focusArea) && entry.outcome_bucket === outcomeBucket;
-  });
+function hasOutcomeBucket(entry, outcomeBucket) {
+  return entry.outcome_bucket === outcomeBucket;
+}
+
+function hasAnyOutcomeBucket(entry, outcomeBuckets) {
+  return outcomeBuckets.has(entry.outcome_bucket);
 }
 
 function isExpectedSignalEscapeBucket(outcomeBucket) {
   return (
-    outcomeBucket === 'missed_expected_signal' ||
-    outcomeBucket === 'clean_but_missed_expected_signal' ||
-    outcomeBucket === 'expected_signal_present_not_top' ||
-    outcomeBucket === 'clean_but_misranked'
+    MISSED_EXPECTED_SIGNAL_BUCKETS.has(outcomeBucket) ||
+    EXPECTED_SIGNAL_NOT_TOP_BUCKETS.has(outcomeBucket)
   );
 }
 
@@ -210,7 +232,221 @@ function hasTopActionSession(entry) {
   );
 }
 
-function buildCorpusSummary(entries, sessionTelemetry) {
+function hasClearedTopAction(entry) {
+  return hasTopActionSession(entry) && entry.outcome.top_action_cleared === true;
+}
+
+function hasRegressionAfterFix(entry) {
+  return hasClearedTopAction(entry) && entry.outcome.followup_regression_introduced === true;
+}
+
+function isMissedExpectedSignalBucket(entry) {
+  return hasAnyOutcomeBucket(entry, MISSED_EXPECTED_SIGNAL_BUCKETS);
+}
+
+function isExpectedSignalPresentNotTopBucket(entry) {
+  return hasAnyOutcomeBucket(entry, EXPECTED_SIGNAL_NOT_TOP_BUCKETS);
+}
+
+function focusAreaCountsForEntries(entries) {
+  const counts = new Map();
+
+  for (const entry of entries) {
+    for (const focusArea of entry.focus_areas) {
+      counts.set(focusArea, (counts.get(focusArea) ?? 0) + 1);
+    }
+  }
+
+  return [...counts.entries()]
+    .map(function toFocusAreaCountEntry([focus_area, session_count]) {
+      return {
+        focus_area,
+        session_count,
+      };
+    })
+    .sort(function compareFocusAreaCounts(left, right) {
+      if (right.session_count !== left.session_count) {
+        return right.session_count - left.session_count;
+      }
+
+      return left.focus_area.localeCompare(right.focus_area);
+    });
+}
+
+function buildFocusAreaSummary(entries, focusArea) {
+  const focusAreaEntries = entries.filter(function hasFocusArea(entry) {
+    return entry.focus_areas.includes(focusArea);
+  });
+  const sessionCount = focusAreaEntries.length;
+  const topActionSessionCount = countEntries(focusAreaEntries, hasTopActionSession);
+  const topActionClearedCount = countEntries(focusAreaEntries, hasClearedTopAction);
+  const regressionAfterFixCount = countEntries(focusAreaEntries, hasRegressionAfterFix);
+  const missedExpectedSignalCount = countEntries(focusAreaEntries, isMissedExpectedSignalBucket);
+  const expectedSignalPresentNotTopCount = countEntries(
+    focusAreaEntries,
+    isExpectedSignalPresentNotTopBucket,
+  );
+
+  return {
+    focus_area: focusArea,
+    session_count: sessionCount,
+    review_queue_count: countEntries(focusAreaEntries, needsReview),
+    top_action_session_count: topActionSessionCount,
+    top_action_cleared_count: topActionClearedCount,
+    regression_after_fix_count: regressionAfterFixCount,
+    missed_expected_signal_count: missedExpectedSignalCount,
+    expected_signal_present_not_top_count: expectedSignalPresentNotTopCount,
+    regressed_count: countEntries(focusAreaEntries, function isRegressed(entry) {
+      return hasOutcomeBucket(entry, 'regressed');
+    }),
+    thrashing_count: countEntries(focusAreaEntries, function isThrashing(entry) {
+      return hasOutcomeBucket(entry, 'thrashing');
+    }),
+    stalled_count: countEntries(focusAreaEntries, function isStalled(entry) {
+      return hasOutcomeBucket(entry, 'stalled');
+    }),
+    provider_failure_count: countEntries(focusAreaEntries, function isProviderFailed(entry) {
+      return hasOutcomeBucket(entry, 'provider_failed');
+    }),
+    agent_clear_rate: safeRatio(topActionClearedCount, topActionSessionCount),
+    review_queue_rate: safeRatio(countEntries(focusAreaEntries, needsReview), sessionCount),
+    escape_rate: safeRatio(
+      missedExpectedSignalCount + expectedSignalPresentNotTopCount,
+      sessionCount,
+    ),
+  };
+}
+
+export function buildFocusAreaSummaries(entries) {
+  return focusAreaCountsForEntries(entries).map(function toFocusAreaSummary(entry) {
+    return buildFocusAreaSummary(entries, entry.focus_area);
+  });
+}
+
+export function buildTopActionFailureSummary(entries) {
+  return TOP_ACTION_FAILURE_BUCKETS
+    .map(function toFailureSummary(outcomeBucket) {
+      const bucketEntries = entries.filter(function hasBucket(entry) {
+        return hasOutcomeBucket(entry, outcomeBucket);
+      });
+
+      if (bucketEntries.length === 0) {
+        return null;
+      }
+
+      return {
+        outcome_bucket: outcomeBucket,
+        session_count: bucketEntries.length,
+        focus_area_counts: focusAreaCountsForEntries(bucketEntries),
+        top_action_session_count: countEntries(bucketEntries, hasTopActionSession),
+        top_action_cleared_count: countEntries(bucketEntries, hasClearedTopAction),
+        regression_after_fix_count: countEntries(bucketEntries, hasRegressionAfterFix),
+        review_queue_count: countEntries(bucketEntries, needsReview),
+      };
+    })
+    .filter(Boolean)
+    .sort(function compareFailureSummaries(left, right) {
+      if (right.session_count !== left.session_count) {
+        return right.session_count - left.session_count;
+      }
+
+      return left.outcome_bucket.localeCompare(right.outcome_bucket);
+    });
+}
+
+export function buildExperimentArmSummaries(entries) {
+  const arms = new Map();
+
+  for (const entry of entries) {
+    const arm = normalizeExperimentArm(entry.experiment_arm);
+    if (!arm) {
+      continue;
+    }
+
+    if (!arms.has(arm)) {
+      arms.set(arm, {
+        experiment_arm: arm,
+        session_count: 0,
+        clean_session_count: 0,
+        regression_session_count: 0,
+        review_queue_count: 0,
+        top_action_session_count: 0,
+        top_action_cleared_count: 0,
+        regression_after_fix_count: 0,
+        focus_area_counts: new Map(),
+      });
+    }
+
+    const armEntry = arms.get(arm);
+    armEntry.session_count += 1;
+    if (entry.outcome?.final_session_clean) {
+      armEntry.clean_session_count += 1;
+    }
+    if (entry.outcome?.followup_regression_introduced) {
+      armEntry.regression_session_count += 1;
+    }
+    if (needsReview(entry)) {
+      armEntry.review_queue_count += 1;
+    }
+    if (hasTopActionSession(entry)) {
+      armEntry.top_action_session_count += 1;
+      if (hasClearedTopAction(entry)) {
+        armEntry.top_action_cleared_count += 1;
+        if (hasRegressionAfterFix(entry)) {
+          armEntry.regression_after_fix_count += 1;
+        }
+      }
+    }
+
+    for (const focusArea of entry.focus_areas) {
+      armEntry.focus_area_counts.set(
+        focusArea,
+        (armEntry.focus_area_counts.get(focusArea) ?? 0) + 1,
+      );
+    }
+  }
+
+  return [...arms.values()]
+    .map(function finalizeArm(entry) {
+      return {
+        experiment_arm: entry.experiment_arm,
+        session_count: entry.session_count,
+        clean_session_count: entry.clean_session_count,
+        regression_session_count: entry.regression_session_count,
+        review_queue_count: entry.review_queue_count,
+        top_action_session_count: entry.top_action_session_count,
+        top_action_cleared_count: entry.top_action_cleared_count,
+        regression_after_fix_count: entry.regression_after_fix_count,
+        focus_area_counts: [...entry.focus_area_counts.entries()]
+          .map(function toFocusAreaCountEntry([focus_area, session_count]) {
+            return {
+              focus_area,
+              session_count,
+            };
+          })
+          .sort(function compareFocusAreaCounts(left, right) {
+            if (right.session_count !== left.session_count) {
+              return right.session_count - left.session_count;
+            }
+
+            return left.focus_area.localeCompare(right.focus_area);
+          }),
+        clean_rate: safeRatio(entry.clean_session_count, entry.session_count),
+        agent_clear_rate: safeRatio(entry.top_action_cleared_count, entry.top_action_session_count),
+        review_queue_rate: safeRatio(entry.review_queue_count, entry.session_count),
+        regression_rate: safeRatio(entry.regression_session_count, entry.session_count),
+        regression_after_fix_rate: safeRatio(
+          entry.regression_after_fix_count,
+          entry.top_action_session_count,
+        ),
+      };
+    })
+    .sort(function compareExperimentArms(left, right) {
+      return left.experiment_arm.localeCompare(right.experiment_arm);
+    });
+}
+
+function buildCorpusSummary(entries, sessionTelemetry, focusAreaSummaries, topActionFailureSummary, experimentArmSummaries) {
   const liveEntries = entries.filter(function isLive(entry) {
     return entry.lane === 'live';
   });
@@ -224,37 +460,22 @@ function buildCorpusSummary(entries, sessionTelemetry) {
     return entry.outcome_bucket === 'provider_failed';
   });
   const regressionSessionCount = countEntries(entries, function isRegression(entry) {
-    return entry.outcome_bucket === 'regressed';
+    return hasOutcomeBucket(entry, 'regressed');
   });
   const topActionSessionCount = countEntries(entries, hasTopActionSession);
-  const topActionClearedCount = countEntries(entries, function hasClearedTopAction(entry) {
-    return hasTopActionSession(entry) && entry.outcome.top_action_cleared === true;
-  });
-  const regressionAfterFixCount = countEntries(entries, function hasRegressionAfterFix(entry) {
-    return (
-      hasTopActionSession(entry) &&
-      entry.outcome.top_action_cleared === true &&
-      entry.outcome.followup_regression_introduced === true
-    );
-  });
+  const topActionClearedCount = countEntries(entries, hasClearedTopAction);
+  const regressionAfterFixCount = countEntries(entries, hasRegressionAfterFix);
   const thrashingSessionCount = countEntries(entries, function isThrashing(entry) {
-    return entry.outcome_bucket === 'thrashing';
+    return hasOutcomeBucket(entry, 'thrashing');
   });
   const stalledSessionCount = countEntries(entries, function isStalled(entry) {
-    return entry.outcome_bucket === 'stalled';
+    return hasOutcomeBucket(entry, 'stalled');
   });
-  const missedExpectedSignalCount = countEntries(entries, function isMissedExpected(entry) {
-    return (
-      entry.outcome_bucket === 'missed_expected_signal' ||
-      entry.outcome_bucket === 'clean_but_missed_expected_signal'
-    );
-  });
-  const misrankedExpectedSignalCount = countEntries(entries, function isMisranked(entry) {
-    return (
-      entry.outcome_bucket === 'expected_signal_present_not_top' ||
-      entry.outcome_bucket === 'clean_but_misranked'
-    );
-  });
+  const missedExpectedSignalCount = countEntries(entries, isMissedExpectedSignalBucket);
+  const misrankedExpectedSignalCount = countEntries(
+    entries,
+    isExpectedSignalPresentNotTopBucket,
+  );
 
   const propagationSessionCount = countFocusArea(entries, 'propagation');
   const cloneSessionCount = countFocusArea(entries, 'clone_followthrough');
@@ -275,6 +496,9 @@ function buildCorpusSummary(entries, sessionTelemetry) {
     expected_signal_present_not_top_count: misrankedExpectedSignalCount,
     propagation_session_count: propagationSessionCount,
     clone_session_count: cloneSessionCount,
+    focus_area_count: focusAreaSummaries.length,
+    top_action_failure_count: topActionFailureSummary.length,
+    experiment_arm_count: experimentArmSummaries.length,
     agent_clear_rate: safeRatio(topActionClearedCount, topActionSessionCount),
     provider_failure_rate: safeRatio(providerFailureCount, entries.length),
     regression_after_fix_rate: safeRatio(regressionAfterFixCount, topActionSessionCount),
@@ -306,7 +530,7 @@ function needsReview(entry) {
   );
 }
 
-function selectReviewQueue(entries) {
+export function selectReviewQueue(entries) {
   return entries
     .filter(needsReview)
     .sort(function compareEntries(left, right) {
@@ -333,6 +557,9 @@ export function buildSessionCorpus({
     }
     return left.session_id.localeCompare(right.session_id);
   });
+  const focusAreaSummaries = buildFocusAreaSummaries(entries);
+  const topActionFailureSummary = buildTopActionFailureSummary(entries);
+  const experimentArmSummaries = buildExperimentArmSummaries(entries);
 
   return {
     schema_version: 1,
@@ -349,7 +576,16 @@ export function buildSessionCorpus({
       replayBatch?.repo_root ??
       sessionTelemetry?.repo_root ??
       null,
-    summary: buildCorpusSummary(entries, sessionTelemetry),
+    summary: buildCorpusSummary(
+      entries,
+      sessionTelemetry,
+      focusAreaSummaries,
+      topActionFailureSummary,
+      experimentArmSummaries,
+    ),
+    focus_area_summaries: focusAreaSummaries,
+    top_action_failure_summary: topActionFailureSummary,
+    experiment_arm_summaries: experimentArmSummaries,
     review_queue: selectReviewQueue(entries),
     sessions: entries,
   };
@@ -370,6 +606,66 @@ function appendSessionSection(lines, title, entries) {
   lines.push('');
 }
 
+function appendFocusAreaSection(lines, focusAreaSummaries) {
+  if (focusAreaSummaries.length === 0) {
+    return;
+  }
+
+  lines.push('## Focus Areas');
+  lines.push('');
+  for (const entry of focusAreaSummaries) {
+    lines.push(
+      `- \`${entry.focus_area}\`: sessions=${entry.session_count}, review=${entry.review_queue_count}, clear=${entry.top_action_cleared_count}, miss=${entry.missed_expected_signal_count}, misrank=${entry.expected_signal_present_not_top_count}, escape=${entry.escape_rate ?? 'n/a'}`,
+    );
+  }
+  lines.push('');
+}
+
+function appendFailureSection(lines, failureSummaries) {
+  if (failureSummaries.length === 0) {
+    return;
+  }
+
+  lines.push('## Top Action Failures');
+  lines.push('');
+  for (const entry of failureSummaries) {
+    const focusAreaSummary = focusAreaCountsToText(entry.focus_area_counts);
+    lines.push(
+      `- \`${entry.outcome_bucket}\`: sessions=${entry.session_count}, review=${entry.review_queue_count}, focus=[${focusAreaSummary}]`,
+    );
+  }
+  lines.push('');
+}
+
+function appendExperimentArmSection(lines, experimentArms) {
+  if (experimentArms.length === 0) {
+    return;
+  }
+
+  lines.push('## Experiment Arms');
+  lines.push('');
+  for (const entry of experimentArms) {
+    const focusAreaSummary = focusAreaCountsToText(entry.focus_area_counts);
+    lines.push(
+      `- \`${entry.experiment_arm}\`: sessions=${entry.session_count}, clear=${entry.agent_clear_rate ?? 'n/a'}, clean=${entry.clean_rate ?? 'n/a'}, regressions=${entry.regression_rate ?? 'n/a'}, review=${entry.review_queue_rate ?? 'n/a'}, focus=[${focusAreaSummary}]`,
+    );
+  }
+  lines.push('');
+}
+
+function focusAreaCountsToText(focusAreaCounts) {
+  const counts = asArray(focusAreaCounts);
+  if (counts.length === 0) {
+    return 'none';
+  }
+
+  return counts
+    .map(function formatFocusAreaCount(entry) {
+      return `${entry.focus_area}:${entry.session_count}`;
+    })
+    .join(', ');
+}
+
 export function formatSessionCorpusMarkdown(corpus) {
   const lines = [];
   lines.push('# Session Corpus');
@@ -383,6 +679,9 @@ export function formatSessionCorpusMarkdown(corpus) {
   lines.push(`- top-action sessions: ${corpus.summary.top_action_session_count ?? 0}`);
   lines.push(`- top actions cleared: ${corpus.summary.top_action_cleared_count ?? 0}`);
   lines.push(`- agent clear rate: ${corpus.summary.agent_clear_rate ?? 'n/a'}`);
+  lines.push(`- focus areas tracked: ${corpus.summary.focus_area_count ?? 0}`);
+  lines.push(`- top action failures tracked: ${corpus.summary.top_action_failure_count ?? 0}`);
+  lines.push(`- experiment arms tracked: ${corpus.summary.experiment_arm_count ?? 0}`);
   lines.push(
     `- regression-after-fix rate: ${corpus.summary.regression_after_fix_rate ?? 'n/a'}`,
   );
@@ -395,6 +694,9 @@ export function formatSessionCorpusMarkdown(corpus) {
   );
   lines.push('');
 
+  appendFocusAreaSection(lines, asArray(corpus.focus_area_summaries).slice(0, 10));
+  appendFailureSection(lines, asArray(corpus.top_action_failure_summary).slice(0, 10));
+  appendExperimentArmSection(lines, asArray(corpus.experiment_arm_summaries).slice(0, 10));
   appendSessionSection(lines, 'Review Queue', corpus.review_queue.slice(0, 10));
   appendSessionSection(
     lines,

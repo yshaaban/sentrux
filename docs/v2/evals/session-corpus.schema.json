@@ -14,6 +14,18 @@
       "additionalProperties": true,
       "required": ["session_count", "agent_clear_rate"]
     },
+    "focus_area_summaries": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "top_action_failure_summary": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "experiment_arm_summaries": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
     "review_queue": {
       "type": "array",
       "items": { "type": "object" }

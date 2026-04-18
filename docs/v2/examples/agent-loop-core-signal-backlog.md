@@ -20,4 +20,3 @@
 - `multi_writer_concept`: score=0, misses=0, live=0, replay=0, expected_missing=0, present_not_top=0, regression_followups=0, crowded_out=0, unexpected_top=0, telemetry_incomplete=0
 - `forbidden_writer`: score=0, misses=0, live=0, replay=0, expected_missing=0, present_not_top=0, regression_followups=0, crowded_out=0, unexpected_top=0, telemetry_incomplete=0
 - `writer_outside_allowlist`: score=0, misses=0, live=0, replay=0, expected_missing=0, present_not_top=0, regression_followups=0, crowded_out=0, unexpected_top=0, telemetry_incomplete=0
-

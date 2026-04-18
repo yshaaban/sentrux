@@ -1,4 +1,12 @@
-import { asArray } from './signal-summary-utils.mjs';
+import {
+  asArray,
+} from './signal-summary-utils.mjs';
+import {
+  buildExperimentArmSummaries,
+  buildFocusAreaSummaries,
+  selectReviewQueue,
+  buildTopActionFailureSummary,
+} from './session-corpus.mjs';
 
 const PROMOTION_THRESHOLDS = Object.freeze({
   reviewed_precision: 0.75,
@@ -131,57 +139,68 @@ function buildRankingMisses(backlog) {
     .slice(0, 10);
 }
 
-function selectCorpusEntries(corpus, predicate) {
-  return asArray(corpus?.sessions).filter(predicate).slice(0, 10);
+function corpusSessions(sessionCorpus) {
+  return asArray(sessionCorpus?.sessions);
 }
 
-function formatArmRate(numerator, denominator) {
-  if (denominator <= 0) {
-    return null;
+function buildCorpusRollups(sessionCorpus) {
+  const sessions = corpusSessions(sessionCorpus);
+  if (sessions.length === 0) {
+    return {
+      reviewQueue: asArray(sessionCorpus?.review_queue),
+      focusAreaSummaries: asArray(sessionCorpus?.focus_area_summaries),
+      topActionFailureSummary: asArray(sessionCorpus?.top_action_failure_summary),
+      experimentArms: asArray(sessionCorpus?.experiment_arm_summaries),
+    };
   }
 
-  return Number((numerator / denominator).toFixed(3));
+  return {
+    reviewQueue: selectReviewQueue(sessions),
+    focusAreaSummaries: buildFocusAreaSummaries(sessions),
+    topActionFailureSummary: buildTopActionFailureSummary(sessions),
+    experimentArms: buildExperimentArmSummaries(sessions),
+  };
 }
 
-function buildExperimentArms(corpus) {
-  const arms = new Map();
+function selectCorpusEntries(sessionCorpus, predicate) {
+  return corpusSessions(sessionCorpus).filter(predicate).slice(0, 10);
+}
 
-  for (const session of asArray(corpus?.sessions)) {
-    const arm = session.experiment_arm;
-    if (!arm) {
-      continue;
-    }
+function selectFocusAreaExamples(sessionCorpus, focusArea) {
+  return selectCorpusEntries(sessionCorpus, function matchesFocusArea(entry) {
+    return entry.focus_areas.includes(focusArea) && entry.outcome_bucket !== 'clean';
+  });
+}
 
-    if (!arms.has(arm)) {
-      arms.set(arm, {
-        experiment_arm: arm,
-        session_count: 0,
-        clean_session_count: 0,
-        regression_session_count: 0,
-      });
-    }
+function selectThrashingExamples(sessionCorpus) {
+  return selectCorpusEntries(sessionCorpus, function isThrashing(entry) {
+    return entry.outcome_bucket === 'thrashing' || entry.outcome_bucket === 'regressed';
+  });
+}
 
-    const entry = arms.get(arm);
-    entry.session_count += 1;
-    if (session.outcome?.final_session_clean) {
-      entry.clean_session_count += 1;
-    }
-    if (session.outcome?.followup_regression_introduced) {
-      entry.regression_session_count += 1;
-    }
+function appendSummarySection(lines, title, entries, formatter) {
+  if (entries.length === 0) {
+    return;
   }
 
-  return [...arms.values()]
-    .map(function finalizeArm(entry) {
-      return {
-        ...entry,
-        clean_rate: formatArmRate(entry.clean_session_count, entry.session_count),
-        regression_rate: formatArmRate(entry.regression_session_count, entry.session_count),
-      };
+  lines.push(`## ${title}`);
+  lines.push('');
+  for (const entry of entries) {
+    lines.push(`- ${formatter(entry)}`);
+  }
+  lines.push('');
+}
+
+function focusAreaCountsToText(focusAreaCounts) {
+  if (!Array.isArray(focusAreaCounts) || focusAreaCounts.length === 0) {
+    return 'none';
+  }
+
+  return focusAreaCounts
+    .map(function formatFocusAreaCount(entry) {
+      return `${entry.focus_area}:${entry.session_count}`;
     })
-    .sort(function compareArms(left, right) {
-      return left.experiment_arm.localeCompare(right.experiment_arm);
-    });
+    .join(', ');
 }
 
 export function buildEvidenceReview({
@@ -193,19 +212,15 @@ export function buildEvidenceReview({
   const promotionCandidates = buildPromotionCandidates(scorecard);
   const demotionCandidates = buildDemotionCandidates(scorecard);
   const rankingMisses = buildRankingMisses(backlog);
-  const reviewQueue = asArray(sessionCorpus?.review_queue);
-  const propagationExamples = selectCorpusEntries(sessionCorpus, function isPropagation(entry) {
-    return entry.focus_areas.includes('propagation') && entry.outcome_bucket !== 'clean';
-  });
-  const cloneExamples = selectCorpusEntries(sessionCorpus, function isClone(entry) {
-    return (
-      entry.focus_areas.includes('clone_followthrough') && entry.outcome_bucket !== 'clean'
-    );
-  });
-  const thrashingExamples = selectCorpusEntries(sessionCorpus, function isThrashing(entry) {
-    return entry.outcome_bucket === 'thrashing' || entry.outcome_bucket === 'regressed';
-  });
-  const experimentArms = buildExperimentArms(sessionCorpus);
+  const {
+    reviewQueue,
+    focusAreaSummaries,
+    topActionFailureSummary,
+    experimentArms,
+  } = buildCorpusRollups(sessionCorpus);
+  const propagationExamples = selectFocusAreaExamples(sessionCorpus, 'propagation');
+  const cloneExamples = selectFocusAreaExamples(sessionCorpus, 'clone_followthrough');
+  const thrashingExamples = selectThrashingExamples(sessionCorpus);
   const reviewPacketSampleCount =
     reviewPacket?.summary?.sample_count ?? reviewPacket?.samples?.length ?? 0;
 
@@ -220,28 +235,20 @@ export function buildEvidenceReview({
       ranking_miss_count: rankingMisses.length,
       review_queue_count: reviewQueue.length,
       review_packet_sample_count: reviewPacketSampleCount,
+      focus_area_count: focusAreaSummaries.length,
+      top_action_failure_count: topActionFailureSummary.length,
+      experiment_arm_count: experimentArms.length,
     },
     promotion_candidates: promotionCandidates,
     demotion_candidates: demotionCandidates,
     ranking_misses: rankingMisses,
+    focus_area_summaries: focusAreaSummaries,
+    top_action_failure_summary: topActionFailureSummary,
     propagation_examples: propagationExamples,
     clone_examples: cloneExamples,
     thrashing_examples: thrashingExamples,
     experiment_arms: experimentArms,
   };
-}
-
-function appendEntrySection(lines, title, entries, formatter) {
-  if (entries.length === 0) {
-    return;
-  }
-
-  lines.push(`## ${title}`);
-  lines.push('');
-  for (const entry of entries) {
-    lines.push(`- ${formatter(entry)}`);
-  }
-  lines.push('');
 }
 
 export function formatEvidenceReviewMarkdown(review) {
@@ -256,28 +263,37 @@ export function formatEvidenceReviewMarkdown(review) {
   lines.push(`- demotion candidates: ${review.summary.demotion_candidate_count ?? 0}`);
   lines.push(`- ranking misses: ${review.summary.ranking_miss_count ?? 0}`);
   lines.push(`- session review queue: ${review.summary.review_queue_count ?? 0}`);
+  lines.push(`- focus areas: ${review.summary.focus_area_count ?? 0}`);
+  lines.push(`- top action failures: ${review.summary.top_action_failure_count ?? 0}`);
+  lines.push(`- experiment arms: ${review.summary.experiment_arm_count ?? 0}`);
   lines.push('');
 
-  appendEntrySection(lines, 'Promotion Candidates', review.promotion_candidates, function formatEntry(entry) {
+  appendSummarySection(lines, 'Promotion Candidates', review.promotion_candidates, function formatEntry(entry) {
     return `\`${entry.signal_kind}\`: reviewed=${entry.reviewed_precision ?? 'n/a'}, top1=${entry.top_1_actionable_precision ?? 'n/a'}, top3=${entry.top_3_actionable_precision ?? 'n/a'}, remediation=${entry.remediation_success_rate ?? 'n/a'}, clean=${entry.session_clean_rate ?? 'n/a'}, miss=${entry.session_trial_miss_rate ?? 'n/a'}`;
   });
-  appendEntrySection(lines, 'Demotion Candidates', review.demotion_candidates, function formatEntry(entry) {
+  appendSummarySection(lines, 'Demotion Candidates', review.demotion_candidates, function formatEntry(entry) {
     return `\`${entry.signal_kind}\`: noise=${entry.review_noise_rate ?? 'n/a'}, top1=${entry.top_1_actionable_precision ?? 'n/a'}, top3=${entry.top_3_actionable_precision ?? 'n/a'}, clean=${entry.session_clean_rate ?? 'n/a'}, miss=${entry.session_trial_miss_rate ?? 'n/a'}`;
   });
-  appendEntrySection(lines, 'Ranking Misses', review.ranking_misses, function formatEntry(entry) {
+  appendSummarySection(lines, 'Ranking Misses', review.ranking_misses, function formatEntry(entry) {
     return `\`${entry.signal_kind}\`: missing=${entry.expected_missing_count}, present_not_top=${entry.expected_present_not_top_count}, crowded=${entry.crowded_out_expected_count}, unexpected_top=${entry.unexpected_top_action_count}, miss_rate=${entry.session_trial_miss_rate ?? 'n/a'}`;
   });
-  appendEntrySection(lines, 'Propagation Examples', review.propagation_examples, function formatEntry(entry) {
+  appendSummarySection(lines, 'Focus Area Rollups', review.focus_area_summaries, function formatEntry(entry) {
+    return `\`${entry.focus_area}\`: sessions=${entry.session_count}, review=${entry.review_queue_count}, clear=${entry.top_action_cleared_count}, miss=${entry.missed_expected_signal_count}, misrank=${entry.expected_signal_present_not_top_count}, escape=${entry.escape_rate ?? 'n/a'}`;
+  });
+  appendSummarySection(lines, 'Top Action Failures', review.top_action_failure_summary, function formatEntry(entry) {
+    return `\`${entry.outcome_bucket}\`: sessions=${entry.session_count}, review=${entry.review_queue_count}, focus=[${focusAreaCountsToText(entry.focus_area_counts)}]`;
+  });
+  appendSummarySection(lines, 'Propagation Examples', review.propagation_examples, function formatEntry(entry) {
     return `\`${entry.session_id}\` [${entry.lane}] bucket=${entry.outcome_bucket}, expected=[${entry.expected_signal_kinds.join(', ')}], top=${entry.outcome.initial_top_action_kind ?? 'none'}, clean=${entry.outcome.final_session_clean}`;
   });
-  appendEntrySection(lines, 'Clone Examples', review.clone_examples, function formatEntry(entry) {
+  appendSummarySection(lines, 'Clone Examples', review.clone_examples, function formatEntry(entry) {
     return `\`${entry.session_id}\` [${entry.lane}] bucket=${entry.outcome_bucket}, expected=[${entry.expected_signal_kinds.join(', ')}], top=${entry.outcome.initial_top_action_kind ?? 'none'}, clean=${entry.outcome.final_session_clean}`;
   });
-  appendEntrySection(lines, 'Thrashing Examples', review.thrashing_examples, function formatEntry(entry) {
+  appendSummarySection(lines, 'Thrashing Examples', review.thrashing_examples, function formatEntry(entry) {
     return `\`${entry.session_id}\` [${entry.lane}] bucket=${entry.outcome_bucket}, convergence=${entry.outcome.convergence_status ?? 'n/a'}, entropy=${entry.outcome.entropy_delta ?? 'n/a'}, top=${entry.outcome.initial_top_action_kind ?? 'none'}`;
   });
-  appendEntrySection(lines, 'Experiment Arms', review.experiment_arms, function formatEntry(entry) {
-    return `\`${entry.experiment_arm}\`: sessions=${entry.session_count}, clean=${entry.clean_rate ?? 'n/a'}, regressions=${entry.regression_rate ?? 'n/a'}`;
+  appendSummarySection(lines, 'Experiment Arms', review.experiment_arms, function formatEntry(entry) {
+    return `\`${entry.experiment_arm}\`: sessions=${entry.session_count}, clear=${entry.agent_clear_rate ?? 'n/a'}, clean=${entry.clean_rate ?? 'n/a'}, regressions=${entry.regression_rate ?? 'n/a'}, review=${entry.review_queue_rate ?? 'n/a'}, focus=[${focusAreaCountsToText(entry.focus_area_counts)}]`;
   });
 
   return `${lines.join('\n')}\n`;

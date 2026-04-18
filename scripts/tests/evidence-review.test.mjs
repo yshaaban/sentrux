@@ -77,8 +77,23 @@ test('buildEvidenceReview summarizes promotion, demotion, ranking, and experimen
             followup_regression_introduced: true,
           },
         },
+        {
+          session_id: 'live-3',
+          lane: 'live',
+          focus_areas: ['session_governance'],
+          experiment_arm: 'report_only',
+          expected_signal_kinds: ['closed_domain_exhaustiveness'],
+          outcome_bucket: 'thrashing',
+          outcome: {
+            initial_top_action_kind: 'closed_domain_exhaustiveness',
+            convergence_status: 'thrashing',
+            entropy_delta: 3,
+            final_session_clean: false,
+            followup_regression_introduced: false,
+          },
+        },
       ],
-      review_queue: [{ session_id: 'live-1' }, { session_id: 'live-2' }],
+      review_queue: [{ session_id: 'live-1' }, { session_id: 'live-2' }, { session_id: 'live-3' }],
     },
     reviewPacket: {
       summary: {
@@ -90,15 +105,73 @@ test('buildEvidenceReview summarizes promotion, demotion, ranking, and experimen
   assert.equal(review.summary.promotion_candidate_count, 1);
   assert.equal(review.summary.demotion_candidate_count, 1);
   assert.equal(review.summary.ranking_miss_count, 1);
-  assert.equal(review.summary.review_queue_count, 2);
+  assert.equal(review.summary.review_queue_count, 3);
+  assert.equal(review.summary.focus_area_count, 3);
+  assert.equal(review.summary.top_action_failure_count, 3);
+  assert.equal(review.summary.experiment_arm_count, 2);
   assert.equal(review.promotion_candidates[0].signal_kind, 'incomplete_propagation');
   assert.equal(review.demotion_candidates[0].signal_kind, 'forbidden_raw_read');
   assert.equal(review.ranking_misses[0].signal_kind, 'zero_config_boundary_violation');
+  assert.equal(review.focus_area_summaries[0].focus_area, 'clone_followthrough');
+  assert.equal(review.focus_area_summaries[1].focus_area, 'propagation');
+  assert.equal(review.focus_area_summaries[2].focus_area, 'session_governance');
+  assert.equal(
+    review.top_action_failure_summary.find((entry) => entry.outcome_bucket === 'regressed')
+      ?.session_count,
+    1,
+  );
+  assert.equal(
+    review.top_action_failure_summary.find((entry) => entry.outcome_bucket === 'missed_expected_signal')
+      ?.session_count,
+    1,
+  );
+  assert.equal(
+    review.top_action_failure_summary.find((entry) => entry.outcome_bucket === 'thrashing')
+      ?.session_count,
+    1,
+  );
   assert.equal(review.propagation_examples[0].session_id, 'live-1');
   assert.equal(review.clone_examples[0].session_id, 'live-2');
   assert.equal(review.thrashing_examples[0].session_id, 'live-2');
-  assert.equal(review.experiment_arms[0].experiment_arm, 'directive_fix_first');
+  assert.equal(review.experiment_arms[0].experiment_arm, 'fix_this_first');
+  assert.equal(review.experiment_arms[0].focus_area_counts[0].focus_area, 'clone_followthrough');
   assert.equal(review.experiment_arms[0].clean_rate, 0);
   assert.equal(review.experiment_arms[0].regression_rate, 0.5);
   assert.match(formatEvidenceReviewMarkdown(review), /Promotion Candidates/);
+  assert.match(formatEvidenceReviewMarkdown(review), /Focus Area Rollups/);
+  assert.match(formatEvidenceReviewMarkdown(review), /Top Action Failures/);
+  assert.match(formatEvidenceReviewMarkdown(review), /Experiment Arms/);
+});
+
+test('buildEvidenceReview recomputes corpus rollups from sessions when both are present', function () {
+  const review = buildEvidenceReview({
+    sessionCorpus: {
+      sessions: [
+        {
+          session_id: 'live-1',
+          lane: 'live',
+          focus_areas: ['propagation'],
+          experiment_arm: 'directive_fix_first',
+          expected_signal_kinds: ['incomplete_propagation'],
+          outcome_bucket: 'missed_expected_signal',
+          outcome: {
+            initial_top_action_kind: 'large_file',
+            top_action_cleared: false,
+            final_session_clean: false,
+            followup_regression_introduced: false,
+          },
+        },
+      ],
+      focus_area_summaries: [{ focus_area: 'stale', session_count: 99 }],
+      top_action_failure_summary: [{ outcome_bucket: 'stale_bucket', session_count: 99 }],
+      experiment_arm_summaries: [{ experiment_arm: 'directive_fix_first', session_count: 99 }],
+      review_queue: [],
+    },
+  });
+
+  assert.equal(review.summary.review_queue_count, 1);
+  assert.equal(review.focus_area_summaries[0].focus_area, 'propagation');
+  assert.equal(review.top_action_failure_summary[0].outcome_bucket, 'missed_expected_signal');
+  assert.equal(review.experiment_arms[0].experiment_arm, 'fix_this_first');
+  assert.equal(review.experiment_arms[0].session_count, 1);
 });

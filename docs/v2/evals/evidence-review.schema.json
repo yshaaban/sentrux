@@ -23,6 +23,8 @@
     "promotion_candidates": { "type": "array", "items": { "type": "object" } },
     "demotion_candidates": { "type": "array", "items": { "type": "object" } },
     "ranking_misses": { "type": "array", "items": { "type": "object" } },
+    "focus_area_summaries": { "type": "array", "items": { "type": "object" } },
+    "top_action_failure_summary": { "type": "array", "items": { "type": "object" } },
     "propagation_examples": { "type": "array", "items": { "type": "object" } },
     "clone_examples": { "type": "array", "items": { "type": "object" } },
     "thrashing_examples": { "type": "array", "items": { "type": "object" } },
