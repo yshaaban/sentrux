@@ -1,5 +1,6 @@
 import { asArray, safeRatio } from './signal-summary-utils.mjs';
 import { normalizeExperimentArm } from './experiment-arms.mjs';
+import { normalizeExecutionOutcome } from './eval-batch.mjs';
 import { applySessionVerdicts, buildSessionVerdictSummary } from './session-verdicts.mjs';
 
 const MISSED_EXPECTED_SIGNAL_BUCKETS = new Set([
@@ -109,6 +110,8 @@ function buildEvidenceFlags(expectedSignalKinds, initialActionKinds, initialTopA
 }
 
 function outcomeBucketForEntry(entry) {
+  const finalSessionClean = entry.outcome.final_session_clean;
+
   if (entry.status !== 'completed') {
     return 'provider_failed';
   }
@@ -116,12 +119,18 @@ function outcomeBucketForEntry(entry) {
     return 'regressed';
   }
   if (entry.evidence_flags.expected_signal_missing) {
-    return entry.outcome.final_session_clean ? 'clean_but_missed_expected_signal' : 'missed_expected_signal';
+    if (finalSessionClean) {
+      return 'clean_but_missed_expected_signal';
+    }
+
+    return 'missed_expected_signal';
   }
   if (entry.evidence_flags.expected_signal_present_not_top) {
-    return entry.outcome.final_session_clean
-      ? 'clean_but_misranked'
-      : 'expected_signal_present_not_top';
+    if (finalSessionClean) {
+      return 'clean_but_misranked';
+    }
+
+    return 'expected_signal_present_not_top';
   }
   if (entry.outcome.convergence_status === 'thrashing') {
     return 'thrashing';
@@ -129,7 +138,7 @@ function outcomeBucketForEntry(entry) {
   if (entry.outcome.convergence_status === 'stalled') {
     return 'stalled';
   }
-  if (entry.outcome.final_session_clean) {
+  if (finalSessionClean) {
     return 'clean';
   }
 
@@ -143,6 +152,21 @@ function normalizeBatchEntry(entry, lane) {
   const initialTopActionKind =
     typeof outcome.initial_top_action_kind === 'string' ? outcome.initial_top_action_kind : null;
   const tags = uniqueSortedStrings(asArray(entry.tags));
+  const normalizedOutcome = normalizeExecutionOutcome(
+    {
+      session_count: outcome.session_count ?? null,
+      initial_action_kinds: initialActionKinds,
+      initial_top_action_kind: initialTopActionKind,
+      top_action_cleared: outcome.top_action_cleared ?? false,
+      checks_to_clear_top_action: outcome.checks_to_clear_top_action ?? null,
+      convergence_status: outcome.convergence_status ?? null,
+      entropy_delta: outcome.entropy_delta ?? null,
+      final_gate: outcome.final_gate ?? null,
+      final_session_clean: outcome.final_session_clean ?? false,
+      followup_regression_introduced: outcome.followup_regression_introduced ?? false,
+    },
+    entry.status ?? 'completed',
+  );
   const normalizedEntry = {
     session_id: sessionIdForEntry(entry),
     session_label: sessionLabelForEntry(entry),
@@ -156,18 +180,7 @@ function normalizeBatchEntry(entry, lane) {
     session_goal: entry.session_goal ?? null,
     success_criteria: entry.success_criteria ?? null,
     focus_areas: focusAreasForExpectedSignals(expectedSignalKinds, tags),
-    outcome: {
-      session_count: outcome.session_count ?? null,
-      initial_action_kinds: initialActionKinds,
-      initial_top_action_kind: initialTopActionKind,
-      top_action_cleared: outcome.top_action_cleared ?? false,
-      checks_to_clear_top_action: outcome.checks_to_clear_top_action ?? null,
-      convergence_status: outcome.convergence_status ?? null,
-      entropy_delta: outcome.entropy_delta ?? null,
-      final_gate: outcome.final_gate ?? null,
-      final_session_clean: outcome.final_session_clean ?? false,
-      followup_regression_introduced: outcome.followup_regression_introduced ?? false,
-    },
+    outcome: normalizedOutcome,
   };
 
   normalizedEntry.evidence_flags = buildEvidenceFlags(

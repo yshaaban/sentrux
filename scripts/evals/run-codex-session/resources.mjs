@@ -9,12 +9,12 @@ import {
   defaultRulesSource,
   maybeCopyFile,
 } from '../../lib/eval-support.mjs';
+import { normalizeExecutionOutcome, slugify } from '../../lib/eval-batch.mjs';
 import {
   loadSessionTelemetrySummaryOrEmpty,
   summarizeOutcome,
   writeSessionTelemetryArtifacts,
 } from '../../lib/session-telemetry.mjs';
-import { slugify } from '../../lib/eval-batch.mjs';
 import { nowIso } from './status.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -111,6 +111,9 @@ export function buildCodexBundle({
     final_gate: finalGate.payload,
     session_end: sessionEnd.payload,
     telemetry_summary: sessionTelemetry,
-    outcome: summarizeOutcome(sessionTelemetry),
+    outcome: normalizeExecutionOutcome(
+      summarizeOutcome(sessionTelemetry),
+      executionStatus,
+    ),
   };
 }

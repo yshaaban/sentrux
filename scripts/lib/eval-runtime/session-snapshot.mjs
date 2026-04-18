@@ -1,5 +1,6 @@
-import { nowIso, runTool } from './common.mjs';
-import { collectRepoIdentity } from './repo-identity.mjs';
+import { runTool } from '../benchmark-harness-mcp-session.mjs';
+import { nowIso } from './common.mjs';
+import { collectRepoIdentity } from '../repo-identity.mjs';
 
 export function buildSessionSnapshot(label, scanResult, checkResult, extra = {}) {
   return {

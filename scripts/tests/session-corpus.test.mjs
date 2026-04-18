@@ -224,3 +224,37 @@ test('buildSessionCorpus keeps clean-but-misranked sessions in the review queue'
   assert.equal(corpus.review_queue.length, 1);
   assert.equal(corpus.review_queue[0].session_id, 'propagation-clean-miss');
 });
+
+test('buildSessionCorpus normalizes failed batch entries away from clean pass metadata', function () {
+  const corpus = buildSessionCorpus({
+    repoLabel: 'demo-repo',
+    codexBatch: {
+      repo_label: 'demo-repo',
+      failures: [
+        {
+          status: 'provider_failed',
+          task_id: 'startup-fail',
+          task_label: 'Startup fail',
+          tags: ['clone'],
+          expected_signal_kinds: ['clone_propagation_drift'],
+          outcome: {
+            initial_action_kinds: [],
+            initial_top_action_kind: null,
+            checks_to_clear_top_action: 1,
+            convergence_status: 'converged',
+            final_gate: 'pass',
+            final_session_clean: true,
+            top_action_cleared: false,
+            followup_regression_introduced: false,
+          },
+        },
+      ],
+    },
+  });
+
+  assert.equal(corpus.sessions[0].outcome_bucket, 'provider_failed');
+  assert.equal(corpus.sessions[0].outcome.final_gate, 'warn');
+  assert.equal(corpus.sessions[0].outcome.final_session_clean, false);
+  assert.equal(corpus.sessions[0].outcome.convergence_status, 'provider_failed');
+  assert.equal(corpus.sessions[0].outcome.checks_to_clear_top_action, null);
+});

@@ -38,6 +38,28 @@ test('summarizeBundleOutcome falls back to initial check actions', function () {
   ]);
 });
 
+test('summarizeBundleOutcome normalizes failed sessions away from clean pass outcomes', function () {
+  const outcome = summarizeBundleOutcome({
+    status: 'provider_failed',
+    outcome: {
+      initial_action_kinds: [],
+      initial_top_action_kind: null,
+      convergence_status: 'converged',
+      final_gate: 'pass',
+      final_session_clean: true,
+      checks_to_clear_top_action: 1,
+    },
+    initial_check: {
+      actions: [],
+    },
+  });
+
+  assert.equal(outcome.final_gate, 'warn');
+  assert.equal(outcome.final_session_clean, false);
+  assert.equal(outcome.convergence_status, 'provider_failed');
+  assert.equal(outcome.checks_to_clear_top_action, null);
+});
+
 test('resolveManifestPath resolves repo roots relative to the manifest file', function () {
   assert.equal(
     resolveManifestPath(

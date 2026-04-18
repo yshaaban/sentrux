@@ -53,6 +53,48 @@ export function normalizeExpectedSignalKinds(value) {
   return Array.isArray(value) ? value.filter(Boolean).map(String) : [String(value)];
 }
 
+export function normalizeExecutionOutcome(outcome, executionStatus = 'completed') {
+  const isCompletedExecution = !executionStatus || executionStatus === 'completed';
+  const normalizedOutcome = {
+    session_count: outcome?.session_count ?? null,
+    final_gate: outcome?.final_gate ?? null,
+    final_session_clean: outcome?.final_session_clean ?? false,
+    initial_top_action_kind: outcome?.initial_top_action_kind ?? null,
+    initial_action_kinds: outcome?.initial_action_kinds ?? [],
+    top_action_cleared: outcome?.top_action_cleared ?? false,
+    checks_to_clear_top_action: outcome?.checks_to_clear_top_action ?? null,
+    convergence_status: outcome?.convergence_status ?? null,
+    entropy_delta: outcome?.entropy_delta ?? null,
+    followup_regression_introduced:
+      outcome?.followup_regression_introduced ?? false,
+  };
+
+  if (isCompletedExecution) {
+    return normalizedOutcome;
+  }
+
+  normalizedOutcome.final_session_clean = false;
+  normalizedOutcome.top_action_cleared = false;
+  normalizedOutcome.checks_to_clear_top_action = null;
+  if (!normalizedOutcome.final_gate || normalizedOutcome.final_gate === 'pass') {
+    normalizedOutcome.final_gate = 'warn';
+  }
+
+  if (executionStatus === 'provider_failed') {
+    normalizedOutcome.convergence_status = 'provider_failed';
+    return normalizedOutcome;
+  }
+
+  if (
+    !normalizedOutcome.convergence_status ||
+    normalizedOutcome.convergence_status === 'converged'
+  ) {
+    normalizedOutcome.convergence_status = 'stalled';
+  }
+
+  return normalizedOutcome;
+}
+
 export function summarizeBundleOutcome(bundle) {
   const initialActions =
     bundle?.outcome?.initial_action_kinds ??
@@ -60,8 +102,7 @@ export function summarizeBundleOutcome(bundle) {
     [];
   const sessionCount =
     bundle?.telemetry_summary?.summary?.session_count ?? bundle?.outcome?.session_count ?? null;
-
-  return {
+  const outcome = {
     session_count: sessionCount,
     final_gate: bundle?.outcome?.final_gate ?? null,
     final_session_clean: bundle?.outcome?.final_session_clean ?? false,
@@ -74,6 +115,8 @@ export function summarizeBundleOutcome(bundle) {
     followup_regression_introduced:
       bundle?.outcome?.followup_regression_introduced ?? false,
   };
+
+  return normalizeExecutionOutcome(outcome, bundle?.status ?? 'completed');
 }
 
 export async function loadBatchManifest(targetPath) {

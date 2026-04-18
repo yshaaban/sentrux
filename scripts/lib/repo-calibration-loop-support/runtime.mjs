@@ -4,6 +4,8 @@ import path from 'node:path';
 import { runNodeScript as runSharedNodeScript } from '../eval-runtime/common.mjs';
 
 export async function acquireLoopLock(lockPath, metadata) {
+  await mkdir(path.dirname(lockPath), { recursive: true });
+
   try {
     await mkdir(lockPath);
   } catch (error) {

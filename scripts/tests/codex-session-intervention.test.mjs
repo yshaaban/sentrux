@@ -117,3 +117,57 @@ test('buildCodexBundle persists experiment metadata', function () {
   assert.equal(bundle.session_goal, 'clear the top propagation action');
   assert.equal(bundle.success_criteria, 'the followthrough path is complete');
 });
+
+test('buildCodexBundle normalizes failed execution away from clean pass outcomes', function () {
+  const bundle = buildCodexBundle({
+    args: {
+      analysisMode: 'working_tree',
+      tags: [],
+      expectedSignalKinds: [],
+      expectedFixSurface: null,
+      experimentArm: null,
+      sessionGoal: null,
+      successCriteria: null,
+    },
+    repoLabel: 'sentrux',
+    taskId: 'task-2',
+    sourceRoot: '/tmp/repo',
+    clone: { workRoot: '/tmp/repo-clone' },
+    taskLabel: 'Task',
+    paths: { promptPath: '/tmp/prompt.md' },
+    startedAt: '2026-04-18T00:00:00.000Z',
+    providerRun: {
+      timeout_phase: 'startup',
+      exit_code: 1,
+      timed_out: false,
+      idle_timed_out: false,
+    },
+    executionStatus: 'provider_failed',
+    snapshots: [{ check: { kind: 'check' } }],
+    finalSnapshot: { check: { kind: 'check' } },
+    finalGate: { payload: { decision: 'pass' } },
+    sessionEnd: { payload: { decision: 'pass' } },
+    sessionTelemetry: {
+      summary: { session_count: 1 },
+      sessions: [
+        {
+          initialTopActionKind: null,
+          initialActionKinds: [],
+          topActionCleared: false,
+          checksToClearTopAction: 1,
+          convergenceStatus: 'converged',
+          entropyDelta: 0,
+          finalGate: 'pass',
+          finalSessionClean: true,
+          followupRegressionIntroduced: false,
+        },
+      ],
+      signals: [],
+    },
+  });
+
+  assert.equal(bundle.outcome.final_gate, 'warn');
+  assert.equal(bundle.outcome.final_session_clean, false);
+  assert.equal(bundle.outcome.convergence_status, 'provider_failed');
+  assert.equal(bundle.outcome.checks_to_clear_top_action, null);
+});

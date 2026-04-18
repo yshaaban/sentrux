@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createDisposableRepoClone } from '../lib/disposable-repo.mjs';
@@ -12,6 +12,7 @@ import {
   defaultRulesSource,
   maybeCopyFile,
   parseCliArgs,
+  slugifyEvalLabel,
 } from '../lib/eval-support.mjs';
 import {
   appendStringOption,
@@ -188,18 +189,23 @@ async function createReplayResources({ sourceRoot, repoLabel, replayTarget, args
     args.rulesSource === null ? defaultRulesSource(sourceRoot) : path.resolve(args.rulesSource);
   const clone = await createDisposableRepoClone({
     sourceRoot,
-    label: `diff-replay-${slugify(repoLabel)}-${slugify(replayTarget)}`,
+    label: `diff-replay-${slugifyEvalLabel(repoLabel)}-${slugifyEvalLabel(replayTarget)}`,
     rulesSource,
     analysisMode: 'head_clone',
   });
-  const pluginHome = await prepareTypeScriptBenchmarkHome({ tempRoot: clone.tempRoot });
-  const session = createEvalMcpSession({
-    repoRoot,
-    binPath: sentruxBin,
-    homeOverride: pluginHome,
-  });
+  try {
+    const pluginHome = await prepareTypeScriptBenchmarkHome({ tempRoot: clone.tempRoot });
+    const session = createEvalMcpSession({
+      repoRoot,
+      binPath: sentruxBin,
+      homeOverride: pluginHome,
+    });
 
-  return { clone, session };
+    return { clone, session };
+  } catch (error) {
+    await clone.cleanup();
+    throw error;
+  }
 }
 
 async function startReplaySession(session, workRoot) {
@@ -307,7 +313,7 @@ function buildReplayBundle({
     schema_version: 1,
     generated_at: nowIso(),
     repo_label: repoLabel,
-    replay_id: args.replayId ?? slugify(replayTarget),
+    replay_id: args.replayId ?? slugifyEvalLabel(replayTarget),
     source_root: sourceRoot,
     analyzed_root: clone.workRoot,
     tags: args.tags,
@@ -346,14 +352,13 @@ export async function runDiffReplay(options) {
     args.outputDir ?? defaultOutputDir(sourceRoot, replayTarget),
   );
   const paths = buildReplayOutputPaths(outputDir);
+  await mkdir(outputDir, { recursive: true });
   const { clone, session } = await createReplayResources({
     sourceRoot,
     repoLabel,
     replayTarget,
     args,
   });
-
-  await mkdir(outputDir, { recursive: true });
 
   try {
     const { replayMetadata, initialSnapshot, replaySnapshot, changedFileCount } =

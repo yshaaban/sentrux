@@ -24,7 +24,7 @@ function buildAgentLoopCoreSignals() {
       signal_kind: 'large_file',
       signal_family: 'structural',
       promotion_status: 'watchpoint',
-      rationale: 'Useful regrowth warning that should be tracked for actionability, not just correctness.',
+      rationale: 'Regrowth warning that is valuable when it stays actionable.',
     },
     {
       signal_kind: 'session_introduced_clone',
@@ -66,7 +66,7 @@ export function buildDefaultSignalCohorts() {
         cohort_id: 'agent-loop-core',
         title: 'Agent Loop Core',
         description:
-          'Initial high-ROI signal cohort for calibrating fast patch feedback in the coding loop.',
+          'Initial high-ROI signal cohort for fast coding-agent feedback calibration.',
         signals: buildAgentLoopCoreSignals(),
         next_candidates: [
           'multi_writer_concept',
