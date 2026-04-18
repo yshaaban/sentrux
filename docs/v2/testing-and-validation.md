@@ -245,6 +245,8 @@ Current support boundary:
 - ranking-preference satisfaction is scorecard-grade when verdicts use `preferred_over`
 - repair-packet completeness is scorecard-grade supporting evidence when verdicts preserve the structured repair fields; the current bar is the `REVIEW_PACKET_COMPLETENESS_POLICY` in [`../../scripts/lib/signal-calibration-policy.mjs`](../../scripts/lib/signal-calibration-policy.mjs) (`scope`, `summary`, `evidence`, and `repair_surface` required, `fix_hint` and `likely_fix_sites` preferred, top-3 complete rate at least `0.8`, top-10 complete rate at least `0.7`)
 - repair-packet completeness does not replace ranking quality, remediation success, or session outcomes; it strengthens fixability evidence after the detector is already showing useful ranked behavior
+- scorecards now separate broad promotion guidance from stricter default-on readiness by carrying per-signal `default_rollout_recommendation`; evidence reviews then summarize `default_on_candidates`, repo-level treatment evidence, and final `default_on_promotion` readiness separately from generic promotion candidates
+- session corpus, scorecard, and evidence review artifacts now carry `evidence_sources` so paired baseline/treatment outputs can be traced back to their program, phase, batch, cohort, and analysis mode without relying on filename conventions
 
 ## Treatment-Vs-Baseline Evidence
 

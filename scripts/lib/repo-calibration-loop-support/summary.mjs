@@ -114,6 +114,13 @@ export function buildSummaryMarkdown(summary) {
   lines.push(`- intervention net value score: ${summary.summary.intervention_net_value_score ?? 'n/a'}`);
   lines.push(`- propagation escape rate: ${summary.summary.propagation_escape_rate ?? 'n/a'}`);
   lines.push(`- clone followthrough escape rate: ${summary.summary.clone_followthrough_escape_rate ?? 'n/a'}`);
+  lines.push(`- default-on candidates: ${summary.summary.evidence_review_default_on_candidates ?? 0}`);
+  lines.push(`- default-on ready: ${summary.summary.default_on_ready ? 'true' : 'false'}`);
+  lines.push(
+    `- repo treatment ready: ${summary.summary.default_on_repo_treatment_ready ? 'true' : 'false'}`,
+  );
+  lines.push(`- default-on evidence scope: ${summary.summary.default_on_evidence_scope ?? 'n/a'}`);
+  lines.push(`- evidence phase: ${summary.summary.evidence_phase_id ?? 'n/a'}`);
   lines.push(`- next signal: ${summary.summary.recommended_next_signal ?? 'none'}`);
   lines.push('');
 

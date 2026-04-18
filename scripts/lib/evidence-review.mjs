@@ -8,6 +8,7 @@ import {
   buildTopActionFailureSummary,
 } from './session-corpus.mjs';
 import {
+  SIGNAL_DEFAULT_ROLLOUT_POLICY,
   SIGNAL_PRIMARY_TARGET_POLICY,
   SIGNAL_PROMOTION_POLICY,
 } from './signal-calibration-policy.mjs';
@@ -186,6 +187,33 @@ function buildDemotionCandidates(scorecard) {
     });
 }
 
+function buildDefaultOnCandidates(scorecard) {
+  return asArray(scorecard?.signals)
+    .filter(function isDefaultRolloutCandidate(signal) {
+      return signal.default_rollout_recommendation === 'await_treatment_proof';
+    })
+    .map(function toDefaultOnCandidate(signal) {
+      return {
+        signal_kind: signal.signal_kind,
+        signal_family: signal.signal_family ?? null,
+        promotion_status: signal.promotion_status ?? null,
+        product_primary_lane: signal.product_primary_lane ?? null,
+        default_surface_role: signal.default_surface_role ?? null,
+        session_verdict_count: signal.session_verdict_count ?? 0,
+        top_action_follow_rate: signal.top_action_follow_rate ?? null,
+        top_action_help_rate: signal.top_action_help_rate ?? null,
+        task_success_rate: signal.task_success_rate ?? null,
+        patch_expansion_rate: signal.patch_expansion_rate ?? null,
+        intervention_net_value_score: signal.intervention_net_value_score ?? null,
+        promotion_recommendation: signal.promotion_recommendation ?? null,
+        default_rollout_recommendation: signal.default_rollout_recommendation ?? null,
+      };
+    })
+    .sort(function compareCandidates(left, right) {
+      return (right.top_action_help_rate ?? 0) - (left.top_action_help_rate ?? 0);
+    });
+}
+
 function buildRankingMisses(backlog) {
   return asArray(backlog?.weak_signals)
     .map(function toRankingMiss(signal) {
@@ -275,6 +303,92 @@ function selectThrashingExamples(sessionCorpus) {
   });
 }
 
+function isQualifiedDefaultOnComparison(entry) {
+  if (!entry) {
+    return false;
+  }
+
+  return (
+    entry.top_action_help_rate_delta !== null &&
+    entry.top_action_help_rate_delta >=
+      SIGNAL_DEFAULT_ROLLOUT_POLICY.topActionHelpRateDeltaMin &&
+    entry.task_success_rate_delta !== null &&
+    entry.task_success_rate_delta >= SIGNAL_DEFAULT_ROLLOUT_POLICY.taskSuccessRateDeltaMin &&
+    entry.intervention_net_value_score_delta !== null &&
+    entry.intervention_net_value_score_delta >=
+      SIGNAL_DEFAULT_ROLLOUT_POLICY.interventionNetValueScoreDeltaMin &&
+    entry.patch_expansion_rate_delta !== null &&
+    entry.patch_expansion_rate_delta <=
+      SIGNAL_DEFAULT_ROLLOUT_POLICY.patchExpansionRateDeltaMax
+  );
+}
+
+function buildDefaultOnPromotionSummary(defaultOnCandidates, experimentArmComparisons, scorecard) {
+  const allComparisons = asArray(experimentArmComparisons);
+  const qualifiedComparisons = allComparisons.filter(isQualifiedDefaultOnComparison);
+  const bestComparison = qualifiedComparisons[0] ?? allComparisons[0] ?? null;
+  const pairedVerdictSampleCount = scorecard?.summary?.kpis?.session_verdict_count ?? 0;
+  const hasSignalCandidates = defaultOnCandidates.length > 0;
+  const hasVerdictEvidence =
+    pairedVerdictSampleCount >= SIGNAL_DEFAULT_ROLLOUT_POLICY.sessionVerdictMinSamples;
+  const hasPairedBaseline = allComparisons.length > 0;
+  const hasPositiveRepoTreatmentEvidence =
+    qualifiedComparisons.length >= SIGNAL_DEFAULT_ROLLOUT_POLICY.experimentArmMinComparisons;
+  const hasSignalMatchedTreatmentEvidence = false;
+  const blockers = [];
+
+  if (!hasSignalCandidates) {
+    blockers.push('no_signal_candidates');
+  }
+  if (!hasVerdictEvidence) {
+    blockers.push('missing_session_verdicts');
+  }
+  if (!hasPairedBaseline) {
+    blockers.push('missing_paired_baseline');
+  } else if (!hasPositiveRepoTreatmentEvidence) {
+    blockers.push('missing_positive_treatment_delta');
+  }
+  if (
+    hasSignalCandidates &&
+    hasVerdictEvidence &&
+    hasPositiveRepoTreatmentEvidence &&
+    !hasSignalMatchedTreatmentEvidence
+  ) {
+    blockers.push('missing_signal_matched_treatment_evidence');
+  }
+
+  const evidenceComplete =
+    hasSignalCandidates &&
+    hasVerdictEvidence &&
+    hasPairedBaseline &&
+    hasPositiveRepoTreatmentEvidence &&
+    hasSignalMatchedTreatmentEvidence;
+
+  return {
+    ready: evidenceComplete,
+    evidence_complete: evidenceComplete,
+    evidence_scope: 'repo_level',
+    repo_treatment_ready: hasVerdictEvidence && hasPositiveRepoTreatmentEvidence,
+    signal_matched_treatment_evidence: hasSignalMatchedTreatmentEvidence,
+    paired_baseline_present: hasPairedBaseline,
+    paired_verdict_sample_count: pairedVerdictSampleCount,
+    best_treatment_arm: bestComparison?.experiment_arm ?? null,
+    qualified_comparison_count: qualifiedComparisons.length,
+    candidate_signal_count: defaultOnCandidates.length,
+    candidate_signals: defaultOnCandidates.map(function toSignalKind(entry) {
+      return entry.signal_kind;
+    }),
+    deltas: {
+      top_action_help_rate: bestComparison?.top_action_help_rate_delta ?? null,
+      task_success_rate: bestComparison?.task_success_rate_delta ?? null,
+      patch_expansion_rate: bestComparison?.patch_expansion_rate_delta ?? null,
+      intervention_net_value_score:
+        bestComparison?.intervention_net_value_score_delta ?? null,
+    },
+    blockers,
+  };
+}
+
 function appendSummarySection(lines, title, entries, formatter) {
   if (entries.length === 0) {
     return;
@@ -308,6 +422,7 @@ export function buildEvidenceReview({
 }) {
   const promotionCandidates = buildPromotionCandidates(scorecard);
   const demotionCandidates = buildDemotionCandidates(scorecard);
+  const defaultOnCandidates = buildDefaultOnCandidates(scorecard);
   const rankingMisses = buildRankingMisses(backlog);
   const {
     reviewQueue,
@@ -320,6 +435,11 @@ export function buildEvidenceReview({
   const propagationExamples = selectFocusAreaExamples(sessionCorpus, 'propagation');
   const cloneExamples = selectFocusAreaExamples(sessionCorpus, 'clone_followthrough');
   const thrashingExamples = selectThrashingExamples(sessionCorpus);
+  const defaultOnPromotion = buildDefaultOnPromotionSummary(
+    defaultOnCandidates,
+    experimentArmComparisons,
+    scorecard,
+  );
   const reviewPacketSampleCount =
     reviewPacket?.summary?.sample_count ?? reviewPacket?.samples?.length ?? 0;
 
@@ -331,6 +451,7 @@ export function buildEvidenceReview({
     summary: {
       promotion_candidate_count: promotionCandidates.length,
       demotion_candidate_count: demotionCandidates.length,
+      default_on_candidate_count: defaultOnCandidates.length,
       ranking_miss_count: rankingMisses.length,
       review_queue_count: reviewQueue.length,
       review_packet_sample_count: reviewPacketSampleCount,
@@ -340,8 +461,11 @@ export function buildEvidenceReview({
       experiment_arm_comparison_count: experimentArmComparisons.length,
       session_verdict_count: productValueSummary?.session_verdict_count ?? 0,
     },
+    evidence_sources: sessionCorpus?.evidence_sources ?? { live: null, replay: null },
     promotion_candidates: promotionCandidates,
     demotion_candidates: demotionCandidates,
+    default_on_candidates: defaultOnCandidates,
+    default_on_promotion: defaultOnPromotion,
     ranking_misses: rankingMisses,
     focus_area_summaries: focusAreaSummaries,
     top_action_failure_summary: topActionFailureSummary,
@@ -372,6 +496,7 @@ export function formatEvidenceReviewMarkdown(review) {
   lines.push(
     `- experiment arm comparisons: ${review.summary.experiment_arm_comparison_count ?? 0}`,
   );
+  lines.push(`- default-on candidates: ${review.summary.default_on_candidate_count ?? 0}`);
   if (review.product_value) {
     lines.push(`- session verdicts: ${review.product_value.session_verdict_count ?? 0}`);
     lines.push(
@@ -399,6 +524,45 @@ export function formatEvidenceReviewMarkdown(review) {
   appendSummarySection(lines, 'Demotion Candidates', review.demotion_candidates, function formatEntry(entry) {
     return `\`${entry.signal_kind}\`: noise=${entry.review_noise_rate ?? 'n/a'}, top1=${entry.top_1_actionable_precision ?? 'n/a'}, top3=${entry.top_3_actionable_precision ?? 'n/a'}, clean=${entry.session_clean_rate ?? 'n/a'}, follow=${entry.top_action_follow_rate ?? 'n/a'}, help=${entry.top_action_help_rate ?? 'n/a'}, success=${entry.task_success_rate ?? 'n/a'}, expand=${entry.patch_expansion_rate ?? 'n/a'}, value=${entry.intervention_net_value_score ?? 'n/a'}, miss=${entry.session_trial_miss_rate ?? 'n/a'}`;
   });
+  appendSummarySection(lines, 'Default-On Candidates', review.default_on_candidates, function formatEntry(entry) {
+    return `\`${entry.signal_kind}\`: lane=${entry.product_primary_lane ?? 'n/a'}, role=${entry.default_surface_role ?? 'n/a'}, verdicts=${entry.session_verdict_count ?? 0}, follow=${entry.top_action_follow_rate ?? 'n/a'}, help=${entry.top_action_help_rate ?? 'n/a'}, success=${entry.task_success_rate ?? 'n/a'}, expand=${entry.patch_expansion_rate ?? 'n/a'}, value=${entry.intervention_net_value_score ?? 'n/a'}`;
+  });
+  lines.push('## Default-On Promotion');
+  lines.push('');
+  lines.push(`- ready for default-on: ${review.default_on_promotion.ready ? 'true' : 'false'}`);
+  lines.push(
+    `- evidence complete: ${review.default_on_promotion.evidence_complete ? 'true' : 'false'}`,
+  );
+  lines.push(`- evidence scope: ${review.default_on_promotion.evidence_scope ?? 'unknown'}`);
+  lines.push(
+    `- repo treatment ready: ${review.default_on_promotion.repo_treatment_ready ? 'true' : 'false'}`,
+  );
+  lines.push(
+    `- signal-matched treatment evidence: ${review.default_on_promotion.signal_matched_treatment_evidence ? 'true' : 'false'}`,
+  );
+  lines.push(
+    `- paired baseline present: ${review.default_on_promotion.paired_baseline_present ? 'true' : 'false'}`,
+  );
+  lines.push(
+    `- paired verdict sample count: ${review.default_on_promotion.paired_verdict_sample_count ?? 0}`,
+  );
+  lines.push(
+    `- qualified comparisons: ${review.default_on_promotion.qualified_comparison_count ?? 0}`,
+  );
+  lines.push(
+    `- best treatment arm: ${review.default_on_promotion.best_treatment_arm ?? 'none'}`,
+  );
+  lines.push(
+    `- deltas: help=${review.default_on_promotion.deltas.top_action_help_rate ?? 'n/a'}, success=${review.default_on_promotion.deltas.task_success_rate ?? 'n/a'}, expand=${review.default_on_promotion.deltas.patch_expansion_rate ?? 'n/a'}, value=${review.default_on_promotion.deltas.intervention_net_value_score ?? 'n/a'}`,
+  );
+  lines.push(
+    `- blockers: ${
+      review.default_on_promotion.blockers.length > 0
+        ? review.default_on_promotion.blockers.join(', ')
+        : 'none'
+    }`,
+  );
+  lines.push('');
   appendSummarySection(lines, 'Ranking Misses', review.ranking_misses, function formatEntry(entry) {
     return `\`${entry.signal_kind}\`: missing=${entry.expected_missing_count}, present_not_top=${entry.expected_present_not_top_count}, crowded=${entry.crowded_out_expected_count}, unexpected_top=${entry.unexpected_top_action_count}, miss_rate=${entry.session_trial_miss_rate ?? 'n/a'}`;
   });

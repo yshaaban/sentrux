@@ -134,6 +134,7 @@ test('buildEvidenceReview summarizes promotion, demotion, ranking, and experimen
 
   assert.equal(review.summary.promotion_candidate_count, 1);
   assert.equal(review.summary.demotion_candidate_count, 1);
+  assert.equal(review.summary.default_on_candidate_count, 0);
   assert.equal(review.summary.ranking_miss_count, 1);
   assert.equal(review.summary.review_queue_count, 3);
   assert.equal(review.summary.focus_area_count, 3);
@@ -174,7 +175,14 @@ test('buildEvidenceReview summarizes promotion, demotion, ranking, and experimen
   assert.equal(review.product_value?.top_action_help_rate, 0.5);
   assert.equal(review.product_value?.task_success_rate, 0.333);
   assert.equal(review.product_value?.patch_expansion_rate, 0.333);
+  assert.equal(review.default_on_promotion.ready, false);
+  assert.equal(review.default_on_promotion.evidence_complete, false);
+  assert.equal(review.default_on_promotion.repo_treatment_ready, false);
+  assert.equal(review.default_on_promotion.signal_matched_treatment_evidence, false);
+  assert(review.default_on_promotion.blockers.includes('no_signal_candidates'));
   assert.match(formatEvidenceReviewMarkdown(review), /Promotion Candidates/);
+  assert.match(formatEvidenceReviewMarkdown(review), /Default-On Promotion/);
+  assert.match(formatEvidenceReviewMarkdown(review), /ready for default-on: false/);
   assert.match(formatEvidenceReviewMarkdown(review), /top-action help rate: 0.5/);
   assert.match(formatEvidenceReviewMarkdown(review), /Focus Area Rollups/);
   assert.match(formatEvidenceReviewMarkdown(review), /Top Action Failures/);
@@ -216,6 +224,31 @@ test('buildEvidenceReview recomputes corpus rollups from sessions when both are 
 
 test('buildEvidenceReview summarizes treatment-vs-baseline comparisons when a baseline arm exists', function () {
   const review = buildEvidenceReview({
+    scorecard: {
+      repo_label: 'demo-repo',
+      summary: {
+        kpis: {
+          session_verdict_count: 3,
+        },
+      },
+      signals: [
+        {
+          signal_kind: 'incomplete_propagation',
+          signal_family: 'obligation',
+          promotion_status: 'trusted',
+          product_primary_lane: 'agent_default',
+          default_surface_role: 'lead',
+          session_verdict_count: 3,
+          top_action_follow_rate: 1,
+          top_action_help_rate: 1,
+          task_success_rate: 1,
+          patch_expansion_rate: 0,
+          intervention_net_value_score: 1,
+          promotion_recommendation: 'keep_trusted',
+          default_rollout_recommendation: 'await_treatment_proof',
+        },
+      ],
+    },
     sessionCorpus: {
       sessions: [
         {
@@ -280,10 +313,25 @@ test('buildEvidenceReview summarizes treatment-vs-baseline comparisons when a ba
   });
 
   assert.equal(review.summary.experiment_arm_comparison_count, 1);
+  assert.equal(review.summary.default_on_candidate_count, 1);
+  assert.equal(review.default_on_candidates[0].signal_kind, 'incomplete_propagation');
+  assert.equal(review.default_on_promotion.ready, false);
+  assert.equal(review.default_on_promotion.evidence_complete, false);
+  assert.equal(review.default_on_promotion.evidence_scope, 'repo_level');
+  assert.equal(review.default_on_promotion.repo_treatment_ready, true);
+  assert.equal(review.default_on_promotion.signal_matched_treatment_evidence, false);
+  assert.equal(review.default_on_promotion.best_treatment_arm, 'fix_this_first');
+  assert(review.default_on_promotion.blockers.includes('missing_signal_matched_treatment_evidence'));
   assert.equal(review.experiment_arm_comparisons[0].experiment_arm, 'fix_this_first');
   assert.equal(review.experiment_arm_comparisons[0].baseline_experiment_arm, 'no_intervention');
   assert.equal(review.experiment_arm_comparisons[0].top_action_help_rate_delta, 1);
   assert.equal(review.experiment_arm_comparisons[0].task_success_rate_delta, 1);
   assert.equal(review.experiment_arm_comparisons[0].intervention_net_value_score_delta, 1);
   assert.match(formatEvidenceReviewMarkdown(review), /Experiment Arm Comparisons/);
+  assert.match(formatEvidenceReviewMarkdown(review), /Default-On Candidates/);
+  assert.match(formatEvidenceReviewMarkdown(review), /repo treatment ready: true/);
+  assert.match(
+    formatEvidenceReviewMarkdown(review),
+    /signal-matched treatment evidence: false/,
+  );
 });

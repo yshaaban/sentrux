@@ -18,10 +18,18 @@
     "summary": {
       "type": "object",
       "additionalProperties": true,
-      "required": ["promotion_candidate_count", "demotion_candidate_count", "ranking_miss_count"]
+      "required": [
+        "promotion_candidate_count",
+        "demotion_candidate_count",
+        "default_on_candidate_count",
+        "ranking_miss_count"
+      ]
     },
+    "evidence_sources": { "type": "object", "additionalProperties": true },
     "promotion_candidates": { "type": "array", "items": { "type": "object" } },
     "demotion_candidates": { "type": "array", "items": { "type": "object" } },
+    "default_on_candidates": { "type": "array", "items": { "type": "object" } },
+    "default_on_promotion": { "type": "object", "additionalProperties": true },
     "ranking_misses": { "type": "array", "items": { "type": "object" } },
     "focus_area_summaries": { "type": "array", "items": { "type": "object" } },
     "top_action_failure_summary": { "type": "array", "items": { "type": "object" } },

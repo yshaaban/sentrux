@@ -100,6 +100,17 @@ export function buildLoopSummary({
       replay_failure_count: batchResults.replayBatchResult?.failure_count ?? 0,
       evidence_review_promotion_candidates:
         evidenceReview?.summary?.promotion_candidate_count ?? 0,
+      evidence_review_default_on_candidates:
+        evidenceReview?.summary?.default_on_candidate_count ?? 0,
+      default_on_ready: evidenceReview?.default_on_promotion?.ready ?? false,
+      default_on_repo_treatment_ready:
+        evidenceReview?.default_on_promotion?.repo_treatment_ready ?? false,
+      default_on_evidence_scope:
+        evidenceReview?.default_on_promotion?.evidence_scope ?? null,
+      evidence_phase_id:
+        evidenceReview?.evidence_sources?.live?.phase_id ??
+        evidenceReview?.evidence_sources?.replay?.phase_id ??
+        null,
     },
     delta: buildSummaryDelta(
       scorecard,

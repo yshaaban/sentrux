@@ -11,6 +11,7 @@ import {
   selectSessionVerdictsPath,
 } from '../evals/run-repo-calibration-loop.mjs';
 import { acquireLoopLock } from '../lib/repo-calibration-loop-support/runtime.mjs';
+import { buildSummaryMarkdown } from '../lib/repo-calibration-loop-support/summary.mjs';
 
 test('buildReviewArgs fails fast when codex review source lacks a live batch', function () {
   assert.throws(
@@ -143,6 +144,25 @@ test('buildScorecardArgs includes live and replay batch artifacts when present',
   }
 });
 
+test('buildScorecardArgs propagates cohort metadata arguments when provided', async function () {
+  const args = await buildScorecardArgs({
+    manifest: {
+      repo_root: '/tmp/sentrux',
+      repo_label: 'sentrux',
+      cohort_id: 'custom-agent-loop',
+    },
+    repoRootPath: '/tmp/sentrux',
+    mergedTelemetryJsonPath: '/tmp/session-telemetry-summary.json',
+    scorecardJsonPath: '/tmp/signal-scorecard.json',
+    scorecardMarkdownPath: '/tmp/signal-scorecard.md',
+    cohortManifestPath: '/tmp/custom-signal-cohorts.json',
+    cohortId: 'custom-agent-loop',
+  });
+
+  assert.match(args.join(' '), /--cohort-manifest \/tmp\/custom-signal-cohorts\.json/);
+  assert.match(args.join(' '), /--cohort-id custom-agent-loop/);
+});
+
 test('selectSessionVerdictsPath prefers curated input over prior stable output', async function () {
   const tempRoot = await mkdtemp(path.join(tmpdir(), 'sentrux-session-verdict-selection-'));
   try {
@@ -178,4 +198,56 @@ test('acquireLoopLock creates missing parent directories before taking the lock'
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }
+});
+
+test('buildSummaryMarkdown surfaces default-on evidence status explicitly', function () {
+  const markdown = buildSummaryMarkdown({
+    repo_id: 'demo',
+    repo_root: '/tmp/demo',
+    generated_at: '2026-04-18T00:00:00.000Z',
+    output_dir: '/tmp/out',
+    artifacts: {
+      codex_batch_json: '/tmp/live.json',
+      replay_batch_json: '/tmp/replay.json',
+      session_telemetry_json: '/tmp/telemetry.json',
+      review_packet_json: '/tmp/review-packet.json',
+      session_verdicts_output: '/tmp/session-verdicts.json',
+      scorecard_json: '/tmp/scorecard.json',
+      session_corpus_json: '/tmp/session-corpus.json',
+      backlog_json: '/tmp/backlog.json',
+      evidence_review_json: '/tmp/evidence-review.json',
+    },
+    summary: {
+      session_count: 4,
+      corpus_session_count: 4,
+      total_signals: 12,
+      weak_signal_count: 2,
+      review_sample_count: 8,
+      session_verdict_count: 4,
+      live_clean_rate: 0.5,
+      replay_clean_rate: 0.25,
+      agent_clear_rate: 0.5,
+      top_action_follow_rate: 0.75,
+      top_action_help_rate: 0.5,
+      task_success_rate: 0.5,
+      patch_expansion_rate: 0.25,
+      intervention_net_value_score: 0.333,
+      propagation_escape_rate: 0.25,
+      clone_followthrough_escape_rate: 0.25,
+      evidence_review_default_on_candidates: 2,
+      default_on_ready: false,
+      default_on_repo_treatment_ready: true,
+      default_on_evidence_scope: 'repo_level',
+      evidence_phase_id: 'phase_5_treatment_baseline',
+      recommended_next_signal: 'incomplete_propagation',
+    },
+    delta: null,
+    warnings: [],
+  });
+
+  assert.match(markdown, /default-on candidates: 2/);
+  assert.match(markdown, /default-on ready: false/);
+  assert.match(markdown, /repo treatment ready: true/);
+  assert.match(markdown, /default-on evidence scope: repo_level/);
+  assert.match(markdown, /evidence phase: phase_5_treatment_baseline/);
 });

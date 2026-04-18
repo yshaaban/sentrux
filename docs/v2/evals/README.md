@@ -152,7 +152,7 @@ Supporting scripts now cover:
 - `node scripts/evals/build-signal-backlog.mjs`
   Combine the active cohort, scorecard, and live/replay batch outputs into a weak-signal and false-negative backlog. Candidate ordering now exposes an explicit priority score that weights live misses above replay misses and keeps regression follow-through pressure visible. Configured next candidates stay queued, but the recommended next signal now requires positive evidence instead of defaulting to a zero-score placeholder.
 - `node scripts/evals/build-evidence-review.mjs`
-  Combine the scorecard, backlog, session corpus, and optional review packet into one weekly evidence review artifact that highlights promotion candidates, demotion candidates, ranking misses, propagation/clone failures, and experiment-arm outcomes.
+  Combine the scorecard, backlog, session corpus, and optional review packet into one weekly evidence review artifact that highlights promotion candidates, demotion candidates, ranking misses, propagation/clone failures, experiment-arm outcomes, and the distinction between repo-level treatment wins and true signal-specific default-on readiness.
 - `node scripts/evals/run-signal-calibration.mjs`
   Build the session telemetry summary and the refreshed scorecard together for the current repo or benchmark artifact set. When explicit live/replay batch paths are omitted, the script now reuses the latest repo-calibration-loop batch artifacts for the same repo so stable self-eval scorecards do not silently lose session-trial evidence; when a cohort is available it also refreshes the backlog in the same pass.
 
@@ -215,6 +215,8 @@ Use session verdicts to make intervention decisions conservatively:
 - if `intervention_net_value_score <= 0`, or if patch expansion rises while task success falls, stop broad rollout and treat the arm as a failed experiment until the prompt changes
 
 The checked-in live Codex batch manifests default to `analysis_mode: "working_tree"` so the real-work lane includes local uncommitted changes. Use `head_clone` only when you intentionally want a committed-HEAD calibration run.
+
+Batch manifests can now also carry `program_id` and `phase_id`. The batch runners propagate those fields into the emitted batch results, and the downstream session corpus, scorecard, and evidence review preserve them under `evidence_sources` / `program_tracking` so treatment-vs-baseline evidence can be traced back to the active execution phase.
 
 The checked-in replay batch manifests use explicit commit lists rather than broad `HEAD~N..HEAD` ranges. That keeps the default replay lane focused on code-rich commits and avoids letting docs-only churn dominate the backlog with low-value `large_file` noise.
 
