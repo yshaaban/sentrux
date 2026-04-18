@@ -1,7 +1,7 @@
 # Signal Calibration Backlog
 
 - cohort: `agent-loop-core`
-- generated at: `2026-04-17T23:43:33.550Z`
+- generated at: `2026-04-18T10:38:34.079Z`
 - weak signals: 1
 - live misses: 0
 - replay misses: 0

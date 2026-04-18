@@ -31,6 +31,28 @@
       "tags": ["calibration", "structure", "commands"],
       "expected_signal_kinds": ["large_file", "hotspot"],
       "expected_fix_surface": "contained command-group refactor"
+    },
+    {
+      "task_id": "one-tool-public-entrypoint-followthrough-report-only",
+      "task_label": "Keep public entrypoints and MCP exports in sync (report only)",
+      "prompt_file": "../prompts/one-tool/public-entrypoint-followthrough.md",
+      "experiment_arm": "report_only",
+      "session_goal": "close one public-surface propagation gap without drifting into broad export cleanup",
+      "success_criteria": "the chosen export or MCP contract is propagated across entrypoints and focused verification stays explicit",
+      "tags": ["calibration", "obligation", "exports", "mcp"],
+      "expected_signal_kinds": ["incomplete_propagation"],
+      "expected_fix_surface": "public entrypoint and MCP export parity"
+    },
+    {
+      "task_id": "one-tool-public-entrypoint-followthrough-fix-first",
+      "task_label": "Keep public entrypoints and MCP exports in sync (fix this first)",
+      "prompt_file": "../prompts/one-tool/public-entrypoint-followthrough.md",
+      "experiment_arm": "fix_this_first",
+      "session_goal": "close one public-surface propagation gap without drifting into broad export cleanup",
+      "success_criteria": "the chosen export or MCP contract is propagated across entrypoints and focused verification stays explicit",
+      "tags": ["calibration", "obligation", "exports", "mcp"],
+      "expected_signal_kinds": ["incomplete_propagation"],
+      "expected_fix_surface": "public entrypoint and MCP export parity"
     }
   ]
 }

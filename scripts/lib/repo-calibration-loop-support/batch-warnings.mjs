@@ -1,3 +1,5 @@
+import { normalizeExperimentArm } from '../experiment-arms.mjs';
+
 function resolveBatchManifestKeys(idKey) {
   if (idKey === 'task_id') {
     return {
@@ -14,6 +16,48 @@ function resolveBatchManifestKeys(idKey) {
 
 function normalizeExpectedSignalKinds(expectedSignalKinds) {
   return [...new Set((expectedSignalKinds ?? []).filter(Boolean))].sort();
+}
+
+function buildExperimentArmWarnings(batchManifest, manifestEntries, laneLabel) {
+  const warnings = [];
+  const normalizedArms = manifestEntries
+    .map(function selectExperimentArm(entry) {
+      return normalizeExperimentArm(entry.experiment_arm);
+    })
+    .filter(Boolean);
+
+  if (normalizedArms.length === 0) {
+    return warnings;
+  }
+
+  if (normalizedArms.length !== manifestEntries.length) {
+    warnings.push(`${laneLabel} batch manifest mixes experiment-arm coverage with missing experiment_arm fields`);
+  }
+
+  const armCounts = new Map();
+  for (const arm of normalizedArms) {
+    armCounts.set(arm, (armCounts.get(arm) ?? 0) + 1);
+  }
+
+  if (armCounts.size < 2) {
+    warnings.push(`${laneLabel} batch manifest has only one experiment arm; cross-arm comparison will be weak`);
+    return warnings;
+  }
+
+  const counts = [...armCounts.values()];
+  const maxCount = Math.max(...counts);
+  const minCount = Math.min(...counts);
+
+  if (maxCount - minCount > 1) {
+    const countSummary = [...armCounts.entries()]
+      .map(function formatArmCount([arm, count]) {
+        return `${arm}:${count}`;
+      })
+      .join(', ');
+    warnings.push(`${laneLabel} batch manifest experiment arms are imbalanced: [${countSummary}]`);
+  }
+
+  return warnings;
 }
 
 export function buildBatchExpectationWarnings(
@@ -60,7 +104,7 @@ export function buildBatchExpectationWarnings(
     }
   }
 
-  return warnings;
+  return [...warnings, ...buildExperimentArmWarnings(batchManifest, manifestEntries, laneLabel)];
 }
 
 export function buildBatchFailureWarnings(batchResult, laneLabel) {

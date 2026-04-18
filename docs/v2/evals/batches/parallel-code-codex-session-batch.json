@@ -54,6 +54,28 @@
       "tags": ["calibration", "exhaustiveness"],
       "expected_signal_kinds": ["closed_domain_exhaustiveness"],
       "expected_fix_surface": "TypeScript exhaustiveness seam"
+    },
+    {
+      "task_id": "parallel-code-propagation-hardening-report-only",
+      "task_label": "Close a contract propagation gap cleanly (report only)",
+      "prompt_file": "../prompts/parallel-code/propagation-hardening.md",
+      "experiment_arm": "report_only",
+      "session_goal": "close one explicit contract propagation gap without broad cleanup",
+      "success_criteria": "the strongest contract surface drift clears and the followthrough change stays contained",
+      "tags": ["calibration", "obligation", "propagation"],
+      "expected_signal_kinds": ["incomplete_propagation"],
+      "expected_fix_surface": "server_state_bootstrap contract surfaces"
+    },
+    {
+      "task_id": "parallel-code-clone-followthrough-stop-and-refactor",
+      "task_label": "Keep the startup clone family in sync (stop and refactor)",
+      "prompt_file": "../prompts/parallel-code/clone-followthrough.md",
+      "experiment_arm": "stop_and_refactor",
+      "session_goal": "sync one startup clone family without drifting into unrelated startup cleanup",
+      "success_criteria": "the edited clone family stays aligned and the followthrough patch remains reviewable",
+      "tags": ["calibration", "clone", "followthrough"],
+      "expected_signal_kinds": ["clone_propagation_drift"],
+      "expected_fix_surface": "browser startup and session bootstrap clone family"
     }
   ]
 }

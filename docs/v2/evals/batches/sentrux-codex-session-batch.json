@@ -87,6 +87,45 @@
       "tags": ["calibration", "structural", "smoke"],
       "expected_signal_kinds": ["clone_propagation_drift"],
       "expected_fix_surface": "benchmark harness helper followthrough"
+    },
+    {
+      "task_id": "sentrux-clone-followthrough-report-only",
+      "task_label": "Keep a handler clone family in sync (report only)",
+      "prompt_file": "../prompts/sentrux/clone-followthrough.md",
+      "experiment_arm": "report_only",
+      "session_goal": "keep one handler clone family in sync without broad handler churn",
+      "success_criteria": "the edited handler family stays aligned and the followthrough change remains local",
+      "timeout_ms": 240000,
+      "idle_timeout_ms": 60000,
+      "tags": ["calibration", "clone", "followthrough"],
+      "expected_signal_kinds": ["clone_propagation_drift"],
+      "expected_fix_surface": "MCP handler clone family followthrough"
+    },
+    {
+      "task_id": "sentrux-contract-surface-followthrough-stop-and-refactor",
+      "task_label": "Keep contract-obligation surfaces in sync (stop and refactor)",
+      "prompt_file": "../prompts/sentrux/contract-surface-followthrough.md",
+      "experiment_arm": "stop_and_refactor",
+      "session_goal": "close one explicit contract propagation gap without broad analyzer churn",
+      "success_criteria": "related obligation, check, and session surfaces stay aligned with a contained patch",
+      "timeout_ms": 240000,
+      "idle_timeout_ms": 60000,
+      "tags": ["calibration", "obligation", "propagation"],
+      "expected_signal_kinds": ["incomplete_propagation"],
+      "expected_fix_surface": "contract obligation and session summary followthrough"
+    },
+    {
+      "task_id": "sentrux-contract-surface-followthrough-fix-first",
+      "task_label": "Keep contract-obligation surfaces in sync (fix this first)",
+      "prompt_file": "../prompts/sentrux/contract-surface-followthrough.md",
+      "experiment_arm": "fix_this_first",
+      "session_goal": "close one explicit contract propagation gap without broad analyzer churn",
+      "success_criteria": "related obligation, check, and session surfaces stay aligned with a contained patch",
+      "timeout_ms": 240000,
+      "idle_timeout_ms": 60000,
+      "tags": ["calibration", "obligation", "propagation"],
+      "expected_signal_kinds": ["incomplete_propagation"],
+      "expected_fix_surface": "contract obligation and session summary followthrough"
     }
   ]
 }
