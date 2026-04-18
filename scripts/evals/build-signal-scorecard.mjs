@@ -20,6 +20,7 @@ function parseArgs(argv) {
     repoLabel: null,
     defectReportPath: null,
     reviewVerdictsPath: null,
+    reviewPacketPath: null,
     sessionVerdictsPath: null,
     remediationReportPath: null,
     benchmarkPath: null,
@@ -51,6 +52,11 @@ function parseArgs(argv) {
     if (value === '--review-verdicts') {
       index += 1;
       result.reviewVerdictsPath = argv[index];
+      continue;
+    }
+    if (value === '--review-packet') {
+      index += 1;
+      result.reviewPacketPath = argv[index];
       continue;
     }
     if (value === '--session-verdicts') {
@@ -111,16 +117,26 @@ function parseArgs(argv) {
 }
 
 function hasAnyScorecardInput(args) {
-  return Boolean(
-    args.defectReportPath ||
-      args.reviewVerdictsPath ||
-      args.sessionVerdictsPath ||
-      args.remediationReportPath ||
-      args.benchmarkPath ||
-      args.sessionTelemetryPath ||
-      args.codexBatchPath ||
-      args.replayBatchPath,
-  );
+  const scorecardInputs = [
+    args.defectReportPath,
+    args.reviewVerdictsPath,
+    args.sessionVerdictsPath,
+    args.remediationReportPath,
+    args.benchmarkPath,
+    args.sessionTelemetryPath,
+    args.codexBatchPath,
+    args.replayBatchPath,
+  ];
+
+  return scorecardInputs.some(Boolean);
+}
+
+function repoLabelFromRoot(repoRootPath) {
+  if (!repoRootPath) {
+    return null;
+  }
+
+  return path.basename(repoRootPath);
 }
 
 function resolveRepoLabel(args, inputs = {}) {
@@ -128,6 +144,7 @@ function resolveRepoLabel(args, inputs = {}) {
     args.repoLabel ??
     inputs.defectReport?.repo_label ??
     inputs.reviewVerdicts?.repo ??
+    repoLabelFromRoot(inputs.reviewPacket?.repo_root) ??
     inputs.sessionVerdicts?.repo_label ??
     inputs.sessionVerdicts?.repo ??
     inputs.remediationReport?.repo_label ??
@@ -135,7 +152,7 @@ function resolveRepoLabel(args, inputs = {}) {
     inputs.sessionTelemetry?.repo_root ??
     inputs.benchmark?.repo ??
     inputs.benchmark?.repo_root ??
-    (args.repoRootPath ? path.basename(args.repoRootPath) : null) ??
+    repoLabelFromRoot(args.repoRootPath) ??
     null
   );
 }
@@ -146,6 +163,7 @@ async function main() {
   const reviewVerdicts = args.reviewVerdictsPath
     ? await readJsonFile(args.reviewVerdictsPath)
     : null;
+  const reviewPacket = args.reviewPacketPath ? await readJsonFile(args.reviewPacketPath) : null;
   const sessionVerdicts = args.sessionVerdictsPath
     ? await readJsonFile(args.sessionVerdictsPath)
     : null;
@@ -159,6 +177,7 @@ async function main() {
   const resolvedRepoLabel = resolveRepoLabel(args, {
     defectReport,
     reviewVerdicts,
+    reviewPacket,
     sessionVerdicts,
     remediationReport,
     benchmark,
@@ -182,6 +201,7 @@ async function main() {
     repoLabel: resolvedRepoLabel,
     defectReport,
     reviewVerdicts,
+    reviewPacket,
     sessionVerdicts,
     remediationReport,
     benchmark,

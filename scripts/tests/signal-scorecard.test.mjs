@@ -5,6 +5,7 @@ import {
   buildSignalScorecard,
   formatSignalScorecardMarkdown,
 } from '../lib/signal-scorecard.mjs';
+import { enrichReviewVerdictsFromPacket } from '../lib/review-verdict-enrichment.mjs';
 
 test('buildSignalScorecard aggregates seeded, review, and remediation metrics', function () {
   const scorecard = buildSignalScorecard({
@@ -325,6 +326,155 @@ test('buildSignalScorecard requires top-action sessions before marking session a
   assert.equal(scorecard.signals[0].promotion_evidence_complete, false);
   assert.equal(scorecard.signals[0].top_action_clear_rate, null);
   assert.equal(scorecard.summary.coverage.has_session_telemetry, true);
+});
+
+test('buildSignalScorecard backfills missing structured review fields from a matching packet without overriding curated values', function () {
+  const reviewVerdicts = {
+    repo: 'packet-backed-review',
+    verdicts: [
+      {
+        kind: 'forbidden_raw_read',
+        scope: 'src/b.ts',
+        report_bucket: 'actions',
+        category: 'useful',
+      },
+      {
+        kind: 'large_file',
+        scope: 'src/a.ts',
+        report_bucket: 'actions',
+        category: 'useful_watchpoint',
+        repair_packet_complete: true,
+        repair_packet_missing_fields: ['already_curated'],
+        repair_packet_fix_surface_clear: true,
+        repair_packet_verification_clear: false,
+      },
+    ],
+  };
+  const reviewPacket = {
+    repo_root: '/tmp/packet-backed-review',
+    samples: [
+      {
+        rank: 1,
+        kind: 'large_file',
+        scope: 'src/a.ts',
+        report_bucket: 'actions',
+        repair_packet: {
+          complete: false,
+          missing_fields: ['fix_hint'],
+          fix_surface_clear: false,
+          verification_clear: true,
+        },
+      },
+      {
+        rank: 2,
+        kind: 'forbidden_raw_read',
+        scope: 'src/b.ts',
+        report_bucket: 'actions',
+        repair_packet: {
+          complete: true,
+          missing_fields: [],
+          fix_surface_clear: true,
+          verification_clear: true,
+        },
+      },
+    ],
+  };
+
+  const scorecard = buildSignalScorecard({
+    reviewVerdicts,
+    reviewPacket,
+  });
+  const forbiddenRawRead = scorecard.signals.find(
+    (signal) => signal.signal_kind === 'forbidden_raw_read',
+  );
+  const largeFile = scorecard.signals.find((signal) => signal.signal_kind === 'large_file');
+
+  assert.equal(scorecard.repo_label, 'packet-backed-review');
+  assert.equal(forbiddenRawRead.review_rank_observed_total, 1);
+  assert.equal(forbiddenRawRead.review_rank_preserved_count, 0);
+  assert.equal(forbiddenRawRead.review_repair_packet_complete_count, 1);
+  assert.equal(forbiddenRawRead.review_repair_packet_fix_surface_clear_count, 1);
+  assert.equal(forbiddenRawRead.review_repair_packet_verification_clear_count, 1);
+  assert.equal(largeFile.review_rank_observed_total, 1);
+  assert.equal(largeFile.review_rank_preserved_count, 0);
+  assert.equal(largeFile.review_repair_packet_complete_count, 1);
+  assert.equal(largeFile.review_repair_packet_fix_surface_clear_count, 1);
+  assert.equal(largeFile.review_repair_packet_verification_clear_count, 0);
+  assert.deepEqual(reviewVerdicts.verdicts[0].repair_packet_missing_fields, undefined);
+  assert.equal(reviewVerdicts.verdicts[0].rank_observed, undefined);
+  assert.equal(reviewVerdicts.verdicts[1].repair_packet_complete, true);
+  assert.equal(scorecard.summary.ranking_quality.rank_preserved_rate, 0);
+  assert.equal(scorecard.summary.ranking_quality.repair_packet_complete_rate, 1);
+  assert.equal(scorecard.summary.ranking_quality.repair_packet_fix_surface_clear_rate, 1);
+  assert.equal(scorecard.summary.ranking_quality.repair_packet_verification_clear_rate, 0.5);
+});
+
+test('enrichReviewVerdictsFromPacket matches duplicate review findings by source identity when available', function () {
+  const enriched = enrichReviewVerdictsFromPacket(
+    {
+      repo: 'duplicate-review-sources',
+      verdicts: [
+        {
+          kind: 'forbidden_raw_read',
+          scope: 'src/a.ts',
+          report_bucket: 'actions',
+          source_label: 'Task one',
+          task_id: 'task-one',
+          category: 'useful',
+        },
+        {
+          kind: 'forbidden_raw_read',
+          scope: 'src/a.ts',
+          report_bucket: 'actions',
+          source_label: 'Task two',
+          task_id: 'task-two',
+          category: 'useful',
+        },
+      ],
+    },
+    {
+      repo_root: '/tmp/duplicate-review-sources',
+      samples: [
+        {
+          rank: 1,
+          kind: 'forbidden_raw_read',
+          scope: 'src/a.ts',
+          report_bucket: 'actions',
+          source_label: 'Task two',
+          task_id: 'task-two',
+          repair_packet: {
+            complete: true,
+            missing_fields: [],
+            fix_surface_clear: true,
+            verification_clear: true,
+          },
+        },
+        {
+          rank: 2,
+          kind: 'forbidden_raw_read',
+          scope: 'src/a.ts',
+          report_bucket: 'actions',
+          source_label: 'Task one',
+          task_id: 'task-one',
+          repair_packet: {
+            complete: false,
+            missing_fields: ['fix_hint'],
+            fix_surface_clear: true,
+            verification_clear: false,
+          },
+        },
+      ],
+    },
+  );
+
+  assert.equal(enriched.verdicts[0].rank_observed, 2);
+  assert.equal(enriched.verdicts[0].rank_preserved, false);
+  assert.equal(enriched.verdicts[0].repair_packet_complete, false);
+  assert.deepEqual(enriched.verdicts[0].repair_packet_missing_fields, ['fix_hint']);
+  assert.equal(enriched.verdicts[1].rank_observed, 1);
+  assert.equal(enriched.verdicts[1].rank_preserved, false);
+  assert.equal(enriched.verdicts[1].repair_packet_complete, true);
+  assert.deepEqual(enriched.verdicts[1].repair_packet_missing_fields, []);
 });
 
 test('buildSignalScorecard only assigns check latency to fast-path signals', function () {

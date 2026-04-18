@@ -6,6 +6,7 @@ import {
   buildSignalReviewFields,
   ensureSignalEntry,
 } from './signal-scorecard-review.mjs';
+import { enrichReviewVerdictsFromPacket } from './review-verdict-enrichment.mjs';
 import {
   applyBatchSessionTrials,
   applyRemediationResults,
@@ -29,6 +30,7 @@ function buildScorecardContext({
   repoLabel = null,
   defectReport = null,
   reviewVerdicts = null,
+  reviewPacket = null,
   remediationReport = null,
   benchmark = null,
   sessionTelemetry = null,
@@ -36,8 +38,9 @@ function buildScorecardContext({
   replayBatch = null,
   sessionVerdicts = null,
 }) {
+  const hydratedReviewVerdicts = enrichReviewVerdictsFromPacket(reviewVerdicts, reviewPacket);
   const signalMap = buildSeededEntries(defectReport);
-  applyReviewVerdicts(signalMap, reviewVerdicts);
+  applyReviewVerdicts(signalMap, hydratedReviewVerdicts);
   applyRemediationResults(signalMap, remediationReport, ensureSignalEntry);
   applySessionTelemetry(signalMap, sessionTelemetry, ensureSignalEntry);
   applyBatchSessionTrials(signalMap, codexBatch?.results, 'live', ensureSignalEntry);
@@ -47,7 +50,7 @@ function buildScorecardContext({
   const repoLabelValue = inferScorecardRepoLabel({
     repoLabel,
     defectReport,
-    reviewVerdicts,
+    reviewVerdicts: hydratedReviewVerdicts,
     remediationReport,
     sessionTelemetry,
     codexBatch,
@@ -74,6 +77,7 @@ function buildScorecardContext({
     totalSessionTrialCount,
     sessionCount,
     sessionCorpus,
+    hydratedReviewVerdicts,
   };
 }
 
@@ -307,6 +311,7 @@ export function buildSignalScorecard({
   repoLabel = null,
   defectReport = null,
   reviewVerdicts = null,
+  reviewPacket = null,
   remediationReport = null,
   benchmark = null,
   sessionTelemetry = null,
@@ -318,6 +323,7 @@ export function buildSignalScorecard({
     repoLabel,
     defectReport,
     reviewVerdicts,
+    reviewPacket,
     remediationReport,
     benchmark,
     sessionTelemetry,
@@ -337,7 +343,7 @@ export function buildSignalScorecard({
     summary: buildScorecardSummary({
       signals,
       defectReport,
-      reviewVerdicts,
+      reviewVerdicts: context.hydratedReviewVerdicts,
       remediationReport,
       sessionCount: context.sessionCount,
       totalSessionTrialCount: context.totalSessionTrialCount,

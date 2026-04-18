@@ -1,4 +1,5 @@
 import {
+  actionKindWeight,
   reportLeveragePriority,
   reportPresentationPriority,
 } from '../signal-policy.mjs';
@@ -16,8 +17,13 @@ function severityPriority(severity) {
   }
 }
 
+function hasZeroActionWeight(candidate) {
+  return actionKindWeight(candidate?.kind ?? '') === 0;
+}
+
 function compareCandidates(left, right) {
   return (
+    Number(hasZeroActionWeight(left)) - Number(hasZeroActionWeight(right)) ||
     reportLeveragePriority(left.leverage_class) - reportLeveragePriority(right.leverage_class) ||
     right.within_bucket_strength_0_10000 - left.within_bucket_strength_0_10000 ||
     severityPriority(left.severity) - severityPriority(right.severity) ||
@@ -50,4 +56,4 @@ function uniqueByScope(candidates) {
   return unique;
 }
 
-export { compareCandidates, severityPriority, sortCandidates, uniqueByScope };
+export { compareCandidates, hasZeroActionWeight, severityPriority, sortCandidates, uniqueByScope };

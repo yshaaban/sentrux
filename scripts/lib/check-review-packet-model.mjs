@@ -1,6 +1,12 @@
 import path from 'node:path';
 
 import { REVIEW_PACKET_COMPLETENESS_POLICY } from './signal-calibration-policy.mjs';
+import {
+  actionKindWeight,
+  actionLeverageWeight,
+  actionPresentationWeight,
+} from './signal-policy.mjs';
+import { buildStructuredReviewVerdictFieldsFromPacketSample } from './review-verdict-enrichment.mjs';
 
 function isPlainObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -12,6 +18,142 @@ function hasText(value) {
 
 function uniqueStrings(values) {
   return [...new Set(values.filter(hasText))];
+}
+
+function severityWeight(severity) {
+  switch (severity) {
+    case 'high':
+      return 2;
+    case 'medium':
+    case 'watchpoint':
+      return 1;
+    case 'low':
+      return 0;
+    default:
+      return 0;
+  }
+}
+
+function sourceWeight(sample) {
+  if (matchesSessionCloneKind(sample.kind)) {
+    return 2;
+  }
+  if (sample.kind === 'touched_clone_family') {
+    return 1;
+  }
+
+  if (sample.source === 'obligation') {
+    return 5;
+  }
+  if (sample.source === 'rules' && sample.origin === 'explicit') {
+    return 4;
+  }
+  if (sample.source === 'rules' && sample.origin === 'zero_config') {
+    return 2;
+  }
+  if (sample.source === 'structural') {
+    return 1;
+  }
+
+  return 0;
+}
+
+function matchesSessionCloneKind(kind) {
+  return kind === 'session_introduced_clone' || kind === 'clone_propagation_drift';
+}
+
+function summarySurfaceLabel(summaryPresence) {
+  switch (summaryPresence) {
+    case 'headline':
+      return 'lead surface';
+    case 'side_channel':
+      return 'side channel';
+    default:
+      return 'supporting surface';
+  }
+}
+
+function trustTierWeight(trustTier) {
+  switch (trustTier) {
+    case 'trusted':
+      return 3;
+    case 'watchpoint':
+      return 2;
+    case 'experimental':
+      return 1;
+    default:
+      return 0;
+  }
+}
+
+function confidenceWeight(confidence) {
+  switch (confidence) {
+    case 'high':
+      return 2;
+    case 'medium':
+      return 1;
+    case 'experimental':
+      return 0;
+    default:
+      return 0;
+  }
+}
+
+function repairabilityWeight(sample) {
+  return Math.min(Math.floor((sample.repair_packet?.completeness_0_10000 ?? 0) / 2000), 5);
+}
+
+function numericScore(value) {
+  return typeof value === 'number' ? value : 0;
+}
+
+function comparePacketSamples(left, right) {
+  return (
+    sourceWeight(right) - sourceWeight(left) ||
+    actionKindWeight(right.kind ?? '') - actionKindWeight(left.kind ?? '') ||
+    severityWeight(right.severity) - severityWeight(left.severity) ||
+    actionLeverageWeight(right.leverage_class ?? '') -
+      actionLeverageWeight(left.leverage_class ?? '') ||
+    actionPresentationWeight(right.presentation_class ?? '') -
+      actionPresentationWeight(left.presentation_class ?? '') ||
+    trustTierWeight(right.trust_tier) - trustTierWeight(left.trust_tier) ||
+    confidenceWeight(right.confidence) - confidenceWeight(left.confidence) ||
+    repairabilityWeight(right) - repairabilityWeight(left) ||
+    numericScore(right.score_0_10000) - numericScore(left.score_0_10000) ||
+    String(left.scope ?? '').localeCompare(String(right.scope ?? '')) ||
+    String(left.kind ?? '').localeCompare(String(right.kind ?? ''))
+  );
+}
+
+function sortPacketSamplesByPriority(samples) {
+  return [...samples].sort(comparePacketSamples);
+}
+
+function packetSampleExpectedSummaryPresence(
+  sample,
+  orderedSamples,
+  index,
+  defaultPresence = 'section_present',
+) {
+  if (defaultPresence === 'side_channel') {
+    return 'side_channel';
+  }
+
+  const sampleKindWeight = actionKindWeight(sample.kind ?? '');
+  if (
+    sampleKindWeight === 0 &&
+    orderedSamples
+      .slice(0, index)
+      .some((peer) => actionKindWeight(peer.kind ?? '') > sampleKindWeight)
+  ) {
+    return 'side_channel';
+  }
+
+  if (index < 3) {
+    return 'headline';
+  }
+
+  return defaultPresence === 'headline' ? 'section_present' : defaultPresence;
 }
 
 function selectRawSamples(tool, payload) {
@@ -103,15 +245,70 @@ function buildLikelyFixSites(sample, scope) {
   return uniqueStrings(likelyFixSites);
 }
 
+function buildVerdictIdentityFields(sample) {
+  return {
+    source_kind: sample.source_kind ?? null,
+    source_label: sample.source_label ?? null,
+    snapshot_label: sample.snapshot_label ?? null,
+    task_id: sample.task_id ?? null,
+    replay_id: sample.replay_id ?? null,
+    commit: sample.commit ?? null,
+  };
+}
+
+function resolveRepairSurface(expectedFixSurface, likelyFixSites) {
+  if (hasText(expectedFixSurface)) {
+    return expectedFixSurface;
+  }
+  if (likelyFixSites.length > 0) {
+    return 'concrete_fix_site';
+  }
+
+  return null;
+}
+
+function resolveScanMetadataValue(payload, scanPayload, fieldName) {
+  if (isPlainObject(payload?.[fieldName])) {
+    return payload[fieldName];
+  }
+  if (isPlainObject(scanPayload?.[fieldName])) {
+    return scanPayload[fieldName];
+  }
+
+  return null;
+}
+
+function isRepairPacketComplete(sample) {
+  return sample.repair_packet?.complete === true;
+}
+
+function countCompleteRepairPackets(samples) {
+  return samples.filter(isRepairPacketComplete).length;
+}
+
+function buildTemplateEngineerNote(sample) {
+  const summary = sample.summary ?? 'Replace with reviewer rationale.';
+  if (sample.repair_packet?.complete !== false) {
+    return summary;
+  }
+
+  return `${summary} Confirm usefulness, rank, and whether missing repair guidance (${sample.repair_packet.missing_fields.join(', ')}) keeps this out of the primary surface.`;
+}
+
+function buildTemplateExpectedV2Behavior(sample, expectedSummaryPresence) {
+  const summarySurface = summarySurfaceLabel(expectedSummaryPresence);
+  if (sample.repair_packet?.complete !== false) {
+    return `Confirm the ranking and presentation for ${sample.kind ?? 'this finding'} on the ${summarySurface}.`;
+  }
+
+  return `Confirm the ranking and presentation for ${sample.kind ?? 'this finding'} on the ${summarySurface}, and add explicit repair guidance before treating it as promotion-grade evidence.`;
+}
+
 function buildRepairPacket(sample, scope, summary, evidence, expectedFixSurface) {
   const likelyFixSites = buildLikelyFixSites(sample, scope);
   const fixHint = hasText(sample.fix_hint) ? sample.fix_hint : null;
   const inspectionFocus = uniqueStrings(sample.inspection_focus ?? []);
-  const repairSurface = hasText(expectedFixSurface)
-    ? expectedFixSurface
-    : likelyFixSites.length > 0
-      ? 'concrete_fix_site'
-      : null;
+  const repairSurface = resolveRepairSurface(expectedFixSurface, likelyFixSites);
   const requiredFieldState = {
     scope: hasText(scope),
     summary: hasText(summary),
@@ -163,16 +360,8 @@ function buildRepairPacket(sample, scope, summary, evidence, expectedFixSurface)
 }
 
 function buildScanMetadata(payload, sourceKind, sourceLabel, snapshotLabel, scanPayload = null) {
-  const confidence = isPlainObject(payload?.confidence)
-    ? payload.confidence
-    : isPlainObject(scanPayload?.confidence)
-      ? scanPayload.confidence
-      : null;
-  const scanTrust = isPlainObject(payload?.scan_trust)
-    ? payload.scan_trust
-    : isPlainObject(scanPayload?.scan_trust)
-      ? scanPayload.scan_trust
-      : null;
+  const confidence = resolveScanMetadataValue(payload, scanPayload, 'confidence');
+  const scanTrust = resolveScanMetadataValue(payload, scanPayload, 'scan_trust');
 
   if (!confidence && !scanTrust) {
     return null;
@@ -233,6 +422,7 @@ function selectArtifactPayload(tool, bundle) {
 
 function extractSamples(tool, payloadEntry, sourceEntry) {
   const rawSamples = selectRawSamples(tool, payloadEntry.payload);
+  const reportBucket = tool === 'check' ? 'actions' : tool;
 
   return rawSamples.map(function toSample(sample, index) {
     const cloneEvidence = buildCloneEvidence(sample);
@@ -256,9 +446,16 @@ function extractSamples(tool, payloadEntry, sourceEntry) {
       review_id: `${tool}-${index + 1}`,
       rank: index + 1,
       kind: sample.kind ?? null,
-      report_bucket: tool === 'check' ? 'actions' : tool,
+      report_bucket: reportBucket,
       scope,
       severity: sample.severity ?? null,
+      trust_tier: sample.trust_tier ?? null,
+      presentation_class: sample.presentation_class ?? null,
+      leverage_class: sample.leverage_class ?? null,
+      score_0_10000: typeof sample.score_0_10000 === 'number' ? sample.score_0_10000 : null,
+      source: sample.source ?? null,
+      origin: sample.origin ?? null,
+      confidence: sample.confidence ?? null,
       summary,
       evidence,
       fix_hint: repairPacket.fix_hint,
@@ -294,6 +491,83 @@ function filterSamplesByKinds(samples, kinds) {
 
 function limitSamples(samples, limit) {
   return samples.slice(0, Math.max(limit, 1));
+}
+
+function packetSampleDeduplicationKey(sample) {
+  return [
+    sample.kind ?? '',
+    sample.scope ?? '',
+    sample.report_bucket ?? '',
+    sample.source_kind ?? '',
+    sample.source_label ?? '',
+    sample.snapshot_label ?? '',
+    sample.task_id ?? '',
+    sample.replay_id ?? '',
+    sample.commit ?? '',
+    sample.output_dir ?? '',
+  ].join('\u0000');
+}
+
+function packetSampleRepairCompleteness(sample) {
+  return sample.repair_packet?.completeness_0_10000 ?? 0;
+}
+
+function packetSampleEvidenceCount(sample) {
+  return Array.isArray(sample.evidence) ? sample.evidence.length : 0;
+}
+
+function packetSampleSummaryLength(sample) {
+  return typeof sample.summary === 'string' ? sample.summary.length : 0;
+}
+
+function selectPreferredDuplicateSample(existingSample, nextSample) {
+  if (
+    packetSampleRepairCompleteness(nextSample) >
+    packetSampleRepairCompleteness(existingSample)
+  ) {
+    return nextSample;
+  }
+
+  if (
+    packetSampleRepairCompleteness(nextSample) <
+    packetSampleRepairCompleteness(existingSample)
+  ) {
+    return existingSample;
+  }
+
+  if (packetSampleEvidenceCount(nextSample) > packetSampleEvidenceCount(existingSample)) {
+    return nextSample;
+  }
+
+  if (packetSampleEvidenceCount(nextSample) < packetSampleEvidenceCount(existingSample)) {
+    return existingSample;
+  }
+
+  if (packetSampleSummaryLength(nextSample) > packetSampleSummaryLength(existingSample)) {
+    return nextSample;
+  }
+
+  return existingSample;
+}
+
+function dedupePacketSamples(samples) {
+  const deduped = [];
+  const sampleIndexByKey = new Map();
+
+  for (const sample of samples) {
+    const key = packetSampleDeduplicationKey(sample);
+    const existingIndex = sampleIndexByKey.get(key);
+
+    if (existingIndex === undefined) {
+      sampleIndexByKey.set(key, deduped.length);
+      deduped.push(sample);
+      continue;
+    }
+
+    deduped[existingIndex] = selectPreferredDuplicateSample(deduped[existingIndex], sample);
+  }
+
+  return deduped;
 }
 
 function collectArtifactMetadata(tool, entries) {
@@ -350,9 +624,9 @@ function collectSelectedArtifactMetadata(selection) {
   );
 }
 
-function buildPacketSamplesFromEntries(tool, entries, limit, kinds) {
+function buildPacketSamplesFromEntries(tool, entries, kinds) {
   const samples = [];
-  let metadataSelection = null;
+  const metadataSelectionBySampleKey = new Map();
 
   for (const entry of entries) {
     const payloadEntry = selectArtifactPayload(tool, entry.bundle);
@@ -361,27 +635,22 @@ function buildPacketSamplesFromEntries(tool, entries, limit, kinds) {
     }
 
     const entrySamples = filterSamplesByKinds(extractSamples(tool, payloadEntry, entry), kinds);
-    if (entrySamples.length > 0 && !metadataSelection) {
-      metadataSelection = {
-        entry,
-        payloadEntry,
-      };
-    }
 
     for (const sample of entrySamples) {
-      samples.push(sample);
-      if (samples.length >= Math.max(limit, 1)) {
-        return {
-          samples,
-          metadataSelection,
-        };
+      const sampleKey = packetSampleDeduplicationKey(sample);
+      if (!metadataSelectionBySampleKey.has(sampleKey)) {
+        metadataSelectionBySampleKey.set(sampleKey, {
+          entry,
+          payloadEntry,
+        });
       }
+      samples.push(sample);
     }
   }
 
   return {
     samples,
-    metadataSelection,
+    metadataSelectionBySampleKey,
   };
 }
 
@@ -397,6 +666,9 @@ function buildPacketSummary(samples) {
   const kindCounts = new Map();
   const top3Samples = samples.slice(0, 3);
   const top10Samples = samples.slice(0, 10);
+  const repairPacketCompleteCount = countCompleteRepairPackets(samples);
+  const top3RepairPacketCompleteCount = countCompleteRepairPackets(top3Samples);
+  const top10RepairPacketCompleteCount = countCompleteRepairPackets(top10Samples);
 
   for (const sample of samples) {
     const key = sample.kind ?? 'unknown';
@@ -405,15 +677,15 @@ function buildPacketSummary(samples) {
 
   return {
     sample_count: samples.length,
-    repair_packet_complete_count: samples.filter((sample) => sample.repair_packet?.complete).length,
+    repair_packet_complete_count: repairPacketCompleteCount,
     repair_packet_complete_rate: samples.length
-      ? samples.filter((sample) => sample.repair_packet?.complete).length / samples.length
+      ? repairPacketCompleteCount / samples.length
       : null,
     top_3_repair_packet_complete_rate: top3Samples.length
-      ? top3Samples.filter((sample) => sample.repair_packet?.complete).length / top3Samples.length
+      ? top3RepairPacketCompleteCount / top3Samples.length
       : null,
     top_10_repair_packet_complete_rate: top10Samples.length
-      ? top10Samples.filter((sample) => sample.repair_packet?.complete).length / top10Samples.length
+      ? top10RepairPacketCompleteCount / top10Samples.length
       : null,
     kind_counts: [...kindCounts.entries()]
       .map(([kind, count]) => ({ kind, count }))
@@ -443,6 +715,16 @@ function buildPacket(args, repoRootValue, sourceMode, sourcePaths, samples, scan
   return packet;
 }
 
+function selectPacketMetadataSelection(samples, metadataSelectionBySampleKey) {
+  if (!Array.isArray(samples) || samples.length === 0) {
+    return null;
+  }
+
+  const firstSample = samples[0];
+  const firstSampleKey = packetSampleDeduplicationKey(firstSample);
+  return metadataSelectionBySampleKey.get(firstSampleKey) ?? null;
+}
+
 function createRepoHeadEntry() {
   return {
     source_kind: 'repo-head',
@@ -459,16 +741,18 @@ function createRepoHeadEntry() {
 
 export function buildPacketFromArtifactInput(args, source) {
   const repoRootValue = source.repo_root ?? args.repoRoot;
-  const sampleSelection = buildPacketSamplesFromEntries(
-    args.tool,
-    source.entries,
-    args.limit,
-    args.kinds,
+  const sampleSelection = buildPacketSamplesFromEntries(args.tool, source.entries, args.kinds);
+  const dedupedSamples = dedupePacketSamples(sampleSelection.samples);
+  const prioritizedSamples = sortPacketSamplesByPriority(dedupedSamples);
+  const selectedSamples = limitSamples(prioritizedSamples, args.limit);
+  const metadataSelection = selectPacketMetadataSelection(
+    selectedSamples,
+    sampleSelection.metadataSelectionBySampleKey,
   );
   const scanMetadata =
-    collectSelectedArtifactMetadata(sampleSelection.metadataSelection) ??
+    collectSelectedArtifactMetadata(metadataSelection) ??
     collectArtifactMetadata(args.tool, source.entries);
-  const samples = renumberSamples(args.tool, sampleSelection.samples);
+  const samples = renumberSamples(args.tool, selectedSamples);
 
   return buildPacket(
     args,
@@ -489,49 +773,57 @@ export function buildPacketFromRepoHeadPayload(args, payload, scanPayload = null
     'repo_head',
     scanPayload,
   );
-  const samples = renumberSamples(
+  const extractedSamples = extractSamples(
     args.tool,
-    limitSamples(
-      filterSamplesByKinds(
-        extractSamples(
-          args.tool,
-          { snapshot_label: 'repo_head', payload },
-          repoHeadEntry,
-        ),
-        args.kinds,
-      ),
-      args.limit,
-    ),
+    { snapshot_label: 'repo_head', payload },
+    repoHeadEntry,
   );
+  const filteredSamples = filterSamplesByKinds(extractedSamples, args.kinds);
+  const dedupedSamples = dedupePacketSamples(filteredSamples);
+  const prioritizedSamples = sortPacketSamplesByPriority(dedupedSamples);
+  const selectedSamples = limitSamples(prioritizedSamples, args.limit);
+  const samples = renumberSamples(args.tool, selectedSamples);
 
   return buildPacket(args, args.repoRoot, 'repo-head', [], samples, scanMetadata);
 }
 
 export function buildVerdictTemplate(packet, sourceReport) {
+  const orderedSamples = sortPacketSamplesByPriority(packet.samples ?? []);
+  const repo = packet.repo_root ? path.basename(packet.repo_root) : 'unknown';
+
   return {
-    repo: packet.repo_root ? path.basename(packet.repo_root) : 'unknown',
+    repo,
     captured_at: packet.generated_at,
     source_report: sourceReport,
     source_feedback:
       'Replace the placeholder verdict values below after reviewing the packet. Keep verdict order rank-preserving because top-1/top-3/top-10 actionable precision is computed from this order. Do not use this template as scored evidence until it has been curated by a reviewer.',
-    verdicts: packet.samples.map((sample) => ({
-      scope: sample.scope ?? sample.source_label ?? 'unknown-scope',
-      kind: sample.kind ?? 'unknown-kind',
-      report_bucket: sample.report_bucket,
-      category: 'useful',
-      expected_trust_tier: sample.severity === 'high' ? 'trusted' : 'watchpoint',
-      expected_presentation_class: 'review_required',
-      expected_leverage_class: sample.expected_fix_surface ?? 'local_refactor_target',
-      expected_summary_presence: sample.rank <= 3 ? 'headline' : 'section_present',
-      preferred_over: [],
-      engineer_note:
-        sample.repair_packet?.complete === false
-          ? `${sample.summary ?? 'Replace with reviewer rationale.'} Confirm usefulness, rank, and whether missing repair guidance (${sample.repair_packet.missing_fields.join(', ')}) keeps this out of the primary surface.`
-          : sample.summary ?? 'Replace with reviewer rationale.',
-      expected_v2_behavior:
-        sample.repair_packet?.complete === false
-          ? `Confirm the ranking and presentation for ${sample.kind ?? 'this finding'}, and add explicit repair guidance before treating it as promotion-grade lead evidence.`
-          : `Confirm the ranking and presentation for ${sample.kind ?? 'this finding'}.`,
-    })),
+    verdicts: orderedSamples.map((sample, index) => {
+      const expectedSummaryPresence = packetSampleExpectedSummaryPresence(
+        sample,
+        orderedSamples,
+        index,
+      );
+
+      return {
+        scope: sample.scope ?? sample.source_label ?? 'unknown-scope',
+        kind: sample.kind ?? 'unknown-kind',
+        report_bucket: sample.report_bucket,
+        ...buildVerdictIdentityFields(sample),
+        ...buildStructuredReviewVerdictFieldsFromPacketSample(sample, index),
+        category: 'useful',
+        expected_trust_tier: sample.severity === 'high' ? 'trusted' : 'watchpoint',
+        expected_presentation_class: 'review_required',
+        expected_leverage_class: sample.expected_fix_surface ?? 'local_refactor_target',
+        expected_summary_presence: expectedSummaryPresence,
+        preferred_over: [],
+        engineer_note: buildTemplateEngineerNote(sample),
+        expected_v2_behavior: buildTemplateExpectedV2Behavior(
+          sample,
+          expectedSummaryPresence,
+        ),
+      };
+    }),
   };
 }
+
+export { comparePacketSamples, packetSampleExpectedSummaryPresence, sortPacketSamplesByPriority };

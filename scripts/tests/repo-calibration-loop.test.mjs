@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -10,6 +10,7 @@ import {
   selectReviewVerdictsPath,
   selectSessionVerdictsPath,
 } from '../evals/run-repo-calibration-loop.mjs';
+import { acquireLoopLock } from '../lib/repo-calibration-loop-support/runtime.mjs';
 
 test('buildReviewArgs fails fast when codex review source lacks a live batch', function () {
   assert.throws(
@@ -90,6 +91,7 @@ test('selectReviewVerdictsPath prefers curated input over generated output', asy
 test('buildScorecardArgs includes live and replay batch artifacts when present', async function () {
   const tempRoot = await mkdtemp(path.join(tmpdir(), 'sentrux-scorecard-args-'));
   try {
+    const reviewPacketPath = path.join(tempRoot, 'check-review-packet.json');
     const codexBatchPath = path.join(tempRoot, 'codex-session-batch.json');
     const replayBatchPath = path.join(tempRoot, 'diff-replay-batch.json');
     const defectReportPath = path.join(tempRoot, 'defect-report.json');
@@ -99,6 +101,7 @@ test('buildScorecardArgs includes live and replay batch artifacts when present',
     const sessionVerdictsPath = path.join(tempRoot, 'session-verdicts.json');
 
     await Promise.all([
+      writeFile(reviewPacketPath, '{}\n', 'utf8'),
       writeFile(codexBatchPath, '{}\n', 'utf8'),
       writeFile(replayBatchPath, '{}\n', 'utf8'),
       writeFile(defectReportPath, '{}\n', 'utf8'),
@@ -117,6 +120,7 @@ test('buildScorecardArgs includes live and replay batch artifacts when present',
       mergedTelemetryJsonPath: '/tmp/session-telemetry-summary.json',
       scorecardJsonPath: '/tmp/signal-scorecard.json',
       scorecardMarkdownPath: '/tmp/signal-scorecard.md',
+      reviewPacketJsonPath: reviewPacketPath,
       codexBatchPath,
       replayBatchPath,
       defectReportPath,
@@ -126,6 +130,7 @@ test('buildScorecardArgs includes live and replay batch artifacts when present',
       benchmarkPath,
     });
 
+    assert.match(args.join(' '), /--review-packet .*check-review-packet\.json/);
     assert.match(args.join(' '), /--codex-batch .*codex-session-batch\.json/);
     assert.match(args.join(' '), /--replay-batch .*diff-replay-batch\.json/);
     assert.match(args.join(' '), /--review-verdicts .*review-verdicts\.json/);
@@ -149,6 +154,27 @@ test('selectSessionVerdictsPath prefers curated input over prior stable output',
     const selectedPath = await selectSessionVerdictsPath(outputPath, inputPath);
 
     assert.equal(selectedPath, inputPath);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('acquireLoopLock creates missing parent directories before taking the lock', async function () {
+  const tempRoot = await mkdtemp(path.join(tmpdir(), 'sentrux-loop-lock-'));
+  const lockPath = path.join(tempRoot, '.sentrux', 'evals', '.repo-calibration-demo.lock');
+
+  try {
+    const release = await acquireLoopLock(lockPath, {
+      repo_id: 'demo',
+      output_dir: '/tmp/demo-output',
+    });
+
+    const ownerPath = path.join(lockPath, 'owner.json');
+    const ownerSource = await readFile(ownerPath, 'utf8');
+    const owner = JSON.parse(ownerSource);
+
+    assert.equal(owner.repo_id, 'demo');
+    await release();
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }

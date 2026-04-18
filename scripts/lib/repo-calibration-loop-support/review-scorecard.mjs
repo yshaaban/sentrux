@@ -128,6 +128,7 @@ export async function buildScorecardArgs({
   mergedTelemetryJsonPath,
   scorecardJsonPath,
   scorecardMarkdownPath,
+  reviewPacketJsonPath = null,
   codexBatchPath = null,
   replayBatchPath = null,
   defectReportPath = null,
@@ -148,6 +149,7 @@ export async function buildScorecardArgs({
   ];
 
   const optionalArtifactArgs = [
+    ['--review-packet', reviewPacketJsonPath],
     ['--codex-batch', codexBatchPath],
     ['--replay-batch', replayBatchPath],
     ['--defect-report', defectReportPath],

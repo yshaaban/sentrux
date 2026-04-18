@@ -451,12 +451,22 @@ Current metric contract to keep in mind when reading the scorecard:
 Current support boundary:
 
 - top-k actionable precision and ranking-preference satisfaction are only governance-grade when the curated review verdict file preserves the reviewed ranking order
-- repair-packet completeness is packet-local only for now; the review-verdict schema does not persist structured repair-packet fields yet, so promotion should use remediation and session outcomes for fixability evidence rather than pretending scorecard-grade packet coverage exists
+- repair-packet completeness is now scorecard-grade supporting evidence when curated review verdicts preserve the structured repair fields; keep the current bar from `REVIEW_PACKET_COMPLETENESS_POLICY` (`scope`, `summary`, `evidence`, and `repair_surface` required, `fix_hint` and `likely_fix_sites` preferred, top-3 complete rate at least `0.8`, top-10 complete rate at least `0.7`)
+- repair-packet completeness still does not replace ranking quality, remediation success, or session outcomes; use it to strengthen fixability confidence, not to promote a noisy or weakly-ranked signal on its own
 
 Current promotion note:
 
 - `dead_private_code_cluster` remains intentionally `experimental` until broader TS/TSX reference precision is validated beyond the current same-file callback/JSX suppression fix, exported-symbol visibility fix, and external review-loop evidence
 - reviewed precision alone is not a promotion pass; weak top-1/top-3 actionable precision or repeated ranking-preference violations should keep a detector out of the primary surface even when the underlying finding class is real
+- structured repair-packet evidence can confirm that a surfaced finding is actionable to fix, but promotion still requires seeded recall, reviewed precision, remediation, and session evidence to line up
+
+Current intervention policy:
+
+- do not roll out an intervention arm on ranking evidence alone; the arm must also clear a product-value check with curated `session_verdicts`
+- keep an intervention arm experimental when the curated sample count is below `3`, even if the early net-value score looks positive
+- treat `intervention_net_value_score <= 0` as a stop signal for default rollout, especially when paired with `top_action_help_rate = 0`, rising patch expansion, or lower task success than the control arm
+- treat `intervention_net_value_score > 0` as necessary but not sufficient; prefer arms that also preserve or improve task success and keep intervention cost near the tolerated baseline (`intervention_cost_checks_mean <= 1`)
+- when an arm increases follow rate but not help rate, keep it in experiment mode rather than calling it a win; more compliance is only useful if it improves session outcomes
 
 ## Relationship To Migration
 

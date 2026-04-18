@@ -198,7 +198,7 @@ The goal is high trust on the findings we choose to surface and gate on.
 Shared-policy parity is now part of that trust bar:
 
 - [.sentrux/signal-policy.json](../../.sentrux/signal-policy.json) is the shared static source
-- [signal-policy.test.mjs](../../scripts/tests/signal-policy.test.mjs) and [signal_policy.rs](/home/yrsh/sentrux/sentrux-core/src/app/mcp_server/handlers/signal_policy.rs) consume the same fixture in `scripts/tests/fixtures/policy-parity/`
+- [signal-policy.test.mjs](../../scripts/tests/signal-policy.test.mjs) and [signal_policy.rs](../../sentrux-core/src/app/mcp_server/handlers/signal_policy.rs) consume the same fixture in `scripts/tests/fixtures/policy-parity/`
 
 For the lead surface, the quality bar is stricter than generic reviewed precision. The scorecard should now answer:
 
@@ -210,7 +210,8 @@ Current support boundary:
 
 - top-1 / top-3 / top-10 actionable precision is scorecard-grade when the curated review verdict file preserves the reviewed order
 - ranking-preference satisfaction is scorecard-grade when verdicts use `preferred_over`
-- repair-packet completeness is currently packet-local evidence, not scorecard-grade governance, because the review-verdict schema does not yet persist repair-packet fields
+- repair-packet completeness is scorecard-grade supporting evidence when verdicts preserve the structured repair fields; the current bar is the `REVIEW_PACKET_COMPLETENESS_POLICY` in [`../../scripts/lib/signal-calibration-policy.mjs`](../../scripts/lib/signal-calibration-policy.mjs) (`scope`, `summary`, `evidence`, and `repair_surface` required, `fix_hint` and `likely_fix_sites` preferred, top-3 complete rate at least `0.8`, top-10 complete rate at least `0.7`)
+- repair-packet completeness does not replace ranking quality, remediation success, or session outcomes; it strengthens fixability evidence after the detector is already showing useful ranked behavior
 
 ## Recommended Loop
 
@@ -291,6 +292,7 @@ Current promotion policy thresholds:
 Signals that fail those thresholds should stay `watchpoint` or `experimental` until the scorecard evidence improves.
 
 Do not treat high reviewed precision alone as promotion-grade evidence. A signal that is often "technically true" but still weak in the first few ranked slots is still failing the primary-target bar.
+Do not treat strong repair-packet completeness alone as promotion-grade evidence either. It is useful supporting evidence for fixability, not a substitute for ranked usefulness or clean session outcomes.
 
 ## Implementation Tasks
 

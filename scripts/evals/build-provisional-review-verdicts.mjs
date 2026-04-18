@@ -3,6 +3,10 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import {
+  packetSampleExpectedSummaryPresence,
+  sortPacketSamplesByPriority,
+} from '../lib/check-review-packet-model.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -160,14 +164,25 @@ function buildEngineerNote(sample) {
   return `${summary} Provisional verdict derived from packet metadata; confirm usefulness and relative rank manually.`;
 }
 
-function buildExpectedBehavior(sample) {
-  const leadSurface = sample.rank <= 3 ? 'lead surface' : 'supporting surface';
+function summarySurfaceLabel(summaryPresence) {
+  switch (summaryPresence) {
+    case 'headline':
+      return 'lead surface';
+    case 'side_channel':
+      return 'side channel';
+    default:
+      return 'supporting surface';
+  }
+}
+
+function buildExpectedBehavior(sample, expectedSummaryPresence) {
+  const summarySurface = summarySurfaceLabel(expectedSummaryPresence);
   const repairPacket = sample.repair_packet ?? null;
   if (repairPacket?.complete === false) {
-    return `Keep ${sample.kind ?? 'this finding'} on the ${leadSurface} only if manual review confirms the rank and the missing repair guidance is filled in before promotion-grade use.`;
+    return `Keep ${sample.kind ?? 'this finding'} on the ${summarySurface} only if manual review confirms the rank and the missing repair guidance is filled in before promotion-grade use.`;
   }
 
-  return `Keep ${sample.kind ?? 'this finding'} visible on the ${leadSurface} with the recorded trust/presentation defaults unless manual review shows it is too noisy or misranked.`;
+  return `Keep ${sample.kind ?? 'this finding'} visible on the ${summarySurface} with the recorded trust/presentation defaults unless manual review shows it is too noisy or misranked.`;
 }
 
 function shouldIncludeSample(sample, allowedKinds) {
@@ -225,19 +240,39 @@ function resolveRankPreserved(sample, index) {
   return sample.rank === index + 1;
 }
 
+function buildVerdictIdentityFields(sample) {
+  return {
+    source_kind: sample.source_kind ?? null,
+    source_label: sample.source_label ?? null,
+    snapshot_label: sample.snapshot_label ?? null,
+    task_id: sample.task_id ?? null,
+    replay_id: sample.replay_id ?? null,
+    commit: sample.commit ?? null,
+  };
+}
+
 export function buildVerdicts(packet, args) {
   const allowedKinds = new Set(args.kinds);
-
-  return (packet.samples ?? [])
-    .filter(function includeAllowedKinds(sample) {
+  const orderedSamples = sortPacketSamplesByPriority(
+    (packet.samples ?? []).filter(function includeAllowedKinds(sample) {
       return shouldIncludeSample(sample, allowedKinds);
-    })
-    .map(function buildVerdict(sample, index) {
+    }),
+  );
+
+  return orderedSamples.map(function buildVerdict(sample, index) {
       const policy = getKindPolicy(sample.kind);
+      const expectedSummaryPresence = packetSampleExpectedSummaryPresence(
+        sample,
+        orderedSamples,
+        index,
+        policy.expected_summary_presence,
+      );
+
       return {
         scope: sample.scope ?? sample.source_label ?? 'unknown-scope',
         kind: sample.kind ?? 'unknown-kind',
         report_bucket: sample.report_bucket ?? packet.tool ?? 'packet',
+        ...buildVerdictIdentityFields(sample),
         rank_observed: resolveObservedRank(sample, index),
         rank_preserved: resolveRankPreserved(sample, index),
         repair_packet_complete: sample.repair_packet?.complete ?? null,
@@ -251,10 +286,10 @@ export function buildVerdicts(packet, args) {
         expected_trust_tier: policy.expected_trust_tier,
         expected_presentation_class: policy.expected_presentation_class,
         expected_leverage_class: policy.expected_leverage_class,
-        expected_summary_presence: policy.expected_summary_presence,
+        expected_summary_presence: expectedSummaryPresence,
         preferred_over: [],
         engineer_note: buildEngineerNote(sample),
-        expected_v2_behavior: buildExpectedBehavior(sample),
+        expected_v2_behavior: buildExpectedBehavior(sample, expectedSummaryPresence),
       };
     });
 }

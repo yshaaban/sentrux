@@ -22,6 +22,7 @@ test('build-signal-scorecard reuses latest calibration batch artifacts when batc
   try {
     const repoLabel = 'self-repo';
     const outputPath = path.join(tempRoot, 'signal-scorecard.json');
+    const outputMarkdownPath = path.join(tempRoot, 'signal-scorecard.md');
     const sessionTelemetryPath = path.join(tempRoot, 'session-telemetry.json');
     const codexBatchPath = path.join(tempRoot, 'latest-codex-batch.json');
     const latestPointerPath = path.join(tempRoot, '.sentrux', 'evals', repoLabel, 'latest.json');
@@ -68,6 +69,8 @@ test('build-signal-scorecard reuses latest calibration batch artifacts when batc
       sessionTelemetryPath,
       '--output-json',
       outputPath,
+      '--output-md',
+      outputMarkdownPath,
     ]);
 
     const scorecard = JSON.parse(await readFile(outputPath, 'utf8'));
@@ -86,6 +89,7 @@ test('build-signal-scorecard infers repo label for latest calibration fallback w
   try {
     const repoLabel = 'self-repo';
     const outputPath = path.join(tempRoot, 'signal-scorecard.json');
+    const outputMarkdownPath = path.join(tempRoot, 'signal-scorecard.md');
     const sessionTelemetryPath = path.join(tempRoot, 'session-telemetry.json');
     const codexBatchPath = path.join(tempRoot, 'latest-codex-batch.json');
     const latestPointerPath = path.join(tempRoot, '.sentrux', 'evals', repoLabel, 'latest.json');
@@ -130,6 +134,8 @@ test('build-signal-scorecard infers repo label for latest calibration fallback w
       sessionTelemetryPath,
       '--output-json',
       outputPath,
+      '--output-md',
+      outputMarkdownPath,
     ]);
 
     const scorecard = JSON.parse(await readFile(outputPath, 'utf8'));
@@ -142,11 +148,71 @@ test('build-signal-scorecard infers repo label for latest calibration fallback w
   }
 });
 
+test('build-signal-scorecard backfills structured review fields from an explicit review packet', async function () {
+  const tempRoot = await mkdtemp(path.join(tmpdir(), 'sentrux-scorecard-review-packet-'));
+  try {
+    const outputPath = path.join(tempRoot, 'signal-scorecard.json');
+    const outputMarkdownPath = path.join(tempRoot, 'signal-scorecard.md');
+    const reviewVerdictsPath = path.join(tempRoot, 'review-verdicts.json');
+    const reviewPacketPath = path.join(tempRoot, 'check-review-packet.json');
+
+    await writeJson(reviewVerdictsPath, {
+      repo: 'scorecard-review-packet',
+      verdicts: [
+        {
+          kind: 'forbidden_raw_read',
+          scope: 'src/a.ts',
+          report_bucket: 'actions',
+          category: 'useful',
+        },
+      ],
+    });
+    await writeJson(reviewPacketPath, {
+      repo_root: '/tmp/scorecard-review-packet',
+      samples: [
+        {
+          rank: 1,
+          kind: 'forbidden_raw_read',
+          scope: 'src/a.ts',
+          report_bucket: 'actions',
+          repair_packet: {
+            complete: true,
+            missing_fields: [],
+            fix_surface_clear: true,
+            verification_clear: true,
+          },
+        },
+      ],
+    });
+
+    await runNodeScript('scripts/evals/build-signal-scorecard.mjs', [
+      '--review-verdicts',
+      reviewVerdictsPath,
+      '--review-packet',
+      reviewPacketPath,
+      '--output-json',
+      outputPath,
+      '--output-md',
+      outputMarkdownPath,
+    ]);
+
+    const scorecard = JSON.parse(await readFile(outputPath, 'utf8'));
+
+    assert.equal(scorecard.repo_label, 'scorecard-review-packet');
+    assert.equal(scorecard.signals[0].review_rank_observed_total, 1);
+    assert.equal(scorecard.signals[0].review_repair_packet_complete_count, 1);
+    assert.equal(scorecard.summary.ranking_quality.rank_preserved_rate, 1);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test('build-signal-backlog reuses latest calibration batch artifacts when batch args are omitted', async function () {
   const tempRoot = await mkdtemp(path.join(tmpdir(), 'sentrux-latest-backlog-'));
   try {
     const repoLabel = 'self-repo';
     const outputPath = path.join(tempRoot, 'signal-backlog.json');
+    const outputMarkdownPath = path.join(tempRoot, 'signal-backlog.md');
     const scorecardPath = path.join(tempRoot, 'signal-scorecard.json');
     const codexBatchPath = path.join(tempRoot, 'latest-codex-batch.json');
     const latestPointerPath = path.join(tempRoot, '.sentrux', 'evals', repoLabel, 'latest.json');
@@ -211,6 +277,8 @@ test('build-signal-backlog reuses latest calibration batch artifacts when batch 
       'agent-loop-core',
       '--output-json',
       outputPath,
+      '--output-md',
+      outputMarkdownPath,
     ]);
 
     const backlog = JSON.parse(await readFile(outputPath, 'utf8'));

@@ -64,9 +64,50 @@ test('buildVerdicts applies known policies and kind filtering', function () {
   assert.equal(verdicts[0].rank_preserved, true);
   assert.equal(verdicts[0].repair_packet_complete, false);
   assert.deepEqual(verdicts[0].repair_packet_missing_fields, ['fix_hint']);
+  assert.equal(verdicts[0].source_kind, null);
+  assert.equal(verdicts[0].source_label, null);
   assert.equal(verdicts[0].sample_helpfulness, 2);
   assert.equal(verdicts[0].sample_distraction_cost, 1);
   assert.match(verdicts[0].engineer_note, /Large file warning/);
+});
+
+test('buildVerdicts reranks packet samples and demotes large_file from primary surfaces', function () {
+  const packet = {
+    samples: [
+      {
+        kind: 'large_file',
+        scope: 'src/a.rs',
+        report_bucket: 'actions',
+        summary: 'Large file warning',
+        severity: 'high',
+        rank: 1,
+      },
+      {
+        kind: 'forbidden_raw_read',
+        scope: 'src/b.rs',
+        report_bucket: 'actions',
+        summary: 'Raw read crosses boundary',
+        severity: 'high',
+        rank: 2,
+      },
+    ],
+  };
+
+  const verdicts = buildVerdicts(packet, {
+    kinds: [],
+  });
+
+  assert.deepEqual(
+    verdicts.map((verdict) => verdict.kind),
+    ['forbidden_raw_read', 'large_file'],
+  );
+  assert.equal(verdicts[0].rank_observed, 2);
+  assert.equal(verdicts[0].rank_preserved, false);
+  assert.equal(verdicts[0].expected_summary_presence, 'headline');
+  assert.equal(verdicts[1].rank_observed, 1);
+  assert.equal(verdicts[1].rank_preserved, false);
+  assert.equal(verdicts[1].expected_summary_presence, 'side_channel');
+  assert.match(verdicts[1].expected_v2_behavior, /side channel/);
 });
 
 test('buildProvisionalReviewVerdictReport marks bootstrap verdicts as provisional', function () {

@@ -1,7 +1,9 @@
 import { normalizeCandidate, signalMatchesScope } from './normalization.mjs';
 import { rankingProfile } from './ranking.mjs';
-import { sortCandidates, uniqueByScope } from './compare.mjs';
+import { hasZeroActionWeight, sortCandidates, uniqueByScope } from './compare.mjs';
 import { scoreBandLabel } from '../signal-policy.mjs';
+
+const SUMMARY_SLOT_LIMIT = 5;
 
 function clustersForScope(debtClusters, scope) {
   return (debtClusters ?? []).filter((cluster) => (cluster.files ?? []).includes(scope));
@@ -75,6 +77,48 @@ function excludeScopes(candidates, scopes) {
   return candidates.filter((candidate) => !scopes.has(candidate.scope));
 }
 
+function addSummaryCandidate(summaryCandidates, selectedScopes, candidate) {
+  if (!candidate || selectedScopes.has(candidate.scope) || summaryCandidates.length >= SUMMARY_SLOT_LIMIT) {
+    return;
+  }
+
+  selectedScopes.add(candidate.scope);
+  summaryCandidates.push(candidate);
+}
+
+function selectSummaryCandidates(summaryBuckets) {
+  const bucketLeaders = uniqueByScope(summaryBuckets.map(firstCandidate).filter(Boolean));
+  const summaryCandidates = [];
+  const selectedScopes = new Set();
+  const candidatePool = uniqueByScope(sortCandidates(summaryBuckets.flat()));
+  const hasHigherPrioritySummarySignal = candidatePool.some(
+    (candidate) => !hasZeroActionWeight(candidate),
+  );
+
+  if (!hasHigherPrioritySummarySignal) {
+    for (const candidate of bucketLeaders) {
+      addSummaryCandidate(summaryCandidates, selectedScopes, candidate);
+    }
+
+    return summaryCandidates;
+  }
+
+  for (const candidate of bucketLeaders) {
+    if (hasZeroActionWeight(candidate)) {
+      continue;
+    }
+    addSummaryCandidate(summaryCandidates, selectedScopes, candidate);
+  }
+  for (const candidate of candidatePool) {
+    if (hasZeroActionWeight(candidate)) {
+      continue;
+    }
+    addSummaryCandidate(summaryCandidates, selectedScopes, candidate);
+  }
+
+  return summaryCandidates;
+}
+
 function collectCoveredScopes(buckets) {
   const coveredScopes = new Set();
 
@@ -105,15 +149,13 @@ function selectLeverageBuckets(findingsPayload) {
   const secondaryCleanup = bucketCandidates(allCandidates, 'secondary_cleanup', 3);
   const hardeningNotes = bucketCandidates(candidateSets.trusted_details, 'hardening_note', 3);
   const toolingDebt = bucketCandidates(candidateSets.trusted_details, 'tooling_debt', 3);
-  const summaryCandidates = uniqueByScope(
-    [
-      firstCandidate(architectureSignals),
-      firstCandidate(localRefactorTargets),
-      firstCandidate(boundaryDiscipline),
-      firstCandidate(regrowthWatchpoints),
-      firstCandidate(secondaryCleanup),
-    ].filter(Boolean),
-  );
+  const summaryCandidates = selectSummaryCandidates([
+    architectureSignals,
+    localRefactorTargets,
+    boundaryDiscipline,
+    regrowthWatchpoints,
+    secondaryCleanup,
+  ]);
   const selectedScopes = new Set(summaryCandidates.map((candidate) => candidate.scope));
   const coveredScopes = collectCoveredScopes([
     architectureSignals,

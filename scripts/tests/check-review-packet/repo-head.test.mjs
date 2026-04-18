@@ -5,6 +5,7 @@ import {
   buildPacketFromRepoHeadPayload,
   formatPacketMarkdown,
 } from '../../evals/build-check-review-packet.mjs';
+import { buildVerdictTemplate } from '../../lib/check-review-packet-model.mjs';
 import { buildDefaultRepoHeadCheckPacket } from './helpers.mjs';
 
 test('buildPacketFromRepoHeadPayload applies kind filters before truncation', function () {
@@ -87,6 +88,48 @@ test('buildPacketFromRepoHeadPayload applies kind filters before truncation', fu
   assert.match(markdown, /internal resolution confidence: `9933 \/ 10000`/);
 });
 
+test('buildPacketFromRepoHeadPayload reranks samples before truncation', function () {
+  const packet = buildPacketFromRepoHeadPayload(
+    {
+      tool: 'check',
+      limit: 2,
+      repoRoot: '/tmp/parallel-code',
+      kinds: [],
+    },
+    {
+      actions: [
+        {
+          kind: 'large_file',
+          scope: 'src/a.ts',
+          severity: 'high',
+          summary: 'Large file',
+        },
+        {
+          kind: 'missing_test_coverage',
+          scope: 'src/b.ts',
+          severity: 'high',
+          summary: 'Missing tests',
+        },
+        {
+          kind: 'forbidden_raw_read',
+          scope: 'src/c.ts',
+          severity: 'high',
+          summary: 'Raw read',
+        },
+      ],
+    },
+  );
+
+  assert.deepEqual(
+    packet.samples.map((sample) => sample.kind),
+    ['forbidden_raw_read', 'missing_test_coverage'],
+  );
+  assert.deepEqual(
+    packet.samples.map((sample) => sample.rank),
+    [1, 2],
+  );
+});
+
 test('buildPacketFromRepoHeadPayload reuses scan metadata and clone scope when tool payload omits them', function () {
   const packet = buildPacketFromRepoHeadPayload(
     {
@@ -167,4 +210,66 @@ test('buildPacketFromRepoHeadPayload marks repair packets complete when likely f
     'src/app.ts',
     'src/app-shell.ts',
   ]);
+});
+
+test('buildVerdictTemplate carries structured packet fields into the template verdicts', function () {
+  const packet = buildDefaultRepoHeadCheckPacket([
+    {
+      kind: 'dependency_sprawl',
+      scope: 'src/app.ts',
+      summary: 'Entry surface fans out across too many modules.',
+      evidence: ['imports 18 modules directly'],
+      likely_fix_sites: ['src/app.ts', 'src/app-shell.ts'],
+      fix_hint: 'Pull wiring into a smaller composition root.',
+    },
+  ]);
+
+  const template = buildVerdictTemplate(packet, '/tmp/check-review-packet.md');
+
+  assert.equal(template.verdicts[0].source_kind, 'repo-head');
+  assert.equal(template.verdicts[0].source_label, 'repo-head');
+  assert.equal(template.verdicts[0].snapshot_label, 'repo_head');
+  assert.equal(template.verdicts[0].rank_observed, 1);
+  assert.equal(template.verdicts[0].rank_preserved, true);
+  assert.equal(template.verdicts[0].repair_packet_complete, true);
+  assert.deepEqual(template.verdicts[0].repair_packet_missing_fields, []);
+  assert.equal(template.verdicts[0].repair_packet_fix_surface_clear, true);
+  assert.equal(template.verdicts[0].repair_packet_verification_clear, true);
+});
+
+test('buildVerdictTemplate demotes zero-weight large_file out of headline surfaces when higher-priority samples exist', function () {
+  const packet = buildPacketFromRepoHeadPayload(
+    {
+      tool: 'check',
+      limit: 2,
+      repoRoot: '/tmp/parallel-code',
+      kinds: [],
+    },
+    {
+      actions: [
+        {
+          kind: 'large_file',
+          scope: 'src/a.ts',
+          severity: 'high',
+          summary: 'Large file',
+          evidence: ['src/a.ts'],
+        },
+        {
+          kind: 'forbidden_raw_read',
+          scope: 'src/b.ts',
+          severity: 'high',
+          summary: 'Raw read',
+        },
+      ],
+    },
+  );
+
+  const template = buildVerdictTemplate(packet, '/tmp/check-review-packet.md');
+
+  assert.equal(template.verdicts[0].kind, 'forbidden_raw_read');
+  assert.equal(template.verdicts[0].expected_summary_presence, 'headline');
+  assert.equal(template.verdicts[1].kind, 'large_file');
+  assert.equal(template.verdicts[1].expected_summary_presence, 'side_channel');
+  assert.match(template.verdicts[1].expected_v2_behavior, /side channel/);
+  assert.doesNotMatch(template.verdicts[1].expected_v2_behavior, /lead evidence/);
 });

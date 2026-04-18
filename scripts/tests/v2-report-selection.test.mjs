@@ -213,6 +213,42 @@ test('selectLeverageBuckets deduplicates summary scopes and keeps compatibility 
   );
 });
 
+test('selectLeverageBuckets keeps zero-weight large_file out of summary slots when higher-value signals exist', function () {
+  const findingsPayload = {
+    finding_details: [
+      candidate({
+        scope: 'src/store/store.ts',
+        kind: 'dependency_sprawl',
+        leverageClass: 'architecture_signal',
+        severity: 'high',
+      }),
+      candidate({
+        scope: 'src/components/TaskPanel.tsx',
+        kind: 'dependency_sprawl',
+        leverageClass: 'local_refactor_target',
+        severity: 'high',
+      }),
+      candidate({
+        scope: 'src/app-shell.ts',
+        kind: 'large_file',
+        leverageClass: 'regrowth_watchpoint',
+        severity: 'high',
+      }),
+    ],
+    watchpoints: [],
+    debt_signals: [],
+    debt_clusters: [],
+  };
+
+  const buckets = selectLeverageBuckets(findingsPayload);
+
+  assert.deepEqual(
+    buckets.summary_candidates.map((entry) => entry.scope),
+    ['src/store/store.ts', 'src/components/TaskPanel.tsx'],
+  );
+  assert.equal(buckets.regrowth_watchpoints[0].scope, 'src/app-shell.ts');
+});
+
 test('selectLeverageBuckets sorts equal-priority candidates deterministically by scope', function () {
   const findingsPayload = {
     finding_details: [

@@ -207,6 +207,13 @@ Keep review verdicts and session verdicts separate.
 
 A signal can be precise in a review packet but still be low-value in a real session if following it derails the task. The inverse is also possible: a session can land successfully even when one reviewed finding was overstated. Treat the artifacts as complementary, not interchangeable.
 
+Use session verdicts to make intervention decisions conservatively:
+
+- do not default an intervention arm until it has at least `3` curated session verdicts
+- a positive `intervention_net_value_score` is necessary but not sufficient; task success still needs to hold up and intervention cost should stay near the tolerated baseline
+- if `top_action_follow_rate` rises without `top_action_help_rate`, keep the arm experimental instead of calling it a product win
+- if `intervention_net_value_score <= 0`, or if patch expansion rises while task success falls, stop broad rollout and treat the arm as a failed experiment until the prompt changes
+
 The checked-in live Codex batch manifests default to `analysis_mode: "working_tree"` so the real-work lane includes local uncommitted changes. Use `head_clone` only when you intentionally want a committed-HEAD calibration run.
 
 The checked-in replay batch manifests use explicit commit lists rather than broad `HEAD~N..HEAD` ranges. That keeps the default replay lane focused on code-rich commits and avoids letting docs-only churn dominate the backlog with low-value `large_file` noise.
@@ -252,7 +259,7 @@ Promotion guidance for the current loop:
 
 - promoted signals need curated reviewed precision plus actionable ranking evidence; reviewed precision by itself is not enough
 - if a signal is repeatedly real but lands as low-value in top-1 or top-3 slots, downgrade the lead-surface presentation before promoting the detector
-- treat repair-packet completeness as packet-local evidence for now; until the review-verdict schema carries structured repair fields, do not treat it as scorecard-grade promotion input
+- treat repair-packet completeness as structured supporting evidence, not as a substitute for ranking or remediation evidence; the current bar is `REVIEW_PACKET_COMPLETENESS_POLICY` (`scope`, `summary`, `evidence`, and `repair_surface` required, `fix_hint` and `likely_fix_sites` preferred, top-3 complete rate at least `0.8`, top-10 complete rate at least `0.7`)
 
 Current replay-expansion stance after the 2026-04-12 structural pass:
 
