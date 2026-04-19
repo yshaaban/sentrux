@@ -71,28 +71,161 @@
       "name": "Core causal families only",
       "status": "screening",
       "description": "Keep clone, propagation, boundary, and direct obligation families eligible for primary slots and suppress structural pressure.",
-      "policy_delta": "Remove structural pressure from the default lane."
+      "policy_delta": "Remove structural pressure from the default lane.",
+      "policy_override": {
+        "default_lane": {
+          "max_primary_actions": 3,
+          "eligible_sources": [
+            "obligation",
+            "rules",
+            "clone"
+          ],
+          "kind_rules": {
+            "large_file": {
+              "eligible": false
+            },
+            "dependency_sprawl": {
+              "eligible": false
+            },
+            "unstable_hotspot": {
+              "eligible": false
+            },
+            "cycle_cluster": {
+              "eligible": false
+            },
+            "missing_test_coverage": {
+              "eligible": false
+            },
+            "hotspot": {
+              "eligible": false
+            }
+          }
+        }
+      }
     },
     {
       "variant_id": "core_plus_patch_local_concentration",
       "name": "Core plus patch-local concentration",
       "status": "screening",
       "description": "Allow patch-local concentration only when the current patch worsened reviewability and the repair move is explicit.",
-      "policy_delta": "Patch-local concentration can occupy a primary slot only when it is causal and repairable."
+      "policy_delta": "Patch-local concentration can occupy a primary slot only when it is causal and repairable.",
+      "policy_override": {
+        "default_lane": {
+          "max_primary_actions": 3,
+          "eligible_sources": [
+            "obligation",
+            "rules",
+            "clone",
+            "structural"
+          ],
+          "kind_rules": {
+            "large_file": {
+              "eligible": true,
+              "require_patch_directly_worsened": true,
+              "require_repair_surface": true
+            },
+            "unstable_hotspot": {
+              "eligible": true,
+              "require_patch_directly_worsened": true,
+              "require_repair_surface": true
+            },
+            "hotspot": {
+              "eligible": true,
+              "require_patch_directly_worsened": true,
+              "require_repair_surface": true
+            },
+            "dependency_sprawl": {
+              "eligible": false
+            },
+            "cycle_cluster": {
+              "eligible": false
+            },
+            "missing_test_coverage": {
+              "eligible": false
+            }
+          }
+        }
+      }
     },
     {
       "variant_id": "core_plus_large_file",
       "name": "Core plus large_file",
       "status": "screening",
       "description": "Allow large_file as the only structural-pressure family while keeping other broad structural watchpoints suppressed.",
-      "policy_delta": "Keep large_file eligible but demote the rest of structural pressure."
+      "policy_delta": "Keep large_file eligible but demote the rest of structural pressure.",
+      "policy_override": {
+        "default_lane": {
+          "max_primary_actions": 3,
+          "eligible_sources": [
+            "obligation",
+            "rules",
+            "clone",
+            "structural"
+          ],
+          "kind_rules": {
+            "large_file": {
+              "eligible": true,
+              "require_repair_surface": true
+            },
+            "dependency_sprawl": {
+              "eligible": false
+            },
+            "unstable_hotspot": {
+              "eligible": false
+            },
+            "cycle_cluster": {
+              "eligible": false
+            },
+            "missing_test_coverage": {
+              "eligible": false
+            },
+            "hotspot": {
+              "eligible": false
+            }
+          }
+        }
+      }
     },
     {
       "variant_id": "current_policy_patch_worsened_large_file",
       "name": "Current policy with patch-worsened large_file",
       "status": "screening",
       "description": "Start from current policy but allow large_file to rise only when the patch itself worsened the touched file and the containment move is concrete.",
-      "policy_delta": "Guard large_file with patch-local causality and repair-surface requirements."
+      "policy_delta": "Guard large_file with patch-local causality and repair-surface requirements.",
+      "policy_override": {
+        "default_lane": {
+          "max_primary_actions": 3,
+          "eligible_sources": [
+            "obligation",
+            "rules",
+            "clone",
+            "structural"
+          ],
+          "kind_rules": {
+            "large_file": {
+              "eligible": true,
+              "require_patch_directly_worsened": true,
+              "require_repair_surface": true,
+              "require_changed_scope": true
+            },
+            "dependency_sprawl": {
+              "eligible": false
+            },
+            "unstable_hotspot": {
+              "eligible": false
+            },
+            "cycle_cluster": {
+              "eligible": false
+            },
+            "missing_test_coverage": {
+              "eligible": false
+            },
+            "hotspot": {
+              "eligible": false
+            }
+          }
+        }
+      }
     }
   ],
   "repo_runs": [

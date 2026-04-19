@@ -15,6 +15,7 @@ const COMMANDS = [
   ['cargo', ['build', '--release', '-p', 'sentrux']],
   ['npm', ['--prefix', 'ts-bridge', 'test']],
   ['node', ['scripts/validate_parallel_code_v2.mjs', '--goldens-only']],
+  ['node', ['scripts/evals/check-experiment-integrity.mjs']],
   ['node', ['scripts/check_public_release_hygiene.mjs']],
 ];
 

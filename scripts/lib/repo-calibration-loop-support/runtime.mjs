@@ -64,8 +64,11 @@ export function buildBatchRunArgs(
   return args;
 }
 
-export async function runNodeScript(repoRoot, scriptPath, args) {
-  const result = await runSharedNodeScript(scriptPath, args, { cwd: repoRoot });
+export async function runNodeScript(repoRoot, scriptPath, args, { env = {} } = {}) {
+  const result = await runSharedNodeScript(scriptPath, args, {
+    cwd: repoRoot,
+    env,
+  });
 
   return {
     script: path.relative(repoRoot, scriptPath),

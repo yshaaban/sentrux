@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 
-import { nowIso, readJson, resolveManifestPath } from './eval-batch.mjs';
+import { nowIso, readJson, resolveManifestPath, writeJson } from './eval-batch.mjs';
 import { runNodeScript } from './repo-calibration-loop-support.mjs';
 import { loadRepoCalibrationManifest } from './repo-calibration-loop/manifest.mjs';
 
@@ -55,6 +55,40 @@ const SUMMARY_METRIC_KEYS = [
   'repair_packet_complete_rate',
   'remediation_success_rate',
 ];
+const DEFAULT_LANE_SOURCES = new Set([
+  'obligation',
+  'rules',
+  'clone',
+  'structural',
+]);
+const DEFAULT_LANE_KIND_RULE_KEYS = new Set([
+  'eligible',
+  'require_patch_directly_worsened',
+  'require_repair_surface',
+  'require_changed_scope',
+]);
+const EXPECTED_RUN_ARTIFACTS = {
+  repo_calibration_loop: {
+    artifact_key: 'summary_json',
+    skip_flag: null,
+  },
+  evidence_review: {
+    artifact_key: 'evidence_review_json',
+    skip_flag: 'skip_backlog',
+  },
+  session_corpus: {
+    artifact_key: 'session_corpus_json',
+    skip_flag: null,
+  },
+  scorecard: {
+    artifact_key: 'scorecard_json',
+    skip_flag: 'skip_scorecard',
+  },
+  backlog: {
+    artifact_key: 'backlog_json',
+    skip_flag: 'skip_backlog',
+  },
+};
 
 function assertNonEmptyString(value, label, sourcePath) {
   if (typeof value !== 'string' || value.trim().length === 0) {
@@ -89,6 +123,105 @@ function normalizeBooleanFlags(flags = {}) {
   return normalized;
 }
 
+function validateArtifactExpectation(expectation, specPath, runId) {
+  if (typeof expectation !== 'string' || !(expectation in EXPECTED_RUN_ARTIFACTS)) {
+    throw new Error(
+      `Invalid artifact expectation "${expectation}" in run "${runId}" (${specPath})`,
+    );
+  }
+}
+
+function validateDefaultLaneKindRule(rule, specPath, variantId, kind) {
+  if (!rule || typeof rule !== 'object') {
+    throw new Error(
+      `Invalid default-lane kind rule for "${kind}" in variant "${variantId}" (${specPath})`,
+    );
+  }
+
+  for (const [key, value] of Object.entries(rule)) {
+    if (!DEFAULT_LANE_KIND_RULE_KEYS.has(key)) {
+      throw new Error(
+        `Unknown default_lane.kind_rules.${kind}.${key} in variant "${variantId}" (${specPath})`,
+      );
+    }
+    if (typeof value !== 'boolean') {
+      throw new Error(
+        `Invalid default_lane.kind_rules.${kind}.${key} in variant "${variantId}" (${specPath})`,
+      );
+    }
+  }
+}
+
+function validateDefaultLaneOverride(defaultLane, specPath, variantId) {
+  if (!defaultLane || typeof defaultLane !== 'object') {
+    throw new Error(
+      `Invalid default_lane override in variant "${variantId}" (${specPath})`,
+    );
+  }
+
+  if (defaultLane.max_primary_actions !== undefined) {
+    const value = Number(defaultLane.max_primary_actions);
+    if (!Number.isInteger(value) || value < 1) {
+      throw new Error(
+        `Invalid max_primary_actions in variant "${variantId}" (${specPath})`,
+      );
+    }
+  }
+  if (defaultLane.eligible_sources !== undefined) {
+    const eligibleSources = assertArray(
+      defaultLane.eligible_sources,
+      'default_lane.eligible_sources',
+      specPath,
+    );
+    for (const source of eligibleSources) {
+      assertEnum(source, DEFAULT_LANE_SOURCES, 'eligible source', specPath);
+    }
+  }
+  if (defaultLane.kind_rules === undefined) {
+    return;
+  }
+  if (!defaultLane.kind_rules || typeof defaultLane.kind_rules !== 'object') {
+    throw new Error(
+      `Invalid default_lane.kind_rules in variant "${variantId}" (${specPath})`,
+    );
+  }
+
+  for (const [kind, rule] of Object.entries(defaultLane.kind_rules)) {
+    validateDefaultLaneKindRule(rule, specPath, variantId, kind);
+  }
+}
+
+function validateVariantPolicyOverride(policyOverride, specPath, variantId) {
+  if (!policyOverride || typeof policyOverride !== 'object') {
+    throw new Error(`Invalid policy_override in variant "${variantId}" (${specPath})`);
+  }
+
+  if (policyOverride.default_lane === undefined) {
+    return;
+  }
+
+  validateDefaultLaneOverride(policyOverride.default_lane, specPath, variantId);
+}
+
+function validateCompletedExperimentDecision(spec, specPath) {
+  if (spec.status !== 'completed') {
+    return;
+  }
+  if (!spec.decision || !spec.decision.outcome) {
+    throw new Error(`Completed experiment spec is missing decision in ${specPath}`);
+  }
+  if (!spec.decision_record_path) {
+    throw new Error(`Completed experiment spec is missing decision_record_path in ${specPath}`);
+  }
+
+  const decisionRecordPath = resolveManifestPath(specPath, spec.decision_record_path);
+  if (!existsSync(decisionRecordPath)) {
+    throw new Error(
+      `Completed experiment spec is missing decision record file ${decisionRecordPath}`,
+    );
+  }
+}
+
 function validateVariant(variant, specPath) {
   if (!variant || typeof variant !== 'object') {
     throw new Error(`Invalid variant entry in ${specPath}`);
@@ -100,6 +233,9 @@ function validateVariant(variant, specPath) {
 
   if (variant.status !== undefined) {
     assertEnum(variant.status, VARIANT_STATUSES, 'variant status', specPath);
+  }
+  if (variant.policy_override !== undefined) {
+    validateVariantPolicyOverride(variant.policy_override, specPath, variant.variant_id);
   }
 }
 
@@ -146,6 +282,16 @@ function validateRepoRun(run, specPath, variantIds) {
   if (run.execution_mode !== undefined) {
     assertEnum(run.execution_mode, RUN_EXECUTION_MODES, 'run execution_mode', specPath);
   }
+  if (run.artifact_expectations !== undefined) {
+    const expectations = assertArray(
+      run.artifact_expectations,
+      'run artifact_expectations',
+      specPath,
+    );
+    for (const expectation of expectations) {
+      validateArtifactExpectation(expectation, specPath, run.run_id);
+    }
+  }
 }
 
 function validateDecision(decision, specPath, variantIds) {
@@ -174,6 +320,35 @@ function validateDecision(decision, specPath, variantIds) {
   }
 }
 
+function validateAutomatedRunVariants(repoRuns, variantMap, specPath) {
+  const seen = new Map();
+
+  for (const run of repoRuns) {
+    const executionMode = run.execution_mode ?? 'repo_calibration_loop';
+    if (executionMode !== 'repo_calibration_loop') {
+      continue;
+    }
+
+    const variant = variantMap.get(run.variant_id);
+    const key = JSON.stringify({
+      repo_id: run.repo_id,
+      manifest: run.manifest,
+      flags: normalizeBooleanFlags(run.flags),
+      policy_override: variant?.policy_override ?? null,
+    });
+    const previous = seen.get(key);
+    if (previous && previous.variant_id !== run.variant_id) {
+      throw new Error(
+        `Repo-calibration runs "${previous.run_id}" and "${run.run_id}" in ${specPath} differ only by variant label/output without a distinct policy override`,
+      );
+    }
+    seen.set(key, {
+      run_id: run.run_id,
+      variant_id: run.variant_id,
+    });
+  }
+}
+
 function validateExperimentSpec(spec, specPath) {
   if (spec?.schema_version !== 1) {
     throw new Error(`Unsupported experiment spec: ${specPath}`);
@@ -194,6 +369,9 @@ function validateExperimentSpec(spec, specPath) {
   assertArray(spec.exit_bar, 'exit_bar', specPath);
   if (spec.question_id !== undefined) {
     assertNonEmptyString(spec.question_id, 'question_id', specPath);
+  }
+  if (spec.decision_record_path !== undefined) {
+    assertNonEmptyString(spec.decision_record_path, 'decision_record_path', specPath);
   }
   if (spec.repo_scope !== undefined) {
     const repoScope = assertArray(spec.repo_scope, 'repo_scope', specPath);
@@ -228,6 +406,7 @@ function validateExperimentSpec(spec, specPath) {
   if (spec.stages !== undefined) {
     validateStages(assertArray(spec.stages, 'stages', specPath), specPath);
   }
+  const variantMap = buildVariantMap(spec.variants);
 
   const repoRuns = assertArray(spec.repo_runs, 'repo_runs', specPath);
   const runIds = new Set();
@@ -238,8 +417,10 @@ function validateExperimentSpec(spec, specPath) {
     }
     runIds.add(run.run_id);
   }
+  validateAutomatedRunVariants(repoRuns, variantMap, specPath);
 
   validateDecision(spec.decision, specPath, variantIds);
+  validateCompletedExperimentDecision(spec, specPath);
 }
 
 function validateExperimentIndex(index, indexPath) {
@@ -299,8 +480,18 @@ function shellQuote(value) {
   return JSON.stringify(value);
 }
 
-function buildCommandString(command, args) {
-  return [command, ...args].map(shellQuote).join(' ');
+function buildCommandString(command, args, env = {}) {
+  const parts = [];
+  const envArgs = [];
+  for (const [key, value] of Object.entries(env)) {
+    envArgs.push(`${key}=${shellQuote(value)}`);
+  }
+  if (envArgs.length > 0) {
+    parts.push('env', ...envArgs);
+  }
+
+  parts.push(shellQuote(command), ...args.map(shellQuote));
+  return parts.join(' ');
 }
 
 function countAutomatedRuns(runs) {
@@ -364,15 +555,81 @@ function resolveRunOutputDir(targetRepoRootPath, outputDir) {
   return path.resolve(targetRepoRootPath, outputDir);
 }
 
-function artifactStateForSummary(summaryPath, outputDir) {
-  if (summaryPath && existsSync(summaryPath)) {
-    return 'completed';
-  }
-  if (existsSync(outputDir)) {
-    return 'partial';
+function resolveExpectationStatus(expectations, artifacts, flags = {}) {
+  const satisfied = [];
+  const missing = [];
+  const skipped = [];
+
+  for (const expectation of expectations) {
+    const descriptor = EXPECTED_RUN_ARTIFACTS[expectation];
+    if (!descriptor) {
+      missing.push(expectation);
+      continue;
+    }
+
+    if (descriptor.skip_flag && flags?.[descriptor.skip_flag]) {
+      skipped.push(expectation);
+      continue;
+    }
+
+    if (artifacts[descriptor.artifact_key]) {
+      satisfied.push(expectation);
+      continue;
+    }
+
+    missing.push(expectation);
   }
 
-  return 'not_started';
+  return {
+    satisfied,
+    missing,
+    skipped,
+  };
+}
+
+function artifactStateForSummary(artifacts, outputDir, expectations, flags = {}) {
+  const expectationStatus = resolveExpectationStatus(expectations, artifacts, flags);
+  if (expectations.length > 0) {
+    if (expectationStatus.missing.length === 0) {
+      return {
+        artifact_state: 'completed',
+        ...expectationStatus,
+      };
+    }
+    if (
+      expectationStatus.satisfied.length > 0 ||
+      expectationStatus.skipped.length > 0 ||
+      existsSync(outputDir)
+    ) {
+      return {
+        artifact_state: 'partial',
+        ...expectationStatus,
+      };
+    }
+
+    return {
+      artifact_state: 'not_started',
+      ...expectationStatus,
+    };
+  }
+
+  if (artifacts.summary_json) {
+    return {
+      artifact_state: 'completed',
+      ...expectationStatus,
+    };
+  }
+  if (existsSync(outputDir)) {
+    return {
+      artifact_state: 'partial',
+      ...expectationStatus,
+    };
+  }
+
+  return {
+    artifact_state: 'not_started',
+    ...expectationStatus,
+  };
 }
 
 function buildStatusCounts() {
@@ -399,12 +656,12 @@ function maxIso(values) {
   return filtered.length === 0 ? null : filtered[filtered.length - 1];
 }
 
-function resolveRunCommand(executionMode, runnerScriptPath, args) {
+function resolveRunCommand(executionMode, runnerScriptPath, args, env = {}) {
   if (executionMode !== 'repo_calibration_loop') {
     return null;
   }
 
-  return buildCommandString('node', [runnerScriptPath, ...args]);
+  return buildCommandString('node', [runnerScriptPath, ...args], env);
 }
 
 function resolveRunArtifacts(summary, outputDir) {
@@ -413,6 +670,7 @@ function resolveRunArtifacts(summary, outputDir) {
   const evidenceReviewPath = path.join(outputDir, 'evidence-review.json');
   const sessionCorpusPath = path.join(outputDir, 'session-corpus.json');
   const scorecardPath = path.join(outputDir, 'signal-scorecard.json');
+  const backlogPath = path.join(outputDir, 'signal-backlog.json');
 
   return {
     summary_json: selectExistingPath(summaryPath),
@@ -429,7 +687,68 @@ function resolveRunArtifacts(summary, outputDir) {
       summary?.artifacts?.scorecard_json,
       scorecardPath,
     ),
+    backlog_json: selectExistingPath(
+      summary?.artifacts?.backlog_json,
+      backlogPath,
+    ),
   };
+}
+
+function cloneJson(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function mergeSignalPolicy(basePolicy, policyOverride) {
+  const mergedPolicy = cloneJson(basePolicy);
+  const defaultLaneOverride = policyOverride?.default_lane;
+  if (!defaultLaneOverride) {
+    return mergedPolicy;
+  }
+
+  const baseDefaultLane = mergedPolicy.default_lane ?? {};
+  const mergedDefaultLane = {
+    ...baseDefaultLane,
+  };
+  if (defaultLaneOverride.max_primary_actions !== undefined) {
+    mergedDefaultLane.max_primary_actions = defaultLaneOverride.max_primary_actions;
+  }
+  if (defaultLaneOverride.eligible_sources !== undefined) {
+    mergedDefaultLane.eligible_sources = defaultLaneOverride.eligible_sources;
+  }
+  if (defaultLaneOverride.kind_rules !== undefined) {
+    mergedDefaultLane.kind_rules = {
+      ...(baseDefaultLane.kind_rules ?? {}),
+      ...defaultLaneOverride.kind_rules,
+    };
+  }
+
+  mergedPolicy.default_lane = mergedDefaultLane;
+  return mergedPolicy;
+}
+
+function buildPolicyOverrideContext(executionMode, outputDir, policyBasePath, variant) {
+  if (executionMode !== 'repo_calibration_loop' || !variant?.policy_override) {
+    return {
+      env: {},
+      policy_base_path: null,
+      policy_override: variant?.policy_override ?? null,
+      policy_override_path: null,
+    };
+  }
+
+  const policyOverridePath = path.join(outputDir, 'variant-signal-policy.json');
+  return {
+    env: {
+      SENTRUX_SIGNAL_POLICY_PATH: policyOverridePath,
+    },
+    policy_base_path: policyBasePath,
+    policy_override: variant.policy_override,
+    policy_override_path: policyOverridePath,
+  };
+}
+
+function normalizeArtifactExpectations(artifactExpectations) {
+  return Array.isArray(artifactExpectations) ? artifactExpectations : [];
 }
 
 function buildPlannedRun({
@@ -438,33 +757,45 @@ function buildPlannedRun({
   manifestPath,
   normalizedFlags,
   outputDir,
+  policyBasePath,
   run,
   runnerScriptPath,
   targetRepoRootPath,
   variantMap,
 }) {
-  let args = [];
-  if (executionMode === 'repo_calibration_loop') {
-    args = buildRepoCalibrationArgs(manifestPath, outputDir, normalizedFlags);
-  }
+  const variant = variantMap.get(run.variant_id);
+  const args =
+    executionMode === 'repo_calibration_loop'
+      ? buildRepoCalibrationArgs(manifestPath, outputDir, normalizedFlags)
+      : [];
+  const policyOverrideContext = buildPolicyOverrideContext(
+    executionMode,
+    outputDir,
+    policyBasePath,
+    variant,
+  );
 
   return {
     run_id: run.run_id,
     repo_id: run.repo_id,
     repo_label: manifest.repo_label ?? manifest.repo_id ?? run.repo_id,
     variant_id: run.variant_id,
-    variant_name: variantMap.get(run.variant_id)?.name ?? run.variant_id,
+    variant_name: variant?.name ?? run.variant_id,
     execution_mode: executionMode,
     manifest_path: manifestPath,
     repo_root_path: targetRepoRootPath,
     output_dir: outputDir,
     flags: normalizedFlags,
     notes: run.notes ?? null,
-    artifact_expectations: Array.isArray(run.artifact_expectations)
-      ? run.artifact_expectations
-      : [],
+    artifact_expectations: normalizeArtifactExpectations(run.artifact_expectations),
+    ...policyOverrideContext,
     args,
-    command: resolveRunCommand(executionMode, runnerScriptPath, args),
+    command: resolveRunCommand(
+      executionMode,
+      runnerScriptPath,
+      args,
+      policyOverrideContext.env,
+    ),
   };
 }
 
@@ -488,10 +819,15 @@ function buildTrackerRun(run, state) {
     execution_mode: run.execution_mode,
     output_dir: run.output_dir,
     command: run.command,
+    artifact_expectations: run.artifact_expectations,
     artifact_state: state?.artifact_state ?? 'not_started',
     generated_at: state?.generated_at ?? null,
     metrics: state?.metrics ?? {},
     artifacts: state?.artifacts ?? {},
+    policy_override_path: run.policy_override_path ?? null,
+    missing_artifacts: state?.missing_artifacts ?? [],
+    satisfied_artifacts: state?.satisfied_artifacts ?? [],
+    skipped_artifacts: state?.skipped_artifacts ?? [],
   };
 }
 
@@ -520,15 +856,18 @@ function collectGeneratedAtValues(runStates) {
   return generatedAtValues;
 }
 
-function deriveExperimentNextGate(specStatus, runStatusCounts, runCount) {
+function deriveExperimentNextGate(spec, runStatusCounts, runCount, decisionRecordPresent) {
   if (runStatusCounts.completed < runCount) {
     return 'fresh_runs_required';
   }
-  if (specStatus === 'completed') {
+  if (spec.status === 'completed' && spec.decision?.outcome && decisionRecordPresent) {
     return 'decision_recorded';
   }
+  if (!spec.decision?.outcome) {
+    return 'decision_review_required';
+  }
 
-  return 'decision_review_required';
+  return 'decision_record_required';
 }
 
 function normalizeStages(stages = []) {
@@ -625,6 +964,7 @@ export async function buildExperimentRunPlan({
   const runFilter = normalizeFilters(runIds);
   const variantFilter = normalizeFilters(variantIds);
   const variantMap = buildVariantMap(spec.variants);
+  const policyBasePath = path.join(repoRootPath, '.sentrux', 'signal-policy.json');
   const runs = [];
 
   for (const run of spec.repo_runs) {
@@ -656,6 +996,7 @@ export async function buildExperimentRunPlan({
         manifestPath,
         normalizedFlags,
         outputDir,
+        policyBasePath,
         run,
         runnerScriptPath,
         targetRepoRootPath,
@@ -679,6 +1020,12 @@ export async function collectExperimentRunState(run) {
   const summaryPath = path.join(run.output_dir, 'repo-calibration-loop.json');
   const summary = existsSync(summaryPath) ? await readJson(summaryPath) : null;
   const artifacts = resolveRunArtifacts(summary, run.output_dir);
+  const expectationStatus = artifactStateForSummary(
+    artifacts,
+    run.output_dir,
+    run.artifact_expectations ?? [],
+    run.flags,
+  );
 
   return {
     run_id: run.run_id,
@@ -686,11 +1033,29 @@ export async function collectExperimentRunState(run) {
     variant_id: run.variant_id,
     execution_mode: run.execution_mode,
     output_dir: run.output_dir,
-    artifact_state: artifactStateForSummary(artifacts.summary_json, run.output_dir),
+    artifact_state: expectationStatus.artifact_state,
     generated_at: summary?.generated_at ?? null,
     artifacts,
     metrics: pickSummaryMetrics(summary),
+    satisfied_artifacts: expectationStatus.satisfied,
+    missing_artifacts: expectationStatus.missing,
+    skipped_artifacts: expectationStatus.skipped,
   };
+}
+
+async function writeRunPolicyOverride(run) {
+  if (!run.policy_override || !run.policy_override_path) {
+    return;
+  }
+  if (!run.policy_base_path || !existsSync(run.policy_base_path)) {
+    throw new Error(
+      `Cannot build variant policy override for run "${run.run_id}" without base policy ${run.policy_base_path ?? '(missing)'}`,
+    );
+  }
+
+  const basePolicy = await readJson(run.policy_base_path);
+  const mergedPolicy = mergeSignalPolicy(basePolicy, run.policy_override);
+  await writeJson(run.policy_override_path, mergedPolicy);
 }
 
 export async function executeExperimentPlan(plan, { continueOnError = false } = {}) {
@@ -709,16 +1074,21 @@ export async function executeExperimentPlan(plan, { continueOnError = false } = 
         started_at: startedAt,
         finished_at: nowIso(),
         message: `Run is tracked as ${run.execution_mode} and must be executed outside the automated loop.`,
+        command: run.command,
+        output_dir: run.output_dir,
+        policy_override_path: run.policy_override_path,
         state: await collectExperimentRunState(run),
       });
       continue;
     }
 
     try {
+      await writeRunPolicyOverride(run);
       const execution = await runNodeScript(
         run.repo_root_path,
         plan.runner_script_path,
         run.args,
+        { env: run.env },
       );
       runResults.push({
         run_id: run.run_id,
@@ -729,6 +1099,9 @@ export async function executeExperimentPlan(plan, { continueOnError = false } = 
         started_at: startedAt,
         finished_at: nowIso(),
         execution,
+        command: run.command,
+        output_dir: run.output_dir,
+        policy_override_path: run.policy_override_path,
         state: await collectExperimentRunState(run),
       });
     } catch (error) {
@@ -741,6 +1114,9 @@ export async function executeExperimentPlan(plan, { continueOnError = false } = 
         started_at: startedAt,
         finished_at: nowIso(),
         error_message: error instanceof Error ? error.message : String(error),
+        command: run.command,
+        output_dir: run.output_dir,
+        policy_override_path: run.policy_override_path,
         state: await collectExperimentRunState(run),
       };
       runResults.push(failure);
@@ -801,6 +1177,10 @@ export async function buildExperimentTracker({ indexPath, repoRootPath }) {
     }
 
     const latestEvidenceAt = maxIso(collectGeneratedAtValues(runStates));
+    const decisionRecordPath = plan.spec.decision_record_path
+      ? resolveManifestPath(plan.spec_path, plan.spec.decision_record_path)
+      : null;
+    const decisionRecordPresent = decisionRecordPath ? existsSync(decisionRecordPath) : false;
     experiments.push({
       experiment_id: plan.spec.experiment_id,
       title: plan.spec.title,
@@ -818,6 +1198,8 @@ export async function buildExperimentTracker({ indexPath, repoRootPath }) {
       secondary_metrics: plan.spec.secondary_metrics,
       exit_bar: plan.spec.exit_bar,
       decision: plan.spec.decision ?? null,
+      decision_record_path: decisionRecordPath,
+      decision_record_present: decisionRecordPresent,
       stages,
       active_stage: buildActiveStage(stages),
       run_status_counts: runStatusCounts,
@@ -825,9 +1207,10 @@ export async function buildExperimentTracker({ indexPath, repoRootPath }) {
       automated_runs: countAutomatedRuns(plan.runs),
       latest_evidence_at: latestEvidenceAt,
       next_gate: deriveExperimentNextGate(
-        plan.spec.status,
+        plan.spec,
         runStatusCounts,
         plan.runs.length,
+        decisionRecordPresent,
       ),
       runs: plan.runs.map(function buildTrackerRunEntry(run) {
         const state = findRunState(runStates, run.run_id);
@@ -920,6 +1303,11 @@ export function formatExperimentTrackerMarkdown(tracker) {
     if (experiment.decision?.outcome) {
       lines.push(`- decision: ${experiment.decision.outcome}`);
     }
+    if (experiment.decision_record_path) {
+      lines.push(
+        `- decision record: ${experiment.decision_record_present ? 'present' : 'missing'} (${experiment.decision_record_path})`,
+      );
+    }
     lines.push('');
     if (experiment.stages.length > 0) {
       lines.push('- stages:');
@@ -933,6 +1321,12 @@ export function formatExperimentTrackerMarkdown(tracker) {
       lines.push(
         `- ${run.run_id} (${run.repo_id}, ${run.variant_id}, ${run.execution_mode}): ${run.artifact_state}`,
       );
+      if (run.missing_artifacts.length > 0) {
+        lines.push(`  missing artifacts: ${run.missing_artifacts.join(', ')}`);
+      }
+      if (run.skipped_artifacts.length > 0) {
+        lines.push(`  skipped artifacts: ${run.skipped_artifacts.join(', ')}`);
+      }
       appendMetricSummary(lines, run.metrics, '  metrics: ');
     }
     lines.push('');
@@ -964,8 +1358,17 @@ export function formatExperimentRunMarkdown(result, plan) {
     if (run.command) {
       lines.push(`- command: \`${run.command}\``);
     }
+    if (run.policy_override_path) {
+      lines.push(`- policy override: ${run.policy_override_path}`);
+    }
     if (run.state?.artifact_state) {
       lines.push(`- artifact state: ${run.state.artifact_state}`);
+    }
+    if (run.state?.missing_artifacts?.length > 0) {
+      lines.push(`- missing artifacts: ${run.state.missing_artifacts.join(', ')}`);
+    }
+    if (run.state?.skipped_artifacts?.length > 0) {
+      lines.push(`- skipped artifacts: ${run.state.skipped_artifacts.join(', ')}`);
     }
     if (run.state?.generated_at) {
       lines.push(`- evidence captured: ${run.state.generated_at}`);

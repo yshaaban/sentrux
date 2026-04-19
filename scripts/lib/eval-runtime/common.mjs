@@ -44,10 +44,14 @@ export function resolvePath(basePath, candidatePath) {
   return path.resolve(basePath, candidatePath);
 }
 
-export async function runNodeScript(scriptPath, args, { cwd } = {}) {
+export async function runNodeScript(scriptPath, args, { cwd, env = {} } = {}) {
   const { stdout, stderr } = await execFile(process.execPath, [scriptPath, ...args], {
     cwd,
     maxBuffer: 1024 * 1024 * 20,
+    env: {
+      ...process.env,
+      ...env,
+    },
   });
 
   return {
@@ -84,8 +88,8 @@ export async function collectRepoMetadata(repoRootPath) {
 export async function runWithConcurrency(items, concurrency, worker) {
   const results = new Array(items.length);
   let nextIndex = 0;
-
-  const workers = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+  const workerCount = Math.min(concurrency, items.length);
+  const workers = Array.from({ length: workerCount }, async function runWorker() {
     while (true) {
       const index = nextIndex;
       nextIndex += 1;

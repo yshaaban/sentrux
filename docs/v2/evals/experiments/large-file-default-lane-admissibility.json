@@ -71,35 +71,177 @@
       "name": "Always eligible",
       "status": "screening",
       "description": "Allow large_file to compete for a primary slot whenever the signal is present.",
-      "policy_delta": "Treat large_file as a normal default-lane family with no additional guardrail."
+      "policy_delta": "Treat large_file as a normal default-lane family with no additional guardrail.",
+      "policy_override": {
+        "default_lane": {
+          "max_primary_actions": 2,
+          "eligible_sources": [
+            "obligation",
+            "rules",
+            "clone",
+            "structural"
+          ],
+          "kind_rules": {
+            "large_file": {
+              "eligible": true
+            }
+          }
+        }
+      }
     },
     {
       "variant_id": "changed_file_only",
       "name": "Changed-file only",
       "status": "screening",
       "description": "Allow large_file only when the pressured file is part of the changed surface.",
-      "policy_delta": "Require the large file to be directly touched by the patch."
+      "policy_delta": "Require the large file to be directly touched by the patch.",
+      "policy_override": {
+        "default_lane": {
+          "max_primary_actions": 2,
+          "eligible_sources": [
+            "obligation",
+            "rules",
+            "clone",
+            "structural"
+          ],
+          "kind_rules": {
+            "large_file": {
+              "eligible": true,
+              "require_changed_scope": true
+            },
+            "dependency_sprawl": {
+              "eligible": false
+            },
+            "unstable_hotspot": {
+              "eligible": false
+            },
+            "cycle_cluster": {
+              "eligible": false
+            },
+            "missing_test_coverage": {
+              "eligible": false
+            },
+            "hotspot": {
+              "eligible": false
+            }
+          }
+        }
+      }
     },
     {
       "variant_id": "patch_worsened_only",
       "name": "Patch-worsened only",
       "status": "screening",
       "description": "Allow large_file only when the current patch worsened concentration or reviewability pressure in the touched file.",
-      "policy_delta": "Require direct patch-local causality."
+      "policy_delta": "Require direct patch-local causality.",
+      "policy_override": {
+        "default_lane": {
+          "max_primary_actions": 2,
+          "eligible_sources": [
+            "obligation",
+            "rules",
+            "clone",
+            "structural"
+          ],
+          "kind_rules": {
+            "large_file": {
+              "eligible": true,
+              "require_patch_directly_worsened": true
+            },
+            "dependency_sprawl": {
+              "eligible": false
+            },
+            "unstable_hotspot": {
+              "eligible": false
+            },
+            "cycle_cluster": {
+              "eligible": false
+            },
+            "missing_test_coverage": {
+              "eligible": false
+            },
+            "hotspot": {
+              "eligible": false
+            }
+          }
+        }
+      }
     },
     {
       "variant_id": "concrete_containment_only",
       "name": "Concrete containment only",
       "status": "screening",
       "description": "Allow large_file only when the repair packet can name a concrete split, containment, or shell move.",
-      "policy_delta": "Require an explicit containment move and likely fix site."
+      "policy_delta": "Require an explicit containment move and likely fix site.",
+      "policy_override": {
+        "default_lane": {
+          "max_primary_actions": 2,
+          "eligible_sources": [
+            "obligation",
+            "rules",
+            "clone",
+            "structural"
+          ],
+          "kind_rules": {
+            "large_file": {
+              "eligible": true,
+              "require_repair_surface": true
+            },
+            "dependency_sprawl": {
+              "eligible": false
+            },
+            "unstable_hotspot": {
+              "eligible": false
+            },
+            "cycle_cluster": {
+              "eligible": false
+            },
+            "missing_test_coverage": {
+              "eligible": false
+            },
+            "hotspot": {
+              "eligible": false
+            }
+          }
+        }
+      }
     },
     {
       "variant_id": "supporting_only",
       "name": "Supporting only",
       "status": "screening",
       "description": "Keep large_file visible as context but never let it occupy a primary slot.",
-      "policy_delta": "Demote large_file to supporting evidence only."
+      "policy_delta": "Demote large_file to supporting evidence only.",
+      "policy_override": {
+        "default_lane": {
+          "max_primary_actions": 1,
+          "eligible_sources": [
+            "obligation",
+            "rules",
+            "clone"
+          ],
+          "kind_rules": {
+            "large_file": {
+              "eligible": false
+            },
+            "dependency_sprawl": {
+              "eligible": false
+            },
+            "unstable_hotspot": {
+              "eligible": false
+            },
+            "cycle_cluster": {
+              "eligible": false
+            },
+            "missing_test_coverage": {
+              "eligible": false
+            },
+            "hotspot": {
+              "eligible": false
+            }
+          }
+        }
+      }
     }
   ],
   "repo_runs": [

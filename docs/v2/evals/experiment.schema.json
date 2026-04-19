@@ -156,6 +156,10 @@
           "type": ["string", "null"]
         }
       }
+    },
+    "decision_record_path": {
+      "type": "string",
+      "minLength": 1
     }
   },
   "$defs": {
@@ -208,6 +212,58 @@
         },
         "policy_delta": {
           "type": ["string", "null"]
+        },
+        "policy_override": {
+          "$ref": "#/$defs/variantPolicyOverride"
+        }
+      }
+    },
+    "variantPolicyOverride": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "default_lane": {
+          "$ref": "#/$defs/defaultLaneOverride"
+        }
+      }
+    },
+    "defaultLaneOverride": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_primary_actions": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "eligible_sources": {
+          "type": "array",
+          "items": {
+            "enum": ["obligation", "rules", "clone", "structural"]
+          }
+        },
+        "kind_rules": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/defaultLaneKindRule"
+          }
+        }
+      }
+    },
+    "defaultLaneKindRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "eligible": {
+          "type": "boolean"
+        },
+        "require_patch_directly_worsened": {
+          "type": "boolean"
+        },
+        "require_repair_surface": {
+          "type": "boolean"
+        },
+        "require_changed_scope": {
+          "type": "boolean"
         }
       }
     },

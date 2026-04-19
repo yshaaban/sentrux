@@ -26,6 +26,16 @@ async function writeLoopRunner(repoRootPath) {
   );
 }
 
+async function writeSignalPolicy(repoRootPath) {
+  await writeJson(path.join(repoRootPath, '.sentrux', 'signal-policy.json'), {
+    default_lane: {
+      max_primary_actions: 3,
+      eligible_sources: ['obligation', 'rules', 'clone', 'structural'],
+      kind_rules: {},
+    },
+  });
+}
+
 function buildDemoCalibrationManifest() {
   return {
     schema_version: 1,
@@ -123,6 +133,7 @@ test('buildExperimentRunPlan resolves repo roots, outputs, and loop flags', asyn
 
     await mkdir(targetRepoRoot, { recursive: true });
     await writeLoopRunner(repoRootPath);
+    await writeSignalPolicy(repoRootPath);
     await writeJson(calibrationManifestPath, buildDemoCalibrationManifest());
 
     await writeJson(experimentSpecPath, buildExperimentSpec({
@@ -183,7 +194,99 @@ test('buildExperimentRunPlan resolves repo roots, outputs, and loop flags', asyn
   }
 });
 
-test('buildExperimentTracker reports completed evidence and next gates', async function () {
+test('buildExperimentRunPlan emits a variant policy override command for treated runs', async function () {
+  const tempRoot = await mkdtemp(path.join(tmpdir(), 'sentrux-experiment-policy-'));
+
+  try {
+    const repoRootPath = path.join(tempRoot, 'workspace');
+    const targetRepoRoot = path.join(tempRoot, 'target-repo');
+    const experimentSpecPath = path.join(
+      repoRootPath,
+      'docs',
+      'v2',
+      'evals',
+      'experiments',
+      'default-lane-variant.json',
+    );
+    const calibrationManifestPath = path.join(
+      repoRootPath,
+      'docs',
+      'v2',
+      'evals',
+      'repos',
+      'demo.json',
+    );
+
+    await mkdir(targetRepoRoot, { recursive: true });
+    await writeLoopRunner(repoRootPath);
+    await writeSignalPolicy(repoRootPath);
+    await writeJson(calibrationManifestPath, buildDemoCalibrationManifest());
+    await writeJson(experimentSpecPath, buildExperimentSpec({
+      experiment_id: 'default-lane-variant',
+      title: 'Default Lane Variant',
+      workstream: 'default_lane',
+      status: 'in_progress',
+      phase_id: 'phase_6_default_lane_family_ablation',
+      decision_question: 'Does the run plan carry a real policy override?',
+      hypothesis: 'Variant treatment should flow through an env-backed policy override.',
+      exit_bar: ['Show a distinct runtime treatment.'],
+      variants: [
+        {
+          variant_id: 'current_policy',
+          name: 'Current policy',
+          status: 'active',
+          description: 'Current ranking and gating behavior.',
+        },
+        {
+          variant_id: 'core_causal_only',
+          name: 'Core causal only',
+          status: 'screening',
+          description: 'Suppress structural pressure.',
+          policy_override: {
+            default_lane: {
+              eligible_sources: ['obligation', 'rules', 'clone'],
+            },
+          },
+        },
+      ],
+      repo_runs: [
+        {
+          run_id: 'demo-core-causal-only',
+          repo_id: 'demo',
+          variant_id: 'core_causal_only',
+          manifest: '../repos/demo.json',
+          output_dir: '.sentrux/evals/experiments/default-lane/core_causal_only/demo',
+        },
+      ],
+    }));
+
+    const plan = await buildExperimentRunPlan({
+      specPath: experimentSpecPath,
+      repoRootPath,
+    });
+
+    assert.equal(plan.runs.length, 1);
+    assert.match(plan.runs[0].command, /^env SENTRUX_SIGNAL_POLICY_PATH=/);
+    assert.match(plan.runs[0].command, /run-repo-calibration-loop\.mjs/);
+    assert.equal(
+      plan.runs[0].policy_override_path,
+      path.join(
+        targetRepoRoot,
+        '.sentrux',
+        'evals',
+        'experiments',
+        'default-lane',
+        'core_causal_only',
+        'demo',
+        'variant-signal-policy.json',
+      ),
+    );
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('buildExperimentTracker marks summary-only expected artifacts as partial', async function () {
   const tempRoot = await mkdtemp(path.join(tmpdir(), 'sentrux-experiment-tracker-'));
 
   try {
@@ -209,6 +312,7 @@ test('buildExperimentTracker reports completed evidence and next gates', async f
 
     await mkdir(targetRepoRoot, { recursive: true });
     await writeLoopRunner(repoRootPath);
+    await writeSignalPolicy(repoRootPath);
 
     await writeJson(indexPath, {
       schema_version: 1,
@@ -248,6 +352,7 @@ test('buildExperimentTracker reports completed evidence and next gates', async f
           variant_id: 'current_policy',
           manifest: '../repos/demo.json',
           output_dir: '.sentrux/evals/experiments/large-file-default-lane-admissibility/current_policy/demo',
+          artifact_expectations: ['repo_calibration_loop', 'evidence_review', 'session_corpus'],
         },
       ],
     }));
@@ -277,8 +382,8 @@ test('buildExperimentTracker reports completed evidence and next gates', async f
     const markdown = formatExperimentTrackerMarkdown(tracker);
 
     assert.equal(tracker.summary.experiment_count, 1);
-    assert.equal(tracker.experiments[0].run_status_counts.completed, 1);
-    assert.equal(tracker.experiments[0].next_gate, 'decision_review_required');
+    assert.equal(tracker.experiments[0].run_status_counts.partial, 1);
+    assert.equal(tracker.experiments[0].next_gate, 'fresh_runs_required');
     assert.equal(tracker.experiments[0].control_variant_id, 'current_policy');
     assert.equal(tracker.experiments[0].repo_scope[0], 'demo');
     assert.equal(tracker.experiments[0].stages[0].stage_id, 'screen');
@@ -289,8 +394,173 @@ test('buildExperimentTracker reports completed evidence and next gates', async f
     assert.match(markdown, /Large File Default-Lane Admissibility/);
     assert.match(markdown, /control variant: current_policy/);
     assert.match(markdown, /active stage: screen \(in_progress\)/);
+    assert.match(markdown, /missing artifacts: evidence_review, session_corpus/);
     assert.match(markdown, /top_action_help_rate=0.200/);
-    assert.match(markdown, /next gate: decision_review_required/);
+    assert.match(markdown, /next gate: fresh_runs_required/);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('buildExperimentTracker marks runs completed when all expected artifacts exist', async function () {
+  const tempRoot = await mkdtemp(path.join(tmpdir(), 'sentrux-experiment-tracker-complete-'));
+
+  try {
+    const repoRootPath = path.join(tempRoot, 'workspace');
+    const targetRepoRoot = path.join(tempRoot, 'target-repo');
+    const experimentsDir = path.join(repoRootPath, 'docs', 'v2', 'evals', 'experiments');
+    const reposDir = path.join(repoRootPath, 'docs', 'v2', 'evals', 'repos');
+    const indexPath = path.join(experimentsDir, 'index.json');
+    const experimentSpecPath = path.join(experimentsDir, 'default-lane.json');
+    const calibrationManifestPath = path.join(reposDir, 'demo.json');
+    const runOutputDir = path.join(
+      targetRepoRoot,
+      '.sentrux',
+      'evals',
+      'experiments',
+      'default-lane',
+      'current',
+      'demo',
+    );
+
+    await mkdir(targetRepoRoot, { recursive: true });
+    await writeLoopRunner(repoRootPath);
+    await writeSignalPolicy(repoRootPath);
+    await writeJson(indexPath, {
+      schema_version: 1,
+      generated_at: '2026-04-19T00:00:00.000Z',
+      experiments: [
+        {
+          experiment_id: 'default-lane',
+          path: './default-lane.json',
+        },
+      ],
+    });
+    await writeJson(calibrationManifestPath, buildDemoCalibrationManifest());
+    await writeJson(experimentSpecPath, buildExperimentSpec({
+      experiment_id: 'default-lane',
+      title: 'Default Lane',
+      workstream: 'default_lane',
+      status: 'in_progress',
+      phase_id: 'phase_6_default_lane_family_ablation',
+      decision_question: 'Are the expected artifacts complete?',
+      hypothesis: 'All expected artifacts should count as completed coverage.',
+      exit_bar: ['Collect all expected artifacts.'],
+      repo_runs: [
+        {
+          run_id: 'demo-current',
+          repo_id: 'demo',
+          variant_id: 'current_policy',
+          manifest: '../repos/demo.json',
+          output_dir: '.sentrux/evals/experiments/default-lane/current/demo',
+          artifact_expectations: ['repo_calibration_loop', 'evidence_review', 'session_corpus'],
+        },
+      ],
+    }));
+    await writeJson(path.join(runOutputDir, 'repo-calibration-loop.json'), {
+      schema_version: 1,
+      generated_at: '2026-04-19T02:00:00.000Z',
+      artifacts: {
+        evidence_review_json: path.join(runOutputDir, 'evidence-review.json'),
+        session_corpus_json: path.join(runOutputDir, 'session-corpus.json'),
+      },
+      summary: {
+        top_action_help_rate: 0.5,
+      },
+    });
+    await writeJson(path.join(runOutputDir, 'evidence-review.json'), {
+      schema_version: 1,
+    });
+    await writeJson(path.join(runOutputDir, 'session-corpus.json'), {
+      schema_version: 1,
+    });
+
+    const tracker = await buildExperimentTracker({
+      indexPath,
+      repoRootPath,
+    });
+
+    assert.equal(tracker.experiments[0].run_status_counts.completed, 1);
+    assert.equal(tracker.experiments[0].next_gate, 'decision_review_required');
+    assert.deepEqual(tracker.experiments[0].runs[0].missing_artifacts, []);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('buildExperimentTracker treats skipped expected artifacts as satisfied by flag policy', async function () {
+  const tempRoot = await mkdtemp(path.join(tmpdir(), 'sentrux-experiment-skips-'));
+
+  try {
+    const repoRootPath = path.join(tempRoot, 'workspace');
+    const targetRepoRoot = path.join(tempRoot, 'target-repo');
+    const experimentsDir = path.join(repoRootPath, 'docs', 'v2', 'evals', 'experiments');
+    const reposDir = path.join(repoRootPath, 'docs', 'v2', 'evals', 'repos');
+    const indexPath = path.join(experimentsDir, 'index.json');
+    const experimentSpecPath = path.join(experimentsDir, 'skip-scorecard.json');
+    const calibrationManifestPath = path.join(reposDir, 'demo.json');
+    const runOutputDir = path.join(
+      targetRepoRoot,
+      '.sentrux',
+      'evals',
+      'experiments',
+      'skip-scorecard',
+      'current',
+      'demo',
+    );
+
+    await mkdir(targetRepoRoot, { recursive: true });
+    await writeLoopRunner(repoRootPath);
+    await writeSignalPolicy(repoRootPath);
+    await writeJson(indexPath, {
+      schema_version: 1,
+      generated_at: '2026-04-19T00:00:00.000Z',
+      experiments: [
+        {
+          experiment_id: 'skip-scorecard',
+          path: './skip-scorecard.json',
+        },
+      ],
+    });
+    await writeJson(calibrationManifestPath, buildDemoCalibrationManifest());
+    await writeJson(experimentSpecPath, buildExperimentSpec({
+      experiment_id: 'skip-scorecard',
+      title: 'Skip Scorecard',
+      workstream: 'default_lane',
+      status: 'in_progress',
+      phase_id: 'phase_6_default_lane_family_ablation',
+      decision_question: 'Do skip flags excuse matching artifacts?',
+      hypothesis: 'Expected artifacts gated by skip flags should not block completion.',
+      exit_bar: ['Honor skip flags.'],
+      repo_runs: [
+        {
+          run_id: 'demo-current',
+          repo_id: 'demo',
+          variant_id: 'current_policy',
+          manifest: '../repos/demo.json',
+          output_dir: '.sentrux/evals/experiments/skip-scorecard/current/demo',
+          artifact_expectations: ['repo_calibration_loop', 'scorecard'],
+          flags: {
+            skip_scorecard: true,
+          },
+        },
+      ],
+    }));
+    await writeJson(path.join(runOutputDir, 'repo-calibration-loop.json'), {
+      schema_version: 1,
+      generated_at: '2026-04-19T02:00:00.000Z',
+      summary: {
+        top_action_help_rate: 0.5,
+      },
+    });
+
+    const tracker = await buildExperimentTracker({
+      indexPath,
+      repoRootPath,
+    });
+
+    assert.equal(tracker.experiments[0].run_status_counts.completed, 1);
+    assert.deepEqual(tracker.experiments[0].runs[0].skipped_artifacts, ['scorecard']);
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }
@@ -321,6 +591,7 @@ test('buildExperimentRunPlan rejects repo runs that reference the wrong repo man
 
     await mkdir(targetRepoRoot, { recursive: true });
     await writeLoopRunner(repoRootPath);
+    await writeSignalPolicy(repoRootPath);
     await writeJson(calibrationManifestPath, buildDemoCalibrationManifest());
     await writeJson(experimentSpecPath, buildExperimentSpec({
       experiment_id: 'repo-id-mismatch',
@@ -350,6 +621,127 @@ test('buildExperimentRunPlan rejects repo runs that reference the wrong repo man
         });
       },
       /expects repo_id "different-repo" but manifest .* is "demo"/,
+    );
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('buildExperimentRunPlan rejects completed specs without a decision record path', async function () {
+  const tempRoot = await mkdtemp(path.join(tmpdir(), 'sentrux-experiment-completed-'));
+
+  try {
+    const repoRootPath = path.join(tempRoot, 'workspace');
+    const experimentSpecPath = path.join(
+      repoRootPath,
+      'docs',
+      'v2',
+      'evals',
+      'experiments',
+      'completed-without-record.json',
+    );
+
+    await writeJson(experimentSpecPath, buildExperimentSpec({
+      experiment_id: 'completed-without-record',
+      title: 'Completed Without Decision Record',
+      workstream: 'default_lane',
+      status: 'completed',
+      phase_id: 'phase_6_default_lane_family_ablation',
+      decision_question: 'Does completed validation require a decision record path?',
+      hypothesis: 'Completed experiments should not validate without a decision record.',
+      exit_bar: ['Reject incomplete completion metadata.'],
+      decision: {
+        outcome: 'keep_experimental',
+      },
+    }));
+
+    await assert.rejects(
+      async function rejectMissingDecisionRecord() {
+        await buildExperimentRunPlan({
+          specPath: experimentSpecPath,
+          repoRootPath,
+        });
+      },
+      /missing decision_record_path/,
+    );
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('buildExperimentRunPlan rejects duplicate automated variants without distinct policy overrides', async function () {
+  const tempRoot = await mkdtemp(path.join(tmpdir(), 'sentrux-experiment-duplicate-'));
+
+  try {
+    const repoRootPath = path.join(tempRoot, 'workspace');
+    const experimentSpecPath = path.join(
+      repoRootPath,
+      'docs',
+      'v2',
+      'evals',
+      'experiments',
+      'duplicate-arms.json',
+    );
+    const calibrationManifestPath = path.join(
+      repoRootPath,
+      'docs',
+      'v2',
+      'evals',
+      'repos',
+      'demo.json',
+    );
+
+    await writeSignalPolicy(repoRootPath);
+    await writeJson(calibrationManifestPath, buildDemoCalibrationManifest());
+    await writeJson(experimentSpecPath, buildExperimentSpec({
+      experiment_id: 'duplicate-arms',
+      title: 'Duplicate Arms',
+      workstream: 'default_lane',
+      status: 'planned',
+      phase_id: 'phase_6_default_lane_family_ablation',
+      decision_question: 'Are automated duplicate arms rejected?',
+      hypothesis: 'Variants without distinct treatment should fail validation.',
+      exit_bar: ['Reject duplicate automated runs.'],
+      variants: [
+        {
+          variant_id: 'current_policy',
+          name: 'Current policy',
+          status: 'active',
+          description: 'Current behavior.',
+        },
+        {
+          variant_id: 'duplicate_policy',
+          name: 'Duplicate policy',
+          status: 'screening',
+          description: 'Same behavior under a new label.',
+        },
+      ],
+      repo_runs: [
+        {
+          run_id: 'demo-current',
+          repo_id: 'demo',
+          variant_id: 'current_policy',
+          manifest: '../repos/demo.json',
+          output_dir: '.sentrux/evals/experiments/duplicate-arms/current/demo',
+        },
+        {
+          run_id: 'demo-duplicate',
+          repo_id: 'demo',
+          variant_id: 'duplicate_policy',
+          manifest: '../repos/demo.json',
+          output_dir: '.sentrux/evals/experiments/duplicate-arms/duplicate/demo',
+        },
+      ],
+    }));
+
+    await assert.rejects(
+      async function rejectDuplicateArms() {
+        await buildExperimentRunPlan({
+          specPath: experimentSpecPath,
+          repoRootPath,
+        });
+      },
+      /differ only by variant label\/output without a distinct policy override/,
     );
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
@@ -406,13 +798,14 @@ test('formatExperimentRunMarkdown surfaces planned commands for dry runs', funct
           run_id: 'demo-current',
           repo_id: 'demo',
           variant_id: 'current_policy',
-          execution_mode: 'repo_calibration_loop',
-          status: 'planned',
-          output_dir: '/tmp/demo-output',
-          command: 'node scripts/evals/run-repo-calibration-loop.mjs --manifest demo.json',
-        },
-      ],
-    },
+        execution_mode: 'repo_calibration_loop',
+        status: 'planned',
+        output_dir: '/tmp/demo-output',
+        command: 'env SENTRUX_SIGNAL_POLICY_PATH=/tmp/demo-output/variant-signal-policy.json node scripts/evals/run-repo-calibration-loop.mjs --manifest demo.json',
+        policy_override_path: '/tmp/demo-output/variant-signal-policy.json',
+      },
+    ],
+  },
     {
       spec: {
         title: 'Default Lane Family Ablation',
@@ -422,5 +815,6 @@ test('formatExperimentRunMarkdown surfaces planned commands for dry runs', funct
   );
 
   assert.match(markdown, /output dir: \/tmp\/demo-output/);
-  assert.match(markdown, /command: `node scripts\/evals\/run-repo-calibration-loop\.mjs --manifest demo\.json`/);
+  assert.match(markdown, /command: `env SENTRUX_SIGNAL_POLICY_PATH=\/tmp\/demo-output\/variant-signal-policy\.json node scripts\/evals\/run-repo-calibration-loop\.mjs --manifest demo\.json`/);
+  assert.match(markdown, /policy override: \/tmp\/demo-output\/variant-signal-policy\.json/);
 });

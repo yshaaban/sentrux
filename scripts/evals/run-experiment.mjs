@@ -71,6 +71,7 @@ function buildDryRunResult(plan) {
         status: 'planned',
         command: run.command,
         output_dir: run.output_dir,
+        policy_override_path: run.policy_override_path ?? null,
       };
     }),
   };
