@@ -3,6 +3,60 @@
   "actions": [
     {
       "blocking": true,
+      "concept_id": "task_presentation_status",
+      "confidence": "high",
+      "evidence": [
+        "src/app/task-presentation-status.ts [domain 'TaskDotStatus' in src/app/task-presentation-status.ts has variants [busy, waiting, ready, paused, flow-controlled, restoring, failed], but no exhaustive mapping or switch site was found]"
+      ],
+      "file": "src/app/task-presentation-status.ts",
+      "fix_hint": "Handle the missing variants with an explicit exhaustive switch or mapping, and keep the fallback/default branch out of the production path.",
+      "kind": "closed_domain_exhaustiveness",
+      "leverage_class": "hardening_note",
+      "line": null,
+      "message": "Domain 'task_presentation_status' in src/app/task-presentation-status.ts has variants [busy, waiting, ready, paused, flow-controlled, restoring, failed] but is missing required update sites",
+      "origin": "explicit",
+      "presentation_class": "hardening_note",
+      "priority": 1,
+      "repair_packet": {
+        "complete": false,
+        "completeness_0_10000": 7500,
+        "do_not_touch_yet": [
+          "Do not rely on a production fallback or default branch to hide missing variants."
+        ],
+        "inspection_context": [
+          "src/app/task-presentation-status.ts"
+        ],
+        "likely_fix_sites": [],
+        "missing_fields": [
+          "repair_surface"
+        ],
+        "required_fields": {
+          "first_cut": true,
+          "repair_surface": false,
+          "risk_statement": true,
+          "verification": true
+        },
+        "risk_statement": "Finite-domain changes can silently miss one surface unless all required cases stay in sync.",
+        "smallest_safe_first_cut": "Handle the missing variants with an explicit exhaustive switch or mapping, and keep the fallback/default branch out of the production path.",
+        "verify_after": [
+          "Re-run `sentrux check` and confirm the lead issue clears around src/app/task-presentation-status.ts.",
+          "Re-run `sentrux gate` and confirm no missing follow-through or exhaustiveness blocker remains."
+        ]
+      },
+      "scope": "task_presentation_status",
+      "score_0_10000": 0,
+      "severity": "high",
+      "source": "obligation",
+      "trust_tier": "trusted",
+      "why_now": [
+        "gate_blocker",
+        "high_trust",
+        "changed_concept"
+      ]
+    },
+    {
+      "blocking": true,
+      "concept_id": "browser_state_sync",
       "confidence": "high",
       "evidence": [
         "src/runtime/browser-state-sync-controller.ts:266 [disposed]",
@@ -20,15 +74,49 @@
       "file": "src/runtime/browser-state-sync-controller.ts",
       "fix_hint": null,
       "kind": "state_model_transition_coverage_gap",
+      "leverage_class": "secondary_cleanup",
       "line": null,
       "message": "State model 'browser_state_sync' has 8 transition branch(es) without an explicit next-state mapping and 3 uncovered source variant(s)",
       "origin": "explicit",
-      "priority": 1,
+      "presentation_class": "structural_debt",
+      "priority": 2,
+      "repair_packet": {
+        "complete": false,
+        "completeness_0_10000": 4500,
+        "do_not_touch_yet": [],
+        "inspection_context": [
+          "src/runtime/browser-state-sync-controller.ts"
+        ],
+        "likely_fix_sites": [],
+        "missing_fields": [
+          "repair_surface",
+          "first_cut"
+        ],
+        "required_fields": {
+          "first_cut": false,
+          "repair_surface": false,
+          "risk_statement": true,
+          "verification": true
+        },
+        "risk_statement": "If ignored, this structural inconsistency will keep adding change friction and make future regressions harder to isolate.",
+        "smallest_safe_first_cut": null,
+        "verify_after": [
+          "Re-run `sentrux check` and confirm the lead issue clears around src/runtime/browser-state-sync-controller.ts."
+        ]
+      },
       "scope": "browser_state_sync",
-      "source": "rules"
+      "score_0_10000": 0,
+      "severity": "high",
+      "source": "rules",
+      "trust_tier": "trusted",
+      "why_now": [
+        "gate_blocker",
+        "high_trust"
+      ]
     },
     {
       "blocking": true,
+      "concept_id": "server_state_bootstrap_gate",
       "confidence": "high",
       "evidence": [
         "src/app/server-state-bootstrap.ts"
@@ -36,33 +124,50 @@
       "file": "src/app/server-state-bootstrap.ts",
       "fix_hint": null,
       "kind": "state_model_missing_transition_sites",
+      "leverage_class": "secondary_cleanup",
       "line": null,
       "message": "State model 'server_state_bootstrap_gate' has no explicit transition sites under its configured roots",
       "origin": "explicit",
-      "priority": 2,
-      "scope": "server_state_bootstrap_gate",
-      "source": "rules"
-    },
-    {
-      "blocking": true,
-      "confidence": "high",
-      "evidence": [
-        "BrowserStateSyncStatus"
-      ],
-      "file": "src/runtime/browser-state-sync-controller.ts",
-      "fix_hint": null,
-      "kind": "state_model_high_context_burden",
-      "line": null,
-      "message": "State model 'browser_state_sync' has high static context burden (12)",
-      "origin": "explicit",
+      "presentation_class": "structural_debt",
       "priority": 3,
-      "scope": "browser_state_sync",
-      "source": "rules"
+      "repair_packet": {
+        "complete": false,
+        "completeness_0_10000": 4500,
+        "do_not_touch_yet": [],
+        "inspection_context": [
+          "src/app/server-state-bootstrap.ts"
+        ],
+        "likely_fix_sites": [],
+        "missing_fields": [
+          "repair_surface",
+          "first_cut"
+        ],
+        "required_fields": {
+          "first_cut": false,
+          "repair_surface": false,
+          "risk_statement": true,
+          "verification": true
+        },
+        "risk_statement": "If ignored, this structural inconsistency will keep adding change friction and make future regressions harder to isolate.",
+        "smallest_safe_first_cut": null,
+        "verify_after": [
+          "Re-run `sentrux check` and confirm the lead issue clears around src/app/server-state-bootstrap.ts."
+        ]
+      },
+      "scope": "server_state_bootstrap_gate",
+      "score_0_10000": 0,
+      "severity": "medium",
+      "source": "rules",
+      "trust_tier": "trusted",
+      "why_now": [
+        "gate_blocker",
+        "high_trust"
+      ]
     }
   ],
   "confidence": {
     "rule_coverage_0_10000": 10000,
-    "scan_confidence_0_10000": 8573,
+    "scan_confidence_0_10000": 8601,
     "semantic_rules_loaded": true,
     "session_baseline": {
       "compatible": false,
@@ -90,12 +195,12 @@
   "expired_suppressions": [],
   "freshness": {
     "baseline_loaded": false,
-    "git_head": "29da61ecff550d395a5d0e6d5c0d81d23dd1a4ab",
+    "git_head": "9dad91eb8fc1ad8197b336fc56d62b5cbcd598d7",
     "session_baseline_compatible": false,
     "working_tree_path_count": 0
   },
   "inferred_rules": {
-    "concepts": 137,
+    "concepts": 141,
     "module_contracts": 0,
     "state_models": 1
   },
@@ -106,69 +211,177 @@
   "primary_target_count": 3,
   "primary_targets": [
     {
+      "blocking": true,
       "inspection_focus": [
-        "inspect whether orchestration and policy code can move behind narrower helpers",
-        "inspect whether unrelated adapter dependencies are accumulating in one module"
+        "Inspect every missing sibling surface before treating the changed concept as complete."
       ],
-      "kind": "dependency_sprawl",
-      "leverage_class": "architecture_signal",
-      "likely_fix_sites": [
-        "src/store/persistence-load.ts"
+      "kind": "closed_domain_exhaustiveness",
+      "leverage_class": "hardening_note",
+      "likely_fix_sites": [],
+      "next_tools": [
+        {
+          "args": {
+            "id": "task_presentation_status"
+          },
+          "tool": "explain_concept"
+        },
+        {
+          "args": {
+            "concept": "task_presentation_status",
+            "scope": "all"
+          },
+          "tool": "obligations"
+        }
       ],
-      "next_tools": [],
-      "scope": "src/store/persistence-load.ts",
+      "presentation_class": "hardening_note",
+      "repair_packet": {
+        "complete": false,
+        "completeness_0_10000": 7500,
+        "do_not_touch_yet": [
+          "Do not rely on a production fallback or default branch to hide missing variants."
+        ],
+        "inspection_context": [
+          "src/app/task-presentation-status.ts"
+        ],
+        "likely_fix_sites": [],
+        "missing_fields": [
+          "repair_surface"
+        ],
+        "required_fields": {
+          "first_cut": true,
+          "repair_surface": false,
+          "risk_statement": true,
+          "verification": true
+        },
+        "risk_statement": "Finite-domain changes can silently miss one surface unless all required cases stay in sync.",
+        "smallest_safe_first_cut": "Handle the missing variants with an explicit exhaustive switch or mapping, and keep the fallback/default branch out of the production path.",
+        "verify_after": [
+          "Re-run `sentrux check` and confirm the lead issue clears around src/app/task-presentation-status.ts.",
+          "Re-run `sentrux gate` and confirm no missing follow-through or exhaustiveness blocker remains."
+        ]
+      },
+      "scope": "task_presentation_status",
+      "score_0_10000": 0,
       "severity": "high",
-      "summary": "File 'src/store/persistence-load.ts' depends on 29 real surfaces, above the typescript threshold of 15 (very_high_signal)",
+      "summary": "Domain 'task_presentation_status' in src/app/task-presentation-status.ts has variants [busy, waiting, ready, paused, flow-controlled, restoring, failed] but is missing required update sites (supporting_signal)",
       "trust_tier": "trusted",
       "why_now": [
         "high_trust",
-        "high_leverage",
-        "clear_fix_surface"
+        "blocking_obligation"
       ]
     },
     {
+      "blocking": true,
       "inspection_focus": [
-        "inspect which component-facing reads really need the shared barrel and which can move behind narrower selectors",
-        "inspect whether broad inbound traffic is hiding a smaller set of volatility-heavy owner modules"
+        "Inspect src/runtime/browser-state-sync-controller.ts before widening the patch."
       ],
-      "kind": "unstable_hotspot",
-      "leverage_class": "architecture_signal",
-      "likely_fix_sites": [
-        "src/store/store.ts"
+      "kind": "state_model_transition_coverage_gap",
+      "leverage_class": "secondary_cleanup",
+      "likely_fix_sites": [],
+      "next_tools": [
+        {
+          "args": {
+            "id": "browser_state_sync"
+          },
+          "tool": "explain_concept"
+        },
+        {
+          "args": {
+            "concept": "browser_state_sync",
+            "scope": "all"
+          },
+          "tool": "obligations"
+        }
       ],
-      "next_tools": [],
-      "scope": "src/store/store.ts",
+      "presentation_class": "structural_debt",
+      "repair_packet": {
+        "complete": false,
+        "completeness_0_10000": 4500,
+        "do_not_touch_yet": [],
+        "inspection_context": [
+          "src/runtime/browser-state-sync-controller.ts"
+        ],
+        "likely_fix_sites": [],
+        "missing_fields": [
+          "repair_surface",
+          "first_cut"
+        ],
+        "required_fields": {
+          "first_cut": false,
+          "repair_surface": false,
+          "risk_statement": true,
+          "verification": true
+        },
+        "risk_statement": "If ignored, this structural inconsistency will keep adding change friction and make future regressions harder to isolate.",
+        "smallest_safe_first_cut": null,
+        "verify_after": [
+          "Re-run `sentrux check` and confirm the lead issue clears around src/runtime/browser-state-sync-controller.ts."
+        ]
+      },
+      "scope": "browser_state_sync",
+      "score_0_10000": 0,
       "severity": "high",
-      "summary": "Component-facing barrel 'src/store/store.ts' has 47 inbound references and remains unstable (high_signal)",
+      "summary": "State model 'browser_state_sync' has 8 transition branch(es) without an explicit next-state mapping and 3 uncovered source variant(s) (supporting_signal)",
       "trust_tier": "trusted",
       "why_now": [
-        "high_trust",
-        "high_leverage",
-        "clear_fix_surface"
+        "high_trust"
       ]
     },
     {
+      "blocking": true,
       "inspection_focus": [
-        "inspect whether the best cut keeps component-facing barrel access while moving deeper orchestration behind a narrower seam",
-        "inspect whether app or runtime dependencies can stop flowing back through the shared barrel"
+        "Inspect src/app/server-state-bootstrap.ts before widening the patch."
       ],
-      "kind": "cycle_cluster",
-      "leverage_class": "architecture_signal",
-      "likely_fix_sites": [
-        "src/app/task-command-lease-runtime-subscriptions.ts",
-        "src/app/task-command-lease-runtime.ts",
-        "src/app/task-command-lease-session.ts",
-        "src/app/task-command-lease-takeover.ts",
-        "src/app/task-command-lease.ts"
+      "kind": "state_model_missing_transition_sites",
+      "leverage_class": "secondary_cleanup",
+      "likely_fix_sites": [],
+      "next_tools": [
+        {
+          "args": {
+            "id": "server_state_bootstrap_gate"
+          },
+          "tool": "explain_concept"
+        },
+        {
+          "args": {
+            "concept": "server_state_bootstrap_gate",
+            "scope": "all"
+          },
+          "tool": "obligations"
+        }
       ],
-      "next_tools": [],
-      "scope": "cycle:src/app/task-command-lease-runtime-subscriptions.ts|src/app/task-command-lease-runtime.ts|src/app/task-command-lease-session.ts|src/app/task-command-lease-takeover.ts|src/app/task-command-lease.ts|src/app/task-presentation-status.ts|src/lib/runtime-client-id.ts|src/store/agent-output-activity.ts|src/store/agents.ts|src/store/auto-trust.ts|src/store/browser-cold-bootstrap-projection.ts|src/store/client-session.ts|src/store/completion.ts|src/store/core.ts|src/store/focus.ts|src/store/navigation.ts|src/store/notification.ts|src/store/peer-presence.ts|src/store/persistence-codecs.ts|src/store/persistence-load.ts|src/store/persistence-save.ts|src/store/persistence-terminal-restore.ts|src/store/persistence.ts|src/store/projects.ts|src/store/review.ts|src/store/sidebar-order.ts|src/store/state.ts|src/store/store.ts|src/store/task-command-controllers.ts|src/store/task-command-takeovers.ts|src/store/task-git-status.ts|src/store/task-state-cleanup.ts|src/store/taskStatus.ts|src/store/tasks.ts|src/store/terminals.ts|src/store/ui.ts",
-      "severity": "high",
-      "summary": "Files src/app/task-command-lease-runtime-subscriptions.ts, src/app/task-command-lease-runtime.ts, src/app/task-command-lease-session.ts, src/app/task-command-lease-takeover.ts, src/app/task-command-lease.ts, src/app/task-presentation-status.ts, src/lib/runtime-client-id.ts, src/store/agent-output-activity.ts, src/store/agents.ts, src/store/auto-trust.ts, src/store/browser-cold-bootstrap-projection.ts, src/store/client-session.ts, src/store/completion.ts, src/store/core.ts, src/store/focus.ts, src/store/navigation.ts, src/store/notification.ts, src/store/peer-presence.ts, src/store/persistence-codecs.ts, src/store/persistence-load.ts, src/store/persistence-save.ts, src/store/persistence-terminal-restore.ts, src/store/persistence.ts, src/store/projects.ts, src/store/review.ts, src/store/sidebar-order.ts, src/store/state.ts, src/store/store.ts, src/store/task-command-controllers.ts, src/store/task-command-takeovers.ts, src/store/task-git-status.ts, src/store/task-state-cleanup.ts, src/store/taskStatus.ts, src/store/tasks.ts, src/store/terminals.ts, src/store/ui.ts form a dependency cycle (very_high_signal)",
-      "trust_tier": "watchpoint",
+      "presentation_class": "structural_debt",
+      "repair_packet": {
+        "complete": false,
+        "completeness_0_10000": 4500,
+        "do_not_touch_yet": [],
+        "inspection_context": [
+          "src/app/server-state-bootstrap.ts"
+        ],
+        "likely_fix_sites": [],
+        "missing_fields": [
+          "repair_surface",
+          "first_cut"
+        ],
+        "required_fields": {
+          "first_cut": false,
+          "repair_surface": false,
+          "risk_statement": true,
+          "verification": true
+        },
+        "risk_statement": "If ignored, this structural inconsistency will keep adding change friction and make future regressions harder to isolate.",
+        "smallest_safe_first_cut": null,
+        "verify_after": [
+          "Re-run `sentrux check` and confirm the lead issue clears around src/app/server-state-bootstrap.ts."
+        ]
+      },
+      "scope": "server_state_bootstrap_gate",
+      "score_0_10000": 0,
+      "severity": "medium",
+      "summary": "State model 'server_state_bootstrap_gate' has no explicit transition sites under its configured roots (supporting_signal)",
+      "trust_tier": "trusted",
       "why_now": [
-        "high_leverage",
-        "clear_fix_surface"
+        "high_trust"
       ]
     }
   ],
@@ -184,7 +397,7 @@
   "resolved_finding_count": 0,
   "resolved_findings": [],
   "scan_trust": {
-    "candidate_files": 981,
+    "candidate_files": 1001,
     "exclusions": {
       "bucketed": {
         "build": 12,
@@ -199,27 +412,27 @@
       "total": 140
     },
     "fallback_reason": null,
-    "kept_files": 841,
+    "kept_files": 861,
     "mode": "git",
-    "overall_confidence_0_10000": 8573,
+    "overall_confidence_0_10000": 8601,
     "partial": false,
     "resolution": {
       "internal_confidence_0_10000": 9996,
-      "resolved": 2729,
-      "unresolved_external": 776,
+      "resolved": 2794,
+      "unresolved_external": 795,
       "unresolved_internal": 1,
-      "unresolved_unknown": 112
+      "unresolved_unknown": 114
     },
-    "scope_coverage_0_10000": 8573,
-    "tracked_candidates": 981,
+    "scope_coverage_0_10000": 8601,
+    "tracked_candidates": 1001,
     "truncated": false,
     "untracked_candidates": 0
   },
   "semantic_cache": {
-    "analyzed_files": 714,
+    "analyzed_files": 730,
     "available": true,
     "bridge_protocol_version": "0.1.0",
-    "git_head": "29da61ecff550d395a5d0e6d5c0d81d23dd1a4ab",
+    "git_head": "9dad91eb8fc1ad8197b336fc56d62b5cbcd598d7",
     "project_fingerprint": "bd376b35c69fd0f7",
     "source": "memory",
     "working_tree_path_count": 0
@@ -237,7 +450,7 @@
       "clone_family_count": 0,
       "evidence": [
         "cycle size: 36",
-        "total lines in cycle: 7038",
+        "total lines in cycle: 7153",
         "peak function complexity inside cycle: 72",
         "candidate cuts: 3",
         "best cut candidate: src/store/core.ts -> src/store/store.ts (removes 7 cyclic files)",
@@ -331,7 +544,7 @@
       "clone_family_count": 0,
       "evidence": [
         "cycle size: 2",
-        "total lines in cycle: 170",
+        "total lines in cycle: 174",
         "peak function complexity inside cycle: 5",
         "candidate cuts: 2",
         "best cut candidate: electron/ipc/handlers.ts -> electron/ipc/notification-handlers.ts (removes 2 cyclic files)",

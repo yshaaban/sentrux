@@ -7,7 +7,7 @@
   "changed_files": [],
   "confidence": {
     "rule_coverage_0_10000": 10000,
-    "scan_confidence_0_10000": 8573,
+    "scan_confidence_0_10000": 8601,
     "semantic_rules_loaded": true,
     "session_baseline": {
       "compatible": true,
@@ -35,7 +35,7 @@
   "expired_suppressions": [],
   "freshness": {
     "baseline_loaded": true,
-    "git_head": "29da61ecff550d395a5d0e6d5c0d81d23dd1a4ab",
+    "git_head": "9dad91eb8fc1ad8197b336fc56d62b5cbcd598d7",
     "session_baseline_compatible": true,
     "working_tree_path_count": 0
   },
@@ -61,7 +61,7 @@
   "resolved_finding_count": 0,
   "resolved_findings": [],
   "scan_trust": {
-    "candidate_files": 981,
+    "candidate_files": 1001,
     "exclusions": {
       "bucketed": {
         "build": 12,
@@ -76,27 +76,27 @@
       "total": 140
     },
     "fallback_reason": null,
-    "kept_files": 841,
+    "kept_files": 861,
     "mode": "git",
-    "overall_confidence_0_10000": 8573,
+    "overall_confidence_0_10000": 8601,
     "partial": false,
     "resolution": {
       "internal_confidence_0_10000": 9996,
-      "resolved": 2729,
-      "unresolved_external": 776,
+      "resolved": 2794,
+      "unresolved_external": 795,
       "unresolved_internal": 1,
-      "unresolved_unknown": 112
+      "unresolved_unknown": 114
     },
-    "scope_coverage_0_10000": 8573,
-    "tracked_candidates": 981,
+    "scope_coverage_0_10000": 8601,
+    "tracked_candidates": 1001,
     "truncated": false,
     "untracked_candidates": 0
   },
   "semantic_cache": {
-    "analyzed_files": 714,
+    "analyzed_files": 730,
     "available": true,
     "bridge_protocol_version": "0.1.0",
-    "git_head": "29da61ecff550d395a5d0e6d5c0d81d23dd1a4ab",
+    "git_head": "9dad91eb8fc1ad8197b336fc56d62b5cbcd598d7",
     "project_fingerprint": "bd376b35c69fd0f7",
     "source": "memory",
     "working_tree_path_count": 0
@@ -118,7 +118,7 @@
       "clone_family_count": 0,
       "evidence": [
         "cycle size: 36",
-        "total lines in cycle: 7038",
+        "total lines in cycle: 7153",
         "peak function complexity inside cycle: 72",
         "candidate cuts: 3",
         "best cut candidate: src/store/core.ts -> src/store/store.ts (removes 7 cyclic files)",
@@ -212,7 +212,7 @@
       "clone_family_count": 0,
       "evidence": [
         "cycle size: 2",
-        "total lines in cycle: 170",
+        "total lines in cycle: 174",
         "peak function complexity inside cycle: 5",
         "candidate cuts: 2",
         "best cut candidate: electron/ipc/handlers.ts -> electron/ipc/notification-handlers.ts (removes 2 cyclic files)",

@@ -66,6 +66,7 @@
   "obligations": [
     {
       "concept_id": "task_presentation_status",
+      "confidence": "high",
       "context_burden": 1,
       "domain_symbol_name": "TaskDotStatus",
       "files": [
@@ -82,6 +83,7 @@
         }
       ],
       "missing_variants": [],
+      "origin": "explicit",
       "required_sites": [
         {
           "detail": "domain 'TaskDotStatus' in src/app/task-presentation-status.ts has variants [busy, waiting, ready, paused, flow-controlled, restoring, failed], but no exhaustive mapping or switch site was found",
@@ -91,7 +93,10 @@
         }
       ],
       "satisfied_sites": [],
-      "summary": "Domain 'task_presentation_status' in src/app/task-presentation-status.ts has variants [busy, waiting, ready, paused, flow-controlled, restoring, failed] but is missing required update sites"
+      "score_0_10000": 9900,
+      "severity": "high",
+      "summary": "Domain 'task_presentation_status' in src/app/task-presentation-status.ts has variants [busy, waiting, ready, paused, flow-controlled, restoring, failed] but is missing required update sites",
+      "trust_tier": "trusted"
     }
   ],
   "parity": [],
@@ -147,7 +152,7 @@
         "symbol_name": "store.taskGitStatus"
       },
       {
-        "line": 667,
+        "line": 691,
         "path": "src/app/task-presentation-status.ts",
         "read_kind": "property_access",
         "symbol_name": "store.agentSupervision"
@@ -285,73 +290,73 @@
         "symbol_name": "store.agentSupervision"
       },
       {
-        "line": 1134,
+        "line": 1198,
         "path": "src/store/persistence.test.ts",
         "read_kind": "element_access",
         "symbol_name": "store.taskGitStatus.task-1"
       },
       {
-        "line": 1134,
+        "line": 1198,
         "path": "src/store/persistence.test.ts",
         "read_kind": "property_access",
         "symbol_name": "store.taskGitStatus"
       },
       {
-        "line": 1412,
+        "line": 1476,
         "path": "src/store/persistence.test.ts",
         "read_kind": "element_access",
         "symbol_name": "store.agentSupervision.terminal-agent-1"
       },
       {
-        "line": 1412,
+        "line": 1476,
         "path": "src/store/persistence.test.ts",
         "read_kind": "property_access",
         "symbol_name": "store.agentSupervision"
       },
       {
-        "line": 1553,
+        "line": 1617,
         "path": "src/store/persistence.test.ts",
         "read_kind": "element_access",
         "symbol_name": "store.taskGitStatus.task-1"
       },
       {
-        "line": 1553,
+        "line": 1617,
         "path": "src/store/persistence.test.ts",
         "read_kind": "property_access",
         "symbol_name": "store.taskGitStatus"
       },
       {
-        "line": 1556,
+        "line": 1620,
         "path": "src/store/persistence.test.ts",
         "read_kind": "element_access",
         "symbol_name": "store.taskReview.task-1"
       },
       {
-        "line": 1556,
+        "line": 1620,
         "path": "src/store/persistence.test.ts",
         "read_kind": "property_access",
         "symbol_name": "store.taskReview"
       },
       {
-        "line": 1562,
+        "line": 1626,
         "path": "src/store/persistence.test.ts",
         "read_kind": "element_access",
         "symbol_name": "store.agentSupervision.agent-1"
       },
       {
-        "line": 1562,
+        "line": 1626,
         "path": "src/store/persistence.test.ts",
         "read_kind": "property_access",
         "symbol_name": "store.agentSupervision"
       },
       {
-        "line": 1563,
+        "line": 1627,
         "path": "src/store/persistence.test.ts",
         "read_kind": "element_access",
         "symbol_name": "store.agentSupervision.shell-1"
       },
       {
-        "line": 1563,
+        "line": 1627,
         "path": "src/store/persistence.test.ts",
         "read_kind": "property_access",
         "symbol_name": "store.agentSupervision"

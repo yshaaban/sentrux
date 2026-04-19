@@ -552,22 +552,22 @@
     },
     {
       "anchors": [
-        "src/app/task-workflows.control.test.ts::store.focusedPanel"
+        "src/app/task-steps.test.ts::store.focusedPanel"
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.focusedPanel' is touched from 10 file(s)"
+        "symbol 'store.focusedPanel' is touched from 11 file(s)"
       ],
       "id": "store_focused_panel",
       "kind": "store_like_symbol"
     },
     {
       "anchors": [
-        "src/app/task-workflows.control.test.ts::store.focusedPanel.task-1"
+        "src/app/task-steps.test.ts::store.focusedPanel.task-1"
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.focusedPanel.task-1' is touched from 4 file(s)"
+        "symbol 'store.focusedPanel.task-1' is touched from 5 file(s)"
       ],
       "id": "store_focused_panel_task_1",
       "kind": "store_like_symbol"
@@ -581,6 +581,17 @@
         "symbol 'store.fontScales' is touched from 7 file(s)"
       ],
       "id": "store_font_scales",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/App.tsx::store.fontSmoothing"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.fontSmoothing' is touched from 10 file(s)"
+      ],
+      "id": "store_font_smoothing",
       "kind": "store_like_symbol"
     },
     {
@@ -948,11 +959,22 @@
     },
     {
       "anchors": [
+        "src/app/task-presentation-status.test.ts::store.taskStepSummaries"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.taskStepSummaries' is touched from 4 file(s)"
+      ],
+      "id": "store_task_step_summaries",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
         "src/app/desktop-session-startup.ts::store.tasks"
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.tasks' is touched from 41 file(s)"
+        "symbol 'store.tasks' is touched from 43 file(s)"
       ],
       "id": "store_tasks",
       "kind": "store_like_symbol"
@@ -963,7 +985,7 @@
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.tasks.task-1' is touched from 4 file(s)"
+        "symbol 'store.tasks.task-1' is touched from 5 file(s)"
       ],
       "id": "store_tasks_task_1",
       "kind": "store_like_symbol"
@@ -974,9 +996,20 @@
       ],
       "confidence_0_10000": 7500,
       "evidence": [
-        "symbol 'store.terminalFont' is touched from 10 file(s)"
+        "symbol 'store.terminalFont' is touched from 11 file(s)"
       ],
       "id": "store_terminal_font",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/components/SettingsDialog.test.tsx::store.terminalFontSize"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "symbol 'store.terminalFontSize' is touched from 13 file(s)"
+      ],
+      "id": "store_terminal_font_size",
       "kind": "store_like_symbol"
     },
     {
@@ -1428,6 +1461,17 @@
         "symbol 'store.taskCommandControllers' is touched from 3 file(s)"
       ],
       "id": "store_task_command_controllers",
+      "kind": "store_like_symbol"
+    },
+    {
+      "anchors": [
+        "src/app/task-steps.test.ts::store.taskSteps"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "symbol 'store.taskSteps' is touched from 3 file(s)"
+      ],
+      "id": "store_task_steps",
       "kind": "store_like_symbol"
     },
     {
@@ -2049,10 +2093,10 @@
     "suppressions_expiring": 0
   },
   "semantic_cache": {
-    "analyzed_files": 714,
+    "analyzed_files": 730,
     "available": true,
     "bridge_protocol_version": "0.1.0",
-    "git_head": "29da61ecff550d395a5d0e6d5c0d81d23dd1a4ab",
+    "git_head": "9dad91eb8fc1ad8197b336fc56d62b5cbcd598d7",
     "project_fingerprint": "bd376b35c69fd0f7",
     "source": "bridge",
     "working_tree_path_count": 0
@@ -2081,7 +2125,7 @@
     "configured_concept_count": 3,
     "contract_count": 1,
     "guardrail_test_count": 8,
-    "inferred_concept_count": 166,
+    "inferred_concept_count": 170,
     "matched_guardrail_test_count": 1,
     "state_model_count": 2
   },

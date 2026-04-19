@@ -3,6 +3,69 @@
   "actions": [
     {
       "blocking": true,
+      "concept_id": "task_presentation_status",
+      "confidence": "high",
+      "evidence": [
+        "src/app/task-attention.test.ts [related test coverage for changed concept]",
+        "src/app/task-presentation-status.test.ts [related test coverage for changed concept]",
+        "src/app/task-presentation-status.ts:17 [domain 'TaskDotStatus' in src/app/task-presentation-status.ts has variants [busy, waiting, ready, paused, flow-controlled, restoring, failed], but no exhaustive mapping or switch site was found]",
+        "src/components/SidebarTaskRow.architecture.test.ts [related test coverage for changed concept]",
+        "src/components/SidebarTaskRow.test.tsx [related test coverage for changed concept]"
+      ],
+      "file": "src/app/task-presentation-status.ts",
+      "fix_hint": "Add an explicit exhaustive switch or mapping at src/app/task-attention.test.ts, and keep the fallback/default path out of the production branch.",
+      "kind": "closed_domain_exhaustiveness",
+      "leverage_class": "hardening_note",
+      "line": 17,
+      "message": "Domain 'TaskDotStatus' still needs an explicit exhaustive branch at src/app/task-attention.test.ts.",
+      "origin": "explicit",
+      "presentation_class": "hardening_note",
+      "priority": 1,
+      "repair_packet": {
+        "complete": true,
+        "completeness_0_10000": 10000,
+        "do_not_touch_yet": [
+          "Do not rely on a production fallback or default branch to hide missing variants."
+        ],
+        "inspection_context": [
+          "src/app/task-presentation-status.ts"
+        ],
+        "likely_fix_sites": [
+          "src/app/task-attention.test.ts",
+          "src/app/task-presentation-status.test.ts",
+          "src/app/task-presentation-status.ts:17",
+          "src/components/SidebarTaskRow.architecture.test.ts",
+          "src/components/SidebarTaskRow.test.tsx"
+        ],
+        "missing_fields": [],
+        "required_fields": {
+          "first_cut": true,
+          "repair_surface": true,
+          "risk_statement": true,
+          "verification": true
+        },
+        "risk_statement": "Finite-domain changes can silently miss one surface unless every required branch stays in sync.",
+        "smallest_safe_first_cut": "Add an explicit exhaustive switch or mapping at src/app/task-attention.test.ts, and keep the fallback/default path out of the production branch.",
+        "verify_after": [
+          "Re-run `sentrux check` and confirm the lead issue clears for src/app/task-attention.test.ts, src/app/task-presentation-status.test.ts, src/app/task-presentation-status.ts:17, src/components/SidebarTaskRow.architecture.test.ts, and src/components/SidebarTaskRow.test.tsx.",
+          "Re-run `sentrux gate` and confirm no missing follow-through or exhaustiveness blocker remains."
+        ]
+      },
+      "scope": "task_presentation_status",
+      "score_0_10000": 10000,
+      "severity": "high",
+      "source": "obligation",
+      "trust_tier": "trusted",
+      "why_now": [
+        "gate_blocker",
+        "high_trust",
+        "clear_fix_surface",
+        "changed_concept"
+      ]
+    },
+    {
+      "blocking": true,
+      "concept_id": "task_presentation_status",
       "confidence": "high",
       "evidence": [
         "src/components/SidebarTaskRow.tsx::store.taskGitStatus",
@@ -16,32 +79,44 @@
       "file": "src/components/SidebarTaskRow.tsx",
       "fix_hint": "Replace the raw read with src/app/task-presentation-status.ts::getTaskPresentationStatus from src/app/task-presentation-status.ts::TaskDotStatus instead of recreating the projection in the caller.",
       "kind": "forbidden_raw_read",
+      "leverage_class": "secondary_cleanup",
       "line": null,
       "message": "Concept 'task_presentation_status' is read from a forbidden raw access path at src/components/SidebarTaskRow.tsx",
       "origin": "explicit",
-      "priority": 1,
-      "scope": "task_presentation_status",
-      "source": "rules"
-    },
-    {
-      "blocking": true,
-      "confidence": "high",
-      "evidence": [
-        "src/app/task-attention.test.ts [related test coverage for changed concept]",
-        "src/app/task-presentation-status.test.ts [related test coverage for changed concept]",
-        "src/app/task-presentation-status.ts:17 [domain 'TaskDotStatus' in src/app/task-presentation-status.ts has variants [busy, waiting, ready, paused, flow-controlled, restoring, failed], but no exhaustive mapping or switch site was found]",
-        "src/components/SidebarTaskRow.architecture.test.ts [related test coverage for changed concept]",
-        "src/components/SidebarTaskRow.test.tsx [related test coverage for changed concept]"
-      ],
-      "file": "src/app/task-presentation-status.ts",
-      "fix_hint": "Add an explicit exhaustive switch or mapping at src/app/task-attention.test.ts, and keep the fallback/default path out of the production branch.",
-      "kind": "closed_domain_exhaustiveness",
-      "line": 17,
-      "message": "Domain 'TaskDotStatus' still needs an explicit exhaustive branch at src/app/task-attention.test.ts.",
-      "origin": "explicit",
+      "presentation_class": "structural_debt",
       "priority": 2,
+      "repair_packet": {
+        "complete": false,
+        "completeness_0_10000": 7000,
+        "do_not_touch_yet": [],
+        "inspection_context": [
+          "src/components/SidebarTaskRow.tsx"
+        ],
+        "likely_fix_sites": [],
+        "missing_fields": [
+          "repair_surface"
+        ],
+        "required_fields": {
+          "first_cut": true,
+          "repair_surface": false,
+          "risk_statement": true,
+          "verification": true
+        },
+        "risk_statement": "Bypassing the intended read boundary weakens architectural contracts and can create stale or inconsistent views.",
+        "smallest_safe_first_cut": "Replace the raw read with src/app/task-presentation-status.ts::getTaskPresentationStatus from src/app/task-presentation-status.ts::TaskDotStatus instead of recreating the projection in the caller.",
+        "verify_after": [
+          "Re-run `sentrux check` and confirm the lead issue clears around src/components/SidebarTaskRow.tsx."
+        ]
+      },
       "scope": "task_presentation_status",
-      "source": "obligation"
+      "score_0_10000": 0,
+      "severity": "medium",
+      "source": "rules",
+      "trust_tier": "trusted",
+      "why_now": [
+        "gate_blocker",
+        "high_trust"
+      ]
     },
     {
       "blocking": false,
@@ -57,12 +132,47 @@
       "file": "src/components/SidebarTaskRow.tsx",
       "fix_hint": "Extract a narrower facade or move behavior behind an existing module boundary.",
       "kind": "dependency_sprawl",
+      "leverage_class": "local_refactor_target",
       "line": null,
       "message": "File 'src/components/SidebarTaskRow.tsx' depends on 16 real surfaces, above the typescript threshold of 15",
       "origin": "explicit",
+      "presentation_class": "structural_debt",
       "priority": 3,
+      "repair_packet": {
+        "complete": true,
+        "completeness_0_10000": 10000,
+        "do_not_touch_yet": [
+          "Do not add another direct entry-surface import while fixing this; move behavior behind a narrower owner."
+        ],
+        "inspection_context": [
+          "src/components/SidebarTaskRow.tsx"
+        ],
+        "likely_fix_sites": [
+          "src/components/SidebarTaskRow.tsx"
+        ],
+        "missing_fields": [],
+        "required_fields": {
+          "first_cut": true,
+          "repair_surface": true,
+          "risk_statement": true,
+          "verification": true
+        },
+        "risk_statement": "Broad dependency fan-out expands change surface and makes orchestration drift harder to localize.",
+        "smallest_safe_first_cut": "Extract a narrower facade or move behavior behind an existing module boundary.",
+        "verify_after": [
+          "Re-run `sentrux check` and confirm the lead issue clears for src/components/SidebarTaskRow.tsx."
+        ]
+      },
       "scope": "src/components/SidebarTaskRow.tsx",
-      "source": "structural"
+      "score_0_10000": 5235,
+      "severity": "medium",
+      "source": "structural",
+      "trust_tier": "trusted",
+      "why_now": [
+        "high_trust",
+        "high_leverage",
+        "clear_fix_surface"
+      ]
     },
     {
       "blocking": false,
@@ -81,23 +191,57 @@
       "file": "src/components/SidebarTaskRow.tsx",
       "fix_hint": "Split the file along the app dependency boundary and the components dependency boundary and move the behavior that couples to src/app/task-activity-clock.ts and src/app/task-convergence.ts behind smaller owners before adding more code here.",
       "kind": "large_file",
+      "leverage_class": "secondary_cleanup",
       "line": null,
       "message": "File 'src/components/SidebarTaskRow.tsx' is 586 lines, above the typescript threshold of 500",
       "origin": "explicit",
+      "presentation_class": "structural_debt",
       "priority": 4,
+      "repair_packet": {
+        "complete": true,
+        "completeness_0_10000": 10000,
+        "do_not_touch_yet": [
+          "Do not slice the file by line count alone; split along the cited boundary instead."
+        ],
+        "inspection_context": [
+          "src/components/SidebarTaskRow.tsx"
+        ],
+        "likely_fix_sites": [
+          "src/components/SidebarTaskRow.tsx"
+        ],
+        "missing_fields": [],
+        "required_fields": {
+          "first_cut": true,
+          "repair_surface": true,
+          "risk_statement": true,
+          "verification": true
+        },
+        "risk_statement": "Responsibility concentration increases review friction and makes later splits harder to isolate.",
+        "smallest_safe_first_cut": "Split the file along the app dependency boundary and the components dependency boundary and move the behavior that couples to src/app/task-activity-clock.ts and src/app/task-convergence.ts behind smaller owners before adding more code here.",
+        "verify_after": [
+          "Re-run `sentrux check` and confirm the lead issue clears for src/components/SidebarTaskRow.tsx."
+        ]
+      },
       "scope": "src/components/SidebarTaskRow.tsx",
-      "source": "structural"
+      "score_0_10000": 3019,
+      "severity": "medium",
+      "source": "structural",
+      "trust_tier": "trusted",
+      "why_now": [
+        "high_trust",
+        "clear_fix_surface"
+      ]
     }
   ],
   "baseline_delta": {
     "available": true,
-    "coupling_after": 0.4974340175953079,
-    "coupling_before": 0.4974340175953079,
+    "coupling_after": 0.49624060150375937,
+    "coupling_before": 0.49624060150375937,
     "cycles_after": 2,
     "cycles_before": 2,
     "degraded": false,
-    "signal_after": 4234,
-    "signal_before": 4234,
+    "signal_after": 4215,
+    "signal_before": 4215,
     "signal_delta": 0
   },
   "changed_concepts": [
@@ -133,7 +277,7 @@
   "concept_summary_count": 1,
   "confidence": {
     "rule_coverage_0_10000": 10000,
-    "scan_confidence_0_10000": 8573,
+    "scan_confidence_0_10000": 8601,
     "semantic_rules_loaded": true,
     "session_baseline": {
       "compatible": true,
@@ -143,8 +287,8 @@
     }
   },
   "coupling_change": [
-    0.4974340175953079,
-    0.4974340175953079
+    0.49624060150375937,
+    0.49624060150375937
   ],
   "cycles_change": [
     2,
@@ -703,6 +847,7 @@
   "missing_obligations": [
     {
       "concept_id": "task_presentation_status",
+      "confidence": "high",
       "context_burden": 5,
       "domain_symbol_name": "TaskDotStatus",
       "files": [
@@ -743,6 +888,7 @@
         }
       ],
       "missing_variants": [],
+      "origin": "explicit",
       "required_sites": [
         {
           "detail": "related test coverage for changed concept",
@@ -776,7 +922,10 @@
         }
       ],
       "satisfied_sites": [],
-      "summary": "Domain 'task_presentation_status' in src/app/task-presentation-status.ts has variants [busy, waiting, ready, paused, flow-controlled, restoring, failed] but is missing required update sites"
+      "score_0_10000": 10000,
+      "severity": "high",
+      "summary": "Domain 'task_presentation_status' in src/app/task-presentation-status.ts has variants [busy, waiting, ready, paused, flow-controlled, restoring, failed] but is missing required update sites",
+      "trust_tier": "trusted"
     }
   ],
   "obligation_completeness_0_10000": 0,
@@ -908,7 +1057,7 @@
     }
   ],
   "scan_trust": {
-    "candidate_files": 981,
+    "candidate_files": 1001,
     "exclusions": {
       "bucketed": {
         "build": 12,
@@ -923,24 +1072,24 @@
       "total": 140
     },
     "fallback_reason": null,
-    "kept_files": 841,
+    "kept_files": 861,
     "mode": "git",
-    "overall_confidence_0_10000": 8573,
+    "overall_confidence_0_10000": 8601,
     "partial": false,
     "resolution": {
       "internal_confidence_0_10000": 9996,
-      "resolved": 2729,
-      "unresolved_external": 776,
+      "resolved": 2794,
+      "unresolved_external": 795,
       "unresolved_internal": 1,
-      "unresolved_unknown": 112
+      "unresolved_unknown": 114
     },
-    "scope_coverage_0_10000": 8573,
-    "tracked_candidates": 981,
+    "scope_coverage_0_10000": 8601,
+    "tracked_candidates": 1001,
     "truncated": false,
     "untracked_candidates": 0
   },
-  "signal_after": 4234,
-  "signal_before": 4234,
+  "signal_after": 4215,
+  "signal_before": 4215,
   "signal_delta": 0,
   "summary": "Touched-concept regressions detected",
   "suppressed_finding_count": 0,

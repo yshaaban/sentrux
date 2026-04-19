@@ -1,21 +1,21 @@
 {
-  "generated_at": "2026-04-16T20:36:15Z",
+  "generated_at": "2026-04-19T18:52:32Z",
   "parallel_code_root": "<parallel-code-dir>",
   "analysis_mode": "head_clone",
   "source_tree_identity": {
-    "commit": "29da61ecff550d395a5d0e6d5c0d81d23dd1a4ab",
+    "commit": "9dad91eb8fc1ad8197b336fc56d62b5cbcd598d7",
     "dirty_paths": [],
     "dirty_paths_count": 0,
     "dirty_paths_fingerprint": "53c1562521679823f3ee3c10c2585dec4c3ecd862d145f868947047fd32725ac",
-    "tree_fingerprint": "f595b40941a19cdc0b60ca17ed6988f3e15a5f6a809a32e318030dfb4717a27e",
+    "tree_fingerprint": "86fb0a6f6e3183de996e18c64112c7503821d8e84e2b7fd38d2e1b6226391521",
     "analysis_mode": "head_clone"
   },
   "analyzed_tree_identity": {
-    "commit": "29da61ecff550d395a5d0e6d5c0d81d23dd1a4ab",
+    "commit": "9dad91eb8fc1ad8197b336fc56d62b5cbcd598d7",
     "dirty_paths": [],
     "dirty_paths_count": 0,
     "dirty_paths_fingerprint": "53c1562521679823f3ee3c10c2585dec4c3ecd862d145f868947047fd32725ac",
-    "tree_fingerprint": "f595b40941a19cdc0b60ca17ed6988f3e15a5f6a809a32e318030dfb4717a27e",
+    "tree_fingerprint": "86fb0a6f6e3183de996e18c64112c7503821d8e84e2b7fd38d2e1b6226391521",
     "analysis_mode": "head_clone"
   },
   "regression_mutation": {
@@ -32,6 +32,6 @@
   "binary_identity": {
     "path": "<sentrux-root>/target/debug/sentrux",
     "exists": true,
-    "sha256": "ee29dbea1ef59129b3bae4ce3052854c8ea5df71e9e5fb4b22de716b22ded002"
+    "sha256": "3cf5f17eb381fe5d44472c6fa26717d62a7322a5db22071d15eecfb66da2cd9c"
   }
 }

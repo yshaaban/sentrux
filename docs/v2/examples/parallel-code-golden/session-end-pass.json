@@ -3,13 +3,13 @@
   "actions": [],
   "baseline_delta": {
     "available": true,
-    "coupling_after": 0.4974340175953079,
-    "coupling_before": 0.4974340175953079,
+    "coupling_after": 0.49624060150375937,
+    "coupling_before": 0.49624060150375937,
     "cycles_after": 2,
     "cycles_before": 2,
     "degraded": false,
-    "signal_after": 4234,
-    "signal_before": 4234,
+    "signal_after": 4215,
+    "signal_before": 4215,
     "signal_delta": 0
   },
   "changed_concepts": [],
@@ -18,7 +18,7 @@
   "concept_summary_count": 0,
   "confidence": {
     "rule_coverage_0_10000": 10000,
-    "scan_confidence_0_10000": 8573,
+    "scan_confidence_0_10000": 8601,
     "semantic_rules_loaded": true,
     "session_baseline": {
       "compatible": true,
@@ -28,8 +28,8 @@
     }
   },
   "coupling_change": [
-    0.4974340175953079,
-    0.4974340175953079
+    0.49624060150375937,
+    0.49624060150375937
   ],
   "cycles_change": [
     2,
@@ -190,7 +190,7 @@
         "overlapping signals: 2",
         "signal kinds: large_file, dependency_sprawl",
         "affected files: 1",
-        "large_file: File 'src/components/terminal-view/terminal-output-pipeline.ts' is 1073 lines, above the typescript threshold of 500",
+        "large_file: File 'src/components/terminal-view/terminal-output-pipeline.ts' is 1268 lines, above the typescript threshold of 500",
         "dependency_sprawl: File 'src/components/terminal-view/terminal-output-pipeline.ts' depends on 17 real surfaces, above the typescript threshold of 15"
       ],
       "files": [
@@ -239,8 +239,8 @@
         "signal kinds: large_file, dependency_sprawl",
         "affected files: 1",
         "role tags: guarded_seam, facade_with_extracted_owners",
-        "large_file: Guarded facade file 'src/components/terminal-view/terminal-session.ts' is 1395 lines, above the typescript threshold of 500",
-        "dependency_sprawl: File 'src/components/terminal-view/terminal-session.ts' depends on 29 real surfaces, above the typescript threshold of 15"
+        "large_file: Guarded facade file 'src/components/terminal-view/terminal-session.ts' is 1643 lines, above the typescript threshold of 500",
+        "dependency_sprawl: File 'src/components/terminal-view/terminal-session.ts' depends on 30 real surfaces, above the typescript threshold of 15"
       ],
       "files": [
         "src/components/terminal-view/terminal-session.ts"
@@ -469,10 +469,10 @@
         "private helper surface split"
       ],
       "evidence": [
-        "line count: 1228",
+        "line count: 1235",
         "large-file threshold: 500",
         "function count: 83",
-        "peak function complexity: 193",
+        "peak function complexity: 195",
         "outbound dependencies: 12",
         "suggested split axes: app dependency boundary, lib dependency boundary, components dependency boundary, high-complexity helper extraction, private helper surface split",
         "related surfaces to peel out first: electron/ipc/channels.ts, src/app/runtime-diagnostics.ts, src/app/task-command-lease.ts, src/app/terminal-focused-input.ts, src/app/terminal-switch-echo-grace.ts",
@@ -498,8 +498,8 @@
         "file_count": 1,
         "function_count": 83,
         "guardrail_test_count": 1,
-        "line_count": 1228,
-        "max_complexity": 193,
+        "line_count": 1235,
+        "max_complexity": 195,
         "role_count": 1
       },
       "presentation_class": "structural_debt",
@@ -521,7 +521,7 @@
         "size",
         "coordination"
       ],
-      "summary": "File 'src/components/terminal-view/terminal-input-pipeline.ts' is 1228 lines, above the typescript threshold of 500",
+      "summary": "File 'src/components/terminal-view/terminal-input-pipeline.ts' is 1235 lines, above the typescript threshold of 500",
       "trust_tier": "trusted"
     },
     {
@@ -533,10 +533,10 @@
         "private helper surface split"
       ],
       "evidence": [
-        "line count: 1073",
+        "line count: 1268",
         "large-file threshold: 500",
-        "function count: 89",
-        "peak function complexity: 155",
+        "function count: 103",
+        "peak function complexity: 190",
         "outbound dependencies: 17",
         "suggested split axes: app dependency boundary, lib dependency boundary, components dependency boundary, high-complexity helper extraction, private helper surface split",
         "related surfaces to peel out first: electron/ipc/channels.ts, src/app/terminal-dense-overload.ts, src/app/terminal-focused-input.ts, src/app/terminal-frame-pressure.ts, src/app/terminal-interactivity-governor.ts",
@@ -559,10 +559,10 @@
       "metrics": {
         "fan_out": 17,
         "file_count": 1,
-        "function_count": 89,
+        "function_count": 103,
         "guardrail_test_count": 0,
-        "line_count": 1073,
-        "max_complexity": 155,
+        "line_count": 1268,
+        "max_complexity": 190,
         "role_count": 0
       },
       "presentation_class": "structural_debt",
@@ -582,7 +582,7 @@
         "size",
         "coordination"
       ],
-      "summary": "File 'src/components/terminal-view/terminal-output-pipeline.ts' is 1073 lines, above the typescript threshold of 500",
+      "summary": "File 'src/components/terminal-view/terminal-output-pipeline.ts' is 1268 lines, above the typescript threshold of 500",
       "trust_tier": "trusted"
     },
     {
@@ -659,6 +659,50 @@
   },
   "experimental_debt_signal_count": 5,
   "experimental_debt_signals": [
+    {
+      "candidate_split_axes": [],
+      "evidence": [
+        "dead private functions: 5",
+        "dead private lines: 5",
+        "sample dead functions: currentBranchGuidance, currentBranchTooltip, dialogWidth",
+        "total file lines: 713"
+      ],
+      "files": [
+        "src/components/NewTaskDialog.tsx"
+      ],
+      "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
+      "inspection_focus": [
+        "inspect whether the dead helpers should be deleted or intentionally reconnected",
+        "inspect whether the file still reflects the supported control flow"
+      ],
+      "kind": "dead_private_code_cluster",
+      "leverage_class": "experimental",
+      "leverage_reasons": [
+        "detector_under_evaluation"
+      ],
+      "metrics": {
+        "dead_line_count": 5,
+        "dead_symbol_count": 5,
+        "file_count": 1,
+        "function_count": 28,
+        "line_count": 713,
+        "max_complexity": 13,
+        "role_count": 0
+      },
+      "presentation_class": "experimental",
+      "related_surfaces": [],
+      "role_tags": [],
+      "scope": "src/components/NewTaskDialog.tsx",
+      "score_0_10000": 5190,
+      "severity": "medium",
+      "signal_class": "watchpoint",
+      "signal_families": [
+        "staleness",
+        "maintainability"
+      ],
+      "summary": "File 'src/components/NewTaskDialog.tsx' contains 5 uncalled private functions totaling 5 lines",
+      "trust_tier": "experimental"
+    },
     {
       "candidate_split_axes": [],
       "evidence": [
@@ -798,12 +842,12 @@
       "candidate_split_axes": [],
       "evidence": [
         "dead private functions: 3",
-        "dead private lines: 27",
-        "sample dead functions: handleAddProject, handleResizeMouseDown, remoteAccessConnected",
-        "total file lines: 454"
+        "dead private lines: 29",
+        "sample dead functions: closeDialog, dismissInlineInput, submitInlineInput",
+        "total file lines: 600"
       ],
       "files": [
-        "src/components/Sidebar.tsx"
+        "src/components/PlanViewerDialog.tsx"
       ],
       "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
       "inspection_focus": [
@@ -816,70 +860,29 @@
         "detector_under_evaluation"
       ],
       "metrics": {
-        "dead_line_count": 27,
+        "dead_line_count": 29,
         "dead_symbol_count": 3,
         "file_count": 1,
-        "function_count": 19,
-        "line_count": 454,
-        "max_complexity": 6,
-        "role_count": 0
+        "function_count": 26,
+        "line_count": 600,
+        "max_complexity": 13,
+        "role_count": 2
       },
       "presentation_class": "experimental",
       "related_surfaces": [],
-      "role_tags": [],
-      "scope": "src/components/Sidebar.tsx",
-      "score_0_10000": 4686,
+      "role_tags": [
+        "guarded_seam",
+        "facade_with_extracted_owners"
+      ],
+      "scope": "src/components/PlanViewerDialog.tsx",
+      "score_0_10000": 4722,
       "severity": "medium",
       "signal_class": "watchpoint",
       "signal_families": [
         "staleness",
         "maintainability"
       ],
-      "summary": "File 'src/components/Sidebar.tsx' contains 3 uncalled private functions totaling 27 lines",
-      "trust_tier": "experimental"
-    },
-    {
-      "candidate_split_axes": [],
-      "evidence": [
-        "dead private functions: 3",
-        "dead private lines: 17",
-        "sample dead functions: browserBuildLabel, hasOtherSessions, sessionSummaryText",
-        "total file lines: 507"
-      ],
-      "files": [
-        "src/components/SidebarFooter.tsx"
-      ],
-      "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
-      "inspection_focus": [
-        "inspect whether the dead helpers should be deleted or intentionally reconnected",
-        "inspect whether the file still reflects the supported control flow"
-      ],
-      "kind": "dead_private_code_cluster",
-      "leverage_class": "experimental",
-      "leverage_reasons": [
-        "detector_under_evaluation"
-      ],
-      "metrics": {
-        "dead_line_count": 17,
-        "dead_symbol_count": 3,
-        "file_count": 1,
-        "function_count": 18,
-        "line_count": 507,
-        "max_complexity": 5,
-        "role_count": 0
-      },
-      "presentation_class": "experimental",
-      "related_surfaces": [],
-      "role_tags": [],
-      "scope": "src/components/SidebarFooter.tsx",
-      "score_0_10000": 4506,
-      "severity": "medium",
-      "signal_class": "watchpoint",
-      "signal_families": [
-        "staleness",
-        "maintainability"
-      ],
-      "summary": "File 'src/components/SidebarFooter.tsx' contains 3 uncalled private functions totaling 17 lines",
+      "summary": "File 'src/components/PlanViewerDialog.tsx' contains 3 uncalled private functions totaling 29 lines",
       "trust_tier": "experimental"
     }
   ],
@@ -897,7 +900,7 @@
   "pass": true,
   "resolved_findings": [],
   "scan_trust": {
-    "candidate_files": 981,
+    "candidate_files": 1001,
     "exclusions": {
       "bucketed": {
         "build": 12,
@@ -912,24 +915,24 @@
       "total": 140
     },
     "fallback_reason": null,
-    "kept_files": 841,
+    "kept_files": 861,
     "mode": "git",
-    "overall_confidence_0_10000": 8573,
+    "overall_confidence_0_10000": 8601,
     "partial": false,
     "resolution": {
       "internal_confidence_0_10000": 9996,
-      "resolved": 2729,
-      "unresolved_external": 776,
+      "resolved": 2794,
+      "unresolved_external": 795,
       "unresolved_internal": 1,
-      "unresolved_unknown": 112
+      "unresolved_unknown": 114
     },
-    "scope_coverage_0_10000": 8573,
-    "tracked_candidates": 981,
+    "scope_coverage_0_10000": 8601,
+    "tracked_candidates": 1001,
     "truncated": false,
     "untracked_candidates": 0
   },
-  "signal_after": 4234,
-  "signal_before": 4234,
+  "signal_after": 4215,
+  "signal_before": 4215,
   "signal_delta": 0,
   "summary": "Quality stable or improved",
   "suppressed_finding_count": 0,
@@ -949,7 +952,7 @@
       "clone_family_count": 0,
       "evidence": [
         "cycle size: 36",
-        "total lines in cycle: 7038",
+        "total lines in cycle: 7153",
         "peak function complexity inside cycle: 72",
         "candidate cuts: 3",
         "best cut candidate: src/store/core.ts -> src/store/store.ts (removes 7 cyclic files)",
@@ -1043,7 +1046,7 @@
       "clone_family_count": 0,
       "evidence": [
         "cycle size: 2",
-        "total lines in cycle: 170",
+        "total lines in cycle: 174",
         "peak function complexity inside cycle: 5",
         "candidate cuts: 2",
         "best cut candidate: electron/ipc/handlers.ts -> electron/ipc/notification-handlers.ts (removes 2 cyclic files)",

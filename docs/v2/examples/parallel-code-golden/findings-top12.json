@@ -101,101 +101,6 @@
       "summary": "5 exact clone groups repeat across 2 files and churn differs by 4 recent commit(s) across siblings; sibling file age spans 17 day(s)"
     },
     {
-      "age_days_gap": 5,
-      "asymmetric_recent_change": false,
-      "clone_ids": [
-        "clone-0xfc51cb7428314a19",
-        "clone-0x220ca1c043f3d29c",
-        "clone-0x1d0ffc9c1f5ac781",
-        "clone-0x31a396cfce0df305"
-      ],
-      "commit_count_gap": 1,
-      "distinct_file_set_count": 1,
-      "divergence_score": 4,
-      "family_id": "clone-family-0x7e50d49dc16ef925",
-      "file_count": 2,
-      "files": [
-        "src/components/AgentGlyph.tsx",
-        "src/remote/RemoteAgentGlyph.tsx"
-      ],
-      "kind": "clone_family",
-      "member_count": 4,
-      "mixed_file_sets": false,
-      "reasons": [
-        "4 exact clone groups repeat across 2 files",
-        "highest-risk representative exact clone score recorded",
-        "family files changed recently",
-        "family churn spans a gap of 1 recent commit(s)",
-        "family file age spans a gap of 5 day(s)",
-        "family-level divergence contributes 4 risk point(s)"
-      ],
-      "remediation_hints": [
-        {
-          "clone_ids": [
-            "clone-0xfc51cb7428314a19",
-            "clone-0x220ca1c043f3d29c",
-            "clone-0x1d0ffc9c1f5ac781",
-            "clone-0x31a396cfce0df305"
-          ],
-          "files": [
-            "src/components/AgentGlyph.tsx",
-            "src/remote/RemoteAgentGlyph.tsx"
-          ],
-          "kind": "sync_recent_divergence",
-          "priority": "high",
-          "summary": "Review recent edits across clone siblings: commit churn spans a gap of 1 recent commit(s); file age spans a gap of 5 day(s). Synchronize the shared behavior or intentionally split the implementations."
-        },
-        {
-          "clone_ids": [
-            "clone-0xfc51cb7428314a19",
-            "clone-0x220ca1c043f3d29c",
-            "clone-0x1d0ffc9c1f5ac781",
-            "clone-0x31a396cfce0df305"
-          ],
-          "files": [
-            "src/components/AgentGlyph.tsx",
-            "src/remote/RemoteAgentGlyph.tsx"
-          ],
-          "kind": "extract_shared_helper",
-          "priority": "high",
-          "summary": "Extract the repeated logic into a shared helper or module used by the 4 clone groups across these files."
-        },
-        {
-          "clone_ids": [
-            "clone-0xfc51cb7428314a19",
-            "clone-0x220ca1c043f3d29c",
-            "clone-0x1d0ffc9c1f5ac781",
-            "clone-0x31a396cfce0df305"
-          ],
-          "files": [
-            "src/components/AgentGlyph.tsx",
-            "src/remote/RemoteAgentGlyph.tsx"
-          ],
-          "kind": "collapse_clone_family",
-          "priority": "medium",
-          "summary": "Collapse the 4 repeated clone groups behind one named abstraction instead of maintaining copies in 2 files."
-        },
-        {
-          "clone_ids": [
-            "clone-0xfc51cb7428314a19",
-            "clone-0x220ca1c043f3d29c",
-            "clone-0x1d0ffc9c1f5ac781",
-            "clone-0x31a396cfce0df305"
-          ],
-          "files": [
-            "src/components/AgentGlyph.tsx",
-            "src/remote/RemoteAgentGlyph.tsx"
-          ],
-          "kind": "add_shared_behavior_tests",
-          "priority": "medium",
-          "summary": "Add focused tests around the shared behavior before deduplicating the clone family so the extraction does not hide drift."
-        }
-      ],
-      "representative_clone_id": "clone-0xfc51cb7428314a19",
-      "severity": "high",
-      "summary": "4 exact clone groups repeat across 2 files and churn differs by 1 recent commit(s) across siblings; sibling file age spans 5 day(s)"
-    },
-    {
       "age_days_gap": 1,
       "asymmetric_recent_change": false,
       "clone_ids": [
@@ -291,103 +196,102 @@
       "summary": "4 exact clone groups repeat across 2 files and churn differs by 1 recent commit(s) across siblings; sibling file age spans 1 day(s)"
     },
     {
-      "age_days_gap": 30,
+      "age_days_gap": 5,
       "asymmetric_recent_change": false,
       "clone_ids": [
-        "clone-0x192ade17c1abf5fd",
-        "clone-0x4dbde01561efa924"
+        "clone-0xfc51cb7428314a19",
+        "clone-0x220ca1c043f3d29c",
+        "clone-0x1d0ffc9c1f5ac781",
+        "clone-0x31a396cfce0df305"
       ],
-      "commit_count_gap": 17,
-      "distinct_file_set_count": 2,
-      "divergence_score": 36,
-      "family_id": "clone-family-0xc27d5d77f43fed8e",
-      "file_count": 4,
+      "commit_count_gap": 1,
+      "distinct_file_set_count": 1,
+      "divergence_score": 2,
+      "family_id": "clone-family-0x7e50d49dc16ef925",
+      "file_count": 2,
       "files": [
-        "electron/remote/server.ts",
-        "electron/remote/ws-transport.test.ts",
-        "server/browser-control-plane.ts",
-        "tests/harness/websocket-contract-harness.ts"
+        "src/components/AgentGlyph.tsx",
+        "src/remote/RemoteAgentGlyph.tsx"
       ],
       "kind": "clone_family",
-      "member_count": 2,
-      "mixed_file_sets": true,
+      "member_count": 4,
+      "mixed_file_sets": false,
       "reasons": [
-        "2 exact clone groups repeat across 4 files",
+        "4 exact clone groups repeat across 2 files",
         "highest-risk representative exact clone score recorded",
         "family files changed recently",
-        "family clone coverage spans 2 overlapping file set(s)",
-        "family churn spans a gap of 17 recent commit(s)",
-        "family file age spans a gap of 30 day(s)",
-        "family-level divergence contributes 36 risk point(s)"
+        "family churn spans a gap of 1 recent commit(s)",
+        "family file age spans a gap of 5 day(s)",
+        "family-level divergence contributes 2 risk point(s)"
       ],
       "remediation_hints": [
         {
           "clone_ids": [
-            "clone-0x192ade17c1abf5fd",
-            "clone-0x4dbde01561efa924"
+            "clone-0xfc51cb7428314a19",
+            "clone-0x220ca1c043f3d29c",
+            "clone-0x1d0ffc9c1f5ac781",
+            "clone-0x31a396cfce0df305"
           ],
           "files": [
-            "electron/remote/server.ts",
-            "electron/remote/ws-transport.test.ts",
-            "server/browser-control-plane.ts",
-            "tests/harness/websocket-contract-harness.ts"
-          ],
-          "kind": "review_family_boundaries",
-          "priority": "high",
-          "summary": "Review the overlapping clone family boundaries across 2 sibling file set(s) and decide whether these copies should stay synchronized or be split into separate abstractions."
-        },
-        {
-          "clone_ids": [
-            "clone-0x192ade17c1abf5fd",
-            "clone-0x4dbde01561efa924"
-          ],
-          "files": [
-            "electron/remote/server.ts",
-            "electron/remote/ws-transport.test.ts",
-            "server/browser-control-plane.ts",
-            "tests/harness/websocket-contract-harness.ts"
+            "src/components/AgentGlyph.tsx",
+            "src/remote/RemoteAgentGlyph.tsx"
           ],
           "kind": "sync_recent_divergence",
           "priority": "high",
-          "summary": "Review recent edits across clone siblings: clone coverage spans 2 overlapping sibling sets; commit churn spans a gap of 17 recent commit(s); file age spans a gap of 30 day(s). Synchronize the shared behavior or intentionally split the implementations."
+          "summary": "Review recent edits across clone siblings: commit churn spans a gap of 1 recent commit(s); file age spans a gap of 5 day(s). Synchronize the shared behavior or intentionally split the implementations."
         },
         {
           "clone_ids": [
-            "clone-0x192ade17c1abf5fd",
-            "clone-0x4dbde01561efa924"
+            "clone-0xfc51cb7428314a19",
+            "clone-0x220ca1c043f3d29c",
+            "clone-0x1d0ffc9c1f5ac781",
+            "clone-0x31a396cfce0df305"
           ],
           "files": [
-            "electron/remote/server.ts",
-            "electron/remote/ws-transport.test.ts",
-            "server/browser-control-plane.ts",
-            "tests/harness/websocket-contract-harness.ts"
+            "src/components/AgentGlyph.tsx",
+            "src/remote/RemoteAgentGlyph.tsx"
           ],
           "kind": "extract_shared_helper",
-          "priority": "medium",
-          "summary": "Extract the repeated logic into a shared helper or module used by the 2 clone groups across these files."
+          "priority": "high",
+          "summary": "Extract the repeated logic into a shared helper or module used by the 4 clone groups across these files."
         },
         {
           "clone_ids": [
-            "clone-0x192ade17c1abf5fd",
-            "clone-0x4dbde01561efa924"
+            "clone-0xfc51cb7428314a19",
+            "clone-0x220ca1c043f3d29c",
+            "clone-0x1d0ffc9c1f5ac781",
+            "clone-0x31a396cfce0df305"
           ],
           "files": [
-            "electron/remote/server.ts",
-            "electron/remote/ws-transport.test.ts",
-            "server/browser-control-plane.ts",
-            "tests/harness/websocket-contract-harness.ts"
+            "src/components/AgentGlyph.tsx",
+            "src/remote/RemoteAgentGlyph.tsx"
           ],
           "kind": "collapse_clone_family",
           "priority": "medium",
-          "summary": "Collapse the 2 repeated clone groups behind one named abstraction instead of maintaining copies in 4 files."
+          "summary": "Collapse the 4 repeated clone groups behind one named abstraction instead of maintaining copies in 2 files."
+        },
+        {
+          "clone_ids": [
+            "clone-0xfc51cb7428314a19",
+            "clone-0x220ca1c043f3d29c",
+            "clone-0x1d0ffc9c1f5ac781",
+            "clone-0x31a396cfce0df305"
+          ],
+          "files": [
+            "src/components/AgentGlyph.tsx",
+            "src/remote/RemoteAgentGlyph.tsx"
+          ],
+          "kind": "add_shared_behavior_tests",
+          "priority": "medium",
+          "summary": "Add focused tests around the shared behavior before deduplicating the clone family so the extraction does not hide drift."
         }
       ],
-      "representative_clone_id": "clone-0x192ade17c1abf5fd",
-      "severity": "low",
-      "summary": "2 exact clone groups repeat across 4 files and clone coverage spans 2 overlapping sibling sets; churn differs by 17 recent commit(s) across siblings; sibling file age spans 30 day(s)"
+      "representative_clone_id": "clone-0xfc51cb7428314a19",
+      "severity": "high",
+      "summary": "4 exact clone groups repeat across 2 files and churn differs by 1 recent commit(s) across siblings; sibling file age spans 5 day(s)"
     },
     {
-      "age_days_gap": 16,
+      "age_days_gap": 32,
       "asymmetric_recent_change": false,
       "clone_ids": [
         "clone-0x736e2aabc38ba277",
@@ -400,9 +304,9 @@
         "clone-0xa37c2bbf1f4b41ef",
         "clone-0xc891207f45e9c971"
       ],
-      "commit_count_gap": 15,
+      "commit_count_gap": 16,
       "distinct_file_set_count": 2,
-      "divergence_score": 32,
+      "divergence_score": 36,
       "family_id": "clone-family-0x9b9e1c6d8468ee63",
       "file_count": 6,
       "files": [
@@ -421,9 +325,9 @@
         "highest-risk representative exact clone score recorded",
         "family files changed recently",
         "family clone coverage spans 2 overlapping file set(s)",
-        "family churn spans a gap of 15 recent commit(s)",
-        "family file age spans a gap of 16 day(s)",
-        "family-level divergence contributes 32 risk point(s)"
+        "family churn spans a gap of 16 recent commit(s)",
+        "family file age spans a gap of 32 day(s)",
+        "family-level divergence contributes 36 risk point(s)"
       ],
       "remediation_hints": [
         {
@@ -472,7 +376,7 @@
           ],
           "kind": "sync_recent_divergence",
           "priority": "high",
-          "summary": "Review recent edits across clone siblings: clone coverage spans 2 overlapping sibling sets; commit churn spans a gap of 15 recent commit(s); file age spans a gap of 16 day(s). Synchronize the shared behavior or intentionally split the implementations."
+          "summary": "Review recent edits across clone siblings: clone coverage spans 2 overlapping sibling sets; commit churn spans a gap of 16 recent commit(s); file age spans a gap of 32 day(s). Synchronize the shared behavior or intentionally split the implementations."
         },
         {
           "clone_ids": [
@@ -525,7 +429,103 @@
       ],
       "representative_clone_id": "clone-0x736e2aabc38ba277",
       "severity": "low",
-      "summary": "9 exact clone groups repeat across 6 files and clone coverage spans 2 overlapping sibling sets; churn differs by 15 recent commit(s) across siblings; sibling file age spans 16 day(s)"
+      "summary": "9 exact clone groups repeat across 6 files and clone coverage spans 2 overlapping sibling sets; churn differs by 16 recent commit(s) across siblings; sibling file age spans 32 day(s)"
+    },
+    {
+      "age_days_gap": 32,
+      "asymmetric_recent_change": false,
+      "clone_ids": [
+        "clone-0x192ade17c1abf5fd",
+        "clone-0x4dbde01561efa924"
+      ],
+      "commit_count_gap": 17,
+      "distinct_file_set_count": 2,
+      "divergence_score": 36,
+      "family_id": "clone-family-0xc27d5d77f43fed8e",
+      "file_count": 4,
+      "files": [
+        "electron/remote/server.ts",
+        "electron/remote/ws-transport.test.ts",
+        "server/browser-control-plane.ts",
+        "tests/harness/websocket-contract-harness.ts"
+      ],
+      "kind": "clone_family",
+      "member_count": 2,
+      "mixed_file_sets": true,
+      "reasons": [
+        "2 exact clone groups repeat across 4 files",
+        "highest-risk representative exact clone score recorded",
+        "family files changed recently",
+        "family clone coverage spans 2 overlapping file set(s)",
+        "family churn spans a gap of 17 recent commit(s)",
+        "family file age spans a gap of 32 day(s)",
+        "family-level divergence contributes 36 risk point(s)"
+      ],
+      "remediation_hints": [
+        {
+          "clone_ids": [
+            "clone-0x192ade17c1abf5fd",
+            "clone-0x4dbde01561efa924"
+          ],
+          "files": [
+            "electron/remote/server.ts",
+            "electron/remote/ws-transport.test.ts",
+            "server/browser-control-plane.ts",
+            "tests/harness/websocket-contract-harness.ts"
+          ],
+          "kind": "review_family_boundaries",
+          "priority": "high",
+          "summary": "Review the overlapping clone family boundaries across 2 sibling file set(s) and decide whether these copies should stay synchronized or be split into separate abstractions."
+        },
+        {
+          "clone_ids": [
+            "clone-0x192ade17c1abf5fd",
+            "clone-0x4dbde01561efa924"
+          ],
+          "files": [
+            "electron/remote/server.ts",
+            "electron/remote/ws-transport.test.ts",
+            "server/browser-control-plane.ts",
+            "tests/harness/websocket-contract-harness.ts"
+          ],
+          "kind": "sync_recent_divergence",
+          "priority": "high",
+          "summary": "Review recent edits across clone siblings: clone coverage spans 2 overlapping sibling sets; commit churn spans a gap of 17 recent commit(s); file age spans a gap of 32 day(s). Synchronize the shared behavior or intentionally split the implementations."
+        },
+        {
+          "clone_ids": [
+            "clone-0x192ade17c1abf5fd",
+            "clone-0x4dbde01561efa924"
+          ],
+          "files": [
+            "electron/remote/server.ts",
+            "electron/remote/ws-transport.test.ts",
+            "server/browser-control-plane.ts",
+            "tests/harness/websocket-contract-harness.ts"
+          ],
+          "kind": "extract_shared_helper",
+          "priority": "medium",
+          "summary": "Extract the repeated logic into a shared helper or module used by the 2 clone groups across these files."
+        },
+        {
+          "clone_ids": [
+            "clone-0x192ade17c1abf5fd",
+            "clone-0x4dbde01561efa924"
+          ],
+          "files": [
+            "electron/remote/server.ts",
+            "electron/remote/ws-transport.test.ts",
+            "server/browser-control-plane.ts",
+            "tests/harness/websocket-contract-harness.ts"
+          ],
+          "kind": "collapse_clone_family",
+          "priority": "medium",
+          "summary": "Collapse the 2 repeated clone groups behind one named abstraction instead of maintaining copies in 4 files."
+        }
+      ],
+      "representative_clone_id": "clone-0x192ade17c1abf5fd",
+      "severity": "low",
+      "summary": "2 exact clone groups repeat across 4 files and clone coverage spans 2 overlapping sibling sets; churn differs by 17 recent commit(s) across siblings; sibling file age spans 32 day(s)"
     },
     {
       "age_days_gap": 0,
@@ -625,7 +625,7 @@
     }
   ],
   "clone_family_count": 6,
-  "clone_group_count": 46,
+  "clone_group_count": 47,
   "clone_remediations": [
     {
       "clone_ids": [
@@ -645,21 +645,6 @@
     },
     {
       "clone_ids": [
-        "clone-0xfc51cb7428314a19",
-        "clone-0x220ca1c043f3d29c",
-        "clone-0x1d0ffc9c1f5ac781",
-        "clone-0x31a396cfce0df305"
-      ],
-      "files": [
-        "src/components/AgentGlyph.tsx",
-        "src/remote/RemoteAgentGlyph.tsx"
-      ],
-      "kind": "sync_recent_divergence",
-      "priority": "high",
-      "summary": "Review recent edits across clone siblings: commit churn spans a gap of 1 recent commit(s); file age spans a gap of 5 day(s). Synchronize the shared behavior or intentionally split the implementations."
-    },
-    {
-      "clone_ids": [
         "clone-0x6067ca066346a3c2",
         "clone-0x46b14f13f2993a14",
         "clone-0x25d2cc9141c25a11",
@@ -675,18 +660,18 @@
     },
     {
       "clone_ids": [
-        "clone-0x192ade17c1abf5fd",
-        "clone-0x4dbde01561efa924"
+        "clone-0xfc51cb7428314a19",
+        "clone-0x220ca1c043f3d29c",
+        "clone-0x1d0ffc9c1f5ac781",
+        "clone-0x31a396cfce0df305"
       ],
       "files": [
-        "electron/remote/server.ts",
-        "electron/remote/ws-transport.test.ts",
-        "server/browser-control-plane.ts",
-        "tests/harness/websocket-contract-harness.ts"
+        "src/components/AgentGlyph.tsx",
+        "src/remote/RemoteAgentGlyph.tsx"
       ],
-      "kind": "review_family_boundaries",
+      "kind": "sync_recent_divergence",
       "priority": "high",
-      "summary": "Review the overlapping clone family boundaries across 2 sibling file set(s) and decide whether these copies should stay synchronized or be split into separate abstractions."
+      "summary": "Review recent edits across clone siblings: commit churn spans a gap of 1 recent commit(s); file age spans a gap of 5 day(s). Synchronize the shared behavior or intentionally split the implementations."
     },
     {
       "clone_ids": [
@@ -707,6 +692,21 @@
         "src/lib/terminal-performance-experiments.ts",
         "src/remote/remote-collaboration.ts",
         "src/remote/ws.ts"
+      ],
+      "kind": "review_family_boundaries",
+      "priority": "high",
+      "summary": "Review the overlapping clone family boundaries across 2 sibling file set(s) and decide whether these copies should stay synchronized or be split into separate abstractions."
+    },
+    {
+      "clone_ids": [
+        "clone-0x192ade17c1abf5fd",
+        "clone-0x4dbde01561efa924"
+      ],
+      "files": [
+        "electron/remote/server.ts",
+        "electron/remote/ws-transport.test.ts",
+        "server/browser-control-plane.ts",
+        "tests/harness/websocket-contract-harness.ts"
       ],
       "kind": "review_family_boundaries",
       "priority": "high",
@@ -745,21 +745,6 @@
     },
     {
       "clone_ids": [
-        "clone-0xfc51cb7428314a19",
-        "clone-0x220ca1c043f3d29c",
-        "clone-0x1d0ffc9c1f5ac781",
-        "clone-0x31a396cfce0df305"
-      ],
-      "files": [
-        "src/components/AgentGlyph.tsx",
-        "src/remote/RemoteAgentGlyph.tsx"
-      ],
-      "kind": "extract_shared_helper",
-      "priority": "high",
-      "summary": "Extract the repeated logic into a shared helper or module used by the 4 clone groups across these files."
-    },
-    {
-      "clone_ids": [
         "clone-0x6067ca066346a3c2",
         "clone-0x46b14f13f2993a14",
         "clone-0x25d2cc9141c25a11",
@@ -775,18 +760,42 @@
     },
     {
       "clone_ids": [
-        "clone-0x192ade17c1abf5fd",
-        "clone-0x4dbde01561efa924"
+        "clone-0xfc51cb7428314a19",
+        "clone-0x220ca1c043f3d29c",
+        "clone-0x1d0ffc9c1f5ac781",
+        "clone-0x31a396cfce0df305"
       ],
       "files": [
-        "electron/remote/server.ts",
-        "electron/remote/ws-transport.test.ts",
-        "server/browser-control-plane.ts",
-        "tests/harness/websocket-contract-harness.ts"
+        "src/components/AgentGlyph.tsx",
+        "src/remote/RemoteAgentGlyph.tsx"
+      ],
+      "kind": "extract_shared_helper",
+      "priority": "high",
+      "summary": "Extract the repeated logic into a shared helper or module used by the 4 clone groups across these files."
+    },
+    {
+      "clone_ids": [
+        "clone-0x736e2aabc38ba277",
+        "clone-0x16066261bdf3b41",
+        "clone-0x282f8e99dd044a9b",
+        "clone-0x2bbf696ee28a82a",
+        "clone-0x48e97db7095fc4c0",
+        "clone-0x64e56215e03b1d84",
+        "clone-0x961c8808d1107a59",
+        "clone-0xa37c2bbf1f4b41ef",
+        "clone-0xc891207f45e9c971"
+      ],
+      "files": [
+        "electron/ipc/persisted-task-lookup-state.ts",
+        "electron/ipc/task-container-handlers.ts",
+        "electron/ipc/task-containers.ts",
+        "src/lib/terminal-performance-experiments.ts",
+        "src/remote/remote-collaboration.ts",
+        "src/remote/ws.ts"
       ],
       "kind": "sync_recent_divergence",
       "priority": "high",
-      "summary": "Review recent edits across clone siblings: clone coverage spans 2 overlapping sibling sets; commit churn spans a gap of 17 recent commit(s); file age spans a gap of 30 day(s). Synchronize the shared behavior or intentionally split the implementations."
+      "summary": "Review recent edits across clone siblings: clone coverage spans 2 overlapping sibling sets; commit churn spans a gap of 16 recent commit(s); file age spans a gap of 32 day(s). Synchronize the shared behavior or intentionally split the implementations."
     }
   ],
   "concept_summaries": [
@@ -855,7 +864,7 @@
   "concept_summary_count": 3,
   "confidence": {
     "rule_coverage_0_10000": 10000,
-    "scan_confidence_0_10000": 8573,
+    "scan_confidence_0_10000": 8601,
     "semantic_rules_loaded": true,
     "session_baseline": {
       "compatible": false,
@@ -902,7 +911,7 @@
         "signal_count": 6,
         "structural_signal_count": 3
       },
-      "presentation_class": "tooling_debt",
+      "presentation_class": "watchpoint",
       "role_tags": [
         "entry_surface"
       ],
@@ -1082,7 +1091,7 @@
         "overlapping signals: 3",
         "signal kinds: large_file, dependency_sprawl, hotspot",
         "affected files: 1",
-        "large_file: File 'src/components/terminal-view/terminal-output-pipeline.ts' is 1073 lines, above the typescript threshold of 500",
+        "large_file: File 'src/components/terminal-view/terminal-output-pipeline.ts' is 1268 lines, above the typescript threshold of 500",
         "dependency_sprawl: File 'src/components/terminal-view/terminal-output-pipeline.ts' depends on 17 real surfaces, above the typescript threshold of 15",
         "hotspot: File 'src/components/terminal-view/terminal-output-pipeline.ts' is carrying coordination hotspot pressure"
       ],
@@ -1133,9 +1142,9 @@
         "signal kinds: large_file, hotspot, dependency_sprawl",
         "affected files: 1",
         "role tags: guarded_seam, facade_with_extracted_owners",
-        "large_file: Guarded facade file 'src/components/terminal-view/terminal-session.ts' is 1395 lines, above the typescript threshold of 500",
+        "large_file: Guarded facade file 'src/components/terminal-view/terminal-session.ts' is 1643 lines, above the typescript threshold of 500",
         "hotspot: File 'src/components/terminal-view/terminal-session.ts' is carrying coordination hotspot pressure",
-        "dependency_sprawl: File 'src/components/terminal-view/terminal-session.ts' depends on 29 real surfaces, above the typescript threshold of 15"
+        "dependency_sprawl: File 'src/components/terminal-view/terminal-session.ts' depends on 30 real surfaces, above the typescript threshold of 15"
       ],
       "files": [
         "src/components/terminal-view/terminal-session.ts"
@@ -1312,10 +1321,10 @@
         "private helper surface split"
       ],
       "evidence": [
-        "line count: 1228",
+        "line count: 1235",
         "large-file threshold: 500",
         "function count: 83",
-        "peak function complexity: 193",
+        "peak function complexity: 195",
         "outbound dependencies: 12",
         "suggested split axes: app dependency boundary, lib dependency boundary, components dependency boundary, high-complexity helper extraction, private helper surface split",
         "related surfaces to peel out first: electron/ipc/channels.ts, src/app/runtime-diagnostics.ts, src/app/task-command-lease.ts, src/app/terminal-focused-input.ts, src/app/terminal-switch-echo-grace.ts",
@@ -1341,8 +1350,8 @@
         "file_count": 1,
         "function_count": 83,
         "guardrail_test_count": 1,
-        "line_count": 1228,
-        "max_complexity": 193,
+        "line_count": 1235,
+        "max_complexity": 195,
         "role_count": 1
       },
       "presentation_class": "structural_debt",
@@ -1364,7 +1373,7 @@
         "size",
         "coordination"
       ],
-      "summary": "File 'src/components/terminal-view/terminal-input-pipeline.ts' is 1228 lines, above the typescript threshold of 500",
+      "summary": "File 'src/components/terminal-view/terminal-input-pipeline.ts' is 1235 lines, above the typescript threshold of 500",
       "trust_tier": "trusted"
     },
     {
@@ -1376,10 +1385,10 @@
         "private helper surface split"
       ],
       "evidence": [
-        "line count: 1073",
+        "line count: 1268",
         "large-file threshold: 500",
-        "function count: 89",
-        "peak function complexity: 155",
+        "function count: 103",
+        "peak function complexity: 190",
         "outbound dependencies: 17",
         "suggested split axes: app dependency boundary, lib dependency boundary, components dependency boundary, high-complexity helper extraction, private helper surface split",
         "related surfaces to peel out first: electron/ipc/channels.ts, src/app/terminal-dense-overload.ts, src/app/terminal-focused-input.ts, src/app/terminal-frame-pressure.ts, src/app/terminal-interactivity-governor.ts",
@@ -1402,10 +1411,10 @@
       "metrics": {
         "fan_out": 17,
         "file_count": 1,
-        "function_count": 89,
+        "function_count": 103,
         "guardrail_test_count": 0,
-        "line_count": 1073,
-        "max_complexity": 155,
+        "line_count": 1268,
+        "max_complexity": 190,
         "role_count": 0
       },
       "presentation_class": "structural_debt",
@@ -1425,7 +1434,7 @@
         "size",
         "coordination"
       ],
-      "summary": "File 'src/components/terminal-view/terminal-output-pipeline.ts' is 1073 lines, above the typescript threshold of 500",
+      "summary": "File 'src/components/terminal-view/terminal-output-pipeline.ts' is 1268 lines, above the typescript threshold of 500",
       "trust_tier": "trusted"
     },
     {
@@ -1501,6 +1510,50 @@
   },
   "experimental_debt_signal_count": 5,
   "experimental_debt_signals": [
+    {
+      "candidate_split_axes": [],
+      "evidence": [
+        "dead private functions: 5",
+        "dead private lines: 5",
+        "sample dead functions: currentBranchGuidance, currentBranchTooltip, dialogWidth",
+        "total file lines: 713"
+      ],
+      "files": [
+        "src/components/NewTaskDialog.tsx"
+      ],
+      "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
+      "inspection_focus": [
+        "inspect whether the dead helpers should be deleted or intentionally reconnected",
+        "inspect whether the file still reflects the supported control flow"
+      ],
+      "kind": "dead_private_code_cluster",
+      "leverage_class": "experimental",
+      "leverage_reasons": [
+        "detector_under_evaluation"
+      ],
+      "metrics": {
+        "dead_line_count": 5,
+        "dead_symbol_count": 5,
+        "file_count": 1,
+        "function_count": 28,
+        "line_count": 713,
+        "max_complexity": 13,
+        "role_count": 0
+      },
+      "presentation_class": "experimental",
+      "related_surfaces": [],
+      "role_tags": [],
+      "scope": "src/components/NewTaskDialog.tsx",
+      "score_0_10000": 5190,
+      "severity": "medium",
+      "signal_class": "watchpoint",
+      "signal_families": [
+        "staleness",
+        "maintainability"
+      ],
+      "summary": "File 'src/components/NewTaskDialog.tsx' contains 5 uncalled private functions totaling 5 lines",
+      "trust_tier": "experimental"
+    },
     {
       "candidate_split_axes": [],
       "evidence": [
@@ -1640,12 +1693,12 @@
       "candidate_split_axes": [],
       "evidence": [
         "dead private functions: 3",
-        "dead private lines: 27",
-        "sample dead functions: handleAddProject, handleResizeMouseDown, remoteAccessConnected",
-        "total file lines: 454"
+        "dead private lines: 29",
+        "sample dead functions: closeDialog, dismissInlineInput, submitInlineInput",
+        "total file lines: 600"
       ],
       "files": [
-        "src/components/Sidebar.tsx"
+        "src/components/PlanViewerDialog.tsx"
       ],
       "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
       "inspection_focus": [
@@ -1658,70 +1711,29 @@
         "detector_under_evaluation"
       ],
       "metrics": {
-        "dead_line_count": 27,
+        "dead_line_count": 29,
         "dead_symbol_count": 3,
         "file_count": 1,
-        "function_count": 19,
-        "line_count": 454,
-        "max_complexity": 6,
-        "role_count": 0
+        "function_count": 26,
+        "line_count": 600,
+        "max_complexity": 13,
+        "role_count": 2
       },
       "presentation_class": "experimental",
       "related_surfaces": [],
-      "role_tags": [],
-      "scope": "src/components/Sidebar.tsx",
-      "score_0_10000": 4686,
+      "role_tags": [
+        "guarded_seam",
+        "facade_with_extracted_owners"
+      ],
+      "scope": "src/components/PlanViewerDialog.tsx",
+      "score_0_10000": 4722,
       "severity": "medium",
       "signal_class": "watchpoint",
       "signal_families": [
         "staleness",
         "maintainability"
       ],
-      "summary": "File 'src/components/Sidebar.tsx' contains 3 uncalled private functions totaling 27 lines",
-      "trust_tier": "experimental"
-    },
-    {
-      "candidate_split_axes": [],
-      "evidence": [
-        "dead private functions: 3",
-        "dead private lines: 17",
-        "sample dead functions: browserBuildLabel, hasOtherSessions, sessionSummaryText",
-        "total file lines: 507"
-      ],
-      "files": [
-        "src/components/SidebarFooter.tsx"
-      ],
-      "impact": "Stale private code increases maintenance noise and can mislead future edits into reviving obsolete paths.",
-      "inspection_focus": [
-        "inspect whether the dead helpers should be deleted or intentionally reconnected",
-        "inspect whether the file still reflects the supported control flow"
-      ],
-      "kind": "dead_private_code_cluster",
-      "leverage_class": "experimental",
-      "leverage_reasons": [
-        "detector_under_evaluation"
-      ],
-      "metrics": {
-        "dead_line_count": 17,
-        "dead_symbol_count": 3,
-        "file_count": 1,
-        "function_count": 18,
-        "line_count": 507,
-        "max_complexity": 5,
-        "role_count": 0
-      },
-      "presentation_class": "experimental",
-      "related_surfaces": [],
-      "role_tags": [],
-      "scope": "src/components/SidebarFooter.tsx",
-      "score_0_10000": 4506,
-      "severity": "medium",
-      "signal_class": "watchpoint",
-      "signal_families": [
-        "staleness",
-        "maintainability"
-      ],
-      "summary": "File 'src/components/SidebarFooter.tsx' contains 3 uncalled private functions totaling 17 lines",
+      "summary": "File 'src/components/PlanViewerDialog.tsx' contains 3 uncalled private functions totaling 29 lines",
       "trust_tier": "experimental"
     }
   ],
@@ -1783,14 +1795,14 @@
         "store dependency boundary"
       ],
       "evidence": [
-        "fan-in: 47",
+        "fan-in: 48",
         "hotspot threshold: 20",
         "fan-out: 19",
-        "instability: 0.29",
-        "dominant dependent categories: components(31), store(13), arena(2)",
+        "instability: 0.28",
+        "dominant dependent categories: components(32), store(13), arena(2)",
         "sample dependents: src/App.tsx, src/arena/ConfigScreen.tsx, src/arena/ResultsScreen.tsx",
         "guardrail tests: src/app/store-boundary.architecture.test.ts, src/components/TaskPanel.architecture.test.ts",
-        "guarded boundary literals: store/core, store/store, store.taskCommandControllers, store.focusedPanel[, ../app/task-workflows, ../app/agent-catalog, runWithAgentTaskCommandLease, IPC.WriteToAgent, loadAgents(, pickAndAddProject, closeTask(, handlePermissionResponse, permissionRequests[, setTaskFocusedPanel"
+        "guarded boundary literals: store/core, store/store, store.taskCommandControllers, store.focusedPanel[, ../app/task-workflows, ../app/agent-catalog, runWithAgentTaskCommandLease, IPC.WriteToAgent, loadAgents(, pickAndAddProject, closeTask(, handlePermissionResponse, permissionRequests[, setPrefillPrompt(, setTaskFocusedPanel, setPrefillPrompt, invoke("
       ],
       "files": [
         "src/store/store.ts"
@@ -1828,7 +1840,7 @@
       ],
       "scope": "src/store/store.ts",
       "severity": "high",
-      "summary": "Component-facing barrel 'src/store/store.ts' has 47 inbound references and remains unstable",
+      "summary": "Component-facing barrel 'src/store/store.ts' has 48 inbound references and remains unstable",
       "trust_tier": "trusted"
     },
     {
@@ -1837,7 +1849,7 @@
       ],
       "evidence": [
         "cycle size: 36",
-        "total lines in cycle: 7038",
+        "total lines in cycle: 7153",
         "peak function complexity inside cycle: 72",
         "candidate cuts: 3",
         "best cut candidate: src/store/core.ts -> src/store/store.ts (removes 7 cyclic files)",
@@ -1926,7 +1938,7 @@
       ],
       "evidence": [
         "cycle size: 2",
-        "total lines in cycle: 170",
+        "total lines in cycle: 174",
         "peak function complexity inside cycle: 5",
         "candidate cuts: 2",
         "best cut candidate: electron/ipc/handlers.ts -> electron/ipc/notification-handlers.ts (removes 2 cyclic files)",
@@ -1969,13 +1981,13 @@
         "lib dependency boundary"
       ],
       "evidence": [
-        "fan-out: 35",
+        "fan-out: 36",
         "fan-out threshold: 15",
         "instability: 0.95",
-        "dominant dependency categories: components(19), app(7), lib(5)",
+        "dominant dependency categories: components(20), app(7), lib(5)",
         "sample dependencies: src/app/task-activity-clock.ts, src/app/task-containers.ts, src/app/task-ports.ts",
         "guardrail tests: src/components/TaskPanel.architecture.test.ts",
-        "extracted owner factories: createTaskPanelFocusRuntime, createTaskPanelPreviewController, createTaskPanelDialogState, createTaskPanelPermissionController"
+        "extracted owner factories: createTaskPanelFocusRuntime, createTaskPanelPreviewController, createTaskPanelDialogState, createTaskPanelPermissionController, createTaskPanelStepsController"
       ],
       "files": [
         "src/components/TaskPanel.tsx"
@@ -2010,7 +2022,7 @@
       ],
       "scope": "src/components/TaskPanel.tsx",
       "severity": "high",
-      "summary": "File 'src/components/TaskPanel.tsx' depends on 35 real surfaces, above the typescript threshold of 15",
+      "summary": "File 'src/components/TaskPanel.tsx' depends on 36 real surfaces, above the typescript threshold of 15",
       "trust_tier": "trusted"
     },
     {
@@ -2160,11 +2172,11 @@
         "app dependency boundary"
       ],
       "evidence": [
-        "fan-in: 44",
+        "fan-in: 46",
         "hotspot threshold: 20",
         "fan-out: 12",
         "instability: 0.21",
-        "dominant dependent categories: components(22), store(14), app(6)",
+        "dominant dependent categories: components(22), store(15), app(7)",
         "sample dependents: src/app/task-attention.test.ts, src/app/task-convergence.test.ts, src/app/task-notification-capabilities.test.tsx"
       ],
       "files": [
@@ -2193,7 +2205,7 @@
       "role_tags": [],
       "scope": "src/test/store-test-helpers.ts",
       "severity": "high",
-      "summary": "File 'src/test/store-test-helpers.ts' has 44 inbound references and remains unstable",
+      "summary": "File 'src/test/store-test-helpers.ts' has 46 inbound references and remains unstable",
       "trust_tier": "trusted"
     },
     {
@@ -2303,10 +2315,10 @@
         "private helper surface split"
       ],
       "evidence": [
-        "line count: 1228",
+        "line count: 1235",
         "large-file threshold: 500",
         "function count: 83",
-        "peak function complexity: 193",
+        "peak function complexity: 195",
         "outbound dependencies: 12",
         "suggested split axes: app dependency boundary, lib dependency boundary, components dependency boundary, high-complexity helper extraction, private helper surface split",
         "related surfaces to peel out first: electron/ipc/channels.ts, src/app/runtime-diagnostics.ts, src/app/task-command-lease.ts, src/app/terminal-focused-input.ts, src/app/terminal-switch-echo-grace.ts",
@@ -2344,7 +2356,7 @@
       ],
       "scope": "src/components/terminal-view/terminal-input-pipeline.ts",
       "severity": "high",
-      "summary": "File 'src/components/terminal-view/terminal-input-pipeline.ts' is 1228 lines, above the typescript threshold of 500",
+      "summary": "File 'src/components/terminal-view/terminal-input-pipeline.ts' is 1235 lines, above the typescript threshold of 500",
       "trust_tier": "trusted"
     }
   ],
@@ -2383,7 +2395,7 @@
         "function_count": 14,
         "guardrail_test_count": 0,
         "instability_0_10000": 9063,
-        "line_count": 458,
+        "line_count": 468,
         "max_complexity": 19,
         "role_count": 1
       },
@@ -2414,14 +2426,14 @@
         "store dependency boundary"
       ],
       "evidence": [
-        "fan-in: 47",
+        "fan-in: 48",
         "hotspot threshold: 20",
         "fan-out: 19",
-        "instability: 0.29",
-        "dominant dependent categories: components(31), store(13), arena(2)",
+        "instability: 0.28",
+        "dominant dependent categories: components(32), store(13), arena(2)",
         "sample dependents: src/App.tsx, src/arena/ConfigScreen.tsx, src/arena/ResultsScreen.tsx",
         "guardrail tests: src/app/store-boundary.architecture.test.ts, src/components/TaskPanel.architecture.test.ts",
-        "guarded boundary literals: store/core, store/store, store.taskCommandControllers, store.focusedPanel[, ../app/task-workflows, ../app/agent-catalog, runWithAgentTaskCommandLease, IPC.WriteToAgent, loadAgents(, pickAndAddProject, closeTask(, handlePermissionResponse, permissionRequests[, setTaskFocusedPanel"
+        "guarded boundary literals: store/core, store/store, store.taskCommandControllers, store.focusedPanel[, ../app/task-workflows, ../app/agent-catalog, runWithAgentTaskCommandLease, IPC.WriteToAgent, loadAgents(, pickAndAddProject, closeTask(, handlePermissionResponse, permissionRequests[, setPrefillPrompt(, setTaskFocusedPanel, setPrefillPrompt, invoke("
       ],
       "files": [
         "src/store/store.ts"
@@ -2440,13 +2452,13 @@
         "high_inbound_dependency_pressure"
       ],
       "metrics": {
-        "fan_in": 47,
+        "fan_in": 48,
         "fan_out": 19,
         "file_count": 1,
         "function_count": 0,
         "guardrail_test_count": 2,
-        "instability_0_10000": 2879,
-        "line_count": 183,
+        "instability_0_10000": 2836,
+        "line_count": 192,
         "max_complexity": 0,
         "role_count": 4
       },
@@ -2465,14 +2477,14 @@
         "state_container"
       ],
       "scope": "src/store/store.ts",
-      "score_0_10000": 7159,
+      "score_0_10000": 7145,
       "severity": "high",
       "signal_class": "debt",
       "signal_families": [
         "coupling",
         "blast_radius"
       ],
-      "summary": "Component-facing barrel 'src/store/store.ts' has 47 inbound references and remains unstable",
+      "summary": "Component-facing barrel 'src/store/store.ts' has 48 inbound references and remains unstable",
       "trust_tier": "trusted"
     },
     {
@@ -2485,8 +2497,8 @@
             "seam kind: guarded_boundary_cut",
             "remaining largest cycle after cut: 29",
             "cyclic files removed by cut: 7",
-            "source lines: 101",
-            "target lines: 183"
+            "source lines: 114",
+            "target lines: 192"
           ],
           "reduction_file_count": 7,
           "remaining_cycle_size": 29,
@@ -2501,8 +2513,8 @@
             "seam kind: guarded_boundary_cut",
             "remaining largest cycle after cut: 34",
             "cyclic files removed by cut: 2",
-            "source lines: 285",
-            "target lines: 101"
+            "source lines: 300",
+            "target lines: 114"
           ],
           "reduction_file_count": 2,
           "remaining_cycle_size": 34,
@@ -2518,7 +2530,7 @@
             "remaining largest cycle after cut: 35",
             "cyclic files removed by cut: 1",
             "source lines: 18",
-            "target lines: 101"
+            "target lines: 114"
           ],
           "reduction_file_count": 1,
           "remaining_cycle_size": 35,
@@ -2531,7 +2543,7 @@
       ],
       "evidence": [
         "cycle size: 36",
-        "total lines in cycle: 7038",
+        "total lines in cycle: 7153",
         "peak function complexity inside cycle: 72",
         "candidate cuts: 3",
         "best cut candidate: src/store/core.ts -> src/store/store.ts (removes 7 cyclic files)",
@@ -2594,7 +2606,7 @@
         "cycle_size": 36,
         "file_count": 36,
         "largest_cycle_after_best_cut": 29,
-        "line_count": 7038,
+        "line_count": 7153,
         "max_complexity": 72,
         "role_count": 4
       },
@@ -2635,7 +2647,7 @@
             "seam kind: local_module_split",
             "remaining largest cycle after cut: 0",
             "cyclic files removed by cut: 2",
-            "source lines: 58",
+            "source lines: 62",
             "target lines: 112"
           ],
           "reduction_file_count": 2,
@@ -2652,7 +2664,7 @@
             "remaining largest cycle after cut: 0",
             "cyclic files removed by cut: 2",
             "source lines: 112",
-            "target lines: 58"
+            "target lines: 62"
           ],
           "reduction_file_count": 2,
           "remaining_cycle_size": 0,
@@ -2665,7 +2677,7 @@
       ],
       "evidence": [
         "cycle size: 2",
-        "total lines in cycle: 170",
+        "total lines in cycle: 174",
         "peak function complexity inside cycle: 5",
         "candidate cuts: 2",
         "best cut candidate: electron/ipc/handlers.ts -> electron/ipc/notification-handlers.ts (removes 2 cyclic files)",
@@ -2691,7 +2703,7 @@
         "cycle_size": 2,
         "file_count": 2,
         "largest_cycle_after_best_cut": 0,
-        "line_count": 170,
+        "line_count": 174,
         "max_complexity": 5,
         "role_count": 0
       },
@@ -2718,13 +2730,13 @@
         "lib dependency boundary"
       ],
       "evidence": [
-        "fan-out: 35",
+        "fan-out: 36",
         "fan-out threshold: 15",
         "instability: 0.95",
-        "dominant dependency categories: components(19), app(7), lib(5)",
+        "dominant dependency categories: components(20), app(7), lib(5)",
         "sample dependencies: src/app/task-activity-clock.ts, src/app/task-containers.ts, src/app/task-ports.ts",
         "guardrail tests: src/components/TaskPanel.architecture.test.ts",
-        "extracted owner factories: createTaskPanelFocusRuntime, createTaskPanelPreviewController, createTaskPanelDialogState, createTaskPanelPermissionController"
+        "extracted owner factories: createTaskPanelFocusRuntime, createTaskPanelPreviewController, createTaskPanelDialogState, createTaskPanelPermissionController, createTaskPanelStepsController"
       ],
       "files": [
         "src/components/TaskPanel.tsx"
@@ -2744,12 +2756,12 @@
       ],
       "metrics": {
         "fan_in": 2,
-        "fan_out": 35,
+        "fan_out": 36,
         "file_count": 1,
-        "function_count": 62,
+        "function_count": 65,
         "guardrail_test_count": 1,
-        "instability_0_10000": 9459,
-        "line_count": 478,
+        "instability_0_10000": 9474,
+        "line_count": 491,
         "max_complexity": 13,
         "role_count": 2
       },
@@ -2765,14 +2777,14 @@
         "facade_with_extracted_owners"
       ],
       "scope": "src/components/TaskPanel.tsx",
-      "score_0_10000": 8364,
+      "score_0_10000": 8368,
       "severity": "high",
       "signal_class": "debt",
       "signal_families": [
         "coupling",
         "coordination"
       ],
-      "summary": "File 'src/components/TaskPanel.tsx' depends on 35 real surfaces, above the typescript threshold of 15",
+      "summary": "File 'src/components/TaskPanel.tsx' depends on 36 real surfaces, above the typescript threshold of 15",
       "trust_tier": "trusted"
     },
     {
@@ -2960,11 +2972,11 @@
         "app dependency boundary"
       ],
       "evidence": [
-        "fan-in: 44",
+        "fan-in: 46",
         "hotspot threshold: 20",
         "fan-out: 12",
         "instability: 0.21",
-        "dominant dependent categories: components(22), store(14), app(6)",
+        "dominant dependent categories: components(22), store(15), app(7)",
         "sample dependents: src/app/task-attention.test.ts, src/app/task-convergence.test.ts, src/app/task-notification-capabilities.test.tsx"
       ],
       "files": [
@@ -2981,12 +2993,12 @@
         "contained_dependency_pressure"
       ],
       "metrics": {
-        "fan_in": 44,
+        "fan_in": 46,
         "fan_out": 12,
         "file_count": 1,
         "function_count": 6,
         "guardrail_test_count": 0,
-        "instability_0_10000": 2143,
+        "instability_0_10000": 2069,
         "line_count": 88,
         "max_complexity": 1,
         "role_count": 0
@@ -2998,14 +3010,14 @@
         "src/app/task-notification-capabilities.test.tsx"
       ],
       "scope": "src/test/store-test-helpers.ts",
-      "score_0_10000": 6914,
+      "score_0_10000": 6889,
       "severity": "high",
       "signal_class": "debt",
       "signal_families": [
         "coupling",
         "blast_radius"
       ],
-      "summary": "File 'src/test/store-test-helpers.ts' has 44 inbound references and remains unstable",
+      "summary": "File 'src/test/store-test-helpers.ts' has 46 inbound references and remains unstable",
       "trust_tier": "trusted"
     },
     {
@@ -3043,7 +3055,7 @@
         "function_count": 29,
         "guardrail_test_count": 1,
         "instability_0_10000": 9487,
-        "line_count": 449,
+        "line_count": 453,
         "max_complexity": 2,
         "role_count": 2
       },
@@ -3138,10 +3150,10 @@
         "private helper surface split"
       ],
       "evidence": [
-        "line count: 1228",
+        "line count: 1235",
         "large-file threshold: 500",
         "function count: 83",
-        "peak function complexity: 193",
+        "peak function complexity: 195",
         "outbound dependencies: 12",
         "suggested split axes: app dependency boundary, lib dependency boundary, components dependency boundary, high-complexity helper extraction, private helper surface split",
         "related surfaces to peel out first: electron/ipc/channels.ts, src/app/runtime-diagnostics.ts, src/app/task-command-lease.ts, src/app/terminal-focused-input.ts, src/app/terminal-switch-echo-grace.ts",
@@ -3167,8 +3179,8 @@
         "file_count": 1,
         "function_count": 83,
         "guardrail_test_count": 1,
-        "line_count": 1228,
-        "max_complexity": 193,
+        "line_count": 1235,
+        "max_complexity": 195,
         "role_count": 1
       },
       "presentation_class": "structural_debt",
@@ -3190,7 +3202,7 @@
         "size",
         "coordination"
       ],
-      "summary": "File 'src/components/terminal-view/terminal-input-pipeline.ts' is 1228 lines, above the typescript threshold of 500",
+      "summary": "File 'src/components/terminal-view/terminal-input-pipeline.ts' is 1235 lines, above the typescript threshold of 500",
       "trust_tier": "trusted"
     }
   ],
@@ -3220,7 +3232,7 @@
   "suppressed_finding_count": 0,
   "suppression_hits": [],
   "visible_clone_family_count": 6,
-  "visible_clone_group_count": 46,
+  "visible_clone_group_count": 47,
   "watchpoint_count": 5,
   "watchpoints": [
     {
@@ -3231,7 +3243,7 @@
       "clone_family_count": 0,
       "evidence": [
         "cycle size: 36",
-        "total lines in cycle: 7038",
+        "total lines in cycle: 7153",
         "peak function complexity inside cycle: 72",
         "candidate cuts: 3",
         "best cut candidate: src/store/core.ts -> src/store/store.ts (removes 7 cyclic files)",
@@ -3325,7 +3337,7 @@
       "clone_family_count": 0,
       "evidence": [
         "cycle size: 2",
-        "total lines in cycle: 170",
+        "total lines in cycle: 174",
         "peak function complexity inside cycle: 5",
         "candidate cuts: 2",
         "best cut candidate: electron/ipc/handlers.ts -> electron/ipc/notification-handlers.ts (removes 2 cyclic files)",
@@ -3447,7 +3459,7 @@
       ],
       "role_tags": [],
       "scope": "clone-family-0x7e50d49dc16ef925",
-      "score_0_10000": 90,
+      "score_0_10000": 85,
       "severity": "high",
       "signal_families": [
         "duplication",
