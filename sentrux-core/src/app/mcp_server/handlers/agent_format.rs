@@ -108,6 +108,8 @@ pub(crate) struct AgentIssueEvidence {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) patch_directly_worsened: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) changed_scope: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) signal_treatment_intervention_net_value_score_delta: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) top_action_help_rate: Option<f64>,
@@ -148,6 +150,7 @@ impl AgentIssueEvidence {
         self.default_rollout_ready.is_none()
             && self.signal_treatment_ready.is_none()
             && self.patch_directly_worsened.is_none()
+            && self.changed_scope.is_none()
             && self
                 .signal_treatment_intervention_net_value_score_delta
                 .is_none()
@@ -314,6 +317,7 @@ fn issue_evidence_for_value(finding: &Value) -> AgentIssueEvidence {
         default_rollout_ready: default_rollout_ready_field(finding),
         signal_treatment_ready: boolean_field(finding, &["signal_treatment_ready"]),
         patch_directly_worsened: boolean_field(finding, PATCH_WORSENED_FIELD_KEYS),
+        changed_scope: boolean_field(finding, &["changed_scope"]),
         signal_treatment_intervention_net_value_score_delta: number_field(
             finding,
             TREATMENT_NET_VALUE_DELTA_FIELD_KEYS,

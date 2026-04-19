@@ -7,8 +7,17 @@ const __dirname = path.dirname(__filename);
 const signalPolicy = loadSignalPolicy();
 
 function loadSignalPolicy() {
-  const signalPolicyPath = path.resolve(__dirname, '../../.sentrux/signal-policy.json');
+  const signalPolicyPath = resolveSignalPolicyPath();
   return JSON.parse(readFileSync(signalPolicyPath, 'utf8'));
+}
+
+function resolveSignalPolicyPath() {
+  const overridePath = process.env.SENTRUX_SIGNAL_POLICY_PATH;
+  if (typeof overridePath === 'string' && overridePath.trim() !== '') {
+    return path.resolve(overridePath);
+  }
+
+  return path.resolve(__dirname, '../../.sentrux/signal-policy.json');
 }
 
 function actionWeight(weights, key, fallbackValue) {
@@ -18,6 +27,10 @@ function actionWeight(weights, key, fallbackValue) {
 function orderPriority(order, value) {
   const index = order.indexOf(value);
   return index === -1 ? order.length : index;
+}
+
+function defaultLanePolicy() {
+  return signalPolicy.default_lane ?? {};
 }
 
 export function actionKindWeight(kind) {
@@ -48,4 +61,16 @@ export function scoreBandLabel(score) {
   }
 
   return 'supporting_signal';
+}
+
+export function defaultLaneActionLimit() {
+  return defaultLanePolicy().max_primary_actions ?? 3;
+}
+
+export function defaultLaneEligibleSources() {
+  return defaultLanePolicy().eligible_sources ?? [];
+}
+
+export function defaultLaneKindRule(kind) {
+  return defaultLanePolicy().kind_rules?.[kind] ?? null;
 }

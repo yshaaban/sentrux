@@ -4,6 +4,7 @@ use super::agent_format::{
 };
 use super::signal_policy::{
     action_kind_weight, action_leverage_weight, action_presentation_weight,
+    default_lane_action_limit, default_lane_kind_rule, default_lane_source_allowed,
 };
 use serde_json::Value;
 use std::cmp::Ordering;
@@ -19,9 +20,12 @@ pub(crate) fn issue_blocks_gate(issue: &AgentIssue) -> bool {
 }
 
 pub(crate) fn actions_from_issues(issues: &[AgentIssue], limit: usize) -> Vec<AgentAction> {
+    let action_limit = limit.max(1).min(default_lane_action_limit());
+
     issues
         .iter()
-        .take(limit.max(1))
+        .filter(|issue| issue_is_default_lane_eligible(issue))
+        .take(action_limit)
         .enumerate()
         .map(|(index, issue)| AgentAction {
             priority: index + 1,
@@ -149,6 +153,41 @@ fn issue_patch_directly_worsened(issue: &AgentIssue) -> bool {
         .evidence_metrics
         .patch_directly_worsened
         .unwrap_or(false)
+}
+
+fn issue_in_changed_scope(issue: &AgentIssue) -> bool {
+    issue.evidence_metrics.changed_scope.unwrap_or(false)
+}
+
+fn issue_source_name(source: IssueSource) -> &'static str {
+    match source {
+        IssueSource::Obligation => "obligation",
+        IssueSource::Structural => "structural",
+        IssueSource::Clone => "clone",
+        IssueSource::Rules => "rules",
+    }
+}
+
+fn issue_is_default_lane_eligible(issue: &AgentIssue) -> bool {
+    if !default_lane_source_allowed(issue_source_name(issue.source)) {
+        return false;
+    }
+
+    let kind_rule = default_lane_kind_rule(issue.kind.as_str());
+    if !kind_rule.eligible {
+        return false;
+    }
+    if kind_rule.require_patch_directly_worsened && !issue_patch_directly_worsened(issue) {
+        return false;
+    }
+    if kind_rule.require_repair_surface && !issue.repair_packet.required_fields.repair_surface {
+        return false;
+    }
+    if kind_rule.require_changed_scope && !issue_in_changed_scope(issue) {
+        return false;
+    }
+
+    true
 }
 
 fn compare_boolean_true_first(left: bool, right: bool) -> Ordering {

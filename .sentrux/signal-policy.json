@@ -56,6 +56,16 @@
       "experimental"
     ]
   },
+  "default_lane": {
+    "max_primary_actions": 3,
+    "eligible_sources": [
+      "obligation",
+      "rules",
+      "clone",
+      "structural"
+    ],
+    "kind_rules": {}
+  },
   "score_bands": [
     {
       "minimum_score": 8500,

@@ -245,6 +245,7 @@ fn build_changed_semantic_finding_values(changed_analysis: &SemanticAnalysisBatc
         .iter()
         .filter(|finding| finding.kind != "closed_domain_exhaustiveness")
         .map(semantic_finding_value)
+        .map(mark_changed_scope)
         .collect::<Vec<_>>()
 }
 
@@ -366,6 +367,14 @@ fn structural_report_value(report: crate::metrics::v2::StructuralDebtReport) -> 
     serde_json::to_value(report).unwrap_or_else(|_| json!({}))
 }
 
+fn mark_changed_scope(mut value: Value) -> Value {
+    if let Some(object) = value.as_object_mut() {
+        object.insert("changed_scope".to_string(), json!(true));
+    }
+
+    value
+}
+
 fn derived_obligation_kind(obligation: &crate::metrics::v2::ObligationReport) -> &str {
     if obligation.kind == "contract_surface_completeness" {
         "incomplete_propagation"
@@ -446,6 +455,7 @@ fn build_changed_structural_finding_values(
             )
     })
     .map(structural_report_value)
+    .map(mark_changed_scope)
     .collect()
 }
 

@@ -31,5 +31,24 @@
     { "name": "structural_debt", "priority": 0 },
     { "name": "experimental", "priority": 5 },
     { "name": "unknown_presentation", "priority": 6 }
+  ],
+  "default_lane": {
+    "max_primary_actions": 3,
+    "eligible_sources": [
+      "obligation",
+      "rules",
+      "clone",
+      "structural"
+    ]
+  },
+  "default_lane_kind_rules": [
+    {
+      "name": "large_file",
+      "value": null
+    },
+    {
+      "name": "unknown_kind",
+      "value": null
+    }
   ]
 }

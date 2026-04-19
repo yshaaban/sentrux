@@ -8,6 +8,9 @@ import {
   actionKindWeight,
   actionLeverageWeight,
   actionPresentationWeight,
+  defaultLaneActionLimit,
+  defaultLaneEligibleSources,
+  defaultLaneKindRule,
   reportLeveragePriority,
   reportPresentationPriority,
   scoreBandLabel,
@@ -51,5 +54,16 @@ test('shared report-selection priorities match the parity fixture', async functi
   }
   for (const testCase of fixture.report_presentation_priority) {
     assert.equal(reportPresentationPriority(testCase.name), testCase.priority);
+  }
+});
+
+test('shared default-lane policy matches the parity fixture', async function () {
+  const fixture = await readSharedPolicyFixture();
+
+  assert.equal(defaultLaneActionLimit(), fixture.default_lane.max_primary_actions);
+  assert.deepEqual(defaultLaneEligibleSources(), fixture.default_lane.eligible_sources);
+
+  for (const testCase of fixture.default_lane_kind_rules) {
+    assert.deepEqual(defaultLaneKindRule(testCase.name) ?? null, testCase.value);
   }
 });
