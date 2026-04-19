@@ -53,6 +53,10 @@
       "type": "string",
       "minLength": 1
     },
+    "question_id": {
+      "type": "string",
+      "minLength": 1
+    },
     "phase_id": {
       "type": "string",
       "minLength": 1
@@ -81,11 +85,30 @@
         "type": "string"
       }
     },
+    "control_variant_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "repo_scope": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
     "variants": {
       "type": "array",
       "minItems": 1,
       "items": {
         "$ref": "#/$defs/variant"
+      }
+    },
+    "stages": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/stage"
       }
     },
     "repo_runs": {
@@ -136,6 +159,33 @@
     }
   },
   "$defs": {
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stage_id", "title", "status", "exit_bar"],
+      "properties": {
+        "stage_id": {
+          "enum": ["screen", "confirm", "decide"]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": ["planned", "in_progress", "completed", "blocked"]
+        },
+        "exit_bar": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "notes": {
+          "type": ["string", "null"]
+        }
+      }
+    },
     "variant": {
       "type": "object",
       "additionalProperties": false,

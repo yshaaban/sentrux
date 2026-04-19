@@ -50,9 +50,32 @@ function buildExperimentSpec(overrides = {}) {
     schema_version: 1,
     cycle_id: '2026-04-cycle-1',
     program_id: 'agent-loop-core',
+    question_id: 'default_lane_family_selection',
     owner_doc: '../../experiment-program.md',
     primary_metrics: ['top_action_help_rate'],
     secondary_metrics: ['reviewed_precision'],
+    control_variant_id: 'current_policy',
+    repo_scope: ['demo'],
+    stages: [
+      {
+        stage_id: 'screen',
+        title: 'Screen variants',
+        status: 'in_progress',
+        exit_bar: ['Collect one repo run.'],
+      },
+      {
+        stage_id: 'confirm',
+        title: 'Confirm shortlist',
+        status: 'planned',
+        exit_bar: ['Shortlist confirmation-ready variants.'],
+      },
+      {
+        stage_id: 'decide',
+        title: 'Record decision',
+        status: 'planned',
+        exit_bar: ['Record the final default-lane decision.'],
+      },
+    ],
     variants: [
       {
         variant_id: 'current_policy',
@@ -169,15 +192,18 @@ test('buildExperimentTracker reports completed evidence and next gates', async f
     const experimentsDir = path.join(repoRootPath, 'docs', 'v2', 'evals', 'experiments');
     const reposDir = path.join(repoRootPath, 'docs', 'v2', 'evals', 'repos');
     const indexPath = path.join(experimentsDir, 'index.json');
-    const experimentSpecPath = path.join(experimentsDir, 'large-file-demotion.json');
+    const experimentSpecPath = path.join(
+      experimentsDir,
+      'large-file-default-lane-admissibility.json',
+    );
     const calibrationManifestPath = path.join(reposDir, 'demo.json');
     const runOutputDir = path.join(
       targetRepoRoot,
       '.sentrux',
       'evals',
       'experiments',
-      'large-file',
-      'current',
+      'large-file-default-lane-admissibility',
+      'current_policy',
       'demo',
     );
 
@@ -190,21 +216,23 @@ test('buildExperimentTracker reports completed evidence and next gates', async f
       schema: '../experiment.schema.json',
       experiments: [
         {
-          experiment_id: 'large-file-demotion',
-          path: './large-file-demotion.json',
+          experiment_id: 'large-file-default-lane-admissibility',
+          path: './large-file-default-lane-admissibility.json',
         },
       ],
     });
     await writeJson(calibrationManifestPath, buildDemoCalibrationManifest());
     await writeJson(experimentSpecPath, buildExperimentSpec({
-      experiment_id: 'large-file-demotion',
-      title: 'Large File Default-Lane Demotion',
+      experiment_id: 'large-file-default-lane-admissibility',
+      title: 'Large File Default-Lane Admissibility',
       workstream: 'structural_pressure',
       status: 'in_progress',
-      phase_id: 'phase_6_structural_pressure_demotion',
+      question_id: 'large_file_default_lane_admissibility',
+      phase_id: 'phase_6_large_file_admissibility',
       decision_question: 'Should large_file stay in the default lane?',
-      hypothesis: 'Large-file pressure should demote unless patch-local and repairable.',
-      exit_bar: ['Demote or retain the signal with explicit restrictions.'],
+      hypothesis: 'Large-file pressure should stay default-lane eligible only when it helps repair outcomes.',
+      repo_scope: ['demo'],
+      exit_bar: ['Retain, constrain, or demote the signal with explicit restrictions.'],
       variants: [
         {
           variant_id: 'current_policy',
@@ -219,7 +247,7 @@ test('buildExperimentTracker reports completed evidence and next gates', async f
           repo_id: 'demo',
           variant_id: 'current_policy',
           manifest: '../repos/demo.json',
-          output_dir: '.sentrux/evals/experiments/large-file/current/demo',
+          output_dir: '.sentrux/evals/experiments/large-file-default-lane-admissibility/current_policy/demo',
         },
       ],
     }));
@@ -251,11 +279,16 @@ test('buildExperimentTracker reports completed evidence and next gates', async f
     assert.equal(tracker.summary.experiment_count, 1);
     assert.equal(tracker.experiments[0].run_status_counts.completed, 1);
     assert.equal(tracker.experiments[0].next_gate, 'decision_review_required');
+    assert.equal(tracker.experiments[0].control_variant_id, 'current_policy');
+    assert.equal(tracker.experiments[0].repo_scope[0], 'demo');
+    assert.equal(tracker.experiments[0].stages[0].stage_id, 'screen');
     assert.equal(
       tracker.experiments[0].runs[0].metrics.top_action_help_rate,
       0.2,
     );
-    assert.match(markdown, /Large File Default-Lane Demotion/);
+    assert.match(markdown, /Large File Default-Lane Admissibility/);
+    assert.match(markdown, /control variant: current_policy/);
+    assert.match(markdown, /active stage: screen \(in_progress\)/);
     assert.match(markdown, /top_action_help_rate=0.200/);
     assert.match(markdown, /next gate: decision_review_required/);
   } finally {

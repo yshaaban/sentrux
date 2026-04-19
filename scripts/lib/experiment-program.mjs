@@ -25,6 +25,11 @@ const VARIANT_STATUSES = new Set([
   'selected',
   'rejected',
 ]);
+const EXPERIMENT_STAGE_IDS = new Set([
+  'screen',
+  'confirm',
+  'decide',
+]);
 const RUN_EXECUTION_MODES = new Set([
   'repo_calibration_loop',
   'manual_review',
@@ -98,6 +103,30 @@ function validateVariant(variant, specPath) {
   }
 }
 
+function validateStages(stages, specPath) {
+  const stageIds = new Set();
+  for (const stage of stages) {
+    if (!stage || typeof stage !== 'object') {
+      throw new Error(`Invalid stage entry in ${specPath}`);
+    }
+
+    assertEnum(stage.stage_id, EXPERIMENT_STAGE_IDS, 'stage_id', specPath);
+    assertNonEmptyString(stage.title, 'stage title', specPath);
+    assertEnum(stage.status, EXPERIMENT_STATUSES, 'stage status', specPath);
+    const exitBar = assertArray(stage.exit_bar, 'stage exit_bar', specPath);
+    if (exitBar.length === 0) {
+      throw new Error(`Stage "${stage.stage_id}" has empty exit_bar in ${specPath}`);
+    }
+    if (stage.notes !== undefined && stage.notes !== null) {
+      assertNonEmptyString(stage.notes, 'stage notes', specPath);
+    }
+    if (stageIds.has(stage.stage_id)) {
+      throw new Error(`Duplicate stage_id "${stage.stage_id}" in ${specPath}`);
+    }
+    stageIds.add(stage.stage_id);
+  }
+}
+
 function validateRepoRun(run, specPath, variantIds) {
   if (!run || typeof run !== 'object') {
     throw new Error(`Invalid repo_run entry in ${specPath}`);
@@ -163,6 +192,18 @@ function validateExperimentSpec(spec, specPath) {
   assertArray(spec.primary_metrics, 'primary_metrics', specPath);
   assertArray(spec.secondary_metrics, 'secondary_metrics', specPath);
   assertArray(spec.exit_bar, 'exit_bar', specPath);
+  if (spec.question_id !== undefined) {
+    assertNonEmptyString(spec.question_id, 'question_id', specPath);
+  }
+  if (spec.repo_scope !== undefined) {
+    const repoScope = assertArray(spec.repo_scope, 'repo_scope', specPath);
+    if (repoScope.length === 0) {
+      throw new Error(`Experiment spec has empty repo_scope: ${specPath}`);
+    }
+    for (const repoId of repoScope) {
+      assertNonEmptyString(repoId, 'repo_scope entry', specPath);
+    }
+  }
 
   const variants = assertArray(spec.variants, 'variants', specPath);
   if (variants.length === 0) {
@@ -175,6 +216,17 @@ function validateExperimentSpec(spec, specPath) {
       throw new Error(`Duplicate variant_id "${variant.variant_id}" in ${specPath}`);
     }
     variantIds.add(variant.variant_id);
+  }
+  if (spec.control_variant_id !== undefined) {
+    assertNonEmptyString(spec.control_variant_id, 'control_variant_id', specPath);
+    if (!variantIds.has(spec.control_variant_id)) {
+      throw new Error(
+        `Unknown control_variant_id "${spec.control_variant_id}" in ${specPath}`,
+      );
+    }
+  }
+  if (spec.stages !== undefined) {
+    validateStages(assertArray(spec.stages, 'stages', specPath), specPath);
   }
 
   const repoRuns = assertArray(spec.repo_runs, 'repo_runs', specPath);
@@ -323,7 +375,7 @@ function artifactStateForSummary(summaryPath, outputDir) {
   return 'not_started';
 }
 
-function buildTrackerStatusCounts() {
+function buildStatusCounts() {
   return {
     planned: 0,
     in_progress: 0,
@@ -477,6 +529,35 @@ function deriveExperimentNextGate(specStatus, runStatusCounts, runCount) {
   }
 
   return 'decision_review_required';
+}
+
+function normalizeStages(stages = []) {
+  const normalizedStages = [];
+  for (const stage of stages) {
+    normalizedStages.push({
+      stage_id: stage.stage_id,
+      title: stage.title,
+      status: stage.status,
+      exit_bar: stage.exit_bar,
+      notes: stage.notes ?? null,
+    });
+  }
+
+  return normalizedStages;
+}
+
+function buildActiveStage(stages) {
+  for (const stage of stages) {
+    if (stage.status !== 'completed') {
+      return {
+        stage_id: stage.stage_id,
+        title: stage.title,
+        status: stage.status,
+      };
+    }
+  }
+
+  return null;
 }
 
 function deriveExecutionStatus(runResults) {
@@ -688,7 +769,8 @@ export async function executeExperimentPlan(plan, { continueOnError = false } = 
 
 export async function buildExperimentTracker({ indexPath, repoRootPath }) {
   const registry = await loadExperimentRegistry(indexPath);
-  const statusCounts = buildTrackerStatusCounts();
+  const statusCounts = buildStatusCounts();
+  const stageStatusCounts = buildStatusCounts();
   const experiments = [];
   let totalRuns = 0;
   let totalAutomatedRuns = 0;
@@ -706,6 +788,10 @@ export async function buildExperimentTracker({ indexPath, repoRootPath }) {
     statusCounts[plan.spec.status] += 1;
     totalRuns += plan.runs.length;
     totalAutomatedRuns += countAutomatedRuns(plan.runs);
+    const stages = normalizeStages(plan.spec.stages);
+    for (const stage of stages) {
+      stageStatusCounts[stage.status] += 1;
+    }
 
     const runStatusCounts = buildRunArtifactCounts();
     for (const state of runStates) {
@@ -722,13 +808,18 @@ export async function buildExperimentTracker({ indexPath, repoRootPath }) {
       status: plan.spec.status,
       cycle_id: plan.spec.cycle_id,
       program_id: plan.spec.program_id,
+      question_id: plan.spec.question_id ?? null,
       phase_id: plan.spec.phase_id,
       owner_doc: plan.spec.owner_doc,
       decision_question: plan.spec.decision_question,
+      control_variant_id: plan.spec.control_variant_id ?? null,
+      repo_scope: plan.spec.repo_scope ?? [],
       primary_metrics: plan.spec.primary_metrics,
       secondary_metrics: plan.spec.secondary_metrics,
       exit_bar: plan.spec.exit_bar,
       decision: plan.spec.decision ?? null,
+      stages,
+      active_stage: buildActiveStage(stages),
       run_status_counts: runStatusCounts,
       total_runs: plan.runs.length,
       automated_runs: countAutomatedRuns(plan.runs),
@@ -758,6 +849,10 @@ export async function buildExperimentTracker({ indexPath, repoRootPath }) {
       in_progress_count: statusCounts.in_progress,
       completed_count: statusCounts.completed,
       blocked_count: statusCounts.blocked,
+      stage_planned_count: stageStatusCounts.planned,
+      stage_in_progress_count: stageStatusCounts.in_progress,
+      stage_completed_count: stageStatusCounts.completed,
+      stage_blocked_count: stageStatusCounts.blocked,
     },
     experiments,
   };
@@ -786,6 +881,10 @@ export function formatExperimentTrackerMarkdown(tracker) {
     `- blocked: ${tracker.summary.blocked_count}`,
     `- total runs: ${tracker.summary.total_run_count}`,
     `- automated runs: ${tracker.summary.automated_run_count}`,
+    `- stages in progress: ${tracker.summary.stage_in_progress_count}`,
+    `- stages planned: ${tracker.summary.stage_planned_count}`,
+    `- stages completed: ${tracker.summary.stage_completed_count}`,
+    `- stages blocked: ${tracker.summary.stage_blocked_count}`,
     '',
   ];
 
@@ -795,12 +894,26 @@ export function formatExperimentTrackerMarkdown(tracker) {
     lines.push(`- experiment id: ${experiment.experiment_id}`);
     lines.push(`- workstream: ${experiment.workstream}`);
     lines.push(`- status: ${experiment.status}`);
+    if (experiment.question_id) {
+      lines.push(`- question id: ${experiment.question_id}`);
+    }
     lines.push(`- phase: ${experiment.phase_id}`);
+    if (experiment.control_variant_id) {
+      lines.push(`- control variant: ${experiment.control_variant_id}`);
+    }
+    if (experiment.repo_scope.length > 0) {
+      lines.push(`- repo scope: ${experiment.repo_scope.join(', ')}`);
+    }
     lines.push(`- decision question: ${experiment.decision_question}`);
     lines.push(
       `- run coverage: ${experiment.run_status_counts.completed}/${experiment.total_runs} completed`,
     );
     lines.push(`- next gate: ${experiment.next_gate}`);
+    if (experiment.active_stage) {
+      lines.push(
+        `- active stage: ${experiment.active_stage.stage_id} (${experiment.active_stage.status})`,
+      );
+    }
     if (experiment.latest_evidence_at) {
       lines.push(`- latest evidence: ${experiment.latest_evidence_at}`);
     }
@@ -808,6 +921,13 @@ export function formatExperimentTrackerMarkdown(tracker) {
       lines.push(`- decision: ${experiment.decision.outcome}`);
     }
     lines.push('');
+    if (experiment.stages.length > 0) {
+      lines.push('- stages:');
+      for (const stage of experiment.stages) {
+        lines.push(`  - ${stage.stage_id} (${stage.status}): ${stage.title}`);
+      }
+      lines.push('');
+    }
 
     for (const run of experiment.runs) {
       lines.push(
