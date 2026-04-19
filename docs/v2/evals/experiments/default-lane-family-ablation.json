@@ -6,10 +6,11 @@
   "status": "in_progress",
   "cycle_id": "2026-04-cycle-1",
   "program_id": "agent-loop-core",
+  "question_id": "default_lane_family_selection",
   "phase_id": "phase_6_default_lane_family_ablation",
   "owner_doc": "../../experiment-program.md",
   "decision_question": "Which signal families belong in the default agent lane when the lead list is capped to one to three primary actions?",
-  "hypothesis": "Clone, obligation, boundary, and patch-local concentration signals will outperform policies that elevate broad structural pressure into the lead lane.",
+  "hypothesis": "The winning lane is dominated by clone, obligation, boundary, and patch-local concentration signals, with structural pressure surviving only if it proves repair value against the same fixed task battery.",
   "primary_metrics": [
     "top_action_help_rate",
     "top_action_follow_rate",
@@ -20,7 +21,42 @@
     "ranking_miss_count",
     "reviewed_precision",
     "repair_packet_complete_rate",
-    "patch_expansion_rate"
+    "patch_expansion_rate",
+    "reviewer_disagreement_rate"
+  ],
+  "control_variant_id": "current_policy",
+  "repo_scope": ["sentrux", "parallel-code", "one-tool"],
+  "stages": [
+    {
+      "stage_id": "screen",
+      "title": "Screen default-lane family mixes on the fixed three-repo matrix",
+      "status": "in_progress",
+      "exit_bar": [
+        "Collect screening evidence for every active variant on sentrux, parallel-code, and one-tool.",
+        "Shortlist the two strongest family mixes using help rate, follow rate, and patch-expansion cost."
+      ],
+      "notes": "Registry and tracking are live; fresh screening evidence is still missing."
+    },
+    {
+      "stage_id": "confirm",
+      "title": "Confirm the winning family mix against current_policy",
+      "status": "planned",
+      "exit_bar": [
+        "Re-run the shortlisted policies on the same fixed repo/task battery.",
+        "Reject any variant that improves follow rate without improving help rate."
+      ],
+      "notes": "Blocked on stage-one evidence."
+    },
+    {
+      "stage_id": "decide",
+      "title": "Record the default-lane family decision and rollout posture",
+      "status": "planned",
+      "exit_bar": [
+        "Write a decision record that names what stayed, what was excluded, and why.",
+        "Update the promotion ledger with the final family standings."
+      ],
+      "notes": "Blocked on screening and confirmation."
+    }
   ],
   "variants": [
     {
@@ -31,64 +67,160 @@
       "policy_delta": null
     },
     {
-      "variant_id": "clone-obligation-rules",
-      "name": "Clone, obligation, rules",
+      "variant_id": "core_causal_only",
+      "name": "Core causal families only",
       "status": "screening",
-      "description": "Keep only clone, propagation, boundary, and direct obligation families eligible for the default lane.",
-      "policy_delta": "Remove structural pressure families from lead eligibility."
+      "description": "Keep clone, propagation, boundary, and direct obligation families eligible for primary slots and suppress structural pressure.",
+      "policy_delta": "Remove structural pressure from the default lane."
     },
     {
-      "variant_id": "clone-obligation-rules-concentration",
-      "name": "Add patch-local concentration",
+      "variant_id": "core_plus_patch_local_concentration",
+      "name": "Core plus patch-local concentration",
       "status": "screening",
-      "description": "Allow patch-local concentration only when the patch itself worsened reviewability or branching pressure.",
-      "policy_delta": "Patch-local concentration can fill a lead slot if it is causal and repairable."
+      "description": "Allow patch-local concentration only when the current patch worsened reviewability and the repair move is explicit.",
+      "policy_delta": "Patch-local concentration can occupy a primary slot only when it is causal and repairable."
     },
     {
-      "variant_id": "structural-pressure-disabled",
-      "name": "No structural pressure in default lane",
+      "variant_id": "core_plus_large_file",
+      "name": "Core plus large_file",
       "status": "screening",
-      "description": "Demote all structural pressure findings to supporting evidence or maintainer watchpoints.",
-      "policy_delta": "Suppress large_file and broad concentration findings from the lead lane."
+      "description": "Allow large_file as the only structural-pressure family while keeping other broad structural watchpoints suppressed.",
+      "policy_delta": "Keep large_file eligible but demote the rest of structural pressure."
     },
     {
-      "variant_id": "structural-pressure-patch-local",
-      "name": "Patch-worsened structural pressure only",
+      "variant_id": "current_policy_patch_worsened_large_file",
+      "name": "Current policy with patch-worsened large_file",
       "status": "screening",
-      "description": "Only allow structural pressure when the patch directly worsened it and the fix surface is concrete.",
-      "policy_delta": "Require patch-local causality and a clear fix surface for structural pressure to rank."
+      "description": "Start from current policy but allow large_file to rise only when the patch itself worsened the touched file and the containment move is concrete.",
+      "policy_delta": "Guard large_file with patch-local causality and repair-surface requirements."
     }
   ],
   "repo_runs": [
     {
-      "run_id": "sentrux-current",
+      "run_id": "sentrux-current-policy",
       "repo_id": "sentrux",
       "variant_id": "current_policy",
       "manifest": "../repos/sentrux.json",
-      "output_dir": ".sentrux/evals/experiments/default-lane-family-ablation/current/sentrux",
+      "output_dir": ".sentrux/evals/experiments/default-lane-family-ablation/current_policy/sentrux",
       "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
     },
     {
-      "run_id": "parallel-code-current",
+      "run_id": "parallel-code-current-policy",
       "repo_id": "parallel-code",
       "variant_id": "current_policy",
       "manifest": "../repos/parallel-code.json",
-      "output_dir": ".sentrux/evals/experiments/default-lane-family-ablation/current/parallel-code",
+      "output_dir": ".sentrux/evals/experiments/default-lane-family-ablation/current_policy/parallel-code",
       "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
     },
     {
-      "run_id": "one-tool-current",
+      "run_id": "one-tool-current-policy",
       "repo_id": "one-tool",
       "variant_id": "current_policy",
       "manifest": "../repos/one-tool.json",
-      "output_dir": ".sentrux/evals/experiments/default-lane-family-ablation/current/one-tool",
+      "output_dir": ".sentrux/evals/experiments/default-lane-family-ablation/current_policy/one-tool",
+      "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
+    },
+    {
+      "run_id": "sentrux-core-causal-only",
+      "repo_id": "sentrux",
+      "variant_id": "core_causal_only",
+      "manifest": "../repos/sentrux.json",
+      "output_dir": ".sentrux/evals/experiments/default-lane-family-ablation/core_causal_only/sentrux",
+      "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
+    },
+    {
+      "run_id": "parallel-code-core-causal-only",
+      "repo_id": "parallel-code",
+      "variant_id": "core_causal_only",
+      "manifest": "../repos/parallel-code.json",
+      "output_dir": ".sentrux/evals/experiments/default-lane-family-ablation/core_causal_only/parallel-code",
+      "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
+    },
+    {
+      "run_id": "one-tool-core-causal-only",
+      "repo_id": "one-tool",
+      "variant_id": "core_causal_only",
+      "manifest": "../repos/one-tool.json",
+      "output_dir": ".sentrux/evals/experiments/default-lane-family-ablation/core_causal_only/one-tool",
+      "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
+    },
+    {
+      "run_id": "sentrux-core-plus-patch-local-concentration",
+      "repo_id": "sentrux",
+      "variant_id": "core_plus_patch_local_concentration",
+      "manifest": "../repos/sentrux.json",
+      "output_dir": ".sentrux/evals/experiments/default-lane-family-ablation/core_plus_patch_local_concentration/sentrux",
+      "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
+    },
+    {
+      "run_id": "parallel-code-core-plus-patch-local-concentration",
+      "repo_id": "parallel-code",
+      "variant_id": "core_plus_patch_local_concentration",
+      "manifest": "../repos/parallel-code.json",
+      "output_dir": ".sentrux/evals/experiments/default-lane-family-ablation/core_plus_patch_local_concentration/parallel-code",
+      "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
+    },
+    {
+      "run_id": "one-tool-core-plus-patch-local-concentration",
+      "repo_id": "one-tool",
+      "variant_id": "core_plus_patch_local_concentration",
+      "manifest": "../repos/one-tool.json",
+      "output_dir": ".sentrux/evals/experiments/default-lane-family-ablation/core_plus_patch_local_concentration/one-tool",
+      "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
+    },
+    {
+      "run_id": "sentrux-core-plus-large-file",
+      "repo_id": "sentrux",
+      "variant_id": "core_plus_large_file",
+      "manifest": "../repos/sentrux.json",
+      "output_dir": ".sentrux/evals/experiments/default-lane-family-ablation/core_plus_large_file/sentrux",
+      "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
+    },
+    {
+      "run_id": "parallel-code-core-plus-large-file",
+      "repo_id": "parallel-code",
+      "variant_id": "core_plus_large_file",
+      "manifest": "../repos/parallel-code.json",
+      "output_dir": ".sentrux/evals/experiments/default-lane-family-ablation/core_plus_large_file/parallel-code",
+      "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
+    },
+    {
+      "run_id": "one-tool-core-plus-large-file",
+      "repo_id": "one-tool",
+      "variant_id": "core_plus_large_file",
+      "manifest": "../repos/one-tool.json",
+      "output_dir": ".sentrux/evals/experiments/default-lane-family-ablation/core_plus_large_file/one-tool",
+      "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
+    },
+    {
+      "run_id": "sentrux-current-policy-patch-worsened-large-file",
+      "repo_id": "sentrux",
+      "variant_id": "current_policy_patch_worsened_large_file",
+      "manifest": "../repos/sentrux.json",
+      "output_dir": ".sentrux/evals/experiments/default-lane-family-ablation/current_policy_patch_worsened_large_file/sentrux",
+      "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
+    },
+    {
+      "run_id": "parallel-code-current-policy-patch-worsened-large-file",
+      "repo_id": "parallel-code",
+      "variant_id": "current_policy_patch_worsened_large_file",
+      "manifest": "../repos/parallel-code.json",
+      "output_dir": ".sentrux/evals/experiments/default-lane-family-ablation/current_policy_patch_worsened_large_file/parallel-code",
+      "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
+    },
+    {
+      "run_id": "one-tool-current-policy-patch-worsened-large-file",
+      "repo_id": "one-tool",
+      "variant_id": "current_policy_patch_worsened_large_file",
+      "manifest": "../repos/one-tool.json",
+      "output_dir": ".sentrux/evals/experiments/default-lane-family-ablation/current_policy_patch_worsened_large_file/one-tool",
       "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
     }
   ],
   "exit_bar": [
-    "Screen enough repos to prove the default lane stays within one to three primary actions.",
-    "Shortlist two lead-lane policies for confirmation using measured help, follow, and patch-expansion tradeoffs.",
-    "Reject any policy that improves follow rate without improving help rate."
+    "Screen every listed variant on sentrux, parallel-code, and one-tool.",
+    "Shortlist the two strongest family mixes using help rate, follow rate, and patch-expansion cost.",
+    "Reject any family mix that improves follow rate without improving help rate."
   ],
   "decision": null
 }

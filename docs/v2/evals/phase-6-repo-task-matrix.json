@@ -1,0 +1,204 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-19T00:00:00.000Z",
+  "program_id": "agent-loop-core",
+  "phase_id": "phase_6_default_lane_quality",
+  "source_batch_phase_id": "phase_5_treatment_baseline",
+  "notes": "Phase 6 reuses the checked-in live and replay batches from the treatment-baseline evidence lane instead of creating a second copy of the same repo/task battery.",
+  "question_ids": [
+    "default_lane_family_selection",
+    "large_file_default_lane_admissibility"
+  ],
+  "repos": [
+    {
+      "repo_id": "sentrux",
+      "surfaces": [
+        {
+          "surface_id": "sentrux-clone-cleanup",
+          "source_kind": "live_batch_task",
+          "source_manifest": "./batches/sentrux-codex-session-batch.json",
+          "task_id": "sentrux-clone-cleanup-control",
+          "prompt_file": "./prompts/sentrux/clone-cleanup.md",
+          "question_ids": ["default_lane_family_selection"],
+          "signal_families": ["clone"],
+          "expected_signal_kinds": [],
+          "expected_fix_surface": "duplicate helper cleanup"
+        },
+        {
+          "surface_id": "sentrux-benchmark-harness-tidy",
+          "source_kind": "live_batch_task",
+          "source_manifest": "./batches/sentrux-codex-session-batch.json",
+          "task_id": "sentrux-benchmark-harness-tidy-control",
+          "prompt_file": "./prompts/sentrux/benchmark-harness-tidy.md",
+          "question_ids": [
+            "default_lane_family_selection",
+            "large_file_default_lane_admissibility"
+          ],
+          "signal_families": ["clone", "structural_pressure"],
+          "expected_signal_kinds": ["clone_propagation_drift"],
+          "expected_fix_surface": "benchmark harness helper followthrough"
+        },
+        {
+          "surface_id": "sentrux-clone-followthrough",
+          "source_kind": "live_batch_task",
+          "source_manifest": "./batches/sentrux-codex-session-batch.json",
+          "task_id": "sentrux-clone-followthrough-report-only",
+          "prompt_file": "./prompts/sentrux/clone-followthrough.md",
+          "question_ids": ["default_lane_family_selection"],
+          "signal_families": ["clone", "followthrough"],
+          "expected_signal_kinds": ["clone_propagation_drift"],
+          "expected_fix_surface": "MCP handler clone family followthrough"
+        },
+        {
+          "surface_id": "sentrux-contract-followthrough",
+          "source_kind": "live_batch_task",
+          "source_manifest": "./batches/sentrux-codex-session-batch.json",
+          "task_id": "sentrux-contract-surface-followthrough-fix-first",
+          "prompt_file": "./prompts/sentrux/contract-surface-followthrough.md",
+          "question_ids": ["default_lane_family_selection"],
+          "signal_families": ["obligation", "followthrough"],
+          "expected_signal_kinds": ["incomplete_propagation"],
+          "expected_fix_surface": "contract obligation and session summary followthrough"
+        },
+        {
+          "surface_id": "sentrux-replay-clone-drift",
+          "source_kind": "replay_task",
+          "source_manifest": "./batches/sentrux-diff-replay-batch.json",
+          "replay_id": "clone-drift-git-aware",
+          "question_ids": ["default_lane_family_selection"],
+          "signal_families": ["clone", "followthrough"],
+          "expected_signal_kinds": ["clone_propagation_drift"]
+        },
+        {
+          "surface_id": "sentrux-replay-contract-obligations",
+          "source_kind": "replay_task",
+          "source_manifest": "./batches/sentrux-diff-replay-batch.json",
+          "replay_id": "contract-surface-obligations",
+          "question_ids": ["default_lane_family_selection"],
+          "signal_families": ["obligation", "followthrough"],
+          "expected_signal_kinds": ["incomplete_propagation"]
+        }
+      ]
+    },
+    {
+      "repo_id": "parallel-code",
+      "surfaces": [
+        {
+          "surface_id": "parallel-code-raw-read-guardrail",
+          "source_kind": "live_batch_task",
+          "source_manifest": "./batches/parallel-code-codex-session-batch.json",
+          "task_id": "parallel-code-raw-read-guardrail-control",
+          "prompt_file": "./prompts/parallel-code/raw-read-guardrail.md",
+          "question_ids": ["default_lane_family_selection"],
+          "signal_families": ["boundary", "rules"],
+          "expected_signal_kinds": ["forbidden_raw_read"],
+          "expected_fix_surface": "explicit rule violation"
+        },
+        {
+          "surface_id": "parallel-code-exhaustiveness-hardening",
+          "source_kind": "live_batch_task",
+          "source_manifest": "./batches/parallel-code-codex-session-batch.json",
+          "task_id": "parallel-code-exhaustiveness-hardening-control",
+          "prompt_file": "./prompts/parallel-code/exhaustiveness-hardening.md",
+          "question_ids": ["default_lane_family_selection"],
+          "signal_families": ["obligation", "boundary"],
+          "expected_signal_kinds": ["closed_domain_exhaustiveness"],
+          "expected_fix_surface": "TypeScript exhaustiveness seam"
+        },
+        {
+          "surface_id": "parallel-code-propagation-hardening",
+          "source_kind": "live_batch_task",
+          "source_manifest": "./batches/parallel-code-codex-session-batch.json",
+          "task_id": "parallel-code-propagation-hardening-report-only",
+          "prompt_file": "./prompts/parallel-code/propagation-hardening.md",
+          "question_ids": ["default_lane_family_selection"],
+          "signal_families": ["obligation", "followthrough"],
+          "expected_signal_kinds": ["incomplete_propagation"],
+          "expected_fix_surface": "server_state_bootstrap contract surfaces"
+        },
+        {
+          "surface_id": "parallel-code-clone-followthrough",
+          "source_kind": "live_batch_task",
+          "source_manifest": "./batches/parallel-code-codex-session-batch.json",
+          "task_id": "parallel-code-clone-followthrough-stop-and-refactor",
+          "prompt_file": "./prompts/parallel-code/clone-followthrough.md",
+          "question_ids": ["default_lane_family_selection"],
+          "signal_families": ["clone", "followthrough"],
+          "expected_signal_kinds": ["clone_propagation_drift"],
+          "expected_fix_surface": "browser startup and session bootstrap clone family"
+        },
+        {
+          "surface_id": "parallel-code-replay-terminal-pipeline-split",
+          "source_kind": "replay_task",
+          "source_manifest": "./batches/parallel-code-diff-replay-batch.json",
+          "replay_id": "terminal-pipeline-split",
+          "question_ids": [
+            "default_lane_family_selection",
+            "large_file_default_lane_admissibility"
+          ],
+          "signal_families": ["structural_pressure", "tests"],
+          "expected_signal_kinds": ["large_file", "missing_test_coverage"]
+        },
+        {
+          "surface_id": "parallel-code-replay-docker-isolation-mode",
+          "source_kind": "replay_task",
+          "source_manifest": "./batches/parallel-code-diff-replay-batch.json",
+          "replay_id": "docker-isolation-mode",
+          "question_ids": ["large_file_default_lane_admissibility"],
+          "signal_families": ["structural_pressure"],
+          "expected_signal_kinds": ["large_file"]
+        },
+        {
+          "surface_id": "parallel-code-replay-clone-config-typing-hardening",
+          "source_kind": "replay_task",
+          "source_manifest": "./batches/parallel-code-diff-replay-batch.json",
+          "replay_id": "clone-config-typing-hardening",
+          "question_ids": ["default_lane_family_selection"],
+          "signal_families": ["clone", "followthrough"],
+          "expected_signal_kinds": ["clone_propagation_drift"]
+        }
+      ]
+    },
+    {
+      "repo_id": "one-tool",
+      "surfaces": [
+        {
+          "surface_id": "one-tool-mcp-cycle-cut",
+          "source_kind": "live_batch_task",
+          "source_manifest": "./batches/one-tool-codex-session-batch.json",
+          "task_id": "one-tool-mcp-cycle-cut",
+          "prompt_file": "./prompts/one-tool/mcp-cycle-cut.md",
+          "question_ids": ["default_lane_family_selection"],
+          "signal_families": ["boundary", "structure"],
+          "expected_signal_kinds": ["cycle_cluster"],
+          "expected_fix_surface": "narrow MCP boundary cut"
+        },
+        {
+          "surface_id": "one-tool-command-surface-split",
+          "source_kind": "live_batch_task",
+          "source_manifest": "./batches/one-tool-codex-session-batch.json",
+          "task_id": "one-tool-command-surface-split",
+          "prompt_file": "./prompts/one-tool/command-surface-split.md",
+          "question_ids": [
+            "default_lane_family_selection",
+            "large_file_default_lane_admissibility"
+          ],
+          "signal_families": ["structural_pressure", "reviewability"],
+          "expected_signal_kinds": ["large_file", "hotspot"],
+          "expected_fix_surface": "contained command-group refactor"
+        },
+        {
+          "surface_id": "one-tool-public-entrypoint-followthrough",
+          "source_kind": "live_batch_task",
+          "source_manifest": "./batches/one-tool-codex-session-batch.json",
+          "task_id": "one-tool-public-entrypoint-followthrough-fix-first",
+          "prompt_file": "./prompts/one-tool/public-entrypoint-followthrough.md",
+          "question_ids": ["default_lane_family_selection"],
+          "signal_families": ["obligation", "followthrough"],
+          "expected_signal_kinds": ["incomplete_propagation"],
+          "expected_fix_surface": "public entrypoint and MCP export parity"
+        }
+      ]
+    }
+  ]
+}

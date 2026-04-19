@@ -1,0 +1,257 @@
+{
+  "schema_version": 1,
+  "experiment_id": "large-file-default-lane-admissibility",
+  "title": "Large File Default-Lane Admissibility",
+  "workstream": "structural_pressure",
+  "status": "in_progress",
+  "cycle_id": "2026-04-cycle-1",
+  "program_id": "agent-loop-core",
+  "question_id": "large_file_default_lane_admissibility",
+  "phase_id": "phase_6_large_file_admissibility",
+  "owner_doc": "../../experiment-program.md",
+  "decision_question": "Should large_file remain eligible for the default lane at all, and if so under what exact restrictions?",
+  "hypothesis": "Large-file pressure is simple enough and often useful enough to keep testing as a default-lane candidate, but it should stay there only if measured repair value survives across the fixed repo matrix without crowding out more causal leads.",
+  "primary_metrics": [
+    "top_action_help_rate",
+    "top_action_follow_rate",
+    "task_success_rate",
+    "patch_expansion_rate",
+    "intervention_net_value_score"
+  ],
+  "secondary_metrics": [
+    "ranking_miss_count",
+    "reviewed_precision",
+    "reviewer_disagreement_rate",
+    "demotion_candidate_count"
+  ],
+  "control_variant_id": "current_policy",
+  "repo_scope": ["sentrux", "parallel-code", "one-tool"],
+  "stages": [
+    {
+      "stage_id": "screen",
+      "title": "Screen large_file admissibility variants on the fixed three-repo matrix",
+      "status": "in_progress",
+      "exit_bar": [
+        "Collect evidence for every admissibility rule on sentrux, parallel-code, and one-tool.",
+        "Shortlist the strongest keep, guardrail, and demotion candidates."
+      ],
+      "notes": "The registry is active but fresh screening evidence is still missing."
+    },
+    {
+      "stage_id": "confirm",
+      "title": "Confirm the strongest large_file rule against current_policy",
+      "status": "planned",
+      "exit_bar": [
+        "Re-run the shortlisted large_file rules on the same fixed repo/task battery.",
+        "Reject any rule that improves follow without improving help or that increases patch expansion enough to erase the gain."
+      ],
+      "notes": "Blocked on stage-one evidence."
+    },
+    {
+      "stage_id": "decide",
+      "title": "Record the keep, constrain, or demote decision for large_file",
+      "status": "planned",
+      "exit_bar": [
+        "Write a decision record that names whether large_file stays, stays with guardrails, or demotes to supporting context.",
+        "Update the promotion ledger with the final admissibility rule."
+      ],
+      "notes": "Blocked on screening and confirmation."
+    }
+  ],
+  "variants": [
+    {
+      "variant_id": "current_policy",
+      "name": "Current policy",
+      "status": "active",
+      "description": "Current structural-pressure behavior including large_file.",
+      "policy_delta": null
+    },
+    {
+      "variant_id": "always_eligible",
+      "name": "Always eligible",
+      "status": "screening",
+      "description": "Allow large_file to compete for a primary slot whenever the signal is present.",
+      "policy_delta": "Treat large_file as a normal default-lane family with no additional guardrail."
+    },
+    {
+      "variant_id": "changed_file_only",
+      "name": "Changed-file only",
+      "status": "screening",
+      "description": "Allow large_file only when the pressured file is part of the changed surface.",
+      "policy_delta": "Require the large file to be directly touched by the patch."
+    },
+    {
+      "variant_id": "patch_worsened_only",
+      "name": "Patch-worsened only",
+      "status": "screening",
+      "description": "Allow large_file only when the current patch worsened concentration or reviewability pressure in the touched file.",
+      "policy_delta": "Require direct patch-local causality."
+    },
+    {
+      "variant_id": "concrete_containment_only",
+      "name": "Concrete containment only",
+      "status": "screening",
+      "description": "Allow large_file only when the repair packet can name a concrete split, containment, or shell move.",
+      "policy_delta": "Require an explicit containment move and likely fix site."
+    },
+    {
+      "variant_id": "supporting_only",
+      "name": "Supporting only",
+      "status": "screening",
+      "description": "Keep large_file visible as context but never let it occupy a primary slot.",
+      "policy_delta": "Demote large_file to supporting evidence only."
+    }
+  ],
+  "repo_runs": [
+    {
+      "run_id": "sentrux-current-policy",
+      "repo_id": "sentrux",
+      "variant_id": "current_policy",
+      "manifest": "../repos/sentrux.json",
+      "output_dir": ".sentrux/evals/experiments/large-file-default-lane-admissibility/current_policy/sentrux",
+      "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
+    },
+    {
+      "run_id": "parallel-code-current-policy",
+      "repo_id": "parallel-code",
+      "variant_id": "current_policy",
+      "manifest": "../repos/parallel-code.json",
+      "output_dir": ".sentrux/evals/experiments/large-file-default-lane-admissibility/current_policy/parallel-code",
+      "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
+    },
+    {
+      "run_id": "one-tool-current-policy",
+      "repo_id": "one-tool",
+      "variant_id": "current_policy",
+      "manifest": "../repos/one-tool.json",
+      "output_dir": ".sentrux/evals/experiments/large-file-default-lane-admissibility/current_policy/one-tool",
+      "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
+    },
+    {
+      "run_id": "sentrux-always-eligible",
+      "repo_id": "sentrux",
+      "variant_id": "always_eligible",
+      "manifest": "../repos/sentrux.json",
+      "output_dir": ".sentrux/evals/experiments/large-file-default-lane-admissibility/always_eligible/sentrux",
+      "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
+    },
+    {
+      "run_id": "parallel-code-always-eligible",
+      "repo_id": "parallel-code",
+      "variant_id": "always_eligible",
+      "manifest": "../repos/parallel-code.json",
+      "output_dir": ".sentrux/evals/experiments/large-file-default-lane-admissibility/always_eligible/parallel-code",
+      "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
+    },
+    {
+      "run_id": "one-tool-always-eligible",
+      "repo_id": "one-tool",
+      "variant_id": "always_eligible",
+      "manifest": "../repos/one-tool.json",
+      "output_dir": ".sentrux/evals/experiments/large-file-default-lane-admissibility/always_eligible/one-tool",
+      "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
+    },
+    {
+      "run_id": "sentrux-changed-file-only",
+      "repo_id": "sentrux",
+      "variant_id": "changed_file_only",
+      "manifest": "../repos/sentrux.json",
+      "output_dir": ".sentrux/evals/experiments/large-file-default-lane-admissibility/changed_file_only/sentrux",
+      "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
+    },
+    {
+      "run_id": "parallel-code-changed-file-only",
+      "repo_id": "parallel-code",
+      "variant_id": "changed_file_only",
+      "manifest": "../repos/parallel-code.json",
+      "output_dir": ".sentrux/evals/experiments/large-file-default-lane-admissibility/changed_file_only/parallel-code",
+      "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
+    },
+    {
+      "run_id": "one-tool-changed-file-only",
+      "repo_id": "one-tool",
+      "variant_id": "changed_file_only",
+      "manifest": "../repos/one-tool.json",
+      "output_dir": ".sentrux/evals/experiments/large-file-default-lane-admissibility/changed_file_only/one-tool",
+      "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
+    },
+    {
+      "run_id": "sentrux-patch-worsened-only",
+      "repo_id": "sentrux",
+      "variant_id": "patch_worsened_only",
+      "manifest": "../repos/sentrux.json",
+      "output_dir": ".sentrux/evals/experiments/large-file-default-lane-admissibility/patch_worsened_only/sentrux",
+      "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
+    },
+    {
+      "run_id": "parallel-code-patch-worsened-only",
+      "repo_id": "parallel-code",
+      "variant_id": "patch_worsened_only",
+      "manifest": "../repos/parallel-code.json",
+      "output_dir": ".sentrux/evals/experiments/large-file-default-lane-admissibility/patch_worsened_only/parallel-code",
+      "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
+    },
+    {
+      "run_id": "one-tool-patch-worsened-only",
+      "repo_id": "one-tool",
+      "variant_id": "patch_worsened_only",
+      "manifest": "../repos/one-tool.json",
+      "output_dir": ".sentrux/evals/experiments/large-file-default-lane-admissibility/patch_worsened_only/one-tool",
+      "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
+    },
+    {
+      "run_id": "sentrux-concrete-containment-only",
+      "repo_id": "sentrux",
+      "variant_id": "concrete_containment_only",
+      "manifest": "../repos/sentrux.json",
+      "output_dir": ".sentrux/evals/experiments/large-file-default-lane-admissibility/concrete_containment_only/sentrux",
+      "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
+    },
+    {
+      "run_id": "parallel-code-concrete-containment-only",
+      "repo_id": "parallel-code",
+      "variant_id": "concrete_containment_only",
+      "manifest": "../repos/parallel-code.json",
+      "output_dir": ".sentrux/evals/experiments/large-file-default-lane-admissibility/concrete_containment_only/parallel-code",
+      "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
+    },
+    {
+      "run_id": "one-tool-concrete-containment-only",
+      "repo_id": "one-tool",
+      "variant_id": "concrete_containment_only",
+      "manifest": "../repos/one-tool.json",
+      "output_dir": ".sentrux/evals/experiments/large-file-default-lane-admissibility/concrete_containment_only/one-tool",
+      "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
+    },
+    {
+      "run_id": "sentrux-supporting-only",
+      "repo_id": "sentrux",
+      "variant_id": "supporting_only",
+      "manifest": "../repos/sentrux.json",
+      "output_dir": ".sentrux/evals/experiments/large-file-default-lane-admissibility/supporting_only/sentrux",
+      "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
+    },
+    {
+      "run_id": "parallel-code-supporting-only",
+      "repo_id": "parallel-code",
+      "variant_id": "supporting_only",
+      "manifest": "../repos/parallel-code.json",
+      "output_dir": ".sentrux/evals/experiments/large-file-default-lane-admissibility/supporting_only/parallel-code",
+      "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
+    },
+    {
+      "run_id": "one-tool-supporting-only",
+      "repo_id": "one-tool",
+      "variant_id": "supporting_only",
+      "manifest": "../repos/one-tool.json",
+      "output_dir": ".sentrux/evals/experiments/large-file-default-lane-admissibility/supporting_only/one-tool",
+      "artifact_expectations": ["repo_calibration_loop", "evidence_review", "session_corpus"]
+    }
+  ],
+  "exit_bar": [
+    "Screen every listed admissibility rule on sentrux, parallel-code, and one-tool.",
+    "Shortlist one keep candidate, one guardrailed candidate, and one demotion candidate for confirmation.",
+    "Record the exact admissibility rule if large_file stays in the default lane."
+  ],
+  "decision": null
+}

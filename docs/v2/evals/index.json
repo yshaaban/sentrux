@@ -60,6 +60,7 @@
       "path": "./batches/sentrux-diff-replay-batch.json"
     }
   ],
+  "phase_6_task_matrix": "./phase-6-repo-task-matrix.json",
   "experiment_registry": "./experiments/index.json",
   "review_verdicts": {
     "schema": "./review-verdicts.schema.json",

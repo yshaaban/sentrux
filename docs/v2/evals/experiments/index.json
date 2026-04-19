@@ -8,20 +8,8 @@
       "path": "./default-lane-family-ablation.json"
     },
     {
-      "experiment_id": "large-file-demotion",
-      "path": "./large-file-demotion.json"
-    },
-    {
-      "experiment_id": "obligation-breadth-expansion",
-      "path": "./obligation-breadth-expansion.json"
-    },
-    {
-      "experiment_id": "treatment-vs-baseline-confirmation",
-      "path": "./treatment-vs-baseline-confirmation.json"
-    },
-    {
-      "experiment_id": "bounded-llm-adjudication-advisory",
-      "path": "./bounded-llm-adjudication-advisory.json"
+      "experiment_id": "large-file-default-lane-admissibility",
+      "path": "./large-file-default-lane-admissibility.json"
     }
   ]
 }
