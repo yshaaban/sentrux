@@ -124,6 +124,14 @@ fn findings_surface_concept_summaries_debt_signals_and_watchpoints() {
             .get("primary_lane")
             .and_then(|value| value.as_str())
             .is_some()));
+    assert!(response["findings"]
+        .as_array()
+        .expect("findings array")
+        .iter()
+        .all(|finding| finding
+            .get("repair_packet")
+            .and_then(|value| value.as_object())
+            .is_some()));
     assert!(response["finding_details"]
         .as_array()
         .expect("finding details array")
@@ -131,6 +139,14 @@ fn findings_surface_concept_summaries_debt_signals_and_watchpoints() {
         .all(|detail| detail
             .get("default_surface_role")
             .and_then(|value| value.as_str())
+            .is_some()));
+    assert!(response["finding_details"]
+        .as_array()
+        .expect("finding details array")
+        .iter()
+        .all(|detail| detail
+            .get("repair_packet")
+            .and_then(|value| value.as_object())
             .is_some()));
     assert!(response["debt_signals"]
         .as_array()

@@ -90,7 +90,8 @@ pub(crate) mod test_support;
 mod view_support;
 
 pub(crate) use self::agent_format::{
-    actions_from_findings_and_obligations, issue_blocks_gate, issue_is_default_lane_eligible,
+    actions_from_findings_and_obligations, finding_with_agent_guidance,
+    findings_with_agent_guidance, issue_blocks_gate, issue_is_default_lane_eligible,
     issues_from_findings_and_obligations, AgentAction, AgentGate, AgentIssue, CheckDiagnostics,
     IssueConfidence, IssueSource, RepairPacket,
 };

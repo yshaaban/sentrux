@@ -200,6 +200,50 @@ pub(crate) struct AgentCheckResponse {
     pub(crate) diagnostics: CheckDiagnostics,
 }
 
+pub(crate) fn finding_with_agent_guidance(mut finding: Value) -> Value {
+    if !finding.is_object() {
+        return finding;
+    }
+    if finding.get("repair_packet").is_some() {
+        return finding;
+    }
+
+    let issue = to_agent_issue(&finding);
+    let repair_packet = issue.repair_packet.clone();
+    let fix_hint = issue.fix_hint.clone();
+    let likely_fix_sites = repair_packet.likely_fix_sites.clone();
+    let verification_steps = repair_packet.verification_steps.clone();
+    let smallest_safe_first_cut = repair_packet.smallest_safe_first_cut.clone();
+
+    if let Some(object) = finding.as_object_mut() {
+        object.insert("repair_packet".to_string(), json!(repair_packet));
+        if object.get("fix_hint").is_none() && fix_hint.is_some() {
+            object.insert("fix_hint".to_string(), json!(fix_hint));
+        }
+        if object.get("likely_fix_sites").is_none() && !likely_fix_sites.is_empty() {
+            object.insert("likely_fix_sites".to_string(), json!(likely_fix_sites));
+        }
+        if object.get("verification_steps").is_none() && !verification_steps.is_empty() {
+            object.insert("verification_steps".to_string(), json!(verification_steps));
+        }
+        if object.get("smallest_safe_first_cut").is_none() && smallest_safe_first_cut.is_some() {
+            object.insert(
+                "smallest_safe_first_cut".to_string(),
+                json!(smallest_safe_first_cut),
+            );
+        }
+    }
+
+    finding
+}
+
+pub(crate) fn findings_with_agent_guidance(findings: Vec<Value>) -> Vec<Value> {
+    findings
+        .into_iter()
+        .map(finding_with_agent_guidance)
+        .collect()
+}
+
 const PATCH_WORSENED_FIELD_KEYS: &[&str] = &[
     "patch_directly_worsened",
     "patch_worsened",

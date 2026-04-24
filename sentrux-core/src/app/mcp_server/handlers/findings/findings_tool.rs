@@ -169,8 +169,10 @@ fn build_findings_review_surface(
         .take(context.limit)
         .cloned()
         .collect::<Vec<_>>();
-    let finding_details =
-        serialized_values(&build_finding_details(&visible_findings, context.limit));
+    let finding_details = findings_with_agent_guidance(serialized_values(&build_finding_details(
+        &visible_findings,
+        context.limit,
+    )));
     let clone_families = filter_clone_values_by_visible_clone_ids(
         clone_payload.families.clone(),
         &visible_clone_ids,
@@ -225,11 +227,15 @@ fn decorate_findings_surface(visible_findings: &[Value], limit: usize) -> (Vec<V
     (
         visible_findings
             .into_iter()
-            .map(|finding| decorate_finding_with_classification(&finding))
+            .map(|finding| {
+                finding_with_agent_guidance(decorate_finding_with_classification(&finding))
+            })
             .collect::<Vec<_>>(),
         experimental_findings
             .into_iter()
-            .map(|finding| decorate_finding_with_classification(&finding))
+            .map(|finding| {
+                finding_with_agent_guidance(decorate_finding_with_classification(&finding))
+            })
             .collect::<Vec<_>>(),
     )
 }

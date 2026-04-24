@@ -106,31 +106,6 @@ fn insert_empty_finding_fields(result: &mut SessionEndResultMap) {
     );
 }
 
-fn finding_with_repair_packet(mut finding: Value) -> Value {
-    if finding.get("repair_packet").is_some() {
-        return finding;
-    }
-
-    let issue = super::super::agent_format::to_agent_issue(&finding);
-    let repair_packet = issue.repair_packet.clone();
-    let fix_hint = issue.fix_hint.clone();
-    if let Some(object) = finding.as_object_mut() {
-        object.insert("repair_packet".to_string(), json!(repair_packet));
-        if object.get("fix_hint").is_none() && fix_hint.is_some() {
-            object.insert("fix_hint".to_string(), json!(fix_hint));
-        }
-    }
-
-    finding
-}
-
-fn findings_with_repair_packets(findings: Vec<Value>) -> Vec<Value> {
-    findings
-        .into_iter()
-        .map(finding_with_repair_packet)
-        .collect()
-}
-
 fn insert_finding_fields(
     result: &mut SessionEndResultMap,
     introduced_findings: Vec<Value>,
@@ -139,9 +114,9 @@ fn insert_finding_fields(
     finding_details: Vec<Value>,
     experimental_findings: Vec<Value>,
 ) {
-    let introduced_findings = findings_with_repair_packets(introduced_findings);
-    let introduced_clone_findings = findings_with_repair_packets(introduced_clone_findings);
-    let finding_details = findings_with_repair_packets(finding_details);
+    let introduced_findings = findings_with_agent_guidance(introduced_findings);
+    let introduced_clone_findings = findings_with_agent_guidance(introduced_clone_findings);
+    let finding_details = findings_with_agent_guidance(finding_details);
     result.insert(
         "introduced_findings".to_string(),
         json!(introduced_findings),
@@ -207,7 +182,7 @@ fn insert_obligation_fields(
     gate_decision: &str,
     blocking_findings: Vec<Value>,
 ) {
-    let blocking_findings = findings_with_repair_packets(blocking_findings);
+    let blocking_findings = findings_with_agent_guidance(blocking_findings);
     result.insert(
         "missing_obligations".to_string(),
         json!(missing_obligations),
