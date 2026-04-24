@@ -169,12 +169,93 @@ test('buildEngineeringReport separates high-confidence work from skeptical dead-
     rawToolAnalysis: analysis,
   });
 
-  assert.match(report, /Priority 1: Break The Dependency Cycles/);
-  assert.match(report, /Priority 1: Reduce Template And Example Duplication Drift/);
+  assert.match(report, /Priority 1: Complete The Current Patch Follow-Through/);
+  assert.match(report, /Priority 2: Break The Dependency Cycles/);
+  assert.match(report, /Priority 3: Reduce Template And Example Duplication Drift/);
   assert.match(report, /reviewer queue: `experimental_debt_signals` \(1 candidate\(s\), status=canonical_with_legacy_watchlist\)/);
   assert.match(report, /legacy watchlist only: `3` additional candidate\(s\) remain in experimental_findings outside the reviewer queue/);
   assert.match(report, /BannerSuccess, BannerError, BannerWarning/);
   assert.match(report, /row, row, row/);
+});
+
+test('buildEngineeringReport leads with brief primary targets and obligation sites', async function () {
+  const analysis = await readFixture('analysis.json');
+  analysis.briefs = {
+    pre_merge: {
+      primary_targets: [
+        {
+          kind: 'incomplete_propagation',
+          scope: 'data_pipeline_contract',
+          summary: 'Update the stale data pipeline contract surfaces.',
+          why_now: ['blocking_obligation'],
+          likely_fix_sites: ['src/types/domain.ts', 'src/__tests__/data/outlook/adapt.test.ts'],
+        },
+      ],
+    },
+  };
+  analysis.gate.missing_obligations = [
+    {
+      concept_id: 'data_pipeline_contract',
+      summary: 'Data pipeline follow-through is stale.',
+      missing_sites: [
+        { path: 'src/types/domain.ts' },
+        { path: 'src/__tests__/data/outlook/adapt.test.ts' },
+      ],
+    },
+  ];
+
+  const report = buildEngineeringReport({
+    repoRootPath: '/workspace/one-tool',
+    repoLabel: 'one-tool',
+    branch: 'main',
+    commit: '0724ba9a',
+    rawToolAnalysis: analysis,
+  });
+
+  assert.match(report, /Priority 1: Complete The Current Patch Follow-Through/);
+  assert.match(report, /incomplete_propagation/);
+  assert.match(report, /blocking_obligation/);
+  assert.match(report, /src\/__tests__\/data\/outlook\/adapt.test.ts/);
+  assert(
+    report.indexOf('Priority 1: Complete The Current Patch Follow-Through') <
+      report.indexOf('Priority 4: Split The Largest Responsibility-Heavy Files'),
+  );
+});
+
+test('buildEngineeringReport tolerates scalar evidence fields from tool payloads', async function () {
+  const analysis = await readFixture('analysis.json');
+  analysis.briefs = {
+    pre_merge: {
+      primary_targets: [
+        {
+          kind: 'incomplete_propagation',
+          scope: 'scalar_contract',
+          summary: 'Update scalar contract evidence.',
+          why_now: 'blocking_obligation',
+          likely_fix_sites: 'src/domain.ts',
+        },
+      ],
+    },
+  };
+  analysis.gate.missing_obligations = [
+    {
+      concept_id: 'scalar_contract',
+      summary: 'Scalar obligation site is stale.',
+      missing_sites: 'src/domain.test.ts',
+    },
+  ];
+
+  const report = buildEngineeringReport({
+    repoRootPath: '/workspace/one-tool',
+    repoLabel: 'one-tool',
+    branch: 'main',
+    commit: '0724ba9a',
+    rawToolAnalysis: analysis,
+  });
+
+  assert.match(report, /blocking_obligation/);
+  assert.match(report, /src\/domain.ts/);
+  assert.match(report, /src\/domain.test.ts/);
 });
 
 test('buildEngineeringReport says when no dead-private candidates surfaced', async function () {
@@ -190,6 +271,6 @@ test('buildEngineeringReport says when no dead-private candidates surfaced', asy
     rawToolAnalysis: analysis,
   });
 
-  assert.match(report, /Priority 2: Review Experimental Dead-Private Candidates/);
+  assert.match(report, /Priority 5: Review Experimental Dead-Private Candidates/);
   assert.match(report, /none surfaced in this run/);
 });

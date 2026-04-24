@@ -89,7 +89,22 @@ export function parseArgs(argv) {
   return result;
 }
 
-async function captureRawToolAnalysis(repoRootPath, findingsLimit) {
+async function captureAgentBriefs(session) {
+  const briefs = {};
+  const briefRequests = [
+    { key: 'repo_onboarding', args: { mode: 'repo_onboarding', limit: 3 } },
+    { key: 'patch', args: { mode: 'patch', limit: 3 } },
+    { key: 'pre_merge', args: { mode: 'pre_merge', strict: true, limit: 3 } },
+  ];
+
+  for (const request of briefRequests) {
+    briefs[request.key] = (await runTool(session, 'agent_brief', request.args)).payload;
+  }
+
+  return briefs;
+}
+
+export async function captureRawToolAnalysis(repoRootPath, findingsLimit) {
   const tempRoot = await mkdtemp(path.join(tmpdir(), 'sentrux-external-repo-validation-'));
   const pluginHome = await prepareTypeScriptBenchmarkHome({ tempRoot });
   const session = createMcpSession({
@@ -106,6 +121,7 @@ async function captureRawToolAnalysis(repoRootPath, findingsLimit) {
     analysis.check = (await runTool(session, 'check', {})).payload;
     analysis.gate = (await runTool(session, 'gate', {})).payload;
     analysis.findings = (await runTool(session, 'findings', { limit: findingsLimit })).payload;
+    analysis.briefs = await captureAgentBriefs(session);
     await runTool(session, 'session_start', {});
     analysis.session_end = (await runTool(session, 'session_end', {})).payload;
 

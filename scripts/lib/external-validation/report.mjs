@@ -31,8 +31,71 @@ function topClones(rawToolAnalysis, limit) {
   ).slice(0, limit);
 }
 
+function hasText(value) {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function asArray(value) {
+  if (Array.isArray(value)) {
+    return value;
+  }
+  if (hasText(value)) {
+    return [value];
+  }
+  return [];
+}
+
+function formatOptionalList(value, delimiter = ', ') {
+  const items = asArray(value);
+  return items.length > 0 ? items.join(delimiter) : 'not specified';
+}
+
+function selectPatchBrief(rawToolAnalysis) {
+  return (
+    rawToolAnalysis.briefs?.pre_merge ??
+    rawToolAnalysis.briefs?.patch ??
+    rawToolAnalysis.brief_pre_merge ??
+    rawToolAnalysis.brief_patch ??
+    null
+  );
+}
+
+function primaryBriefTargets(rawToolAnalysis) {
+  const brief = selectPatchBrief(rawToolAnalysis);
+  return Array.isArray(brief?.primary_targets) ? brief.primary_targets : [];
+}
+
+function missingObligations(rawToolAnalysis) {
+  const gateObligations = rawToolAnalysis.gate?.missing_obligations;
+  if (Array.isArray(gateObligations)) {
+    return gateObligations;
+  }
+
+  const brief = selectPatchBrief(rawToolAnalysis);
+  return Array.isArray(brief?.missing_obligations) ? brief.missing_obligations : [];
+}
+
+function formatFixSites(target) {
+  return formatOptionalList(asArray(target.likely_fix_sites).slice(0, 5));
+}
+
+function obligationConcept(obligation) {
+  return obligation.concept_id ?? obligation.concept ?? obligation.scope ?? 'unknown';
+}
+
+function obligationSites(obligation) {
+  const sites = asArray(obligation.missing_sites ?? obligation.required_update_sites);
+  return sites
+    .slice(0, 5)
+    .map((site) => (typeof site === 'string' ? site : site.path ?? JSON.stringify(site)));
+}
+
 function appendCodeBullet(lines, label, value) {
   lines.push(`- ${label}: \`${value}\``);
+}
+
+function appendNestedDetail(lines, label, value) {
+  lines.push(`  - ${label}: ${value}`);
 }
 
 export function buildPacketValidation(packet) {
@@ -288,12 +351,15 @@ export function buildEngineeringReport({
   const largeFiles = topLargeFiles(rawToolAnalysis, 3);
   const cycles = topCycles(rawToolAnalysis, 2);
   const clones = topClones(rawToolAnalysis, 10);
+  const primaryTargets = primaryBriefTargets(rawToolAnalysis);
+  const obligations = missingObligations(rawToolAnalysis);
   const deadPrivateCandidateSets = collectDeadPrivateCandidateSets(rawToolAnalysis);
   const plausibleDeadPrivate = deadPrivatePlausibleCandidates(rawToolAnalysis).slice(0, 5);
   const skepticalDeadPrivate = deadPrivateFalsePositiveCandidates(rawToolAnalysis).slice(0, 5);
   const lines = [];
 
   appendEngineeringScope(lines, { repoRootPath, repoLabel, branch, commit });
+  appendEngineeringImmediateActions(lines, primaryTargets, obligations);
   appendEngineeringCycles(lines, cycles);
   appendEngineeringCloneDrift(lines, clones);
   appendEngineeringLargeFiles(lines, largeFiles);
@@ -319,13 +385,51 @@ function appendEngineeringScope(lines, { repoRootPath, repoLabel, branch, commit
   lines.push('- no runtime verification or behavior tests were executed as part of this report');
   lines.push('');
   appendPrioritySection(lines, 'Executive Summary', [
-    'High-confidence work: break dependency cycles, reduce template/example duplication drift, and split the largest responsibility-heavy files.',
+    'Use the immediate patch actions first when present; they are the narrowest repair queue surfaced by the analysis.',
+    'Structural work remains useful, but should not crowd out concrete propagation, boundary, clone, or obligation follow-through.',
     'Lower-confidence work: audit dead-private candidates manually instead of applying automated cleanup blindly.',
   ]);
 }
 
+function appendEngineeringImmediateActions(lines, primaryTargets, obligations) {
+  lines.push('## Priority 1: Complete The Current Patch Follow-Through');
+  lines.push('');
+  if (primaryTargets.length === 0 && obligations.length === 0) {
+    lines.push('- no immediate patch-specific blockers surfaced');
+    lines.push('');
+    return;
+  }
+
+  for (const target of primaryTargets) {
+    lines.push(`### \`${target.kind ?? 'unknown'}\` in \`${target.scope ?? 'unknown'}\``);
+    lines.push('');
+    lines.push(`- summary: ${target.summary ?? 'no summary'}`);
+    lines.push(`- why it matters now: ${formatOptionalList(target.why_now)}`);
+    lines.push(`- likely fix sites: ${formatFixSites(target)}`);
+    lines.push('');
+  }
+
+  if (obligations.length > 0) {
+    lines.push('### Concrete Follow-Through Surfaces');
+    lines.push('');
+    for (const obligation of obligations.slice(0, 10)) {
+      lines.push(
+        `- \`${obligationConcept(obligation)}\`: ${obligation.summary ?? obligation.message ?? 'missing follow-through'}`,
+      );
+      const sites = obligationSites(obligation);
+      if (sites.length > 0) {
+        appendNestedDetail(lines, 'update sites', sites.join(', '));
+      }
+    }
+    if (obligations.length > 10) {
+      lines.push(`- ${obligations.length - 10} additional obligation(s) omitted from this summary`);
+    }
+    lines.push('');
+  }
+}
+
 function appendEngineeringCycles(lines, cycles) {
-  lines.push('## Priority 1: Break The Dependency Cycles');
+  lines.push('## Priority 2: Break The Dependency Cycles');
   lines.push('');
   for (const finding of cycles) {
     lines.push(`### \`${finding.scope}\``);
@@ -347,12 +451,14 @@ function appendEngineeringCycles(lines, cycles) {
 }
 
 function appendEngineeringCloneDrift(lines, clones) {
-  lines.push('## Priority 1: Reduce Template And Example Duplication Drift');
+  lines.push('## Priority 3: Reduce Template And Example Duplication Drift');
   lines.push('');
   for (const finding of clones.slice(0, 5)) {
-    lines.push(`- \`${(finding.files ?? []).join(' | ')}\``);
-    lines.push(`  - total cloned lines: \`${finding.total_lines ?? 'n/a'}\``);
-    lines.push(`  - drift reasons: \`${(finding.reasons ?? []).join('; ')}\``);
+    const cloneScope = asArray(finding.files).join(' | ') || finding.scope || 'unknown';
+    const driftReasons = formatOptionalList(finding.reasons, '; ');
+    lines.push(`- \`${cloneScope}\``);
+    appendNestedDetail(lines, 'total cloned lines', `\`${finding.total_lines ?? 'n/a'}\``);
+    appendNestedDetail(lines, 'drift reasons', `\`${driftReasons}\``);
   }
   if (clones.length === 0) {
     lines.push('- none');
@@ -363,14 +469,14 @@ function appendEngineeringCloneDrift(lines, clones) {
 }
 
 function appendEngineeringLargeFiles(lines, largeFiles) {
-  lines.push('## Priority 1: Split The Largest Responsibility-Heavy Files');
+  lines.push('## Priority 4: Split The Largest Responsibility-Heavy Files');
   lines.push('');
   for (const finding of largeFiles) {
     lines.push(`- \`${finding.scope}\``);
-    lines.push(`  - line count: \`${finding.metrics?.line_count ?? 'n/a'}\``);
-    lines.push(`  - function count: \`${finding.metrics?.function_count ?? 'n/a'}\``);
-    lines.push(`  - peak complexity: \`${finding.metrics?.max_complexity ?? 'n/a'}\``);
-    lines.push(`  - fan-out: \`${finding.metrics?.fan_out ?? 'n/a'}\``);
+    appendNestedDetail(lines, 'line count', `\`${finding.metrics?.line_count ?? 'n/a'}\``);
+    appendNestedDetail(lines, 'function count', `\`${finding.metrics?.function_count ?? 'n/a'}\``);
+    appendNestedDetail(lines, 'peak complexity', `\`${finding.metrics?.max_complexity ?? 'n/a'}\``);
+    appendNestedDetail(lines, 'fan-out', `\`${finding.metrics?.fan_out ?? 'n/a'}\``);
   }
   if (largeFiles.length === 0) {
     lines.push('- none');
@@ -382,7 +488,7 @@ function appendEngineeringDeadPrivate(
   lines,
   { deadPrivateCandidateSets, plausibleDeadPrivate, skepticalDeadPrivate },
 ) {
-  lines.push('## Priority 2: Review Experimental Dead-Private Candidates');
+  lines.push('## Priority 5: Review Experimental Dead-Private Candidates');
   lines.push('');
   lines.push(
     `- reviewer queue: \`${deadPrivateCandidateSets.sourceLane ?? 'none'}\` (${deadPrivateCandidateSets.selectedCandidates.length} candidate(s), status=${deadPrivateCandidateSets.reviewerLaneStatus ?? 'unknown'})`,
@@ -414,7 +520,7 @@ function appendEngineeringBottomLine(lines) {
   lines.push('## Bottom Line');
   lines.push('');
   lines.push(
-    'The highest-value work is not a broad cleanup pass. It is breaking the cycles, fixing the example/template duplication model, and splitting the largest responsibility-heavy files before touching lower-confidence stale-code suggestions.',
+    'The highest-value work is the smallest concrete follow-through queue first, then structural backlog work. Do not turn broad cleanup or lower-confidence stale-code suggestions into the lead task unless the patch-specific actions are already resolved.',
   );
   lines.push('');
 }
