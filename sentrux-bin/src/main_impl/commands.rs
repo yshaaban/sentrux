@@ -42,7 +42,9 @@ pub(crate) fn run_analytics(action: Option<AnalyticsAction>) {
         }
         Some(AnalyticsAction::Off) => {
             if let Some(p) = &path {
-                let _ = std::fs::create_dir_all(p.parent().unwrap());
+                if let Some(parent) = p.parent() {
+                    let _ = std::fs::create_dir_all(parent);
+                }
                 let _ = std::fs::write(p, "1");
             }
             println!("Analytics are disabled.");
@@ -167,7 +169,7 @@ pub(crate) fn run_brief(path: &str, mode: BriefModeArg, strict: bool, limit: usi
 
 fn analytics_opt_out_path() -> Option<std::path::PathBuf> {
     sentrux_core::analysis::plugin::plugins_dir()
-        .map(|d| d.parent().unwrap().join("telemetry_opt_out"))
+        .and_then(|d| d.parent().map(|parent| parent.join("telemetry_opt_out")))
 }
 
 fn cli_scan_limits() -> sentrux_core::analysis::scanner::common::ScanLimits {

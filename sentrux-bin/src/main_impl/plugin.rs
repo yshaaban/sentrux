@@ -1,4 +1,6 @@
 use super::cli::PluginAction;
+use std::path::Path;
+use std::{fs, process};
 
 pub(crate) fn run_plugin(action: PluginAction) {
     match action {
@@ -41,18 +43,28 @@ fn plugin_list() {
 fn plugin_init(name: &str) {
     let dir = sentrux_core::analysis::plugin::plugins_dir().unwrap_or_else(|| {
         eprintln!("Cannot determine home directory");
-        std::process::exit(1);
+        process::exit(1);
     });
     let plugin_dir = dir.join(name);
     if plugin_dir.exists() {
         eprintln!("Plugin directory already exists: {}", plugin_dir.display());
-        std::process::exit(1);
+        process::exit(1);
     }
-    std::fs::create_dir_all(plugin_dir.join("grammars")).unwrap();
-    std::fs::create_dir_all(plugin_dir.join("queries")).unwrap();
-    std::fs::create_dir_all(plugin_dir.join("tests")).unwrap();
-    std::fs::write(
-        plugin_dir.join("plugin.toml"),
+    for (path, label) in [
+        (
+            plugin_dir.join("grammars"),
+            "create plugin grammars directory",
+        ),
+        (
+            plugin_dir.join("queries"),
+            "create plugin queries directory",
+        ),
+        (plugin_dir.join("tests"), "create plugin tests directory"),
+    ] {
+        create_dir_all_or_exit(&path, label);
+    }
+    write_file_or_exit(
+        &plugin_dir.join("plugin.toml"),
         format!(
             r#"[plugin]
 name = "{name}"
@@ -76,13 +88,13 @@ capabilities = ["functions", "classes", "imports"]
 [checksums]
 "#
         ),
-    )
-    .unwrap();
-    std::fs::write(
-        plugin_dir.join("queries").join("tags.scm"),
+        "write plugin manifest",
+    );
+    write_file_or_exit(
+        &plugin_dir.join("queries").join("tags.scm"),
         ";; TODO: Write tree-sitter queries for this language\n;;\n;; Required captures:\n;;   @func.def / @func.name — function definitions\n;;   @class.def / @class.name — class definitions\n;;   @import.path — import statements\n;;   @call.name — function calls (optional)\n",
-    )
-    .unwrap();
+        "write default query file",
+    );
     println!("Created plugin template at {}", plugin_dir.display());
     println!("\nNext steps:");
     println!("  1. Edit plugin.toml — set extensions, grammar source");
@@ -128,7 +140,7 @@ fn plugin_validate(dir: &str) {
         }
         Err(e) => {
             println!("FAIL — {}", e);
-            std::process::exit(1);
+            process::exit(1);
         }
     }
 }
@@ -142,7 +154,7 @@ fn plugin_add_standard() {
 fn plugin_add(name: &str) {
     let dir = sentrux_core::analysis::plugin::plugins_dir().unwrap_or_else(|| {
         eprintln!("Cannot determine home directory");
-        std::process::exit(1);
+        process::exit(1);
     });
     let plugin_dir = dir.join(name);
     if plugin_dir.exists() {
@@ -152,7 +164,7 @@ fn plugin_add(name: &str) {
             plugin_dir.display()
         );
         eprintln!("Remove it first: sentrux plugin remove {}", name);
-        std::process::exit(1);
+        process::exit(1);
     }
 
     let platform = sentrux_core::analysis::plugin::manifest::PluginManifest::grammar_filename();
@@ -172,7 +184,7 @@ fn plugin_add(name: &str) {
                 "Plugin '{}' not found in embedded data. Is it a valid plugin name?",
                 name
             );
-            std::process::exit(1);
+            process::exit(1);
         }
     };
     let url = format!(
@@ -181,45 +193,45 @@ fn plugin_add(name: &str) {
     println!("Downloading {name} plugin for {platform_key}...");
     println!("  {url}");
 
-    std::fs::create_dir_all(&dir).unwrap();
+    create_dir_all_or_exit(&dir, "create plugin directory");
     let tarball = dir.join(format!("{name}.tar.gz"));
     download_and_extract_plugin(&dir, name, &tarball, &url, &plugin_dir);
 }
 
 fn download_and_extract_plugin(
-    dir: &std::path::Path,
+    dir: &Path,
     name: &str,
-    tarball: &std::path::Path,
+    tarball: &Path,
     url: &str,
-    plugin_dir: &std::path::Path,
+    plugin_dir: &Path,
 ) {
-    let output = std::process::Command::new("curl")
+    let output = process::Command::new("curl")
         .args(["-fsSL", url, "-o"])
         .arg(tarball)
         .status();
 
     match output {
         Ok(s) if s.success() => {
-            let extract = std::process::Command::new("tar")
+            let extract = process::Command::new("tar")
                 .args(["xzf", &format!("{}.tar.gz", name)])
                 .current_dir(dir)
                 .status();
-            let _ = std::fs::remove_file(tarball);
+            let _ = fs::remove_file(tarball);
             match extract {
                 Ok(s) if s.success() => {
                     println!("Installed {} to {}", name, plugin_dir.display());
                 }
                 _ => {
                     eprintln!("Failed to extract plugin archive");
-                    std::process::exit(1);
+                    process::exit(1);
                 }
             }
         }
         _ => {
-            let _ = std::fs::remove_file(tarball);
+            let _ = fs::remove_file(tarball);
             eprintln!("Failed to download plugin '{}'.", name);
             eprintln!("Check available plugins: https://github.com/sentrux/plugins/releases");
-            std::process::exit(1);
+            process::exit(1);
         }
     }
 }
@@ -227,13 +239,36 @@ fn download_and_extract_plugin(
 fn plugin_remove(name: &str) {
     let dir = sentrux_core::analysis::plugin::plugins_dir().unwrap_or_else(|| {
         eprintln!("Cannot determine home directory");
-        std::process::exit(1);
+        process::exit(1);
     });
     let plugin_dir = dir.join(name);
     if !plugin_dir.exists() {
         eprintln!("Plugin '{}' not installed.", name);
-        std::process::exit(1);
+        process::exit(1);
     }
-    std::fs::remove_dir_all(&plugin_dir).unwrap();
+    remove_dir_all_or_exit(&plugin_dir, "remove plugin directory");
     println!("Removed plugin '{}'", name);
+}
+
+fn create_dir_all_or_exit(path: &Path, action: &str) {
+    if let Err(error) = fs::create_dir_all(path) {
+        exit_with_io_error(action, path, error);
+    }
+}
+
+fn write_file_or_exit(path: &Path, contents: impl AsRef<[u8]>, action: &str) {
+    if let Err(error) = fs::write(path, contents) {
+        exit_with_io_error(action, path, error);
+    }
+}
+
+fn remove_dir_all_or_exit(path: &Path, action: &str) {
+    if let Err(error) = fs::remove_dir_all(path) {
+        exit_with_io_error(action, path, error);
+    }
+}
+
+fn exit_with_io_error(action: &str, path: &Path, error: std::io::Error) -> ! {
+    eprintln!("Failed to {action} {}: {error}", path.display());
+    process::exit(1);
 }
