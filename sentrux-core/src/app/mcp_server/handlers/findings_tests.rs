@@ -244,6 +244,67 @@ fn findings_surface_includes_governance_readiness_guidance() {
 }
 
 #[test]
+fn findings_surface_includes_missing_ci_gate_guidance() {
+    let root = temp_root("findings-governance-ci-readiness");
+    write_file(
+        &root,
+        ".sentrux/rules.toml",
+        r#"
+            [project]
+            primary_language = "typescript"
+        "#,
+    );
+    write_file(
+        &root,
+        ".sentrux/baseline.json",
+        r#"
+            {
+              "timestamp": 0.0,
+              "quality_signal": 1.0,
+              "coupling_score": 1.0,
+              "cycle_count": 0,
+              "god_file_count": 0,
+              "hotspot_count": 0,
+              "complex_fn_count": 0,
+              "max_depth": 0,
+              "total_import_edges": 0,
+              "cross_module_edges": 0
+            }
+        "#,
+    );
+    write_file(
+        &root,
+        "src/app.ts",
+        "export function render(): number { return 1; }\n",
+    );
+    let mut state = fresh_mcp_state();
+    handle_scan(
+        &json!({"path": root.to_string_lossy().to_string()}),
+        &Tier::Free,
+        &mut state,
+    )
+    .expect("scan fixture");
+
+    let response = handle_findings(&json!({}), &Tier::Free, &mut state).expect("findings");
+    let governance = &response["governance_readiness"];
+
+    assert_eq!(governance["status"], json!("needs_setup"));
+    assert!(governance["missing"]
+        .as_array()
+        .expect("missing array")
+        .iter()
+        .any(|scope| scope == "missing_sentrux_ci_gate"));
+    assert!(response["findings"]
+        .as_array()
+        .expect("findings array")
+        .iter()
+        .any(|finding| finding["scope"] == "missing_sentrux_ci_gate"
+            && finding["smallest_safe_first_cut"]
+                .as_str()
+                .is_some_and(|first_cut| first_cut.contains("sentrux gate"))));
+}
+
+#[test]
 fn findings_route_dead_private_clusters_to_experimental_debt_signals() {
     let root = dead_private_fixture_root();
     let mut state = fresh_mcp_state();

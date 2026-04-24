@@ -1,5 +1,6 @@
 use super::load_persisted_baseline;
-use std::path::Path;
+use std::fs;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone)]
 pub(crate) struct GovernanceReadinessItem {
@@ -17,15 +18,24 @@ pub(crate) struct GovernanceReadinessItem {
 pub(crate) fn governance_readiness_items(root: &Path) -> Vec<GovernanceReadinessItem> {
     let mut items = Vec::new();
     let rules_path = root.join(".sentrux").join("rules.toml");
-    if !rules_path.exists() {
+    let rules_ready = rules_path.exists();
+    if !rules_ready {
         items.push(missing_rules_item());
     }
 
     let baseline_path = crate::metrics::arch::baseline_path(root);
-    if !baseline_path.exists() {
+    let baseline_ready = if !baseline_path.exists() {
         items.push(missing_baseline_item());
+        false
     } else if let Err(error) = load_persisted_baseline(root) {
         items.push(invalid_baseline_item(error));
+        false
+    } else {
+        true
+    };
+
+    if rules_ready && baseline_ready && !ci_gate_configured(root) {
+        items.push(missing_ci_gate_item(ci_gate_evidence(root)));
     }
 
     items
@@ -83,6 +93,80 @@ fn invalid_baseline_item(error: String) -> GovernanceReadinessItem {
         findings_first_cut: "Regenerate .sentrux/baseline.json with `sentrux gate --save` after confirming the current repository state is acceptable.",
         findings_evidence: vec![format!("baseline load error: {error}")],
     }
+}
+
+fn missing_ci_gate_item(evidence: Vec<String>) -> GovernanceReadinessItem {
+    GovernanceReadinessItem {
+        scope: "missing_sentrux_ci_gate",
+        file: ".github/workflows/",
+        check_message: "Sentrux has local rules and a baseline, but no CI gate evidence was found, so architectural drift may not be checked before merge.",
+        check_fix_hint: "Add a CI workflow step that runs `sentrux gate` before merge.",
+        check_first_cut: "Add `sentrux gate` to the primary pull-request workflow after checkout and dependency setup.",
+        check_evidence: evidence.clone(),
+        findings_summary: "Sentrux has local rules and a baseline, but no CI gate evidence was found.",
+        findings_first_cut: "Add a pull-request CI step that runs `sentrux gate` after checkout and dependency setup.",
+        findings_evidence: evidence,
+    }
+}
+
+fn ci_gate_configured(root: &Path) -> bool {
+    ci_candidate_paths(root).iter().any(|path| {
+        fs::read_to_string(path)
+            .map(|content| content.contains("sentrux gate"))
+            .unwrap_or(false)
+    })
+}
+
+fn ci_gate_evidence(root: &Path) -> Vec<String> {
+    let paths = ci_candidate_paths(root);
+    if paths.is_empty() {
+        return evidence(&[
+            "checked CI paths: no .github/workflows, .gitlab-ci.yml, or .circleci/config.yml found",
+            "required command: sentrux gate",
+        ]);
+    }
+
+    vec![
+        format!(
+            "checked CI files: {}",
+            paths
+                .iter()
+                .map(|path| path
+                    .strip_prefix(root)
+                    .unwrap_or(path)
+                    .display()
+                    .to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        "required command not found: sentrux gate".to_string(),
+    ]
+}
+
+fn ci_candidate_paths(root: &Path) -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+    let github_workflows = root.join(".github").join("workflows");
+    if let Ok(entries) = fs::read_dir(&github_workflows) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if matches!(
+                path.extension().and_then(|extension| extension.to_str()),
+                Some("yml" | "yaml")
+            ) {
+                paths.push(path);
+            }
+        }
+    }
+
+    for relative_path in [".gitlab-ci.yml", ".circleci/config.yml"] {
+        let path = root.join(relative_path);
+        if path.exists() {
+            paths.push(path);
+        }
+    }
+
+    paths.sort();
+    paths
 }
 
 pub(crate) fn starter_rules_toml() -> &'static str {

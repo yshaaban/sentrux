@@ -150,6 +150,11 @@ fn check_returns_clean_result_when_changed_scope_is_known_empty() {
     );
     write_file(
         &root,
+        ".github/workflows/sentrux.yml",
+        "name: sentrux\njobs:\n  gate:\n    steps:\n      - run: sentrux gate\n",
+    );
+    write_file(
+        &root,
         "src/app.ts",
         "export function render(): number { return 1; }\n",
     );
@@ -188,6 +193,69 @@ fn check_returns_clean_result_when_changed_scope_is_known_empty() {
         json!(false)
     );
     assert_eq!(response["diagnostics"]["partial_results"], json!(false));
+}
+
+#[test]
+fn check_surfaces_missing_ci_gate_after_rules_and_baseline_are_ready() {
+    let root = temp_root("check-governance-ci-watchpoint");
+    write_file(
+        &root,
+        ".sentrux/rules.toml",
+        r#"
+            [project]
+            primary_language = "typescript"
+        "#,
+    );
+    write_file(
+        &root,
+        ".sentrux/baseline.json",
+        r#"
+            {
+              "timestamp": 0.0,
+              "quality_signal": 1.0,
+              "coupling_score": 1.0,
+              "cycle_count": 0,
+              "god_file_count": 0,
+              "hotspot_count": 0,
+              "complex_fn_count": 0,
+              "max_depth": 0,
+              "total_import_edges": 0,
+              "cross_module_edges": 0
+            }
+        "#,
+    );
+    write_file(
+        &root,
+        "src/app.ts",
+        "export function render(): number { return 1; }\n",
+    );
+    init_git_repo(&root);
+    commit_all(&root, "initial");
+
+    let mut state = fresh_mcp_state();
+    handle_scan(
+        &json!({"path": root.to_string_lossy().to_string()}),
+        &Tier::Free,
+        &mut state,
+    )
+    .expect("scan fixture");
+
+    let response = handle_check(&json!({}), &Tier::Free, &mut state).expect("check response");
+    let issues = response["issues"].as_array().expect("issues array");
+
+    assert_eq!(response["gate"], json!("pass"));
+    assert!(issues.iter().any(|issue| {
+        issue["kind"] == "governance_readiness"
+            && issue["scope"] == "missing_sentrux_ci_gate"
+            && issue["repair_packet"]["smallest_safe_first_cut"]
+                .as_str()
+                .is_some_and(|first_cut| first_cut.contains("sentrux gate"))
+    }));
+    assert_eq!(response["actions"], json!([]));
+    assert_eq!(
+        response["summary"],
+        json!("1 non-blocking watchpoint(s) detected.")
+    );
 }
 
 #[test]
