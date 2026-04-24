@@ -21,6 +21,7 @@ This plan complements:
 - [Roadmap](./roadmap.md) for implementation task tracking
 - [Testing And Validation](./testing-and-validation.md) for the validation stack
 - [Policy And Eval Architecture](./policy-and-eval-architecture.md) for ownership boundaries
+- [Comprehensive Detection Upgrade Plan](./comprehensive-detection-upgrade-plan.md) for the concrete detector, repair-packet, ranking, and validation work needed to close field-discovered gaps
 
 ## Product Thesis
 

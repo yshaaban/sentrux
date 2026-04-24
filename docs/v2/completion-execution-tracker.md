@@ -1,6 +1,6 @@
 # Sentrux V2 Completion Execution Tracker
 
-Last audited: 2026-04-19
+Last audited: 2026-04-24
 
 This slice tracks execution against the current [master plan](./master-plan.md) using repository-backed state only. A phase is marked `Completed` only when checked-in implementation and checked-in evidence together satisfy the phase exit bar. On this pass, no phase is marked complete.
 
@@ -29,6 +29,12 @@ This slice tracks execution against the current [master plan](./master-plan.md) 
 - Repo calibration summary from that run: `session_count = 15`, `top_action_follow_rate = 0.333`, `top_action_help_rate = 0`, `task_success_rate = 0.667`, `evidence_review_promotion_candidates = 0`
 - Signal scorecard summary from that run: all major evidence lanes are present, but only `promotion_evidence_complete_count = 4` and the inspected summary does not prove default-on readiness
 - Evidence review summary from that run: `promotion_candidate_count = 0`, `demotion_candidate_count = 1`, `ranking_miss_count = 1`, `top_action_failure_count = 4`
+
+## Latest Implementation Checkpoint
+
+- 2026-04-24: the [comprehensive detection upgrade plan](./comprehensive-detection-upgrade-plan.md) is now checked in with phase-level execution status.
+- Implemented detector-facing upgrades include richer closed-domain site metadata, fallback-masked TypeScript coverage, `Map` constructor maps, JSX conditional render sites, large-file first-cut evidence, cycle edge-basis evidence, standardized repair-packet fields, and governance readiness watchpoints.
+- This does not yet close the evidence gate for default-on promotion. Phase statuses remain `In progress` until paired treatment-vs-baseline runs prove top-action help and acceptable false-positive pressure across the fixed repo matrix.
 
 ## Phase Tracker
 
