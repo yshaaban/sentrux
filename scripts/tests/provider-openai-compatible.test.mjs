@@ -14,6 +14,8 @@ import {
   shouldRetryWithoutResponseFormat,
 } from '../evals/providers/minimax-openai.mjs';
 
+const PUBLIC_SAFE_CWD = process.cwd();
+
 test('buildMiniMaxOpenAIRequest uses structured json-schema output with deterministic defaults', function () {
   const requestBody = buildMiniMaxOpenAIRequest({
     prompt: 'return a json object',
@@ -132,7 +134,7 @@ test('runMiniMaxOpenAI parses a structured response payload from the OpenAI-comp
   };
 
   const result = await runMiniMaxOpenAI({
-    cwd: '/home/yrsh/sentrux',
+    cwd: PUBLIC_SAFE_CWD,
     prompt: 'review the evidence bundle',
     jsonSchema: {
       type: 'object',
@@ -191,7 +193,7 @@ test('runMiniMaxOpenAI retries once without response_format when the endpoint re
   };
 
   const result = await runMiniMaxOpenAI({
-    cwd: '/home/yrsh/sentrux',
+    cwd: PUBLIC_SAFE_CWD,
     prompt: 'review the evidence bundle',
     jsonSchema: {
       type: 'object',
