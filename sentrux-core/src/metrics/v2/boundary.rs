@@ -24,6 +24,7 @@ pub fn build_zero_config_boundary_findings(
             id: suggestion.id.clone(),
             root: suggestion.root.clone(),
             public_api: suggestion.public_api.clone(),
+            nested_public_api: suggestion.nested_public_api.clone(),
             forbid_cross_module_deep_imports: true,
         };
         let violations =

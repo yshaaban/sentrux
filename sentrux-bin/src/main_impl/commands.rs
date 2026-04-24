@@ -182,7 +182,10 @@ fn cli_scan_limits() -> sentrux_core::analysis::scanner::common::ScanLimits {
 }
 
 fn config_has_v2_rules(config: &sentrux_core::metrics::rules::RulesConfig) -> bool {
-    !config.concept.is_empty() || !config.contract.is_empty() || !config.state_model.is_empty()
+    !config.concept.is_empty()
+        || !config.contract.is_empty()
+        || !config.state_model.is_empty()
+        || !config.module_contract.is_empty()
 }
 
 fn print_check_results(

@@ -377,7 +377,9 @@ pub(crate) fn check_module_contract(
     rule: &ModuleContractRule,
     edges: &[ImportEdge],
 ) -> Vec<RuleViolation> {
-    if !rule.forbid_cross_module_deep_imports || rule.root.is_empty() || rule.public_api.is_empty()
+    if !rule.forbid_cross_module_deep_imports
+        || rule.root.is_empty()
+        || (rule.public_api.is_empty() && rule.nested_public_api.is_empty())
     {
         return Vec::new();
     }
@@ -390,7 +392,7 @@ pub(crate) fn check_module_contract(
         if module_contract_module_name(&edge.from_file, &rule.root) == Some(target_module) {
             continue;
         }
-        if module_contract_is_public_api(&edge.to_file, &rule.root, &rule.public_api) {
+        if module_contract_is_public_api(&edge.to_file, rule) {
             continue;
         }
 
@@ -415,11 +417,17 @@ fn module_contract_module_name<'a>(path: &'a str, root: &str) -> Option<&'a str>
     remainder.split('/').next().filter(|name| !name.is_empty())
 }
 
-fn module_contract_is_public_api(path: &str, root: &str, public_api: &[String]) -> bool {
-    let Some(module_name) = module_contract_module_name(path, root) else {
+fn module_contract_is_public_api(path: &str, rule: &ModuleContractRule) -> bool {
+    let Some(module_name) = module_contract_module_name(path, &rule.root) else {
         return false;
     };
-    public_api
+    let public_api_prefix = format!("{}/{}/", rule.root, module_name);
+    let Some(relative_path) = path.strip_prefix(&public_api_prefix) else {
+        return false;
+    };
+
+    rule.public_api
         .iter()
-        .any(|file_name| path == format!("{root}/{module_name}/{file_name}"))
+        .chain(rule.nested_public_api.iter())
+        .any(|file_name| relative_path == file_name)
 }

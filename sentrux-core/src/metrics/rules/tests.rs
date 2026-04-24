@@ -335,6 +335,42 @@ forbid_cross_module_deep_imports = true
     }
 
     #[test]
+    fn module_contract_allows_cross_module_nested_public_api_imports() {
+        let config: RulesConfig = toml::from_str(
+            r#"
+[[module_contract]]
+id = "feature_modules"
+root = "src/modules"
+public_api = ["index.ts", "index.tsx"]
+nested_public_api = ["components/index.ts"]
+forbid_cross_module_deep_imports = true
+"#,
+        )
+        .unwrap();
+
+        let edges = vec![edge(
+            "src/modules/dashboard/components/panel.tsx",
+            "src/modules/file-manager/components/index.ts",
+        )];
+        let snap = make_snapshot(
+            edges.clone(),
+            vec![
+                file("src/modules/dashboard/components/panel.tsx"),
+                file("src/modules/file-manager/components/index.ts"),
+            ],
+        );
+        let health = metrics::compute_health(&snap);
+        let arch_report = arch::compute_arch(&snap);
+
+        let result = check_rules(&config, &health, &arch_report, &edges);
+
+        assert!(result
+            .violations
+            .iter()
+            .all(|violation| violation.rule != "module_contract"));
+    }
+
+    #[test]
     fn module_contract_detects_external_imports_of_module_internals() {
         let config: RulesConfig = toml::from_str(
             r#"

@@ -59,6 +59,7 @@ fn infer_module_contract_rules(
             id: suggestion.id.clone(),
             root: suggestion.root.clone(),
             public_api: suggestion.public_api.clone(),
+            nested_public_api: suggestion.nested_public_api.clone(),
             forbid_cross_module_deep_imports: true,
         })
         .collect()
@@ -250,6 +251,10 @@ mod tests {
         assert_eq!(merged.concept.len(), 1);
         assert_eq!(merged.state_model.len(), 1);
         assert_eq!(merged.module_contract.len(), 1);
+        assert_eq!(
+            merged.module_contract[0].nested_public_api,
+            vec!["components/index.ts".to_string()]
+        );
         assert_eq!(merged.concept[0].canonical_accessors.len(), 1);
         assert_eq!(merged.state_model[0].roots, vec!["src/store".to_string()]);
     }

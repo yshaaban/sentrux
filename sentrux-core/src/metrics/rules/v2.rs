@@ -83,6 +83,8 @@ pub struct ModuleContractRule {
     pub root: String,
     #[serde(default = "default_module_contract_public_api")]
     pub public_api: Vec<String>,
+    #[serde(default)]
+    pub nested_public_api: Vec<String>,
     #[serde(default = "default_true")]
     pub forbid_cross_module_deep_imports: bool,
 }
@@ -157,7 +159,7 @@ pub fn compute_rule_coverage(
         .filter(|contract| {
             !contract.id.is_empty()
                 && !contract.root.is_empty()
-                && !contract.public_api.is_empty()
+                && (!contract.public_api.is_empty() || !contract.nested_public_api.is_empty())
                 && contract.forbid_cross_module_deep_imports
         })
         .count();
@@ -242,6 +244,7 @@ mod tests {
                 id = "feature_modules"
                 root = "src/modules"
                 public_api = ["index.ts", "index.tsx"]
+                nested_public_api = ["components/index.ts"]
                 forbid_cross_module_deep_imports = true
 
                 [[suppress]]
@@ -264,6 +267,10 @@ mod tests {
         assert_eq!(config.suppress.len(), 1);
         assert_eq!(config.contract[0].trigger_symbols.len(), 1);
         assert_eq!(config.contract[0].required_files.len(), 1);
+        assert_eq!(
+            config.module_contract[0].nested_public_api,
+            vec!["components/index.ts".to_string()]
+        );
     }
 
     #[test]
@@ -335,6 +342,33 @@ mod tests {
 
         assert_eq!(coverage.contracts_declared, 1);
         assert_eq!(coverage.contracts_machine_checkable, 1);
+        assert_eq!(coverage.coverage_0_10000, 10000);
+    }
+
+    #[test]
+    fn rule_coverage_counts_nested_only_module_contracts_as_machine_checkable() {
+        let config: RulesConfig = toml::from_str(
+            r#"
+                [[module_contract]]
+                id = "feature_modules"
+                root = "src/modules"
+                public_api = []
+                nested_public_api = ["components/index.ts"]
+                forbid_cross_module_deep_imports = true
+            "#,
+        )
+        .expect("rules config");
+
+        let coverage = compute_rule_coverage(
+            &config.concept,
+            &config.contract,
+            &config.state_model,
+            &config.module_contract,
+            &config.suppress,
+        );
+
+        assert_eq!(coverage.module_contracts_declared, 1);
+        assert_eq!(coverage.module_contracts_machine_checkable, 1);
         assert_eq!(coverage.coverage_0_10000, 10000);
     }
 }
