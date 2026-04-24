@@ -88,6 +88,7 @@ async function createSampleProject() {
     [
       'export type Mode = "idle" | "running";',
       'export type ActionKind = "open" | "close" | "archive";',
+      'export type LifecycleState = "draft" | "in-review" | "approved";',
       "",
     ].join("\n"),
   );
@@ -95,7 +96,7 @@ async function createSampleProject() {
   await writeFile(
     path.join(srcDir, "index.ts"),
     [
-      'import type { ActionKind, Mode } from "./domain.js";',
+      'import type { ActionKind, LifecycleState, Mode } from "./domain.js";',
       "",
       "export function bump(value: number): number {",
       "  return value + 1;",
@@ -201,6 +202,15 @@ async function createSampleProject() {
       '    return "Close";',
       "  } else {",
       '    return "Open evidence";',
+      "  }",
+      "}",
+      "",
+      "export function lifecycleLabel(state: LifecycleState): string {",
+      "  switch (state) {",
+      '    case "draft":',
+      '      return "Draft";',
+      "    default:",
+      '      return state.replace(/-/g, " ");',
       "  }",
       "}",
       "",
@@ -519,6 +529,21 @@ test("analyzeProject extracts semantic facts from a sample project", async funct
     assert.deepEqual(actionIfSite.covered_variants, ["open", "close"]);
     assert.equal(actionIfSite.site_semantic_role, ExhaustivenessSiteSemanticRole.Label);
     assert(actionIfSite.site_confidence >= 0.8);
+    const lifecycleLabelSite = snapshot.closed_domain_sites.find(
+      (site) =>
+        site.domain_symbol_name === "LifecycleState" &&
+        site.site_expression === "state",
+    );
+    assert(lifecycleLabelSite);
+    assert.deepEqual(lifecycleLabelSite.covered_variants, ["draft"]);
+    assert.equal(
+      lifecycleLabelSite.fallback_kind,
+      ExhaustivenessFallbackKind.IdentityTransform,
+    );
+    assert.equal(
+      lifecycleLabelSite.site_semantic_role,
+      ExhaustivenessSiteSemanticRole.Label,
+    );
     const inferredActionMapSite = snapshot.closed_domain_sites.find(
       (site) =>
         site.domain_symbol_name === "ActionKind" &&

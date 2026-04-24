@@ -757,6 +757,11 @@ function classifyFallbackExpression(expression, subjectExpression, domainVariant
     if (subjectExpression && expressionMatchesSubject(current, subjectExpression)) {
         return ExhaustivenessFallbackKind.IdentityTransform;
     }
+    if (subjectExpression &&
+        ts.isCallExpression(current) &&
+        callExpressionReceivesSubject(current, subjectExpression)) {
+        return ExhaustivenessFallbackKind.IdentityTransform;
+    }
     if (ts.isCallExpression(current) && isAssertThrowCall(current)) {
         return ExhaustivenessFallbackKind.AssertThrow;
     }
@@ -771,6 +776,13 @@ function expressionMatchesSubject(expression, subjectExpression) {
         return false;
     }
     return expression.getText() === discriminantInfo.baseExpression.getText();
+}
+function callExpressionReceivesSubject(expression, subjectExpression) {
+    const callee = expression.expression;
+    if (!ts.isPropertyAccessExpression(callee)) {
+        return false;
+    }
+    return expressionMatchesSubject(callee.expression, subjectExpression);
 }
 function isAssertThrowCall(node) {
     const expressionText = node.expression.getText();
