@@ -1128,14 +1128,7 @@ function appendExperimentArmSection(lines, experimentArms) {
   lines.push('## Experiment Arms');
   lines.push('');
   for (const entry of experimentArms) {
-    const focusAreaSummary = focusAreaCountsToText(entry.focus_area_counts);
-    const productValueSummary =
-      entry.session_verdict_count > 0
-        ? `, follow=${entry.top_action_follow_rate ?? 'n/a'}, help=${entry.top_action_help_rate ?? 'n/a'}, success=${entry.task_success_rate ?? 'n/a'}, expand=${entry.patch_expansion_rate ?? 'n/a'}, accept=${entry.reviewer_acceptance_rate ?? 'n/a'}, disagree=${entry.reviewer_disagreement_rate ?? 'n/a'}, cost=${entry.intervention_cost_checks_mean ?? 'n/a'}, value=${entry.intervention_net_value_score ?? 'n/a'}`
-        : '';
-    lines.push(
-      `- \`${entry.experiment_arm}\`: sessions=${entry.session_count}, clear=${entry.agent_clear_rate ?? 'n/a'}, clean=${entry.clean_rate ?? 'n/a'}, regressions=${entry.regression_rate ?? 'n/a'}, review=${entry.review_queue_rate ?? 'n/a'}${productValueSummary}, focus=[${focusAreaSummary}]`,
-    );
+    lines.push(formatExperimentArmSummary(entry));
   }
   lines.push('');
 }
@@ -1148,9 +1141,7 @@ function appendExperimentArmComparisonSection(lines, comparisons) {
   lines.push('## Experiment Arm Comparisons');
   lines.push('');
   for (const entry of comparisons) {
-    lines.push(
-      `- \`${entry.experiment_arm}\` vs \`${entry.baseline_experiment_arm}\`: clear_delta=${entry.agent_clear_rate_delta ?? 'n/a'}, help_delta=${entry.top_action_help_rate_delta ?? 'n/a'}, success_delta=${entry.task_success_rate_delta ?? 'n/a'}, expand_delta=${entry.patch_expansion_rate_delta ?? 'n/a'}, value_delta=${entry.intervention_net_value_score_delta ?? 'n/a'}`,
-    );
+    lines.push(formatExperimentArmComparison(entry));
   }
   lines.push('');
 }
@@ -1163,11 +1154,67 @@ function appendSignalExperimentComparisonSection(lines, comparisons) {
   lines.push('## Signal-Matched Comparisons');
   lines.push('');
   for (const entry of comparisons) {
-    lines.push(
-      `- \`${entry.signal_kind}\` / \`${entry.experiment_arm}\` vs \`${entry.baseline_experiment_arm}\`: qualified=${entry.qualified_for_default_rollout ? 'true' : 'false'}, top_match_delta=${entry.expected_top_action_rate_delta ?? 'n/a'}, help_delta=${entry.top_action_help_rate_delta ?? 'n/a'}, success_delta=${entry.task_success_rate_delta ?? 'n/a'}, expand_delta=${entry.patch_expansion_rate_delta ?? 'n/a'}, accept_delta=${entry.reviewer_acceptance_rate_delta ?? 'n/a'}, disagree_delta=${entry.reviewer_disagreement_rate_delta ?? 'n/a'}, value_delta=${entry.intervention_net_value_score_delta ?? 'n/a'}`,
-    );
+    lines.push(formatSignalExperimentComparison(entry));
   }
   lines.push('');
+}
+
+function formatExperimentArmSummary(entry) {
+  const fields = [
+    `sessions=${entry.session_count}`,
+    metricField('clear', entry.agent_clear_rate),
+    metricField('clean', entry.clean_rate),
+    metricField('regressions', entry.regression_rate),
+    metricField('review', entry.review_queue_rate),
+  ];
+
+  if (entry.session_verdict_count > 0) {
+    fields.push(
+      metricField('follow', entry.top_action_follow_rate),
+      metricField('help', entry.top_action_help_rate),
+      metricField('success', entry.task_success_rate),
+      metricField('expand', entry.patch_expansion_rate),
+      metricField('accept', entry.reviewer_acceptance_rate),
+      metricField('disagree', entry.reviewer_disagreement_rate),
+      metricField('cost', entry.intervention_cost_checks_mean),
+      metricField('value', entry.intervention_net_value_score),
+    );
+  }
+
+  fields.push(`focus=[${focusAreaCountsToText(entry.focus_area_counts)}]`);
+
+  return `- \`${entry.experiment_arm}\`: ${fields.join(', ')}`;
+}
+
+function formatExperimentArmComparison(entry) {
+  const fields = [
+    metricField('clear_delta', entry.agent_clear_rate_delta),
+    metricField('help_delta', entry.top_action_help_rate_delta),
+    metricField('success_delta', entry.task_success_rate_delta),
+    metricField('expand_delta', entry.patch_expansion_rate_delta),
+    metricField('value_delta', entry.intervention_net_value_score_delta),
+  ];
+
+  return `- \`${entry.experiment_arm}\` vs \`${entry.baseline_experiment_arm}\`: ${fields.join(', ')}`;
+}
+
+function formatSignalExperimentComparison(entry) {
+  const fields = [
+    `qualified=${entry.qualified_for_default_rollout ? 'true' : 'false'}`,
+    metricField('top_match_delta', entry.expected_top_action_rate_delta),
+    metricField('help_delta', entry.top_action_help_rate_delta),
+    metricField('success_delta', entry.task_success_rate_delta),
+    metricField('expand_delta', entry.patch_expansion_rate_delta),
+    metricField('accept_delta', entry.reviewer_acceptance_rate_delta),
+    metricField('disagree_delta', entry.reviewer_disagreement_rate_delta),
+    metricField('value_delta', entry.intervention_net_value_score_delta),
+  ];
+
+  return `- \`${entry.signal_kind}\` / \`${entry.experiment_arm}\` vs \`${entry.baseline_experiment_arm}\`: ${fields.join(', ')}`;
+}
+
+function metricField(name, value) {
+  return `${name}=${value ?? 'n/a'}`;
 }
 
 function focusAreaCountsToText(focusAreaCounts) {

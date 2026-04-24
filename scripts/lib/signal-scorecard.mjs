@@ -585,6 +585,8 @@ function buildScorecardSummary({
   const rankingQuality = buildRankingQualitySummary(signals);
   const provisionalRankingQuality = buildRankingQualitySummary(signals, 'provisional_');
   const productValue = buildProductValueSummary(sessionCorpus);
+  const reviewSampleCount = countReviewSamples(reviewVerdicts);
+  const provisionalReviewSampleCount = countProvisionalReviewSamples(reviewVerdicts);
 
   return {
     total_signals: signals.length,
@@ -609,10 +611,8 @@ function buildScorecardSummary({
     ).length,
     kpis: {
       defect_sample_count: defectReport?.results?.length ?? 0,
-      review_sample_count: reviewVerdicts?.provisional ? 0 : reviewVerdicts?.verdicts?.length ?? 0,
-      provisional_review_sample_count: reviewVerdicts?.provisional
-        ? reviewVerdicts?.verdicts?.length ?? 0
-        : 0,
+      review_sample_count: reviewSampleCount,
+      provisional_review_sample_count: provisionalReviewSampleCount,
       remediation_sample_count: remediationReport?.results?.length ?? 0,
       session_trial_count: totalSessionTrialCount,
       session_count: sessionCount,
@@ -636,6 +636,22 @@ function buildScorecardSummary({
     session_health: summarizeSessionHealth(sessionTelemetry),
     product_value: productValue,
   };
+}
+
+function countReviewSamples(reviewVerdicts) {
+  if (reviewVerdicts?.provisional) {
+    return 0;
+  }
+
+  return reviewVerdicts?.verdicts?.length ?? 0;
+}
+
+function countProvisionalReviewSamples(reviewVerdicts) {
+  if (!reviewVerdicts?.provisional) {
+    return 0;
+  }
+
+  return reviewVerdicts?.verdicts?.length ?? 0;
 }
 
 export function buildSignalScorecard({

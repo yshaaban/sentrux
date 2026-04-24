@@ -442,12 +442,7 @@ function buildDefaultOnPromotionSummary(
   return {
     ready: evidenceComplete,
     evidence_complete: evidenceComplete,
-    evidence_scope:
-      signalTreatmentReadyCount === 0
-        ? 'repo_level'
-        : signalTreatmentReadyCount === candidateSignalEvidence.length
-          ? 'signal_level'
-          : 'mixed',
+    evidence_scope: defaultOnEvidenceScope(signalTreatmentReadyCount, candidateSignalEvidence),
     repo_treatment_ready: hasVerdictEvidence && hasPositiveRepoTreatmentEvidence,
     signal_matched_treatment_evidence: hasSignalMatchedTreatmentEvidence,
     paired_baseline_present: hasPairedBaseline,
@@ -476,6 +471,92 @@ function buildDefaultOnPromotionSummary(
     },
     blockers,
   };
+}
+
+function defaultOnEvidenceScope(signalTreatmentReadyCount, candidateSignalEvidence) {
+  if (signalTreatmentReadyCount === 0) {
+    return 'repo_level';
+  }
+
+  if (signalTreatmentReadyCount === candidateSignalEvidence.length) {
+    return 'signal_level';
+  }
+
+  return 'mixed';
+}
+
+function nullableBooleanText(value) {
+  if (value === null || value === undefined) {
+    return 'n/a';
+  }
+
+  return value ? 'true' : 'false';
+}
+
+function metricField(name, value) {
+  return `${name}=${value ?? 'n/a'}`;
+}
+
+function formatSignalMetricSummary(signalKind, fields) {
+  return `\`${signalKind}\`: ${fields.join(', ')}`;
+}
+
+function formatDefaultOnDeltas(deltas) {
+  return [
+    metricField('help', deltas.top_action_help_rate),
+    metricField('success', deltas.task_success_rate),
+    metricField('expand', deltas.patch_expansion_rate),
+    metricField('value', deltas.intervention_net_value_score),
+  ].join(', ');
+}
+
+function formatExperimentArmSummary(entry) {
+  return `\`${entry.experiment_arm}\`: ${[
+    `sessions=${entry.session_count}`,
+    metricField('clear', entry.agent_clear_rate),
+    metricField('clean', entry.clean_rate),
+    metricField('regressions', entry.regression_rate),
+    metricField('review', entry.review_queue_rate),
+    metricField('follow', entry.top_action_follow_rate),
+    metricField('help', entry.top_action_help_rate),
+    metricField('success', entry.task_success_rate),
+    metricField('expand', entry.patch_expansion_rate),
+    metricField('value', entry.intervention_net_value_score),
+    `focus=[${focusAreaCountsToText(entry.focus_area_counts)}]`,
+  ].join(', ')}`;
+}
+
+function formatExperimentArmComparison(entry) {
+  return `\`${entry.experiment_arm}\` vs \`${entry.baseline_experiment_arm}\`: ${[
+    metricField('clear_delta', entry.agent_clear_rate_delta),
+    metricField('help_delta', entry.top_action_help_rate_delta),
+    metricField('success_delta', entry.task_success_rate_delta),
+    metricField('expand_delta', entry.patch_expansion_rate_delta),
+    metricField('value_delta', entry.intervention_net_value_score_delta),
+  ].join(', ')}`;
+}
+
+function formatSignalExperimentComparison(entry) {
+  return `\`${entry.signal_kind}\` / \`${entry.experiment_arm}\` vs \`${entry.baseline_experiment_arm}\`: ${[
+    metricField('top_match_delta', entry.expected_top_action_rate_delta),
+    metricField('help_delta', entry.top_action_help_rate_delta),
+    metricField('success_delta', entry.task_success_rate_delta),
+    metricField('expand_delta', entry.patch_expansion_rate_delta),
+    metricField('value_delta', entry.intervention_net_value_score_delta),
+  ].join(', ')}`;
+}
+
+function formatCandidateSignalEvidence(entry) {
+  return formatSignalMetricSummary(entry.signal_kind, [
+    `qualified=${entry.qualified ? 'true' : 'false'}`,
+    `comparisons=${entry.comparison_count}`,
+    `qualified_comparisons=${entry.qualified_comparison_count}`,
+    metricField('best_arm', entry.best_treatment_arm),
+    metricField('help_delta', entry.deltas?.top_action_help_rate),
+    metricField('success_delta', entry.deltas?.task_success_rate),
+    metricField('expand_delta', entry.deltas?.patch_expansion_rate),
+    metricField('value_delta', entry.deltas?.intervention_net_value_score),
+  ]);
 }
 
 function appendSummarySection(lines, title, entries, formatter) {
@@ -640,13 +721,48 @@ export function formatEvidenceReviewMarkdown(review) {
   lines.push('');
 
   appendSummarySection(lines, 'Promotion Candidates', review.promotion_candidates, function formatEntry(entry) {
-    return `\`${entry.signal_kind}\`: reviewed=${entry.reviewed_precision ?? 'n/a'}, top1=${entry.top_1_actionable_precision ?? 'n/a'}, top3=${entry.top_3_actionable_precision ?? 'n/a'}, remediation=${entry.remediation_success_rate ?? 'n/a'}, clean=${entry.session_clean_rate ?? 'n/a'}, follow=${entry.top_action_follow_rate ?? 'n/a'}, help=${entry.top_action_help_rate ?? 'n/a'}, success=${entry.task_success_rate ?? 'n/a'}, expand=${entry.patch_expansion_rate ?? 'n/a'}, value=${entry.intervention_net_value_score ?? 'n/a'}, miss=${entry.session_trial_miss_rate ?? 'n/a'}`;
+    return formatSignalMetricSummary(entry.signal_kind, [
+      metricField('reviewed', entry.reviewed_precision),
+      metricField('top1', entry.top_1_actionable_precision),
+      metricField('top3', entry.top_3_actionable_precision),
+      metricField('remediation', entry.remediation_success_rate),
+      metricField('clean', entry.session_clean_rate),
+      metricField('follow', entry.top_action_follow_rate),
+      metricField('help', entry.top_action_help_rate),
+      metricField('success', entry.task_success_rate),
+      metricField('expand', entry.patch_expansion_rate),
+      metricField('value', entry.intervention_net_value_score),
+      metricField('miss', entry.session_trial_miss_rate),
+    ]);
   });
   appendSummarySection(lines, 'Demotion Candidates', review.demotion_candidates, function formatEntry(entry) {
-    return `\`${entry.signal_kind}\`: noise=${entry.review_noise_rate ?? 'n/a'}, top1=${entry.top_1_actionable_precision ?? 'n/a'}, top3=${entry.top_3_actionable_precision ?? 'n/a'}, clean=${entry.session_clean_rate ?? 'n/a'}, follow=${entry.top_action_follow_rate ?? 'n/a'}, help=${entry.top_action_help_rate ?? 'n/a'}, success=${entry.task_success_rate ?? 'n/a'}, expand=${entry.patch_expansion_rate ?? 'n/a'}, value=${entry.intervention_net_value_score ?? 'n/a'}, miss=${entry.session_trial_miss_rate ?? 'n/a'}`;
+    return formatSignalMetricSummary(entry.signal_kind, [
+      metricField('noise', entry.review_noise_rate),
+      metricField('top1', entry.top_1_actionable_precision),
+      metricField('top3', entry.top_3_actionable_precision),
+      metricField('clean', entry.session_clean_rate),
+      metricField('follow', entry.top_action_follow_rate),
+      metricField('help', entry.top_action_help_rate),
+      metricField('success', entry.task_success_rate),
+      metricField('expand', entry.patch_expansion_rate),
+      metricField('value', entry.intervention_net_value_score),
+      metricField('miss', entry.session_trial_miss_rate),
+    ]);
   });
   appendSummarySection(lines, 'Default-On Candidates', review.default_on_candidates, function formatEntry(entry) {
-    return `\`${entry.signal_kind}\`: lane=${entry.product_primary_lane ?? 'n/a'}, role=${entry.default_surface_role ?? 'n/a'}, verdicts=${entry.session_verdict_count ?? 0}, follow=${entry.top_action_follow_rate ?? 'n/a'}, help=${entry.top_action_help_rate ?? 'n/a'}, success=${entry.task_success_rate ?? 'n/a'}, expand=${entry.patch_expansion_rate ?? 'n/a'}, accept=${entry.reviewer_acceptance_rate ?? 'n/a'}, disagree=${entry.reviewer_disagreement_rate ?? 'n/a'}, value=${entry.intervention_net_value_score ?? 'n/a'}, treatment=${entry.signal_treatment_ready ? 'ready' : 'pending'}`;
+    return formatSignalMetricSummary(entry.signal_kind, [
+      metricField('lane', entry.product_primary_lane),
+      metricField('role', entry.default_surface_role),
+      `verdicts=${entry.session_verdict_count ?? 0}`,
+      metricField('follow', entry.top_action_follow_rate),
+      metricField('help', entry.top_action_help_rate),
+      metricField('success', entry.task_success_rate),
+      metricField('expand', entry.patch_expansion_rate),
+      metricField('accept', entry.reviewer_acceptance_rate),
+      metricField('disagree', entry.reviewer_disagreement_rate),
+      metricField('value', entry.intervention_net_value_score),
+      `treatment=${entry.signal_treatment_ready ? 'ready' : 'pending'}`,
+    ]);
   });
   lines.push('## Default-On Promotion');
   lines.push('');
@@ -681,9 +797,7 @@ export function formatEvidenceReviewMarkdown(review) {
   lines.push(
     `- best treatment arm: ${review.default_on_promotion.best_treatment_arm ?? 'none'}`,
   );
-  lines.push(
-    `- deltas: help=${review.default_on_promotion.deltas.top_action_help_rate ?? 'n/a'}, success=${review.default_on_promotion.deltas.task_success_rate ?? 'n/a'}, expand=${review.default_on_promotion.deltas.patch_expansion_rate ?? 'n/a'}, value=${review.default_on_promotion.deltas.intervention_net_value_score ?? 'n/a'}`,
-  );
+  lines.push(`- deltas: ${formatDefaultOnDeltas(review.default_on_promotion.deltas)}`);
   lines.push(
     `- blockers: ${
       review.default_on_promotion.blockers.length > 0
@@ -699,31 +813,19 @@ export function formatEvidenceReviewMarkdown(review) {
     lines.push(`- task count: ${review.adjudication_summary.task_count ?? 0}`);
     lines.push(`- decision count: ${review.adjudication_summary.decision_count ?? 0}`);
     lines.push(
-      `- structured evidence only: ${
-        review.adjudication_summary.structured_evidence_only === null
-          ? 'n/a'
-          : review.adjudication_summary.structured_evidence_only
-            ? 'true'
-            : 'false'
-      }`,
+      `- structured evidence only: ${nullableBooleanText(
+        review.adjudication_summary.structured_evidence_only,
+      )}`,
     );
     lines.push(
-      `- audit logging ready: ${
-        review.adjudication_summary.audit_logging_ready === null
-          ? 'n/a'
-          : review.adjudication_summary.audit_logging_ready
-            ? 'true'
-            : 'false'
-      }`,
+      `- audit logging ready: ${nullableBooleanText(
+        review.adjudication_summary.audit_logging_ready,
+      )}`,
     );
     lines.push(
-      `- auto-apply enabled: ${
-        review.adjudication_summary.auto_apply_enabled === null
-          ? 'n/a'
-          : review.adjudication_summary.auto_apply_enabled
-            ? 'true'
-            : 'false'
-      }`,
+      `- auto-apply enabled: ${nullableBooleanText(
+        review.adjudication_summary.auto_apply_enabled,
+      )}`,
     );
     lines.push(
       `- recommended model: ${review.adjudication_summary.recommended_model ?? 'n/a'}`,
@@ -749,14 +851,14 @@ export function formatEvidenceReviewMarkdown(review) {
     return `\`${entry.session_id}\` [${entry.lane}] bucket=${entry.outcome_bucket}, convergence=${entry.outcome.convergence_status ?? 'n/a'}, entropy=${entry.outcome.entropy_delta ?? 'n/a'}, top=${entry.outcome.initial_top_action_kind ?? 'none'}`;
   });
   appendSummarySection(lines, 'Experiment Arms', review.experiment_arms, function formatEntry(entry) {
-    return `\`${entry.experiment_arm}\`: sessions=${entry.session_count}, clear=${entry.agent_clear_rate ?? 'n/a'}, clean=${entry.clean_rate ?? 'n/a'}, regressions=${entry.regression_rate ?? 'n/a'}, review=${entry.review_queue_rate ?? 'n/a'}, follow=${entry.top_action_follow_rate ?? 'n/a'}, help=${entry.top_action_help_rate ?? 'n/a'}, success=${entry.task_success_rate ?? 'n/a'}, expand=${entry.patch_expansion_rate ?? 'n/a'}, value=${entry.intervention_net_value_score ?? 'n/a'}, focus=[${focusAreaCountsToText(entry.focus_area_counts)}]`;
+    return formatExperimentArmSummary(entry);
   });
   appendSummarySection(
     lines,
     'Experiment Arm Comparisons',
     review.experiment_arm_comparisons,
     function formatEntry(entry) {
-      return `\`${entry.experiment_arm}\` vs \`${entry.baseline_experiment_arm}\`: clear_delta=${entry.agent_clear_rate_delta ?? 'n/a'}, help_delta=${entry.top_action_help_rate_delta ?? 'n/a'}, success_delta=${entry.task_success_rate_delta ?? 'n/a'}, expand_delta=${entry.patch_expansion_rate_delta ?? 'n/a'}, value_delta=${entry.intervention_net_value_score_delta ?? 'n/a'}`;
+      return formatExperimentArmComparison(entry);
     },
   );
   appendSummarySection(
@@ -764,7 +866,7 @@ export function formatEvidenceReviewMarkdown(review) {
     'Signal-Matched Comparisons',
     review.signal_experiment_comparisons ?? [],
     function formatEntry(entry) {
-      return `\`${entry.signal_kind}\` / \`${entry.experiment_arm}\` vs \`${entry.baseline_experiment_arm}\`: top_match_delta=${entry.expected_top_action_rate_delta ?? 'n/a'}, help_delta=${entry.top_action_help_rate_delta ?? 'n/a'}, success_delta=${entry.task_success_rate_delta ?? 'n/a'}, expand_delta=${entry.patch_expansion_rate_delta ?? 'n/a'}, value_delta=${entry.intervention_net_value_score_delta ?? 'n/a'}`;
+      return formatSignalExperimentComparison(entry);
     },
   );
   appendSummarySection(
@@ -772,7 +874,7 @@ export function formatEvidenceReviewMarkdown(review) {
     'Signal-Matched Default-On Evidence',
     review.default_on_promotion.candidate_signal_evidence ?? [],
     function formatEntry(entry) {
-      return `\`${entry.signal_kind}\`: qualified=${entry.qualified ? 'true' : 'false'}, comparisons=${entry.comparison_count}, qualified_comparisons=${entry.qualified_comparison_count}, best_arm=${entry.best_treatment_arm ?? 'n/a'}, help_delta=${entry.deltas?.top_action_help_rate ?? 'n/a'}, success_delta=${entry.deltas?.task_success_rate ?? 'n/a'}, expand_delta=${entry.deltas?.patch_expansion_rate ?? 'n/a'}, value_delta=${entry.deltas?.intervention_net_value_score ?? 'n/a'}`;
+      return formatCandidateSignalEvidence(entry);
     },
   );
 
