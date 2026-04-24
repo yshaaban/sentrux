@@ -11,12 +11,19 @@ pub(crate) struct RepairPacketRequiredFields {
 
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct RepairPacket {
+    pub(crate) title: String,
+    pub(crate) why_it_matters: String,
+    pub(crate) concrete_evidence: Vec<String>,
     pub(crate) risk_statement: String,
     pub(crate) likely_fix_sites: Vec<String>,
     pub(crate) inspection_context: Vec<String>,
     pub(crate) smallest_safe_first_cut: Option<String>,
+    pub(crate) verification_steps: Vec<String>,
     pub(crate) verify_after: Vec<String>,
+    pub(crate) what_not_to_over_refactor: Vec<String>,
     pub(crate) do_not_touch_yet: Vec<String>,
+    pub(crate) confidence_reason: String,
+    pub(crate) lane_reason: String,
     pub(crate) completeness_0_10000: u32,
     pub(crate) complete: bool,
     pub(crate) required_fields: RepairPacketRequiredFields,
@@ -44,17 +51,66 @@ pub(crate) fn build_repair_packet(
     let completeness_0_10000 =
         repair_packet_completeness_0_10000(&required_fields, !do_not_touch_yet.is_empty());
     RepairPacket {
+        title: repair_packet_title(kind),
+        why_it_matters: risk_statement.clone(),
+        concrete_evidence: inspection_context.clone(),
         risk_statement,
         likely_fix_sites,
         inspection_context,
         smallest_safe_first_cut,
+        verification_steps: verify_after.clone(),
         verify_after,
+        what_not_to_over_refactor: do_not_touch_yet.clone(),
         do_not_touch_yet,
+        confidence_reason: repair_packet_confidence_reason(&required_fields),
+        lane_reason: repair_packet_lane_reason(kind, &required_fields),
         completeness_0_10000,
         complete: missing_fields.is_empty(),
         required_fields,
         missing_fields,
     }
+}
+
+fn repair_packet_title(kind: &str) -> String {
+    kind.split('_')
+        .map(|part| {
+            let mut chars = part.chars();
+            match chars.next() {
+                Some(first) => format!("{}{}", first.to_ascii_uppercase(), chars.as_str()),
+                None => String::new(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn repair_packet_confidence_reason(required_fields: &RepairPacketRequiredFields) -> String {
+    if required_fields.risk_statement
+        && required_fields.repair_surface
+        && required_fields.first_cut
+        && required_fields.verification
+    {
+        return "Complete repair packet: risk, fix surface, first cut, and verification are present."
+            .to_string();
+    }
+
+    format!(
+        "Partial repair packet: risk={}, repair_surface={}, first_cut={}, verification={}.",
+        required_fields.risk_statement,
+        required_fields.repair_surface,
+        required_fields.first_cut,
+        required_fields.verification
+    )
+}
+
+fn repair_packet_lane_reason(kind: &str, required_fields: &RepairPacketRequiredFields) -> String {
+    if required_fields.repair_surface && required_fields.first_cut {
+        return format!(
+            "{kind} has enough repair surface to be considered for an agent-facing action."
+        );
+    }
+
+    format!("{kind} should stay out of the lead lane until the repair surface is clearer.")
 }
 
 fn repair_packet_required_fields(

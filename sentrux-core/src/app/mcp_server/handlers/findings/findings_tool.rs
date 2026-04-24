@@ -1,3 +1,6 @@
+use super::super::governance_readiness::{
+    governance_readiness_items, starter_rules_toml, GovernanceReadinessItem,
+};
 use super::*;
 
 pub fn findings_def() -> ToolDef {
@@ -42,6 +45,10 @@ pub(crate) fn handle_findings(
             &context.snapshot,
             &surface.rules_config,
         ),
+    );
+    result.insert(
+        "governance_readiness".to_string(),
+        build_governance_readiness_report(&context.root),
     );
     insert_findings_clone_fields(&mut result, &surface);
     insert_findings_result_fields(&mut result, &surface);
@@ -145,9 +152,11 @@ fn build_findings_review_surface(
         ),
         &rules_config,
     );
+    let mut other_findings = combined_other_finding_values(&semantic_findings, &structural_reports);
+    other_findings.extend(governance_readiness_findings(&context.root));
     let merged_findings = merge_findings(
         clone_payload.prioritized_findings.clone(),
-        combined_other_finding_values(&semantic_findings, &structural_reports),
+        other_findings,
         usize::MAX,
     );
     let (suppression_application, suppression_error) =
@@ -303,4 +312,58 @@ fn insert_findings_suppression_fields(
             &suppression_application.expired_matches
         )),
     );
+}
+
+fn build_governance_readiness_report(root: &Path) -> Value {
+    let findings = governance_readiness_findings(root);
+    let missing = findings
+        .iter()
+        .filter_map(|finding| finding.get("scope").and_then(Value::as_str))
+        .collect::<Vec<_>>();
+    let status = if findings.is_empty() {
+        "ready"
+    } else {
+        "needs_setup"
+    };
+
+    json!({
+        "status": status,
+        "missing": missing,
+        "findings": findings,
+        "starter_rules_toml": starter_rules_toml(),
+        "baseline_command": "sentrux gate --save",
+        "ci_command": "sentrux gate",
+        "baseline_update_policy": "Regenerate .sentrux/baseline.json only after reviewing intentional architecture changes.",
+        "setup_steps": [
+            "Create .sentrux/rules.toml with project exclusions and the first enforced concept or module contract.",
+            "Run `sentrux gate --save` once the current repository state is acceptable.",
+            "Commit .sentrux/rules.toml and .sentrux/baseline.json, then run `sentrux gate` in CI before merge."
+        ],
+    })
+}
+
+fn governance_readiness_findings(root: &Path) -> Vec<Value> {
+    governance_readiness_items(root)
+        .into_iter()
+        .map(governance_readiness_finding)
+        .collect()
+}
+
+fn governance_readiness_finding(item: GovernanceReadinessItem) -> Value {
+    json!({
+        "kind": "governance_readiness",
+        "scope": item.scope,
+        "summary": item.findings_summary,
+        "severity": "low",
+        "trust_tier": "watchpoint",
+        "presentation_class": "watchpoint",
+        "leverage_class": "tooling_debt",
+        "score_0_10000": 5500,
+        "files": [item.file],
+        "likely_fix_sites": [item.file],
+        "inspection_context": [".sentrux/"],
+        "smallest_safe_first_cut": item.findings_first_cut,
+        "evidence": item.findings_evidence,
+        "setup_mode": "repo_onboarding",
+    })
 }

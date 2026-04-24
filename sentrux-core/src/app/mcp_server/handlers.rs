@@ -79,6 +79,7 @@ mod context;
 mod debt;
 mod evaluation_signals;
 mod findings;
+mod governance_readiness;
 mod health;
 mod scan;
 mod semantic_batch;

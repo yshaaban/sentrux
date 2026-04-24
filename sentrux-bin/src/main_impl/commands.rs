@@ -61,7 +61,10 @@ pub(crate) fn run_check(path: &str) -> i32 {
         Some(c) => c,
         None => {
             eprintln!("No .sentrux/rules.toml found in {path}");
-            eprintln!("Create one to define architectural constraints.");
+            eprintln!("Create one to define architectural constraints:");
+            eprintln!("  mkdir -p {path}/.sentrux");
+            eprintln!("  $EDITOR {path}/.sentrux/rules.toml");
+            eprintln!("Then run `sentrux check {path}` again.");
             return 1;
         }
     };
@@ -293,6 +296,7 @@ fn gate_compare(
                 baseline_path.display()
             );
             eprintln!("Run `sentrux gate --save` first to create one.");
+            eprintln!("For CI, commit .sentrux/baseline.json and run `sentrux gate` before merge.");
             return 1;
         }
     };

@@ -1,6 +1,6 @@
 use super::test_support::{
     concept_fixture_root, concept_fixture_semantic, dead_private_fixture_root,
-    structural_debt_fixture_root,
+    structural_debt_fixture_root, temp_root, write_file,
 };
 use super::{
     apply_suppressions, build_exact_clone_findings, distinct_file_count, fresh_mcp_state,
@@ -199,6 +199,48 @@ fn findings_surface_structural_debt_signals() {
             .get("default_surface_role")
             .and_then(|value| value.as_str())
             .is_some()));
+}
+
+#[test]
+fn findings_surface_includes_governance_readiness_guidance() {
+    let root = temp_root("findings-governance-readiness");
+    write_file(
+        &root,
+        "src/app.ts",
+        "export function render(): number { return 1; }\n",
+    );
+    let mut state = fresh_mcp_state();
+    handle_scan(
+        &json!({"path": root.to_string_lossy().to_string()}),
+        &Tier::Free,
+        &mut state,
+    )
+    .expect("scan fixture");
+
+    let response = handle_findings(&json!({}), &Tier::Free, &mut state).expect("findings");
+    let governance = &response["governance_readiness"];
+
+    assert_eq!(governance["status"], json!("needs_setup"));
+    assert!(governance["missing"]
+        .as_array()
+        .expect("missing array")
+        .iter()
+        .any(|scope| scope == "missing_sentrux_rules"));
+    assert!(governance["missing"]
+        .as_array()
+        .expect("missing array")
+        .iter()
+        .any(|scope| scope == "missing_sentrux_baseline"));
+    assert!(governance["starter_rules_toml"]
+        .as_str()
+        .is_some_and(|starter| starter.contains("[project]")));
+    assert_eq!(governance["baseline_command"], json!("sentrux gate --save"));
+    assert!(response["findings"]
+        .as_array()
+        .expect("findings array")
+        .iter()
+        .any(|finding| finding["kind"] == "governance_readiness"
+            && finding["primary_lane"] == "maintainer_watchpoint"));
 }
 
 #[test]

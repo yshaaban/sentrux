@@ -54,12 +54,19 @@ fn test_issue(
         confidence,
         evidence_metrics: AgentIssueEvidence::default(),
         repair_packet: RepairPacket {
+            title: "Test Packet".to_string(),
+            why_it_matters: "test packet".to_string(),
+            concrete_evidence: vec![file.to_string()],
             risk_statement: "test packet".to_string(),
             likely_fix_sites: vec![file.to_string()],
             inspection_context: vec![file.to_string()],
             smallest_safe_first_cut: Some("test first cut".to_string()),
+            verification_steps: vec!["re-run sentrux check".to_string()],
             verify_after: vec!["re-run sentrux check".to_string()],
+            what_not_to_over_refactor: Vec::new(),
             do_not_touch_yet: Vec::new(),
+            confidence_reason: "Complete repair packet.".to_string(),
+            lane_reason: "Test issue has a repair surface.".to_string(),
             completeness_0_10000: 9_000,
             complete: true,
             required_fields: super::agent_guidance::RepairPacketRequiredFields {
@@ -117,6 +124,32 @@ fn check_returns_clean_result_when_changed_scope_is_known_empty() {
     let root = temp_root("check-empty-scope");
     write_file(
         &root,
+        ".sentrux/rules.toml",
+        r#"
+            [project]
+            primary_language = "typescript"
+        "#,
+    );
+    write_file(
+        &root,
+        ".sentrux/baseline.json",
+        r#"
+            {
+              "timestamp": 0.0,
+              "quality_signal": 1.0,
+              "coupling_score": 1.0,
+              "cycle_count": 0,
+              "god_file_count": 0,
+              "hotspot_count": 0,
+              "complex_fn_count": 0,
+              "max_depth": 0,
+              "total_import_edges": 0,
+              "cross_module_edges": 0
+            }
+        "#,
+    );
+    write_file(
+        &root,
         "src/app.ts",
         "export function render(): number { return 1; }\n",
     );
@@ -130,6 +163,7 @@ fn check_returns_clean_result_when_changed_scope_is_known_empty() {
         &mut state,
     )
     .expect("scan fixture");
+    handle_session_start(&json!({}), &Tier::Free, &mut state).expect("session start");
 
     let response = handle_check(&json!({}), &Tier::Free, &mut state).expect("check response");
 
@@ -154,6 +188,47 @@ fn check_returns_clean_result_when_changed_scope_is_known_empty() {
         json!(false)
     );
     assert_eq!(response["diagnostics"]["partial_results"], json!(false));
+}
+
+#[test]
+fn check_surfaces_missing_governance_as_non_blocking_watchpoints() {
+    let root = temp_root("check-governance-watchpoints");
+    write_file(
+        &root,
+        "src/app.ts",
+        "export function render(): number { return 1; }\n",
+    );
+    init_git_repo(&root);
+    commit_all(&root, "initial");
+
+    let mut state = fresh_mcp_state();
+    handle_scan(
+        &json!({"path": root.to_string_lossy().to_string()}),
+        &Tier::Free,
+        &mut state,
+    )
+    .expect("scan fixture");
+
+    let response = handle_check(&json!({}), &Tier::Free, &mut state).expect("check response");
+    let issues = response["issues"].as_array().expect("issues array");
+
+    assert_eq!(response["gate"], json!("pass"));
+    assert!(issues.iter().any(|issue| {
+        issue["kind"] == "governance_readiness"
+            && issue["scope"] == "missing_sentrux_rules"
+            && issue["trust_tier"] == "watchpoint"
+            && issue["repair_packet"]["complete"] == true
+    }));
+    assert!(issues.iter().any(|issue| {
+        issue["kind"] == "governance_readiness"
+            && issue["scope"] == "missing_sentrux_baseline"
+            && issue["severity"] == "low"
+    }));
+    assert_eq!(response["actions"], json!([]));
+    assert_eq!(
+        response["summary"],
+        json!("2 non-blocking watchpoint(s) detected.")
+    );
 }
 
 #[test]

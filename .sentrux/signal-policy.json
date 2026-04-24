@@ -64,7 +64,11 @@
       "clone",
       "structural"
     ],
-    "kind_rules": {}
+    "kind_rules": {
+      "governance_readiness": {
+        "eligible": false
+      }
+    }
   },
   "score_bands": [
     {

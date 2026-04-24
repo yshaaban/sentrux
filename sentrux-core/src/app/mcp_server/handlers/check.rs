@@ -1,8 +1,10 @@
 use super::agent_format::{
     actions_from_issues, compare_agent_issues, issue_blocks_gate,
     issues_from_findings_and_obligations, AgentCheckResponse, AgentGate, AgentIssue,
-    CheckAvailability, CheckDiagnostics,
+    AgentIssueEvidence, CheckAvailability, CheckDiagnostics, IssueConfidence, IssueOrigin,
+    IssueSource, RepairPacket,
 };
+use super::governance_readiness::{governance_readiness_items, GovernanceReadinessItem};
 use super::semantic_batch::SemanticAnalysisBatch;
 use super::*;
 use crate::metrics::v2::{build_clone_drift_findings, FindingSeverity, SemanticFinding};
@@ -48,7 +50,7 @@ pub(crate) fn handle_check(
         context.scan_identity.clone()
     };
 
-    let (issues, diagnostics) = if !context.changed_scope_available {
+    let (mut issues, mut diagnostics) = if !context.changed_scope_available {
         build_unavailable_changed_scope_response()
     } else if changed_files.is_empty() {
         build_known_empty_changed_scope_response()
@@ -63,6 +65,10 @@ pub(crate) fn handle_check(
             expected_patch_cache_identity.as_ref(),
         )
     };
+    if context.changed_scope_available {
+        append_governance_watchpoints(&root, &mut issues, &mut diagnostics);
+        issues.sort_by(compare_agent_issues);
+    }
     let gate = compute_agent_gate(&issues);
     let actions = actions_from_issues(&issues, DEFAULT_AGENT_ACTION_LIMIT);
     let signal_summary = build_check_signal_summary(&issues, &actions);
@@ -308,6 +314,96 @@ fn build_empty_check_diagnostics(
     }
 }
 
+fn append_governance_watchpoints(
+    root: &Path,
+    issues: &mut Vec<AgentIssue>,
+    diagnostics: &mut CheckDiagnostics,
+) {
+    let watchpoints = governance_watchpoint_issues(root);
+    if watchpoints.is_empty() {
+        return;
+    }
+
+    diagnostics.warnings.extend(
+        watchpoints
+            .iter()
+            .map(|issue| format!("governance readiness watchpoint: {}", issue.message)),
+    );
+    issues.extend(watchpoints);
+}
+
+fn governance_watchpoint_issues(root: &Path) -> Vec<AgentIssue> {
+    governance_readiness_items(root)
+        .into_iter()
+        .map(governance_watchpoint_issue)
+        .collect()
+}
+
+fn governance_watchpoint_issue(item: GovernanceReadinessItem) -> AgentIssue {
+    let repair_packet =
+        governance_repair_packet(item.file, item.check_message, item.check_first_cut);
+
+    AgentIssue {
+        scope: item.scope.to_string(),
+        concept_id: None,
+        file: item.file.to_string(),
+        line: None,
+        kind: "governance_readiness".to_string(),
+        message: item.check_message.to_string(),
+        severity: FindingSeverity::Low,
+        trust_tier: "watchpoint".to_string(),
+        presentation_class: "watchpoint".to_string(),
+        leverage_class: "tooling_debt".to_string(),
+        score_0_10000: 5_500,
+        fix_hint: Some(item.check_fix_hint.to_string()),
+        evidence: item.check_evidence,
+        source: IssueSource::Rules,
+        origin: IssueOrigin::ZeroConfig,
+        confidence: IssueConfidence::Medium,
+        evidence_metrics: AgentIssueEvidence {
+            changed_scope: Some(false),
+            ..AgentIssueEvidence::default()
+        },
+        repair_packet,
+    }
+}
+
+fn governance_repair_packet(file: &str, risk_statement: &str, first_cut: &str) -> RepairPacket {
+    let mut packet = super::agent_guidance::repair_packet_for_finding(
+        &json!({
+            "kind": "governance_readiness",
+            "summary": risk_statement,
+            "files": [file],
+            "likely_fix_sites": [file],
+            "inspection_context": [".sentrux/"],
+        }),
+        "governance_readiness",
+    );
+    packet.risk_statement = risk_statement.to_string();
+    packet.why_it_matters = packet.risk_statement.clone();
+    packet.smallest_safe_first_cut = Some(first_cut.to_string());
+    packet.verify_after = vec![
+        "Re-run `sentrux check` and confirm the governance readiness watchpoint clears."
+            .to_string(),
+        "Run `sentrux gate` after saving the baseline to confirm the pre-merge gate is enforceable."
+            .to_string(),
+    ];
+    packet.do_not_touch_yet = vec![
+        "Do not make the first baseline stricter than the current repository can satisfy; capture current state first, then tighten rules incrementally."
+            .to_string(),
+    ];
+    packet.verification_steps = packet.verify_after.clone();
+    packet.what_not_to_over_refactor = packet.do_not_touch_yet.clone();
+    packet.required_fields.risk_statement = true;
+    packet.required_fields.repair_surface = true;
+    packet.required_fields.first_cut = true;
+    packet.required_fields.verification = true;
+    packet.missing_fields.clear();
+    packet.completeness_0_10000 = 10_000;
+    packet.complete = true;
+    packet
+}
+
 fn diagnostics_errors(
     rules_error: Option<String>,
     semantic_error: Option<String>,
@@ -340,7 +436,7 @@ fn build_check_summary(
     if !changed_scope_available {
         return "Changed scope unavailable; returned partial fast-path results.".to_string();
     }
-    if changed_files.is_empty() {
+    if changed_files.is_empty() && issues.is_empty() {
         return "No working-tree changes detected.".to_string();
     }
     match gate {
