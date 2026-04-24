@@ -77,6 +77,15 @@ fn large_file_guarded_facade_reports_role_tags_and_guardrail_evidence() {
         .evidence
         .iter()
         .any(|entry| entry.contains("guardrail tests:")));
+    assert!(report.evidence.iter().any(|entry| {
+        entry == "first-cut extraction: move remaining facade owner behavior behind the facade owner boundary"
+    }));
+    assert!(report.evidence.iter().any(|entry| {
+        entry.starts_with("first-cut admissibility: high")
+            && entry.contains("symbol/function count: 24")
+            && entry.contains("peak complexity: 51")
+            && entry.contains("guardrail tests: 1")
+    }));
     assert!(report.related_surfaces.is_empty());
     assert!(report
         .evidence
@@ -171,6 +180,16 @@ fn large_file_surfaces_actionable_split_evidence_for_dependency_boundaries() {
     }));
     assert!(report.evidence.iter().any(|entry| {
         entry == "recommended first cut: move the behavior that couples to src/components/app-shell/Chrome.tsx behind the components dependency boundary"
+    }));
+    assert!(report.evidence.iter().any(|entry| {
+        entry == "first-cut extraction: move entry orchestration coupled to src/components/app-shell/Chrome.tsx behind the components dependency boundary"
+    }));
+    assert!(report.evidence.iter().any(|entry| {
+        entry.starts_with("first-cut admissibility:")
+            && entry.contains("symbol/function count: 18")
+            && entry.contains("peak complexity: 31")
+            && entry.contains("fan-out: 2")
+            && entry.contains("role tags:")
     }));
     assert!(report.inspection_focus.iter().any(|entry| {
         entry.contains("components dependency boundary")

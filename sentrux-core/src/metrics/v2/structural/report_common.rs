@@ -111,6 +111,102 @@ pub(super) fn large_file_split_axes(
     axes
 }
 
+#[derive(Debug, Clone)]
+pub(super) struct LargeFileFirstCut {
+    pub(super) extraction: String,
+    pub(super) admissibility: String,
+    pub(super) confidence_0_10000: u32,
+}
+
+pub(super) fn large_file_first_cut(
+    facts: &FileFacts,
+    role_tags: &[String],
+    outgoing_paths: Option<&BTreeSet<String>>,
+    candidate_split_axes: &[String],
+) -> LargeFileFirstCut {
+    let fan_out = graph_path_count(outgoing_paths);
+    let first_axis = candidate_split_axes
+        .first()
+        .cloned()
+        .unwrap_or_else(|| "orchestration boundary".to_string());
+    let first_surface = outgoing_paths.and_then(|paths| paths.iter().next().cloned());
+    let extraction = if has_role(facts, "facade_with_extracted_owners") {
+        format!("move remaining facade owner behavior behind the {first_axis}")
+    } else if has_role_tag(role_tags, "composition_root")
+        || has_role_tag(role_tags, "entry_surface")
+    {
+        match first_surface {
+            Some(surface) => {
+                format!("move entry orchestration coupled to {surface} behind the {first_axis}")
+            }
+            None => format!("extract entry orchestration behind the {first_axis}"),
+        }
+    } else if facts.max_complexity >= 40 {
+        "extract the highest-complexity helper path into a focused module".to_string()
+    } else if facts.function_count >= 20 {
+        "extract the private helper group into a focused module".to_string()
+    } else if let Some(surface) = first_surface {
+        format!("move behavior coupled to {surface} behind the {first_axis}")
+    } else {
+        format!("start with a narrow {first_axis} only after identifying a cohesive helper group")
+    };
+
+    let mut confidence = 1_200u32;
+    let mut reasons = Vec::new();
+    if facts.function_count >= 20 {
+        confidence += 1_800;
+        reasons.push(format!("symbol/function count: {}", facts.function_count));
+    } else {
+        reasons.push(format!("symbol/function count: {}", facts.function_count));
+    }
+    if facts.max_complexity >= 40 {
+        confidence += 2_000;
+        reasons.push(format!("peak complexity: {}", facts.max_complexity));
+    } else if facts.max_complexity >= 25 {
+        confidence += 1_000;
+        reasons.push(format!("peak complexity: {}", facts.max_complexity));
+    } else {
+        reasons.push(format!("peak complexity: {}", facts.max_complexity));
+    }
+    if fan_out >= 2 {
+        confidence += 1_600;
+        reasons.push(format!("fan-out: {}", fan_out));
+    } else {
+        reasons.push(format!("fan-out: {}", fan_out));
+    }
+    if !facts.guardrail_tests.is_empty() {
+        confidence += 1_700;
+        reasons.push(format!("guardrail tests: {}", facts.guardrail_tests.len()));
+    } else {
+        reasons.push("guardrail tests: 0".to_string());
+    }
+    if role_tags.iter().any(|tag| {
+        matches!(
+            tag.as_str(),
+            "composition_root" | "entry_surface" | "facade_with_extracted_owners" | "guarded_seam"
+        )
+    }) {
+        confidence += 1_000;
+        reasons.push(format!("role tags: {}", role_tags.join(", ")));
+    } else if !role_tags.is_empty() {
+        reasons.push(format!("role tags: {}", role_tags.join(", ")));
+    } else {
+        reasons.push("role tags: none".to_string());
+    }
+
+    let confidence = confidence.min(10_000);
+    let label = match confidence {
+        6_500..=10_000 => "high",
+        4_000..=6_499 => "medium",
+        _ => "watchpoint",
+    };
+    LargeFileFirstCut {
+        extraction,
+        admissibility: format!("{label} ({})", reasons.join("; ")),
+        confidence_0_10000: confidence,
+    }
+}
+
 fn dominant_categories(paths: &BTreeSet<String>, limit: usize) -> Vec<String> {
     dependency_category_summaries(Some(paths), limit)
         .into_iter()

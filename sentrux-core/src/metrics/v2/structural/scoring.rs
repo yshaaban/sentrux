@@ -2,10 +2,16 @@ use super::super::FindingSeverity;
 use super::path_roles::has_role_tag;
 use super::CycleCutCandidate;
 
-pub(super) fn large_file_score(line_count: usize, threshold: u32, max_complexity: u32) -> u32 {
+pub(super) fn large_file_score(
+    line_count: usize,
+    threshold: u32,
+    max_complexity: u32,
+    first_cut_confidence_0_10000: u32,
+) -> u32 {
     let over_threshold = scaled_ratio_pressure(line_count, threshold as usize, 3600);
     let complexity_bonus = max_complexity.saturating_sub(20).min(20) * 120;
-    (2400 + over_threshold + complexity_bonus).min(10_000)
+    let first_cut_bonus = (first_cut_confidence_0_10000 / 12).min(800);
+    (2400 + over_threshold + complexity_bonus + first_cut_bonus).min(10_000)
 }
 
 pub(super) fn dependency_sprawl_score(
@@ -76,6 +82,15 @@ pub(super) fn cycle_cluster_score(
         })
         .unwrap_or(0);
     (2400 + size_bonus + line_bonus + role_bonus + cut_bonus).min(10_000)
+}
+
+pub(super) fn cycle_basis_adjusted_score(score_0_10000: u32, edge_basis: &str) -> u32 {
+    match edge_basis {
+        "import-only" => score_0_10000.saturating_add(300).min(10_000),
+        "mixed" => score_0_10000.saturating_sub(1_200).min(7_800),
+        "interaction/call-only" => score_0_10000.saturating_sub(2_400).min(4_900),
+        _ => score_0_10000,
+    }
 }
 
 pub(super) fn dead_private_cluster_score(dead_symbol_count: usize, dead_line_count: usize) -> u32 {

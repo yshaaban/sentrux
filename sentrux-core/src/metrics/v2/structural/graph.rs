@@ -10,6 +10,8 @@ pub(super) struct StructuralGraph {
     pub(super) incoming: BTreeMap<String, BTreeSet<String>>,
     pub(super) import_outgoing: BTreeMap<String, BTreeSet<String>>,
     pub(super) import_incoming: BTreeMap<String, BTreeSet<String>>,
+    pub(super) call_outgoing: BTreeMap<String, BTreeSet<String>>,
+    pub(super) call_incoming: BTreeMap<String, BTreeSet<String>>,
 }
 
 pub(super) fn build_structural_graph(snapshot: &Snapshot) -> StructuralGraph {
@@ -17,8 +19,11 @@ pub(super) fn build_structural_graph(snapshot: &Snapshot) -> StructuralGraph {
     let mut incoming = BTreeMap::<String, BTreeSet<String>>::new();
     let mut import_outgoing = BTreeMap::<String, BTreeSet<String>>::new();
     let mut import_incoming = BTreeMap::<String, BTreeSet<String>>::new();
+    let mut call_outgoing = BTreeMap::<String, BTreeSet<String>>::new();
+    let mut call_incoming = BTreeMap::<String, BTreeSet<String>>::new();
     let mut seen = HashSet::<(String, String)>::new();
     let mut import_seen = HashSet::<(String, String)>::new();
+    let mut call_seen = HashSet::<(String, String)>::new();
 
     for edge in filtered_import_edges(snapshot) {
         record_graph_edge(
@@ -44,12 +49,21 @@ pub(super) fn build_structural_graph(snapshot: &Snapshot) -> StructuralGraph {
             &edge.from_file,
             &edge.to_file,
         );
+        record_graph_edge(
+            &mut call_outgoing,
+            &mut call_incoming,
+            &mut call_seen,
+            &edge.from_file,
+            &edge.to_file,
+        );
     }
     StructuralGraph {
         outgoing,
         incoming,
         import_outgoing,
         import_incoming,
+        call_outgoing,
+        call_incoming,
     }
 }
 

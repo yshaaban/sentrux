@@ -3,7 +3,9 @@ use super::path_roles::{
     annotate_structural_leverage, contextual_role_tags, structural_presentation_class,
     with_guardrail_evidence,
 };
-use super::report_common::{graph_path_count, has_role_tag, large_file_split_axes};
+use super::report_common::{
+    graph_path_count, has_role_tag, large_file_first_cut, large_file_split_axes,
+};
 use super::scoring::{large_file_score, signal_severity};
 use super::utils::{dedupe_strings_preserve_order, join_or_none, sample_paths};
 use super::{
@@ -112,6 +114,8 @@ fn large_file_related_surfaces(outgoing_paths: Option<&BTreeSet<String>>) -> Vec
 fn large_file_actionable_evidence(
     candidate_split_axes: &[String],
     related_surfaces: &[String],
+    first_cut_extraction: &str,
+    first_cut_admissibility: &str,
 ) -> Vec<String> {
     let mut evidence = Vec::new();
 
@@ -134,6 +138,10 @@ fn large_file_actionable_evidence(
             "recommended first cut: move the behavior that couples to {related_surface} behind the {split_axis}"
         ));
     }
+    evidence.push(format!("first-cut extraction: {first_cut_extraction}"));
+    evidence.push(format!(
+        "first-cut admissibility: {first_cut_admissibility}"
+    ));
 
     evidence
 }
@@ -152,12 +160,12 @@ pub(super) fn build_large_file_reports(
             let threshold = lang_registry::profile(&facts.lang)
                 .thresholds
                 .large_file_lines;
-            let score_0_10000 =
-                large_file_score(file_metric.value, threshold, facts.max_complexity);
             let outgoing_paths = graph.outgoing.get(&file_metric.path);
             let fan_out = graph_path_count(outgoing_paths);
             let candidate_split_axes = large_file_split_axes(facts, outgoing_paths);
             let related_surfaces = large_file_related_surfaces(outgoing_paths);
+            let first_cut =
+                large_file_first_cut(facts, &role_tags, outgoing_paths, &candidate_split_axes);
             let mut evidence = vec![
                 format!("line count: {}", file_metric.value),
                 format!("large-file threshold: {}", threshold),
@@ -168,7 +176,15 @@ pub(super) fn build_large_file_reports(
             evidence.extend(large_file_actionable_evidence(
                 &candidate_split_axes,
                 &related_surfaces,
+                &first_cut.extraction,
+                &first_cut.admissibility,
             ));
+            let score_0_10000 = large_file_score(
+                file_metric.value,
+                threshold,
+                facts.max_complexity,
+                first_cut.confidence_0_10000,
+            );
 
             Some(annotate_structural_leverage(StructuralDebtReport {
                 kind: "large_file".to_string(),
