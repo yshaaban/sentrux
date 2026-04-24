@@ -78,17 +78,16 @@ pub(crate) fn obligation_trust_tier(obligation: &Value) -> &'static str {
 pub(crate) fn obligation_severity(obligation: &Value) -> FindingSeverity {
     let input = ObligationGuidanceInput::from_value(obligation);
     input.severity.unwrap_or_else(|| {
-        if matches!(
+        let exhaustiveness_gap = matches!(
             obligation_family(obligation_kind(obligation)),
             ObligationFamily::Exhaustiveness
-        ) || !input.missing_variants.is_empty()
-        {
-            FindingSeverity::High
-        } else if input
+        ) || !input.missing_variants.is_empty();
+        let explicit_origin = input
             .origin
             .unwrap_or_else(|| fallback_obligation_origin(&input))
-            == IssueOrigin::Explicit
-        {
+            == IssueOrigin::Explicit;
+
+        if exhaustiveness_gap || explicit_origin {
             FindingSeverity::High
         } else {
             FindingSeverity::Medium

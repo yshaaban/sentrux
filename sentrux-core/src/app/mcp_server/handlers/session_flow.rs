@@ -248,17 +248,22 @@ pub(crate) fn analyze_gate_result(
     let decision = gate_decision(&missing_obligations, &blocking_findings);
     let summary = gate_summary(decision, changed_files.is_empty());
     let semantic_error = patch_safety_semantic_error(analysis);
+    let guided_introduced_findings = findings_with_agent_guidance(visible_introduced_findings);
+    let guided_experimental_findings = findings_with_agent_guidance(experimental_findings);
+    let guided_blocking_findings = findings_with_agent_guidance(blocking_findings);
+    let guided_missing_obligations =
+        obligations_with_agent_guidance(serialized_values(&missing_obligations));
 
     let mut response = json!({
         "decision": decision,
         "strict": strict,
         "summary": summary,
         "changed_files": changed_files.iter().cloned().collect::<Vec<_>>(),
-        "introduced_findings": visible_introduced_findings,
-        "experimental_finding_count": experimental_findings.len(),
-        "experimental_findings": experimental_findings,
-        "blocking_findings": blocking_findings,
-        "missing_obligations": missing_obligations,
+        "introduced_findings": guided_introduced_findings,
+        "experimental_finding_count": guided_experimental_findings.len(),
+        "experimental_findings": guided_experimental_findings,
+        "blocking_findings": guided_blocking_findings,
+        "missing_obligations": guided_missing_obligations,
         "obligation_completeness_0_10000": crate::metrics::v2::obligation_score_0_10000(&analysis.changed_obligations),
         "suppression_hits": analysis.suppression_hits,
         "suppressed_finding_count": analysis.suppressed_finding_count,

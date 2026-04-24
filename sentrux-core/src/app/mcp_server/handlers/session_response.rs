@@ -117,6 +117,7 @@ fn insert_finding_fields(
     let introduced_findings = findings_with_agent_guidance(introduced_findings);
     let introduced_clone_findings = findings_with_agent_guidance(introduced_clone_findings);
     let finding_details = findings_with_agent_guidance(finding_details);
+    let experimental_findings = findings_with_agent_guidance(experimental_findings);
     result.insert(
         "introduced_findings".to_string(),
         json!(introduced_findings),
@@ -183,9 +184,11 @@ fn insert_obligation_fields(
     blocking_findings: Vec<Value>,
 ) {
     let blocking_findings = findings_with_agent_guidance(blocking_findings);
+    let guided_missing_obligations =
+        obligations_with_agent_guidance(serialized_values(&missing_obligations));
     result.insert(
         "missing_obligations".to_string(),
-        json!(missing_obligations),
+        json!(guided_missing_obligations),
     );
     result.insert(
         "obligation_completeness_0_10000".to_string(),

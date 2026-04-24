@@ -92,6 +92,7 @@ pub(crate) fn handle_obligations(
         .sum();
     let obligation_completeness_0_10000 =
         crate::metrics::v2::obligation_score_0_10000(&obligations);
+    let guided_obligations = obligations_with_agent_guidance(serialized_values(&obligations));
 
     let mut response = json!({
         "kind": "obligations",
@@ -102,7 +103,7 @@ pub(crate) fn handle_obligations(
         "missing_site_count": missing_site_count,
         "context_burden": context_burden,
         "obligation_completeness_0_10000": obligation_completeness_0_10000,
-        "obligations": obligations
+        "obligations": guided_obligations
     });
     if let Some(object) = response.as_object_mut() {
         insert_semantic_diagnostics(object, semantic_error);

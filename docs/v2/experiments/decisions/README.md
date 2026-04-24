@@ -98,4 +98,3 @@ Date: YYYY-MM-DD
 - Cite `.sentrux/evals/...` output paths when the decision depends on generated evidence.
 - Do not cite private screenshots, local notes, or field anecdotes as decisive evidence.
 - Use `current_policy` as the control for phase-6 product decisions. Use `no_intervention` only when reading session-arm baseline results inside a paired live task battery.
-

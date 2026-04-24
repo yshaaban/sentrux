@@ -143,7 +143,6 @@ fn file_scale_fix_hint_for_kind(finding: &FindingGuidanceInput) -> Option<String
         .iter()
         .take(2)
         .cloned()
-        .into_iter()
         .filter(|surface| !looks_like_test_surface(surface))
         .collect::<Vec<_>>();
     if split_axes.len() == 1 && related_surfaces.len() == 1 {

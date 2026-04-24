@@ -171,6 +171,12 @@ fn gate_requires_transport_contract_followthrough_when_transport_surface_changes
                 .as_str()
                 .is_some_and(|summary| summary.contains("ts_bridge_semantic_transport"))
     }));
+    assert!(missing_obligations.iter().any(|obligation| {
+        obligation["repair_packet"]["required_fields"]["repair_surface"] == json!(true)
+            && obligation["fix_hint"]
+                .as_str()
+                .is_some_and(|hint| hint.contains("evidence"))
+    }));
 }
 
 #[test]

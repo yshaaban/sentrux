@@ -204,34 +204,10 @@ pub(crate) fn finding_with_agent_guidance(mut finding: Value) -> Value {
     if !finding.is_object() {
         return finding;
     }
-    if finding.get("repair_packet").is_some() {
-        return finding;
-    }
 
     let issue = to_agent_issue(&finding);
-    let repair_packet = issue.repair_packet.clone();
-    let fix_hint = issue.fix_hint.clone();
-    let likely_fix_sites = repair_packet.likely_fix_sites.clone();
-    let verification_steps = repair_packet.verification_steps.clone();
-    let smallest_safe_first_cut = repair_packet.smallest_safe_first_cut.clone();
-
     if let Some(object) = finding.as_object_mut() {
-        object.insert("repair_packet".to_string(), json!(repair_packet));
-        if object.get("fix_hint").is_none() && fix_hint.is_some() {
-            object.insert("fix_hint".to_string(), json!(fix_hint));
-        }
-        if object.get("likely_fix_sites").is_none() && !likely_fix_sites.is_empty() {
-            object.insert("likely_fix_sites".to_string(), json!(likely_fix_sites));
-        }
-        if object.get("verification_steps").is_none() && !verification_steps.is_empty() {
-            object.insert("verification_steps".to_string(), json!(verification_steps));
-        }
-        if object.get("smallest_safe_first_cut").is_none() && smallest_safe_first_cut.is_some() {
-            object.insert(
-                "smallest_safe_first_cut".to_string(),
-                json!(smallest_safe_first_cut),
-            );
-        }
+        insert_agent_guidance_fields(object, issue);
     }
 
     finding
@@ -242,6 +218,59 @@ pub(crate) fn findings_with_agent_guidance(findings: Vec<Value>) -> Vec<Value> {
         .into_iter()
         .map(finding_with_agent_guidance)
         .collect()
+}
+
+pub(crate) fn obligation_with_agent_guidance(mut obligation: Value) -> Value {
+    if !obligation.is_object() {
+        return obligation;
+    }
+
+    let issue = obligation_value_to_agent_issue(&obligation);
+    if let Some(object) = obligation.as_object_mut() {
+        insert_agent_guidance_fields(object, issue);
+    }
+
+    obligation
+}
+
+pub(crate) fn obligations_with_agent_guidance(obligations: Vec<Value>) -> Vec<Value> {
+    obligations
+        .into_iter()
+        .map(obligation_with_agent_guidance)
+        .collect()
+}
+
+fn insert_agent_guidance_fields(object: &mut serde_json::Map<String, Value>, issue: AgentIssue) {
+    let repair_packet = issue.repair_packet;
+
+    if object.get("repair_packet").is_none() {
+        object.insert("repair_packet".to_string(), json!(&repair_packet));
+    }
+    if object.get("fix_hint").is_none() {
+        if let Some(fix_hint) = issue.fix_hint {
+            object.insert("fix_hint".to_string(), json!(fix_hint));
+        }
+    }
+    if object.get("likely_fix_sites").is_none() && !repair_packet.likely_fix_sites.is_empty() {
+        object.insert(
+            "likely_fix_sites".to_string(),
+            json!(&repair_packet.likely_fix_sites),
+        );
+    }
+    if object.get("verification_steps").is_none() && !repair_packet.verification_steps.is_empty() {
+        object.insert(
+            "verification_steps".to_string(),
+            json!(&repair_packet.verification_steps),
+        );
+    }
+    if object.get("smallest_safe_first_cut").is_none() {
+        if let Some(smallest_safe_first_cut) = repair_packet.smallest_safe_first_cut {
+            object.insert(
+                "smallest_safe_first_cut".to_string(),
+                json!(smallest_safe_first_cut),
+            );
+        }
+    }
 }
 
 const PATCH_WORSENED_FIELD_KEYS: &[&str] = &[
@@ -539,7 +568,7 @@ fn issue_confidence_for_value(finding: &Value, kind: &str) -> IssueConfidence {
 
 #[cfg(test)]
 mod tests {
-    use super::{obligation_value_to_agent_issue, to_agent_issue};
+    use super::{obligation_value_to_agent_issue, obligation_with_agent_guidance, to_agent_issue};
     use crate::metrics::v2::FindingSeverity;
     use serde_json::json;
 
@@ -678,6 +707,34 @@ mod tests {
         assert_eq!(issue.confidence, super::IssueConfidence::High);
         assert_eq!(issue.trust_tier, "trusted");
         assert_eq!(issue.severity, FindingSeverity::High);
+    }
+
+    #[test]
+    fn obligation_guidance_is_attached_to_raw_public_surfaces() {
+        let obligation = obligation_with_agent_guidance(json!({
+            "kind": "incomplete_propagation",
+            "concept_id": "agent_guidance",
+            "files": ["src/app/mcp_server/handlers/session_response.rs"],
+            "missing_sites": [
+                {
+                    "path": "src/app/mcp_server/handlers/session_response.rs",
+                    "kind": "required_file",
+                    "detail": "update required DTO surface"
+                }
+            ]
+        }));
+
+        assert_eq!(
+            obligation["likely_fix_sites"],
+            json!(["src/app/mcp_server/handlers/session_response.rs"])
+        );
+        assert_eq!(
+            obligation["repair_packet"]["required_fields"]["repair_surface"],
+            json!(true)
+        );
+        assert!(obligation["fix_hint"]
+            .as_str()
+            .is_some_and(|hint| hint.contains("DTO surface")));
     }
 
     #[test]

@@ -179,16 +179,20 @@ pub(crate) fn handle_explain_concept(
         crate::metrics::v2::ObligationScope::All,
         &BTreeSet::new(),
     );
-    let explain_findings = semantic_findings
+    let concept_findings = semantic_findings
         .into_iter()
         .filter(|finding| finding.concept_id == concept_id)
         .collect::<Vec<_>>();
     let (suppression_application, rules_error) =
-        apply_root_suppressions(state, &root, serialized_values(&explain_findings));
-    let explain_obligations = obligations
+        apply_root_suppressions(state, &root, serialized_values(&concept_findings));
+    let concept_obligations = obligations
         .into_iter()
         .filter(|obligation| obligation.concept_id.as_deref() == Some(concept_id))
         .collect::<Vec<_>>();
+    let guided_obligations =
+        obligations_with_agent_guidance(serialized_values(&concept_obligations));
+    let guided_findings =
+        findings_with_agent_guidance(suppression_application.visible_findings.clone());
     let related_contracts = related_contract_ids_for_concept(&config, &concept);
     let parity = semantic
         .as_ref()
@@ -203,8 +207,8 @@ pub(crate) fn handle_explain_concept(
         "concept": graph.concepts.into_iter().find(|candidate| candidate.id == concept_id),
         "related_contract_ids": related_contracts.into_iter().collect::<Vec<_>>(),
         "related_tests": related_tests,
-        "findings": suppression_application.visible_findings,
-        "obligations": explain_obligations,
+        "findings": guided_findings,
+        "obligations": guided_obligations,
         "parity": parity,
         "semantic": semantic_summary,
         "suppression_hits": suppression_application.active_matches,
@@ -330,7 +334,10 @@ pub(crate) fn handle_trace_symbol(
         .collect::<Vec<_>>();
     let (suppression_application, suppression_rules_error) =
         apply_root_suppressions(state, &trace_context.root, serialized_values(&findings));
-    let obligations = filter_trace_symbol_obligations(obligations, &related_concepts, query);
+    let trace_obligations = filter_trace_symbol_obligations(obligations, &related_concepts, query);
+    let guided_obligations = obligations_with_agent_guidance(serialized_values(&trace_obligations));
+    let guided_findings =
+        findings_with_agent_guidance(suppression_application.visible_findings.clone());
     let reference_ambiguity = trace_reference_ambiguity(query, &symbol_matches);
     let rules_error = merge_optional_errors(trace_context.rules_error, suppression_rules_error);
     let mut response = json!({
@@ -341,8 +348,8 @@ pub(crate) fn handle_trace_symbol(
         "writes": symbol_matches.writes,
         "related_concepts": related_concepts.into_iter().collect::<Vec<_>>(),
         "related_contracts": related_contracts.into_iter().collect::<Vec<_>>(),
-        "findings": suppression_application.visible_findings,
-        "obligations": obligations,
+        "findings": guided_findings,
+        "obligations": guided_obligations,
         "suppression_hits": suppression_application.active_matches,
         "suppressed_finding_count": suppression_match_count(&suppression_application.active_matches),
         "expired_suppressions": suppression_application.expired_matches,
