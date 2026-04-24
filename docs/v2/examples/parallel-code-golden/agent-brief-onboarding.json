@@ -3,29 +3,34 @@
   "actions": [
     {
       "blocking": true,
-      "concept_id": "task_presentation_status",
+      "concept_id": "InputFlushTimer",
       "confidence": "high",
       "evidence": [
-        "src/app/task-presentation-status.ts [domain 'TaskDotStatus' in src/app/task-presentation-status.ts has variants [busy, waiting, ready, paused, flow-controlled, restoring, failed], but no exhaustive mapping or switch site was found]"
+        "electron/ipc/pty.ts [domain 'InputFlushTimer' in electron/ipc/pty.ts has variants [immediate, timeout]; site is missing [timeout]; fallback=other; expression=session.inputFlushTimer.kind; site_confidence=0.86; impact=omitted variants reach an unclassified fallback]"
       ],
-      "file": "src/app/task-presentation-status.ts",
+      "file": "electron/ipc/pty.ts",
       "fix_hint": "Handle the missing variants with an explicit exhaustive switch or mapping, and keep the fallback/default branch out of the production path.",
       "kind": "closed_domain_exhaustiveness",
       "leverage_class": "hardening_note",
       "line": null,
-      "message": "Domain 'task_presentation_status' in src/app/task-presentation-status.ts has variants [busy, waiting, ready, paused, flow-controlled, restoring, failed] but is missing required update sites",
+      "message": "Domain 'InputFlushTimer' in electron/ipc/pty.ts has variants [immediate, timeout] and is missing coverage for [timeout] at electron/ipc/pty.ts:165",
       "origin": "explicit",
       "presentation_class": "hardening_note",
       "priority": 1,
       "repair_packet": {
         "complete": false,
         "completeness_0_10000": 7500,
+        "concrete_evidence": [
+          "electron/ipc/pty.ts"
+        ],
+        "confidence_reason": "Partial repair packet: risk=true, repair_surface=false, first_cut=true, verification=true.",
         "do_not_touch_yet": [
           "Do not rely on a production fallback or default branch to hide missing variants."
         ],
         "inspection_context": [
-          "src/app/task-presentation-status.ts"
+          "electron/ipc/pty.ts"
         ],
+        "lane_reason": "closed_domain_exhaustiveness should stay out of the lead lane until the repair surface is clearer.",
         "likely_fix_sites": [],
         "missing_fields": [
           "repair_surface"
@@ -38,12 +43,21 @@
         },
         "risk_statement": "Finite-domain changes can silently miss one surface unless all required cases stay in sync.",
         "smallest_safe_first_cut": "Handle the missing variants with an explicit exhaustive switch or mapping, and keep the fallback/default branch out of the production path.",
-        "verify_after": [
-          "Re-run `sentrux check` and confirm the lead issue clears around src/app/task-presentation-status.ts.",
+        "title": "Closed Domain Exhaustiveness",
+        "verification_steps": [
+          "Re-run `sentrux check` and confirm the lead issue clears around electron/ipc/pty.ts.",
           "Re-run `sentrux gate` and confirm no missing follow-through or exhaustiveness blocker remains."
-        ]
+        ],
+        "verify_after": [
+          "Re-run `sentrux check` and confirm the lead issue clears around electron/ipc/pty.ts.",
+          "Re-run `sentrux gate` and confirm no missing follow-through or exhaustiveness blocker remains."
+        ],
+        "what_not_to_over_refactor": [
+          "Do not rely on a production fallback or default branch to hide missing variants."
+        ],
+        "why_it_matters": "Finite-domain changes can silently miss one surface unless all required cases stay in sync."
       },
-      "scope": "task_presentation_status",
+      "scope": "InputFlushTimer",
       "score_0_10000": 0,
       "severity": "high",
       "source": "obligation",
@@ -56,118 +70,145 @@
     },
     {
       "blocking": true,
-      "concept_id": "browser_state_sync",
+      "concept_id": "TaskPortsChangedMessage",
       "confidence": "high",
       "evidence": [
-        "src/runtime/browser-state-sync-controller.ts:266 [disposed]",
-        "src/runtime/browser-state-sync-controller.ts:276 [scheduled]",
-        "src/runtime/browser-state-sync-controller.ts:281 [idle]",
-        "src/runtime/browser-state-sync-controller.ts:47 [idle]",
-        "src/runtime/browser-state-sync-controller.ts:48 [scheduled]",
-        "src/runtime/browser-state-sync-controller.ts:49 [disposed]",
-        "src/runtime/browser-state-sync-controller.ts:92 [disposed]",
-        "src/runtime/browser-state-sync-controller.ts:107 [idle]",
-        "missing transition source 'disposed'",
-        "missing transition source 'idle'",
-        "missing transition source 'scheduled'"
+        "src/remote/ws.ts [domain 'TaskPortsChangedMessage' in electron/remote/protocol.ts has variants [snapshot, removed]; site is missing [snapshot]; expression=message.kind; role=label; site_confidence=0.86; impact=omitted variants may fall back to generic or stale public text]"
       ],
-      "file": "src/runtime/browser-state-sync-controller.ts",
-      "fix_hint": null,
-      "kind": "state_model_transition_coverage_gap",
-      "leverage_class": "secondary_cleanup",
+      "file": "electron/remote/protocol.ts",
+      "fix_hint": "Handle the missing variants with an explicit exhaustive switch or mapping, and keep the fallback/default branch out of the production path.",
+      "kind": "closed_domain_exhaustiveness",
+      "leverage_class": "hardening_note",
       "line": null,
-      "message": "State model 'browser_state_sync' has 8 transition branch(es) without an explicit next-state mapping and 3 uncovered source variant(s)",
+      "message": "Domain 'TaskPortsChangedMessage' in electron/remote/protocol.ts has variants [snapshot, removed] and is missing coverage for [snapshot] at src/remote/ws.ts:173",
       "origin": "explicit",
-      "presentation_class": "structural_debt",
+      "presentation_class": "hardening_note",
       "priority": 2,
       "repair_packet": {
         "complete": false,
-        "completeness_0_10000": 4500,
-        "do_not_touch_yet": [],
-        "inspection_context": [
-          "src/runtime/browser-state-sync-controller.ts"
+        "completeness_0_10000": 7500,
+        "concrete_evidence": [
+          "electron/remote/protocol.ts",
+          "src/remote/ws.ts"
         ],
+        "confidence_reason": "Partial repair packet: risk=true, repair_surface=false, first_cut=true, verification=true.",
+        "do_not_touch_yet": [
+          "Do not rely on a production fallback or default branch to hide missing variants."
+        ],
+        "inspection_context": [
+          "electron/remote/protocol.ts",
+          "src/remote/ws.ts"
+        ],
+        "lane_reason": "closed_domain_exhaustiveness should stay out of the lead lane until the repair surface is clearer.",
         "likely_fix_sites": [],
         "missing_fields": [
-          "repair_surface",
-          "first_cut"
+          "repair_surface"
         ],
         "required_fields": {
-          "first_cut": false,
+          "first_cut": true,
           "repair_surface": false,
           "risk_statement": true,
           "verification": true
         },
-        "risk_statement": "If ignored, this structural inconsistency will keep adding change friction and make future regressions harder to isolate.",
-        "smallest_safe_first_cut": null,
+        "risk_statement": "Finite-domain changes can silently miss one surface unless all required cases stay in sync.",
+        "smallest_safe_first_cut": "Handle the missing variants with an explicit exhaustive switch or mapping, and keep the fallback/default branch out of the production path.",
+        "title": "Closed Domain Exhaustiveness",
+        "verification_steps": [
+          "Re-run `sentrux check` and confirm the lead issue clears around electron/remote/protocol.ts and src/remote/ws.ts.",
+          "Re-run `sentrux gate` and confirm no missing follow-through or exhaustiveness blocker remains."
+        ],
         "verify_after": [
-          "Re-run `sentrux check` and confirm the lead issue clears around src/runtime/browser-state-sync-controller.ts."
-        ]
+          "Re-run `sentrux check` and confirm the lead issue clears around electron/remote/protocol.ts and src/remote/ws.ts.",
+          "Re-run `sentrux gate` and confirm no missing follow-through or exhaustiveness blocker remains."
+        ],
+        "what_not_to_over_refactor": [
+          "Do not rely on a production fallback or default branch to hide missing variants."
+        ],
+        "why_it_matters": "Finite-domain changes can silently miss one surface unless all required cases stay in sync."
       },
-      "scope": "browser_state_sync",
+      "scope": "TaskPortsChangedMessage",
       "score_0_10000": 0,
       "severity": "high",
-      "source": "rules",
+      "source": "obligation",
       "trust_tier": "trusted",
       "why_now": [
         "gate_blocker",
-        "high_trust"
+        "high_trust",
+        "changed_concept"
       ]
     },
     {
       "blocking": true,
-      "concept_id": "server_state_bootstrap_gate",
+      "concept_id": "BrowserServerLifecycle",
       "confidence": "high",
       "evidence": [
-        "src/app/server-state-bootstrap.ts"
+        "server/browser-server.ts [domain 'BrowserServerLifecycle' in server/browser-server.ts has variants [running, closing, closed]; site is missing [closing, running]; expression=lifecycle.kind; site_confidence=0.86]",
+        "server/browser-server.ts [domain 'BrowserServerLifecycle' in server/browser-server.ts has variants [running, closing, closed]; site is missing [closing, running]; expression=lifecycle.kind; site_confidence=0.86]"
       ],
-      "file": "src/app/server-state-bootstrap.ts",
-      "fix_hint": null,
-      "kind": "state_model_missing_transition_sites",
-      "leverage_class": "secondary_cleanup",
+      "file": "server/browser-server.ts",
+      "fix_hint": "Handle the missing variants with an explicit exhaustive switch or mapping, and keep the fallback/default branch out of the production path.",
+      "kind": "closed_domain_exhaustiveness",
+      "leverage_class": "hardening_note",
       "line": null,
-      "message": "State model 'server_state_bootstrap_gate' has no explicit transition sites under its configured roots",
+      "message": "Domain 'BrowserServerLifecycle' in server/browser-server.ts has variants [running, closing, closed] and is missing coverage for [closing, running] at server/browser-server.ts:381",
       "origin": "explicit",
-      "presentation_class": "structural_debt",
+      "presentation_class": "hardening_note",
       "priority": 3,
       "repair_packet": {
         "complete": false,
-        "completeness_0_10000": 4500,
-        "do_not_touch_yet": [],
-        "inspection_context": [
-          "src/app/server-state-bootstrap.ts"
+        "completeness_0_10000": 7500,
+        "concrete_evidence": [
+          "server/browser-server.ts"
         ],
+        "confidence_reason": "Partial repair packet: risk=true, repair_surface=false, first_cut=true, verification=true.",
+        "do_not_touch_yet": [
+          "Do not rely on a production fallback or default branch to hide missing variants."
+        ],
+        "inspection_context": [
+          "server/browser-server.ts"
+        ],
+        "lane_reason": "closed_domain_exhaustiveness should stay out of the lead lane until the repair surface is clearer.",
         "likely_fix_sites": [],
         "missing_fields": [
-          "repair_surface",
-          "first_cut"
+          "repair_surface"
         ],
         "required_fields": {
-          "first_cut": false,
+          "first_cut": true,
           "repair_surface": false,
           "risk_statement": true,
           "verification": true
         },
-        "risk_statement": "If ignored, this structural inconsistency will keep adding change friction and make future regressions harder to isolate.",
-        "smallest_safe_first_cut": null,
+        "risk_statement": "Finite-domain changes can silently miss one surface unless all required cases stay in sync.",
+        "smallest_safe_first_cut": "Handle the missing variants with an explicit exhaustive switch or mapping, and keep the fallback/default branch out of the production path.",
+        "title": "Closed Domain Exhaustiveness",
+        "verification_steps": [
+          "Re-run `sentrux check` and confirm the lead issue clears around server/browser-server.ts.",
+          "Re-run `sentrux gate` and confirm no missing follow-through or exhaustiveness blocker remains."
+        ],
         "verify_after": [
-          "Re-run `sentrux check` and confirm the lead issue clears around src/app/server-state-bootstrap.ts."
-        ]
+          "Re-run `sentrux check` and confirm the lead issue clears around server/browser-server.ts.",
+          "Re-run `sentrux gate` and confirm no missing follow-through or exhaustiveness blocker remains."
+        ],
+        "what_not_to_over_refactor": [
+          "Do not rely on a production fallback or default branch to hide missing variants."
+        ],
+        "why_it_matters": "Finite-domain changes can silently miss one surface unless all required cases stay in sync."
       },
-      "scope": "server_state_bootstrap_gate",
+      "scope": "BrowserServerLifecycle",
       "score_0_10000": 0,
-      "severity": "medium",
-      "source": "rules",
+      "severity": "high",
+      "source": "obligation",
       "trust_tier": "trusted",
       "why_now": [
         "gate_blocker",
-        "high_trust"
+        "high_trust",
+        "changed_concept"
       ]
     }
   ],
   "confidence": {
     "rule_coverage_0_10000": 10000,
-    "scan_confidence_0_10000": 8601,
+    "scan_confidence_0_10000": 8603,
     "semantic_rules_loaded": true,
     "session_baseline": {
       "compatible": false,
@@ -195,12 +236,12 @@
   "expired_suppressions": [],
   "freshness": {
     "baseline_loaded": false,
-    "git_head": "9dad91eb8fc1ad8197b336fc56d62b5cbcd598d7",
+    "git_head": "3774939b1f6f16196998c6e1c9d794cb66300310",
     "session_baseline_compatible": false,
     "working_tree_path_count": 0
   },
   "inferred_rules": {
-    "concepts": 141,
+    "concepts": 167,
     "module_contracts": 0,
     "state_models": 1
   },
@@ -221,13 +262,13 @@
       "next_tools": [
         {
           "args": {
-            "id": "task_presentation_status"
+            "id": "InputFlushTimer"
           },
           "tool": "explain_concept"
         },
         {
           "args": {
-            "concept": "task_presentation_status",
+            "concept": "InputFlushTimer",
             "scope": "all"
           },
           "tool": "obligations"
@@ -237,12 +278,17 @@
       "repair_packet": {
         "complete": false,
         "completeness_0_10000": 7500,
+        "concrete_evidence": [
+          "electron/ipc/pty.ts"
+        ],
+        "confidence_reason": "Partial repair packet: risk=true, repair_surface=false, first_cut=true, verification=true.",
         "do_not_touch_yet": [
           "Do not rely on a production fallback or default branch to hide missing variants."
         ],
         "inspection_context": [
-          "src/app/task-presentation-status.ts"
+          "electron/ipc/pty.ts"
         ],
+        "lane_reason": "closed_domain_exhaustiveness should stay out of the lead lane until the repair surface is clearer.",
         "likely_fix_sites": [],
         "missing_fields": [
           "repair_surface"
@@ -255,15 +301,24 @@
         },
         "risk_statement": "Finite-domain changes can silently miss one surface unless all required cases stay in sync.",
         "smallest_safe_first_cut": "Handle the missing variants with an explicit exhaustive switch or mapping, and keep the fallback/default branch out of the production path.",
-        "verify_after": [
-          "Re-run `sentrux check` and confirm the lead issue clears around src/app/task-presentation-status.ts.",
+        "title": "Closed Domain Exhaustiveness",
+        "verification_steps": [
+          "Re-run `sentrux check` and confirm the lead issue clears around electron/ipc/pty.ts.",
           "Re-run `sentrux gate` and confirm no missing follow-through or exhaustiveness blocker remains."
-        ]
+        ],
+        "verify_after": [
+          "Re-run `sentrux check` and confirm the lead issue clears around electron/ipc/pty.ts.",
+          "Re-run `sentrux gate` and confirm no missing follow-through or exhaustiveness blocker remains."
+        ],
+        "what_not_to_over_refactor": [
+          "Do not rely on a production fallback or default branch to hide missing variants."
+        ],
+        "why_it_matters": "Finite-domain changes can silently miss one surface unless all required cases stay in sync."
       },
-      "scope": "task_presentation_status",
+      "scope": "InputFlushTimer",
       "score_0_10000": 0,
       "severity": "high",
-      "summary": "Domain 'task_presentation_status' in src/app/task-presentation-status.ts has variants [busy, waiting, ready, paused, flow-controlled, restoring, failed] but is missing required update sites (supporting_signal)",
+      "summary": "Domain 'InputFlushTimer' in electron/ipc/pty.ts has variants [immediate, timeout] and is missing coverage for [timeout] at electron/ipc/pty.ts:165 (supporting_signal)",
       "trust_tier": "trusted",
       "why_now": [
         "high_trust",
@@ -273,115 +328,151 @@
     {
       "blocking": true,
       "inspection_focus": [
-        "Inspect src/runtime/browser-state-sync-controller.ts before widening the patch."
+        "Inspect every missing sibling surface before treating the changed concept as complete."
       ],
-      "kind": "state_model_transition_coverage_gap",
-      "leverage_class": "secondary_cleanup",
+      "kind": "closed_domain_exhaustiveness",
+      "leverage_class": "hardening_note",
       "likely_fix_sites": [],
       "next_tools": [
         {
           "args": {
-            "id": "browser_state_sync"
+            "id": "TaskPortsChangedMessage"
           },
           "tool": "explain_concept"
         },
         {
           "args": {
-            "concept": "browser_state_sync",
+            "concept": "TaskPortsChangedMessage",
             "scope": "all"
           },
           "tool": "obligations"
         }
       ],
-      "presentation_class": "structural_debt",
+      "presentation_class": "hardening_note",
       "repair_packet": {
         "complete": false,
-        "completeness_0_10000": 4500,
-        "do_not_touch_yet": [],
-        "inspection_context": [
-          "src/runtime/browser-state-sync-controller.ts"
+        "completeness_0_10000": 7500,
+        "concrete_evidence": [
+          "electron/remote/protocol.ts",
+          "src/remote/ws.ts"
         ],
+        "confidence_reason": "Partial repair packet: risk=true, repair_surface=false, first_cut=true, verification=true.",
+        "do_not_touch_yet": [
+          "Do not rely on a production fallback or default branch to hide missing variants."
+        ],
+        "inspection_context": [
+          "electron/remote/protocol.ts",
+          "src/remote/ws.ts"
+        ],
+        "lane_reason": "closed_domain_exhaustiveness should stay out of the lead lane until the repair surface is clearer.",
         "likely_fix_sites": [],
         "missing_fields": [
-          "repair_surface",
-          "first_cut"
+          "repair_surface"
         ],
         "required_fields": {
-          "first_cut": false,
+          "first_cut": true,
           "repair_surface": false,
           "risk_statement": true,
           "verification": true
         },
-        "risk_statement": "If ignored, this structural inconsistency will keep adding change friction and make future regressions harder to isolate.",
-        "smallest_safe_first_cut": null,
+        "risk_statement": "Finite-domain changes can silently miss one surface unless all required cases stay in sync.",
+        "smallest_safe_first_cut": "Handle the missing variants with an explicit exhaustive switch or mapping, and keep the fallback/default branch out of the production path.",
+        "title": "Closed Domain Exhaustiveness",
+        "verification_steps": [
+          "Re-run `sentrux check` and confirm the lead issue clears around electron/remote/protocol.ts and src/remote/ws.ts.",
+          "Re-run `sentrux gate` and confirm no missing follow-through or exhaustiveness blocker remains."
+        ],
         "verify_after": [
-          "Re-run `sentrux check` and confirm the lead issue clears around src/runtime/browser-state-sync-controller.ts."
-        ]
+          "Re-run `sentrux check` and confirm the lead issue clears around electron/remote/protocol.ts and src/remote/ws.ts.",
+          "Re-run `sentrux gate` and confirm no missing follow-through or exhaustiveness blocker remains."
+        ],
+        "what_not_to_over_refactor": [
+          "Do not rely on a production fallback or default branch to hide missing variants."
+        ],
+        "why_it_matters": "Finite-domain changes can silently miss one surface unless all required cases stay in sync."
       },
-      "scope": "browser_state_sync",
+      "scope": "TaskPortsChangedMessage",
       "score_0_10000": 0,
       "severity": "high",
-      "summary": "State model 'browser_state_sync' has 8 transition branch(es) without an explicit next-state mapping and 3 uncovered source variant(s) (supporting_signal)",
+      "summary": "Domain 'TaskPortsChangedMessage' in electron/remote/protocol.ts has variants [snapshot, removed] and is missing coverage for [snapshot] at src/remote/ws.ts:173 (supporting_signal)",
       "trust_tier": "trusted",
       "why_now": [
-        "high_trust"
+        "high_trust",
+        "blocking_obligation"
       ]
     },
     {
       "blocking": true,
       "inspection_focus": [
-        "Inspect src/app/server-state-bootstrap.ts before widening the patch."
+        "Inspect every missing sibling surface before treating the changed concept as complete."
       ],
-      "kind": "state_model_missing_transition_sites",
-      "leverage_class": "secondary_cleanup",
+      "kind": "closed_domain_exhaustiveness",
+      "leverage_class": "hardening_note",
       "likely_fix_sites": [],
       "next_tools": [
         {
           "args": {
-            "id": "server_state_bootstrap_gate"
+            "id": "BrowserServerLifecycle"
           },
           "tool": "explain_concept"
         },
         {
           "args": {
-            "concept": "server_state_bootstrap_gate",
+            "concept": "BrowserServerLifecycle",
             "scope": "all"
           },
           "tool": "obligations"
         }
       ],
-      "presentation_class": "structural_debt",
+      "presentation_class": "hardening_note",
       "repair_packet": {
         "complete": false,
-        "completeness_0_10000": 4500,
-        "do_not_touch_yet": [],
-        "inspection_context": [
-          "src/app/server-state-bootstrap.ts"
+        "completeness_0_10000": 7500,
+        "concrete_evidence": [
+          "server/browser-server.ts"
         ],
+        "confidence_reason": "Partial repair packet: risk=true, repair_surface=false, first_cut=true, verification=true.",
+        "do_not_touch_yet": [
+          "Do not rely on a production fallback or default branch to hide missing variants."
+        ],
+        "inspection_context": [
+          "server/browser-server.ts"
+        ],
+        "lane_reason": "closed_domain_exhaustiveness should stay out of the lead lane until the repair surface is clearer.",
         "likely_fix_sites": [],
         "missing_fields": [
-          "repair_surface",
-          "first_cut"
+          "repair_surface"
         ],
         "required_fields": {
-          "first_cut": false,
+          "first_cut": true,
           "repair_surface": false,
           "risk_statement": true,
           "verification": true
         },
-        "risk_statement": "If ignored, this structural inconsistency will keep adding change friction and make future regressions harder to isolate.",
-        "smallest_safe_first_cut": null,
+        "risk_statement": "Finite-domain changes can silently miss one surface unless all required cases stay in sync.",
+        "smallest_safe_first_cut": "Handle the missing variants with an explicit exhaustive switch or mapping, and keep the fallback/default branch out of the production path.",
+        "title": "Closed Domain Exhaustiveness",
+        "verification_steps": [
+          "Re-run `sentrux check` and confirm the lead issue clears around server/browser-server.ts.",
+          "Re-run `sentrux gate` and confirm no missing follow-through or exhaustiveness blocker remains."
+        ],
         "verify_after": [
-          "Re-run `sentrux check` and confirm the lead issue clears around src/app/server-state-bootstrap.ts."
-        ]
+          "Re-run `sentrux check` and confirm the lead issue clears around server/browser-server.ts.",
+          "Re-run `sentrux gate` and confirm no missing follow-through or exhaustiveness blocker remains."
+        ],
+        "what_not_to_over_refactor": [
+          "Do not rely on a production fallback or default branch to hide missing variants."
+        ],
+        "why_it_matters": "Finite-domain changes can silently miss one surface unless all required cases stay in sync."
       },
-      "scope": "server_state_bootstrap_gate",
+      "scope": "BrowserServerLifecycle",
       "score_0_10000": 0,
-      "severity": "medium",
-      "summary": "State model 'server_state_bootstrap_gate' has no explicit transition sites under its configured roots (supporting_signal)",
+      "severity": "high",
+      "summary": "Domain 'BrowserServerLifecycle' in server/browser-server.ts has variants [running, closing, closed] and is missing coverage for [closing, running] at server/browser-server.ts:381 (supporting_signal)",
       "trust_tier": "trusted",
       "why_now": [
-        "high_trust"
+        "high_trust",
+        "blocking_obligation"
       ]
     }
   ],
@@ -397,7 +488,7 @@
   "resolved_finding_count": 0,
   "resolved_findings": [],
   "scan_trust": {
-    "candidate_files": 1001,
+    "candidate_files": 1002,
     "exclusions": {
       "bucketed": {
         "build": 12,
@@ -412,27 +503,27 @@
       "total": 140
     },
     "fallback_reason": null,
-    "kept_files": 861,
+    "kept_files": 862,
     "mode": "git",
-    "overall_confidence_0_10000": 8601,
+    "overall_confidence_0_10000": 8603,
     "partial": false,
     "resolution": {
       "internal_confidence_0_10000": 9996,
-      "resolved": 2794,
+      "resolved": 2798,
       "unresolved_external": 795,
       "unresolved_internal": 1,
       "unresolved_unknown": 114
     },
-    "scope_coverage_0_10000": 8601,
-    "tracked_candidates": 1001,
+    "scope_coverage_0_10000": 8603,
+    "tracked_candidates": 1002,
     "truncated": false,
     "untracked_candidates": 0
   },
   "semantic_cache": {
-    "analyzed_files": 730,
+    "analyzed_files": 731,
     "available": true,
     "bridge_protocol_version": "0.1.0",
-    "git_head": "9dad91eb8fc1ad8197b336fc56d62b5cbcd598d7",
+    "git_head": "3774939b1f6f16196998c6e1c9d794cb66300310",
     "project_fingerprint": "bd376b35c69fd0f7",
     "source": "memory",
     "working_tree_path_count": 0
@@ -448,7 +539,14 @@
         "guarded boundary cut"
       ],
       "clone_family_count": 0,
+      "default_surface_role": "supporting_watchpoint",
       "evidence": [
+        "edge basis: mixed",
+        "internal edge counts: import 114, interaction/call 52",
+        "import-cycle evidence: present",
+        "interaction-cycle evidence: present",
+        "representative import edges: src/app/task-command-lease-runtime-subscriptions.ts -> src/app/task-command-lease-takeover.ts; src/app/task-command-lease-runtime-subscriptions.ts -> src/lib/runtime-client-id.ts; src/app/task-command-lease-runtime-subscriptions.ts -> src/store/task-command-controllers.ts",
+        "representative interaction/call edges: src/app/task-command-lease-runtime-subscriptions.ts -> src/app/task-command-lease-takeover.ts; src/app/task-command-lease-runtime-subscriptions.ts -> src/lib/runtime-client-id.ts; src/app/task-command-lease-runtime-subscriptions.ts -> src/store/task-command-controllers.ts",
         "cycle size: 36",
         "total lines in cycle: 7153",
         "peak function complexity inside cycle: 72",
@@ -495,10 +593,10 @@
         "src/store/ui.ts"
       ],
       "hotspot_count": 0,
-      "impact": "The cycle touches a component-facing barrel, which makes it harder to keep broad component access separate from deeper app and runtime seams.",
+      "impact": "The cycle mixes hard import edges with looser call/interaction edges, so the import edges are the higher-confidence cut points while the wider cluster stays a layering watchpoint.",
       "inspection_focus": [
-        "inspect whether the best cut keeps component-facing barrel access while moving deeper orchestration behind a narrower seam",
-        "inspect whether app or runtime dependencies can stop flowing back through the shared barrel"
+        "inspect import-edge cut candidates before acting on the wider interaction cluster",
+        "separate hard dependency repairs from softer runtime interaction watchpoints"
       ],
       "kind": "cycle_cluster",
       "leverage_class": "architecture_signal",
@@ -511,6 +609,7 @@
       ],
       "missing_site_count": 0,
       "presentation_class": "watchpoint",
+      "primary_lane": "maintainer_watchpoint",
       "related_surfaces": [
         "src/store/core.ts",
         "src/store/store.ts",
@@ -527,60 +626,14 @@
         "component_barrel"
       ],
       "scope": "cycle:src/app/task-command-lease-runtime-subscriptions.ts|src/app/task-command-lease-runtime.ts|src/app/task-command-lease-session.ts|src/app/task-command-lease-takeover.ts|src/app/task-command-lease.ts|src/app/task-presentation-status.ts|src/lib/runtime-client-id.ts|src/store/agent-output-activity.ts|src/store/agents.ts|src/store/auto-trust.ts|src/store/browser-cold-bootstrap-projection.ts|src/store/client-session.ts|src/store/completion.ts|src/store/core.ts|src/store/focus.ts|src/store/navigation.ts|src/store/notification.ts|src/store/peer-presence.ts|src/store/persistence-codecs.ts|src/store/persistence-load.ts|src/store/persistence-save.ts|src/store/persistence-terminal-restore.ts|src/store/persistence.ts|src/store/projects.ts|src/store/review.ts|src/store/sidebar-order.ts|src/store/state.ts|src/store/store.ts|src/store/task-command-controllers.ts|src/store/task-command-takeovers.ts|src/store/task-git-status.ts|src/store/task-state-cleanup.ts|src/store/taskStatus.ts|src/store/tasks.ts|src/store/terminals.ts|src/store/ui.ts",
-      "score_0_10000": 10000,
+      "score_0_10000": 7800,
       "severity": "high",
       "signal_families": [
         "dependency",
-        "layering"
+        "layering",
+        "mixed_cycle"
       ],
-      "summary": "Files src/app/task-command-lease-runtime-subscriptions.ts, src/app/task-command-lease-runtime.ts, src/app/task-command-lease-session.ts, src/app/task-command-lease-takeover.ts, src/app/task-command-lease.ts, src/app/task-presentation-status.ts, src/lib/runtime-client-id.ts, src/store/agent-output-activity.ts, src/store/agents.ts, src/store/auto-trust.ts, src/store/browser-cold-bootstrap-projection.ts, src/store/client-session.ts, src/store/completion.ts, src/store/core.ts, src/store/focus.ts, src/store/navigation.ts, src/store/notification.ts, src/store/peer-presence.ts, src/store/persistence-codecs.ts, src/store/persistence-load.ts, src/store/persistence-save.ts, src/store/persistence-terminal-restore.ts, src/store/persistence.ts, src/store/projects.ts, src/store/review.ts, src/store/sidebar-order.ts, src/store/state.ts, src/store/store.ts, src/store/task-command-controllers.ts, src/store/task-command-takeovers.ts, src/store/task-git-status.ts, src/store/task-state-cleanup.ts, src/store/taskStatus.ts, src/store/tasks.ts, src/store/terminals.ts, src/store/ui.ts form a dependency cycle",
-      "trust_tier": "watchpoint"
-    },
-    {
-      "boundary_pressure_count": 0,
-      "candidate_split_axes": [
-        "local module split"
-      ],
-      "clone_family_count": 0,
-      "evidence": [
-        "cycle size: 2",
-        "total lines in cycle: 174",
-        "peak function complexity inside cycle: 5",
-        "candidate cuts: 2",
-        "best cut candidate: electron/ipc/handlers.ts -> electron/ipc/notification-handlers.ts (removes 2 cyclic files)",
-        "role tags: none"
-      ],
-      "files": [
-        "electron/ipc/handlers.ts",
-        "electron/ipc/notification-handlers.ts"
-      ],
-      "hotspot_count": 0,
-      "impact": "The cycle prevents clean layering and makes initialization order and refactors harder to isolate.",
-      "inspection_focus": [
-        "inspect whether one back-edge can be removed by splitting contracts from implementations",
-        "inspect whether shared types can move to a lower-dependency seam"
-      ],
-      "kind": "cycle_cluster",
-      "leverage_class": "architecture_signal",
-      "leverage_reasons": [
-        "mixed_cycle_pressure",
-        "high_leverage_cycle_cut"
-      ],
-      "missing_site_count": 0,
-      "presentation_class": "watchpoint",
-      "related_surfaces": [
-        "electron/ipc/handlers.ts",
-        "electron/ipc/notification-handlers.ts"
-      ],
-      "role_tags": [],
-      "scope": "cycle:electron/ipc/handlers.ts|electron/ipc/notification-handlers.ts",
-      "score_0_10000": 6832,
-      "severity": "high",
-      "signal_families": [
-        "dependency",
-        "layering"
-      ],
-      "summary": "Files electron/ipc/handlers.ts, electron/ipc/notification-handlers.ts form a dependency cycle",
+      "summary": "Files src/app/task-command-lease-runtime-subscriptions.ts, src/app/task-command-lease-runtime.ts, src/app/task-command-lease-session.ts, src/app/task-command-lease-takeover.ts, src/app/task-command-lease.ts, src/app/task-presentation-status.ts, src/lib/runtime-client-id.ts, src/store/agent-output-activity.ts, src/store/agents.ts, src/store/auto-trust.ts, src/store/browser-cold-bootstrap-projection.ts, src/store/client-session.ts, src/store/completion.ts, src/store/core.ts, src/store/focus.ts, src/store/navigation.ts, src/store/notification.ts, src/store/peer-presence.ts, src/store/persistence-codecs.ts, src/store/persistence-load.ts, src/store/persistence-save.ts, src/store/persistence-terminal-restore.ts, src/store/persistence.ts, src/store/projects.ts, src/store/review.ts, src/store/sidebar-order.ts, src/store/state.ts, src/store/store.ts, src/store/task-command-controllers.ts, src/store/task-command-takeovers.ts, src/store/task-git-status.ts, src/store/task-state-cleanup.ts, src/store/taskStatus.ts, src/store/tasks.ts, src/store/terminals.ts, src/store/ui.ts form a mixed import/interaction cycle",
       "trust_tier": "watchpoint"
     },
     {
@@ -591,6 +644,7 @@
         "duplicate maintenance boundary"
       ],
       "clone_family_count": 1,
+      "default_surface_role": "supporting_watchpoint",
       "evidence": [
         "5 exact clone groups repeat across 2 files",
         "highest-risk representative exact clone score recorded",
@@ -614,6 +668,7 @@
       ],
       "missing_site_count": 0,
       "presentation_class": "watchpoint",
+      "primary_lane": "maintainer_watchpoint",
       "related_surfaces": [
         "electron/remote/ws-server.ts",
         "server/browser-websocket.ts"
@@ -627,6 +682,54 @@
         "drift"
       ],
       "summary": "5 exact clone groups repeat across 2 files and churn differs by 4 recent commit(s) across siblings; sibling file age spans 17 day(s)",
+      "trust_tier": "watchpoint"
+    },
+    {
+      "boundary_pressure_count": 0,
+      "candidate_split_axes": [
+        "shared behavior boundary",
+        "shared helper boundary",
+        "duplicate maintenance boundary"
+      ],
+      "clone_family_count": 1,
+      "default_surface_role": "supporting_watchpoint",
+      "evidence": [
+        "4 exact clone groups repeat across 2 files",
+        "highest-risk representative exact clone score recorded",
+        "family files changed recently"
+      ],
+      "files": [
+        "src/components/AgentGlyph.tsx",
+        "src/remote/RemoteAgentGlyph.tsx"
+      ],
+      "hotspot_count": 0,
+      "impact": "Duplicate logic across related files increases the chance that a fix lands in only one sibling and the family drifts over time.",
+      "inspection_focus": [
+        "inspect whether recent sibling edits should stay synchronized or intentionally diverge",
+        "inspect whether the repeated logic is substantial enough to share behind one helper",
+        "inspect whether the clone family is carrying avoidable duplicate maintenance"
+      ],
+      "kind": "clone_family",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "duplicate_maintenance_pressure"
+      ],
+      "missing_site_count": 0,
+      "presentation_class": "watchpoint",
+      "primary_lane": "maintainer_watchpoint",
+      "related_surfaces": [
+        "src/components/AgentGlyph.tsx",
+        "src/remote/RemoteAgentGlyph.tsx"
+      ],
+      "role_tags": [],
+      "scope": "clone-family-0x7e50d49dc16ef925",
+      "score_0_10000": 85,
+      "severity": "high",
+      "signal_families": [
+        "duplication",
+        "drift"
+      ],
+      "summary": "4 exact clone groups repeat across 2 files and churn differs by 1 recent commit(s) across siblings; sibling file age spans 5 day(s)",
       "trust_tier": "watchpoint"
     }
   ]

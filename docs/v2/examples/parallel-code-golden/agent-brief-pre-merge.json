@@ -7,7 +7,7 @@
   "changed_files": [],
   "confidence": {
     "rule_coverage_0_10000": 10000,
-    "scan_confidence_0_10000": 8601,
+    "scan_confidence_0_10000": 8603,
     "semantic_rules_loaded": true,
     "session_baseline": {
       "compatible": true,
@@ -35,7 +35,7 @@
   "expired_suppressions": [],
   "freshness": {
     "baseline_loaded": true,
-    "git_head": "9dad91eb8fc1ad8197b336fc56d62b5cbcd598d7",
+    "git_head": "3774939b1f6f16196998c6e1c9d794cb66300310",
     "session_baseline_compatible": true,
     "working_tree_path_count": 0
   },
@@ -61,7 +61,7 @@
   "resolved_finding_count": 0,
   "resolved_findings": [],
   "scan_trust": {
-    "candidate_files": 1001,
+    "candidate_files": 1002,
     "exclusions": {
       "bucketed": {
         "build": 12,
@@ -76,27 +76,27 @@
       "total": 140
     },
     "fallback_reason": null,
-    "kept_files": 861,
+    "kept_files": 862,
     "mode": "git",
-    "overall_confidence_0_10000": 8601,
+    "overall_confidence_0_10000": 8603,
     "partial": false,
     "resolution": {
       "internal_confidence_0_10000": 9996,
-      "resolved": 2794,
+      "resolved": 2798,
       "unresolved_external": 795,
       "unresolved_internal": 1,
       "unresolved_unknown": 114
     },
-    "scope_coverage_0_10000": 8601,
-    "tracked_candidates": 1001,
+    "scope_coverage_0_10000": 8603,
+    "tracked_candidates": 1002,
     "truncated": false,
     "untracked_candidates": 0
   },
   "semantic_cache": {
-    "analyzed_files": 730,
+    "analyzed_files": 731,
     "available": true,
     "bridge_protocol_version": "0.1.0",
-    "git_head": "9dad91eb8fc1ad8197b336fc56d62b5cbcd598d7",
+    "git_head": "3774939b1f6f16196998c6e1c9d794cb66300310",
     "project_fingerprint": "bd376b35c69fd0f7",
     "source": "memory",
     "working_tree_path_count": 0
@@ -116,7 +116,14 @@
         "guarded boundary cut"
       ],
       "clone_family_count": 0,
+      "default_surface_role": "supporting_watchpoint",
       "evidence": [
+        "edge basis: mixed",
+        "internal edge counts: import 114, interaction/call 52",
+        "import-cycle evidence: present",
+        "interaction-cycle evidence: present",
+        "representative import edges: src/app/task-command-lease-runtime-subscriptions.ts -> src/app/task-command-lease-takeover.ts; src/app/task-command-lease-runtime-subscriptions.ts -> src/lib/runtime-client-id.ts; src/app/task-command-lease-runtime-subscriptions.ts -> src/store/task-command-controllers.ts",
+        "representative interaction/call edges: src/app/task-command-lease-runtime-subscriptions.ts -> src/app/task-command-lease-takeover.ts; src/app/task-command-lease-runtime-subscriptions.ts -> src/lib/runtime-client-id.ts; src/app/task-command-lease-runtime-subscriptions.ts -> src/store/task-command-controllers.ts",
         "cycle size: 36",
         "total lines in cycle: 7153",
         "peak function complexity inside cycle: 72",
@@ -163,10 +170,10 @@
         "src/store/ui.ts"
       ],
       "hotspot_count": 0,
-      "impact": "The cycle touches a component-facing barrel, which makes it harder to keep broad component access separate from deeper app and runtime seams.",
+      "impact": "The cycle mixes hard import edges with looser call/interaction edges, so the import edges are the higher-confidence cut points while the wider cluster stays a layering watchpoint.",
       "inspection_focus": [
-        "inspect whether the best cut keeps component-facing barrel access while moving deeper orchestration behind a narrower seam",
-        "inspect whether app or runtime dependencies can stop flowing back through the shared barrel"
+        "inspect import-edge cut candidates before acting on the wider interaction cluster",
+        "separate hard dependency repairs from softer runtime interaction watchpoints"
       ],
       "kind": "cycle_cluster",
       "leverage_class": "architecture_signal",
@@ -179,6 +186,7 @@
       ],
       "missing_site_count": 0,
       "presentation_class": "watchpoint",
+      "primary_lane": "maintainer_watchpoint",
       "related_surfaces": [
         "src/store/core.ts",
         "src/store/store.ts",
@@ -195,13 +203,14 @@
         "component_barrel"
       ],
       "scope": "cycle:src/app/task-command-lease-runtime-subscriptions.ts|src/app/task-command-lease-runtime.ts|src/app/task-command-lease-session.ts|src/app/task-command-lease-takeover.ts|src/app/task-command-lease.ts|src/app/task-presentation-status.ts|src/lib/runtime-client-id.ts|src/store/agent-output-activity.ts|src/store/agents.ts|src/store/auto-trust.ts|src/store/browser-cold-bootstrap-projection.ts|src/store/client-session.ts|src/store/completion.ts|src/store/core.ts|src/store/focus.ts|src/store/navigation.ts|src/store/notification.ts|src/store/peer-presence.ts|src/store/persistence-codecs.ts|src/store/persistence-load.ts|src/store/persistence-save.ts|src/store/persistence-terminal-restore.ts|src/store/persistence.ts|src/store/projects.ts|src/store/review.ts|src/store/sidebar-order.ts|src/store/state.ts|src/store/store.ts|src/store/task-command-controllers.ts|src/store/task-command-takeovers.ts|src/store/task-git-status.ts|src/store/task-state-cleanup.ts|src/store/taskStatus.ts|src/store/tasks.ts|src/store/terminals.ts|src/store/ui.ts",
-      "score_0_10000": 10000,
+      "score_0_10000": 7800,
       "severity": "high",
       "signal_families": [
         "dependency",
-        "layering"
+        "layering",
+        "mixed_cycle"
       ],
-      "summary": "Files src/app/task-command-lease-runtime-subscriptions.ts, src/app/task-command-lease-runtime.ts, src/app/task-command-lease-session.ts, src/app/task-command-lease-takeover.ts, src/app/task-command-lease.ts, src/app/task-presentation-status.ts, src/lib/runtime-client-id.ts, src/store/agent-output-activity.ts, src/store/agents.ts, src/store/auto-trust.ts, src/store/browser-cold-bootstrap-projection.ts, src/store/client-session.ts, src/store/completion.ts, src/store/core.ts, src/store/focus.ts, src/store/navigation.ts, src/store/notification.ts, src/store/peer-presence.ts, src/store/persistence-codecs.ts, src/store/persistence-load.ts, src/store/persistence-save.ts, src/store/persistence-terminal-restore.ts, src/store/persistence.ts, src/store/projects.ts, src/store/review.ts, src/store/sidebar-order.ts, src/store/state.ts, src/store/store.ts, src/store/task-command-controllers.ts, src/store/task-command-takeovers.ts, src/store/task-git-status.ts, src/store/task-state-cleanup.ts, src/store/taskStatus.ts, src/store/tasks.ts, src/store/terminals.ts, src/store/ui.ts form a dependency cycle",
+      "summary": "Files src/app/task-command-lease-runtime-subscriptions.ts, src/app/task-command-lease-runtime.ts, src/app/task-command-lease-session.ts, src/app/task-command-lease-takeover.ts, src/app/task-command-lease.ts, src/app/task-presentation-status.ts, src/lib/runtime-client-id.ts, src/store/agent-output-activity.ts, src/store/agents.ts, src/store/auto-trust.ts, src/store/browser-cold-bootstrap-projection.ts, src/store/client-session.ts, src/store/completion.ts, src/store/core.ts, src/store/focus.ts, src/store/navigation.ts, src/store/notification.ts, src/store/peer-presence.ts, src/store/persistence-codecs.ts, src/store/persistence-load.ts, src/store/persistence-save.ts, src/store/persistence-terminal-restore.ts, src/store/persistence.ts, src/store/projects.ts, src/store/review.ts, src/store/sidebar-order.ts, src/store/state.ts, src/store/store.ts, src/store/task-command-controllers.ts, src/store/task-command-takeovers.ts, src/store/task-git-status.ts, src/store/task-state-cleanup.ts, src/store/taskStatus.ts, src/store/tasks.ts, src/store/terminals.ts, src/store/ui.ts form a mixed import/interaction cycle",
       "trust_tier": "watchpoint"
     },
     {
@@ -210,7 +219,14 @@
         "local module split"
       ],
       "clone_family_count": 0,
+      "default_surface_role": "supporting_watchpoint",
       "evidence": [
+        "edge basis: mixed",
+        "internal edge counts: import 2, interaction/call 2",
+        "import-cycle evidence: present",
+        "interaction-cycle evidence: present",
+        "representative import edges: electron/ipc/handlers.ts -> electron/ipc/notification-handlers.ts; electron/ipc/notification-handlers.ts -> electron/ipc/handlers.ts",
+        "representative interaction/call edges: electron/ipc/handlers.ts -> electron/ipc/notification-handlers.ts; electron/ipc/notification-handlers.ts -> electron/ipc/handlers.ts",
         "cycle size: 2",
         "total lines in cycle: 174",
         "peak function complexity inside cycle: 5",
@@ -223,10 +239,10 @@
         "electron/ipc/notification-handlers.ts"
       ],
       "hotspot_count": 0,
-      "impact": "The cycle prevents clean layering and makes initialization order and refactors harder to isolate.",
+      "impact": "The cycle mixes hard import edges with looser call/interaction edges, so the import edges are the higher-confidence cut points while the wider cluster stays a layering watchpoint.",
       "inspection_focus": [
-        "inspect whether one back-edge can be removed by splitting contracts from implementations",
-        "inspect whether shared types can move to a lower-dependency seam"
+        "inspect import-edge cut candidates before acting on the wider interaction cluster",
+        "separate hard dependency repairs from softer runtime interaction watchpoints"
       ],
       "kind": "cycle_cluster",
       "leverage_class": "architecture_signal",
@@ -236,19 +252,21 @@
       ],
       "missing_site_count": 0,
       "presentation_class": "watchpoint",
+      "primary_lane": "maintainer_watchpoint",
       "related_surfaces": [
         "electron/ipc/handlers.ts",
         "electron/ipc/notification-handlers.ts"
       ],
       "role_tags": [],
       "scope": "cycle:electron/ipc/handlers.ts|electron/ipc/notification-handlers.ts",
-      "score_0_10000": 6832,
-      "severity": "high",
+      "score_0_10000": 5632,
+      "severity": "medium",
       "signal_families": [
         "dependency",
-        "layering"
+        "layering",
+        "mixed_cycle"
       ],
-      "summary": "Files electron/ipc/handlers.ts, electron/ipc/notification-handlers.ts form a dependency cycle",
+      "summary": "Files electron/ipc/handlers.ts, electron/ipc/notification-handlers.ts form a mixed import/interaction cycle",
       "trust_tier": "watchpoint"
     }
   ]

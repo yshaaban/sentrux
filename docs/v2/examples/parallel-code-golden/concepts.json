@@ -178,6 +178,17 @@
   "inferred_concepts": [
     {
       "anchors": [
+        "src/store/agent-output-activity.ts::AgentOutputProcessingMode"
+      ],
+      "confidence_0_10000": 8500,
+      "evidence": [
+        "closed domain 'AgentOutputProcessingMode' has 4 exhaustiveness site(s)"
+      ],
+      "id": "agent_output_processing_mode",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
         "src/domain/server-state.ts::AgentSupervisionState"
       ],
       "confidence_0_10000": 8500,
@@ -189,6 +200,17 @@
     },
     {
       "anchors": [
+        "src/runtime/browser-session.ts::BrowserRecoveryState"
+      ],
+      "confidence_0_10000": 8500,
+      "evidence": [
+        "closed domain 'BrowserRecoveryState' has 5 exhaustiveness site(s)"
+      ],
+      "id": "browser_recovery_state",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
         "src/runtime/browser-state-sync-controller.ts::BrowserStateSyncStatus"
       ],
       "confidence_0_10000": 8500,
@@ -196,6 +218,28 @@
         "closed domain 'BrowserStateSyncStatus' has 4 exhaustiveness site(s)"
       ],
       "id": "browser_state_sync_status",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/lib/browser-control-client.ts::BrowserTransportEvent"
+      ],
+      "confidence_0_10000": 8500,
+      "evidence": [
+        "closed domain 'BrowserTransportEvent' has 11 exhaustiveness site(s)"
+      ],
+      "id": "browser_transport_event",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/domain/git-status.ts::ChangedFileStatusCategory"
+      ],
+      "confidence_0_10000": 8500,
+      "evidence": [
+        "closed domain 'ChangedFileStatusCategory' has 5 exhaustiveness site(s)"
+      ],
+      "id": "changed_file_status_category",
       "kind": "closed_domain"
     },
     {
@@ -233,6 +277,17 @@
     },
     {
       "anchors": [
+        "src/app/server-state-bootstrap-registry.ts::ServerStateStartupRuntime"
+      ],
+      "confidence_0_10000": 8500,
+      "evidence": [
+        "closed domain 'ServerStateStartupRuntime' has 6 exhaustiveness site(s)"
+      ],
+      "id": "server_state_startup_runtime",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
         "src/app/task-presentation-status.ts::TaskActivityStatus"
       ],
       "confidence_0_10000": 8500,
@@ -240,6 +295,28 @@
         "closed domain 'TaskActivityStatus' has 4 exhaustiveness site(s)"
       ],
       "id": "task_activity_status",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/domain/server-state.ts::TaskAttentionReason"
+      ],
+      "confidence_0_10000": 8500,
+      "evidence": [
+        "closed domain 'TaskAttentionReason' has 5 exhaustiveness site(s)"
+      ],
+      "id": "task_attention_reason",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/domain/task-convergence.ts::TaskReviewQueueGroup"
+      ],
+      "confidence_0_10000": 8500,
+      "evidence": [
+        "closed domain 'TaskReviewQueueGroup' has 5 exhaustiveness site(s)"
+      ],
+      "id": "task_review_queue_group",
       "kind": "closed_domain"
     },
     {
@@ -259,7 +336,7 @@
       ],
       "confidence_0_10000": 8500,
       "evidence": [
-        "closed domain 'TerminalInteractivityEchoReservationState' has 4 exhaustiveness site(s)"
+        "closed domain 'TerminalInteractivityEchoReservationState' has 5 exhaustiveness site(s)"
       ],
       "id": "terminal_interactivity_echo_reservation_state",
       "kind": "closed_domain"
@@ -281,9 +358,20 @@
       ],
       "confidence_0_10000": 8500,
       "evidence": [
-        "closed domain 'TerminalOutputPriority' has 17 exhaustiveness site(s)"
+        "closed domain 'TerminalOutputPriority' has 28 exhaustiveness site(s)"
       ],
       "id": "terminal_output_priority",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/components/terminal-view/terminal-recovery-runtime.ts::TerminalRecoveryReason"
+      ],
+      "confidence_0_10000": 8500,
+      "evidence": [
+        "closed domain 'TerminalRecoveryReason' has 9 exhaustiveness site(s)"
+      ],
+      "id": "terminal_recovery_reason",
       "kind": "closed_domain"
     },
     {
@@ -303,20 +391,31 @@
       ],
       "confidence_0_10000": 8500,
       "evidence": [
-        "closed domain 'TerminalViewStatus' has 4 exhaustiveness site(s)"
+        "closed domain 'TerminalViewStatus' has 5 exhaustiveness site(s)"
       ],
       "id": "terminal_view_status",
       "kind": "closed_domain"
     },
     {
       "anchors": [
-        "src/domain/git-status.ts::ChangedFileStatusCategory"
+        "src/components/ChangedFilesList.tsx::ChangedFilesListProps"
       ],
       "confidence_0_10000": 8000,
       "evidence": [
-        "closed domain 'ChangedFileStatusCategory' has 3 exhaustiveness site(s)"
+        "closed domain 'ChangedFilesListProps' has 3 exhaustiveness site(s)"
       ],
-      "id": "changed_file_status_category",
+      "id": "changed_files_list_props",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "electron/remote/protocol.ts::ClientMessage"
+      ],
+      "confidence_0_10000": 8000,
+      "evidence": [
+        "closed domain 'ClientMessage' has 3 exhaustiveness site(s)"
+      ],
+      "id": "client_message",
       "kind": "closed_domain"
     },
     {
@@ -332,6 +431,17 @@
     },
     {
       "anchors": [
+        "src/domain/server-state.ts::PeerPresenceVisibility"
+      ],
+      "confidence_0_10000": 8000,
+      "evidence": [
+        "closed domain 'PeerPresenceVisibility' has 3 exhaustiveness site(s)"
+      ],
+      "id": "peer_presence_visibility",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
         "src/remote/agent-presentation.ts::RemoteAgentGlyphKind"
       ],
       "confidence_0_10000": 8000,
@@ -343,24 +453,24 @@
     },
     {
       "anchors": [
-        "src/domain/server-state.ts::TaskAttentionReason"
+        "src/domain/task-notification.ts::TaskNotificationKind"
       ],
       "confidence_0_10000": 8000,
       "evidence": [
-        "closed domain 'TaskAttentionReason' has 3 exhaustiveness site(s)"
+        "closed domain 'TaskNotificationKind' has 3 exhaustiveness site(s)"
       ],
-      "id": "task_attention_reason",
+      "id": "task_notification_kind",
       "kind": "closed_domain"
     },
     {
       "anchors": [
-        "src/components/terminal-view/terminal-recovery-runtime.ts::TerminalRecoveryReason"
+        "src/components/terminal-view/terminal-input-pipeline.ts::TerminalResizeState"
       ],
       "confidence_0_10000": 8000,
       "evidence": [
-        "closed domain 'TerminalRecoveryReason' has 3 exhaustiveness site(s)"
+        "closed domain 'TerminalResizeState' has 3 exhaustiveness site(s)"
       ],
-      "id": "terminal_recovery_reason",
+      "id": "terminal_resize_state",
       "kind": "closed_domain"
     },
     {
@@ -383,6 +493,39 @@
         "closed domain 'AgentTerminalRecovery' has 2 exhaustiveness site(s)"
       ],
       "id": "agent_terminal_recovery",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/lib/browser-http-ipc.ts::BrowserHttpIpcState"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "closed domain 'BrowserHttpIpcState' has 2 exhaustiveness site(s)"
+      ],
+      "id": "browser_http_ipc_state",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "server/browser-server.ts::BrowserServerLifecycle"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "closed domain 'BrowserServerLifecycle' has 2 exhaustiveness site(s)"
+      ],
+      "id": "browser_server_lifecycle",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/lib/websocket-client.ts::ConnectionRecord"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "closed domain 'ConnectionRecord' has 2 exhaustiveness site(s)"
+      ],
+      "id": "connection_record",
       "kind": "closed_domain"
     },
     {
@@ -1058,6 +1201,28 @@
     },
     {
       "anchors": [
+        "src/domain/task-notification.ts::TaskNotificationPermission"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "closed domain 'TaskNotificationPermission' has 2 exhaustiveness site(s)"
+      ],
+      "id": "task_notification_permission",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/domain/task-notification.ts::TaskNotificationProvider"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "closed domain 'TaskNotificationProvider' has 2 exhaustiveness site(s)"
+      ],
+      "id": "task_notification_provider",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
         "src/domain/server-state.ts::TaskPortsEvent"
       ],
       "confidence_0_10000": 7500,
@@ -1102,6 +1267,39 @@
     },
     {
       "anchors": [
+        "src/app/terminal-output-scheduler-policy.ts::TerminalOutputDrainLane"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "closed domain 'TerminalOutputDrainLane' has 2 exhaustiveness site(s)"
+      ],
+      "id": "terminal_output_drain_lane",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/lib/terminal-output-diagnostics.ts::TerminalOutputRoute"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "closed domain 'TerminalOutputRoute' has 2 exhaustiveness site(s)"
+      ],
+      "id": "terminal_output_route",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/store/terminal-startup.ts::TerminalStartupPhase"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "closed domain 'TerminalStartupPhase' has 2 exhaustiveness site(s)"
+      ],
+      "id": "terminal_startup_phase",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
         "src/ipc/types.ts::TerminalStartupRecoveryRole"
       ],
       "confidence_0_10000": 7500,
@@ -1109,6 +1307,17 @@
         "closed domain 'TerminalStartupRecoveryRole' has 2 exhaustiveness site(s)"
       ],
       "id": "terminal_startup_recovery_role",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/lib/terminal-performance-experiments.ts::TerminalStartupTaskSchedulingMode"
+      ],
+      "confidence_0_10000": 7500,
+      "evidence": [
+        "closed domain 'TerminalStartupTaskSchedulingMode' has 2 exhaustiveness site(s)"
+      ],
+      "id": "terminal_startup_task_scheduling_mode",
       "kind": "closed_domain"
     },
     {
@@ -1168,6 +1377,17 @@
     },
     {
       "anchors": [
+        "src/arena/types.ts::ArenaPhase"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'ArenaPhase' has 1 exhaustiveness site(s)"
+      ],
+      "id": "arena_phase",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
         "src/arena/types.ts::BattleCompetitorStatus"
       ],
       "confidence_0_10000": 7000,
@@ -1179,17 +1399,6 @@
     },
     {
       "anchors": [
-        "src/lib/browser-http-ipc.ts::BrowserHttpIpcState"
-      ],
-      "confidence_0_10000": 7000,
-      "evidence": [
-        "closed domain 'BrowserHttpIpcState' has 1 exhaustiveness site(s)"
-      ],
-      "id": "browser_http_ipc_state",
-      "kind": "closed_domain"
-    },
-    {
-      "anchors": [
         "src/runtime/browser-session.ts::BrowserLifecycleEffect"
       ],
       "confidence_0_10000": 7000,
@@ -1197,17 +1406,6 @@
         "closed domain 'BrowserLifecycleEffect' has 1 exhaustiveness site(s)"
       ],
       "id": "browser_lifecycle_effect",
-      "kind": "closed_domain"
-    },
-    {
-      "anchors": [
-        "src/runtime/browser-session.ts::BrowserRecoveryState"
-      ],
-      "confidence_0_10000": 7000,
-      "evidence": [
-        "closed domain 'BrowserRecoveryState' has 1 exhaustiveness site(s)"
-      ],
-      "id": "browser_recovery_state",
       "kind": "closed_domain"
     },
     {
@@ -1267,6 +1465,17 @@
     },
     {
       "anchors": [
+        "src/lib/file-tree.ts::FileTreeNode"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'FileTreeNode' has 1 exhaustiveness site(s)"
+      ],
+      "id": "file_tree_node",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
         "src/lib/terminal-performance-experiments.ts::FocusedPreemptionDrainScope"
       ],
       "confidence_0_10000": 7000,
@@ -1300,6 +1509,28 @@
     },
     {
       "anchors": [
+        "electron/ipc/pty.ts::InputFlushTimer"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'InputFlushTimer' has 1 exhaustiveness site(s)"
+      ],
+      "id": "input_flush_timer",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/components/terminal-view/terminal-recovery-runtime.ts::PendingReconnectRestoreState"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'PendingReconnectRestoreState' has 1 exhaustiveness site(s)"
+      ],
+      "id": "pending_reconnect_restore_state",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
         "server/browser-preview.ts::PreviewTargetResolution"
       ],
       "confidence_0_10000": 7000,
@@ -1318,6 +1549,28 @@
         "closed domain 'RemoteAgentListState' has 1 exhaustiveness site(s)"
       ],
       "id": "remote_agent_list_state",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/app/review-session.ts::ReviewInteractionMode"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'ReviewInteractionMode' has 1 exhaustiveness site(s)"
+      ],
+      "id": "review_interaction_mode",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/app/terminal-output-scheduler.ts::ScheduledHandle"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'ScheduledHandle' has 1 exhaustiveness site(s)"
+      ],
+      "id": "scheduled_handle",
       "kind": "closed_domain"
     },
     {
@@ -1520,24 +1773,46 @@
     },
     {
       "anchors": [
-        "src/domain/task-notification.ts::TaskNotificationPermission"
+        "src/store/types.ts::TaskGitIsolationMode"
       ],
       "confidence_0_10000": 7000,
       "evidence": [
-        "closed domain 'TaskNotificationPermission' has 1 exhaustiveness site(s)"
+        "closed domain 'TaskGitIsolationMode' has 1 exhaustiveness site(s)"
       ],
-      "id": "task_notification_permission",
+      "id": "task_git_isolation_mode",
       "kind": "closed_domain"
     },
     {
       "anchors": [
-        "src/domain/task-convergence.ts::TaskReviewQueueGroup"
+        "electron/remote/protocol.ts::TaskPortsChangedMessage"
       ],
       "confidence_0_10000": 7000,
       "evidence": [
-        "closed domain 'TaskReviewQueueGroup' has 1 exhaustiveness site(s)"
+        "closed domain 'TaskPortsChangedMessage' has 1 exhaustiveness site(s)"
       ],
-      "id": "task_review_queue_group",
+      "id": "task_ports_changed_message",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/app/review-files.ts::TaskReviewFilesSource"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'TaskReviewFilesSource' has 1 exhaustiveness site(s)"
+      ],
+      "id": "task_review_files_source",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/domain/task-review.ts::TaskReviewSource"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'TaskReviewSource' has 1 exhaustiveness site(s)"
+      ],
+      "id": "task_review_source",
       "kind": "closed_domain"
     },
     {
@@ -1564,13 +1839,35 @@
     },
     {
       "anchors": [
-        "src/app/terminal-output-scheduler-policy.ts::TerminalOutputDrainLane"
+        "src/app/terminal-anomaly-monitor.ts::TerminalAnomalyMonitorInteractionKind"
       ],
       "confidence_0_10000": 7000,
       "evidence": [
-        "closed domain 'TerminalOutputDrainLane' has 1 exhaustiveness site(s)"
+        "closed domain 'TerminalAnomalyMonitorInteractionKind' has 1 exhaustiveness site(s)"
       ],
-      "id": "terminal_output_drain_lane",
+      "id": "terminal_anomaly_monitor_interaction_kind",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/lib/terminal-performance-experiments.ts::TerminalDenseOverloadPressureFloorName"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'TerminalDenseOverloadPressureFloorName' has 1 exhaustiveness site(s)"
+      ],
+      "id": "terminal_dense_overload_pressure_floor_name",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/components/terminal-view/terminal-output-pipeline.ts::TerminalFlowControlState"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'TerminalFlowControlState' has 1 exhaustiveness site(s)"
+      ],
+      "id": "terminal_flow_control_state",
       "kind": "closed_domain"
     },
     {
@@ -1608,17 +1905,6 @@
     },
     {
       "anchors": [
-        "src/components/terminal-view/terminal-input-pipeline.ts::TerminalResizeState"
-      ],
-      "confidence_0_10000": 7000,
-      "evidence": [
-        "closed domain 'TerminalResizeState' has 1 exhaustiveness site(s)"
-      ],
-      "id": "terminal_resize_state",
-      "kind": "closed_domain"
-    },
-    {
-      "anchors": [
         "src/lib/terminal-shortcuts.ts::TerminalShortcutAction"
       ],
       "confidence_0_10000": 7000,
@@ -1648,17 +1934,6 @@
         "closed domain 'TerminalStartupPaintCoordinationRole' has 1 exhaustiveness site(s)"
       ],
       "id": "terminal_startup_paint_coordination_role",
-      "kind": "closed_domain"
-    },
-    {
-      "anchors": [
-        "src/store/terminal-startup.ts::TerminalStartupPhase"
-      ],
-      "confidence_0_10000": 7000,
-      "evidence": [
-        "closed domain 'TerminalStartupPhase' has 1 exhaustiveness site(s)"
-      ],
-      "id": "terminal_startup_phase",
       "kind": "closed_domain"
     },
     {
@@ -1714,6 +1989,17 @@
         "closed domain 'WebSocketConnectionState' has 1 exhaustiveness site(s)"
       ],
       "id": "web_socket_connection_state",
+      "kind": "closed_domain"
+    },
+    {
+      "anchors": [
+        "src/lib/file-tree.ts::WorkingTreeNode"
+      ],
+      "confidence_0_10000": 7000,
+      "evidence": [
+        "closed domain 'WorkingTreeNode' has 1 exhaustiveness site(s)"
+      ],
+      "id": "working_tree_node",
       "kind": "closed_domain"
     },
     {
@@ -2093,10 +2379,10 @@
     "suppressions_expiring": 0
   },
   "semantic_cache": {
-    "analyzed_files": 730,
+    "analyzed_files": 731,
     "available": true,
     "bridge_protocol_version": "0.1.0",
-    "git_head": "9dad91eb8fc1ad8197b336fc56d62b5cbcd598d7",
+    "git_head": "3774939b1f6f16196998c6e1c9d794cb66300310",
     "project_fingerprint": "bd376b35c69fd0f7",
     "source": "bridge",
     "working_tree_path_count": 0
@@ -2125,7 +2411,7 @@
     "configured_concept_count": 3,
     "contract_count": 1,
     "guardrail_test_count": 8,
-    "inferred_concept_count": 170,
+    "inferred_concept_count": 196,
     "matched_guardrail_test_count": 1,
     "state_model_count": 2
   },

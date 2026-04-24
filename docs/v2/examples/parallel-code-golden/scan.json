@@ -3,7 +3,7 @@
   "baseline_path": "<parallel-code-dir>/.sentrux/baseline.json",
   "confidence": {
     "rule_coverage_0_10000": 10000,
-    "scan_confidence_0_10000": 8601,
+    "scan_confidence_0_10000": 8603,
     "semantic_rules_loaded": true,
     "session_baseline": {
       "compatible": false,
@@ -20,10 +20,10 @@
     "partial_results": false,
     "warnings": []
   },
-  "files": 861,
-  "import_edges": 2793,
+  "files": 862,
+  "import_edges": 2797,
   "kind": "scan",
-  "lines": 236966,
+  "lines": 237324,
   "project_shape": {
     "boundary_roots": [
       {
@@ -46,7 +46,7 @@
     "working_rules_toml": "[project]\nprimary_language = \"typescript\"\nexclude = [\"vendor/**\", \"dist/**\", \"coverage/**\", \"build/**\", \"node_modules/**\"]\n"
   },
   "scan_trust": {
-    "candidate_files": 1001,
+    "candidate_files": 1002,
     "exclusions": {
       "bucketed": {
         "build": 12,
@@ -61,19 +61,19 @@
       "total": 140
     },
     "fallback_reason": null,
-    "kept_files": 861,
+    "kept_files": 862,
     "mode": "git",
-    "overall_confidence_0_10000": 8601,
+    "overall_confidence_0_10000": 8603,
     "partial": false,
     "resolution": {
       "internal_confidence_0_10000": 9996,
-      "resolved": 2794,
+      "resolved": 2798,
       "unresolved_external": 795,
       "unresolved_internal": 1,
       "unresolved_unknown": 114
     },
-    "scope_coverage_0_10000": 8601,
-    "tracked_candidates": 1001,
+    "scope_coverage_0_10000": 8603,
+    "tracked_candidates": 1002,
     "truncated": false,
     "untracked_candidates": 0
   },

@@ -3,8 +3,8 @@
   "actions": [],
   "baseline_delta": {
     "available": true,
-    "coupling_after": 0.49624060150375937,
-    "coupling_before": 0.49624060150375937,
+    "coupling_after": 0.49588845191276365,
+    "coupling_before": 0.4958884519127637,
     "cycles_after": 2,
     "cycles_before": 2,
     "degraded": false,
@@ -18,7 +18,7 @@
   "concept_summary_count": 0,
   "confidence": {
     "rule_coverage_0_10000": 10000,
-    "scan_confidence_0_10000": 8601,
+    "scan_confidence_0_10000": 8603,
     "semantic_rules_loaded": true,
     "session_baseline": {
       "compatible": true,
@@ -28,8 +28,8 @@
     }
   },
   "coupling_change": [
-    0.49624060150375937,
-    0.49624060150375937
+    0.4958884519127637,
+    0.49588845191276365
   ],
   "cycles_change": [
     2,
@@ -38,13 +38,14 @@
   "debt_cluster_count": 5,
   "debt_clusters": [
     {
+      "default_surface_role": "supporting_watchpoint",
       "evidence": [
         "overlapping signals: 8",
         "signal kinds: dependency_sprawl, cycle_cluster, large_file, unstable_hotspot",
         "affected files: 36",
         "role tags: state_container, guarded_seam, guarded_boundary, component_barrel",
         "dependency_sprawl: File 'src/store/persistence-load.ts' depends on 29 real surfaces, above the typescript threshold of 15",
-        "cycle_cluster: Files src/app/task-command-lease-runtime-subscriptions.ts, src/app/task-command-lease-runtime.ts, src/app/task-command-lease-session.ts, src/app/task-command-lease-takeover.ts, src/app/task-command-lease.ts, src/app/task-presentation-status.ts, src/lib/runtime-client-id.ts, src/store/agent-output-activity.ts, src/store/agents.ts, src/store/auto-trust.ts, src/store/browser-cold-bootstrap-projection.ts, src/store/client-session.ts, src/store/completion.ts, src/store/core.ts, src/store/focus.ts, src/store/navigation.ts, src/store/notification.ts, src/store/peer-presence.ts, src/store/persistence-codecs.ts, src/store/persistence-load.ts, src/store/persistence-save.ts, src/store/persistence-terminal-restore.ts, src/store/persistence.ts, src/store/projects.ts, src/store/review.ts, src/store/sidebar-order.ts, src/store/state.ts, src/store/store.ts, src/store/task-command-controllers.ts, src/store/task-command-takeovers.ts, src/store/task-git-status.ts, src/store/task-state-cleanup.ts, src/store/taskStatus.ts, src/store/tasks.ts, src/store/terminals.ts, src/store/ui.ts form a dependency cycle",
+        "cycle_cluster: Files src/app/task-command-lease-runtime-subscriptions.ts, src/app/task-command-lease-runtime.ts, src/app/task-command-lease-session.ts, src/app/task-command-lease-takeover.ts, src/app/task-command-lease.ts, src/app/task-presentation-status.ts, src/lib/runtime-client-id.ts, src/store/agent-output-activity.ts, src/store/agents.ts, src/store/auto-trust.ts, src/store/browser-cold-bootstrap-projection.ts, src/store/client-session.ts, src/store/completion.ts, src/store/core.ts, src/store/focus.ts, src/store/navigation.ts, src/store/notification.ts, src/store/peer-presence.ts, src/store/persistence-codecs.ts, src/store/persistence-load.ts, src/store/persistence-save.ts, src/store/persistence-terminal-restore.ts, src/store/persistence.ts, src/store/projects.ts, src/store/review.ts, src/store/sidebar-order.ts, src/store/state.ts, src/store/store.ts, src/store/task-command-controllers.ts, src/store/task-command-takeovers.ts, src/store/task-git-status.ts, src/store/task-state-cleanup.ts, src/store/taskStatus.ts, src/store/tasks.ts, src/store/terminals.ts, src/store/ui.ts form a mixed import/interaction cycle",
         "large_file: File 'src/store/agent-output-activity.ts' is 508 lines, above the typescript threshold of 500"
       ],
       "files": [
@@ -89,8 +90,8 @@
       "inspection_focus": [
         "inspect whether orchestration and policy code can move behind narrower helpers",
         "inspect whether unrelated adapter dependencies are accumulating in one module",
-        "inspect whether the best cut keeps component-facing barrel access while moving deeper orchestration behind a narrower seam",
-        "inspect whether app or runtime dependencies can stop flowing back through the shared barrel"
+        "inspect import-edge cut candidates before acting on the wider interaction cluster",
+        "separate hard dependency repairs from softer runtime interaction watchpoints"
       ],
       "leverage_class": "architecture_signal",
       "leverage_reasons": [
@@ -111,6 +112,7 @@
         "structural_signal_count": 8
       },
       "presentation_class": "structural_debt",
+      "primary_lane": "maintainer_watchpoint",
       "role_tags": [
         "state_container",
         "guarded_seam",
@@ -125,6 +127,7 @@
         "coordination",
         "dependency",
         "layering",
+        "mixed_cycle",
         "size",
         "blast_radius"
       ],
@@ -138,102 +141,7 @@
       "trust_tier": "trusted"
     },
     {
-      "evidence": [
-        "overlapping signals: 2",
-        "signal kinds: large_file, dependency_sprawl",
-        "affected files: 1",
-        "large_file: File 'src/components/TerminalView.tsx' is 1673 lines, above the typescript threshold of 500",
-        "dependency_sprawl: File 'src/components/TerminalView.tsx' depends on 29 real surfaces, above the typescript threshold of 15"
-      ],
-      "files": [
-        "src/components/TerminalView.tsx"
-      ],
-      "impact": "Multiple overlapping debt signals in the same surface increase change cost and make regressions harder to isolate.",
-      "inspection_focus": [
-        "inspect whether the app dependency boundary can become the owner for behavior that currently couples to src/app/browser-startup.ts",
-        "inspect whether orchestration, adapters, and data shaping are accumulating in one file",
-        "inspect whether the file can be split along responsibility boundaries instead of line-count slices",
-        "inspect whether orchestration and policy code can move behind narrower helpers"
-      ],
-      "leverage_class": "local_refactor_target",
-      "leverage_reasons": [
-        "supporting_size_pressure",
-        "contained_dependency_pressure"
-      ],
-      "metrics": {
-        "clone_family_count": 0,
-        "concept_count": 0,
-        "file_count": 1,
-        "hotspot_count": 0,
-        "signal_count": 2,
-        "structural_signal_count": 2
-      },
-      "presentation_class": "structural_debt",
-      "role_tags": [],
-      "scope": "cluster:src/components/TerminalView.tsx",
-      "score_0_10000": 8900,
-      "severity": "high",
-      "signal_families": [
-        "size",
-        "coordination",
-        "coupling"
-      ],
-      "signal_kinds": [
-        "large_file",
-        "dependency_sprawl"
-      ],
-      "summary": "File 'src/components/TerminalView.tsx' intersects 2 debt signals: large_file, dependency_sprawl",
-      "trust_tier": "trusted"
-    },
-    {
-      "evidence": [
-        "overlapping signals: 2",
-        "signal kinds: large_file, dependency_sprawl",
-        "affected files: 1",
-        "large_file: File 'src/components/terminal-view/terminal-output-pipeline.ts' is 1268 lines, above the typescript threshold of 500",
-        "dependency_sprawl: File 'src/components/terminal-view/terminal-output-pipeline.ts' depends on 17 real surfaces, above the typescript threshold of 15"
-      ],
-      "files": [
-        "src/components/terminal-view/terminal-output-pipeline.ts"
-      ],
-      "impact": "Multiple overlapping debt signals in the same surface increase change cost and make regressions harder to isolate.",
-      "inspection_focus": [
-        "inspect whether the app dependency boundary can become the owner for behavior that currently couples to electron/ipc/channels.ts",
-        "inspect whether orchestration, adapters, and data shaping are accumulating in one file",
-        "inspect whether the file can be split along responsibility boundaries instead of line-count slices",
-        "inspect whether orchestration and policy code can move behind narrower helpers"
-      ],
-      "leverage_class": "local_refactor_target",
-      "leverage_reasons": [
-        "supporting_size_pressure",
-        "contained_dependency_pressure"
-      ],
-      "metrics": {
-        "clone_family_count": 0,
-        "concept_count": 0,
-        "file_count": 1,
-        "hotspot_count": 0,
-        "signal_count": 2,
-        "structural_signal_count": 2
-      },
-      "presentation_class": "structural_debt",
-      "role_tags": [],
-      "scope": "cluster:src/components/terminal-view/terminal-output-pipeline.ts",
-      "score_0_10000": 8900,
-      "severity": "high",
-      "signal_families": [
-        "size",
-        "coordination",
-        "coupling"
-      ],
-      "signal_kinds": [
-        "large_file",
-        "dependency_sprawl"
-      ],
-      "summary": "File 'src/components/terminal-view/terminal-output-pipeline.ts' intersects 2 debt signals: large_file, dependency_sprawl",
-      "trust_tier": "trusted"
-    },
-    {
+      "default_surface_role": "supporting_watchpoint",
       "evidence": [
         "overlapping signals: 2",
         "signal kinds: large_file, dependency_sprawl",
@@ -265,12 +173,13 @@
         "structural_signal_count": 2
       },
       "presentation_class": "structural_debt",
+      "primary_lane": "maintainer_watchpoint",
       "role_tags": [
         "guarded_seam",
         "facade_with_extracted_owners"
       ],
       "scope": "cluster:src/components/terminal-view/terminal-session.ts",
-      "score_0_10000": 8900,
+      "score_0_10000": 9675,
       "severity": "high",
       "signal_families": [
         "size",
@@ -285,6 +194,107 @@
       "trust_tier": "trusted"
     },
     {
+      "default_surface_role": "supporting_watchpoint",
+      "evidence": [
+        "overlapping signals: 2",
+        "signal kinds: large_file, dependency_sprawl",
+        "affected files: 1",
+        "large_file: File 'src/components/TerminalView.tsx' is 1673 lines, above the typescript threshold of 500",
+        "dependency_sprawl: File 'src/components/TerminalView.tsx' depends on 29 real surfaces, above the typescript threshold of 15"
+      ],
+      "files": [
+        "src/components/TerminalView.tsx"
+      ],
+      "impact": "Multiple overlapping debt signals in the same surface increase change cost and make regressions harder to isolate.",
+      "inspection_focus": [
+        "inspect whether the app dependency boundary can become the owner for behavior that currently couples to src/app/browser-startup.ts",
+        "inspect whether orchestration, adapters, and data shaping are accumulating in one file",
+        "inspect whether the file can be split along responsibility boundaries instead of line-count slices",
+        "inspect whether orchestration and policy code can move behind narrower helpers"
+      ],
+      "leverage_class": "local_refactor_target",
+      "leverage_reasons": [
+        "supporting_size_pressure",
+        "contained_dependency_pressure"
+      ],
+      "metrics": {
+        "clone_family_count": 0,
+        "concept_count": 0,
+        "file_count": 1,
+        "hotspot_count": 0,
+        "signal_count": 2,
+        "structural_signal_count": 2
+      },
+      "presentation_class": "structural_debt",
+      "primary_lane": "maintainer_watchpoint",
+      "role_tags": [],
+      "scope": "cluster:src/components/TerminalView.tsx",
+      "score_0_10000": 9450,
+      "severity": "high",
+      "signal_families": [
+        "size",
+        "coordination",
+        "coupling"
+      ],
+      "signal_kinds": [
+        "large_file",
+        "dependency_sprawl"
+      ],
+      "summary": "File 'src/components/TerminalView.tsx' intersects 2 debt signals: large_file, dependency_sprawl",
+      "trust_tier": "trusted"
+    },
+    {
+      "default_surface_role": "supporting_watchpoint",
+      "evidence": [
+        "overlapping signals: 2",
+        "signal kinds: large_file, dependency_sprawl",
+        "affected files: 1",
+        "large_file: File 'src/components/terminal-view/terminal-output-pipeline.ts' is 1268 lines, above the typescript threshold of 500",
+        "dependency_sprawl: File 'src/components/terminal-view/terminal-output-pipeline.ts' depends on 17 real surfaces, above the typescript threshold of 15"
+      ],
+      "files": [
+        "src/components/terminal-view/terminal-output-pipeline.ts"
+      ],
+      "impact": "Multiple overlapping debt signals in the same surface increase change cost and make regressions harder to isolate.",
+      "inspection_focus": [
+        "inspect whether the app dependency boundary can become the owner for behavior that currently couples to electron/ipc/channels.ts",
+        "inspect whether orchestration, adapters, and data shaping are accumulating in one file",
+        "inspect whether the file can be split along responsibility boundaries instead of line-count slices",
+        "inspect whether orchestration and policy code can move behind narrower helpers"
+      ],
+      "leverage_class": "local_refactor_target",
+      "leverage_reasons": [
+        "supporting_size_pressure",
+        "contained_dependency_pressure"
+      ],
+      "metrics": {
+        "clone_family_count": 0,
+        "concept_count": 0,
+        "file_count": 1,
+        "hotspot_count": 0,
+        "signal_count": 2,
+        "structural_signal_count": 2
+      },
+      "presentation_class": "structural_debt",
+      "primary_lane": "maintainer_watchpoint",
+      "role_tags": [],
+      "scope": "cluster:src/components/terminal-view/terminal-output-pipeline.ts",
+      "score_0_10000": 9450,
+      "severity": "high",
+      "signal_families": [
+        "size",
+        "coordination",
+        "coupling"
+      ],
+      "signal_kinds": [
+        "large_file",
+        "dependency_sprawl"
+      ],
+      "summary": "File 'src/components/terminal-view/terminal-output-pipeline.ts' intersects 2 debt signals: large_file, dependency_sprawl",
+      "trust_tier": "trusted"
+    },
+    {
+      "default_surface_role": "supporting_watchpoint",
       "evidence": [
         "overlapping signals: 2",
         "signal kinds: dependency_sprawl, large_file",
@@ -319,6 +329,7 @@
         "structural_signal_count": 2
       },
       "presentation_class": "structural_debt",
+      "primary_lane": "maintainer_watchpoint",
       "role_tags": [
         "guarded_seam"
       ],
@@ -342,132 +353,13 @@
   "debt_signals": [
     {
       "candidate_split_axes": [
-        "scripts dependency boundary",
-        "entry surface split",
-        "high-complexity helper extraction",
-        "private helper surface split"
-      ],
-      "evidence": [
-        "line count: 1120",
-        "large-file threshold: 500",
-        "function count: 23",
-        "peak function complexity: 49",
-        "outbound dependencies: 2",
-        "suggested split axes: scripts dependency boundary, entry surface split, high-complexity helper extraction, private helper surface split",
-        "related surfaces to peel out first: scripts/terminal-ui-fluidity-gate.mjs, scripts/terminal-ui-fluidity-variants.mjs",
-        "recommended first cut: move the behavior that couples to scripts/terminal-ui-fluidity-gate.mjs behind the scripts dependency boundary"
-      ],
-      "files": [
-        "scripts/terminal-ui-fluidity-matrix.mjs"
-      ],
-      "impact": "Responsibility concentration increases review friction and makes later splits harder to isolate.",
-      "inspection_focus": [
-        "inspect whether the scripts dependency boundary can become the owner for behavior that currently couples to scripts/terminal-ui-fluidity-gate.mjs",
-        "inspect whether orchestration, adapters, and data shaping are accumulating in one file",
-        "inspect whether the file can be split along responsibility boundaries instead of line-count slices"
-      ],
-      "kind": "large_file",
-      "leverage_class": "tooling_debt",
-      "leverage_reasons": [
-        "tooling_surface_maintenance_burden"
-      ],
-      "metrics": {
-        "fan_out": 2,
-        "file_count": 1,
-        "function_count": 23,
-        "guardrail_test_count": 0,
-        "line_count": 1120,
-        "max_complexity": 49,
-        "role_count": 1
-      },
-      "presentation_class": "tooling_debt",
-      "related_surfaces": [
-        "scripts/terminal-ui-fluidity-gate.mjs",
-        "scripts/terminal-ui-fluidity-variants.mjs"
-      ],
-      "role_tags": [
-        "entry_surface"
-      ],
-      "scope": "scripts/terminal-ui-fluidity-matrix.mjs",
-      "score_0_10000": 8400,
-      "severity": "high",
-      "signal_class": "debt",
-      "signal_families": [
-        "size",
-        "coordination"
-      ],
-      "summary": "File 'scripts/terminal-ui-fluidity-matrix.mjs' is 1120 lines, above the javascript threshold of 500",
-      "trust_tier": "trusted"
-    },
-    {
-      "candidate_split_axes": [
         "app dependency boundary",
         "lib dependency boundary",
         "components dependency boundary",
         "high-complexity helper extraction",
         "private helper surface split"
       ],
-      "evidence": [
-        "line count: 1673",
-        "large-file threshold: 500",
-        "function count: 84",
-        "peak function complexity: 174",
-        "outbound dependencies: 29",
-        "suggested split axes: app dependency boundary, lib dependency boundary, components dependency boundary, high-complexity helper extraction, private helper surface split",
-        "related surfaces to peel out first: src/app/browser-startup.ts, src/app/panel-resize-drag.ts, src/app/runtime-diagnostics.ts, src/app/task-command-lease.ts, src/app/terminal-anomaly-monitor.ts",
-        "recommended first cut: move the behavior that couples to src/app/browser-startup.ts behind the app dependency boundary"
-      ],
-      "files": [
-        "src/components/TerminalView.tsx"
-      ],
-      "impact": "Responsibility concentration increases review friction and makes later splits harder to isolate.",
-      "inspection_focus": [
-        "inspect whether the app dependency boundary can become the owner for behavior that currently couples to src/app/browser-startup.ts",
-        "inspect whether orchestration, adapters, and data shaping are accumulating in one file",
-        "inspect whether the file can be split along responsibility boundaries instead of line-count slices"
-      ],
-      "kind": "large_file",
-      "leverage_class": "secondary_cleanup",
-      "leverage_reasons": [
-        "supporting_size_pressure"
-      ],
-      "metrics": {
-        "fan_out": 29,
-        "file_count": 1,
-        "function_count": 84,
-        "guardrail_test_count": 0,
-        "line_count": 1673,
-        "max_complexity": 174,
-        "role_count": 0
-      },
-      "presentation_class": "structural_debt",
-      "related_surfaces": [
-        "src/app/browser-startup.ts",
-        "src/app/panel-resize-drag.ts",
-        "src/app/runtime-diagnostics.ts",
-        "src/app/task-command-lease.ts",
-        "src/app/terminal-anomaly-monitor.ts"
-      ],
-      "role_tags": [],
-      "scope": "src/components/TerminalView.tsx",
-      "score_0_10000": 8400,
-      "severity": "high",
-      "signal_class": "debt",
-      "signal_families": [
-        "size",
-        "coordination"
-      ],
-      "summary": "File 'src/components/TerminalView.tsx' is 1673 lines, above the typescript threshold of 500",
-      "trust_tier": "trusted"
-    },
-    {
-      "candidate_split_axes": [
-        "app dependency boundary",
-        "lib dependency boundary",
-        "components dependency boundary",
-        "high-complexity helper extraction",
-        "private helper surface split"
-      ],
+      "default_surface_role": "supporting_watchpoint",
       "evidence": [
         "line count: 1235",
         "large-file threshold: 500",
@@ -477,6 +369,8 @@
         "suggested split axes: app dependency boundary, lib dependency boundary, components dependency boundary, high-complexity helper extraction, private helper surface split",
         "related surfaces to peel out first: electron/ipc/channels.ts, src/app/runtime-diagnostics.ts, src/app/task-command-lease.ts, src/app/terminal-focused-input.ts, src/app/terminal-switch-echo-grace.ts",
         "recommended first cut: move the behavior that couples to electron/ipc/channels.ts behind the app dependency boundary",
+        "first-cut extraction: extract the highest-complexity helper path into a focused module",
+        "first-cut admissibility: high (symbol/function count: 83; peak complexity: 195; fan-out: 12; guardrail tests: 1; role tags: guarded_seam)",
         "guardrail tests: src/app/store-boundary.architecture.test.ts"
       ],
       "files": [
@@ -503,6 +397,7 @@
         "role_count": 1
       },
       "presentation_class": "structural_debt",
+      "primary_lane": "maintainer_watchpoint",
       "related_surfaces": [
         "electron/ipc/channels.ts",
         "src/app/runtime-diagnostics.ts",
@@ -514,7 +409,7 @@
         "guarded_seam"
       ],
       "scope": "src/components/terminal-view/terminal-input-pipeline.ts",
-      "score_0_10000": 8400,
+      "score_0_10000": 9175,
       "severity": "high",
       "signal_class": "debt",
       "signal_families": [
@@ -526,12 +421,212 @@
     },
     {
       "candidate_split_axes": [
+        "lib dependency boundary",
+        "components dependency boundary",
+        "app dependency boundary",
+        "facade owner boundary",
+        "high-complexity helper extraction",
+        "private helper surface split"
+      ],
+      "default_surface_role": "supporting_watchpoint",
+      "evidence": [
+        "line count: 1643",
+        "large-file threshold: 500",
+        "function count: 118",
+        "peak function complexity: 204",
+        "outbound dependencies: 30",
+        "suggested split axes: lib dependency boundary, components dependency boundary, app dependency boundary, facade owner boundary, high-complexity helper extraction, private helper surface split",
+        "related surfaces to peel out first: electron/ipc/channels.ts, src/app/markdown-viewer.ts, src/app/runtime-diagnostics.ts, src/app/terminal-interactivity-governor.ts, src/components/terminal-view/terminal-input-pipeline.ts",
+        "recommended first cut: move the behavior that couples to electron/ipc/channels.ts behind the lib dependency boundary",
+        "first-cut extraction: move remaining facade owner behavior behind the lib dependency boundary",
+        "first-cut admissibility: high (symbol/function count: 118; peak complexity: 204; fan-out: 30; guardrail tests: 1; role tags: guarded_seam, facade_with_extracted_owners)",
+        "guardrail tests: src/components/terminal-view/terminal-session.architecture.test.ts",
+        "extracted owner factories: createTerminalInputPipeline, createTerminalOutputPipeline, createTerminalRecoveryRuntime"
+      ],
+      "files": [
+        "src/components/terminal-view/terminal-session.ts"
+      ],
+      "impact": "The facade is still broad after extraction, which makes it harder to see whether new owner seams are actually shrinking the coordination surface.",
+      "inspection_focus": [
+        "inspect whether the lib dependency boundary can become the owner for behavior that currently couples to electron/ipc/channels.ts",
+        "inspect whether remaining coordination belongs in extracted owner modules instead of the public facade",
+        "inspect whether guardrail-backed owner seams are staying thin or accumulating new logic"
+      ],
+      "kind": "large_file",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "secondary_facade_cleanup"
+      ],
+      "metrics": {
+        "fan_out": 30,
+        "file_count": 1,
+        "function_count": 118,
+        "guardrail_test_count": 1,
+        "line_count": 1643,
+        "max_complexity": 204,
+        "role_count": 2
+      },
+      "presentation_class": "structural_debt",
+      "primary_lane": "maintainer_watchpoint",
+      "related_surfaces": [
+        "electron/ipc/channels.ts",
+        "src/app/markdown-viewer.ts",
+        "src/app/runtime-diagnostics.ts",
+        "src/app/terminal-interactivity-governor.ts",
+        "src/components/terminal-view/terminal-input-pipeline.ts"
+      ],
+      "role_tags": [
+        "guarded_seam",
+        "facade_with_extracted_owners"
+      ],
+      "scope": "src/components/terminal-view/terminal-session.ts",
+      "score_0_10000": 9175,
+      "severity": "high",
+      "signal_class": "debt",
+      "signal_families": [
+        "size",
+        "coordination"
+      ],
+      "summary": "Guarded facade file 'src/components/terminal-view/terminal-session.ts' is 1643 lines, above the typescript threshold of 500",
+      "trust_tier": "trusted"
+    },
+    {
+      "candidate_split_axes": [
+        "scripts dependency boundary",
+        "entry surface split",
+        "high-complexity helper extraction",
+        "private helper surface split"
+      ],
+      "default_surface_role": "supporting_watchpoint",
+      "evidence": [
+        "line count: 1120",
+        "large-file threshold: 500",
+        "function count: 23",
+        "peak function complexity: 49",
+        "outbound dependencies: 2",
+        "suggested split axes: scripts dependency boundary, entry surface split, high-complexity helper extraction, private helper surface split",
+        "related surfaces to peel out first: scripts/terminal-ui-fluidity-gate.mjs, scripts/terminal-ui-fluidity-variants.mjs",
+        "recommended first cut: move the behavior that couples to scripts/terminal-ui-fluidity-gate.mjs behind the scripts dependency boundary",
+        "first-cut extraction: move entry orchestration coupled to scripts/terminal-ui-fluidity-gate.mjs behind the scripts dependency boundary",
+        "first-cut admissibility: high (symbol/function count: 23; peak complexity: 49; fan-out: 2; guardrail tests: 0; role tags: entry_surface)"
+      ],
+      "files": [
+        "scripts/terminal-ui-fluidity-matrix.mjs"
+      ],
+      "impact": "Responsibility concentration increases review friction and makes later splits harder to isolate.",
+      "inspection_focus": [
+        "inspect whether the scripts dependency boundary can become the owner for behavior that currently couples to scripts/terminal-ui-fluidity-gate.mjs",
+        "inspect whether orchestration, adapters, and data shaping are accumulating in one file",
+        "inspect whether the file can be split along responsibility boundaries instead of line-count slices"
+      ],
+      "kind": "large_file",
+      "leverage_class": "tooling_debt",
+      "leverage_reasons": [
+        "tooling_surface_maintenance_burden"
+      ],
+      "metrics": {
+        "fan_out": 2,
+        "file_count": 1,
+        "function_count": 23,
+        "guardrail_test_count": 0,
+        "line_count": 1120,
+        "max_complexity": 49,
+        "role_count": 1
+      },
+      "presentation_class": "tooling_debt",
+      "primary_lane": "maintainer_watchpoint",
+      "related_surfaces": [
+        "scripts/terminal-ui-fluidity-gate.mjs",
+        "scripts/terminal-ui-fluidity-variants.mjs"
+      ],
+      "role_tags": [
+        "entry_surface"
+      ],
+      "scope": "scripts/terminal-ui-fluidity-matrix.mjs",
+      "score_0_10000": 9033,
+      "severity": "high",
+      "signal_class": "debt",
+      "signal_families": [
+        "size",
+        "coordination"
+      ],
+      "summary": "File 'scripts/terminal-ui-fluidity-matrix.mjs' is 1120 lines, above the javascript threshold of 500",
+      "trust_tier": "trusted"
+    },
+    {
+      "candidate_split_axes": [
         "app dependency boundary",
         "lib dependency boundary",
         "components dependency boundary",
         "high-complexity helper extraction",
         "private helper surface split"
       ],
+      "default_surface_role": "supporting_watchpoint",
+      "evidence": [
+        "line count: 1673",
+        "large-file threshold: 500",
+        "function count: 84",
+        "peak function complexity: 174",
+        "outbound dependencies: 29",
+        "suggested split axes: app dependency boundary, lib dependency boundary, components dependency boundary, high-complexity helper extraction, private helper surface split",
+        "related surfaces to peel out first: src/app/browser-startup.ts, src/app/panel-resize-drag.ts, src/app/runtime-diagnostics.ts, src/app/task-command-lease.ts, src/app/terminal-anomaly-monitor.ts",
+        "recommended first cut: move the behavior that couples to src/app/browser-startup.ts behind the app dependency boundary",
+        "first-cut extraction: extract the highest-complexity helper path into a focused module",
+        "first-cut admissibility: high (symbol/function count: 84; peak complexity: 174; fan-out: 29; guardrail tests: 0; role tags: none)"
+      ],
+      "files": [
+        "src/components/TerminalView.tsx"
+      ],
+      "impact": "Responsibility concentration increases review friction and makes later splits harder to isolate.",
+      "inspection_focus": [
+        "inspect whether the app dependency boundary can become the owner for behavior that currently couples to src/app/browser-startup.ts",
+        "inspect whether orchestration, adapters, and data shaping are accumulating in one file",
+        "inspect whether the file can be split along responsibility boundaries instead of line-count slices"
+      ],
+      "kind": "large_file",
+      "leverage_class": "secondary_cleanup",
+      "leverage_reasons": [
+        "supporting_size_pressure"
+      ],
+      "metrics": {
+        "fan_out": 29,
+        "file_count": 1,
+        "function_count": 84,
+        "guardrail_test_count": 0,
+        "line_count": 1673,
+        "max_complexity": 174,
+        "role_count": 0
+      },
+      "presentation_class": "structural_debt",
+      "primary_lane": "maintainer_watchpoint",
+      "related_surfaces": [
+        "src/app/browser-startup.ts",
+        "src/app/panel-resize-drag.ts",
+        "src/app/runtime-diagnostics.ts",
+        "src/app/task-command-lease.ts",
+        "src/app/terminal-anomaly-monitor.ts"
+      ],
+      "role_tags": [],
+      "scope": "src/components/TerminalView.tsx",
+      "score_0_10000": 8950,
+      "severity": "high",
+      "signal_class": "debt",
+      "signal_families": [
+        "size",
+        "coordination"
+      ],
+      "summary": "File 'src/components/TerminalView.tsx' is 1673 lines, above the typescript threshold of 500",
+      "trust_tier": "trusted"
+    },
+    {
+      "candidate_split_axes": [
+        "app dependency boundary",
+        "lib dependency boundary",
+        "components dependency boundary",
+        "high-complexity helper extraction",
+        "private helper surface split"
+      ],
+      "default_surface_role": "supporting_watchpoint",
       "evidence": [
         "line count: 1268",
         "large-file threshold: 500",
@@ -540,7 +635,9 @@
         "outbound dependencies: 17",
         "suggested split axes: app dependency boundary, lib dependency boundary, components dependency boundary, high-complexity helper extraction, private helper surface split",
         "related surfaces to peel out first: electron/ipc/channels.ts, src/app/terminal-dense-overload.ts, src/app/terminal-focused-input.ts, src/app/terminal-frame-pressure.ts, src/app/terminal-interactivity-governor.ts",
-        "recommended first cut: move the behavior that couples to electron/ipc/channels.ts behind the app dependency boundary"
+        "recommended first cut: move the behavior that couples to electron/ipc/channels.ts behind the app dependency boundary",
+        "first-cut extraction: extract the highest-complexity helper path into a focused module",
+        "first-cut admissibility: high (symbol/function count: 103; peak complexity: 190; fan-out: 17; guardrail tests: 0; role tags: none)"
       ],
       "files": [
         "src/components/terminal-view/terminal-output-pipeline.ts"
@@ -566,6 +663,7 @@
         "role_count": 0
       },
       "presentation_class": "structural_debt",
+      "primary_lane": "maintainer_watchpoint",
       "related_surfaces": [
         "electron/ipc/channels.ts",
         "src/app/terminal-dense-overload.ts",
@@ -575,7 +673,7 @@
       ],
       "role_tags": [],
       "scope": "src/components/terminal-view/terminal-output-pipeline.ts",
-      "score_0_10000": 8400,
+      "score_0_10000": 8950,
       "severity": "high",
       "signal_class": "debt",
       "signal_families": [
@@ -583,67 +681,6 @@
         "coordination"
       ],
       "summary": "File 'src/components/terminal-view/terminal-output-pipeline.ts' is 1268 lines, above the typescript threshold of 500",
-      "trust_tier": "trusted"
-    },
-    {
-      "candidate_split_axes": [
-        "lib dependency boundary",
-        "app dependency boundary",
-        "components dependency boundary",
-        "high-complexity helper extraction",
-        "private helper surface split"
-      ],
-      "evidence": [
-        "line count: 1653",
-        "large-file threshold: 500",
-        "function count: 76",
-        "peak function complexity: 272",
-        "outbound dependencies: 14",
-        "suggested split axes: lib dependency boundary, app dependency boundary, components dependency boundary, high-complexity helper extraction, private helper surface split",
-        "related surfaces to peel out first: electron/ipc/channels.ts, src/app/runtime-diagnostics.ts, src/app/terminal-startup-task-scheduler.ts, src/app/terminal-switch-window.ts, src/components/terminal-view/terminal-input-pipeline.ts",
-        "recommended first cut: move the behavior that couples to electron/ipc/channels.ts behind the lib dependency boundary"
-      ],
-      "files": [
-        "src/components/terminal-view/terminal-recovery-runtime.ts"
-      ],
-      "impact": "Responsibility concentration increases review friction and makes later splits harder to isolate.",
-      "inspection_focus": [
-        "inspect whether the lib dependency boundary can become the owner for behavior that currently couples to electron/ipc/channels.ts",
-        "inspect whether orchestration, adapters, and data shaping are accumulating in one file",
-        "inspect whether the file can be split along responsibility boundaries instead of line-count slices"
-      ],
-      "kind": "large_file",
-      "leverage_class": "secondary_cleanup",
-      "leverage_reasons": [
-        "supporting_size_pressure"
-      ],
-      "metrics": {
-        "fan_out": 14,
-        "file_count": 1,
-        "function_count": 76,
-        "guardrail_test_count": 0,
-        "line_count": 1653,
-        "max_complexity": 272,
-        "role_count": 0
-      },
-      "presentation_class": "structural_debt",
-      "related_surfaces": [
-        "electron/ipc/channels.ts",
-        "src/app/runtime-diagnostics.ts",
-        "src/app/terminal-startup-task-scheduler.ts",
-        "src/app/terminal-switch-window.ts",
-        "src/components/terminal-view/terminal-input-pipeline.ts"
-      ],
-      "role_tags": [],
-      "scope": "src/components/terminal-view/terminal-recovery-runtime.ts",
-      "score_0_10000": 8400,
-      "severity": "high",
-      "signal_class": "debt",
-      "signal_families": [
-        "size",
-        "coordination"
-      ],
-      "summary": "File 'src/components/terminal-view/terminal-recovery-runtime.ts' is 1653 lines, above the typescript threshold of 500",
       "trust_tier": "trusted"
     }
   ],
@@ -661,6 +698,7 @@
   "experimental_debt_signals": [
     {
       "candidate_split_axes": [],
+      "default_surface_role": "experimental",
       "evidence": [
         "dead private functions: 5",
         "dead private lines: 5",
@@ -690,6 +728,7 @@
         "role_count": 0
       },
       "presentation_class": "experimental",
+      "primary_lane": "experimental",
       "related_surfaces": [],
       "role_tags": [],
       "scope": "src/components/NewTaskDialog.tsx",
@@ -705,6 +744,7 @@
     },
     {
       "candidate_split_axes": [],
+      "default_surface_role": "experimental",
       "evidence": [
         "dead private functions: 4",
         "dead private lines: 4",
@@ -734,6 +774,7 @@
         "role_count": 0
       },
       "presentation_class": "experimental",
+      "primary_lane": "experimental",
       "related_surfaces": [],
       "role_tags": [],
       "scope": "src/components/PreviewPanel.tsx",
@@ -749,11 +790,12 @@
     },
     {
       "candidate_split_axes": [],
+      "default_surface_role": "experimental",
       "evidence": [
         "dead private functions: 4",
         "dead private lines: 4",
         "sample dead functions: convergence, emptyStateMessage, getTaskReviewStateLabel",
-        "total file lines: 314"
+        "total file lines: 327"
       ],
       "files": [
         "src/components/ReviewPanel.tsx"
@@ -773,11 +815,12 @@
         "dead_symbol_count": 4,
         "file_count": 1,
         "function_count": 30,
-        "line_count": 314,
+        "line_count": 327,
         "max_complexity": 2,
         "role_count": 2
       },
       "presentation_class": "experimental",
+      "primary_lane": "experimental",
       "related_surfaces": [],
       "role_tags": [
         "guarded_seam",
@@ -796,6 +839,7 @@
     },
     {
       "candidate_split_axes": [],
+      "default_surface_role": "experimental",
       "evidence": [
         "dead private functions: 4",
         "dead private lines: 4",
@@ -825,6 +869,7 @@
         "role_count": 0
       },
       "presentation_class": "experimental",
+      "primary_lane": "experimental",
       "related_surfaces": [],
       "role_tags": [],
       "scope": "src/components/review-panel/ReviewPanelToolbar.tsx",
@@ -840,6 +885,7 @@
     },
     {
       "candidate_split_axes": [],
+      "default_surface_role": "experimental",
       "evidence": [
         "dead private functions: 3",
         "dead private lines: 29",
@@ -869,6 +915,7 @@
         "role_count": 2
       },
       "presentation_class": "experimental",
+      "primary_lane": "experimental",
       "related_surfaces": [],
       "role_tags": [
         "guarded_seam",
@@ -900,7 +947,7 @@
   "pass": true,
   "resolved_findings": [],
   "scan_trust": {
-    "candidate_files": 1001,
+    "candidate_files": 1002,
     "exclusions": {
       "bucketed": {
         "build": 12,
@@ -915,25 +962,47 @@
       "total": 140
     },
     "fallback_reason": null,
-    "kept_files": 861,
+    "kept_files": 862,
     "mode": "git",
-    "overall_confidence_0_10000": 8601,
+    "overall_confidence_0_10000": 8603,
     "partial": false,
     "resolution": {
       "internal_confidence_0_10000": 9996,
-      "resolved": 2794,
+      "resolved": 2798,
       "unresolved_external": 795,
       "unresolved_internal": 1,
       "unresolved_unknown": 114
     },
-    "scope_coverage_0_10000": 8601,
-    "tracked_candidates": 1001,
+    "scope_coverage_0_10000": 8603,
+    "tracked_candidates": 1002,
     "truncated": false,
     "untracked_candidates": 0
   },
   "signal_after": 4215,
   "signal_before": 4215,
   "signal_delta": 0,
+  "signal_summary": {
+    "action_quality": {
+      "complete_action_count": 0,
+      "incomplete_action_count": 0,
+      "top_action_blocking": false,
+      "top_action_complete": false,
+      "top_action_completeness_0_10000": null,
+      "top_action_leverage_class": null,
+      "top_action_presentation_class": null,
+      "top_action_source": null
+    },
+    "clear_to_stop": true,
+    "introduced_clone_propagation_drift_count": 0,
+    "introduced_finding_count": 0,
+    "introduced_session_clone_count": 0,
+    "introduced_touched_clone_family_count": 0,
+    "missing_exhaustiveness_obligation_count": 0,
+    "missing_propagation_obligation_count": 0,
+    "net_new_finding_count": 0,
+    "regression_detected": false,
+    "resolved_finding_count": 0
+  },
   "summary": "Quality stable or improved",
   "suppressed_finding_count": 0,
   "suppression_hits": [],
@@ -950,7 +1019,14 @@
         "guarded boundary cut"
       ],
       "clone_family_count": 0,
+      "default_surface_role": "supporting_watchpoint",
       "evidence": [
+        "edge basis: mixed",
+        "internal edge counts: import 114, interaction/call 52",
+        "import-cycle evidence: present",
+        "interaction-cycle evidence: present",
+        "representative import edges: src/app/task-command-lease-runtime-subscriptions.ts -> src/app/task-command-lease-takeover.ts; src/app/task-command-lease-runtime-subscriptions.ts -> src/lib/runtime-client-id.ts; src/app/task-command-lease-runtime-subscriptions.ts -> src/store/task-command-controllers.ts",
+        "representative interaction/call edges: src/app/task-command-lease-runtime-subscriptions.ts -> src/app/task-command-lease-takeover.ts; src/app/task-command-lease-runtime-subscriptions.ts -> src/lib/runtime-client-id.ts; src/app/task-command-lease-runtime-subscriptions.ts -> src/store/task-command-controllers.ts",
         "cycle size: 36",
         "total lines in cycle: 7153",
         "peak function complexity inside cycle: 72",
@@ -997,10 +1073,10 @@
         "src/store/ui.ts"
       ],
       "hotspot_count": 0,
-      "impact": "The cycle touches a component-facing barrel, which makes it harder to keep broad component access separate from deeper app and runtime seams.",
+      "impact": "The cycle mixes hard import edges with looser call/interaction edges, so the import edges are the higher-confidence cut points while the wider cluster stays a layering watchpoint.",
       "inspection_focus": [
-        "inspect whether the best cut keeps component-facing barrel access while moving deeper orchestration behind a narrower seam",
-        "inspect whether app or runtime dependencies can stop flowing back through the shared barrel"
+        "inspect import-edge cut candidates before acting on the wider interaction cluster",
+        "separate hard dependency repairs from softer runtime interaction watchpoints"
       ],
       "kind": "cycle_cluster",
       "leverage_class": "architecture_signal",
@@ -1013,6 +1089,7 @@
       ],
       "missing_site_count": 0,
       "presentation_class": "watchpoint",
+      "primary_lane": "maintainer_watchpoint",
       "related_surfaces": [
         "src/store/core.ts",
         "src/store/store.ts",
@@ -1029,13 +1106,14 @@
         "component_barrel"
       ],
       "scope": "cycle:src/app/task-command-lease-runtime-subscriptions.ts|src/app/task-command-lease-runtime.ts|src/app/task-command-lease-session.ts|src/app/task-command-lease-takeover.ts|src/app/task-command-lease.ts|src/app/task-presentation-status.ts|src/lib/runtime-client-id.ts|src/store/agent-output-activity.ts|src/store/agents.ts|src/store/auto-trust.ts|src/store/browser-cold-bootstrap-projection.ts|src/store/client-session.ts|src/store/completion.ts|src/store/core.ts|src/store/focus.ts|src/store/navigation.ts|src/store/notification.ts|src/store/peer-presence.ts|src/store/persistence-codecs.ts|src/store/persistence-load.ts|src/store/persistence-save.ts|src/store/persistence-terminal-restore.ts|src/store/persistence.ts|src/store/projects.ts|src/store/review.ts|src/store/sidebar-order.ts|src/store/state.ts|src/store/store.ts|src/store/task-command-controllers.ts|src/store/task-command-takeovers.ts|src/store/task-git-status.ts|src/store/task-state-cleanup.ts|src/store/taskStatus.ts|src/store/tasks.ts|src/store/terminals.ts|src/store/ui.ts",
-      "score_0_10000": 10000,
+      "score_0_10000": 7800,
       "severity": "high",
       "signal_families": [
         "dependency",
-        "layering"
+        "layering",
+        "mixed_cycle"
       ],
-      "summary": "Files src/app/task-command-lease-runtime-subscriptions.ts, src/app/task-command-lease-runtime.ts, src/app/task-command-lease-session.ts, src/app/task-command-lease-takeover.ts, src/app/task-command-lease.ts, src/app/task-presentation-status.ts, src/lib/runtime-client-id.ts, src/store/agent-output-activity.ts, src/store/agents.ts, src/store/auto-trust.ts, src/store/browser-cold-bootstrap-projection.ts, src/store/client-session.ts, src/store/completion.ts, src/store/core.ts, src/store/focus.ts, src/store/navigation.ts, src/store/notification.ts, src/store/peer-presence.ts, src/store/persistence-codecs.ts, src/store/persistence-load.ts, src/store/persistence-save.ts, src/store/persistence-terminal-restore.ts, src/store/persistence.ts, src/store/projects.ts, src/store/review.ts, src/store/sidebar-order.ts, src/store/state.ts, src/store/store.ts, src/store/task-command-controllers.ts, src/store/task-command-takeovers.ts, src/store/task-git-status.ts, src/store/task-state-cleanup.ts, src/store/taskStatus.ts, src/store/tasks.ts, src/store/terminals.ts, src/store/ui.ts form a dependency cycle",
+      "summary": "Files src/app/task-command-lease-runtime-subscriptions.ts, src/app/task-command-lease-runtime.ts, src/app/task-command-lease-session.ts, src/app/task-command-lease-takeover.ts, src/app/task-command-lease.ts, src/app/task-presentation-status.ts, src/lib/runtime-client-id.ts, src/store/agent-output-activity.ts, src/store/agents.ts, src/store/auto-trust.ts, src/store/browser-cold-bootstrap-projection.ts, src/store/client-session.ts, src/store/completion.ts, src/store/core.ts, src/store/focus.ts, src/store/navigation.ts, src/store/notification.ts, src/store/peer-presence.ts, src/store/persistence-codecs.ts, src/store/persistence-load.ts, src/store/persistence-save.ts, src/store/persistence-terminal-restore.ts, src/store/persistence.ts, src/store/projects.ts, src/store/review.ts, src/store/sidebar-order.ts, src/store/state.ts, src/store/store.ts, src/store/task-command-controllers.ts, src/store/task-command-takeovers.ts, src/store/task-git-status.ts, src/store/task-state-cleanup.ts, src/store/taskStatus.ts, src/store/tasks.ts, src/store/terminals.ts, src/store/ui.ts form a mixed import/interaction cycle",
       "trust_tier": "watchpoint"
     },
     {
@@ -1044,7 +1122,14 @@
         "local module split"
       ],
       "clone_family_count": 0,
+      "default_surface_role": "supporting_watchpoint",
       "evidence": [
+        "edge basis: mixed",
+        "internal edge counts: import 2, interaction/call 2",
+        "import-cycle evidence: present",
+        "interaction-cycle evidence: present",
+        "representative import edges: electron/ipc/handlers.ts -> electron/ipc/notification-handlers.ts; electron/ipc/notification-handlers.ts -> electron/ipc/handlers.ts",
+        "representative interaction/call edges: electron/ipc/handlers.ts -> electron/ipc/notification-handlers.ts; electron/ipc/notification-handlers.ts -> electron/ipc/handlers.ts",
         "cycle size: 2",
         "total lines in cycle: 174",
         "peak function complexity inside cycle: 5",
@@ -1057,10 +1142,10 @@
         "electron/ipc/notification-handlers.ts"
       ],
       "hotspot_count": 0,
-      "impact": "The cycle prevents clean layering and makes initialization order and refactors harder to isolate.",
+      "impact": "The cycle mixes hard import edges with looser call/interaction edges, so the import edges are the higher-confidence cut points while the wider cluster stays a layering watchpoint.",
       "inspection_focus": [
-        "inspect whether one back-edge can be removed by splitting contracts from implementations",
-        "inspect whether shared types can move to a lower-dependency seam"
+        "inspect import-edge cut candidates before acting on the wider interaction cluster",
+        "separate hard dependency repairs from softer runtime interaction watchpoints"
       ],
       "kind": "cycle_cluster",
       "leverage_class": "architecture_signal",
@@ -1070,19 +1155,21 @@
       ],
       "missing_site_count": 0,
       "presentation_class": "watchpoint",
+      "primary_lane": "maintainer_watchpoint",
       "related_surfaces": [
         "electron/ipc/handlers.ts",
         "electron/ipc/notification-handlers.ts"
       ],
       "role_tags": [],
       "scope": "cycle:electron/ipc/handlers.ts|electron/ipc/notification-handlers.ts",
-      "score_0_10000": 6832,
-      "severity": "high",
+      "score_0_10000": 5632,
+      "severity": "medium",
       "signal_families": [
         "dependency",
-        "layering"
+        "layering",
+        "mixed_cycle"
       ],
-      "summary": "Files electron/ipc/handlers.ts, electron/ipc/notification-handlers.ts form a dependency cycle",
+      "summary": "Files electron/ipc/handlers.ts, electron/ipc/notification-handlers.ts form a mixed import/interaction cycle",
       "trust_tier": "watchpoint"
     }
   ]
