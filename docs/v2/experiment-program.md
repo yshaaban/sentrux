@@ -1,6 +1,6 @@
 # Sentrux V2 Experiment Program
 
-Last audited: 2026-04-19
+Last audited: 2026-04-24
 
 ## Purpose
 
@@ -92,6 +92,13 @@ The experiment infrastructure is now good enough to carry the narrowed program, 
 - the default lane is more coherent than before, but it is not yet proven to improve repair behavior consistently
 - `large_file` remains contested, but it is simple enough and often useful enough that it should be tested as a serious retained candidate rather than presumed demotion
 - the active work should now concentrate on default-lane family mix and `large_file` admissibility only
+
+Current implementation checkpoint:
+
+- JS report selection and the Rust MCP agent brief now both consume the same default-lane policy cap, eligible sources, and per-kind guardrails.
+- The generated experiment tracker now reports variant run coverage, metric means, paired `current_policy` comparisons, evidence state, and primary-metric deltas.
+- `session_end` finding surfaces now carry repair packets, so review and agent loops can measure repairability on introduced findings instead of only on promoted actions.
+- The current generated tracker still reports `fresh_runs_required` for both active experiments. The infrastructure is ready, but no phase-6 product decision should be made until fixed-matrix run artifacts exist for `sentrux`, `parallel-code`, and `one-tool`.
 
 ## Active Questions
 
@@ -212,12 +219,12 @@ Primary metrics:
 - `task_success_rate`
 - `patch_expansion_rate`
 - `intervention_net_value_score`
-- `reviewer_disagreement_rate`
 
 Secondary metrics:
 
 - `ranking_miss_count`
 - `reviewed_precision`
+- `reviewer_disagreement_rate`
 - `repair_packet_complete_rate`
 - `repair_packet_fix_surface_clear_rate`
 - `repair_packet_verification_clear_rate`
@@ -264,10 +271,11 @@ Demote `large_file` if:
 The tracker should move in this order:
 
 1. screening variants defined and dry-run clean
-2. all control-arm repo runs present
-3. screening evidence captured on all three repos
-4. confirmation shortlist recorded
-5. decision recorded in the ledger
+2. generated tracker shows every active variant and paired `current_policy` comparison
+3. all control-arm repo runs present
+4. screening evidence captured on all three repos
+5. confirmation shortlist recorded
+6. decision recorded in the ledger
 
 The stage tracker is not complete when a spec exists. It is complete only when the checked-in tracker, run artifacts, and decision ledger all agree.
 
