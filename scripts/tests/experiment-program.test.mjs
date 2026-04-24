@@ -488,6 +488,163 @@ test('buildExperimentTracker marks runs completed when all expected artifacts ex
   }
 });
 
+test('buildExperimentTracker compares completed variants against the control arm', async function () {
+  const tempRoot = await mkdtemp(path.join(tmpdir(), 'sentrux-experiment-control-'));
+
+  try {
+    const repoRootPath = path.join(tempRoot, 'workspace');
+    const targetRepoRoot = path.join(tempRoot, 'target-repo');
+    const experimentsDir = path.join(repoRootPath, 'docs', 'v2', 'evals', 'experiments');
+    const reposDir = path.join(repoRootPath, 'docs', 'v2', 'evals', 'repos');
+    const indexPath = path.join(experimentsDir, 'index.json');
+    const experimentSpecPath = path.join(experimentsDir, 'default-lane.json');
+    const calibrationManifestPath = path.join(reposDir, 'demo.json');
+    const controlOutputDir = path.join(
+      targetRepoRoot,
+      '.sentrux',
+      'evals',
+      'experiments',
+      'default-lane',
+      'current_policy',
+      'demo',
+    );
+    const treatedOutputDir = path.join(
+      targetRepoRoot,
+      '.sentrux',
+      'evals',
+      'experiments',
+      'default-lane',
+      'core_plus_large_file',
+      'demo',
+    );
+
+    await mkdir(targetRepoRoot, { recursive: true });
+    await writeLoopRunner(repoRootPath);
+    await writeSignalPolicy(repoRootPath);
+    await writeJson(indexPath, {
+      schema_version: 1,
+      generated_at: '2026-04-19T00:00:00.000Z',
+      experiments: [
+        {
+          experiment_id: 'default-lane',
+          path: './default-lane.json',
+        },
+      ],
+    });
+    await writeJson(calibrationManifestPath, buildDemoCalibrationManifest());
+    await writeJson(experimentSpecPath, buildExperimentSpec({
+      experiment_id: 'default-lane',
+      title: 'Default Lane',
+      workstream: 'default_lane',
+      status: 'in_progress',
+      phase_id: 'phase_6_default_lane_family_ablation',
+      decision_question: 'Which family mix wins against current_policy?',
+      hypothesis: 'Variant summaries should expose outcome deltas for shortlist review.',
+      primary_metrics: ['top_action_help_rate', 'patch_expansion_rate'],
+      secondary_metrics: ['task_success_rate'],
+      exit_bar: ['Compare variant outcomes against the control arm.'],
+      variants: [
+        {
+          variant_id: 'current_policy',
+          name: 'Current policy',
+          status: 'active',
+          description: 'Current behavior.',
+        },
+        {
+          variant_id: 'core_plus_large_file',
+          name: 'Core plus large file',
+          status: 'screening',
+          description: 'Allow large_file when it has a concrete repair surface.',
+          policy_override: {
+            default_lane: {
+              kind_rules: {
+                large_file: {
+                  eligible: true,
+                  require_repair_surface: true,
+                },
+              },
+            },
+          },
+        },
+      ],
+      repo_runs: [
+        {
+          run_id: 'demo-current',
+          repo_id: 'demo',
+          variant_id: 'current_policy',
+          manifest: '../repos/demo.json',
+          output_dir: '.sentrux/evals/experiments/default-lane/current_policy/demo',
+          artifact_expectations: ['repo_calibration_loop', 'evidence_review', 'session_corpus'],
+        },
+        {
+          run_id: 'demo-core-plus-large-file',
+          repo_id: 'demo',
+          variant_id: 'core_plus_large_file',
+          manifest: '../repos/demo.json',
+          output_dir: '.sentrux/evals/experiments/default-lane/core_plus_large_file/demo',
+          artifact_expectations: ['repo_calibration_loop', 'evidence_review', 'session_corpus'],
+        },
+      ],
+    }));
+
+    await writeJson(path.join(controlOutputDir, 'repo-calibration-loop.json'), {
+      schema_version: 1,
+      generated_at: '2026-04-19T02:00:00.000Z',
+      summary: {
+        top_action_help_rate: 0.25,
+        patch_expansion_rate: 0.4,
+        task_success_rate: 0.5,
+        reviewed_precision: 0.5,
+      },
+    });
+    await writeJson(path.join(controlOutputDir, 'evidence-review.json'), { schema_version: 1 });
+    await writeJson(path.join(controlOutputDir, 'session-corpus.json'), { schema_version: 1 });
+    await writeJson(path.join(treatedOutputDir, 'repo-calibration-loop.json'), {
+      schema_version: 1,
+      generated_at: '2026-04-19T02:05:00.000Z',
+      summary: {
+        top_action_help_rate: 0.75,
+        patch_expansion_rate: 0.2,
+        task_success_rate: 0.75,
+        reviewed_precision: 1,
+      },
+    });
+    await writeJson(path.join(treatedOutputDir, 'evidence-review.json'), { schema_version: 1 });
+    await writeJson(path.join(treatedOutputDir, 'session-corpus.json'), { schema_version: 1 });
+
+    const tracker = await buildExperimentTracker({
+      indexPath,
+      repoRootPath,
+    });
+    const markdown = formatExperimentTrackerMarkdown(tracker);
+    const experiment = tracker.experiments[0];
+    const comparison = experiment.control_comparisons[0];
+
+    assert.equal(experiment.evidence_state, 'shortlist_review_required');
+    assert.equal(experiment.variant_summaries[1].completed_run_count, 1);
+    assert.equal(comparison.variant_id, 'core_plus_large_file');
+    assert.equal(comparison.recommendation, 'shortlist_candidate');
+    assert.equal(comparison.paired_repo_count, 1);
+    assert.equal(
+      comparison.metric_deltas.top_action_help_rate.improvement_delta_mean,
+      0.5,
+    );
+    assert.equal(
+      comparison.metric_deltas.patch_expansion_rate.improvement_delta_mean,
+      0.2,
+    );
+    assert.equal(
+      comparison.metric_deltas.reviewed_precision.improvement_delta_mean,
+      0.5,
+    );
+    assert.match(markdown, /evidence state: shortlist_review_required/);
+    assert.match(markdown, /core_plus_large_file vs current_policy: shortlist_candidate/);
+    assert.match(markdown, /patch_expansion_rate=\+0.200/);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test('buildExperimentTracker treats skipped expected artifacts as satisfied by flag policy', async function () {
   const tempRoot = await mkdtemp(path.join(tmpdir(), 'sentrux-experiment-skips-'));
 

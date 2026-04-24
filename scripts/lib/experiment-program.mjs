@@ -49,12 +49,35 @@ const SUMMARY_METRIC_KEYS = [
   'patch_expansion_rate',
   'intervention_net_value_score',
   'ranking_miss_count',
+  'reviewed_precision',
+  'top_1_actionable_precision',
+  'top_3_actionable_precision',
   'promotion_candidate_count',
   'demotion_candidate_count',
   'reviewer_disagreement_rate',
+  'review_noise_rate',
   'repair_packet_complete_rate',
+  'repair_packet_fix_surface_clear_rate',
+  'repair_packet_verification_clear_rate',
   'remediation_success_rate',
+  'default_lane_primary_action_count',
+  'default_lane_primary_action_over_cap_count',
+  'large_file_primary_slot_count',
+  'large_file_primary_slot_rate',
+  'large_file_crowd_out_count',
+  'large_file_crowd_out_rate',
 ];
+const LOWER_IS_BETTER_METRICS = new Set([
+  'patch_expansion_rate',
+  'ranking_miss_count',
+  'demotion_candidate_count',
+  'reviewer_disagreement_rate',
+  'review_noise_rate',
+  'intervention_cost_checks_mean',
+  'default_lane_primary_action_over_cap_count',
+  'large_file_crowd_out_count',
+  'large_file_crowd_out_rate',
+]);
 const DEFAULT_LANE_SOURCES = new Set([
   'obligation',
   'rules',
@@ -847,6 +870,68 @@ function appendMetricSummary(lines, metrics, prefix) {
   lines.push(`${prefix}${formatMetrics(metrics)}`);
 }
 
+function formatMetricDeltaValue(delta) {
+  if (!delta) {
+    return 'n/a';
+  }
+
+  return `${delta.improvement_delta_mean >= 0 ? '+' : ''}${formatMetricValue(
+    delta.improvement_delta_mean,
+  )}`;
+}
+
+function formatPrimaryMetricDeltas(comparison, primaryMetricKeys) {
+  const entries = [];
+  for (const metricKey of primaryMetricKeys) {
+    const delta = comparison.metric_deltas?.[metricKey];
+    if (!delta) {
+      continue;
+    }
+    entries.push(`${metricKey}=${formatMetricDeltaValue(delta)}`);
+  }
+
+  return entries.join(', ');
+}
+
+function appendVariantSummaries(lines, experiment) {
+  if (!Array.isArray(experiment.variant_summaries) || experiment.variant_summaries.length === 0) {
+    return;
+  }
+
+  lines.push('- variant summaries:');
+  for (const variant of experiment.variant_summaries) {
+    lines.push(
+      `  - ${variant.variant_id}: ${variant.completed_run_count}/${variant.run_count} runs completed`,
+    );
+    appendMetricSummary(lines, variant.metric_means, '    mean metrics: ');
+  }
+  lines.push('');
+}
+
+function appendControlComparisons(lines, experiment) {
+  if (!Array.isArray(experiment.control_comparisons) || experiment.control_comparisons.length === 0) {
+    return;
+  }
+
+  lines.push('- control comparisons:');
+  for (const comparison of experiment.control_comparisons) {
+    const primaryDeltas = formatPrimaryMetricDeltas(
+      comparison,
+      experiment.primary_metrics ?? [],
+    );
+    const pairedRepoSummary = comparison.expected_repo_count
+      ? `${comparison.paired_repo_count}/${comparison.expected_repo_count}`
+      : String(comparison.paired_repo_count);
+    lines.push(
+      `  - ${comparison.variant_id} vs ${comparison.control_variant_id}: ${comparison.recommendation}, paired repos ${pairedRepoSummary}`,
+    );
+    if (primaryDeltas) {
+      lines.push(`    primary deltas: ${primaryDeltas}`);
+    }
+  }
+  lines.push('');
+}
+
 function collectGeneratedAtValues(runStates) {
   const generatedAtValues = [];
   for (const state of runStates) {
@@ -854,6 +939,323 @@ function collectGeneratedAtValues(runStates) {
   }
 
   return generatedAtValues;
+}
+
+function uniqueMetricKeys(spec) {
+  return [
+    ...new Set([
+      ...asMetricArray(spec.primary_metrics),
+      ...asMetricArray(spec.secondary_metrics),
+      ...SUMMARY_METRIC_KEYS,
+    ]),
+  ];
+}
+
+function asMetricArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function numericMetric(value) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function metricDirection(metricKey) {
+  return LOWER_IS_BETTER_METRICS.has(metricKey) ? 'lower_is_better' : 'higher_is_better';
+}
+
+function mean(values) {
+  if (values.length === 0) {
+    return null;
+  }
+
+  return values.reduce(function sumValues(total, value) {
+    return total + value;
+  }, 0) / values.length;
+}
+
+function completedRunStates(runStates) {
+  return runStates.filter(function runIsCompleted(state) {
+    return state?.artifact_state === 'completed';
+  });
+}
+
+function buildMetricMeans(runStates, metricKeys) {
+  const metrics = {};
+  const completedStates = completedRunStates(runStates);
+
+  for (const metricKey of metricKeys) {
+    const values = completedStates
+      .map(function metricValue(state) {
+        return numericMetric(state?.metrics?.[metricKey]);
+      })
+      .filter(function isNumericMetric(value) {
+        return value !== null;
+      });
+
+    if (values.length > 0) {
+      metrics[metricKey] = mean(values);
+    }
+  }
+
+  return metrics;
+}
+
+function buildRunStateEntries(runs, runStates) {
+  return runs.map(function buildEntry(run) {
+    return {
+      run,
+      state: findRunState(runStates, run.run_id),
+    };
+  });
+}
+
+function buildVariantRunEntries(entries, variantId) {
+  return entries.filter(function entryMatchesVariant(entry) {
+    return entry.run.variant_id === variantId;
+  });
+}
+
+function repoIdsForEntries(entries) {
+  return [
+    ...new Set(
+      entries.map(function repoId(entry) {
+        return entry.run.repo_id;
+      }),
+    ),
+  ].sort();
+}
+
+function completedRepoIdsForEntries(entries) {
+  return [
+    ...new Set(
+      entries
+        .filter(function entryCompleted(entry) {
+          return entry.state?.artifact_state === 'completed';
+        })
+        .map(function repoId(entry) {
+          return entry.run.repo_id;
+        }),
+    ),
+  ].sort();
+}
+
+function buildArtifactStateCountsForEntries(entries) {
+  const counts = buildRunArtifactCounts();
+  for (const entry of entries) {
+    const artifactState = entry.state?.artifact_state ?? 'not_started';
+    if (counts[artifactState] !== undefined) {
+      counts[artifactState] += 1;
+    }
+  }
+
+  return counts;
+}
+
+function buildVariantSummaries(spec, runs, runStates) {
+  const metricKeys = uniqueMetricKeys(spec);
+  const entries = buildRunStateEntries(runs, runStates);
+
+  return spec.variants.map(function buildVariantSummary(variant) {
+    const variantEntries = buildVariantRunEntries(entries, variant.variant_id);
+    const variantStates = variantEntries.map(function variantState(entry) {
+      return entry.state;
+    });
+    const completedRunCount = variantStates.filter(function variantRunCompleted(state) {
+      return state?.artifact_state === 'completed';
+    }).length;
+
+    return {
+      variant_id: variant.variant_id,
+      variant_name: variant.name,
+      variant_status: variant.status ?? null,
+      run_count: variantEntries.length,
+      completed_run_count: completedRunCount,
+      repo_ids: repoIdsForEntries(variantEntries),
+      completed_repo_ids: completedRepoIdsForEntries(variantEntries),
+      artifact_state_counts: buildArtifactStateCountsForEntries(variantEntries),
+      metric_means: buildMetricMeans(variantStates, metricKeys),
+    };
+  });
+}
+
+function buildCompletedEntryByRepo(entries) {
+  const byRepo = new Map();
+  for (const entry of entries) {
+    if (entry.state?.artifact_state !== 'completed') {
+      continue;
+    }
+    if (!byRepo.has(entry.run.repo_id)) {
+      byRepo.set(entry.run.repo_id, entry);
+    }
+  }
+
+  return byRepo;
+}
+
+function averageMetricDelta(pairedEntries, metricKey) {
+  const rawDeltas = [];
+  const improvementDeltas = [];
+  const direction = metricDirection(metricKey);
+
+  for (const pair of pairedEntries) {
+    const controlValue = numericMetric(pair.control.state?.metrics?.[metricKey]);
+    const variantValue = numericMetric(pair.variant.state?.metrics?.[metricKey]);
+    if (controlValue === null || variantValue === null) {
+      continue;
+    }
+
+    const rawDelta = variantValue - controlValue;
+    rawDeltas.push(rawDelta);
+    improvementDeltas.push(
+      direction === 'lower_is_better' ? controlValue - variantValue : rawDelta,
+    );
+  }
+
+  if (rawDeltas.length === 0) {
+    return null;
+  }
+
+  return {
+    direction,
+    pair_count: rawDeltas.length,
+    raw_delta_mean: mean(rawDeltas),
+    improvement_delta_mean: mean(improvementDeltas),
+  };
+}
+
+function buildMetricDeltas(pairedEntries, metricKeys) {
+  const metricDeltas = {};
+  for (const metricKey of metricKeys) {
+    const delta = averageMetricDelta(pairedEntries, metricKey);
+    if (delta) {
+      metricDeltas[metricKey] = delta;
+    }
+  }
+
+  return metricDeltas;
+}
+
+function classifyPrimaryMetricDeltas(metricDeltas, primaryMetricKeys) {
+  let improved = 0;
+  let regressed = 0;
+  let unchanged = 0;
+
+  for (const metricKey of primaryMetricKeys) {
+    const delta = metricDeltas[metricKey];
+    if (!delta) {
+      continue;
+    }
+    if (delta.improvement_delta_mean > 0) {
+      improved += 1;
+      continue;
+    }
+    if (delta.improvement_delta_mean < 0) {
+      regressed += 1;
+      continue;
+    }
+
+    unchanged += 1;
+  }
+
+  return {
+    improved,
+    regressed,
+    unchanged,
+  };
+}
+
+function variantRecommendation(primaryDeltaCounts, pairedRepoCount) {
+  if (pairedRepoCount === 0) {
+    return 'insufficient_evidence';
+  }
+  if (primaryDeltaCounts.improved > 0 && primaryDeltaCounts.regressed === 0) {
+    return 'shortlist_candidate';
+  }
+  if (primaryDeltaCounts.regressed > 0 && primaryDeltaCounts.improved === 0) {
+    return 'reject_candidate';
+  }
+  if (primaryDeltaCounts.improved === 0 && primaryDeltaCounts.regressed === 0) {
+    return 'no_measured_lift';
+  }
+
+  return 'mixed_evidence';
+}
+
+function buildControlComparisons(spec, runs, runStates) {
+  const controlVariantId = spec.control_variant_id;
+  if (!controlVariantId) {
+    return [];
+  }
+
+  const entries = buildRunStateEntries(runs, runStates);
+  const metricKeys = uniqueMetricKeys(spec);
+  const primaryMetricKeys = asMetricArray(spec.primary_metrics);
+  const controlEntries = buildCompletedEntryByRepo(
+    buildVariantRunEntries(entries, controlVariantId),
+  );
+  const comparisons = [];
+
+  for (const variant of spec.variants) {
+    if (variant.variant_id === controlVariantId) {
+      continue;
+    }
+
+    const variantEntries = buildCompletedEntryByRepo(
+      buildVariantRunEntries(entries, variant.variant_id),
+    );
+    const pairedEntries = [];
+    for (const [repoId, variantEntry] of variantEntries.entries()) {
+      const controlEntry = controlEntries.get(repoId);
+      if (!controlEntry) {
+        continue;
+      }
+      pairedEntries.push({
+        repo_id: repoId,
+        control: controlEntry,
+        variant: variantEntry,
+      });
+    }
+
+    const metricDeltas = buildMetricDeltas(pairedEntries, metricKeys);
+    const primaryDeltaCounts = classifyPrimaryMetricDeltas(
+      metricDeltas,
+      primaryMetricKeys,
+    );
+
+    comparisons.push({
+      variant_id: variant.variant_id,
+      variant_name: variant.name,
+      control_variant_id: controlVariantId,
+      expected_repo_count: asMetricArray(spec.repo_scope).length || null,
+      paired_repo_count: pairedEntries.length,
+      paired_repo_ids: pairedEntries.map(function pairedRepoId(pair) {
+        return pair.repo_id;
+      }).sort(),
+      primary_metric_delta_counts: primaryDeltaCounts,
+      recommendation: variantRecommendation(primaryDeltaCounts, pairedEntries.length),
+      metric_deltas: metricDeltas,
+    });
+  }
+
+  return comparisons;
+}
+
+function deriveExperimentEvidenceState(runStatusCounts, runCount, controlComparisons) {
+  if (runStatusCounts.completed < runCount) {
+    return 'fresh_runs_required';
+  }
+  if (controlComparisons.length === 0) {
+    return 'decision_review_required';
+  }
+  if (
+    controlComparisons.some(function comparisonMissingPairs(comparison) {
+      return comparison.paired_repo_count === 0;
+    })
+  ) {
+    return 'control_pairs_missing';
+  }
+
+  return 'shortlist_review_required';
 }
 
 function deriveExperimentNextGate(spec, runStatusCounts, runCount, decisionRecordPresent) {
@@ -1176,6 +1578,8 @@ export async function buildExperimentTracker({ indexPath, repoRootPath }) {
       }
     }
 
+    const variantSummaries = buildVariantSummaries(plan.spec, plan.runs, runStates);
+    const controlComparisons = buildControlComparisons(plan.spec, plan.runs, runStates);
     const latestEvidenceAt = maxIso(collectGeneratedAtValues(runStates));
     const decisionRecordPath = plan.spec.decision_record_path
       ? resolveManifestPath(plan.spec_path, plan.spec.decision_record_path)
@@ -1206,12 +1610,19 @@ export async function buildExperimentTracker({ indexPath, repoRootPath }) {
       total_runs: plan.runs.length,
       automated_runs: countAutomatedRuns(plan.runs),
       latest_evidence_at: latestEvidenceAt,
+      evidence_state: deriveExperimentEvidenceState(
+        runStatusCounts,
+        plan.runs.length,
+        controlComparisons,
+      ),
       next_gate: deriveExperimentNextGate(
         plan.spec,
         runStatusCounts,
         plan.runs.length,
         decisionRecordPresent,
       ),
+      variant_summaries: variantSummaries,
+      control_comparisons: controlComparisons,
       runs: plan.runs.map(function buildTrackerRunEntry(run) {
         const state = findRunState(runStates, run.run_id);
         return buildTrackerRun(run, state);
@@ -1291,6 +1702,7 @@ export function formatExperimentTrackerMarkdown(tracker) {
     lines.push(
       `- run coverage: ${experiment.run_status_counts.completed}/${experiment.total_runs} completed`,
     );
+    lines.push(`- evidence state: ${experiment.evidence_state}`);
     lines.push(`- next gate: ${experiment.next_gate}`);
     if (experiment.active_stage) {
       lines.push(
@@ -1316,6 +1728,9 @@ export function formatExperimentTrackerMarkdown(tracker) {
       }
       lines.push('');
     }
+
+    appendVariantSummaries(lines, experiment);
+    appendControlComparisons(lines, experiment);
 
     for (const run of experiment.runs) {
       lines.push(
