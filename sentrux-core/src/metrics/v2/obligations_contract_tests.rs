@@ -664,3 +664,72 @@ fn contract_missing_sites_prioritize_required_registry_and_dto_surfaces_before_d
         ]
     );
 }
+
+#[test]
+fn changed_config_surface_requires_inferred_concrete_sibling_surfaces() {
+    let config: RulesConfig = toml::from_str(
+        r#"
+                [[contract]]
+                id = "agent_guidance"
+                required_files = ["src/app/agent-guidance/agent-guidance-response.rs"]
+            "#,
+    )
+    .expect("rules config");
+    let semantic = SemanticSnapshot {
+        project: ProjectModel::default(),
+        analyzed_files: 4,
+        capabilities: vec![SemanticCapability::Symbols],
+        files: vec![
+            SemanticFileFact {
+                path: "src/app/agent-guidance/agent-guidance-response.rs".to_string(),
+                ..SemanticFileFact::default()
+            },
+            SemanticFileFact {
+                path: "src/app/agent-guidance/agent-guidance-registry.rs".to_string(),
+                ..SemanticFileFact::default()
+            },
+            SemanticFileFact {
+                path: "src/app/agent-guidance/agent-guidance-config.rs".to_string(),
+                ..SemanticFileFact::default()
+            },
+            SemanticFileFact {
+                path: "src/app/agent-guidance/index.ts".to_string(),
+                ..SemanticFileFact::default()
+            },
+        ],
+        symbols: Vec::new(),
+        reads: Vec::new(),
+        writes: Vec::new(),
+        closed_domains: Vec::new(),
+        closed_domain_sites: Vec::new(),
+        transition_sites: Vec::new(),
+    };
+    let changed_files =
+        BTreeSet::from(["src/app/agent-guidance/agent-guidance-config.rs".to_string()]);
+
+    let obligations =
+        build_obligations(&config, &semantic, ObligationScope::Changed, &changed_files);
+
+    let contract = obligations
+        .iter()
+        .find(|obligation| obligation.kind == "contract_surface_completeness")
+        .expect("contract obligation");
+    let missing_paths = contract
+        .missing_sites
+        .iter()
+        .map(|site| site.path.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        missing_paths,
+        vec![
+            "src/app/agent-guidance/agent-guidance-registry.rs",
+            "src/app/agent-guidance/index.ts",
+            "src/app/agent-guidance/agent-guidance-response.rs"
+        ]
+    );
+    assert!(contract
+        .satisfied_sites
+        .iter()
+        .any(|site| site.path == "src/app/agent-guidance/agent-guidance-config.rs"));
+    assert!(contract.summary.contains("agent-guidance-config.rs"));
+}

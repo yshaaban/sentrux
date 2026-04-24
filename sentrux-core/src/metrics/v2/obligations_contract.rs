@@ -124,6 +124,15 @@ fn contract_required_sites(
             target.detail,
         );
     }
+    for target in inferred_contract_sibling_file_targets(contract, semantic) {
+        push_contract_file_site(
+            &mut sites,
+            semantic,
+            Some(target.path),
+            target.kind,
+            target.detail,
+        );
+    }
 
     sort_contract_sites(sites)
 }
@@ -195,6 +204,57 @@ fn contract_required_file_targets(contract: &ContractRule) -> Vec<ContractFileTa
     );
 
     targets
+}
+
+fn inferred_contract_sibling_file_targets<'a>(
+    contract: &ContractRule,
+    semantic: &'a SemanticSnapshot,
+) -> Vec<ContractFileTarget<'a>> {
+    let explicit_paths = explicit_contract_surface_paths(contract);
+    if !explicit_paths
+        .iter()
+        .any(|path| contract_path_matches_family(&contract.id, path))
+    {
+        return Vec::new();
+    }
+
+    semantic
+        .files
+        .iter()
+        .filter(|file| !explicit_paths.contains(file.path.as_str()))
+        .filter(|file| is_contract_sibling_surface(contract, &file.path))
+        .map(|file| ContractFileTarget {
+            path: file.path.as_str(),
+            kind: "required_file",
+            detail: required_contract_file_detail(&file.path),
+        })
+        .collect()
+}
+
+fn explicit_contract_surface_paths(contract: &ContractRule) -> BTreeSet<String> {
+    let mut paths = BTreeSet::new();
+
+    for target in contract_required_symbol_targets(contract) {
+        if let Some(path) = scoped_symbol_path(target.scoped_symbol) {
+            paths.insert(path);
+        }
+    }
+    for target in contract_required_file_targets(contract) {
+        paths.insert(target.path.to_string());
+    }
+
+    paths
+}
+
+fn is_contract_sibling_surface(contract: &ContractRule, path: &str) -> bool {
+    if !contract_path_matches_family(&contract.id, path) {
+        return false;
+    }
+
+    matches!(
+        contract_required_surface_label(path),
+        Some("registry" | "public API" | "DTO" | "config")
+    )
 }
 
 fn contract_trigger_symbol_targets(contract: &ContractRule) -> Vec<&str> {
@@ -283,6 +343,11 @@ fn contract_trigger_paths(
     for path in contract_trigger_file_paths(contract) {
         paths.insert(path.to_string());
     }
+    paths.extend(
+        inferred_contract_sibling_file_targets(contract, semantic)
+            .into_iter()
+            .map(|target| target.path.to_string()),
+    );
     paths.extend(contract_related_concept_paths(config, contract));
     paths.extend(contract_related_semantic_paths(contract, semantic));
 
@@ -595,6 +660,26 @@ fn contract_required_surface_label(path: &str) -> Option<&'static str> {
     }
 
     None
+}
+
+fn contract_path_matches_family(contract_id: &str, path: &str) -> bool {
+    let contract_tokens = contract_family_tokens(contract_id);
+    if contract_tokens.is_empty() {
+        return false;
+    }
+
+    let path_tokens = contract_family_tokens(path);
+    contract_tokens
+        .iter()
+        .all(|contract_token| path_tokens.contains(contract_token))
+}
+
+fn contract_family_tokens(value: &str) -> BTreeSet<String> {
+    value
+        .split(|ch: char| !ch.is_ascii_alphanumeric())
+        .filter(|token| !token.is_empty())
+        .map(|token| token.to_ascii_lowercase())
+        .collect()
 }
 
 fn looks_like_contract_public_api_surface(lowered_path: &str) -> bool {
