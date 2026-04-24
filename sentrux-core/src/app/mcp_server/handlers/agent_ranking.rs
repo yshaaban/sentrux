@@ -168,7 +168,7 @@ fn issue_source_name(source: IssueSource) -> &'static str {
     }
 }
 
-fn issue_is_default_lane_eligible(issue: &AgentIssue) -> bool {
+pub(crate) fn issue_is_default_lane_eligible(issue: &AgentIssue) -> bool {
     if !default_lane_source_allowed(issue_source_name(issue.source)) {
         return false;
     }

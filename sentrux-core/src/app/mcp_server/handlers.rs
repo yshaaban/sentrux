@@ -90,9 +90,9 @@ pub(crate) mod test_support;
 mod view_support;
 
 pub(crate) use self::agent_format::{
-    actions_from_findings_and_obligations, issue_blocks_gate, issues_from_findings_and_obligations,
-    AgentAction, AgentGate, AgentIssue, CheckDiagnostics, IssueConfidence, IssueSource,
-    RepairPacket,
+    actions_from_findings_and_obligations, issue_blocks_gate, issue_is_default_lane_eligible,
+    issues_from_findings_and_obligations, AgentAction, AgentGate, AgentIssue, CheckDiagnostics,
+    IssueConfidence, IssueSource, RepairPacket,
 };
 pub(crate) use self::brief::agent_brief_def;
 pub use self::brief::cli_agent_brief;
@@ -143,7 +143,7 @@ pub(crate) use self::semantic_batch::{
 pub(crate) use self::session::prepare_patch_check_context;
 pub use self::session::{cli_evaluate_v2_gate, cli_save_v2_session};
 pub(crate) use self::session::{gate_def, session_end_def, session_start_def};
-pub(crate) use self::signal_policy::score_band_label;
+pub(crate) use self::signal_policy::{default_lane_action_limit, score_band_label};
 pub(crate) use self::view_support::{
     legacy_baseline_delta_json, optional_project_shape_json, project_shape_json_cached,
     project_shape_report_cached, scan_trust_json,

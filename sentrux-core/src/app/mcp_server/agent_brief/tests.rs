@@ -300,6 +300,127 @@ fn onboarding_brief_demotes_raw_clone_groups_below_more_fixable_targets() {
 }
 
 #[test]
+fn onboarding_brief_applies_default_lane_primary_action_cap() {
+    let brief = build_agent_brief(AgentBriefInput {
+        mode: AgentBriefMode::RepoOnboarding,
+        repo_shape: json!({
+            "primary_archetype": "sdk",
+            "effective_archetypes": ["sdk"],
+            "boundary_roots": [],
+            "starter_rules_toml": null,
+        }),
+        findings: vec![
+            json!({
+                "kind": "authoritative_import_bypass",
+                "scope": "api_client",
+                "severity": "high",
+                "summary": "api_client bypasses its canonical adapter",
+                "trust_tier": "trusted",
+                "presentation_class": "structural_debt",
+                "leverage_class": "boundary_discipline",
+                "likely_fix_sites": [{ "site": "src/api/client.ts" }],
+                "score_0_10000": 9600,
+                "files": ["src/api/client.ts"],
+            }),
+            json!({
+                "kind": "forbidden_writer",
+                "scope": "task_state",
+                "severity": "high",
+                "summary": "task_state is written outside the owner",
+                "trust_tier": "trusted",
+                "presentation_class": "structural_debt",
+                "leverage_class": "boundary_discipline",
+                "likely_fix_sites": [{ "site": "src/store/task-state.ts" }],
+                "score_0_10000": 9500,
+                "files": ["src/store/task-state.ts"],
+            }),
+            json!({
+                "kind": "dependency_sprawl",
+                "scope": "command_dispatch",
+                "severity": "high",
+                "summary": "command_dispatch fans out across too many owners",
+                "trust_tier": "trusted",
+                "presentation_class": "structural_debt",
+                "leverage_class": "architecture_signal",
+                "likely_fix_sites": [{ "site": "src/commands/dispatch.ts" }],
+                "score_0_10000": 9400,
+                "files": ["src/commands/dispatch.ts"],
+            }),
+            json!({
+                "kind": "large_file",
+                "scope": "src/components/task-panel.tsx",
+                "severity": "high",
+                "summary": "task-panel is over the size threshold",
+                "trust_tier": "trusted",
+                "presentation_class": "structural_debt",
+                "leverage_class": "architecture_signal",
+                "likely_fix_sites": [{ "site": "src/components/task-panel.tsx" }],
+                "score_0_10000": 9300,
+                "files": ["src/components/task-panel.tsx"],
+            }),
+        ],
+        experimental_findings: Vec::new(),
+        missing_obligations: Vec::new(),
+        watchpoints: Vec::new(),
+        resolved_findings: Vec::new(),
+        changed_files: Vec::new(),
+        changed_concepts: Vec::new(),
+        decision: None,
+        summary: None,
+        confidence: json!({ "scan_confidence_0_10000": 9300 }),
+        scan_trust: json!({ "overall_confidence_0_10000": 9300 }),
+        freshness: json!({ "baseline_loaded": true }),
+        strict: None,
+        limit: 10,
+    })
+    .expect("agent brief");
+
+    assert_eq!(brief["primary_target_count"], 3);
+}
+
+#[test]
+fn pre_merge_brief_does_not_reintroduce_policy_demoted_blockers() {
+    let brief = build_agent_brief(AgentBriefInput {
+        mode: AgentBriefMode::PreMerge,
+        repo_shape: json!({
+            "primary_archetype": "sdk",
+            "effective_archetypes": ["sdk"],
+            "boundary_roots": [],
+            "starter_rules_toml": null,
+        }),
+        findings: vec![json!({
+            "kind": "governance_readiness",
+            "scope": "release_gate",
+            "severity": "high",
+            "summary": "Release gate documentation is incomplete",
+            "trust_tier": "trusted",
+            "presentation_class": "structural_debt",
+            "leverage_class": "architecture_signal",
+            "likely_fix_sites": [{ "site": "docs/release.md" }],
+            "score_0_10000": 9900,
+            "files": ["docs/release.md"],
+        })],
+        experimental_findings: Vec::new(),
+        missing_obligations: Vec::new(),
+        watchpoints: Vec::new(),
+        resolved_findings: Vec::new(),
+        changed_files: vec!["docs/release.md".to_string()],
+        changed_concepts: Vec::new(),
+        decision: Some("fail".to_string()),
+        summary: None,
+        confidence: json!({ "scan_confidence_0_10000": 9300 }),
+        scan_trust: json!({ "overall_confidence_0_10000": 9300 }),
+        freshness: json!({ "baseline_loaded": true }),
+        strict: Some(true),
+        limit: 3,
+    })
+    .expect("agent brief");
+
+    assert_eq!(brief["decision"], "block");
+    assert_eq!(brief["primary_target_count"], 0);
+}
+
+#[test]
 fn shared_behavior_fixtures_keep_representative_primary_targets_stable() {
     let fixture = behavior_parity_fixture();
     let cases = fixture["rust_brief_cases"]

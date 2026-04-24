@@ -12,11 +12,15 @@ import {
   sortCandidates,
   uniqueByScope,
 } from './compare.mjs';
-import { scoreBandLabel } from '../signal-policy.mjs';
+import {
+  defaultLaneActionLimit,
+  defaultLaneEligibleSources,
+  defaultLaneKindRule,
+  scoreBandLabel,
+} from '../signal-policy.mjs';
 import { buildDefaultAgentLeadSignalKindSet, buildSignalMetadataLookup } from '../signal-cohorts.mjs';
 
 const SUMMARY_SLOT_LIMIT = 5;
-const DEFAULT_LANE_SLOT_LIMIT = 3;
 const DEFAULT_AGENT_LEAD_SIGNAL_KINDS = buildDefaultAgentLeadSignalKindSet();
 const DEFAULT_SIGNAL_METADATA = buildSignalMetadataLookup();
 const STRUCTURAL_PRESSURE_SIGNAL_KINDS = new Set([
@@ -178,6 +182,64 @@ function signalFamilyForCandidate(candidate, signalMetadata) {
   return signalMetadata?.signal_family ?? null;
 }
 
+function inferredSourceForKind(kind) {
+  if (
+    [
+      'incomplete_propagation',
+      'closed_domain_exhaustiveness',
+      'missing_obligation',
+    ].includes(kind)
+  ) {
+    return 'obligation';
+  }
+  if (
+    kind?.startsWith('forbidden_') ||
+    [
+      'authoritative_import_bypass',
+      'multi_writer_concept',
+      'writer_outside_allowlist',
+      'zero_config_boundary_violation',
+    ].includes(kind)
+  ) {
+    return 'rules';
+  }
+  if (
+    [
+      'session_introduced_clone',
+      'clone_propagation_drift',
+      'touched_clone_family',
+      'exact_clone_group',
+      'clone_group',
+      'clone_family',
+    ].includes(kind)
+  ) {
+    return 'clone';
+  }
+  if (STRUCTURAL_PRESSURE_SIGNAL_KINDS.has(kind)) {
+    return 'structural';
+  }
+
+  return null;
+}
+
+function defaultLaneSourceForCandidate(candidate, signalMetadata) {
+  const explicitSource =
+    candidate?.default_lane_source ??
+    candidate?.signal_source ??
+    candidate?.source ??
+    candidate?.source_kind;
+  if (typeof explicitSource === 'string' && explicitSource.length > 0) {
+    return explicitSource;
+  }
+
+  const signalFamily = signalFamilyForCandidate(candidate, signalMetadata);
+  if (['obligation', 'rules', 'clone', 'structural'].includes(signalFamily)) {
+    return signalFamily;
+  }
+
+  return inferredSourceForKind(candidate?.kind);
+}
+
 function isStructuralPressureCandidate(candidate, signalMetadata) {
   const signalFamily = signalFamilyForCandidate(candidate, signalMetadata);
   if (signalFamily === 'clone' || signalFamily === 'obligation' || signalFamily === 'rules') {
@@ -208,6 +270,27 @@ function candidatePatchDirectlyWorsened(candidate) {
   return directChangeCount !== null && directChangeCount > 0;
 }
 
+function candidateInChangedScope(candidate) {
+  if (
+    candidateBoolean(candidate, [
+      'changed_scope',
+      'in_changed_scope',
+      'patch_changed',
+      'touched_by_patch',
+      'current_patch_touched',
+    ])
+  ) {
+    return true;
+  }
+
+  const changedScopeCount = candidateNumber(candidate, [
+    'changed_scope_count',
+    'changed_file_count',
+    'patch_touched_count',
+  ]);
+  return changedScopeCount !== null && changedScopeCount > 0;
+}
+
 function candidateHasConcreteRepairSurface(candidate) {
   if (
     candidateBoolean(candidate, [
@@ -236,12 +319,40 @@ function candidateHasConcreteRepairSurface(candidate) {
   );
 }
 
+function defaultLanePolicyAllowsCandidate(candidate, signalMetadata) {
+  const allowedSources = defaultLaneEligibleSources();
+  const candidateSource = defaultLaneSourceForCandidate(candidate, signalMetadata);
+  if (!allowedSources.includes(candidateSource)) {
+    return false;
+  }
+
+  const kindRule = defaultLaneKindRule(candidate.kind) ?? {};
+  if (kindRule.eligible === false) {
+    return false;
+  }
+  if (kindRule.require_patch_directly_worsened && !candidatePatchDirectlyWorsened(candidate)) {
+    return false;
+  }
+  if (kindRule.require_repair_surface && !candidateHasConcreteRepairSurface(candidate)) {
+    return false;
+  }
+  if (kindRule.require_changed_scope && !candidateInChangedScope(candidate)) {
+    return false;
+  }
+
+  return true;
+}
+
 function isDefaultLaneCandidate(candidate) {
   if (!candidate) {
     return false;
   }
 
   const signalMetadata = signalMetadataForCandidate(candidate);
+  if (!defaultLanePolicyAllowsCandidate(candidate, signalMetadata)) {
+    return false;
+  }
+
   const primaryLane = candidate.primary_lane ?? signalMetadata?.primary_lane ?? null;
   const defaultSurfaceRole =
     candidate.default_surface_role ?? signalMetadata?.default_surface_role ?? null;
@@ -334,7 +445,13 @@ function selectDefaultLaneCandidates(allCandidates) {
       .filter((candidate) => isDefaultLaneCandidate(candidate))
       .sort(compareDefaultLaneCandidates),
     defaultLaneCompressionKey,
-  ).slice(0, DEFAULT_LANE_SLOT_LIMIT);
+  ).slice(0, defaultLaneActionLimit());
+}
+
+function policyEligibleSummaryBucket(candidates) {
+  return candidates.filter((candidate) =>
+    defaultLanePolicyAllowsCandidate(candidate, signalMetadataForCandidate(candidate)),
+  );
 }
 
 function collectCoveredScopes(buckets) {
@@ -372,11 +489,11 @@ function selectLeverageBuckets(findingsPayload) {
 
   if (summaryCandidates.length === 0) {
     summaryCandidates = selectSummaryCandidates([
-      architectureSignals,
-      localRefactorTargets,
-      boundaryDiscipline,
-      regrowthWatchpoints,
-      secondaryCleanup,
+      policyEligibleSummaryBucket(architectureSignals),
+      policyEligibleSummaryBucket(localRefactorTargets),
+      policyEligibleSummaryBucket(boundaryDiscipline),
+      policyEligibleSummaryBucket(regrowthWatchpoints),
+      policyEligibleSummaryBucket(secondaryCleanup),
     ]);
   }
   const selectedScopes = new Set(summaryCandidates.map((candidate) => candidate.scope));

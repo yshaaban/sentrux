@@ -13,7 +13,7 @@ use std::collections::BTreeMap;
 pub(crate) use super::agent_guidance::RepairPacket;
 pub(crate) use super::agent_ranking::{
     actions_from_findings_and_obligations, actions_from_issues, compare_agent_issues,
-    issue_blocks_gate, issues_from_findings_and_obligations,
+    issue_blocks_gate, issue_is_default_lane_eligible, issues_from_findings_and_obligations,
 };
 
 #[derive(Debug, Clone, Copy, Serialize, Eq, PartialEq)]

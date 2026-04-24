@@ -1,16 +1,23 @@
 use super::{
     render::target_from_issue, AgentBriefInput, AgentBriefMode, AgentBriefTarget, AgentIssue,
 };
-use crate::app::mcp_server::handlers::{issue_blocks_gate, IssueConfidence, IssueSource};
+use crate::app::mcp_server::handlers::{
+    default_lane_action_limit, issue_blocks_gate, issue_is_default_lane_eligible, IssueConfidence,
+    IssueSource,
+};
 use crate::metrics::v2::FindingSeverity;
 use std::collections::BTreeSet;
+
+fn primary_target_limit(input: &AgentBriefInput) -> usize {
+    input.limit.max(1).min(default_lane_action_limit())
+}
 
 pub(super) fn visible_primary_targets(
     input: &AgentBriefInput,
     primary_targets: Vec<AgentBriefTarget>,
     ranked_issues: &[AgentIssue],
 ) -> Vec<AgentBriefTarget> {
-    let limit = input.limit.max(1);
+    let limit = primary_target_limit(input);
     let mut visible_targets = primary_targets.into_iter().take(limit).collect::<Vec<_>>();
     ensure_visible_blocking_target(input, &mut visible_targets, ranked_issues);
     visible_targets
@@ -28,7 +35,10 @@ fn ensure_visible_blocking_target(
         return;
     }
 
-    let Some(blocking_issue) = ranked_issues.iter().find(|issue| issue_blocks_gate(issue)) else {
+    let Some(blocking_issue) = ranked_issues
+        .iter()
+        .find(|issue| issue_blocks_gate(issue) && issue_is_default_lane_eligible(issue))
+    else {
         return;
     };
     let blocking_target = target_from_issue(blocking_issue, input);
@@ -82,7 +92,9 @@ fn blocking_pre_merge_issue_to_surface<'a>(
         return None;
     }
 
-    ranked_issues.iter().find(|issue| issue_blocks_gate(issue))
+    ranked_issues
+        .iter()
+        .find(|issue| issue_blocks_gate(issue) && issue_is_default_lane_eligible(issue))
 }
 
 fn select_primary_targets(
@@ -92,6 +104,7 @@ fn select_primary_targets(
 ) -> Vec<AgentBriefTarget> {
     let mut selected = Vec::new();
     let mut seen = BTreeSet::new();
+    let limit = primary_target_limit(input);
 
     for issue in ranked_issues {
         if !issue_is_primary_target(issue, input, patch_scope_only) {
@@ -102,7 +115,7 @@ fn select_primary_targets(
         if seen.insert(scope_key) {
             selected.push(target);
         }
-        if selected.len() >= input.limit.max(1) {
+        if selected.len() >= limit {
             break;
         }
     }
@@ -121,6 +134,9 @@ fn issue_is_primary_target(
         issue.kind.as_str(),
         "exact_clone_group" | "clone_group" | "clone_family"
     ) {
+        return false;
+    }
+    if !issue_is_default_lane_eligible(issue) {
         return false;
     }
     if patch_scope_only && !issue_is_patch_relevant(issue, input) {

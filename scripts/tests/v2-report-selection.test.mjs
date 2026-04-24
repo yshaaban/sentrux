@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   compactSelectedCandidate,
   selectLeverageBuckets,
@@ -26,6 +28,73 @@ const behaviorFixturePath = path.join(
 
 async function readBehaviorParityFixture() {
   return JSON.parse(await readFile(behaviorFixturePath, 'utf8'));
+}
+
+async function selectSummaryScopesWithPolicy(defaultLanePolicy, payload) {
+  const tempRoot = await mkdtemp(path.join(tmpdir(), 'sentrux-v2-report-policy-'));
+  const policyPath = path.join(tempRoot, 'signal-policy.json');
+  const moduleUrl = pathToFileURL(
+    path.join(__dirname, '..', 'lib', 'v2-report-selection.mjs'),
+  ).href;
+
+  try {
+    await writeFile(
+      policyPath,
+      `${JSON.stringify(
+        {
+          action_ranking: {
+            kind_weights: {
+              incomplete_propagation: 8,
+              forbidden_raw_read: 7,
+              large_file: 0,
+            },
+            leverage_weights: {
+              boundary_discipline: 6,
+              architecture_signal: 5,
+              secondary_cleanup: 0,
+            },
+            presentation_weights: {
+              guarded_facade: 4,
+              structural_debt: 2,
+            },
+          },
+          report_selection: {
+            leverage_order: [
+              'architecture_signal',
+              'boundary_discipline',
+              'secondary_cleanup',
+            ],
+            presentation_order: ['guarded_facade', 'structural_debt'],
+          },
+          default_lane: defaultLanePolicy,
+          score_bands: [{ minimum_score: 0, label: 'supporting_signal' }],
+        },
+        null,
+        2,
+      )}\n`,
+      'utf8',
+    );
+
+    const script = `
+      const { selectLeverageBuckets } = await import(${JSON.stringify(moduleUrl)});
+      const payload = ${JSON.stringify(payload)};
+      const buckets = selectLeverageBuckets(payload);
+      console.log(JSON.stringify(buckets.summary_candidates.map((entry) => entry.scope)));
+    `;
+    const result = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
+      cwd: path.join(__dirname, '..'),
+      env: {
+        ...process.env,
+        SENTRUX_SIGNAL_POLICY_PATH: policyPath,
+      },
+      encoding: 'utf8',
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    return JSON.parse(result.stdout);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
 }
 
 function candidate({
@@ -355,6 +424,74 @@ test('selectLeverageBuckets honors explicit default surface roles over cohort fa
   );
   assert(
     !buckets.summary_candidates.some((entry) => entry.scope === 'src/app/status.ts'),
+  );
+});
+
+test('selectLeverageBuckets applies signal policy overrides to default-lane sources, kinds, and cap', async function () {
+  const findingsPayload = {
+    finding_details: [
+      candidate({
+        scope: 'task_state',
+        kind: 'incomplete_propagation',
+        leverageClass: 'boundary_discipline',
+        severity: 'high',
+      }),
+      candidate({
+        scope: 'src/app/raw-read.ts',
+        kind: 'forbidden_raw_read',
+        leverageClass: 'boundary_discipline',
+        severity: 'high',
+      }),
+      candidate({
+        scope: 'src/app/large-file.ts',
+        kind: 'large_file',
+        leverageClass: 'architecture_signal',
+        severity: 'high',
+        patch_worsened: true,
+        likely_fix_sites: [{ path: 'src/app/large-file.ts' }],
+      }),
+    ],
+    watchpoints: [],
+    debt_signals: [],
+    debt_clusters: [],
+  };
+
+  assert.deepEqual(
+    await selectSummaryScopesWithPolicy(
+      {
+        max_primary_actions: 3,
+        eligible_sources: [],
+        kind_rules: {},
+      },
+      findingsPayload,
+    ),
+    [],
+  );
+  assert.deepEqual(
+    await selectSummaryScopesWithPolicy(
+      {
+        max_primary_actions: 1,
+        eligible_sources: ['obligation', 'rules'],
+        kind_rules: {},
+      },
+      findingsPayload,
+    ),
+    ['task_state'],
+  );
+  assert.deepEqual(
+    await selectSummaryScopesWithPolicy(
+      {
+        max_primary_actions: 3,
+        eligible_sources: ['obligation', 'rules'],
+        kind_rules: {
+          incomplete_propagation: {
+            eligible: false,
+          },
+        },
+      },
+      findingsPayload,
+    ),
+    ['src/app/raw-read.ts'],
   );
 });
 
