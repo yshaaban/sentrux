@@ -223,6 +223,7 @@ mod tests {
                 proof_kind: ExhaustivenessProofKind::Switch,
                 covered_variants: vec!["idle".to_string()],
                 line: 8,
+                ..ExhaustivenessSite::default()
             }],
             transition_sites: vec![crate::analysis::semantic::TransitionSite {
                 path: "src/store/reducer.ts".to_string(),
@@ -307,6 +308,7 @@ mod tests {
                 proof_kind: ExhaustivenessProofKind::Switch,
                 covered_variants: vec![],
                 line: 4,
+                ..ExhaustivenessSite::default()
             }],
             ..SemanticSnapshot::default()
         };

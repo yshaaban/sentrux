@@ -620,6 +620,7 @@ mod tests {
                 proof_kind: ExhaustivenessProofKind::Switch,
                 covered_variants: vec!["idle".to_string()],
                 line: 10,
+                ..ExhaustivenessSite::default()
             }],
             transition_sites: Vec::new(),
         };

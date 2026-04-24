@@ -48,6 +48,7 @@ pub enum ExhaustivenessSiteKind {
     Switch,
     Record,
     Satisfies,
+    IfElse,
 }
 
 impl ExhaustivenessSiteKind {
@@ -56,6 +57,7 @@ impl ExhaustivenessSiteKind {
             Self::Switch => "switch",
             Self::Record => "record",
             Self::Satisfies => "satisfies",
+            Self::IfElse => "if_else",
         }
     }
 }
@@ -71,6 +73,8 @@ pub enum ExhaustivenessProofKind {
     Record,
     #[serde(rename = "satisfies")]
     Satisfies,
+    #[serde(rename = "if_else")]
+    IfElse,
 }
 
 impl ExhaustivenessProofKind {
@@ -80,6 +84,69 @@ impl ExhaustivenessProofKind {
             Self::AssertNever => "assertNever",
             Self::Record => "Record",
             Self::Satisfies => "satisfies",
+            Self::IfElse => "if_else",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExhaustivenessFallbackKind {
+    #[default]
+    None,
+    Null,
+    Undefined,
+    GenericString,
+    IdentityTransform,
+    EmptyArray,
+    EmptyObject,
+    AssertThrow,
+    Other,
+}
+
+impl ExhaustivenessFallbackKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::Null => "null",
+            Self::Undefined => "undefined",
+            Self::GenericString => "generic_string",
+            Self::IdentityTransform => "identity_transform",
+            Self::EmptyArray => "empty_array",
+            Self::EmptyObject => "empty_object",
+            Self::AssertThrow => "assert_throw",
+            Self::Other => "other",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExhaustivenessSiteSemanticRole {
+    Label,
+    Target,
+    Status,
+    Render,
+    Handler,
+    Policy,
+    Serialization,
+    Transform,
+    #[default]
+    Unknown,
+}
+
+impl ExhaustivenessSiteSemanticRole {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Label => "label",
+            Self::Target => "target",
+            Self::Status => "status",
+            Self::Render => "render",
+            Self::Handler => "handler",
+            Self::Policy => "policy",
+            Self::Serialization => "serialization",
+            Self::Transform => "transform",
+            Self::Unknown => "unknown",
         }
     }
 }
@@ -158,6 +225,14 @@ pub struct ExhaustivenessSite {
     pub proof_kind: ExhaustivenessProofKind,
     pub covered_variants: Vec<String>,
     pub line: u32,
+    #[serde(default)]
+    pub fallback_kind: ExhaustivenessFallbackKind,
+    #[serde(default)]
+    pub site_expression: Option<String>,
+    #[serde(default)]
+    pub site_semantic_role: ExhaustivenessSiteSemanticRole,
+    #[serde(default)]
+    pub site_confidence: Option<f64>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]

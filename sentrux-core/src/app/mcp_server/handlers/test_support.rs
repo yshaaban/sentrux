@@ -649,6 +649,7 @@ pub(crate) fn concept_fixture_semantic(root: &Path) -> SemanticSnapshot {
             proof_kind: ExhaustivenessProofKind::Switch,
             covered_variants: vec!["idle".to_string(), "running".to_string()],
             line: 12,
+            ..ExhaustivenessSite::default()
         }],
         transition_sites: Vec::new(),
     }
@@ -719,6 +720,7 @@ pub(crate) fn state_fixture_semantic(root: &Path) -> SemanticSnapshot {
             proof_kind: ExhaustivenessProofKind::Switch,
             covered_variants: vec!["idle".to_string(), "running".to_string()],
             line: 6,
+            ..ExhaustivenessSite::default()
         }],
         transition_sites: Vec::new(),
     }

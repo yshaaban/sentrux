@@ -4,6 +4,7 @@ export const ExhaustivenessSiteKind = {
   Switch: "switch",
   Record: "record",
   Satisfies: "satisfies",
+  IfElse: "if_else",
 } as const;
 
 export type ExhaustivenessSiteKind =
@@ -14,10 +15,41 @@ export const ExhaustivenessProofKind = {
   AssertNever: "assertNever",
   Record: "Record",
   Satisfies: "satisfies",
+  IfElse: "if_else",
 } as const;
 
 export type ExhaustivenessProofKind =
   (typeof ExhaustivenessProofKind)[keyof typeof ExhaustivenessProofKind];
+
+export const ExhaustivenessFallbackKind = {
+  None: "none",
+  Null: "null",
+  Undefined: "undefined",
+  GenericString: "generic_string",
+  IdentityTransform: "identity_transform",
+  EmptyArray: "empty_array",
+  EmptyObject: "empty_object",
+  AssertThrow: "assert_throw",
+  Other: "other",
+} as const;
+
+export type ExhaustivenessFallbackKind =
+  (typeof ExhaustivenessFallbackKind)[keyof typeof ExhaustivenessFallbackKind];
+
+export const ExhaustivenessSiteSemanticRole = {
+  Label: "label",
+  Target: "target",
+  Status: "status",
+  Render: "render",
+  Handler: "handler",
+  Policy: "policy",
+  Serialization: "serialization",
+  Transform: "transform",
+  Unknown: "unknown",
+} as const;
+
+export type ExhaustivenessSiteSemanticRole =
+  (typeof ExhaustivenessSiteSemanticRole)[keyof typeof ExhaustivenessSiteSemanticRole];
 
 export const TransitionKind = {
   RecordEntry: "record_entry",
@@ -124,6 +156,10 @@ export interface ExhaustivenessSite {
   proof_kind: ExhaustivenessProofKind;
   covered_variants: string[];
   line: number;
+  fallback_kind?: ExhaustivenessFallbackKind | null;
+  site_expression?: string | null;
+  site_semantic_role?: ExhaustivenessSiteSemanticRole | null;
+  site_confidence?: number | null;
 }
 
 export interface TransitionSite {

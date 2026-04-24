@@ -4,7 +4,10 @@ use super::{
     obligation_report_severity, obligation_report_trust_tier, ObligationReport, ObligationScope,
     ObligationSite,
 };
-use crate::analysis::semantic::{ClosedDomain, ExhaustivenessSite, SemanticSnapshot};
+use crate::analysis::semantic::{
+    ClosedDomain, ExhaustivenessFallbackKind, ExhaustivenessSite, ExhaustivenessSiteSemanticRole,
+    SemanticSnapshot,
+};
 use crate::metrics::rules::ConceptRule;
 use crate::metrics::testgap::is_test_file;
 use crate::metrics::v2::{concept_targets, symbol_matches_targets};
@@ -303,19 +306,21 @@ fn evaluate_domain_site_coverage(
         let variant_list = domain.variants.join(", ");
         let detail = if site_variants.is_empty() {
             format!(
-                "domain '{}' in {} has variants [{}]; site covers all variants via {}",
+                "domain '{}' in {} has variants [{}]; site covers all variants via {}{}",
                 domain.symbol_name,
                 domain_file,
                 variant_list,
-                site.site_kind.as_str()
+                site.site_kind.as_str(),
+                site_detail_suffix(site)
             )
         } else {
             format!(
-                "domain '{}' in {} has variants [{}]; site is missing [{}]",
+                "domain '{}' in {} has variants [{}]; site is missing [{}]{}",
                 domain.symbol_name,
                 domain_file,
                 variant_list,
-                site_variants.iter().cloned().collect::<Vec<_>>().join(", ")
+                site_variants.iter().cloned().collect::<Vec<_>>().join(", "),
+                site_detail_suffix(site)
             )
         };
         let obligation_site = ObligationSite {
@@ -334,6 +339,97 @@ fn evaluate_domain_site_coverage(
     }
 
     coverage
+}
+
+fn site_detail_suffix(site: &ExhaustivenessSite) -> String {
+    let mut details = Vec::new();
+
+    if site.fallback_kind != ExhaustivenessFallbackKind::None {
+        details.push(format!("fallback={}", site.fallback_kind.as_str()));
+    }
+    if let Some(expression) = site
+        .site_expression
+        .as_deref()
+        .filter(|value| !value.is_empty())
+    {
+        details.push(format!("expression={expression}"));
+    }
+    if site.site_semantic_role != ExhaustivenessSiteSemanticRole::Unknown {
+        details.push(format!("role={}", site.site_semantic_role.as_str()));
+    }
+    if let Some(confidence) = site.site_confidence {
+        details.push(format!("site_confidence={confidence:.2}"));
+    }
+
+    if let Some(impact) = site_behavior_impact(site) {
+        details.push(format!("impact={impact}"));
+    }
+
+    if details.is_empty() {
+        String::new()
+    } else {
+        format!("; {}", details.join("; "))
+    }
+}
+
+fn site_behavior_impact(site: &ExhaustivenessSite) -> Option<&'static str> {
+    match site.site_semantic_role {
+        ExhaustivenessSiteSemanticRole::Target => {
+            Some("omitted variants may produce stale or non-clickable action targets")
+        }
+        ExhaustivenessSiteSemanticRole::Label | ExhaustivenessSiteSemanticRole::Status => {
+            Some("omitted variants may fall back to generic or stale public text")
+        }
+        ExhaustivenessSiteSemanticRole::Render => {
+            Some("omitted variants may skip variant-specific rendered UI")
+        }
+        ExhaustivenessSiteSemanticRole::Handler => {
+            Some("omitted variants may skip variant-specific handler behavior")
+        }
+        ExhaustivenessSiteSemanticRole::Policy => {
+            Some("omitted variants may bypass variant-specific policy handling")
+        }
+        ExhaustivenessSiteSemanticRole::Serialization => {
+            Some("omitted variants may serialize through stale or incomplete DTO handling")
+        }
+        ExhaustivenessSiteSemanticRole::Transform => match site.fallback_kind {
+            ExhaustivenessFallbackKind::IdentityTransform => {
+                Some("omitted variants preserve the original value instead of explicit mapping")
+            }
+            _ => Some("omitted variants may miss explicit transform behavior"),
+        },
+        ExhaustivenessSiteSemanticRole::Unknown => fallback_behavior_impact(site.fallback_kind),
+    }
+}
+
+fn fallback_behavior_impact(fallback_kind: ExhaustivenessFallbackKind) -> Option<&'static str> {
+    match fallback_kind {
+        ExhaustivenessFallbackKind::Null => {
+            Some("omitted variants return null instead of explicit handling")
+        }
+        ExhaustivenessFallbackKind::Undefined => {
+            Some("omitted variants return undefined instead of explicit handling")
+        }
+        ExhaustivenessFallbackKind::GenericString => {
+            Some("omitted variants return generic text instead of explicit handling")
+        }
+        ExhaustivenessFallbackKind::IdentityTransform => {
+            Some("omitted variants return the original value instead of explicit handling")
+        }
+        ExhaustivenessFallbackKind::EmptyArray => {
+            Some("omitted variants return an empty array instead of explicit handling")
+        }
+        ExhaustivenessFallbackKind::EmptyObject => {
+            Some("omitted variants return an empty object instead of explicit handling")
+        }
+        ExhaustivenessFallbackKind::AssertThrow => {
+            Some("omitted variants reach assert/throw fallback instead of explicit handling")
+        }
+        ExhaustivenessFallbackKind::Other => {
+            Some("omitted variants reach an unclassified fallback")
+        }
+        ExhaustivenessFallbackKind::None => None,
+    }
 }
 
 fn domain_matches_site(domain: &ClosedDomain, site: &ExhaustivenessSite) -> bool {

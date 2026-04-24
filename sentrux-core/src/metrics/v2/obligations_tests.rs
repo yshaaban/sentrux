@@ -3,8 +3,9 @@ use super::{
     build_obligation_findings, build_obligations, obligation_score_0_10000, ObligationScope,
 };
 use crate::analysis::semantic::{
-    ClosedDomain, ExhaustivenessProofKind, ExhaustivenessSite, ExhaustivenessSiteKind,
-    ProjectModel, ReadFact, SemanticCapability, SemanticFileFact, SemanticSnapshot, SymbolFact,
+    ClosedDomain, ExhaustivenessFallbackKind, ExhaustivenessProofKind, ExhaustivenessSite,
+    ExhaustivenessSiteKind, ExhaustivenessSiteSemanticRole, ProjectModel, ReadFact,
+    SemanticCapability, SemanticFileFact, SemanticSnapshot, SymbolFact,
 };
 use crate::metrics::rules::RulesConfig;
 use crate::metrics::v2::{

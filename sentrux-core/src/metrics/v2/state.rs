@@ -154,6 +154,7 @@ mod tests {
                 proof_kind: ExhaustivenessProofKind::Switch,
                 covered_variants: vec!["idle".to_string(), "running".to_string()],
                 line: 12,
+                ..ExhaustivenessSite::default()
             }],
             transition_sites: Vec::new(),
         };
@@ -277,6 +278,7 @@ mod tests {
                     "error".to_string(),
                 ],
                 line: 12,
+                ..ExhaustivenessSite::default()
             }],
             transition_sites: vec![
                 TransitionSite {
@@ -373,6 +375,7 @@ mod tests {
                 proof_kind: ExhaustivenessProofKind::Switch,
                 covered_variants: vec!["idle".to_string(), "running".to_string()],
                 line: 8,
+                ..ExhaustivenessSite::default()
             }],
             transition_sites: vec![
                 TransitionSite {
@@ -463,6 +466,7 @@ mod tests {
                     "error".to_string(),
                 ],
                 line: 8,
+                ..ExhaustivenessSite::default()
             }],
             transition_sites: vec![
                 TransitionSite {
@@ -539,6 +543,7 @@ mod tests {
                 proof_kind: ExhaustivenessProofKind::Switch,
                 covered_variants: vec!["idle".to_string(), "running".to_string()],
                 line: 8,
+                ..ExhaustivenessSite::default()
             }],
             transition_sites: Vec::new(),
         };
@@ -593,6 +598,7 @@ mod tests {
                 proof_kind: ExhaustivenessProofKind::Switch,
                 covered_variants: vec!["idle".to_string(), "running".to_string()],
                 line: 8,
+                ..ExhaustivenessSite::default()
             }],
             transition_sites: Vec::new(),
         };

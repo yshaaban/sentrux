@@ -37,6 +37,10 @@ fn computes_missing_variants_and_related_test_obligations() {
             proof_kind: ExhaustivenessProofKind::AssertNever,
             covered_variants: vec!["idle".to_string(), "busy".to_string()],
             line: 20,
+            fallback_kind: ExhaustivenessFallbackKind::GenericString,
+            site_expression: Some("status".to_string()),
+            site_semantic_role: ExhaustivenessSiteSemanticRole::Status,
+            site_confidence: Some(0.91),
         }],
         transition_sites: Vec::new(),
     };
@@ -55,6 +59,11 @@ fn computes_missing_variants_and_related_test_obligations() {
         .missing_sites
         .iter()
         .any(|site| site.kind == "related_test"));
+    assert!(obligations[0].missing_sites.iter().any(|site| {
+        site.detail.contains("fallback=generic_string")
+            && site.detail.contains("role=status")
+            && site.detail.contains("expression=status")
+    }));
     assert!(obligation_score_0_10000(&obligations) < 10000);
 }
 
@@ -133,6 +142,7 @@ fn changed_scope_includes_allowed_writer_paths() {
             proof_kind: ExhaustivenessProofKind::AssertNever,
             covered_variants: vec!["idle".to_string()],
             line: 10,
+            ..ExhaustivenessSite::default()
         }],
         transition_sites: Vec::new(),
     };
@@ -174,6 +184,7 @@ fn zero_config_domains_ignore_test_only_sites() {
             proof_kind: ExhaustivenessProofKind::AssertNever,
             covered_variants: vec!["idle".to_string()],
             line: 10,
+            ..ExhaustivenessSite::default()
         }],
         transition_sites: Vec::new(),
     };
@@ -212,6 +223,7 @@ fn zero_config_domains_ignore_large_variant_sets() {
             proof_kind: ExhaustivenessProofKind::Switch,
             covered_variants: vec!["Variant0".to_string()],
             line: 10,
+            ..ExhaustivenessSite::default()
         }],
         transition_sites: Vec::new(),
     };
@@ -259,6 +271,7 @@ fn zero_config_domain_matching_prefers_defining_file() {
             proof_kind: ExhaustivenessProofKind::AssertNever,
             covered_variants: vec!["ready".to_string()],
             line: 14,
+            ..ExhaustivenessSite::default()
         }],
         transition_sites: Vec::new(),
     };
@@ -310,6 +323,7 @@ fn zero_config_domains_are_not_in_changed_scope_when_unrelated_files_change() {
             proof_kind: ExhaustivenessProofKind::AssertNever,
             covered_variants: vec!["idle".to_string()],
             line: 10,
+            ..ExhaustivenessSite::default()
         }],
         transition_sites: Vec::new(),
     };

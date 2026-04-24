@@ -9,7 +9,9 @@ import { fileURLToPath } from "node:url";
 
 import { analyzeProject } from "../dist/analysis.js";
 import {
+  ExhaustivenessFallbackKind,
   ExhaustivenessProofKind,
+  ExhaustivenessSiteSemanticRole,
   ExhaustivenessSiteKind,
   TransitionKind,
 } from "../dist/types.js";
@@ -70,10 +72,11 @@ async function createSampleProject() {
           target: "ES2022",
           module: "NodeNext",
           moduleResolution: "NodeNext",
+          jsx: "preserve",
           strict: true,
           skipLibCheck: true,
         },
-        include: ["src/**/*.ts"],
+        include: ["src/**/*.ts", "src/**/*.tsx"],
       },
       null,
       2,
@@ -84,6 +87,7 @@ async function createSampleProject() {
     path.join(srcDir, "domain.ts"),
     [
       'export type Mode = "idle" | "running";',
+      'export type ActionKind = "open" | "close" | "archive";',
       "",
     ].join("\n"),
   );
@@ -91,7 +95,7 @@ async function createSampleProject() {
   await writeFile(
     path.join(srcDir, "index.ts"),
     [
-      'import type { Mode } from "./domain.js";',
+      'import type { ActionKind, Mode } from "./domain.js";',
       "",
       "export function bump(value: number): number {",
       "  return value + 1;",
@@ -127,6 +131,79 @@ async function createSampleProject() {
       "  }",
       "}",
       "",
+      "export function modeLabel(mode: Mode): string {",
+      "  switch (mode) {",
+      '    case "idle":',
+      '      return "Idle";',
+      "    default:",
+      '      return "Open evidence";',
+      "  }",
+      "}",
+      "",
+      "export function maybeRender(mode: Mode): string | null {",
+      "  switch (mode) {",
+      '    case "idle":',
+      '      return "Idle";',
+      "    default:",
+      "      return null;",
+      "  }",
+      "}",
+      "",
+      "export function maybeValue(mode: Mode): number | undefined {",
+      "  switch (mode) {",
+      '    case "idle":',
+      "      return 1;",
+      "    default:",
+      "      return undefined;",
+      "  }",
+      "}",
+      "",
+      "export function normalizeMode(mode: Mode): Mode {",
+      "  switch (mode) {",
+      '    case "idle":',
+      '      return "running";',
+      "    default:",
+      "      return mode;",
+      "  }",
+      "}",
+      "",
+      "export function modeItems(mode: Mode): string[] {",
+      "  switch (mode) {",
+      '    case "idle":',
+      '      return ["idle"];',
+      "    default:",
+      "      return [];",
+      "  }",
+      "}",
+      "",
+      "export function modePayload(mode: Mode): Record<string, string> {",
+      "  switch (mode) {",
+      '    case "idle":',
+      '      return { mode: "idle" };',
+      "    default:",
+      "      return {};",
+      "  }",
+      "}",
+      "",
+      "export function failMode(mode: Mode): string {",
+      "  switch (mode) {",
+      '    case "idle":',
+      '      return "Idle";',
+      "    default:",
+      '      throw new Error(`Unexpected mode: ${mode}`);',
+      "  }",
+      "}",
+      "",
+      "export function actionLabel(kind: ActionKind): string {",
+      '  if (kind === "open") {',
+      '    return "Open";',
+      '  } else if (kind === "close") {',
+      '    return "Close";',
+      "  } else {",
+      '    return "Open evidence";',
+      "  }",
+      "}",
+      "",
       "function assertNever(value: never): never {",
       '  throw new Error(`Unexpected value: ${value}`);',
       "}",
@@ -145,6 +222,36 @@ async function createSampleProject() {
       '  idle: "running",',
       '  running: "idle",',
       "};",
+      "",
+      "export const actionLabels = {",
+      '  open: "Open",',
+      '  close: "Close",',
+      "};",
+      "",
+      "export const actionTargets = new Map<ActionKind, string>([",
+      '  ["open", "/open"],',
+      '  ["close", "/close"],',
+      "]);",
+      "",
+    ].join("\n"),
+  );
+
+  await writeFile(
+    path.join(srcDir, "view.tsx"),
+    [
+      'import type { Mode } from "./domain.js";',
+      "",
+      "declare global {",
+      "  namespace JSX {",
+      "    interface IntrinsicElements {",
+      "      div: { children?: unknown };",
+      "    }",
+      "  }",
+      "}",
+      "",
+      "export function ModeView(props: { mode: Mode }) {",
+      '  return props.mode === "idle" ? <div>Idle</div> : null;',
+      "}",
       "",
     ].join("\n"),
   );
@@ -367,7 +474,7 @@ test("analyzeProject extracts semantic facts from a sample project", async funct
     });
 
     assert.equal(snapshot.project.root, root);
-    assert.equal(snapshot.analyzed_files, 2);
+    assert.equal(snapshot.analyzed_files, 3);
     assert(snapshot.capabilities.includes("ClosedDomains"));
     assert(snapshot.files.some((file) => file.path === "src/index.ts"));
     assert(snapshot.symbols.some((symbol) => symbol.name === "bump"));
@@ -382,9 +489,73 @@ test("analyzeProject extracts semantic facts from a sample project", async funct
     );
     assert(modeSite);
     assert.equal(modeSite.defining_file, "src/domain.ts");
+    assert.equal(modeSite.fallback_kind, ExhaustivenessFallbackKind.AssertThrow);
+    assert.equal(modeSite.site_expression, "mode");
+    assert.equal(modeSite.site_confidence, 1);
+    const fallbackKinds = new Set(
+      snapshot.closed_domain_sites.map((site) => site.fallback_kind),
+    );
+    assert(fallbackKinds.has(ExhaustivenessFallbackKind.Null));
+    assert(fallbackKinds.has(ExhaustivenessFallbackKind.Undefined));
+    assert(fallbackKinds.has(ExhaustivenessFallbackKind.GenericString));
+    assert(fallbackKinds.has(ExhaustivenessFallbackKind.IdentityTransform));
+    assert(fallbackKinds.has(ExhaustivenessFallbackKind.EmptyArray));
+    assert(fallbackKinds.has(ExhaustivenessFallbackKind.EmptyObject));
+    assert(fallbackKinds.has(ExhaustivenessFallbackKind.AssertThrow));
+    assert(
+      snapshot.closed_domain_sites.some(
+        (site) =>
+          site.fallback_kind === ExhaustivenessFallbackKind.GenericString &&
+          site.site_semantic_role === ExhaustivenessSiteSemanticRole.Label,
+      ),
+    );
+    const actionIfSite = snapshot.closed_domain_sites.find(
+      (site) =>
+        site.domain_symbol_name === "ActionKind" &&
+        site.site_expression === "kind" &&
+        site.fallback_kind === ExhaustivenessFallbackKind.GenericString,
+    );
+    assert(actionIfSite);
+    assert.deepEqual(actionIfSite.covered_variants, ["open", "close"]);
+    assert.equal(actionIfSite.site_semantic_role, ExhaustivenessSiteSemanticRole.Label);
+    assert(actionIfSite.site_confidence >= 0.8);
+    const inferredActionMapSite = snapshot.closed_domain_sites.find(
+      (site) =>
+        site.domain_symbol_name === "ActionKind" &&
+        site.site_expression === "actionLabels",
+    );
+    assert(inferredActionMapSite);
+    assert.deepEqual(inferredActionMapSite.covered_variants, ["open", "close"]);
+    assert.equal(inferredActionMapSite.fallback_kind, ExhaustivenessFallbackKind.None);
+    assert.equal(inferredActionMapSite.site_semantic_role, ExhaustivenessSiteSemanticRole.Label);
+    assert(inferredActionMapSite.site_confidence >= 0.7);
+    const actionTargetMapSite = snapshot.closed_domain_sites.find(
+      (site) =>
+        site.domain_symbol_name === "ActionKind" &&
+        site.site_expression === "actionTargets",
+    );
+    assert(actionTargetMapSite);
+    assert.deepEqual(actionTargetMapSite.covered_variants, ["open", "close"]);
+    assert.equal(actionTargetMapSite.site_semantic_role, ExhaustivenessSiteSemanticRole.Target);
+    assert(actionTargetMapSite.site_confidence >= 0.9);
+    const modeRenderSite = snapshot.closed_domain_sites.find(
+      (site) =>
+        site.domain_symbol_name === "Mode" &&
+        site.site_expression === "props.mode" &&
+        site.site_semantic_role === ExhaustivenessSiteSemanticRole.Render,
+    );
+    assert(modeRenderSite);
+    assert.equal(modeRenderSite.site_kind, ExhaustivenessSiteKind.IfElse);
+    assert.deepEqual(modeRenderSite.covered_variants, ["idle"]);
+    assert.equal(modeRenderSite.fallback_kind, ExhaustivenessFallbackKind.Null);
     assert(
       snapshot.closed_domain_sites.some(
         (site) => site.site_kind === ExhaustivenessSiteKind.Switch,
+      ),
+    );
+    assert(
+      snapshot.closed_domain_sites.some(
+        (site) => site.site_kind === ExhaustivenessSiteKind.IfElse,
       ),
     );
     assert(
@@ -395,6 +566,13 @@ test("analyzeProject extracts semantic facts from a sample project", async funct
     assert(
       snapshot.closed_domain_sites.some(
         (site) => site.site_kind === ExhaustivenessSiteKind.Satisfies,
+      ),
+    );
+    assert(
+      !snapshot.closed_domain_sites.some(
+        (site) =>
+          site.site_kind === ExhaustivenessSiteKind.Record &&
+          site.site_expression === "modeLabels",
       ),
     );
     assert(
@@ -410,6 +588,11 @@ test("analyzeProject extracts semantic facts from a sample project", async funct
     assert(
       snapshot.closed_domain_sites.some(
         (site) => site.proof_kind === ExhaustivenessProofKind.Satisfies,
+      ),
+    );
+    assert(
+      snapshot.closed_domain_sites.some(
+        (site) => site.proof_kind === ExhaustivenessProofKind.IfElse,
       ),
     );
     assert(
@@ -463,7 +646,7 @@ test("bridge responds over stdio using Content-Length framing", async function (
     assert.equal(stderr, "");
     assert.equal(messages.length, 2);
     assert.equal(messages[0].result.protocolVersion, PROTOCOL_VERSION);
-    assert.equal(messages[1].result.analyzed_files, 2);
+    assert.equal(messages[1].result.analyzed_files, 3);
     assert(messages[1].result.symbols.some((symbol) => symbol.name === "interpret"));
   } finally {
     await rm(root, { recursive: true, force: true });
