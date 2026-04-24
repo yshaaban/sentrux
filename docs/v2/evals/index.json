@@ -12,8 +12,11 @@
     "review_verdicts": "./review-verdicts.schema.json",
     "session_verdicts": "./session-verdicts.schema.json",
     "codex_session_batch": "./codex-session-batch.schema.json",
-    "diff_replay_batch": "./diff-replay-batch.schema.json"
+    "diff_replay_batch": "./diff-replay-batch.schema.json",
+    "completion_rubric": "./completion-rubric.schema.json",
+    "completion_gates": "./completion-gates.schema.json"
   },
+  "completion_rubric": "./master-plan-completion-rubric.json",
   "cohorts": [
     {
       "cohort_id": "agent-loop-core",

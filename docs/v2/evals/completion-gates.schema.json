@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Sentrux Completion Gate Result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "summary",
+    "phases",
+    "signals"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "generated_at": { "type": "string" },
+    "rubric_id": { "type": ["string", "null"] },
+    "rubric_version": { "type": ["string", "null"] },
+    "repo_label": { "type": ["string", "null"] },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "phase_count",
+        "phase_pass_count",
+        "phase_fail_count",
+        "signal_count",
+        "signal_pass_count",
+        "signal_fail_count",
+        "required_failure_count",
+        "optional_failure_count"
+      ],
+      "properties": {
+        "status": { "enum": ["pass", "fail"] },
+        "phase_count": { "type": "integer", "minimum": 0 },
+        "phase_pass_count": { "type": "integer", "minimum": 0 },
+        "phase_fail_count": { "type": "integer", "minimum": 0 },
+        "signal_count": { "type": "integer", "minimum": 0 },
+        "signal_pass_count": { "type": "integer", "minimum": 0 },
+        "signal_fail_count": { "type": "integer", "minimum": 0 },
+        "required_failure_count": { "type": "integer", "minimum": 0 },
+        "optional_failure_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "phases": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/phase_result" }
+    },
+    "signals": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/signal_result" }
+    }
+  },
+  "$defs": {
+    "phase_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "phase_id",
+        "phase_label",
+        "status",
+        "required_failure_count",
+        "optional_failure_count",
+        "gates"
+      ],
+      "properties": {
+        "phase_id": { "type": "string" },
+        "phase_label": { "type": "string" },
+        "status": { "enum": ["pass", "fail"] },
+        "required_failure_count": { "type": "integer", "minimum": 0 },
+        "optional_failure_count": { "type": "integer", "minimum": 0 },
+        "gates": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/gate_result" }
+        }
+      }
+    },
+    "signal_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "group_id",
+        "signal_kind",
+        "status",
+        "required_failure_count",
+        "optional_failure_count",
+        "gates"
+      ],
+      "properties": {
+        "group_id": { "type": "string" },
+        "group_label": { "type": ["string", "null"] },
+        "signal_kind": { "type": ["string", "null"] },
+        "signal_family": { "type": ["string", "null"] },
+        "promotion_status": { "type": ["string", "null"] },
+        "status": { "enum": ["pass", "fail"] },
+        "required_failure_count": { "type": "integer", "minimum": 0 },
+        "optional_failure_count": { "type": "integer", "minimum": 0 },
+        "gates": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/gate_result" }
+        }
+      }
+    },
+    "gate_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "gate_id",
+        "label",
+        "source",
+        "path",
+        "operator",
+        "expected",
+        "actual",
+        "status",
+        "required",
+        "message"
+      ],
+      "properties": {
+        "gate_id": { "type": ["string", "null"] },
+        "label": { "type": "string" },
+        "source": { "type": "string" },
+        "path": { "type": ["string", "null"] },
+        "operator": { "type": "string" },
+        "expected": {},
+        "actual": {},
+        "status": { "enum": ["pass", "fail"] },
+        "required": { "type": "boolean" },
+        "message": { "type": "string" },
+        "phase_id": { "type": "string" }
+      }
+    }
+  }
+}

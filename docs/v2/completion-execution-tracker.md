@@ -4,11 +4,15 @@ Last audited: 2026-04-24
 
 This slice tracks execution against the current [master plan](./master-plan.md) using repository-backed state only. A phase is marked `Completed` only when checked-in implementation and checked-in evidence together satisfy the phase exit bar. On this pass, no phase is marked complete.
 
+Completion is now governed by the concrete [completion execution model](./experiments/completion-execution-model.md). In short: a phase closes only when the implementation checkpoint, evidence checkpoint, phase exit gate, and decision record all pass. Promotion and demotion decisions must be recorded before a status changes to `Completed`.
+
 ## Status Legend
 
 - `Planned`: supporting inputs may exist, but no shipping workflow satisfies the phase yet.
 - `In progress`: implementation and/or evidence exists, but the phase exit bar is not yet met.
 - `Completed`: the repo already contains the implementation and evidence needed to satisfy the phase exit criteria.
+- `Parked`: the phase or sub-track is intentionally paused until a named dependency closes.
+- `Demoted`: a signal or sub-track was evaluated and intentionally excluded from default-on or default-lane behavior.
 
 ## Compact Status Table
 
@@ -33,8 +37,50 @@ This slice tracks execution against the current [master plan](./master-plan.md) 
 ## Latest Implementation Checkpoint
 
 - 2026-04-24: the [comprehensive detection upgrade plan](./comprehensive-detection-upgrade-plan.md) is now checked in with phase-level execution status.
+- 2026-04-24: the [completion execution model](./experiments/completion-execution-model.md) now defines the completion rubric, phase exit gates, decision-record requirements, and progress tracking fields used by this tracker.
+- 2026-04-24: deterministic completion-gate automation is now checked in through `scripts/evals/build-completion-gates.mjs`, `scripts/lib/completion-gates.mjs`, and the [master-plan completion rubric](./evals/master-plan-completion-rubric.json). It fails closed when required evidence or phase decision records are absent.
 - Implemented detector-facing upgrades include richer closed-domain site metadata, fallback-masked TypeScript coverage, `Map` constructor maps, JSX conditional render sites, large-file first-cut evidence, cycle edge-basis evidence, standardized repair-packet fields, and governance readiness watchpoints.
 - This does not yet close the evidence gate for default-on promotion. Phase statuses remain `In progress` until paired treatment-vs-baseline runs prove top-action help and acceptable false-positive pressure across the fixed repo matrix.
+
+## Definition-Of-Done Rubric
+
+Every phase is scored against six completion dimensions from the execution model:
+
+| Dimension | Completion bar |
+| --- | --- |
+| Product contract | Preserves the agent-lane versus maintainer-lane split and the one-to-three action default lane |
+| Implementation | Required implementation, configuration, schema, fixture, or product-surface artifacts are checked in |
+| Evidence | Checked-in proof artifacts cover the fixed repo/task matrix or the phase-specific fixture corpus |
+| Outcome lift | Evidence improves agent repair outcomes, not only detector breadth or structural truth |
+| Decision record | A dated keep, constrain, demote, or park record cites decisive evidence and guardrails |
+| Regression guard | A repeatable validation path can be rerun before release |
+
+Completion is binary. Missing any dimension keeps the phase `In progress`.
+
+## Progress Ledger
+
+| Phase | Implementation checkpoint | Evidence checkpoint | Open gate | Next proof artifact | Required decision record |
+| --- | --- | --- | --- | --- | --- |
+| Phase 0 | Lane-aware docs, scorecard policy, session verdict schema, and findings metadata are checked in | Current artifacts carry lane/default-on metadata, but downstream consumption is not yet proven shim-free | Prove one canonical lane and top-action contract across scorecard, session corpus, evidence review, `check`, findings, and repair packets | Fresh scorecard, session corpus, and evidence review from the same run set plus product-surface inspection notes | `docs/v2/experiments/decisions/YYYY-MM-DD-phase-0-lane-contract-keep.md` |
+| Phase 1 | Cohort metadata, ranking policy, trust tiers, causal families, and structural demotion rules are implemented | Latest repo-local run does not prove default-lane dominance or top-action help | Decide which families stay default-lane eligible after cross-repo evidence | Phase-6 default-lane family screening and confirmation outputs | `docs/v2/experiments/decisions/YYYY-MM-DD-phase-6-default-lane-family-selection-*.md` |
+| Phase 2 | TypeScript semantic substrate plus domain and contract obligations are implemented | Existing tests and artifacts show coverage, but changed-symbol precision and broader sibling proof are incomplete | Prove expanded obligations remain bounded and patch-local | Fixture proof and repo-local run for DTO/config/registry/API/test/doc obligations | `docs/v2/experiments/decisions/YYYY-MM-DD-phase-2-obligation-family-*.md` |
+| Phase 3 | Structured evidence bundles, MiniMax-oriented schemas, advisory adjudication, and audit logging are implemented | No paired static-only versus static-plus-LLM lift is checked in | Decide advisory, rerank, suppress, repair-guidance, or park status | Static-only versus static-plus-adjudication comparison with audit-log sample | `docs/v2/experiments/decisions/YYYY-MM-DD-phase-3-llm-adjudication-*.md` |
+| Phase 4 | Review verdict and incident artifacts exist as synthesis inputs | No synthesis workflow or held-out validation is checked in | Build and validate evidence-backed checker synthesis | Incident clustering artifact, candidate checker output, held-out validation review | `docs/v2/experiments/decisions/YYYY-MM-DD-phase-4-pattern-synthesis-*.md` |
+| Phase 5 | Calibration runners, batch manifests, scorecards, session corpus, telemetry summary, and evidence review exist | Latest checked-in run reports `top_action_help_rate = 0` and no promotion candidates | Prove treatment beats baseline on at least one stable lane | Paired treatment/baseline run set with scorecard, telemetry, corpus, and evidence review | `docs/v2/experiments/decisions/YYYY-MM-DD-phase-5-treatment-baseline-confirmation-*.md` |
+| Phase 6 | Default-lane caps, repair packet completeness, experiment registry, repo/task matrix, rubric, and promotion ledger exist | Active phase-6 questions are specified but not decided | Decide default-lane family mix and `large_file` admissibility | Screening and confirmation evidence across `sentrux`, `parallel-code`, and `one-tool` | `docs/v2/experiments/decisions/YYYY-MM-DD-phase-6-large-file-*.md` and family-selection record |
+| Phase 7 | Release checklist, hygiene scan, public preflight, public-safe proof discipline, and deterministic completion gates exist | Release evidence depends on unresolved default-on proof and absent decision records | Pass release preflight with promoted default-on decisions attached | Public preflight, hygiene output, public-safe proof snapshot, completion-gate output, and completed promotion records | `docs/v2/experiments/decisions/YYYY-MM-DD-phase-7-release-gate-*.md` |
+
+## Decision Record Queue
+
+No completion decision records are currently checked in. The next required records, in order, are:
+
+| Priority | Decision record | Unblocks |
+| --- | --- | --- |
+| 1 | Phase 6 default-lane family selection: keep/constrain/demote | Phase 1 and Phase 6 exit gates |
+| 2 | Phase 6 `large_file` admissibility: keep/constrain/demote | Phase 6 and release default-lane policy |
+| 3 | Phase 5 treatment-versus-baseline confirmation | Phase 5 and Phase 7 exit gates |
+| 4 | Phase 0 lane-contract canonicalization | Phase 0 exit gate |
+| 5 | Phase 3 bounded LLM adjudication: advisory/rerank/suppress/park | Phase 3 exit gate |
 
 ## Phase Tracker
 

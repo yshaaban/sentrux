@@ -1,0 +1,339 @@
+{
+  "$schema": "./completion-rubric.schema.json",
+  "schema_version": 1,
+  "rubric_id": "master-plan-completion",
+  "rubric_version": "2026-04-24",
+  "description": "Deterministic evidence gates for the remaining Sentrux v2 master-plan completion work.",
+  "phases": [
+    {
+      "phase_id": "phase_0_product_contract",
+      "phase_label": "Reset the product contract",
+      "gates": [
+        {
+          "gate_id": "scorecard_has_session_trials",
+          "source": "scorecard",
+          "path": "summary.coverage.has_session_trials",
+          "operator": "is_true",
+          "message": "scorecard must carry session-trial evidence"
+        },
+        {
+          "gate_id": "scorecard_has_session_verdicts",
+          "source": "scorecard",
+          "path": "summary.coverage.has_session_verdicts",
+          "operator": "is_true",
+          "message": "scorecard must carry session-verdict evidence"
+        },
+        {
+          "gate_id": "evidence_review_has_default_on_contract",
+          "source": "evidence_review",
+          "path": "default_on_promotion",
+          "operator": "exists",
+          "message": "evidence review must expose the default-on promotion contract"
+        },
+        {
+          "gate_id": "phase_0_decision_record",
+          "source": "decision_records",
+          "path": "phase_counts.phase_0",
+          "operator": "gte",
+          "threshold": 1,
+          "message": "phase 0 completion requires a durable lane-contract decision record"
+        }
+      ]
+    },
+    {
+      "phase_id": "phase_1_intervention_signal_set",
+      "phase_label": "Harden the intervention-grade signal set",
+      "gates": [
+        {
+          "gate_id": "ranking_noise_low",
+          "source": "scorecard",
+          "path": "summary.ranking_quality.review_noise_rate",
+          "operator": "lte",
+          "threshold": 0.2,
+          "message": "review noise must stay below the default-lane tolerance"
+        },
+        {
+          "gate_id": "repair_packets_complete",
+          "source": "scorecard",
+          "path": "summary.ranking_quality.repair_packet_complete_rate",
+          "operator": "gte",
+          "threshold": 0.8,
+          "message": "primary repair packets must be complete enough for repeated use"
+        },
+        {
+          "gate_id": "ranking_misses_closed",
+          "source": "evidence_review",
+          "path": "summary.ranking_miss_count",
+          "operator": "lte",
+          "threshold": 0,
+          "message": "no active ranking misses should remain for completion"
+        },
+        {
+          "gate_id": "phase_1_decision_record",
+          "source": "decision_records",
+          "path": "phase_counts.phase_1",
+          "operator": "gte",
+          "threshold": 1,
+          "message": "phase 1 completion requires a durable signal-family selection decision record"
+        }
+      ]
+    },
+    {
+      "phase_id": "phase_2_semantic_obligation_graph",
+      "phase_label": "Expand the semantic obligation graph",
+      "gates": [
+        {
+          "gate_id": "active_review_packet_samples",
+          "source": "evidence_review",
+          "path": "summary.review_packet_sample_count",
+          "operator": "gte",
+          "threshold": 1,
+          "message": "semantic-obligation proof needs reviewed packet samples"
+        },
+        {
+          "gate_id": "propagation_examples_available",
+          "source": "evidence_review",
+          "path": "propagation_examples",
+          "operator": "non_empty",
+          "required": false,
+          "message": "propagation examples should remain inspectable when present"
+        },
+        {
+          "gate_id": "phase_2_decision_record",
+          "source": "decision_records",
+          "path": "phase_counts.phase_2",
+          "operator": "gte",
+          "threshold": 1,
+          "message": "phase 2 completion requires a durable obligation-family decision record"
+        }
+      ]
+    },
+    {
+      "phase_id": "phase_3_bounded_llm_adjudication",
+      "phase_label": "Add bounded LLM adjudication",
+      "gates": [
+        {
+          "gate_id": "structured_evidence_only",
+          "source": "evidence_review",
+          "path": "adjudication_summary.structured_evidence_only",
+          "operator": "is_true",
+          "message": "bounded adjudication must use structured evidence only"
+        },
+        {
+          "gate_id": "audit_logging_ready",
+          "source": "evidence_review",
+          "path": "adjudication_summary.audit_logging_ready",
+          "operator": "is_true",
+          "message": "bounded adjudication must preserve audit evidence"
+        },
+        {
+          "gate_id": "no_auto_apply",
+          "source": "evidence_review",
+          "path": "adjudication_summary.auto_apply_enabled",
+          "operator": "is_false",
+          "message": "bounded adjudication must stay advisory until treatment proof exists"
+        },
+        {
+          "gate_id": "adjudication_decisions_present",
+          "source": "evidence_review",
+          "path": "summary.bounded_adjudication_decision_count",
+          "operator": "gte",
+          "threshold": 1,
+          "message": "adjudication evidence must include recorded decisions"
+        },
+        {
+          "gate_id": "phase_3_decision_record",
+          "source": "decision_records",
+          "path": "phase_counts.phase_3",
+          "operator": "gte",
+          "threshold": 1,
+          "message": "phase 3 completion requires a durable LLM-adjudication decision record"
+        }
+      ]
+    },
+    {
+      "phase_id": "phase_4_checker_pattern_synthesis",
+      "phase_label": "Add checker and pattern synthesis",
+      "gates": [
+        {
+          "gate_id": "synthesis_workflow_present",
+          "source": "evidence_review",
+          "path": "pattern_synthesis_summary.workflow_present",
+          "operator": "is_true",
+          "message": "completion requires a checked-in synthesis workflow"
+        },
+        {
+          "gate_id": "held_out_validation_present",
+          "source": "evidence_review",
+          "path": "pattern_synthesis_summary.held_out_validation_passed",
+          "operator": "is_true",
+          "message": "synthesized checks require held-out validation"
+        },
+        {
+          "gate_id": "phase_4_decision_record",
+          "source": "decision_records",
+          "path": "phase_counts.phase_4",
+          "operator": "gte",
+          "threshold": 1,
+          "message": "phase 4 completion requires a durable checker-synthesis decision record"
+        }
+      ]
+    },
+    {
+      "phase_id": "phase_5_treatment_baseline_evidence",
+      "phase_label": "Build the treatment-vs-baseline evidence program",
+      "gates": [
+        {
+          "gate_id": "session_verdict_sample_bar",
+          "source": "evidence_review",
+          "path": "summary.session_verdict_count",
+          "operator": "gte",
+          "threshold": 3,
+          "message": "treatment evidence needs paired session verdict samples"
+        },
+        {
+          "gate_id": "top_action_help_positive",
+          "source": "evidence_review",
+          "path": "product_value.top_action_help_rate",
+          "operator": "gt",
+          "threshold": 0,
+          "message": "top-action help must be positive"
+        },
+        {
+          "gate_id": "default_on_evidence_complete",
+          "source": "evidence_review",
+          "path": "default_on_promotion.evidence_complete",
+          "operator": "is_true",
+          "message": "default-on promotion requires complete treatment-vs-baseline evidence"
+        },
+        {
+          "gate_id": "signal_matched_treatment_evidence",
+          "source": "evidence_review",
+          "path": "default_on_promotion.signal_matched_treatment_evidence",
+          "operator": "is_true",
+          "message": "default-on readiness must be signal-matched, not repo-level only"
+        },
+        {
+          "gate_id": "phase_5_decision_record",
+          "source": "decision_records",
+          "path": "phase_counts.phase_5",
+          "operator": "gte",
+          "threshold": 1,
+          "message": "phase 5 completion requires a durable treatment-vs-baseline decision record"
+        }
+      ]
+    },
+    {
+      "phase_id": "phase_6_product_surface_compression",
+      "phase_label": "Product surface compression",
+      "gates": [
+        {
+          "gate_id": "phase_6_experiment_comparisons",
+          "source": "evidence_review",
+          "path": "summary.experiment_arm_comparison_count",
+          "operator": "gte",
+          "threshold": 1,
+          "message": "phase-6 compression choices require treatment/baseline comparisons"
+        },
+        {
+          "gate_id": "default_on_candidate_present",
+          "source": "evidence_review",
+          "path": "summary.default_on_candidate_count",
+          "operator": "gte",
+          "threshold": 1,
+          "message": "surface compression should produce at least one default-on candidate"
+        },
+        {
+          "gate_id": "review_queue_small",
+          "source": "evidence_review",
+          "path": "summary.review_queue_count",
+          "operator": "lte",
+          "threshold": 3,
+          "required": false,
+          "message": "review queue should stay close to the 1-3 action envelope"
+        },
+        {
+          "gate_id": "phase_6_decision_records",
+          "source": "decision_records",
+          "path": "phase_counts.phase_6",
+          "operator": "gte",
+          "threshold": 2,
+          "message": "phase 6 completion requires durable decisions for default-lane family selection and large_file admissibility"
+        }
+      ]
+    },
+    {
+      "phase_id": "phase_7_release_gate",
+      "phase_label": "Release gate",
+      "gates": [
+        {
+          "gate_id": "public_preflight_passed",
+          "source": "evidence_review",
+          "path": "release_summary.public_preflight_passed",
+          "operator": "is_true",
+          "message": "release candidate must pass public preflight"
+        },
+        {
+          "gate_id": "public_hygiene_passed",
+          "source": "evidence_review",
+          "path": "release_summary.public_hygiene_passed",
+          "operator": "is_true",
+          "message": "release candidate must pass public hygiene scanning"
+        },
+        {
+          "gate_id": "default_on_ready",
+          "source": "evidence_review",
+          "path": "default_on_promotion.ready",
+          "operator": "is_true",
+          "message": "release readiness requires default-on promotion readiness"
+        },
+        {
+          "gate_id": "phase_7_decision_record",
+          "source": "decision_records",
+          "path": "phase_counts.phase_7",
+          "operator": "gte",
+          "threshold": 1,
+          "message": "phase 7 completion requires a durable release-gate decision record"
+        }
+      ]
+    }
+  ],
+  "signal_groups": [
+    {
+      "group_id": "trusted_and_watchpoint_signals",
+      "group_label": "Trusted/watchpoint signal readiness",
+      "selector": {
+        "where": [
+          {
+            "gate_id": "promotion_status_selector",
+            "path": "promotion_status",
+            "operator": "one_of",
+            "values": ["trusted", "watchpoint"]
+          }
+        ]
+      },
+      "gates": [
+        {
+          "gate_id": "promotion_evidence_complete",
+          "path": "promotion_evidence_complete",
+          "operator": "is_true",
+          "message": "trusted and watchpoint signals must have complete seeded/review/remediation/session evidence"
+        },
+        {
+          "gate_id": "signal_help_rate_positive",
+          "path": "top_action_help_rate",
+          "operator": "gt",
+          "threshold": 0,
+          "message": "trusted and watchpoint signals must show positive top-action help"
+        },
+        {
+          "gate_id": "signal_patch_expansion_bounded",
+          "path": "patch_expansion_rate",
+          "operator": "lte",
+          "threshold": 0.25,
+          "message": "trusted and watchpoint signals must not drive patch expansion"
+        }
+      ]
+    }
+  ]
+}

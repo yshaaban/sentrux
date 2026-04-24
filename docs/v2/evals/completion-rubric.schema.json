@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Sentrux Completion Gate Rubric",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "rubric_id", "phases"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schema_version": { "const": 1 },
+    "rubric_id": { "type": "string" },
+    "rubric_version": { "type": "string" },
+    "description": { "type": "string" },
+    "phases": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/phase" }
+    },
+    "signal_groups": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/signal_group" }
+    }
+  },
+  "$defs": {
+    "phase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phase_id", "phase_label", "gates"],
+      "properties": {
+        "phase_id": { "type": "string" },
+        "phase_label": { "type": "string" },
+        "gates": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/condition" }
+        }
+      }
+    },
+    "signal_group": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["group_id", "gates"],
+      "properties": {
+        "group_id": { "type": "string" },
+        "group_label": { "type": "string" },
+        "source": { "type": "string" },
+        "path": { "type": "string" },
+        "selector": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "where": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/condition" }
+            }
+          }
+        },
+        "gates": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/condition" }
+        }
+      }
+    },
+    "condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gate_id", "path", "operator"],
+      "properties": {
+        "gate_id": { "type": "string" },
+        "label": { "type": "string" },
+        "source": { "type": "string" },
+        "path": { "type": "string" },
+        "operator": {
+          "enum": [
+            "exists",
+            "non_empty",
+            "is_true",
+            "is_false",
+            "equals",
+            "not_equals",
+            "one_of",
+            "includes",
+            "gte",
+            "gt",
+            "lte",
+            "lt",
+            "at_least",
+            "at_most"
+          ]
+        },
+        "value": {},
+        "values": {
+          "type": "array"
+        },
+        "threshold": {
+          "type": "number"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

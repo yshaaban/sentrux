@@ -25,6 +25,9 @@ Goals:
 - `diff-replay-batch.schema.json` - schema for batch replay manifests
 - `session-corpus.schema.json` - schema for normalized live/replay session evidence
 - `evidence-review.schema.json` - schema for the weekly evidence review artifact
+- `completion-rubric.schema.json` - schema for deterministic master-plan completion gate rubrics
+- `completion-gates.schema.json` - schema for phase and signal completion gate results
+- `master-plan-completion-rubric.json` - default completion rubric for the current v2 master-plan exit bars
 - `scenario.schema.json` - task/scenario schema
 - `result.schema.json` - result schema emitted by the runner
 - `repos/parallel-code.json` - checked-in calibration manifest for the repo configured by `PARALLEL_CODE_ROOT`
@@ -163,6 +166,8 @@ Supporting scripts now cover:
   Combine the active cohort, scorecard, and live/replay batch outputs into a weak-signal and false-negative backlog. Candidate ordering now exposes an explicit priority score that weights live misses above replay misses and keeps regression follow-through pressure visible. Configured next candidates stay queued, but the recommended next signal now requires positive evidence instead of defaulting to a zero-score placeholder.
 - `node scripts/evals/build-evidence-review.mjs`
   Combine the scorecard, backlog, session corpus, and optional review packet into one weekly evidence review artifact that highlights promotion candidates, demotion candidates, ranking misses, propagation/clone failures, experiment-arm outcomes, and the distinction between repo-level treatment wins and true signal-specific default-on readiness.
+- `node scripts/evals/build-completion-gates.mjs`
+  Evaluate the current master-plan completion rubric against available scorecard, session-corpus, backlog, review-packet, evidence-review artifacts, and decision records. The evaluator is deterministic and offline: each phase and signal result is a direct pass/fail evaluation of checked-in JSON thresholds, evidence paths, and the Markdown decision records under `docs/v2/experiments/decisions/`.
 - `node scripts/evals/run-signal-calibration.mjs`
   Build the session telemetry summary and the refreshed scorecard together for the current repo or benchmark artifact set. When explicit live/replay batch paths are omitted, the script now reuses the latest repo-calibration-loop batch artifacts for the same repo so stable self-eval scorecards do not silently lose session-trial evidence; when a cohort is available it also refreshes the backlog in the same pass.
 
