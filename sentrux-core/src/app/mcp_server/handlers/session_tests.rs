@@ -313,6 +313,10 @@ fn session_end_promotes_session_introduced_clone_findings() {
     assert!(introduced
         .iter()
         .any(|finding| finding["kind"] == "session_introduced_clone"));
+    assert!(introduced.iter().any(|finding| {
+        finding["kind"] == "session_introduced_clone"
+            && finding["repair_packet"]["complete"] == json!(true)
+    }));
     assert!(!clone_findings.is_empty());
     assert!(clone_findings
         .iter()
