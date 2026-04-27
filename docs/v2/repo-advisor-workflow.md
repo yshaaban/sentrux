@@ -7,6 +7,12 @@ It does not replace the v2 analyzer, `agent_brief`, `gate`, or experiment progra
 ## Command
 
 ```bash
+sentrux report /path/to/repo
+```
+
+The implementation is also available directly from a source checkout:
+
+```bash
 node scripts/analyze-repo.mjs --repo-root /path/to/repo
 ```
 
@@ -19,19 +25,22 @@ By default the command:
 - captures `scan`, `check`, `gate`, `findings`, `session_end`, and all three `agent_brief` modes
 - generates a calibrated rules bootstrap from onboarding/project-shape evidence
 - applies generated rules only inside the isolated analysis workspace when the workspace has no rules yet
-- emits engineer, validation, rules, evidence, and optional before/after reports
+- runs setup preflight checks for target mutation risk, workspace isolation, output paths, Node runtime, and rules-source safety
+- emits engineer, validation, setup, rules, evidence, and optional before/after reports
 
 Useful options:
 
 ```bash
-node scripts/analyze-repo.mjs --repo-root /path/to/repo --output-dir /tmp/report
-node scripts/analyze-repo.mjs --repo-root /path/to/repo --previous-analysis /tmp/old/raw-tool-analysis.json
-node scripts/analyze-repo.mjs --repo-root /path/to/repo --analysis-mode head
-node scripts/analyze-repo.mjs --repo-root /path/to/repo --analysis-mode live
-node scripts/analyze-repo.mjs --repo-root /path/to/repo --no-apply-suggested-rules
+sentrux report /path/to/repo --output-dir /tmp/report
+sentrux report /path/to/repo --previous-analysis /tmp/old/raw-tool-analysis.json
+sentrux report /path/to/repo --mode head
+sentrux report /path/to/repo --mode live
+sentrux report /path/to/repo --no-apply-suggested-rules
 ```
 
 `live` mode still writes report artifacts outside the target repo unless `--output-dir` points into it, but it scans the target path directly and analyzer internals may write `.sentrux` state into that repo. It does not support `--rules-source` because applying alternate rules would require mutating the target repo. Generated rules are not auto-applied in `live` mode; rule auto-application is limited to isolated workspaces. Use the default isolated mode for engineer-facing external analysis.
+
+The Rust CLI wrapper sets `SENTRUX_BIN` to the running binary before launching the Node-backed advisor. If `scripts/analyze-repo.mjs` cannot be located, run from a Sentrux source checkout, set `SENTRUX_REPO_ROOT` to the checkout root, or set `SENTRUX_ADVISOR_SCRIPT` directly to the advisor script path. The Node-backed workflow currently requires Node.js 20+.
 
 ## Artifact Contract
 
@@ -40,6 +49,7 @@ The workflow writes:
 - `ADVISOR_SUMMARY.md`: short shareable summary of immediate patch actions, concrete follow-through surfaces, and artifact locations
 - `ENGINEERING_REPORT.md`: engineer-facing report without requiring Sentrux vocabulary
 - `REPORT.md`: validation-oriented report for Sentrux maintainers
+- `SETUP_PREFLIGHT.md` and `setup-preflight.json`: safety/setup status, including whether the target repo can be mutated
 - `RULES_BOOTSTRAP.md`: generated rules, risk labels, and evidence
 - `<REPO>.suggested.rules.toml`: suggested rules for maintainer review
 - `advisor-evidence.json`: machine-readable default-lane, large-file, obligation, and safety evidence

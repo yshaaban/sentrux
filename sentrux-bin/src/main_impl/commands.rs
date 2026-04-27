@@ -1,5 +1,7 @@
-use super::cli::{AnalyticsAction, BriefModeArg};
+use super::cli::{AnalyticsAction, BriefModeArg, ReportModeArg};
 use super::output;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 
 pub(crate) fn run_login() {
     #[cfg(feature = "pro")]
@@ -165,6 +167,148 @@ pub(crate) fn run_brief(path: &str, mode: BriefModeArg, strict: bool, limit: usi
             1
         }
     }
+}
+
+pub(crate) struct ReportOptions<'a> {
+    pub(crate) repo_root: &'a str,
+    pub(crate) repo_label: Option<&'a str>,
+    pub(crate) output_dir: Option<&'a str>,
+    pub(crate) previous_analysis: Option<&'a str>,
+    pub(crate) mode: ReportModeArg,
+    pub(crate) rules_source: Option<&'a str>,
+    pub(crate) no_apply_suggested_rules: bool,
+    pub(crate) keep_workspace: bool,
+    pub(crate) findings_limit: usize,
+    pub(crate) dead_private_limit: usize,
+}
+
+pub(crate) fn run_report(options: ReportOptions<'_>) -> i32 {
+    let root = Path::new(options.repo_root);
+    if !root.is_dir() {
+        eprintln!("Error: not a directory: {}", options.repo_root);
+        return 1;
+    }
+
+    let script_path = match repo_advisor_script_path() {
+        Ok(path) => path,
+        Err(error) => {
+            eprintln!("{error}");
+            eprintln!(
+                "Run from a source checkout, set SENTRUX_REPO_ROOT to the Sentrux repository root, or set SENTRUX_ADVISOR_SCRIPT to scripts/analyze-repo.mjs."
+            );
+            return 1;
+        }
+    };
+
+    let args = repo_advisor_args(&script_path, &options);
+
+    eprintln!(
+        "Generating external repo report for {}...",
+        options.repo_root
+    );
+    eprintln!(
+        "Target repo mutation: {}",
+        report_mutation_label(options.mode)
+    );
+
+    let mut command = Command::new("node");
+    command.args(&args);
+    if let Ok(current_exe) = std::env::current_exe() {
+        command.env("SENTRUX_BIN", current_exe);
+    }
+
+    match command.status() {
+        Ok(status) => status.code().unwrap_or(1),
+        Err(error) => {
+            eprintln!("Failed to run Node-backed report workflow: {error}");
+            eprintln!(
+                "Install Node.js 20+ or run `node scripts/analyze-repo.mjs --repo-root {}` from the Sentrux checkout.",
+                options.repo_root
+            );
+            1
+        }
+    }
+}
+
+fn repo_advisor_args(script_path: &Path, options: &ReportOptions<'_>) -> Vec<String> {
+    let mut args = vec![
+        script_path.to_string_lossy().to_string(),
+        "--repo-root".to_string(),
+        options.repo_root.to_string(),
+        "--analysis-mode".to_string(),
+        options.mode.as_str().to_string(),
+        "--findings-limit".to_string(),
+        options.findings_limit.to_string(),
+        "--dead-private-limit".to_string(),
+        options.dead_private_limit.to_string(),
+    ];
+
+    push_optional_arg(&mut args, "--repo-label", options.repo_label);
+    push_optional_arg(&mut args, "--output-dir", options.output_dir);
+    push_optional_arg(&mut args, "--previous-analysis", options.previous_analysis);
+    push_optional_arg(&mut args, "--rules-source", options.rules_source);
+    if options.no_apply_suggested_rules {
+        args.push("--no-apply-suggested-rules".to_string());
+    }
+    if options.keep_workspace {
+        args.push("--keep-workspace".to_string());
+    }
+
+    args
+}
+
+fn report_mutation_label(mode: ReportModeArg) -> &'static str {
+    if mode == ReportModeArg::Live {
+        "possible in live mode"
+    } else {
+        "none by default"
+    }
+}
+
+fn push_optional_arg(args: &mut Vec<String>, flag: &str, value: Option<&str>) {
+    if let Some(value) = value {
+        args.push(flag.to_string());
+        args.push(value.to_string());
+    }
+}
+
+fn repo_advisor_script_path() -> Result<PathBuf, String> {
+    if let Ok(script_path) = std::env::var("SENTRUX_ADVISOR_SCRIPT") {
+        let candidate = PathBuf::from(script_path);
+        if candidate.is_file() {
+            return Ok(candidate);
+        }
+        return Err(format!(
+            "SENTRUX_ADVISOR_SCRIPT does not point to a file: {}",
+            candidate.display()
+        ));
+    }
+
+    let candidate_roots = repo_advisor_candidate_roots();
+    for root in candidate_roots {
+        let candidate = root.join("scripts").join("analyze-repo.mjs");
+        if candidate.is_file() {
+            return Ok(candidate);
+        }
+    }
+
+    Err("Unable to locate scripts/analyze-repo.mjs for `sentrux report`.".to_string())
+}
+
+fn repo_advisor_candidate_roots() -> Vec<PathBuf> {
+    let mut roots = Vec::new();
+    if let Ok(root) = std::env::var("SENTRUX_REPO_ROOT") {
+        roots.push(PathBuf::from(root));
+    }
+    if let Ok(current_dir) = std::env::current_dir() {
+        roots.push(current_dir);
+    }
+    if let Ok(exe) = std::env::current_exe() {
+        for ancestor in exe.ancestors() {
+            roots.push(ancestor.to_path_buf());
+        }
+    }
+    roots
 }
 
 fn analytics_opt_out_path() -> Option<std::path::PathBuf> {

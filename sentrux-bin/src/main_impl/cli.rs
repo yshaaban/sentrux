@@ -96,6 +96,49 @@ pub(crate) enum Command {
         path: String,
     },
 
+    /// Generate a standalone external repository engineering report
+    Report {
+        /// Repository to analyze
+        #[arg(default_value = ".")]
+        repo_root: String,
+
+        /// Optional label used for report artifact names
+        #[arg(long)]
+        repo_label: Option<String>,
+
+        /// Directory where report artifacts should be written
+        #[arg(long)]
+        output_dir: Option<String>,
+
+        /// Previous raw-tool-analysis.json for before/after comparison
+        #[arg(long)]
+        previous_analysis: Option<String>,
+
+        /// Analysis mode; defaults to isolated working-tree analysis
+        #[arg(long, value_enum, default_value_t = ReportModeArg::WorkingTree)]
+        mode: ReportModeArg,
+
+        /// Existing rules.toml to apply inside the isolated analysis workspace
+        #[arg(long)]
+        rules_source: Option<String>,
+
+        /// Do not apply generated rules inside the isolated analysis workspace
+        #[arg(long)]
+        no_apply_suggested_rules: bool,
+
+        /// Keep the temporary analysis workspace for debugging
+        #[arg(long)]
+        keep_workspace: bool,
+
+        /// Maximum findings to capture in evidence artifacts
+        #[arg(long, default_value_t = 25)]
+        findings_limit: usize,
+
+        /// Maximum experimental dead-private candidates to review
+        #[arg(long, default_value_t = 10)]
+        dead_private_limit: usize,
+    },
+
     /// Open the GUI with a pre-loaded directory
     Scan {
         /// Directory to visualize
@@ -179,9 +222,26 @@ impl BriefModeArg {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+pub(crate) enum ReportModeArg {
+    WorkingTree,
+    Head,
+    Live,
+}
+
+impl ReportModeArg {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::WorkingTree => "working-tree",
+            Self::Head => "head",
+            Self::Live => "live",
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{BriefModeArg, Cli, Command, PluginAction};
+    use super::{BriefModeArg, Cli, Command, PluginAction, ReportModeArg};
     use clap::Parser;
 
     fn parse_cli(args: &[&str]) -> Cli {
@@ -246,6 +306,58 @@ mod tests {
                 action: PluginAction::Add { name },
             }) => assert_eq!(name, "typescript"),
             _ => panic!("expected plugin add command"),
+        }
+    }
+
+    #[test]
+    fn report_command_parses_external_repo_options() {
+        let cli = parse_cli(&[
+            "sentrux",
+            "report",
+            "/tmp/mail-simulator",
+            "--repo-label",
+            "mail-simulator",
+            "--output-dir",
+            "/tmp/mail-report",
+            "--mode",
+            "head",
+            "--previous-analysis",
+            "/tmp/previous.json",
+            "--rules-source",
+            "/tmp/rules.toml",
+            "--no-apply-suggested-rules",
+            "--keep-workspace",
+            "--findings-limit",
+            "50",
+            "--dead-private-limit",
+            "12",
+        ]);
+
+        match cli.command {
+            Some(Command::Report {
+                repo_root,
+                repo_label,
+                output_dir,
+                previous_analysis,
+                mode,
+                rules_source,
+                no_apply_suggested_rules,
+                keep_workspace,
+                findings_limit,
+                dead_private_limit,
+            }) => {
+                assert_eq!(repo_root, "/tmp/mail-simulator");
+                assert_eq!(repo_label.as_deref(), Some("mail-simulator"));
+                assert_eq!(output_dir.as_deref(), Some("/tmp/mail-report"));
+                assert_eq!(previous_analysis.as_deref(), Some("/tmp/previous.json"));
+                assert_eq!(mode, ReportModeArg::Head);
+                assert_eq!(rules_source.as_deref(), Some("/tmp/rules.toml"));
+                assert!(no_apply_suggested_rules);
+                assert!(keep_workspace);
+                assert_eq!(findings_limit, 50);
+                assert_eq!(dead_private_limit, 12);
+            }
+            _ => panic!("expected report command"),
         }
     }
 }

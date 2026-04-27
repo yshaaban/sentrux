@@ -1,4 +1,4 @@
-import { cp, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -188,6 +188,10 @@ export function parseRepoAdvisorArgs(argv) {
       result.keepWorkspace = true;
       continue;
     }
+    if (!value.startsWith('--') && !result.repoRoot) {
+      result.repoRoot = value;
+      continue;
+    }
     throw new Error(`Unknown argument: ${value}`);
   }
 
@@ -204,6 +208,173 @@ export function parseRepoAdvisorArgs(argv) {
     : null;
 
   return result;
+}
+
+async function pathKind(targetPath) {
+  try {
+    const details = await stat(targetPath);
+    if (details.isDirectory()) {
+      return 'directory';
+    }
+    if (details.isFile()) {
+      return 'file';
+    }
+    return 'other';
+  } catch {
+    return 'missing';
+  }
+}
+
+function preflightCheck(id, status, detail, severity = 'info') {
+  return { id, status, severity, detail };
+}
+
+async function requirePathKind(targetPath, expectedKind, optionName) {
+  const actualKind = await pathKind(targetPath);
+  if (actualKind !== expectedKind) {
+    throw new Error(
+      `${optionName} must point to a ${expectedKind}, got ${actualKind}: ${targetPath}`,
+    );
+  }
+}
+
+function targetMutationLabel(safety) {
+  return safety?.mutates_target_repo ? 'possible' : 'none by default';
+}
+
+function isolatedWorkspaceLabel(safety) {
+  return safety?.isolated_workspace ? 'yes' : 'no';
+}
+
+function outputDirectoryStatus(outputKind) {
+  if (outputKind === 'directory') {
+    return {
+      status: 'pass',
+      severity: 'info',
+      detailPrefix: 'Report artifacts will be written under',
+    };
+  }
+
+  if (outputKind === 'missing') {
+    return {
+      status: 'warn',
+      severity: 'warning',
+      detailPrefix: 'Output directory will be created before writing artifacts at',
+    };
+  }
+
+  return {
+    status: 'fail',
+    severity: 'error',
+    detailPrefix: `Output path is ${outputKind} and cannot be used as a directory`,
+  };
+}
+
+export async function validateRepoAdvisorSetup(args) {
+  await requirePathKind(args.repoRoot, 'directory', '--repo-root');
+  if (args.rulesSource) {
+    await requirePathKind(args.rulesSource, 'file', '--rules-source');
+  }
+  if (args.previousAnalysisPath) {
+    await requirePathKind(args.previousAnalysisPath, 'file', '--previous-analysis');
+  }
+}
+
+export async function buildAdvisorPreflight(args, workspace, paths) {
+  const repoKind = await pathKind(args.repoRoot);
+  const outputKind = await pathKind(args.outputDir);
+  const outputStatus = outputDirectoryStatus(outputKind);
+  const rulesKind = args.rulesSource ? await pathKind(args.rulesSource) : 'not_provided';
+  const previousAnalysisKind = args.previousAnalysisPath
+    ? await pathKind(args.previousAnalysisPath)
+    : 'not_provided';
+  const checks = [
+    preflightCheck(
+      'target_repo',
+      repoKind === 'directory' ? 'pass' : 'fail',
+      repoKind === 'directory'
+        ? `Target repository exists at ${args.repoRoot}.`
+        : `Target repository is ${repoKind}: ${args.repoRoot}.`,
+      repoKind === 'directory' ? 'info' : 'error',
+    ),
+    preflightCheck(
+      'target_mutation',
+      workspace.safety?.mutates_target_repo ? 'warn' : 'pass',
+      workspace.safety?.note ?? 'No workspace safety note available.',
+      workspace.safety?.mutates_target_repo ? 'warning' : 'info',
+    ),
+    preflightCheck(
+      'analysis_workspace',
+      workspace.safety?.isolated_workspace ? 'pass' : 'warn',
+      workspace.safety?.isolated_workspace
+        ? `Analysis will run in isolated workspace ${workspace.workRoot}.`
+        : 'Analysis will run directly against the target repository.',
+      workspace.safety?.isolated_workspace ? 'info' : 'warning',
+    ),
+    preflightCheck(
+      'output_dir',
+      outputStatus.status,
+      `${outputStatus.detailPrefix} ${args.outputDir}.`,
+      outputStatus.severity,
+    ),
+    preflightCheck(
+      'node_runtime',
+      'pass',
+      `Node runtime is ${process.version}.`,
+    ),
+    preflightCheck(
+      'rules_source',
+      !args.rulesSource || rulesKind === 'file' ? 'pass' : 'fail',
+      args.rulesSource
+        ? `Rules source is ${rulesKind}: ${args.rulesSource}.`
+        : 'No external rules source supplied; generated rules stay advisory unless applied inside an isolated workspace.',
+      !args.rulesSource || rulesKind === 'file' ? 'info' : 'error',
+    ),
+    preflightCheck(
+      'previous_analysis',
+      !args.previousAnalysisPath || previousAnalysisKind === 'file' ? 'pass' : 'fail',
+      args.previousAnalysisPath
+        ? `Previous analysis is ${previousAnalysisKind}: ${args.previousAnalysisPath}.`
+        : 'No previous analysis supplied; before/after comparison will be skipped.',
+      !args.previousAnalysisPath || previousAnalysisKind === 'file' ? 'info' : 'error',
+    ),
+  ];
+
+  return {
+    schema_version: 1,
+    repo_root: args.repoRoot,
+    repo_label: args.repoLabel,
+    analysis_mode: workspace.analysisMode,
+    output_dir: args.outputDir,
+    artifact_paths: {
+      advisor_summary: paths.advisorSummaryPath,
+      engineering_report: paths.engineeringReportPath,
+      validation_report: paths.reportPath,
+      raw_tool_analysis: paths.rawToolAnalysisPath,
+    },
+    safety: workspace.safety,
+    checks,
+    passed: checks.every((check) => check.status !== 'fail'),
+    warnings: checks.filter((check) => check.status === 'warn').length,
+  };
+}
+
+export function formatAdvisorPreflightMarkdown(preflight) {
+  const lines = ['# Repo Advisor Setup Preflight', ''];
+  lines.push(`- repository: \`${preflight.repo_root}\``);
+  lines.push(`- analysis mode: \`${preflight.analysis_mode}\``);
+  lines.push(`- target mutation: \`${targetMutationLabel(preflight.safety)}\``);
+  lines.push(`- isolated workspace: \`${isolatedWorkspaceLabel(preflight.safety)}\``);
+  lines.push(`- output directory: \`${preflight.output_dir}\``);
+  lines.push(`- result: \`${preflight.passed ? 'pass' : 'fail'}\``);
+  lines.push('');
+  lines.push('## Checks');
+  lines.push('');
+  for (const check of preflight.checks) {
+    lines.push(`- \`${check.status}\` ${check.id}: ${check.detail}`);
+  }
+  lines.push('');
+  return `${lines.join('\n')}\n`;
 }
 
 async function createCopiedWorkspace(sourceRoot, repoLabel, rulesSource) {
@@ -552,6 +723,7 @@ export function buildAdvisorEvidence({
   rawToolAnalysis,
   rulesBootstrap,
   previousComparison = null,
+  setupPreflight = null,
 }) {
   const actions = primaryTargets(rawToolAnalysis);
   const largeFilePrimarySlotCount = actions.filter((action) => action.kind === 'large_file').length;
@@ -590,6 +762,17 @@ export function buildAdvisorEvidence({
       should_write_to_target: false,
     },
     previous_comparison: previousComparison,
+    setup_preflight: setupPreflight
+      ? {
+          passed: setupPreflight.passed,
+          warning_count: setupPreflight.warnings,
+          analysis_mode: setupPreflight.analysis_mode,
+          target_mutation: setupPreflight.safety?.mutates_target_repo
+            ? 'possible'
+            : 'none_by_default',
+          isolated_workspace: setupPreflight.safety?.isolated_workspace === true,
+        }
+      : null,
   };
 }
 
@@ -597,10 +780,28 @@ function formatActionFixSites(action) {
   return formatOptionalList(asArray(action.likely_fix_sites).slice(0, 5));
 }
 
-export function buildAdvisorSummaryMarkdown({ repoLabel, rawToolAnalysis, evidence, artifactPaths }) {
+export function buildAdvisorSummaryMarkdown({
+  repoLabel,
+  rawToolAnalysis,
+  evidence,
+  artifactPaths,
+  setupPreflight = null,
+}) {
   const actions = primaryTargets(rawToolAnalysis);
   const obligations = missingObligations(rawToolAnalysis);
   const lines = [`# ${repoLabel} Repo Advisor Summary`, ''];
+  if (setupPreflight) {
+    lines.push('## Setup And Safety');
+    lines.push('');
+    lines.push(`- setup preflight: \`${setupPreflight.passed ? 'pass' : 'fail'}\``);
+    lines.push(`- analysis mode: \`${setupPreflight.analysis_mode}\``);
+    lines.push(`- target repo mutation: \`${targetMutationLabel(setupPreflight.safety)}\``);
+    lines.push(`- isolated workspace: \`${isolatedWorkspaceLabel(setupPreflight.safety)}\``);
+    if (setupPreflight.warnings > 0) {
+      lines.push(`- setup warnings: \`${setupPreflight.warnings}\``);
+    }
+    lines.push('');
+  }
   lines.push('## What To Fix First');
   lines.push('');
   if (actions.length === 0) {
@@ -634,8 +835,10 @@ export function buildAdvisorSummaryMarkdown({ repoLabel, rawToolAnalysis, eviden
   lines.push('');
   lines.push('## Evidence State');
   lines.push('');
+  const actionCount = evidence.default_lane.primary_action_count;
+  const actionLimit = evidence.default_lane.max_primary_actions;
   lines.push(
-    `- default lane action count: \`${evidence.default_lane.primary_action_count}/${evidence.default_lane.max_primary_actions}\``,
+    `- default lane action count: \`${actionCount}/${actionLimit}\``,
   );
   lines.push(`- large_file primary slots: \`${evidence.default_lane.large_file_primary_slot_count}\``);
   lines.push(`- missing obligations: \`${evidence.missing_obligation_count}\``);
@@ -644,6 +847,9 @@ export function buildAdvisorSummaryMarkdown({ repoLabel, rawToolAnalysis, eviden
   lines.push('## Artifact Map');
   lines.push('');
   lines.push(`- engineer report: \`${artifactPaths.engineeringReportPath}\``);
+  if (artifactPaths.setupPreflightMarkdownPath) {
+    lines.push(`- setup preflight: \`${artifactPaths.setupPreflightMarkdownPath}\``);
+  }
   lines.push(`- validation report: \`${artifactPaths.reportPath}\``);
   lines.push(`- raw tool analysis: \`${artifactPaths.rawToolAnalysisPath}\``);
   lines.push(`- evidence: \`${artifactPaths.advisorEvidencePath}\``);
@@ -661,6 +867,8 @@ export function buildAdvisorPaths(outputDir, repoLabel) {
     rulesBootstrapJsonPath: path.join(outputDir, 'rules-bootstrap.json'),
     rulesBootstrapMarkdownPath: path.join(outputDir, 'RULES_BOOTSTRAP.md'),
     generatedRulesPath: path.join(outputDir, `${label}.suggested.rules.toml`),
+    setupPreflightJsonPath: path.join(outputDir, 'setup-preflight.json'),
+    setupPreflightMarkdownPath: path.join(outputDir, 'SETUP_PREFLIGHT.md'),
     comparisonJsonPath: path.join(outputDir, 'before-after-comparison.json'),
     comparisonMarkdownPath: path.join(outputDir, 'BEFORE_AFTER.md'),
   };
@@ -706,6 +914,7 @@ export async function writeAdvisorArtifacts({
   rulesBootstrap,
   advisorEvidence,
   advisorSummary,
+  setupPreflight = null,
   previousComparison,
 }) {
   await mkdir(path.dirname(paths.rawToolAnalysisPath), { recursive: true });
@@ -737,6 +946,18 @@ export async function writeAdvisorArtifacts({
   await writeFile(paths.generatedRulesPath, rulesBootstrap.generated_rules_toml, 'utf8');
   await writeFile(paths.advisorEvidencePath, `${JSON.stringify(advisorEvidence, null, 2)}\n`, 'utf8');
   await writeFile(paths.advisorSummaryPath, advisorSummary, 'utf8');
+  if (setupPreflight) {
+    await writeFile(
+      paths.setupPreflightJsonPath,
+      `${JSON.stringify(setupPreflight, null, 2)}\n`,
+      'utf8',
+    );
+    await writeFile(
+      paths.setupPreflightMarkdownPath,
+      formatAdvisorPreflightMarkdown(setupPreflight),
+      'utf8',
+    );
+  }
   if (previousComparison) {
     await writeFile(
       paths.comparisonJsonPath,
@@ -767,6 +988,8 @@ export function buildReportsForAdvisor({
   rawToolSummary,
   packetValidation,
   scanCoverageBreakdown,
+  setupPreflight = null,
+  advisorEvidence = null,
 }) {
   return {
     engineeringReport: buildEngineeringReport({
@@ -775,6 +998,10 @@ export function buildReportsForAdvisor({
       branch: metadata.branch,
       commit: metadata.commit,
       rawToolAnalysis,
+      rawToolSummary,
+      scanCoverageBreakdown,
+      setupPreflight,
+      advisorEvidence,
     }),
     validationReport: buildValidationReport({
       repoRootPath,

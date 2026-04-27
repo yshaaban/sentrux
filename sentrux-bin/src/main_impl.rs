@@ -7,6 +7,7 @@
 //! - Check mode (`sentrux check [path]`): CLI architectural rules enforcement
 //! - Gate mode (`sentrux gate [--save] [path]`): touched-concept or structural regression testing
 //! - Brief mode (`sentrux brief --mode patch [path]`): structured v2 agent guidance JSON
+//! - Report mode (`sentrux report [path]`): standalone external repository report artifacts
 
 mod cli;
 mod commands;
@@ -53,6 +54,31 @@ pub fn run() -> eframe::Result<()> {
             path,
         }) => {
             std::process::exit(commands::run_brief(&path, mode, strict, limit));
+        }
+        Some(cli::Command::Report {
+            repo_root,
+            repo_label,
+            output_dir,
+            previous_analysis,
+            mode,
+            rules_source,
+            no_apply_suggested_rules,
+            keep_workspace,
+            findings_limit,
+            dead_private_limit,
+        }) => {
+            std::process::exit(commands::run_report(commands::ReportOptions {
+                repo_root: &repo_root,
+                repo_label: repo_label.as_deref(),
+                output_dir: output_dir.as_deref(),
+                previous_analysis: previous_analysis.as_deref(),
+                mode,
+                rules_source: rules_source.as_deref(),
+                no_apply_suggested_rules,
+                keep_workspace,
+                findings_limit,
+                dead_private_limit,
+            }));
         }
         Some(cli::Command::Mcp) => {
             sentrux_core::app::mcp_server::run_mcp_server(None);

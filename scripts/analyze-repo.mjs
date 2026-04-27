@@ -14,6 +14,7 @@ import { collectRepoMetadata, readJson, runNodeScript } from './lib/eval-runtime
 import {
   buildAdvisorEvidence,
   buildAdvisorPaths,
+  buildAdvisorPreflight,
   buildAdvisorSummaryMarkdown,
   buildBeforeAfterComparison,
   buildReportsForAdvisor,
@@ -24,6 +25,7 @@ import {
   markRulesAppliedInEvidence,
   maybeWriteGeneratedRules,
   parseRepoAdvisorArgs,
+  validateRepoAdvisorSetup,
   writeAdvisorArtifacts,
 } from './lib/repo-advisor.mjs';
 import {
@@ -93,7 +95,20 @@ async function captureAnalysisWithOptionalGeneratedRules(args, workspace) {
   };
 }
 
+function preflightFailureMessage(setupPreflight) {
+  const failedChecks = setupPreflight.checks
+    .filter(function isFailedCheck(check) {
+      return check.status === 'fail';
+    })
+    .map(function formatFailedCheck(check) {
+      return `${check.id}: ${check.detail}`;
+    });
+  return `Repo advisor setup preflight failed: ${failedChecks.join('; ')}`;
+}
+
 async function runRepoAdvisor(args) {
+  await validateRepoAdvisorSetup(args);
+
   const workspace = await createRepoAdvisorWorkspace({
     repoRoot: args.repoRoot,
     repoLabel: args.repoLabel,
@@ -103,6 +118,10 @@ async function runRepoAdvisor(args) {
   const paths = buildAdvisorPaths(args.outputDir, args.repoLabel);
 
   try {
+    const setupPreflight = await buildAdvisorPreflight(args, workspace, paths);
+    if (!setupPreflight.passed) {
+      throw new Error(preflightFailureMessage(setupPreflight));
+    }
     await mkdir(args.outputDir, { recursive: true });
     const metadata = await collectRepoMetadata(args.repoRoot);
     const { rawToolAnalysis, rulesBootstrap, rulesApplication } =
@@ -116,15 +135,6 @@ async function runRepoAdvisor(args) {
 
     await maybeRunDeadPrivateReview(args, workspace, paths);
     const packetValidation = await collectPacketValidation(args, workspace, args.outputDir);
-    const { engineeringReport, validationReport } = buildReportsForAdvisor({
-      repoRootPath: args.repoRoot,
-      repoLabel: args.repoLabel,
-      metadata,
-      rawToolAnalysis,
-      rawToolSummary,
-      packetValidation,
-      scanCoverageBreakdown,
-    });
     const advisorEvidence = markRulesAppliedInEvidence(
       buildAdvisorEvidence({
         repoLabel: args.repoLabel,
@@ -134,14 +144,27 @@ async function runRepoAdvisor(args) {
         rawToolAnalysis,
         rulesBootstrap,
         previousComparison,
+        setupPreflight,
       }),
       rulesApplication,
     );
+    const { engineeringReport, validationReport } = buildReportsForAdvisor({
+      repoRootPath: args.repoRoot,
+      repoLabel: args.repoLabel,
+      metadata,
+      rawToolAnalysis,
+      rawToolSummary,
+      packetValidation,
+      scanCoverageBreakdown,
+      setupPreflight,
+      advisorEvidence,
+    });
     const advisorSummary = buildAdvisorSummaryMarkdown({
       repoLabel: args.repoLabel,
       rawToolAnalysis,
       evidence: advisorEvidence,
       artifactPaths: paths,
+      setupPreflight,
     });
 
     await writeAdvisorArtifacts({
@@ -154,6 +177,7 @@ async function runRepoAdvisor(args) {
       rulesBootstrap,
       advisorEvidence,
       advisorSummary,
+      setupPreflight,
       previousComparison,
     });
 
@@ -166,6 +190,7 @@ async function runRepoAdvisor(args) {
       validation_report_path: paths.reportPath,
       raw_tool_analysis_path: paths.rawToolAnalysisPath,
       advisor_evidence_path: paths.advisorEvidencePath,
+      setup_preflight_path: paths.setupPreflightMarkdownPath,
       rules_bootstrap_path: paths.rulesBootstrapMarkdownPath,
       before_after_path: previousComparison ? paths.comparisonMarkdownPath : null,
     };

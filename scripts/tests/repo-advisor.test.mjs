@@ -1,16 +1,22 @@
 import assert from 'node:assert/strict';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import test from 'node:test';
 
 import {
   buildAdvisorEvidence,
+  buildAdvisorPreflight,
   buildAdvisorSummaryMarkdown,
   buildBeforeAfterComparison,
   buildRulesBootstrap,
   canApplyGeneratedRulesToWorkspace,
   createRepoAdvisorWorkspace,
+  formatAdvisorPreflightMarkdown,
   formatBeforeAfterComparisonMarkdown,
   formatRulesBootstrapMarkdown,
   parseRepoAdvisorArgs,
+  validateRepoAdvisorSetup,
 } from '../lib/repo-advisor.mjs';
 
 test('parseRepoAdvisorArgs defaults to safe working-tree analysis outside target repo', function () {
@@ -21,6 +27,14 @@ test('parseRepoAdvisorArgs defaults to safe working-tree analysis outside target
   assert.equal(args.analysisMode, 'working-tree');
   assert.equal(args.applySuggestedRules, true);
   assert.match(args.outputDir, /repo-advisor/);
+});
+
+test('parseRepoAdvisorArgs accepts a positional repo root for low-friction CLI use', function () {
+  const args = parseRepoAdvisorArgs(['node', 'script', '/tmp/mail-simulator']);
+
+  assert.equal(args.repoRoot, '/tmp/mail-simulator');
+  assert.equal(args.repoLabel, 'mail-simulator');
+  assert.equal(args.analysisMode, 'working-tree');
 });
 
 test('parseRepoAdvisorArgs rejects missing and invalid numeric option values', function () {
@@ -75,6 +89,113 @@ test('canApplyGeneratedRulesToWorkspace limits writes to isolated workspaces', f
       safety: { isolated_workspace: true },
     }),
     false,
+  );
+});
+
+test('buildAdvisorPreflight records setup safety and report artifact paths', async function () {
+  const args = parseRepoAdvisorArgs([
+    'node',
+    'script',
+    '--repo-root',
+    process.cwd(),
+    '--output-dir',
+    process.cwd(),
+  ]);
+  const workspace = {
+    workRoot: '/tmp/sentrux-workspace',
+    analysisMode: 'working_tree',
+    safety: {
+      mutates_target_repo: false,
+      isolated_workspace: true,
+      note: 'analyzed a local clone with working-tree changes overlaid',
+    },
+  };
+  const paths = {
+    advisorSummaryPath: '/tmp/report/ADVISOR_SUMMARY.md',
+    engineeringReportPath: '/tmp/report/ENGINEERING_REPORT.md',
+    reportPath: '/tmp/report/REPORT.md',
+    rawToolAnalysisPath: '/tmp/report/raw-tool-analysis.json',
+  };
+
+  const preflight = await buildAdvisorPreflight(args, workspace, paths);
+  const markdown = formatAdvisorPreflightMarkdown(preflight);
+
+  assert.equal(preflight.passed, true);
+  assert.equal(preflight.safety.mutates_target_repo, false);
+  assert.equal(preflight.artifact_paths.engineering_report, '/tmp/report/ENGINEERING_REPORT.md');
+  assert.match(markdown, /target mutation: `none by default`/);
+  assert.match(markdown, /analysis_workspace/);
+});
+
+test('buildAdvisorPreflight rejects file paths as output directories', async function () {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'sentrux-advisor-preflight-'));
+  try {
+    const outputFile = path.join(tempRoot, 'report-output');
+    await writeFile(outputFile, 'not a directory', 'utf8');
+    const args = parseRepoAdvisorArgs([
+      'node',
+      'script',
+      '--repo-root',
+      process.cwd(),
+      '--output-dir',
+      outputFile,
+    ]);
+    const workspace = {
+      workRoot: '/tmp/sentrux-workspace',
+      analysisMode: 'working_tree',
+      safety: {
+        mutates_target_repo: false,
+        isolated_workspace: true,
+        note: 'analyzed a local clone with working-tree changes overlaid',
+      },
+    };
+
+    const preflight = await buildAdvisorPreflight(args, workspace, {
+      advisorSummaryPath: path.join(tempRoot, 'ADVISOR_SUMMARY.md'),
+      engineeringReportPath: path.join(tempRoot, 'ENGINEERING_REPORT.md'),
+      reportPath: path.join(tempRoot, 'REPORT.md'),
+      rawToolAnalysisPath: path.join(tempRoot, 'raw-tool-analysis.json'),
+    });
+
+    assert.equal(preflight.passed, false);
+    assert.deepEqual(
+      preflight.checks
+        .filter((check) => check.id === 'output_dir')
+        .map((check) => [check.status, check.severity]),
+      [['fail', 'error']],
+    );
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('validateRepoAdvisorSetup rejects unusable external inputs before expensive analysis', async function () {
+  await assert.rejects(
+    validateRepoAdvisorSetup(
+      parseRepoAdvisorArgs([
+        'node',
+        'script',
+        '--repo-root',
+        process.cwd(),
+        '--rules-source',
+        process.cwd(),
+      ]),
+    ),
+    /--rules-source must point to a file, got directory/,
+  );
+
+  await assert.rejects(
+    validateRepoAdvisorSetup(
+      parseRepoAdvisorArgs([
+        'node',
+        'script',
+        '--repo-root',
+        process.cwd(),
+        '--previous-analysis',
+        `/tmp/sentrux-definitely-missing-previous-analysis-${process.pid}.json`,
+      ]),
+    ),
+    /--previous-analysis must point to a file, got missing/,
   );
 });
 

@@ -79,9 +79,19 @@ sentrux                       # GUI
 sentrux gate --save .         # save touched-concept baseline
 sentrux gate .                # compare current patch against the baseline
 sentrux brief --mode patch .  # structured v2 patch guidance JSON
+sentrux report ../some-repo   # standalone external-repo engineering report
 sentrux mcp                   # MCP server for AI agents
 sentrux check .               # legacy structural rules check
 ```
+
+`sentrux report` is the low-friction path for analyzing a repo whose engineers do
+not know Sentrux. It runs the repo-advisor workflow in an isolated workspace by
+default, writes artifacts outside the target repo, and emits an
+`ENGINEERING_REPORT.md` that avoids Sentrux-specific vocabulary. In source
+checkouts this command requires Node.js 20+ because it wraps
+`scripts/analyze-repo.mjs`; set `SENTRUX_REPO_ROOT` if the command is launched
+outside the Sentrux checkout, or set `SENTRUX_ADVISOR_SCRIPT` directly to an
+`analyze-repo.mjs` path.
 
 If the GUI has trouble with Linux GPU drivers, try:
 
