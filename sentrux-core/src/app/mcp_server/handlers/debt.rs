@@ -240,6 +240,8 @@ pub(crate) struct DebtSignalMetrics {
     pub(crate) max_complexity: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) churn_commits: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) hotspot_risk: Option<u64>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, Default)]

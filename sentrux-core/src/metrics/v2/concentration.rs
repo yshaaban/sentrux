@@ -25,6 +25,7 @@ const STATIC_ONLY_ACTIVE_WEIGHT: f64 = 0.86;
 
 const HOTSPOT_FINDING_MIN_SCORE: u32 = 3000;
 const HOTSPOT_HIGH_SEVERITY_MIN_SCORE: u32 = 6500;
+const SEMANTIC_WRITE_SYMBOL_SAMPLE_LIMIT: usize = 12;
 
 const SIDE_EFFECT_PATTERNS: &[&str] = &[
     "setStore(",
@@ -78,6 +79,15 @@ pub struct ConcentrationReport {
     pub churn_commits: u32,
     pub hotspot_risk: u64,
     pub reasons: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub side_effect_patterns: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub timer_retry_patterns: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub async_branch_patterns: Vec<String>,
+    pub semantic_write_symbol_count: u32,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub semantic_write_symbols: Vec<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, Default)]
@@ -181,11 +191,17 @@ fn build_concentration_report(
         }
     };
     let signal_source = scrub_non_code_regions(&contents);
-    let side_effect_api_weight = capped_pattern_hits(&signal_source, SIDE_EFFECT_PATTERNS, 3);
-    let timer_retry_weight = capped_pattern_hits(&signal_source, TIMER_RETRY_PATTERNS, 4);
-    let async_branch_weight = capped_pattern_hits(&signal_source, ASYNC_BRANCH_PATTERNS, 6);
+    let (side_effect_patterns, side_effect_api_weight) =
+        pattern_hit_labels_and_weight(&signal_source, SIDE_EFFECT_PATTERNS, 3);
+    let (timer_retry_patterns, timer_retry_weight) =
+        pattern_hit_labels_and_weight(&signal_source, TIMER_RETRY_PATTERNS, 4);
+    let (async_branch_patterns, async_branch_weight) =
+        pattern_hit_labels_and_weight(&signal_source, ASYNC_BRANCH_PATTERNS, 6);
     let authority_breadth = authority_by_file.get(path).copied().unwrap_or(0);
-    let side_effect_breadth = side_effect_api_weight + semantic_side_effect_breadth(semantic, path);
+    let mut semantic_write_symbols = semantic_write_symbols_for_path(semantic, path);
+    let semantic_write_symbol_count = semantic_write_symbols.len() as u32;
+    semantic_write_symbols.truncate(SEMANTIC_WRITE_SYMBOL_SAMPLE_LIMIT);
+    let side_effect_breadth = side_effect_api_weight + semantic_write_symbol_count;
     let max_complexity = complexity_map.get(path).copied().unwrap_or(0);
     let churn_commits = history
         .and_then(|history| history.churn_commits.get(path).copied())
@@ -228,21 +244,29 @@ fn build_concentration_report(
             churn_commits,
             hotspot_risk,
         ),
+        side_effect_patterns,
+        timer_retry_patterns,
+        async_branch_patterns,
+        semantic_write_symbol_count,
+        semantic_write_symbols,
     }
 }
 
-fn semantic_side_effect_breadth(semantic: Option<&SemanticSnapshot>, path: &str) -> u32 {
+fn semantic_write_symbols_for_path(semantic: Option<&SemanticSnapshot>, path: &str) -> Vec<String> {
     semantic
         .map(|semantic| {
-            semantic
+            let mut symbols = semantic
                 .writes
                 .iter()
                 .filter(|write| write.path == path)
                 .map(|write| write.symbol_name.clone())
                 .collect::<HashSet<_>>()
-                .len() as u32
+                .into_iter()
+                .collect::<Vec<_>>();
+            symbols.sort();
+            symbols
         })
-        .unwrap_or(0)
+        .unwrap_or_default()
 }
 
 pub fn build_concentration_findings(
@@ -298,11 +322,30 @@ fn authority_breadth_by_file(
         .collect()
 }
 
+#[cfg(test)]
 fn capped_pattern_hits(contents: &str, patterns: &[&str], cap_per_pattern: usize) -> u32 {
     patterns
         .iter()
         .map(|pattern| contents.matches(pattern).take(cap_per_pattern).count() as u32)
         .sum()
+}
+
+fn pattern_hit_labels_and_weight(
+    contents: &str,
+    patterns: &[&str],
+    cap_per_pattern: usize,
+) -> (Vec<String>, u32) {
+    let mut labels = Vec::new();
+    let mut weight = 0;
+    for pattern in patterns {
+        let count = contents.matches(pattern).take(cap_per_pattern).count();
+        if count == 0 {
+            continue;
+        }
+        labels.push(format!("{pattern}:{count}"));
+        weight += count as u32;
+    }
+    (labels, weight)
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -644,6 +687,11 @@ mod tests {
             .reasons
             .iter()
             .any(|reason| reason.contains("timer/retry")));
+        assert_eq!(reports[0].semantic_write_symbol_count, 1);
+        assert_eq!(
+            reports[0].semantic_write_symbols,
+            vec!["store.leaseState".to_string()]
+        );
 
         let _ = std::fs::remove_dir_all(root);
     }

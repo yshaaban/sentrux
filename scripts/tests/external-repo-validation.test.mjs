@@ -170,8 +170,11 @@ test('buildEngineeringReport separates high-confidence work from skeptical dead-
   });
 
   assert.match(report, /Priority 1: Complete The Current Patch Follow-Through/);
+  assert.match(report, /Actionability Map/);
   assert.match(report, /Priority 2: Break The Dependency Cycles/);
-  assert.match(report, /Priority 3: Reduce Template And Example Duplication Drift/);
+  assert.match(report, /Priority 3: Reduce Duplicate Logic Drift/);
+  assert.match(report, /Coordination Hotspot Watchpoints/);
+  assert.match(report, /Tool Confidence And Coverage/);
   assert.match(report, /reviewer queue: `experimental_debt_signals` \(1 candidate\(s\), status=canonical_with_legacy_watchlist\)/);
   assert.match(report, /legacy watchlist only: `3` additional candidate\(s\) remain in experimental_findings outside the reviewer queue/);
   assert.match(report, /BannerSuccess, BannerError, BannerWarning/);
@@ -189,6 +192,13 @@ test('buildEngineeringReport leads with brief primary targets and obligation sit
           summary: 'Update the stale data pipeline contract surfaces.',
           why_now: ['blocking_obligation'],
           likely_fix_sites: ['src/types/domain.ts', 'src/__tests__/data/outlook/adapt.test.ts'],
+          trust_tier: 'trusted',
+          severity: 'high',
+          repair_packet: {
+            completeness_0_10000: 10000,
+            smallest_safe_first_cut: 'Update the stale type and test together.',
+            verify_after: ['Run the focused adapter test.'],
+          },
         },
       ],
     },
@@ -214,12 +224,43 @@ test('buildEngineeringReport leads with brief primary targets and obligation sit
 
   assert.match(report, /Priority 1: Complete The Current Patch Follow-Through/);
   assert.match(report, /incomplete_propagation/);
+  assert.match(report, /repair completeness: `10000 \/ 10000`/);
+  assert.match(report, /Update the stale type and test together/);
   assert.match(report, /blocking_obligation/);
   assert.match(report, /src\/__tests__\/data\/outlook\/adapt.test.ts/);
   assert(
     report.indexOf('Priority 1: Complete The Current Patch Follow-Through') <
-      report.indexOf('Priority 4: Split The Largest Responsibility-Heavy Files'),
+      report.indexOf('Priority 4: Review The Largest Files By Maintenance Role'),
   );
+});
+
+test('buildEngineeringReport classifies large data assets separately from code surfaces', function () {
+  const report = buildEngineeringReport({
+    repoRootPath: '/workspace/mail-simulator',
+    repoLabel: 'mail-simulator',
+    branch: 'main',
+    commit: 'abc123',
+    rawToolAnalysis: {
+      findings: {
+        findings: [
+          {
+            kind: 'large_file',
+            scope: 'src/data/seeds/demo-briefs.json',
+            metrics: {
+              line_count: 1200,
+              function_count: 0,
+              max_complexity: 0,
+              fan_out: 0,
+            },
+          },
+        ],
+      },
+    },
+  });
+
+  assert.match(report, /Review The Largest Files By Maintenance Role/);
+  assert.match(report, /role: `data\/config asset`/);
+  assert.match(report, /do not split solely for line count/);
 });
 
 test('buildEngineeringReport tolerates scalar evidence fields from tool payloads', async function () {

@@ -408,6 +408,9 @@ fn hotspot_signal(report: &crate::metrics::v2::ConcentrationReport) -> Option<De
         return None;
     }
 
+    let mut evidence = report.reasons.iter().cloned().take(3).collect::<Vec<_>>();
+    evidence.extend(hotspot_pattern_evidence(report));
+
     Some(annotate_debt_signal(DebtSignal {
         kind: "hotspot".to_string(),
         trust_tier: if report.score_0_10000 >= 6500 {
@@ -450,7 +453,7 @@ fn hotspot_signal(report: &crate::metrics::v2::ConcentrationReport) -> Option<De
         files: vec![report.path.clone()],
         role_tags: Vec::new(),
         leverage_reasons: Vec::new(),
-        evidence: report.reasons.iter().cloned().take(3).collect(),
+        evidence,
         inspection_focus: vec![
             "inspect whether orchestration, side effects, and adapters are accumulating in one file"
                 .to_string(),
@@ -471,9 +474,49 @@ fn hotspot_signal(report: &crate::metrics::v2::ConcentrationReport) -> Option<De
             async_branch_weight: Some(report.async_branch_weight),
             max_complexity: Some(report.max_complexity),
             churn_commits: Some(report.churn_commits),
+            hotspot_risk: Some(report.hotspot_risk),
             ..DebtSignalMetrics::default()
         },
     }))
+}
+
+fn hotspot_pattern_evidence(report: &crate::metrics::v2::ConcentrationReport) -> Vec<String> {
+    let mut evidence = Vec::new();
+    if !report.side_effect_patterns.is_empty() {
+        evidence.push(format!(
+            "side-effect patterns: {}",
+            report.side_effect_patterns.join(", ")
+        ));
+    }
+    if !report.timer_retry_patterns.is_empty() {
+        evidence.push(format!(
+            "timer/retry patterns: {}",
+            report.timer_retry_patterns.join(", ")
+        ));
+    }
+    if !report.async_branch_patterns.is_empty() {
+        evidence.push(format!(
+            "async/branching patterns: {}",
+            report.async_branch_patterns.join(", ")
+        ));
+    }
+    if !report.semantic_write_symbols.is_empty() {
+        let displayed = report.semantic_write_symbols.len() as u32;
+        let omitted_suffix = if report.semantic_write_symbol_count > displayed {
+            format!(
+                " (showing {} of {})",
+                displayed, report.semantic_write_symbol_count
+            )
+        } else {
+            String::new()
+        };
+        evidence.push(format!(
+            "semantic write symbols{}: {}",
+            omitted_suffix,
+            report.semantic_write_symbols.join(", ")
+        ));
+    }
+    evidence
 }
 
 pub(crate) fn json_string_list(value: Option<&Value>) -> Vec<String> {
