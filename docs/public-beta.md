@@ -12,6 +12,8 @@ The public promise is intentionally narrower than "general code-quality review f
 
 - Start with the root [README](../README.md) for install and command examples.
 - Use `sentrux gate`, `sentrux brief`, or MCP `check` if you want the current v2 patch-safety loop.
+- Use `sentrux report` and the [external analysis guide](./external-analysis.md)
+  when you want a standalone report for engineers working in another repo.
 - Use `sentrux check` only if you specifically need the legacy structural-rules lane.
 
 Good current output should usually feel like this:

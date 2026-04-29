@@ -2,6 +2,10 @@
 
 This workflow is the product-facing bridge from “given a repo” to useful feedback for an engineer who does not know Sentrux internals.
 
+For the operator-facing playbook, including calibrated reruns, multi-repo projects,
+target-repo validation, and engineer handoff guidance, see
+[External Repository Analysis](../external-analysis.md).
+
 It does not replace the v2 analyzer, `agent_brief`, `gate`, or experiment program. It orchestrates those existing surfaces into a safe, repeatable single-repo analysis loop.
 
 ## Command
@@ -35,12 +39,46 @@ sentrux report /path/to/repo --output-dir /tmp/report
 sentrux report /path/to/repo --previous-analysis /tmp/old/raw-tool-analysis.json
 sentrux report /path/to/repo --mode head
 sentrux report /path/to/repo --mode live
+sentrux report /path/to/repo --rules-source /tmp/report/REPO.suggested.rules.toml
 sentrux report /path/to/repo --no-apply-suggested-rules
 ```
 
 `live` mode still writes report artifacts outside the target repo unless `--output-dir` points into it, but it scans the target path directly and analyzer internals may write `.sentrux` state into that repo. It does not support `--rules-source` because applying alternate rules would require mutating the target repo. Generated rules are not auto-applied in `live` mode; rule auto-application is limited to isolated workspaces. Use the default isolated mode for engineer-facing external analysis.
 
 The Rust CLI wrapper sets `SENTRUX_BIN` to the running binary before launching the Node-backed advisor. If `scripts/analyze-repo.mjs` cannot be located, run from a Sentrux source checkout, set `SENTRUX_REPO_ROOT` to the checkout root, or set `SENTRUX_ADVISOR_SCRIPT` directly to the advisor script path. The Node-backed workflow currently requires Node.js 20+.
+
+## External Analysis Loop
+
+The complete external loop is:
+
+1. Run `sentrux report` in default isolated mode.
+2. Read `ADVISOR_SUMMARY.md`, then `ENGINEERING_REPORT.md`.
+3. Inspect `<REPO>.suggested.rules.toml` and `RULES_BOOTSTRAP.md`.
+4. Optionally rerun with `--rules-source` against the reviewed suggested rules,
+   still in isolated mode.
+5. Run the target repo's own safe validation commands separately.
+6. Hand engineers a standalone summary that separates blockers, recommended
+   maintainability work, watchpoints, and do-not-chase items.
+7. Rerun with `--previous-analysis` after fixes to produce before/after evidence.
+
+For a single product split across multiple repos, run this loop once per repo and
+then synthesize one product-level report. Do not aggregate raw scores across repos
+unless their architecture and validation profile are comparable; keep findings
+anchored to the repo where they were observed.
+
+## Handoff Rules
+
+Engineer-facing summaries should be plain-language and evidence-backed:
+
+- lead with required patch follow-through and missing obligations when present
+- treat duplicate helpers as actionable only when semantics are identical
+- distinguish hard import cycles from broader mixed dependency or interaction
+  pressure
+- present `large_file` as a guardrail/backlog signal unless the current work
+  directly worsened that file
+- keep experimental dead-private candidates out of deletion work until local code
+  reading confirms they are stale
+- include the target repo's own validation results when available
 
 ## Artifact Contract
 

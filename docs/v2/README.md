@@ -32,6 +32,7 @@ If you are reading these docs as a maintainer, the core question is no longer "w
 - [Implementation Status](./implementation-status.md)
 - [MCP And CLI](./mcp-and-cli.md)
 - [Repo Advisor Workflow](./repo-advisor-workflow.md)
+- [External Repository Analysis](../external-analysis.md)
 - [Testing And Validation](./testing-and-validation.md)
 - [Policy And Eval Architecture](./policy-and-eval-architecture.md)
 - [Release Checklist](./release-checklist.md)

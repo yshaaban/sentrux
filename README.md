@@ -87,8 +87,10 @@ sentrux check .               # legacy structural rules check
 `sentrux report` is the low-friction path for analyzing a repo whose engineers do
 not know Sentrux. It runs the repo-advisor workflow in an isolated workspace by
 default, writes artifacts outside the target repo, and emits an
-`ENGINEERING_REPORT.md` that avoids Sentrux-specific vocabulary. In source
-checkouts this command requires Node.js 20+ because it wraps
+`ENGINEERING_REPORT.md` that avoids Sentrux-specific vocabulary. The external
+analysis playbook covers calibrated reruns, multi-repo projects, target-repo
+validation, and engineer handoffs in [docs/external-analysis.md](docs/external-analysis.md).
+In source checkouts this command requires Node.js 20+ because it wraps
 `scripts/analyze-repo.mjs`; set `SENTRUX_REPO_ROOT` if the command is launched
 outside the Sentrux checkout, or set `SENTRUX_ADVISOR_SCRIPT` directly to an
 `analyze-repo.mjs` path.
@@ -259,6 +261,7 @@ Built-in registry coverage currently spans:
 ### User Docs
 
 - Public beta guide: [docs/public-beta.md](docs/public-beta.md)
+- External repository analysis: [docs/external-analysis.md](docs/external-analysis.md)
 - Metrics and signals reference: [docs/metrics-and-signals.md](docs/metrics-and-signals.md)
 - Privacy and telemetry: [docs/privacy-and-telemetry.md](docs/privacy-and-telemetry.md)
 - Changelog: [CHANGELOG.md](CHANGELOG.md)
